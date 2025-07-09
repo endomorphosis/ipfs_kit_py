@@ -16,6 +16,7 @@ import time
 import logging
 import subprocess
 import shutil
+import traceback
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
@@ -120,7 +121,7 @@ class EnhancedDaemonManager:
         """Get the currently installed IPFS version."""
         try:
             # Try to get version from IPFS Kit's install module
-            if hasattr(self.ipfs_kit, 'install_ipfs_obj'):
+            if self.ipfs_kit and hasattr(self.ipfs_kit, 'install_ipfs_obj'):
                 version = self.ipfs_kit.install_ipfs_obj.get_installed_kubo_version()
                 if version:
                     return version
@@ -280,7 +281,7 @@ class EnhancedDaemonManager:
                 return result
             
             # Ensure IPFS is configured
-            if hasattr(self.ipfs_kit, 'install_ipfs_obj'):
+            if self.ipfs_kit and hasattr(self.ipfs_kit, 'install_ipfs_obj'):
                 config_result = self.ipfs_kit.install_ipfs_obj.ensure_daemon_configured()
                 if not config_result:
                     result["error"] = "Failed to ensure IPFS configuration"
@@ -322,7 +323,7 @@ class EnhancedDaemonManager:
         
         try:
             # Check if we have lotus daemon manager
-            if hasattr(self.ipfs_kit, 'lotus_daemon'):
+            if self.ipfs_kit and hasattr(self.ipfs_kit, 'lotus_daemon'):
                 lotus_result = self.ipfs_kit.lotus_daemon.daemon_start()
                 result["success"] = lotus_result.get("success", False)
                 result["status"] = lotus_result.get("status", "unknown")
@@ -350,7 +351,7 @@ class EnhancedDaemonManager:
                 return result
             
             # Check if we have cluster service manager
-            if hasattr(self.ipfs_kit, 'ipfs_cluster_service'):
+            if self.ipfs_kit and hasattr(self.ipfs_kit, 'ipfs_cluster_service'):
                 cluster_result = self.ipfs_kit.ipfs_cluster_service.daemon_start()
                 result["success"] = cluster_result.get("success", False)
                 result["status"] = cluster_result.get("status", "unknown")
@@ -373,7 +374,7 @@ class EnhancedDaemonManager:
         
         try:
             # Check if we have lassie manager
-            if hasattr(self.ipfs_kit, 'lassie_kit'):
+            if self.ipfs_kit and hasattr(self.ipfs_kit, 'lassie_kit'):
                 # Lassie typically doesn't need a persistent daemon
                 result["success"] = True
                 result["status"] = "service_available"
@@ -398,7 +399,7 @@ class EnhancedDaemonManager:
                 return result.returncode == 0
             elif daemon_name == "lotus":
                 # Check if lotus daemon is running
-                if hasattr(self.ipfs_kit, 'lotus_daemon'):
+                if self.ipfs_kit and hasattr(self.ipfs_kit, 'lotus_daemon'):
                     status = self.ipfs_kit.lotus_daemon.daemon_status()
                     return status.get("process_running", False)
             # Add other daemon checks as needed
@@ -480,7 +481,7 @@ class EnhancedDaemonManager:
                     result["error"] = str(e)
                     
             elif daemon_name == "lotus":
-                if hasattr(self.ipfs_kit, 'lotus_daemon'):
+                if self.ipfs_kit and hasattr(self.ipfs_kit, 'lotus_daemon'):
                     lotus_result = self.ipfs_kit.lotus_daemon.daemon_stop()
                     result["success"] = lotus_result.get("success", False)
                     if not result["success"]:
@@ -489,7 +490,7 @@ class EnhancedDaemonManager:
                     result["success"] = True  # Not available, so "successfully" not running
                     
             elif daemon_name == "ipfs_cluster_service":
-                if hasattr(self.ipfs_kit, 'ipfs_cluster_service'):
+                if self.ipfs_kit and hasattr(self.ipfs_kit, 'ipfs_cluster_service'):
                     cluster_result = self.ipfs_kit.ipfs_cluster_service.daemon_stop()
                     result["success"] = cluster_result.get("success", False)
                     if not result["success"]:
@@ -504,4 +505,287 @@ class EnhancedDaemonManager:
             
         except Exception as e:
             result["error"] = str(e)
+            return result
+    
+    # Additional daemon management methods moved from MCP server
+    
+    def test_direct_ipfs(self) -> bool:
+        """Test if IPFS commands work directly."""
+        try:
+            result = subprocess.run(['ipfs', 'id'], capture_output=True, text=True, timeout=5)
+            return result.returncode == 0
+        except Exception as e:
+            logger.debug(f"Direct IPFS test failed: {e}")
+            return False
+    
+    def test_ipfs_connection(self) -> bool:
+        """Test if IPFS daemon is accessible."""
+        try:
+            if self.ipfs_kit:
+                result = self.ipfs_kit.ipfs_id()
+                return result.get("success", False)
+            else:
+                # Test direct connection
+                return self.test_direct_ipfs()
+        except Exception as e:
+            logger.debug(f"IPFS connection test failed: {e}")
+            return False
+    
+    def test_ipfs_api_direct(self) -> bool:
+        """Test if IPFS API is accessible directly via HTTP."""
+        try:
+            import requests
+            response = requests.get('http://localhost:5001/api/v0/id', timeout=3)
+            return response.status_code == 200
+        except Exception as e:
+            logger.debug(f"Direct API test failed: {e}")
+            return False
+    
+    def find_existing_ipfs_processes(self) -> List[int]:
+        """Find existing IPFS daemon processes."""
+        try:
+            import psutil
+            ipfs_pids = []
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    if proc.info['name'] == 'ipfs' and proc.info['cmdline']:
+                        # Check if it's a daemon process
+                        cmdline = ' '.join(proc.info['cmdline'])
+                        if 'daemon' in cmdline:
+                            ipfs_pids.append(proc.info['pid'])
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            return ipfs_pids
+        except ImportError:
+            # Fallback if psutil not available
+            try:
+                result = subprocess.run(['pgrep', '-f', 'ipfs daemon'], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    return [int(pid.strip()) for pid in result.stdout.strip().split('\n') if pid.strip()]
+            except Exception as e:
+                logger.debug(f"Failed to find IPFS processes via pgrep: {e}")
+        except Exception as e:
+            logger.debug(f"Failed to find IPFS processes: {e}")
+        return []
+    
+    def kill_existing_ipfs_daemons(self) -> bool:
+        """Kill existing IPFS daemon processes."""
+        logger.info("Attempting to kill existing IPFS daemons...")
+        
+        pids = self.find_existing_ipfs_processes()
+        if not pids:
+            logger.info("No existing IPFS daemon processes found")
+            return True
+        
+        logger.info(f"Found {len(pids)} existing IPFS daemon process(es): {pids}")
+        
+        # Try graceful shutdown first
+        for pid in pids:
+            try:
+                logger.info(f"Sending SIGTERM to IPFS daemon (PID {pid})")
+                os.kill(pid, 15)  # SIGTERM
+            except ProcessLookupError:
+                logger.debug(f"Process {pid} already terminated")
+            except PermissionError:
+                logger.warning(f"Permission denied killing process {pid}")
+            except Exception as e:
+                logger.warning(f"Failed to send SIGTERM to process {pid}: {e}")
+        
+        # Wait for graceful shutdown
+        time.sleep(3)
+        
+        # Check if any processes are still running
+        remaining_pids = self.find_existing_ipfs_processes()
+        
+        # Force kill any remaining processes
+        for pid in remaining_pids:
+            try:
+                logger.warning(f"Force killing IPFS daemon (PID {pid})")
+                os.kill(pid, 9)  # SIGKILL
+            except ProcessLookupError:
+                logger.debug(f"Process {pid} already terminated")
+            except Exception as e:
+                logger.error(f"Failed to force kill process {pid}: {e}")
+        
+        # Final check
+        time.sleep(1)
+        final_pids = self.find_existing_ipfs_processes()
+        
+        if final_pids:
+            logger.error(f"Failed to kill all IPFS processes: {final_pids}")
+            return False
+        else:
+            logger.info("Successfully killed all existing IPFS daemon processes")
+            return True
+    
+    def wait_for_daemon_stop(self, timeout: int = 10) -> bool:
+        """Wait for IPFS daemon to stop."""
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if not self.test_ipfs_connection():
+                return True
+            time.sleep(0.5)
+        return False
+    
+    def kill_managed_daemon(self, daemon_process: Optional[subprocess.Popen] = None) -> bool:
+        """Kill a specific managed IPFS daemon process."""
+        if daemon_process and daemon_process.poll() is None:  # Still running
+            logger.info(f"Attempting to terminate managed IPFS daemon (PID: {daemon_process.pid})...")
+            try:
+                # Send SIGTERM first
+                daemon_process.terminate()
+                daemon_process.wait(timeout=5)  # Wait for it to terminate
+                if daemon_process.poll() is None:  # Still running after terminate
+                    logger.warning(f"Managed daemon (PID: {daemon_process.pid}) did not terminate gracefully. Force killing.")
+                    daemon_process.kill()
+                    daemon_process.wait(timeout=5)  # Wait for kill
+                logger.info("Managed IPFS daemon terminated.")
+                return True
+            except Exception as e:
+                logger.error(f"Error terminating managed IPFS daemon: {e}")
+                return False
+        logger.info("No managed IPFS daemon is currently running.")
+        return True
+    
+    def init_ipfs_if_needed(self):
+        """Initialize IPFS repository if it doesn't exist."""
+        try:
+            # Check if IPFS is initialized
+            result = subprocess.run(['ipfs', 'config', 'show'], 
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode != 0:
+                logger.info("Initializing IPFS repository...")
+                subprocess.run(['ipfs', 'init'], check=True, timeout=30)
+                logger.info("IPFS repository initialized")
+        except subprocess.TimeoutExpired:
+            logger.warning("IPFS initialization timed out")
+        except Exception as e:
+            logger.warning(f"Failed to initialize IPFS: {e}")
+    
+    def ensure_daemon_running_comprehensive(self) -> Dict[str, Any]:
+        """Comprehensive daemon management with connection testing and fallback logic.
+        
+        This method incorporates all the advanced daemon management logic from the MCP server.
+        
+        Returns:
+            Dict with detailed results of daemon management operations
+        """
+        result = {
+            "success": False,
+            "daemon_started": False,
+            "connection_methods": [],
+            "errors": [],
+            "warnings": [],
+            "daemon_process": None
+        }
+        
+        logger.info("Ensuring IPFS daemon is running with comprehensive checks...")
+
+        # Test multiple connection methods to see if IPFS is working
+        connection_tests = [
+            ("IPFS Kit", self.test_ipfs_connection),
+            ("Direct IPFS", self.test_direct_ipfs),
+            ("HTTP API", self.test_ipfs_api_direct),
+        ]
+        
+        working_methods = []
+        for test_name, test_func in connection_tests:
+            try:
+                if test_func():
+                    working_methods.append(test_name)
+                    logger.debug(f"✓ {test_name} connection works")
+                else:
+                    logger.debug(f"✗ {test_name} connection failed")
+            except Exception as e:
+                logger.debug(f"✗ {test_name} connection test error: {e}")
+        
+        result["connection_methods"] = working_methods
+        
+        # If any connection method works, we're good
+        if working_methods:
+            logger.info(f"✓ IPFS is accessible via: {', '.join(working_methods)}")
+            result["success"] = True
+            return result
+
+        # Check for existing IPFS daemon processes
+        existing_pids = self.find_existing_ipfs_processes()
+        if existing_pids:
+            logger.warning(f"Found IPFS daemon processes ({existing_pids}) but none are responsive to any connection test.")
+            result["warnings"].append(f"Found unresponsive IPFS daemons: {existing_pids}")
+
+        # Try to start a new daemon
+        logger.info("No accessible IPFS daemon found. Attempting to start a new one.")
+        try:
+            self.init_ipfs_if_needed()  # Ensure repo is initialized
+            cmd = ['ipfs', 'daemon', '--enable-pubsub-experiment']
+            logger.debug(f"Running command: {' '.join(cmd)}")
+
+            daemon_process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                preexec_fn=os.setsid if hasattr(os, 'setsid') else None,
+                env=os.environ.copy()
+            )
+            
+            result["daemon_process"] = daemon_process
+
+            for i in range(10):  # Wait up to 10 seconds
+                time.sleep(1)
+                if daemon_process.poll() is not None:
+                    stdout, stderr = daemon_process.communicate()
+                    stdout_str = stdout.decode()
+                    stderr_str = stderr.decode()
+                    
+                    error_msg = f"IPFS daemon exited with code {daemon_process.returncode}"
+                    logger.error(error_msg)
+                    logger.error(f"STDOUT: {stdout_str}")
+                    logger.error(f"STDERR: {stderr_str}")
+                    
+                    result["errors"].append(error_msg)
+                    result["errors"].append(f"STDERR: {stderr_str}")
+                    
+                    # Check for specific repo version mismatch
+                    if "version" in stderr_str and "lower than your repos" in stderr_str:
+                        logger.warning("⚠️  IPFS repo version mismatch detected.")
+                        logger.warning("The daemon cannot start due to version incompatibility.")
+                        logger.info("Testing if direct IPFS commands work despite daemon failure...")
+                        
+                        # Test if direct commands work despite daemon failure
+                        if self.test_direct_ipfs():
+                            logger.info("✅ Direct IPFS commands work despite daemon failure. Proceeding without daemon.")
+                            result["success"] = True
+                            result["warnings"].append("Direct IPFS works despite daemon failure")
+                            return result
+                        else:
+                            logger.error("❌ Direct IPFS commands also don't work.")
+                            result["errors"].append("Direct IPFS commands also failed")
+                    
+                    return result
+                    
+                if self.test_ipfs_connection():
+                    logger.info(f"✓ IPFS daemon started successfully (took {i+1} seconds).")
+                    result["success"] = True
+                    result["daemon_started"] = True
+                    return result
+                logger.debug(f"Waiting for daemon to be ready... ({i+1}/10)")
+
+            logger.error("IPFS daemon started but not accessible after 10 seconds.")
+            try:
+                stdout, stderr = daemon_process.communicate(timeout=1)
+                logger.error(f"Daemon STDOUT: {stdout.decode()}")
+                logger.error(f"Daemon STDERR: {stderr.decode()}")
+                result["errors"].append(f"Daemon unresponsive: {stderr.decode()}")
+            except subprocess.TimeoutExpired:
+                logger.error("Daemon still running but not responding.")
+                result["errors"].append("Daemon started but unresponsive")
+            
+            return result
+
+        except Exception as e:
+            error_msg = f"Failed to start IPFS daemon: {e}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
+            result["errors"].append(error_msg)
             return result

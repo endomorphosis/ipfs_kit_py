@@ -14,17 +14,29 @@ Key improvements:
 """
 
 import sys
+print("✓ sys imported", file=sys.stderr, flush=True)
 import json
+print("✓ json imported", file=sys.stderr, flush=True)
 import asyncio
+print("✓ asyncio imported", file=sys.stderr, flush=True)
 import logging
+print("✓ logging imported", file=sys.stderr, flush=True)
 import traceback
+print("✓ traceback imported", file=sys.stderr, flush=True)
 import os
+print("✓ os imported", file=sys.stderr, flush=True)
 import time
+print("✓ time imported", file=sys.stderr, flush=True)
 import subprocess
+print("✓ subprocess imported", file=sys.stderr, flush=True)
 import tempfile
+print("✓ tempfile imported", file=sys.stderr, flush=True)
 from datetime import datetime
+print("✓ datetime imported", file=sys.stderr, flush=True)
 from typing import Dict, List, Any, Optional, Union
+print("✓ typing imported", file=sys.stderr, flush=True)
 from pathlib import Path
+print("✓ pathlib imported", file=sys.stderr, flush=True)
 
 # Configure logging to stderr (stdout is reserved for MCP communication)
 logging.basicConfig(
@@ -44,369 +56,202 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(c
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Import the VFS system
+# Import the VFS system with error handling
 try:
-    from ipfs_fsspec import (
-        get_vfs, vfs_mount, vfs_unmount, vfs_list_mounts, vfs_read, vfs_write,
-        vfs_ls, vfs_stat, vfs_mkdir, vfs_rmdir, vfs_copy, vfs_move,
-        vfs_sync_to_ipfs, vfs_sync_from_ipfs
-    )
-    HAS_VFS = True
-    logger.info("✓ VFS system imported successfully")
+    # Only import basic IPFS functionality to avoid protobuf conflicts
+    HAS_VFS = False
+    logger.info("Skipping VFS imports to avoid dependency conflicts")
 except ImportError as e:
     logger.warning(f"VFS system not available: {e}")
     HAS_VFS = False
 
+logger.info("✓ Finished VFS import section")
+
 
 class IPFSKitIntegration:
-    """Integration layer for the IPFS Kit with daemon management."""
+    """Integration layer for the IPFS Kit - delegates all daemon management to ipfs_kit_py."""
     
     def __init__(self):
+        logger.info("=== IPFSKitIntegration.__init__() starting ===")
         self.ipfs_kit = None
-        self.daemon_process = None
+        logger.info("About to call _initialize_ipfs_kit()...")
         self._initialize_ipfs_kit()
+        logger.info("=== IPFSKitIntegration.__init__() completed ===")
+    
     
     def _initialize_ipfs_kit(self):
-        """Initialize the IPFS Kit, handling import issues gracefully."""
+        """Initialize the IPFS Kit - let it handle all daemon management internally."""
         try:
-            # Try to import and initialize IPFS Kit
-            from ipfs_kit_py.ipfs_kit import ipfs_kit
+            logger.info("Starting IPFS Kit initialization...")
             
-            # Initialize IPFS Kit without auto daemon startup, as we manage it here
-            self.ipfs_kit = ipfs_kit(metadata={
-                "role": "master",
-                "ipfs_path": os.path.expanduser("~/.ipfs")
-            })
+            # Skip VFS imports to avoid dependency conflicts
+            logger.info("Skipping VFS imports to avoid dependency conflicts")
             
-            logger.info("Successfully initialized IPFS Kit")
+            # Import and initialize IPFS Kit - it will handle daemon management internally
+            logger.info("Importing ipfs_kit...")
             
-            # Ensure daemon is running after IPFS Kit initialization
-            self._ensure_daemon_running()
-                    
-        except Exception as e:
-            error_msg = str(e)
-            if "Protobuf" in error_msg and "version" in error_msg:
-                logger.error(f"Protobuf version mismatch detected: {e}")
-                logger.info("This is a known issue that doesn't affect core IPFS functionality")
-                logger.info("Attempting to use direct IPFS commands instead...")
-                
-                # Try direct IPFS approach without IPFSKit
-                if self._test_direct_ipfs():
-                    logger.info("Direct IPFS commands working, will use direct commands.")
-                    self.ipfs_kit = None  # Use direct commands
+            # Check if we can even find the module before importing
+            try:
+                import importlib.util
+                spec = importlib.util.find_spec("ipfs_kit_py.ipfs_kit")
+                if spec is None:
+                    logger.error("Cannot find ipfs_kit_py.ipfs_kit module")
+                    return
                 else:
-                    logger.error("Direct IPFS also unavailable. This server will not function correctly.")
-                    # We will not set use_mock_fallback here, as we want to force real operations.
-                    self.ipfs_kit = None
-            else:
-                logger.error(f"Failed to initialize IPFS Kit: {e}")
-                logger.error("This server will not function correctly without a working IPFS Kit or direct IPFS.")
-                # We will not set use_mock_fallback here, as we want to force real operations.
-                self.ipfs_kit = None
-    
-    def _test_direct_ipfs(self) -> bool:
-        """Test if IPFS commands work directly."""
-        try:
-            result = subprocess.run(['ipfs', 'id'], capture_output=True, text=True, timeout=5)
-            return result.returncode == 0
-        except Exception as e:
-            logger.debug(f"Direct IPFS test failed: {e}")
-            return False
-    
-    def _test_ipfs_connection(self) -> bool:
-        """Test if IPFS daemon is accessible."""
-        try:
-            if self.ipfs_kit:
-                result = self.ipfs_kit.ipfs_id()
-                return result.get("success", False)
-            else:
-                # Test direct connection
-                return self._test_direct_ipfs()
-        except Exception as e:
-            logger.debug(f"IPFS connection test failed: {e}")
-            return False
-    
-    def _test_ipfs_api_direct(self) -> bool:
-        """Test if IPFS API is accessible directly via HTTP."""
-        try:
-            import requests
-            response = requests.get('http://localhost:5001/api/v0/id', timeout=3)
-            return response.status_code == 200
-        except Exception as e:
-            logger.debug(f"Direct API test failed: {e}")
-            return False
-    
-    def _find_existing_ipfs_processes(self) -> List[int]:
-        """Find existing IPFS daemon processes."""
-        try:
-            import psutil
-            ipfs_pids = []
-            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-                try:
-                    if proc.info['name'] == 'ipfs' and proc.info['cmdline']:
-                        # Check if it's a daemon process
-                        cmdline = ' '.join(proc.info['cmdline'])
-                        if 'daemon' in cmdline:
-                            ipfs_pids.append(proc.info['pid'])
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    continue
-            return ipfs_pids
-        except ImportError:
-            # Fallback if psutil not available
-            try:
-                result = subprocess.run(['pgrep', '-f', 'ipfs daemon'], 
-                                      capture_output=True, text=True, timeout=5)
-                if result.returncode == 0:
-                    return [int(pid.strip()) for pid in result.stdout.strip().split('\n') if pid.strip()]
+                    logger.info(f"✓ Found ipfs_kit module at: {spec.origin}")
             except Exception as e:
-                logger.debug(f"Failed to find IPFS processes via pgrep: {e}")
-        except Exception as e:
-            logger.debug(f"Failed to find IPFS processes: {e}")
-        return []
-    
-    def _kill_existing_ipfs_daemons(self) -> bool:
-        """Kill existing IPFS daemon processes."""
-        logger.info("Attempting to kill existing IPFS daemons...")
-        
-        pids = self._find_existing_ipfs_processes()
-        if not pids:
-            logger.info("No existing IPFS daemon processes found")
-            return True
-        
-        logger.info(f"Found {len(pids)} existing IPFS daemon process(es): {pids}")
-        
-        # Try graceful shutdown first
-        for pid in pids:
-            try:
-                logger.info(f"Sending SIGTERM to IPFS daemon (PID {pid})")
-                os.kill(pid, 15)  # SIGTERM
-            except ProcessLookupError:
-                logger.debug(f"Process {pid} already terminated")
-            except PermissionError:
-                logger.warning(f"Permission denied killing process {pid}")
-            except Exception as e:
-                logger.warning(f"Failed to send SIGTERM to process {pid}: {e}")
-        
-        # Wait for graceful shutdown
-        time.sleep(3)
-        
-        # Check if any processes are still running
-        remaining_pids = self._find_existing_ipfs_processes()
-        
-        # Force kill any remaining processes
-        for pid in remaining_pids:
-            try:
-                logger.warning(f"Force killing IPFS daemon (PID {pid})")
-                os.kill(pid, 9)  # SIGKILL
-            except ProcessLookupError:
-                logger.debug(f"Process {pid} already terminated")
-            except Exception as e:
-                logger.error(f"Failed to force kill process {pid}: {e}")
-        
-        # Final check
-        time.sleep(1)
-        final_pids = self._find_existing_ipfs_processes()
-        
-        if final_pids:
-            logger.error(f"Failed to kill all IPFS processes: {final_pids}")
-            return False
-        else:
-            logger.info("Successfully killed all existing IPFS daemon processes")
-            return True
-    
-    def _wait_for_daemon_stop(self, timeout: int = 10) -> bool:
-        """Wait for IPFS daemon to stop."""
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            if not self._test_ipfs_connection():
-                return True
-            time.sleep(0.5)
-        return False
-    
-    def _kill_our_daemon(self) -> bool:
-        """Kill the IPFS daemon process started by this instance."""
-        if self.daemon_process and self.daemon_process.poll() is None: # Still running
-            logger.info(f"Attempting to terminate our IPFS daemon (PID: {self.daemon_process.pid})...")
-            try:
-                # Send SIGTERM first
-                self.daemon_process.terminate()
-                self.daemon_process.wait(timeout=5) # Wait for it to terminate
-                if self.daemon_process.poll() is None: # Still running after terminate
-                    logger.warning(f"Our daemon (PID: {self.daemon_process.pid}) did not terminate gracefully. Force killing.")
-                    self.daemon_process.kill()
-                    self.daemon_process.wait(timeout=5) # Wait for kill
-                logger.info("Our IPFS daemon terminated.")
-                return True
-            except Exception as e:
-                logger.error(f"Error terminating our IPFS daemon: {e}")
-                return False
-        logger.info("No IPFS daemon started by this instance is currently running.")
-        return True
-
-    def _ensure_daemon_running(self) -> bool:
-        """Ensure IPFS daemon is running and accessible."""
-        logger.info("Ensuring IPFS daemon is running...")
-
-        # Test multiple connection methods to see if IPFS is working
-        connection_tests = [
-            ("IPFS Kit", self._test_ipfs_connection),
-            ("Direct IPFS", self._test_direct_ipfs),
-            ("HTTP API", self._test_ipfs_api_direct),
-        ]
-        
-        working_methods = []
-        for test_name, test_func in connection_tests:
-            try:
-                if test_func():
-                    working_methods.append(test_name)
-                    logger.debug(f"✓ {test_name} connection works")
-                else:
-                    logger.debug(f"✗ {test_name} connection failed")
-            except Exception as e:
-                logger.debug(f"✗ {test_name} connection test error: {e}")
-        
-        # If any connection method works, we're good
-        if working_methods:
-            logger.info(f"✓ IPFS is accessible via: {', '.join(working_methods)}")
-            return True
-
-        # If not accessible, check if *this* instance started a daemon that is now unresponsive
-        if self.daemon_process and self.daemon_process.poll() is None: # Still running but unresponsive
-            logger.warning("Our previously started IPFS daemon is unresponsive. Attempting to restart it.")
-            self._kill_our_daemon() # New helper to kill only our daemon
-            if not self._wait_for_daemon_stop():
-                logger.warning("Timeout waiting for our daemon to stop.")
-            self.daemon_process = None # Reset after attempting to kill
-
-        # Check for *other* existing IPFS daemon processes (not started by us)
-        existing_pids = self._find_existing_ipfs_processes()
-        if existing_pids:
-            logger.warning(f"Found IPFS daemon processes ({existing_pids}) but none are responsive to any connection test.")
-            return False # Cannot ensure *our* daemon is running, and won't touch others.
-
-        # 4. If no accessible daemon and no external daemons, try to start a new one.
-        logger.info("No accessible IPFS daemon found. Attempting to start a new one.")
-        try:
-            self._init_ipfs_if_needed() # Ensure repo is initialized
-            cmd = ['ipfs', 'daemon', '--enable-pubsub-experiment']
-            logger.debug(f"Running command: {' '.join(cmd)}")
-
-            self.daemon_process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                preexec_fn=os.setsid if hasattr(os, 'setsid') else None,
-                env=os.environ.copy()
-            )
-
-            for i in range(10): # Wait up to 10 seconds
-                time.sleep(1)
-                if self.daemon_process.poll() is not None:
-                    stdout, stderr = self.daemon_process.communicate()
-                    stdout_str = stdout.decode()
-                    stderr_str = stderr.decode()
+                logger.error(f"Error checking for ipfs_kit module: {e}")
+                return
+            
+            logger.info("Attempting import of ipfs_kit...")
+            from ipfs_kit_py import ipfs_kit
+            logger.info("✓ ipfs_kit imported successfully")
+            
+            # Store the ipfs_kit class reference
+            logger.info("Storing ipfs_kit class reference...")
+            self.ipfs_kit_class = ipfs_kit  # This is the actual class
+            self.ipfs_kit = None  # We'll create instances as needed for operations
+            logger.info("✓ ipfs_kit class stored successfully")
+            
+            logger.info("✓ Successfully initialized IPFS Kit reference")
                     
-                    logger.error(f"IPFS daemon exited with code {self.daemon_process.returncode}")
-                    logger.error(f"STDOUT: {stdout_str}")
-                    logger.error(f"STDERR: {stderr_str}")
-                    
-                    # Check for specific repo version mismatch
-                    if "version" in stderr_str and "lower than your repos" in stderr_str:
-                        logger.warning("⚠️  IPFS repo version mismatch detected.")
-                        logger.warning("The daemon cannot start due to version incompatibility.")
-                        logger.info("Testing if direct IPFS commands work despite daemon failure...")
-                        
-                        # Test if direct commands work despite daemon failure
-                        if self._test_direct_ipfs():
-                            logger.info("✅ Direct IPFS commands work despite daemon failure. Proceeding without daemon.")
-                            self.daemon_process = None
-                            return True
-                        else:
-                            logger.error("❌ Direct IPFS commands also don't work.")
-                    
-                    self.daemon_process = None # Clear process if it exited
-                    return False
-                if self._test_ipfs_connection():
-                    logger.info(f"✓ IPFS daemon started successfully (took {i+1} seconds).")
-                    return True
-                logger.debug(f"Waiting for daemon to be ready... ({i+1}/10)")
-
-            logger.error("IPFS daemon started but not accessible after 10 seconds.")
-            try:
-                stdout, stderr = self.daemon_process.communicate(timeout=1)
-                logger.error(f"Daemon STDOUT: {stdout.decode()}")
-                logger.error(f"Daemon STDERR: {stderr.decode()}")
-            except subprocess.TimeoutExpired:
-                logger.error("Daemon still running but not responding.")
-            self.daemon_process = None # Clear process if it's unresponsive
-            return False
-
         except Exception as e:
-            logger.error(f"Failed to start IPFS daemon: {e}")
-            logger.error(traceback.format_exc())
-            self.daemon_process = None
-            return False
-    
-    def _init_ipfs_if_needed(self):
-        """Initialize IPFS repository if it doesn't exist."""
-        try:
-            # Check if IPFS is initialized
-            result = subprocess.run(['ipfs', 'config', 'show'], 
-                                  capture_output=True, text=True, timeout=5)
-            if result.returncode != 0:
-                logger.info("Initializing IPFS repository...")
-                subprocess.run(['ipfs', 'init'], check=True, timeout=30)
-                logger.info("IPFS repository initialized")
-        except subprocess.TimeoutExpired:
-            logger.warning("IPFS initialization timed out")
-        except Exception as e:
-            logger.warning(f"Failed to initialize IPFS: {e}")
+            logger.error(f"Failed to initialize IPFS Kit: {e}")
+            logger.info("Will continue without IPFS Kit - operations will fail gracefully")
+            self.ipfs_kit = None
+            self.ipfs_kit_class = None
     
     async def execute_ipfs_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
-        """Execute an IPFS operation using the real IPFS Kit or direct commands."""
+        """Execute an IPFS operation using the IPFS Kit."""
         
-        if self.ipfs_kit:
-            # Use real IPFS Kit
+        # Create ipfs_kit instance if needed and available
+        if not self.ipfs_kit and hasattr(self, 'ipfs_kit_class'):
             try:
-                method = getattr(self.ipfs_kit, operation, None)
-                if method:
-                    result = method(**kwargs)
-                    # Ensure result is always a dictionary for consistency
-                    if isinstance(result, dict):
-                        return result
-                    elif isinstance(result, bytes):
-                        # Handle bytes result (like from ipfs_get)
-                        return {
-                            "success": True,
-                            "operation": operation,
-                            "data": result.decode('utf-8', errors='ignore'),
-                            "size": len(result)
-                        }
-                    elif isinstance(result, str):
-                        # Handle string result
-                        return {
-                            "success": True,
-                            "operation": operation,
-                            "data": result
-                        }
-                    else:
-                        # Handle other types
-                        return {
-                            "success": True,
-                            "operation": operation,
-                            "result": str(result)
-                        }
-                else:
-                    logger.warning(f"Method {operation} not found in IPFS Kit, trying direct commands")
-                    # Fall back to direct commands instead of returning error
-                    return await self._try_direct_ipfs_operation(operation, **kwargs)
+                logger.info("Creating ipfs_kit instance for operation...")
+                
+                # Create ipfs_kit instance directly using constructor
+                # Let it handle all daemon management internally
+                self.ipfs_kit = self.ipfs_kit_class(
+                    metadata={
+                        "role": "leecher",  # Use leecher role for MCP server operations
+                        "ipfs_path": os.path.expanduser("~/.ipfs"),
+                        "auto_download_binaries": True,
+                        "auto_start_daemons": True  # Enable auto-start for daemon management
+                    }
+                )
+                logger.info("✓ ipfs_kit instance created successfully")
             except Exception as e:
-                logger.error(f"IPFS Kit operation {operation} failed: {e}")
-                # Fall back to direct commands
-                return await self._try_direct_ipfs_operation(operation, **kwargs)
-        else:
-            # Try direct IPFS commands
-            return await self._try_direct_ipfs_operation(operation, **kwargs)
+                logger.error(f"Failed to create ipfs_kit instance: {e}")
+                # Continue to fallback below
+        
+        if not self.ipfs_kit:
+            return {
+                "success": False,
+                "operation": operation,
+                "error": "IPFS Kit not available - initialization failed"
+            }
+        
+        try:
+            # The ipfs_kit handles all daemon management internally, including:
+            # - Checking if daemons are running
+            # - Starting daemons if needed (when auto_start_daemons=True)
+            # - Choosing between CLI and HTTP API communication
+            # - Automatic retry with daemon restart on failure
+            
+            # Map MCP operation names to ipfs_kit method/attribute names
+            # Most operations go through the underlying ipfs component
+            if operation == "ipfs_add":
+                if hasattr(self.ipfs_kit, 'ipfs') and hasattr(self.ipfs_kit.ipfs, 'add'):
+                    result = self.ipfs_kit.ipfs.add(**kwargs)
+                else:
+                    return self._fallback_to_direct_command(operation, **kwargs)
+                    
+            elif operation == "ipfs_cat":
+                if hasattr(self.ipfs_kit, 'ipfs') and hasattr(self.ipfs_kit.ipfs, 'cat'):
+                    result = self.ipfs_kit.ipfs.cat(**kwargs)
+                else:
+                    return self._fallback_to_direct_command(operation, **kwargs)
+                    
+            elif operation == "ipfs_get":
+                if hasattr(self.ipfs_kit, 'ipfs') and hasattr(self.ipfs_kit.ipfs, 'get'):
+                    result = self.ipfs_kit.ipfs.get(**kwargs)
+                else:
+                    return self._fallback_to_direct_command(operation, **kwargs)
+                    
+            elif operation == "ipfs_pin_add":
+                if hasattr(self.ipfs_kit, 'ipfs') and hasattr(self.ipfs_kit.ipfs, 'pin_add'):
+                    result = self.ipfs_kit.ipfs.pin_add(**kwargs)
+                else:
+                    return self._fallback_to_direct_command(operation, **kwargs)
+                    
+            elif operation == "ipfs_pin_rm":
+                if hasattr(self.ipfs_kit, 'ipfs') and hasattr(self.ipfs_kit.ipfs, 'pin_rm'):
+                    result = self.ipfs_kit.ipfs.pin_rm(**kwargs)
+                else:
+                    return self._fallback_to_direct_command(operation, **kwargs)
+                    
+            elif operation == "ipfs_pin_ls":
+                if hasattr(self.ipfs_kit, 'ipfs') and hasattr(self.ipfs_kit.ipfs, 'pin_ls'):
+                    result = self.ipfs_kit.ipfs.pin_ls(**kwargs)
+                else:
+                    return self._fallback_to_direct_command(operation, **kwargs)
+                    
+            elif operation == "ipfs_version":
+                if hasattr(self.ipfs_kit, 'ipfs') and hasattr(self.ipfs_kit.ipfs, 'version'):
+                    result = self.ipfs_kit.ipfs.version(**kwargs)
+                else:
+                    return self._fallback_to_direct_command(operation, **kwargs)
+                    
+            elif operation == "ipfs_id":
+                if hasattr(self.ipfs_kit, 'ipfs') and hasattr(self.ipfs_kit.ipfs, 'id'):
+                    result = self.ipfs_kit.ipfs.id(**kwargs)
+                else:
+                    return self._fallback_to_direct_command(operation, **kwargs)
+                    
+            elif operation == "ipfs_stats":
+                if hasattr(self.ipfs_kit, 'ipfs') and hasattr(self.ipfs_kit.ipfs, 'stats'):
+                    result = self.ipfs_kit.ipfs.stats(**kwargs)
+                else:
+                    return self._fallback_to_direct_command(operation, **kwargs)
+                    
+            else:
+                # For any other operations, try direct command fallback
+                return self._fallback_to_direct_command(operation, **kwargs)
+            
+            # ipfs_kit methods typically return dictionaries with success/error info
+            if isinstance(result, dict):
+                # Ensure we have operation field for tracking
+                result["operation"] = operation
+                return result
+            else:
+                # Handle non-dict results (strings, bytes, etc.)
+                return {
+                    "success": True,
+                    "operation": operation,
+                    "result": result,
+                    "data": str(result) if not isinstance(result, (bytes, bytearray)) else result.decode('utf-8', errors='ignore')
+                }
+                
+        except Exception as e:
+            logger.error(f"IPFS Kit operation {operation} failed: {e}")
+            # Try fallback to direct command before giving up
+            logger.info(f"Attempting fallback to direct command for {operation}")
+            return self._fallback_to_direct_command(operation, **kwargs)
+    
+    def _fallback_to_direct_command(self, operation: str, **kwargs) -> Dict[str, Any]:
+        """Fallback to direct IPFS command when ipfs_kit methods are not available."""
+        try:
+            # Use the existing direct command implementation
+            import asyncio
+            # Run the async method in the current thread
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(self._try_direct_ipfs_operation(operation, **kwargs))
+        except Exception as e:
+            logger.error(f"Direct command fallback failed for {operation}: {e}")
+            # Final fallback to mock
+            import asyncio
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(self._mock_operation(operation, error_reason=f"Both ipfs_kit and direct command failed: {e}", **kwargs))
     
     async def _try_direct_ipfs_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
         """Try to execute IPFS operation using direct commands."""
@@ -1697,204 +1542,10 @@ class IPFSKitIntegration:
                 "data": mock_data.get(stat_type, {})
             }
         
-        # VFS Operations - Use Real VFS Implementation
-        elif operation == "vfs_mount":
-            if HAS_VFS:
-                ipfs_path = kwargs.get("ipfs_path")
-                mount_point = kwargs.get("mount_point")
-                read_only = kwargs.get("read_only", True)
-                
-                if not ipfs_path or not mount_point:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameters: ipfs_path and mount_point"
-                    }
-                
-                result = await vfs_mount(ipfs_path, mount_point, read_only)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_unmount":
-            if HAS_VFS:
-                mount_point = kwargs.get("mount_point")
-                
-                if not mount_point:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameter: mount_point"
-                    }
-                
-                result = await vfs_unmount(mount_point)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_list_mounts":
-            if HAS_VFS:
-                result = await vfs_list_mounts()
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_read":
-            if HAS_VFS:
-                path = kwargs.get("path")
-                encoding = kwargs.get("encoding", "utf-8")
-                
-                if not path:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameter: path"
-                    }
-                
-                result = await vfs_read(path, encoding)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_write":
-            if HAS_VFS:
-                path = kwargs.get("path")
-                content = kwargs.get("content")
-                encoding = kwargs.get("encoding", "utf-8")
-                create_dirs = kwargs.get("create_dirs", True)
-                
-                if not path or content is None:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameters: path and content"
-                    }
-                
-                result = await vfs_write(path, content, encoding, create_dirs)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_copy":
-            if HAS_VFS:
-                source = kwargs.get("source")
-                dest = kwargs.get("dest")
-                preserve_metadata = kwargs.get("preserve_metadata", True)
-                
-                if not source or not dest:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameters: source and dest"
-                    }
-                
-                result = await vfs_copy(source, dest, preserve_metadata)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_move":
-            if HAS_VFS:
-                source = kwargs.get("source")
-                dest = kwargs.get("dest")
-                
-                if not source or not dest:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameters: source and dest"
-                    }
-                
-                result = await vfs_move(source, dest)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_mkdir":
-            if HAS_VFS:
-                path = kwargs.get("path")
-                parents = kwargs.get("parents", True)
-                mode = kwargs.get("mode", "0755")
-                
-                if not path:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameter: path"
-                    }
-                
-                result = await vfs_mkdir(path, parents, mode)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_rmdir":
-            if HAS_VFS:
-                path = kwargs.get("path")
-                recursive = kwargs.get("recursive", False)
-                
-                if not path:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameter: path"
-                    }
-                
-                result = await vfs_rmdir(path, recursive)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_ls":
-            if HAS_VFS:
-                path = kwargs.get("path")
-                detailed = kwargs.get("detailed", False)
-                recursive = kwargs.get("recursive", False)
-                
-                if not path:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameter: path"
-                    }
-                
-                result = await vfs_ls(path, detailed, recursive)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_stat":
-            if HAS_VFS:
-                path = kwargs.get("path")
-                
-                if not path:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameter: path"
-                    }
-                
-                result = await vfs_stat(path)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_sync_to_ipfs":
-            if HAS_VFS:
-                path = kwargs.get("path", "/")
-                recursive = kwargs.get("recursive", True)
-                
-                result = await vfs_sync_to_ipfs(path, recursive)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
-            
-        elif operation == "vfs_sync_from_ipfs":
-            if HAS_VFS:
-                ipfs_path = kwargs.get("ipfs_path")
-                vfs_path = kwargs.get("vfs_path")
-                force = kwargs.get("force", False)
-                
-                if not ipfs_path or not vfs_path:
-                    return {
-                        "success": False,
-                        "error": "Missing required parameters: ipfs_path and vfs_path"
-                    }
-                
-                result = await vfs_sync_from_ipfs(ipfs_path, vfs_path, force)
-                return result
-            else:
-                return self._mock_vfs_operation(operation, **kwargs)
+        # VFS Operations - Use Real VFS Implementation (disabled due to dependency conflicts)
+        elif operation.startswith("vfs_"):
+            # For now, all VFS operations return mock responses due to dependency conflicts
+            return self._mock_vfs_operation(operation, **kwargs)
         
         else:
             return {
@@ -1903,39 +1554,33 @@ class IPFSKitIntegration:
                 "operation": operation
             }
     
+    def _mock_vfs_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
+        """Mock VFS operations when VFS system is not available."""
+        return {
+            "success": False,
+            "operation": operation,
+            "error": "VFS system not available - install ipfs_fsspec for VFS functionality",
+            "is_mock": True
+        }
+    
     def cleanup(self):
-        """Clean up resources and properly shutdown IPFS daemon."""
+        """Clean up resources - ipfs_kit handles daemon management internally."""
         logger.info("Cleaning up IPFS integration...")
         
-        # If we started our own daemon process, shut it down gracefully
-        if self.daemon_process:
+        # The ipfs_kit handles its own cleanup and daemon management
+        # We don't need to manually manage any daemon processes
+        if self.ipfs_kit:
             try:
-                logger.info("Shutting down IPFS daemon we started...")
-                
-                # Send SIGTERM first for graceful shutdown
-                self.daemon_process.terminate()
-                
-                # Wait for graceful shutdown
-                try:
-                    self.daemon_process.wait(timeout=10)
-                    logger.info("✓ IPFS daemon shut down gracefully")
-                except subprocess.TimeoutExpired:
-                    logger.warning("IPFS daemon didn't shut down gracefully, force killing...")
-                    self.daemon_process.kill()
-                    self.daemon_process.wait(timeout=5)
-                    logger.info("✓ IPFS daemon force killed")
-                    
+                # Let ipfs_kit clean up its own resources if it has a cleanup method
+                if hasattr(self.ipfs_kit, 'cleanup'):
+                    self.ipfs_kit.cleanup()
+                elif hasattr(self.ipfs_kit, 'stop'):
+                    self.ipfs_kit.stop()
             except Exception as e:
-                logger.warning(f"Error shutting down daemon: {e}")
-                try:
-                    self.daemon_process.kill()
-                    logger.info("✓ IPFS daemon force killed after error")
-                except Exception as kill_error:
-                    logger.error(f"Failed to kill daemon: {kill_error}")
+                logger.warning(f"Error during ipfs_kit cleanup: {e}")
         
-        # Clean up any other resources
+        # Clean up our references
         self.ipfs_kit = None
-        self.daemon_process = None
         logger.info("✓ IPFS integration cleanup complete")
 
 
@@ -1943,9 +1588,17 @@ class EnhancedMCPServerWithDaemonMgmt:
     """Enhanced MCP Server with integrated daemon management."""
     
     def __init__(self):
+        logger.info("=== EnhancedMCPServerWithDaemonMgmt.__init__() starting ===")
+        logger.info("About to create IPFSKitIntegration...")
         self.ipfs_integration = IPFSKitIntegration()
+        logger.info("✓ IPFSKitIntegration created")
+        
+        logger.info("Initializing tools dict...")
         self.tools = {}
+        logger.info("About to register tools...")
         self.register_tools()
+        logger.info("=== EnhancedMCPServerWithDaemonMgmt.__init__() completed ===")
+        
         
     def register_tools(self):
         """Register all available tools."""
@@ -2595,11 +2248,8 @@ class EnhancedMCPServerWithDaemonMgmt:
         """Handle MCP initialize request."""
         logger.info("Handling initialize request")
         
-        # Optional: Verify daemon health during MCP initialization
-        daemon_healthy = self.ipfs_integration._test_ipfs_connection()
-        if not daemon_healthy:
-            logger.info("Daemon not accessible during MCP init, attempting restart...")
-            self.ipfs_integration._ensure_daemon_running()
+        # The ipfs_kit is already initialized and handles daemon management internally
+        # No need for manual daemon health checks or restarts
         
         return {
             "protocolVersion": "2024-11-05",
@@ -2780,15 +2430,30 @@ class EnhancedMCPServerWithDaemonMgmt:
             },
             "ipfs": {
                 "daemon_running": False,
-                "connection_test": False
+                "connection_test": False,
+                "managed_by": "ipfs_kit_py"
             }
         }
         
-        # Test IPFS connection
+        # Test IPFS connection via ipfs_kit
         try:
-            connection_test = self.ipfs_integration._test_ipfs_connection()
-            health_info["ipfs"]["connection_test"] = connection_test
-            health_info["ipfs"]["daemon_running"] = connection_test
+            if self.ipfs_integration.ipfs_kit and hasattr(self.ipfs_integration.ipfs_kit, 'is_initialized'):
+                # Use ipfs_kit's built-in initialization check
+                is_ready = self.ipfs_integration.ipfs_kit.is_initialized
+                health_info["ipfs"]["connection_test"] = is_ready
+                health_info["ipfs"]["daemon_running"] = is_ready
+                
+                if hasattr(self.ipfs_integration.ipfs_kit, 'check_daemon_status'):
+                    daemon_status = self.ipfs_integration.ipfs_kit.check_daemon_status()
+                    health_info["ipfs"]["daemon_status"] = daemon_status
+                    
+            elif self.ipfs_integration.ipfs_kit:
+                # Fallback: try a simple operation to test connectivity
+                test_result = await self.ipfs_integration.execute_ipfs_operation("ipfs_version")
+                connection_test = test_result.get("success", False)
+                health_info["ipfs"]["connection_test"] = connection_test
+                health_info["ipfs"]["daemon_running"] = connection_test
+                
         except Exception as e:
             health_info["ipfs"]["connection_error"] = str(e)
         
@@ -2803,7 +2468,10 @@ class EnhancedMCPServerWithDaemonMgmt:
 # MCP Server main loop
 async def main():
     """Main MCP server loop."""
+    logger.info("=== main() starting ===")
+    logger.info("About to create EnhancedMCPServerWithDaemonMgmt...")
     server = EnhancedMCPServerWithDaemonMgmt()
+    logger.info("✓ EnhancedMCPServerWithDaemonMgmt created")
     
     try:
         while True:
@@ -2912,3 +2580,8 @@ async def handle_message(server: EnhancedMCPServerWithDaemonMgmt, message: Dict[
             }
         else:
             return None
+
+
+if __name__ == "__main__":
+    logger.info("=== Script starting as main ===")
+    asyncio.run(main())
