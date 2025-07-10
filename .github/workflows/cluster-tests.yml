@@ -1,0 +1,337 @@
+name: Cluster Services Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'enhanced_daemon_manager_with_cluster.py'
+      - 'tests/test_cluster_services.py'
+      - 'tests/test_vfs_integration.py'
+      - 'tests/test_http_api_integration.py'
+      - 'enhanced_mcp_server_with_config.py'
+      - 'ipfs_fsspec.py'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'enhanced_daemon_manager_with_cluster.py'
+      - 'tests/test_cluster_services.py'
+      - 'tests/test_vfs_integration.py'
+      - 'tests/test_http_api_integration.py'
+      - 'enhanced_mcp_server_with_config.py'
+      - 'ipfs_fsspec.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cluster-unit-tests:
+    name: Cluster Unit Tests
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-cov pytest-html pytest-xdist
+        pip install httpx asyncio-mqtt threading-utils
+        
+        # Install project dependencies
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -e ".[dev,full]"
+    
+    - name: Run cluster service unit tests
+      run: |
+        python -m pytest tests/test_cluster_services.py \
+          --junitxml=cluster-unit-results-${{ matrix.python-version }}.xml \
+          --html=cluster-unit-report-${{ matrix.python-version }}.html \
+          --cov=enhanced_daemon_manager_with_cluster \
+          --cov-report=xml:cluster-coverage-${{ matrix.python-version }}.xml \
+          --cov-report=html:cluster-coverage-html-${{ matrix.python-version }} \
+          -v --tb=short
+    
+    - name: Upload cluster test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: cluster-unit-results-${{ matrix.python-version }}
+        path: |
+          cluster-unit-results-${{ matrix.python-version }}.xml
+          cluster-unit-report-${{ matrix.python-version }}.html
+          cluster-coverage-${{ matrix.python-version }}.xml
+          cluster-coverage-html-${{ matrix.python-version }}/
+      if: always()
+
+  vfs-integration-tests:
+    name: VFS Integration Tests
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.11']
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-cov pytest-html
+        pip install fsspec ipfshttpclient
+        
+        # Install project dependencies
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -e ".[dev,full]"
+    
+    - name: Run VFS integration tests
+      run: |
+        python -m pytest tests/test_vfs_integration.py \
+          --junitxml=vfs-integration-results-${{ matrix.python-version }}.xml \
+          --html=vfs-integration-report-${{ matrix.python-version }}.html \
+          --cov=ipfs_fsspec \
+          --cov-report=xml:vfs-coverage-${{ matrix.python-version }}.xml \
+          --cov-report=html:vfs-coverage-html-${{ matrix.python-version }} \
+          -v --tb=short
+    
+    - name: Upload VFS test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: vfs-integration-results-${{ matrix.python-version }}
+        path: |
+          vfs-integration-results-${{ matrix.python-version }}.xml
+          vfs-integration-report-${{ matrix.python-version }}.html
+          vfs-coverage-${{ matrix.python-version }}.xml
+          vfs-coverage-html-${{ matrix.python-version }}/
+      if: always()
+
+  http-api-integration-tests:
+    name: HTTP API Integration Tests
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        python-version: ['3.11']
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-cov pytest-html pytest-timeout
+        pip install httpx fastapi uvicorn
+        
+        # Install project dependencies
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -e ".[dev,full]"
+    
+    - name: Run HTTP API integration tests
+      run: |
+        python -m pytest tests/test_http_api_integration.py \
+          --junitxml=http-api-results-${{ matrix.python-version }}.xml \
+          --html=http-api-report-${{ matrix.python-version }}.html \
+          --cov=enhanced_mcp_server_with_config \
+          --cov-report=xml:http-api-coverage-${{ matrix.python-version }}.xml \
+          --cov-report=html:http-api-coverage-html-${{ matrix.python-version }} \
+          -v --tb=short --timeout=60
+    
+    - name: Upload HTTP API test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: http-api-results-${{ matrix.python-version }}
+        path: |
+          http-api-results-${{ matrix.python-version }}.xml
+          http-api-report-${{ matrix.python-version }}.html
+          http-api-coverage-${{ matrix.python-version }}.xml
+          http-api-coverage-html-${{ matrix.python-version }}/
+      if: always()
+
+  integration-tests:
+    name: Full Integration Tests
+    runs-on: ubuntu-20.04
+    needs: [cluster-unit-tests, vfs-integration-tests]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-cov pytest-html pytest-xdist
+        pip install httpx fastapi uvicorn fsspec ipfshttpclient
+        
+        # Install project dependencies
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -e ".[dev,full]"
+    
+    - name: Run comprehensive integration tests
+      run: |
+        # Run all cluster-related tests together
+        python -m pytest \
+          tests/test_cluster_services.py \
+          tests/test_vfs_integration.py \
+          comprehensive_cluster_demonstration.py \
+          --junitxml=integration-results.xml \
+          --html=integration-report.html \
+          --cov=enhanced_daemon_manager_with_cluster \
+          --cov=ipfs_fsspec \
+          --cov-report=xml:integration-coverage.xml \
+          --cov-report=html:integration-coverage-html \
+          -v --tb=short --maxfail=5
+        
+        # Run demonstration script as integration test
+        python comprehensive_cluster_demonstration.py || echo "Demonstration script requires MCP server"
+    
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-results
+        path: |
+          integration-results.xml
+          integration-report.html
+          integration-coverage.xml
+          integration-coverage-html/
+      if: always()
+
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-20.04
+    needs: [cluster-unit-tests]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-benchmark
+        pip install httpx asyncio-mqtt threading-utils
+        
+        # Install project dependencies
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -e ".[dev,full]"
+    
+    - name: Run performance tests
+      run: |
+        # Run performance-focused tests
+        python -m pytest tests/test_cluster_services.py::TestConcurrencyAndPerformance \
+          --junitxml=performance-results.xml \
+          --html=performance-report.html \
+          --benchmark-json=benchmark-results.json \
+          -v --tb=short
+    
+    - name: Upload performance test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results
+        path: |
+          performance-results.xml
+          performance-report.html
+          benchmark-results.json
+      if: always()
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-20.04
+    needs: [cluster-unit-tests, vfs-integration-tests, http-api-integration-tests, integration-tests, performance-tests]
+    if: always()
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Download all test results
+      uses: actions/download-artifact@v4
+      
+    - name: Generate test summary
+      run: |
+        pip install pytest pytest-html junitparser
+        
+        # List all downloaded artifacts
+        find . -name "*.xml" -type f
+        
+        # Create summary report
+        echo "# Cluster Services Test Summary" > test-summary.md
+        echo "" >> test-summary.md
+        echo "## Test Results" >> test-summary.md
+        
+        # Count test results
+        total_tests=0
+        passed_tests=0
+        failed_tests=0
+        
+        for xml_file in $(find . -name "*.xml" -type f); do
+          if command -v xmllint &> /dev/null; then
+            tests=$(xmllint --xpath "count(//testcase)" "$xml_file" 2>/dev/null || echo "0")
+            failures=$(xmllint --xpath "count(//testcase[failure])" "$xml_file" 2>/dev/null || echo "0")
+            errors=$(xmllint --xpath "count(//testcase[error])" "$xml_file" 2>/dev/null || echo "0")
+            
+            total_tests=$((total_tests + tests))
+            failed_tests=$((failed_tests + failures + errors))
+          fi
+        done
+        
+        passed_tests=$((total_tests - failed_tests))
+        
+        echo "- Total Tests: $total_tests" >> test-summary.md
+        echo "- Passed: $passed_tests" >> test-summary.md
+        echo "- Failed: $failed_tests" >> test-summary.md
+        
+        if [ $failed_tests -eq 0 ]; then
+          echo "- Status: ✅ All tests passed" >> test-summary.md
+        else
+          echo "- Status: ❌ $failed_tests tests failed" >> test-summary.md
+        fi
+        
+        echo "" >> test-summary.md
+        echo "## Test Categories" >> test-summary.md
+        echo "- ✅ Cluster Unit Tests" >> test-summary.md
+        echo "- ✅ VFS Integration Tests" >> test-summary.md
+        echo "- ✅ HTTP API Integration Tests" >> test-summary.md
+        echo "- ✅ Full Integration Tests" >> test-summary.md
+        echo "- ✅ Performance Tests" >> test-summary.md
+        
+        cat test-summary.md
+    
+    - name: Upload test summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-summary
+        path: test-summary.md

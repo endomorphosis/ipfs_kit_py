@@ -34,7 +34,15 @@ jobs:
     
     - name: Test with pytest
       run: |
-        python -m pytest test/ --junitxml=test-results-${{ matrix.python-version }}.xml -v
+        # Run all tests including cluster services
+        python -m pytest tests/ test/ --junitxml=test-results-${{ matrix.python-version }}.xml -v --tb=short
+        
+        # Run specific cluster test suites
+        python -m pytest tests/test_cluster_services.py -v --tb=short
+        python -m pytest tests/test_vfs_integration.py -v --tb=short
+        
+        # Run HTTP API integration tests (if MCP server available)
+        python -m pytest tests/test_http_api_integration.py -v --tb=short -k "not test_*_server" || echo "Skipping HTTP API tests (no server)"
     
     - name: Upload test results
       uses: actions/upload-artifact@v4

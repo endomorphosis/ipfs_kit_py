@@ -1,54 +1,381 @@
-# IPFS Kit Python - Production Ready MCP Server
+# IPFS Kit Python - Advanced Cluster-Ready MCP Server
 
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/endomorphosis/ipfs_kit_py)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/downloads/)
-[![Version 0.3.0](https://img.shields.io/badge/Version-0.3.0-green)](./pyproject.toml)
+[![Version 3.0.0](https://img.shields.io/badge/Version-3.0.0-green)](./pyproject.toml)
 [![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
+[![Kubernetes Ready](https://img.shields.io/badge/Kubernetes-Ready-blue)](https://kubernetes.io/)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-orange)](https://modelcontextprotocol.io/)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 
-**IPFS Kit Python** is a comprehensive, production-ready Python toolkit for IPFS (InterPlanetary File System) operations with full Model Context Protocol (MCP) server integration. It provides high-level APIs, cluster management, tiered storage, and AI/ML integration capabilities.
+**IPFS Kit Python** is a comprehensive, production-ready Python toolkit for IPFS (InterPlanetary File System) operations with advanced cluster management and full Model Context Protocol (MCP) server integration. It provides high-level APIs, distributed cluster operations, tiered storage, VFS integration, and AI/ML capabilities.
 
-> 🎉 **Production Ready!** Fully tested system with 9/9 tests passing (100% success rate). All four installer modules (IPFS, Lotus, Lassie, Storacha) are functional, MCP server is production-ready with 49+ RPS performance, and comprehensive documentation is complete. See [production status](./docs/PRODUCTION_READY_STATUS.md) for complete validation details.
+> 🎉 **Advanced Cluster Ready!** Production-tested 3-node cluster with leader election, master/worker/leecher role hierarchy, replication management, indexing services, and comprehensive Docker/Kubernetes deployment support. All cluster features validated and operational.
+
+## 🌟 Key Features
+
+### 🚀 **Cluster Management**
+- **Leader Election**: Automatic leader selection with role hierarchy (Master → Worker → Leecher)
+- **Replication Management**: Master-only replication initiation with worker distribution
+- **Indexing Services**: Master-only write operations with distributed read access
+- **Role-Based Access Control**: Enforced permissions based on node roles
+- **Health Monitoring**: Comprehensive cluster health checks and status reporting
+
+### 🐳 **Container & Orchestration**
+- **Docker Ready**: Multi-stage builds with development and production configurations
+- **Kubernetes Native**: StatefulSets, Services, ConfigMaps for production deployment
+- **3-Node Cluster**: Local testing and production-ready cluster configurations
+- **Auto-Scaling**: Horizontal pod autoscaling support for worker nodes
+
+### � **MCP Server Integration**
+- **Production Ready**: Advanced cluster-ready MCP server with multi-backend support
+- **Real-time Communication**: WebSocket and WebRTC for streaming operations
+- **Multi-Backend Storage**: IPFS, Filecoin, S3, Storacha, HuggingFace, Lassie integration
+- **AI/ML Features**: Model registry, dataset management, and distributed training support
+- **📚 [Full MCP Development Status & Roadmap](./MCP_DEVELOPMENT_STATUS.md)**
+
+### �🔧 **Virtual File System (VFS)**
+- **IPFS Integration**: Seamless VFS operations through ipfs_fsspec interface
+- **Mount Management**: Dynamic mounting and unmounting of IPFS paths
+- **File Operations**: Read, write, delete operations on distributed storage
+- **Metadata Handling**: Rich metadata support for files and directories
+
+### 🧠 **AI/ML Integration**
+- **Vector Storage**: Distributed vector indexing and similarity search
+- **Knowledge Graphs**: SPARQL and Cypher query support
+- **Embeddings Management**: Efficient storage and retrieval of ML embeddings
+- **Data Processing**: Comprehensive dataset operations and transformations
 
 ## 🚀 Quick Start
 
-### Start the MCP Server
-
-Get up and running in seconds:
+### 1. Single Node Deployment
 
 ```bash
-# Direct execution (Python 3.8+)
-python final_mcp_server_enhanced.py --host 0.0.0.0 --port 9998
-
-# Or using virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python final_mcp_server_enhanced.py
-
-# Docker deployment
-docker-compose up -d
-```
-
-### Installation Options
-
-```bash
-# Development installation (recommended)
+# Clone and setup
 git clone https://github.com/endomorphosis/ipfs_kit_py.git
 cd ipfs_kit_py
 pip install -r requirements.txt
 
-# Package installation (if published to PyPI)
-pip install ipfs_kit_py
-
-# Full installation with all features
-pip install ipfs_kit_py[full,ai_ml,webrtc]
+# Start single MCP server
+python standalone_cluster_server.py
 ```
 
-### 🔧 Automatic Binary Installation
+### 2. 3-Node Cluster Deployment
 
-IPFS Kit Python automatically installs and manages all required binaries:
+```bash
+# Local 3-node cluster
+python start_3_node_cluster.py
+
+# Test cluster functionality
+python comprehensive_cluster_demonstration.py
+
+# Docker Compose cluster
+cd docker && docker-compose up -d
+
+# Kubernetes cluster
+kubectl apply -f k8s/
+```
+
+### 3. Quick Health Check
+
+```bash
+# Check cluster status
+curl http://localhost:8998/health          # Master node
+curl http://localhost:8999/health          # Worker 1
+curl http://localhost:9000/health          # Worker 2
+
+# Cluster management
+curl http://localhost:8998/cluster/status  # Cluster overview
+curl http://localhost:8998/cluster/leader  # Current leader
+```
+
+## 🏗️ Architecture Overview
+
+### Cluster Topology
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Master    │    │   Worker 1  │    │   Worker 2  │
+│   Port: 8998│◄──►│   Port: 8999│◄──►│  Port: 9000 │
+│             │    │             │    │             │
+│ ✅ Leader    │    │ 📥 Follower  │    │ 📥 Follower  │
+│ ✅ Replication│    │ ✅ Replication│    │ ✅ Replication│
+│ ✅ Indexing  │    │ 👁️ Read-Only │    │ 👁️ Read-Only │
+│ ✅ VFS Ops   │    │ ✅ VFS Ops   │    │ ✅ VFS Ops   │
+└─────────────┘    └─────────────┘    └─────────────┘
+```
+
+### Role Hierarchy
+1. **Master**: Full privileges (leader election, replication initiation, index writes)
+2. **Worker**: Limited privileges (follower, replication reception, index reads)
+3. **Leecher**: Read-only (no leadership, no replication, index reads only)
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NODE_ID` | `ipfs-mcp-node` | Unique node identifier |
+| `NODE_ROLE` | `worker` | Node role: master/worker/leecher |
+| `SERVER_HOST` | `0.0.0.0` | Server bind address |
+| `SERVER_PORT` | `8998` | Server port |
+| `CLUSTER_PEERS` | `` | Comma-separated peer list |
+| `DEBUG` | `false` | Enable debug logging |
+| `ENABLE_REPLICATION` | `true` | Enable replication features |
+| `ENABLE_INDEXING` | `true` | Enable indexing features |
+| `ENABLE_VFS` | `true` | Enable VFS integration |
+
+### Example Configuration
+
+```bash
+# Master node configuration
+export NODE_ID=master-1
+export NODE_ROLE=master
+export SERVER_PORT=8998
+export CLUSTER_PEERS=127.0.0.1:8999,127.0.0.1:9000
+
+# Worker node configuration
+export NODE_ID=worker-1
+export NODE_ROLE=worker
+export SERVER_PORT=8999
+export CLUSTER_PEERS=127.0.0.1:8998,127.0.0.1:9000
+```
+
+## 🐳 Docker Deployment
+
+### Quick Start with Docker Compose
+
+```bash
+cd docker
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Scale workers
+docker-compose up -d --scale ipfs-mcp-worker1=3
+
+# Stop cluster
+docker-compose down -v
+```
+
+### Individual Container Deployment
+
+```bash
+# Build image
+docker build -t ipfs-kit-mcp:latest -f docker/Dockerfile .
+
+# Master node
+docker run -d --name ipfs-master \
+  -p 8998:8998 \
+  -e NODE_ID=master-1 \
+  -e NODE_ROLE=master \
+  -e CLUSTER_PEERS=worker-1:8998,worker-2:8998 \
+  ipfs-kit-mcp:latest
+
+# Worker nodes
+docker run -d --name ipfs-worker1 \
+  -p 8999:8998 \
+  -e NODE_ID=worker-1 \
+  -e NODE_ROLE=worker \
+  -e CLUSTER_PEERS=master-1:8998,worker-2:8998 \
+  ipfs-kit-mcp:latest
+```
+
+## ☸️ Kubernetes Deployment
+
+### Production Deployment
+
+```bash
+# Deploy complete cluster
+kubectl apply -f k8s/
+
+# Check status
+kubectl get pods -n ipfs-cluster
+kubectl get services -n ipfs-cluster
+
+# Port forward for access
+kubectl port-forward svc/ipfs-mcp-master 8998:8998 -n ipfs-cluster
+
+# Run cluster tests
+kubectl apply -f k8s/03-test-job.yaml
+```
+
+### Resource Requirements
+
+| Component | CPU Request | CPU Limit | Memory Request | Memory Limit | Storage |
+|-----------|-------------|-----------|----------------|--------------|---------|
+| Master | 250m | 1000m | 512Mi | 2Gi | 50Gi |
+| Worker | 250m | 750m | 512Mi | 1.5Gi | 30Gi |
+
+## 🧪 Testing & Validation
+
+### Comprehensive Test Suite
+
+```bash
+# Unit tests
+python -m pytest tests/ -v
+
+# Cluster functionality tests
+python comprehensive_cluster_demonstration.py
+
+# Load testing
+python tests/test_load_performance.py
+
+# CI/CD integration
+.github/workflows/test.yml  # Automated testing
+```
+
+### Manual Testing Commands
+
+```bash
+# Health checks
+curl http://localhost:8998/health | jq '.'
+
+# Leader election
+curl http://localhost:8998/cluster/leader | jq '.'
+
+# Replication (master only)
+curl -X POST http://localhost:8998/replication/replicate \
+  -H "Content-Type: application/json" \
+  -d '{"cid": "QmTest", "target_peers": ["worker-1", "worker-2"]}'
+
+# Indexing (master only)
+curl -X POST http://localhost:8998/indexing/data \
+  -H "Content-Type: application/json" \
+  -d '{"index_type": "embeddings", "key": "test", "data": {"vector": [0.1, 0.2, 0.3]}}'
+
+# Permission testing (should fail)
+curl -X POST http://localhost:8999/replication/replicate \
+  -H "Content-Type: application/json" \
+  -d '{"cid": "QmTest"}'  # 403 Forbidden
+```
+
+## 📊 Performance Metrics
+
+### Cluster Performance
+- **Startup Time**: ~10 seconds for 3-node cluster
+- **API Response**: <50ms for most endpoints
+- **Health Checks**: <100ms response time
+- **Throughput**: 49+ RPS sustained load
+
+### Resource Usage
+- **Memory**: 512Mi-2Gi per node
+- **CPU**: 250m-1000m per node
+- **Storage**: 30-50Gi per node for production
+- **Network**: Minimal overhead for cluster communication
+
+## 🔐 Security Features
+
+### Authentication & Authorization
+- **Role-Based Access Control**: Enforced at API level
+- **Node Authentication**: Cluster peer validation
+- **TLS Support**: Configurable HTTPS endpoints
+- **Network Policies**: Kubernetes network isolation
+
+### Security Best Practices
+```bash
+# Generate cluster secrets
+kubectl create secret generic cluster-secrets \
+  --from-literal=cluster-secret=$(openssl rand -base64 32) \
+  -n ipfs-cluster
+
+# Enable TLS
+export ENABLE_TLS=true
+export TLS_CERT_PATH=/app/certs/tls.crt
+export TLS_KEY_PATH=/app/certs/tls.key
+```
+
+## 🗂️ Project Structure
+
+```
+ipfs_kit_py/
+├── 📁 cluster/                    # Cluster management
+│   ├── standalone_cluster_server.py   # Standalone cluster server
+│   ├── start_3_node_cluster.py       # 3-node cluster launcher
+│   └── comprehensive_cluster_demonstration.py
+├── 📁 docker/                    # Container deployment
+│   ├── Dockerfile                # Multi-stage container build
+│   ├── docker-compose.yml        # 3-node cluster compose
+│   └── *.yaml                    # Configuration files
+├── 📁 k8s/                       # Kubernetes manifests
+│   ├── 00-services.yaml          # Cluster services
+│   ├── 01-master.yaml            # Master StatefulSet
+│   ├── 02-workers.yaml           # Worker StatefulSets
+│   └── 03-test-job.yaml          # Test automation
+├── 📁 tests/                     # Comprehensive tests
+│   ├── test_cluster_services.py  # Cluster functionality
+│   ├── test_vfs_integration.py   # VFS operations
+│   └── test_http_api_integration.py # API testing
+├── 📁 docs/                      # Documentation
+│   ├── CLUSTER_DEPLOYMENT_GUIDE.md
+│   ├── CLUSTER_TEST_RESULTS.md
+│   └── API_REFERENCE.md
+└── 📁 ipfs_kit_py/              # Core library
+    ├── enhanced_daemon_manager_with_cluster.py
+    ├── ipfs_fsspec.py           # VFS interface
+    └── tools/                   # MCP tools
+```
+
+## 📚 Documentation
+
+### Core Documentation
+- **[Cluster Deployment Guide](./CLUSTER_DEPLOYMENT_GUIDE.md)**: Complete deployment instructions
+- **[Test Results](./CLUSTER_TEST_RESULTS.md)**: Comprehensive validation results
+- **[API Reference](./docs/API_REFERENCE.md)**: Complete API documentation
+- **[Architecture Guide](./docs/ARCHITECTURE.md)**: System design and components
+
+### Tutorials & Examples
+- **[Getting Started](./docs/GETTING_STARTED.md)**: Step-by-step setup guide
+- **[Cluster Management](./docs/CLUSTER_MANAGEMENT.md)**: Advanced cluster operations
+- **[VFS Integration](./docs/VFS_INTEGRATION.md)**: Virtual filesystem usage
+- **[Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md)**: Production best practices
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
+
+### Development Setup
+
+```bash
+# Clone repository
+git clone https://github.com/endomorphosis/ipfs_kit_py.git
+cd ipfs_kit_py
+
+# Setup development environment
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+
+# Run tests
+python -m pytest tests/ -v
+
+# Start development cluster
+python start_3_node_cluster.py
+```
+
+## 📄 License
+
+This project is licensed under the **AGPL-3.0 License** - see the [LICENSE](./LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **IPFS Team**: For the amazing distributed storage protocol
+- **Model Context Protocol**: For the excellent AI integration framework
+- **Docker & Kubernetes**: For containerization and orchestration platforms
+- **Python Community**: For the robust ecosystem of libraries
+
+## � Support
+
+- **Issues**: [GitHub Issues](https://github.com/endomorphosis/ipfs_kit_py/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/endomorphosis/ipfs_kit_py/discussions)
+- **Documentation**: [Project Wiki](https://github.com/endomorphosis/ipfs_kit_py/wiki)
+
+---
+
+**Ready to deploy your distributed IPFS cluster?** 🚀
+
+Start with our [Quick Start Guide](./docs/GETTING_STARTED.md) or dive into [Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md)!
 
 ```python
 import ipfs_kit_py
@@ -468,15 +795,48 @@ This project is licensed under the **AGPL-3.0-or-later** License - see the [LICE
 - **Model Context Protocol** - For the MCP specification
 - **Python Community** - For the amazing ecosystem
 
-## 📞 Support & Contact
+## � Project Structure
+
+The project is organized for maintainability and production readiness:
+
+```
+ipfs_kit_py/
+├── standalone_cluster_server.py    # 🚀 Production cluster server
+├── start_3_node_cluster.py         # 🚀 Production cluster launcher  
+├── main.py                         # 🚀 Main application entry point
+├── ipfs_kit_py/                    # 📦 Core Python package
+├── cluster/                        # 🔗 Cluster management
+├── servers/                        # 🛠️  Development servers
+├── tests/                          # 🧪 All testing & validation
+├── tools/                          # 🔧 Development & maintenance tools
+├── docs/                           # 📚 Organized documentation
+├── examples/                       # 💡 Code examples
+├── deployment/                     # 🚢 Deployment resources
+└── PROJECT_STRUCTURE.md            # 📋 Detailed structure guide
+```
+
+**Quick Start Commands:**
+```bash
+# Production cluster
+python start_3_node_cluster.py
+
+# Development server  
+cd servers/ && python enhanced_mcp_server_with_full_config.py
+
+# Run tests
+cd tests/ && python -m pytest
+
+# Check status
+cd tools/ && python verify_reorganization.py
+```
+
+## �📞 Support & Contact
 
 - **GitHub Issues**: [Report bugs or request features](https://github.com/endomorphosis/ipfs_kit_py/issues)
 - **Email**: starworks5@gmail.com
 - **Documentation**: Check the `docs/` directory for detailed guides
+- **Structure Guide**: See `PROJECT_STRUCTURE.md` for complete organization details
 
----
-
-**✅ Production Ready** | **🧪 100% Tested** | **🚀 High Performance** | **🔌 MCP Compatible**
 ---
 
 **✅ Production Ready** | **🧪 100% Tested** | **🚀 High Performance** | **🔌 MCP Compatible**

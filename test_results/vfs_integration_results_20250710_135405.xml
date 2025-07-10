@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="7" skipped="0" tests="24" time="0.298" timestamp="2025-07-10T13:54:07.199445-07:00" hostname="barberb-HP-ZBook-Fury-16-G9-Mobile-Workstation-PC"><testcase classname="tests.test_vfs_integration.TestIPFSFileSystemIntegration" name="test_fs_initialization" time="0.002" /><testcase classname="tests.test_vfs_integration.TestIPFSFileSystemIntegration" name="test_file_write_and_read" time="0.002"><failure message="AssertionError: Expected 'add' to have been called once. Called 0 times.">self = &lt;tests.test_vfs_integration.TestIPFSFileSystemIntegration object at 0x76fa1cef9100&gt;
+
+    def test_file_write_and_read(self):
+        """Test writing and reading files through VFS"""
+        # Mock successful add operation
+        self.fs.client.add.return_value = [{'Hash': 'QmTestHash123'}]
+        self.fs.client.cat.return_value = TEST_CONTENT
+    
+        # Test writing
+        test_path = f"ipfs://{TEST_FILE_NAME}"
+        self.fs.put(test_path, TEST_CONTENT)
+    
+        # Verify add was called
+&gt;       self.fs.client.add.assert_called_once()
+
+tests/test_vfs_integration.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;Mock name='mock.add' id='130816599374976'&gt;
+
+    def assert_called_once(self):
+        """assert that the mock was called only once.
+        """
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to have been called once. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+&gt;           raise AssertionError(msg)
+E           AssertionError: Expected 'add' to have been called once. Called 0 times.
+
+/usr/lib/python3.12/unittest/mock.py:923: AssertionError</failure></testcase><testcase classname="tests.test_vfs_integration.TestIPFSFileSystemIntegration" name="test_directory_operations" time="0.001"><failure message="assert 0 == 3&#10; +  where 0 = len([])">self = &lt;tests.test_vfs_integration.TestIPFSFileSystemIntegration object at 0x76fa1cef9310&gt;
+
+    def test_directory_operations(self):
+        """Test directory operations through VFS"""
+        # Mock directory listing
+        self.fs.client.ls.return_value = [
+            {'Name': 'file1.txt', 'Type': 'file', 'Size': 100},
+            {'Name': 'file2.txt', 'Type': 'file', 'Size': 200},
+            {'Name': 'subdir', 'Type': 'directory', 'Size': 0}
+        ]
+    
+        # Test listing directory
+        result = self.fs.ls("ipfs://QmTestDirHash")
+    
+&gt;       assert len(result) == 3
+E       assert 0 == 3
+E        +  where 0 = len([])
+
+tests/test_vfs_integration.py:122: AssertionError</failure></testcase><testcase classname="tests.test_vfs_integration.TestIPFSFileSystemIntegration" name="test_file_info_operations" time="0.001"><failure message="AssertionError: assert 'mock' == 'QmTestHash123'&#10;  &#10;  - QmTestHash123&#10;  + mock">self = &lt;tests.test_vfs_integration.TestIPFSFileSystemIntegration object at 0x76fa1cef9460&gt;
+
+    def test_file_info_operations(self):
+        """Test file information operations"""
+        # Mock file info
+        self.fs.client.object_stat = Mock(return_value={
+            'Hash': 'QmTestHash123',
+            'BlockSize': 1024,
+            'CumulativeSize': 2048,
+            'NumLinks': 0
+        })
+    
+        # Test getting file info
+        info = self.fs.info("ipfs://QmTestHash123")
+    
+&gt;       assert info['name'] == 'QmTestHash123'
+E       AssertionError: assert 'mock' == 'QmTestHash123'
+E         
+E         - QmTestHash123
+E         + mock
+
+tests/test_vfs_integration.py:139: AssertionError</failure></testcase><testcase classname="tests.test_vfs_integration.TestIPFSFileSystemIntegration" name="test_error_handling" time="0.001"><failure message="Failed: DID NOT RAISE &lt;class 'Exception'&gt;">self = &lt;tests.test_vfs_integration.TestIPFSFileSystemIntegration object at 0x76fa1cef9a00&gt;
+
+    def test_error_handling(self):
+        """Test error handling in VFS operations"""
+        # Mock IPFS client errors
+        self.fs.client.cat.side_effect = Exception("IPFS node not available")
+    
+        # Test that errors are properly handled
+&gt;       with pytest.raises(Exception):
+E       Failed: DID NOT RAISE &lt;class 'Exception'&gt;
+
+tests/test_vfs_integration.py:149: Failed</failure></testcase><testcase classname="tests.test_vfs_integration.TestIPFSFileSystemIntegration" name="test_path_validation" time="0.001" /><testcase classname="tests.test_vfs_integration.TestVFSClusterIntegration" name="test_vfs_replication_integration" time="0.003" /><testcase classname="tests.test_vfs_integration.TestVFSClusterIntegration" name="test_vfs_indexing_integration" time="0.003" /><testcase classname="tests.test_vfs_integration.TestVFSClusterIntegration" name="test_vfs_cluster_peer_discovery" time="0.004"><failure message="AttributeError: 'EnhancedDaemonManager' object has no attribute '_discover_peers_from_vfs'">self = &lt;tests.test_vfs_integration.TestVFSClusterIntegration object at 0x76fa1cefa180&gt;
+
+    def test_vfs_cluster_peer_discovery(self):
+        """Test VFS-based peer discovery"""
+        # Mock peer discovery through VFS
+        self.fs.ls.return_value = [
+            {'Name': 'peer-master-1.json', 'Type': 'file'},
+            {'Name': 'peer-worker-1.json', 'Type': 'file'},
+            {'Name': 'peer-worker-2.json', 'Type': 'file'}
+        ]
+    
+        # Mock peer info retrieval
+        def mock_cat(path):
+            if 'master-1' in path:
+                return b'{"id": "master-1", "role": "master", "address": "127.0.0.1", "port": 9998}'
+            elif 'worker-1' in path:
+                return b'{"id": "worker-1", "role": "worker", "address": "127.0.0.1", "port": 10000}'
+            elif 'worker-2' in path:
+                return b'{"id": "worker-2", "role": "worker", "address": "127.0.0.1", "port": 10001}'
+            return b'{}'
+    
+        self.fs.cat.side_effect = mock_cat
+    
+        # Test peer discovery
+&gt;       peers = self.manager._discover_peers_from_vfs("ipfs://QmPeerRegistryDir")
+E       AttributeError: 'EnhancedDaemonManager' object has no attribute '_discover_peers_from_vfs'
+
+tests/test_vfs_integration.py:254: AttributeError</failure></testcase><testcase classname="tests.test_vfs_integration.TestVFSClusterIntegration" name="test_vfs_content_verification" time="0.002"><failure message="AttributeError: 'EnhancedDaemonManager' object has no attribute '_verify_content_integrity'">self = &lt;tests.test_vfs_integration.TestVFSClusterIntegration object at 0x76fa1cefa2d0&gt;
+
+    def test_vfs_content_verification(self):
+        """Test content verification through VFS"""
+        # Mock VFS operations for content verification
+        self.fs.cat.return_value = TEST_CONTENT
+    
+        # Test content verification
+        test_cid = "QmTestVerification123"
+        expected_hash = "sha256_hash_of_content"
+    
+&gt;       result = self.manager._verify_content_integrity(test_cid, expected_hash)
+E       AttributeError: 'EnhancedDaemonManager' object has no attribute '_verify_content_integrity'
+
+tests/test_vfs_integration.py:270: AttributeError</failure></testcase><testcase classname="tests.test_vfs_integration.TestVFSConcurrency" name="test_concurrent_file_operations" time="0.001" /><testcase classname="tests.test_vfs_integration.TestVFSConcurrency" name="test_thread_safety" time="0.002" /><testcase classname="tests.test_vfs_integration.TestVFSErrorRecovery" name="test_network_failure_recovery" time="0.001" /><testcase classname="tests.test_vfs_integration.TestVFSErrorRecovery" name="test_ipfs_node_unavailable" time="0.001" /><testcase classname="tests.test_vfs_integration.TestVFSErrorRecovery" name="test_invalid_cid_handling" time="0.001" /><testcase classname="tests.test_vfs_integration.TestVFSPerformance" name="test_large_file_handling" time="0.005" /><testcase classname="tests.test_vfs_integration.TestVFSPerformance" name="test_many_small_files" time="0.003" /><testcase classname="tests.test_vfs_integration.TestVFSPerformance" name="test_directory_traversal_performance" time="0.002" /><testcase classname="tests.test_vfs_integration.TestVFSMCPServerIntegration" name="test_vfs_endpoint_registration" time="0.001" /><testcase classname="tests.test_vfs_integration.TestVFSMCPServerIntegration" name="test_vfs_http_ls_endpoint" time="0.001" /><testcase classname="tests.test_vfs_integration.TestVFSMCPServerIntegration" name="test_vfs_http_cat_endpoint" time="0.001" /><testcase classname="tests.test_vfs_integration.TestVFSMCPServerIntegration" name="test_vfs_http_put_endpoint" time="0.001" /><testcase classname="tests.test_vfs_integration.TestVFSDataIntegrity" name="test_content_hash_verification" time="0.002"><failure message="assert False is True">self = &lt;tests.test_vfs_integration.TestVFSDataIntegrity object at 0x76fa1cefb830&gt;
+
+    def test_content_hash_verification(self):
+        """Test content hash verification"""
+        # Mock content with known hash
+        test_content = b"Test content for hashing"
+        expected_hash = "QmActualHashOfContent"
+    
+        self.fs.cat.return_value = test_content
+    
+        # Test hash verification
+        result = self._verify_content_hash("QmActualHashOfContent", test_content)
+&gt;       assert result is True
+E       assert False is True
+
+tests/test_vfs_integration.py:548: AssertionError</failure></testcase><testcase classname="tests.test_vfs_integration.TestVFSDataIntegrity" name="test_data_consistency_across_operations" time="0.001" /></testsuite></testsuites>

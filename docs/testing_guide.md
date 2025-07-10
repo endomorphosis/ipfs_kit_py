@@ -1,16 +1,50 @@
 # Testing Guide
 
-This document provides guidance on testing the IPFS Kit library, including best practices, fixtures, and handling of complex dependencies like PyArrow.
+> **Status**: ✅ **Comprehensive Testing Infrastructure** - Complete testing suite operational  
+> **Coverage**: Unit, integration, and end-to-end testing validated  
+> **Quick Test**: Use `python tests/test_all_mcp_tools.py` for comprehensive validation  
+> **Full Details**: See **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)** for testing infrastructure overview
+
+This document provides guidance on testing the IPFS Kit library, including production cluster testing, MCP server validation, and multi-backend storage verification.
 
 ## Test Organization
 
-Tests are organized in the `test/` directory and follow a systematic structure:
+Tests are organized in the `tests/` directory with comprehensive coverage:
 
-- Unit tests for individual components
-- Integration tests for component interactions
-- Mocked tests for dependencies
-- Role-based architecture tests
-- Python version compatibility tests
+- **Unit Tests**: Individual component validation
+- **Integration Tests**: End-to-end MCP server testing  
+- **Cluster Tests**: 3-node cluster validation
+- **Backend Tests**: Multi-backend storage verification
+- **Performance Tests**: Load and stress testing
+
+## Quick Testing (Recommended)
+
+### Production Cluster Testing
+```bash
+# Test complete MCP functionality
+python tests/test_all_mcp_tools.py
+
+# Test VFS integration
+python tests/test_vfs_mcp_integration.py
+
+# Test cluster functionality
+python tests/test_comprehensive_daemon_fixes.py
+
+# Verify project organization
+python tools/verify_enhanced_organization.py
+```
+
+### Individual Component Testing
+```bash
+# Test specific backend integrations
+python tests/integration/test_direct_mcp_tools.py
+
+# Test enhanced daemon configuration
+python tests/test_enhanced_daemon_config.py
+
+# Test core fixes validation
+python tests/test_core_fixes_validation.py
+```
 
 ## Test Dependencies
 

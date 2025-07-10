@@ -1,5 +1,9 @@
 # External Storage Backends
 
+> **Status**: ✅ **Production Ready** - Multi-backend integration fully operational  
+> **Backends**: 6 integrated (IPFS, Filecoin, S3, Storacha, HuggingFace, Lassie)  
+> **For Complete Status**: See **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)**
+
 IPFS Kit integrates with external storage systems like S3-compatible services and Storacha (formerly Web3.Storage) to provide additional options for content persistence and retrieval, functioning as deeper tiers in a comprehensive storage hierarchy.
 
 ## Architecture: Multi-Tier Storage Strategy

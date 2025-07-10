@@ -1,14 +1,50 @@
 # Installation Guide
 
-This guide covers the installation of `ipfs-kit-py` and its dependencies, including the underlying IPFS binaries and cluster tools if needed.
+> **Status**: ✅ **Production Ready** - Complete installation process validated  
+> **Quick Start**: `python start_3_node_cluster.py` for immediate deployment  
+> **Full Setup**: See **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)** for comprehensive installation guide
+
+This guide covers the installation of `ipfs-kit-py` and its dependencies, including cluster setup and MCP server deployment.
 
 ## Prerequisites
 
-*   **Python**: Version 3.8 or higher.
-*   **pip**: Python package installer.
-*   **Optional (for full functionality)**:
-    *   Build tools (gcc, make, etc.) if installing dependencies that require compilation.
-    *   Access to the internet to download packages and binaries.
+*   **Python**: Version 3.8 or higher
+*   **pip**: Python package installer
+*   **System Resources**: 
+    *   4GB RAM minimum (8GB recommended for cluster)
+    *   10GB storage minimum (50GB recommended for production)
+    *   Ports 8998, 8999, 9000 available for 3-node cluster
+*   **Optional (for enhanced functionality)**:
+    *   Docker 20.10+ for containerized deployment
+    *   Build tools (gcc, make, etc.) for source compilation
+    *   Internet access for package downloads and IPFS operations
+
+## Quick Installation (Recommended)
+
+### Production Cluster Setup
+```bash
+# Clone repository
+git clone https://github.com/endomorphosis/ipfs_kit_py.git
+cd ipfs_kit_py
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start production cluster (Master:8998, Worker1:8999, Worker2:9000)
+python start_3_node_cluster.py
+
+# Verify cluster health
+curl http://localhost:8998/health
+```
+
+### Development Environment
+```bash
+# For development with full configuration
+python servers/enhanced_mcp_server_with_full_config.py
+
+# For lightweight testing
+python servers/streamlined_mcp_server.py
+```
 
 ## Installing `ipfs-kit-py` Library
 

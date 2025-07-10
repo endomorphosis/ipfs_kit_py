@@ -1,10 +1,14 @@
 # IPFS Kit Core Concepts
 
-This document explains the fundamental concepts behind the `ipfs_kit_py` library, providing a comprehensive overview of its architecture, components, and usage patterns.
+> **Status**: ✅ **Production Ready** - Core concepts implemented and operational  
+> **Implementation**: Multi-backend storage with distributed cluster architecture  
+> **Current System**: See **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)** for production implementation details
 
-## Content Addressing: The Foundation of IPFS
+This document explains the fundamental concepts behind the `ipfs_kit_py` library, providing a comprehensive overview of its production-ready architecture, components, and usage patterns.
 
-At the heart of IPFS is content addressing - a method of identifying data by its content rather than its location. 
+## Content Addressing: The Foundation
+
+At the heart of IPFS Kit is content addressing - a method of identifying data by its content rather than its location, enhanced with multi-backend storage capabilities. 
 
 ### Content Identifiers (CIDs)
 
