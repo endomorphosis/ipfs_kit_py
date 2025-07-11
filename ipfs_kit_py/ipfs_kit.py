@@ -151,15 +151,18 @@ try:
 except ImportError:
     HAS_HUGGINGFACE = False
 
-# Try to import libp2p
+# Try to import libp2p (DISABLED due to protobuf conflicts)
 try:
-    from .libp2p_peer import IPFSLibp2pPeer
+    # DISABLED: from .libp2p_peer import IPFSLibp2pPeer
+    # LibP2P peer functionality disabled to avoid protobuf conflicts
+    raise ImportError("LibP2P disabled due to protobuf conflicts")
+    
     HAS_LIBP2P = True
 except ImportError:
     HAS_LIBP2P = False
 
 # Make HAS_LIBP2P and HAS_LOTUS global variables
-__all__ = ['HAS_LIBP2P', 'HAS_LOTUS']
+__all__ = ['HAS_LIBP2P', 'HAS_LOTUS', 'ipfs_kit', 'IPFSKit']
 
 # Try to import IPLD extension
 try:
@@ -397,6 +400,9 @@ class ipfs_kit:
         # Metadata index and sync handler (initialized on demand)
         self._metadata_index = None
         self._metadata_sync_handler = None
+        
+        # Daemon management (initialized when needed)
+        self.daemon_manager = None
 
         # Check if we need to download binaries
         auto_download = self.metadata.get("auto_download_binaries", True)
@@ -783,13 +789,23 @@ class ipfs_kit:
         # Ensure all daemons are properly configured before starting
         try:
             from .daemon_config_manager import DaemonConfigManager
-            config_manager = DaemonConfigManager(self)
-            config_result = config_manager.check_and_configure_all_daemons()
-            if not config_result.get('overall_success', False): # type: ignore
+            self.daemon_manager = DaemonConfigManager(self)
+            config_result = self.daemon_manager.check_and_configure_all_daemons()
+            if not config_result.get('success', False): # type: ignore
                 self.logger.warning('Some daemon configurations failed, but continuing...')
-                self.logger.warning(f'Config summary: {config_result.get("summary", "No summary")}') # type: ignore
+                error_summary = []
+                if 'errors' in config_result:
+                    error_summary.extend(config_result['errors'])
+                if 'daemon_results' in config_result:
+                    for daemon, result in config_result['daemon_results'].items():
+                        if not result.get('success', False):
+                            error_summary.append(f"{daemon}: {result.get('message', 'Unknown error')}")
+                summary = '; '.join(error_summary) if error_summary else 'Configuration issues detected'
+                self.logger.warning(f'Config summary: {summary}')
             else:
                 self.logger.info('All daemon configurations validated successfully')
+                if config_result.get('all_configured', False):
+                    self.logger.info('All required daemons are properly configured')
         except Exception as config_error:
             self.logger.warning(f'Daemon configuration check failed: {config_error}')
             self.logger.warning('Continuing with daemon startup...')
@@ -807,9 +823,42 @@ class ipfs_kit:
                     ipfs_result = {"success": False, "error": "No daemon start method available"}
                     # Try to run a simple command to see if daemon is running or start it with system commands
                     try:
-                        test_result = self.ipfs.run_ipfs_command(["ipfs", "id"])
-                        if test_result.get("success", False): # type: ignore
-                            ipfs_result = {"success": True, "status": "already_running"}
+                        # First check if daemon is already running
+                        if hasattr(self.ipfs, 'run_ipfs_command'):
+                            test_result = self.ipfs.run_ipfs_command(["ipfs", "id"])
+                            if test_result.get("success", False): # type: ignore
+                                ipfs_result = {"success": True, "status": "already_running"}
+                        else:
+                            # Try direct subprocess approach
+                            import subprocess
+                            try:
+                                result = subprocess.run(
+                                    ['ipfs', 'id'],
+                                    capture_output=True,
+                                    text=True,
+                                    timeout=5
+                                )
+                                if result.returncode == 0:
+                                    ipfs_result = {"success": True, "status": "already_running"}
+                                else:
+                                    # Try to start daemon
+                                    self.logger.info("Attempting to start IPFS daemon via system command...")
+                                    subprocess.Popen(
+                                        ['ipfs', 'daemon', '--init'],
+                                        stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.DEVNULL
+                                    )
+                                    # Give it time to start
+                                    import time
+                                    time.sleep(3)
+                                    # Check again
+                                    recheck = subprocess.run(['ipfs', 'id'], capture_output=True, timeout=5)
+                                    if recheck.returncode == 0:
+                                        ipfs_result = {"success": True, "status": "started"}
+                                    
+                            except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+                                self.logger.warning(f"System command approach failed: {str(e)}")
+                                ipfs_result = {"success": False, "error": f"System approach failed: {str(e)}"}
                     except Exception as e:
                         self.logger.error(f"Alternate daemon check failed: {str(e)}")
                     
@@ -865,19 +914,37 @@ class ipfs_kit:
                 all_running = all(daemon.get("running", False) for daemon in daemon_status.values())
                 if all_running:
                     self.logger.info("All required daemons are running")
-                    return True
+                    return {
+                        'success': True,
+                        'message': 'All required daemons are running',
+                        'status': self.daemon_manager.get_detailed_status_report() if self.daemon_manager else {}
+                    }
                 else:
                     # List daemons that aren't running
                     not_running = [name for name, info in daemon_status.items() if not info.get("running", False)]
                     self.logger.warning(f"Not all daemons are running. Non-running daemons: {', '.join(not_running)}")
-                    return False
+                    return {
+                        'success': False,
+                        'message': f"Not all daemons are running: {', '.join(not_running)}",
+                        'not_running': not_running,
+                        'status': self.daemon_manager.get_detailed_status_report() if self.daemon_manager else {}
+                    }
             else:
                 self.logger.warning("Could not verify daemon status")
-                return False
+                return {
+                    'success': False,
+                    'message': 'Could not verify daemon status',
+                    'status': {}
+                }
 
         except Exception as e:
             self.logger.error(f"Error starting daemons: {str(e)}")
-            return False
+            return {
+                'success': False,
+                'message': f'Error starting daemons: {str(e)}',
+                'error': str(e),
+                'status': {}
+            }
 
     def check_daemon_status(self):
         """Check the status of all daemon processes required for this node's role.
@@ -3358,6 +3425,9 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
+
+# Create CamelCase alias for compatibility
+IPFSKit = ipfs_kit
         
 if __name__ == "__main__":
     print("🚀 IPFS Kit Py Module Loaded")

@@ -421,8 +421,27 @@ __all__ = [
     
     # Enhanced protocol negotiation
     "get_enhanced_protocol_negotiation",
-    "apply_enhanced_protocol_negotiation"
+    "apply_enhanced_protocol_negotiation",
+    
+    # Main peer class (convenience import)
+    "IPFSLibp2pPeer"
 ]
+
+# Convenience import for main peer class
+try:
+    from ..libp2p_peer import IPFSLibp2pPeer
+    # Also make it available as libp2p_peer for backwards compatibility
+    libp2p_peer = IPFSLibp2pPeer
+    __all__.append("libp2p_peer")
+    logger.debug("Successfully imported IPFSLibp2pPeer")
+except ImportError as e:
+    logger.warning(f"Could not import IPFSLibp2pPeer: {e}")
+    # Create a placeholder
+    class IPFSLibp2pPeer:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("libp2p dependencies not available. Install with: pip install ipfs_kit_py[libp2p]")
+    
+    libp2p_peer = IPFSLibp2pPeer
 
 # Patch stream read_until method if required
 def patch_stream_read_until():
@@ -851,7 +870,7 @@ def apply_ipfs_kit_integration(ipfs_kit_class: Type) -> Type:
         return ipfs_kit_class
     except Exception as e:
         logger.error(f"Error applying libp2p integration to IPFSKit: {str(e)}", exc_info=True)
-        return api_class
+        return ipfs_kit_class
 
 def apply_high_level_api_integration(api_class: Type) -> Type:
     """

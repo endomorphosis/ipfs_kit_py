@@ -17,11 +17,13 @@ This implementation uses anyio for backend-agnostic async operations.
 """
 
 import anyio
+import asyncio
 import json
 import logging
 import os
 import threading
 import time
+import types
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Set, Union, Type
 
@@ -30,11 +32,30 @@ logger = logging.getLogger(__name__)
 
 # Import from our libp2p package for dependency management
 # This ensures consistent HAS_LIBP2P flag across modules
-from ipfs_kit_py.libp2p import HAS_LIBP2P, check_dependencies, install_dependencies, compatible_new_host
+# Use delayed import for compatible_new_host to avoid circular imports
+from ipfs_kit_py.libp2p import HAS_LIBP2P, check_dependencies, install_dependencies
 
 # Set defaults for optional features
 HAS_MDNS = False
 HAS_NAT_TRAVERSAL = False
+
+def _get_compatible_new_host():
+    """
+    Delayed import of compatible_new_host to avoid circular imports.
+    """
+    try:
+        from ipfs_kit_py.libp2p import compatible_new_host
+        return compatible_new_host
+    except ImportError as e:
+        logger.error(f"Cannot import compatible_new_host: {e}")
+        # Fallback to basic libp2p new_host if available
+        if HAS_LIBP2P:
+            try:
+                from libp2p import new_host
+                return new_host
+            except ImportError:
+                pass
+        raise ImportError("Neither compatible_new_host nor basic new_host available")
 
 # Import our compatibility modules
 from ipfs_kit_py.libp2p.crypto_compat import (
@@ -52,15 +73,34 @@ if HAS_LIBP2P:
         
         # Handle missing pubsub_utils gracefully
         HAS_PUBSUB = True
+        pubsub_utils = None
         try:
             from libp2p.pubsub.gossipsub import GossipSub
             from libp2p.pubsub.floodsub import FloodSub
-            logger.debug("libp2p pubsub modules available")
+            # Try to import pubsub utils
+            try:
+                import libp2p.tools.pubsub.utils as pubsub_utils
+                logger.debug("libp2p pubsub modules and utils available")
+            except ImportError:
+                # Try our custom implementation
+                from ipfs_kit_py.libp2p.tools.pubsub.utils import create_pubsub
+                # Create a minimal pubsub_utils object
+                class PubsubUtils:
+                    @staticmethod
+                    def create_pubsub(*args, **kwargs):
+                        return create_pubsub(*args, **kwargs)
+                pubsub_utils = PubsubUtils()
+                logger.debug("Using custom pubsub implementation")
         except ImportError as e:
             HAS_PUBSUB = False
             logger.warning(f"libp2p.pubsub modules not available: {e}. PubSub functionality will be limited.")
-            # Import our custom pubsub implementation
-            from ipfs_kit_py.libp2p.tools.pubsub.utils import create_pubsub
+            # Create a dummy pubsub_utils for fallback
+            class DummyPubsubUtils:
+                @staticmethod
+                def create_pubsub(*args, **kwargs):
+                    logger.warning("PubSub not available, returning None")
+                    return None
+            pubsub_utils = DummyPubsubUtils()
             
         from libp2p import new_host
         from libp2p.crypto.keys import KeyPair, PrivateKey, PublicKey
@@ -148,6 +188,13 @@ if HAS_LIBP2P:
 else:
     logger.warning("libp2p dependencies are not available, peer-to-peer functionality will be limited")
     HAS_NAT_TRAVERSAL = False
+    # Create dummy pubsub_utils for when libp2p is not available
+    class DummyPubsubUtils:
+        @staticmethod
+        def create_pubsub(*args, **kwargs):
+            logger.warning("libp2p not available, PubSub disabled")
+            return None
+    pubsub_utils = DummyPubsubUtils()
 
 # Local imports
 from ipfs_kit_py.error import (
@@ -362,7 +409,7 @@ class IPFSLibp2pPeer:
         """Initialize the libp2p host asynchronously."""
         # Create libp2p host using our compatibility wrapper
         try:
-            self.host = compatible_new_host(
+            self.host = _get_compatible_new_host()(
                 key_pair=self.identity,
                 listen_addrs=self.listen_addrs,
                 transport_opt=["/ip4/0.0.0.0/tcp/0"],
@@ -506,7 +553,7 @@ class IPFSLibp2pPeer:
         """Initialize the libp2p host with appropriate options."""
         # Create libp2p host using our compatibility wrapper
         try:
-            self.host = compatible_new_host(
+            self.host = _get_compatible_new_host()(
                 key_pair=self.identity,
                 listen_addrs=self.listen_addrs,
                 transport_opt=["/ip4/0.0.0.0/tcp/0"],

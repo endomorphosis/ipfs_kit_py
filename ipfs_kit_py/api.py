@@ -226,9 +226,12 @@ try:
     except ImportError:
         OBSERVABILITY_AVAILABLE = False
         
-    # Try to import LibP2P API
+    # Try to import LibP2P API (DISABLED due to protobuf conflicts)
     try:
-        from . import libp2p
+        # DISABLED: from . import libp2p
+        # LibP2P API disabled to avoid protobuf conflicts
+        raise ImportError("LibP2P API disabled due to protobuf conflicts")
+        
         LIBP2P_AVAILABLE = True
     except ImportError:
         LIBP2P_AVAILABLE = False

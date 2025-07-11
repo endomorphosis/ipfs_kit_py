@@ -238,10 +238,12 @@ if _DOWNLOAD_BINARIES_AUTOMATICALLY:
             logger.info("Binaries will be downloaded when specific functions are called")
 
 # Use try/except for all imports to handle optional dependencies gracefully
-# Import the transformers integration
+# Import the transformers integration (DISABLED due to protobuf conflicts)
 try:
-    from .transformers_integration import TransformersIntegration
-
+    # DISABLED: from .transformers_integration import TransformersIntegration
+    # The transformers integration causes protobuf conflicts with libp2p
+    raise ImportError("TransformersIntegration disabled to avoid protobuf conflicts")
+    
     # Create alias for the integration
     transformers = TransformersIntegration()
     print(f"TransformersIntegration is instantiated successfully")
