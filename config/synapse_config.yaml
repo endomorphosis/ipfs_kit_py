@@ -1,0 +1,26 @@
+network: calibration
+payment:
+  auto_approve: true
+  default_allowance: '1000'
+  rate_allowance: '10'
+  token: USDFC
+providers:
+  auto_select: true
+  excluded: []
+  preferred: []
+rpc_urls:
+  calibration:
+    http: https://api.calibration.node.glif.io/rpc/v1
+    websocket: wss://wss.calibration.node.glif.io/apigw/lotus/rpc/v1
+  mainnet:
+    http: https://api.node.glif.io/rpc/v1
+    websocket: wss://wss.node.glif.io/apigw/lotus/rpc/v1
+storage:
+  default_replication: 1
+  max_file_size: 209715200
+  min_file_size: 65
+  with_cdn: true
+timeouts:
+  download: 300
+  payment: 120
+  upload: 600

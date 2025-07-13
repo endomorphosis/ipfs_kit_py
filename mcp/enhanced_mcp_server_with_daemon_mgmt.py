@@ -93,6 +93,11 @@ class IPFSKitIntegration:
             logger.info("Importing ipfs_kit...")
             
             # Check if we can even find the module before importing
+            # Set environment variable to disable libp2p before any import attempts
+            import os
+            os.environ['IPFS_KIT_DISABLE_LIBP2P'] = '1'
+            logger.info("Set IPFS_KIT_DISABLE_LIBP2P=1 to bypass libp2p conflicts")
+            
             try:
                 import importlib.util
                 spec = importlib.util.find_spec("ipfs_kit_py.ipfs_kit")
@@ -103,11 +108,29 @@ class IPFSKitIntegration:
                     logger.info(f"✓ Found ipfs_kit module at: {spec.origin}")
             except Exception as e:
                 logger.error(f"Error checking for ipfs_kit module: {e}")
-                return
+                
+                # If this is a protobuf conflict, continue gracefully
+                if "protobuf" in str(e).lower() or "libp2p" in str(e).lower():
+                    logger.info("Detected protobuf/libp2p conflict during module discovery - will continue without ipfs_kit")
+                    self.ipfs_kit = None
+                    self.ipfs_kit_class = None
+                    return
+                else:
+                    return
             
             logger.info("Attempting import of ipfs_kit...")
-            from ipfs_kit_py.ipfs_kit import ipfs_kit
-            logger.info("✓ ipfs_kit imported successfully")
+            try:
+                from ipfs_kit_py.ipfs_kit import ipfs_kit
+                logger.info("✓ ipfs_kit imported successfully")
+            except Exception as import_e:
+                logger.error(f"Failed to import ipfs_kit: {import_e}")
+                if "protobuf" in str(import_e).lower() or "libp2p" in str(import_e).lower():
+                    logger.info("Protobuf/libp2p conflict detected - will continue without ipfs_kit and use direct commands")
+                    self.ipfs_kit = None
+                    self.ipfs_kit_class = None
+                    return
+                else:
+                    raise
             
             # Create ipfs_kit instance directly with proper configuration
             logger.info("Creating ipfs_kit instance...")

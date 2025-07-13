@@ -134,6 +134,13 @@ from .s3_kit import s3_kit
 from .storacha_kit import storacha_kit
 from .test_fio import test_fio
 
+# Try to import synapse_storage
+try:
+    from .synapse_storage import synapse_storage
+    HAS_SYNAPSE = True
+except ImportError:
+    HAS_SYNAPSE = False
+
 # Try to import lotus_kit
 try:
     from .lotus_kit import lotus_kit
@@ -477,6 +484,12 @@ class ipfs_kit:
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
+                # Initialize Synapse storage if available
+                if HAS_SYNAPSE:
+                    self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
+                    self.logger.info("Initialized Synapse storage for Filecoin PDP integration")
+                else:
+                    self.synapse_storage = None # Initialize to None
                 # Initialize HuggingFace Hub integration if available
                 if HAS_HUGGINGFACE:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
@@ -504,6 +517,12 @@ class ipfs_kit:
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
+                # Initialize Synapse storage if available
+                if HAS_SYNAPSE:
+                    self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
+                    self.logger.info("Initialized Synapse storage for Filecoin PDP integration")
+                else:
+                    self.synapse_storage = None # Initialize to None
                 # Initialize HuggingFace Hub integration if available
                 if HAS_HUGGINGFACE:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
@@ -533,6 +552,12 @@ class ipfs_kit:
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
+                # Initialize Synapse storage if available
+                if HAS_SYNAPSE:
+                    self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
+                    self.logger.info("Initialized Synapse storage for Filecoin PDP integration")
+                else:
+                    self.synapse_storage = None # Initialize to None
                 # Initialize HuggingFace Hub integration if available
                 if HAS_HUGGINGFACE:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)

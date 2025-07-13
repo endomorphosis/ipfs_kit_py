@@ -1,0 +1,25 @@
+
+{
+  "name": "ipfs-kit-synapse-bridge",
+  "version": "1.0.0",
+  "description": "JavaScript bridge for Synapse SDK integration with IPFS Kit Python",
+  "type": "module",
+  "main": "synapse_wrapper.js",
+  "dependencies": {
+    "@filoz/synapse-sdk": "^0.19.0",
+    "ethers": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "test": "node synapse_wrapper.js"
+  },
+  "keywords": [
+    "filecoin",
+    "synapse",
+    "storage",
+    "ipfs-kit"
+  ],
+  "license": "MIT"
+}

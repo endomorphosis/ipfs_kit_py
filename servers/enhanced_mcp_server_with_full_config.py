@@ -29,6 +29,17 @@ try:
     from mcp.types import Tool, TextContent
     MCP_AVAILABLE = True
 except ImportError:
+    # Define fallback classes for standalone mode
+    class TextContent:
+        def __init__(self, type: str, text: str):
+            self.type = type
+            self.text = text
+    
+    class Tool:
+        def __init__(self, name: str, description: str, **kwargs):
+            self.name = name
+            self.description = description
+    
     MCP_AVAILABLE = False
     logger.warning("MCP not available - running in standalone mode")
 

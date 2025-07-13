@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFS Kit - Filesystem Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+        
+        .card h2 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-healthy { background-color: #4CAF50; }
+        .status-warning { background-color: #FF9800; }
+        .status-critical { background-color: #F44336; }
+        .status-offline { background-color: #9E9E9E; }
+        
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .metric-value {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            transition: width 0.3s ease;
+        }
+        
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #FF9800, #f57c00);
+        }
+        
+        .progress-fill.critical {
+            background: linear-gradient(90deg, #F44336, #d32f2f);
+        }
+        
+        .backend-list {
+            list-style: none;
+        }
+        
+        .backend-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            transition: background-color 0.3s ease;
+        }
+        
+        .backend-item:hover {
+            background: #e9ecef;
+        }
+        
+        .backend-info {
+            flex-grow: 1;
+            margin-left: 15px;
+        }
+        
+        .backend-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+        
+        .backend-details {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .recommendations {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .recommendations h3 {
+            color: #856404;
+            margin-bottom: 15px;
+        }
+        
+        .recommendation-item {
+            background: white;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid #f39c12;
+        }
+        
+        .health-score {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .health-score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .score-healthy { background: linear-gradient(135deg, #4CAF50, #45a049); }
+        .score-warning { background: linear-gradient(135deg, #FF9800, #f57c00); }
+        .score-critical { background: linear-gradient(135deg, #F44336, #d32f2f); }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            background: #5a6fd8;
+            transform: scale(1.1);
+        }
+        
+        .timestamp {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .command-snippet {
+            background: #f1f3f4;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        
+        .error-banner {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f44336;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+        
+        .default-badge {
+            background: #4CAF50;
+            color: white;
+            font-size: 0.7em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 5px;
+        }
+        
+        .backend-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .backend-status {
+            font-size: 0.8em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .status-running { background: #e8f5e8; color: #2e7d32; }
+        .status-stopped { background: #f5f5f5; color: #616161; }
+        .status-error { background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗄️ IPFS Kit Filesystem Dashboard</h1>
+            <p>Real-time monitoring of filesystem backends and performance</p>
+        </div>
+        
+        <div id="dashboard-content">
+            <div class="loading">Loading filesystem data...</div>
+        </div>
+        
+        <button class="refresh-btn" onclick="refreshDashboard()" title="Refresh Data">
+            🔄
+        </button>
+    </div>
+
+    <script>
+        let refreshInterval;
+        
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('/dashboard/api/filesystem/status');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                
+                if (data.success && data.comprehensive_status) {
+                    renderComprehensiveDashboard(data);
+                } else if (data.fallback_status) {
+                    renderBasicDashboard(data.fallback_status);
+                } else {
+                    renderDashboard(data); // Fallback to old format
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                renderError(error.message);
+            }
+        }
+        
+        function renderComprehensiveDashboard(data) {
+            const content = document.getElementById('dashboard-content');
+            const status = data.comprehensive_status;
+            const summary = data.summary;
+            
+            content.innerHTML = `
+                <div class="dashboard-grid">
+                    ${renderSystemOverview(summary, status.performance)}
+                    ${renderBackendsOverview(status.backends)}
+                    ${renderDaemonsOverview(status.daemons)}
+                    ${renderSystemPerformanceComprehensive(status.performance, status.filesystem)}
+                </div>
+                ${renderAlertsSection(status.alerts || [])}
+                ${renderRecommendationsSection(data.recommendations || [])}
+                <div class="timestamp">
+                    Last updated: ${new Date().toLocaleString()}
+                </div>
+            `;
+        }
+        
+        function renderBasicDashboard(data) {
+            const content = document.getElementById('dashboard-content');
+            
+            content.innerHTML = `
+                <div class="dashboard-grid">
+                    ${renderBasicSystemInfo(data)}
+                </div>
+                <div class="recommendations">
+                    <h3>ℹ️ Limited Monitoring Mode</h3>
+                    <div class="recommendation-item">
+                        Basic filesystem monitoring is active. Install comprehensive backend monitor for full IPFS Kit backend integration including Lotus, Lassie, Storacha, S3, HuggingFace, and more.
+                    </div>
+                </div>
+                <div class="timestamp">
+                    Last updated: ${new Date().toLocaleString()}
+                </div>
+            `;
+        }
+        
+        function renderSystemOverview(summary, performance) {
+            const healthScore = Math.round((summary.running_backends / Math.max(summary.total_backends, 1)) * 100);
+            const scoreClass = healthScore >= 90 ? 'score-healthy' :
+                              healthScore >= 70 ? 'score-warning' : 'score-critical';
+            
+            return `
+                <div class="card">
+                    <h2>🏥 System Health</h2>
+                    <div class="health-score">
+                        <div class="health-score-circle ${scoreClass}">
+                            ${healthScore}%
+                        </div>
+                        <strong>Overall Health Score</strong>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Total Backends:</span>
+                        <span class="metric-value">${summary.total_backends || 0}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Running Backends:</span>
+                        <span class="metric-value">${summary.running_backends || 0}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Total Daemons:</span>
+                        <span class="metric-value">${summary.total_daemons || 0}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Running Daemons:</span>
+                        <span class="metric-value">${summary.running_daemons || 0}</span>
+                    </div>
+                    ${performance ? `
+                        <div class="metric-row">
+                            <span class="metric-label">CPU Usage:</span>
+                            <span class="metric-value">${performance.cpu_usage_percent?.toFixed(1) || 0}%</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Memory Usage:</span>
+                            <span class="metric-value">${performance.memory_usage_percent?.toFixed(1) || 0}%</span>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function renderBackendsOverview(backends) {
+            if (!backends || Object.keys(backends).length === 0) {
+                return `
+                    <div class="card">
+                        <h2>🗄️ IPFS Kit Backends</h2>
+                        <div class="error-message">No backends detected. Install IPFS Kit backend integrations.</div>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="card">
+                    <h2>🗄️ IPFS Kit Backends</h2>
+                    <ul class="backend-list">
+                        ${Object.entries(backends).map(([id, backend]) => {
+                            const statusClass = backend.status === 'running' ? 'status-healthy' :
+                                               backend.status === 'stopped' ? 'status-offline' : 'status-critical';
+                            return `
+                                <li class="backend-item">
+                                    <span class="status-indicator ${statusClass}"></span>
+                                    <div class="backend-info">
+                                        <div class="backend-name">${backend.name || id}</div>
+                                        <div class="backend-details">
+                                            Type: ${backend.type} | Status: ${backend.status}
+                                            ${backend.is_default ? ' | <strong>Default</strong>' : ''}
+                                            ${backend.error ? `<br><span style="color: #d32f2f;">Error: ${backend.error}</span>` : ''}
+                                            ${backend.metrics ? Object.entries(backend.metrics).map(([k,v]) => `<br>${k}: ${v}`).join('') : ''}
+                                        </div>
+                                    </div>
+                                </li>
+                            `;
+                        }).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        function renderDaemonsOverview(daemons) {
+            if (!daemons || Object.keys(daemons).length === 0) {
+                return `
+                    <div class="card">
+                        <h2>🔧 Daemon Services</h2>
+                        <div class="error-message">No daemon services detected.</div>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="card">
+                    <h2>🔧 Daemon Services</h2>
+                    <ul class="backend-list">
+                        ${Object.entries(daemons).map(([id, daemon]) => {
+                            const statusClass = daemon.status === 'running' ? 'status-healthy' :
+                                               daemon.status === 'stopped' ? 'status-offline' : 'status-critical';
+                            return `
+                                <li class="backend-item">
+                                    <span class="status-indicator ${statusClass}"></span>
+                                    <div class="backend-info">
+                                        <div class="backend-name">${id.toUpperCase()}</div>
+                                        <div class="backend-details">
+                                            Status: ${daemon.status}
+                                            ${daemon.pid ? ` | PID: ${daemon.pid}` : ''}
+                                            ${daemon.api_available !== undefined ? ` | API: ${daemon.api_available ? 'Available' : 'Unavailable'}` : ''}
+                                        </div>
+                                    </div>
+                                </li>
+                            `;
+                        }).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        function renderSystemPerformanceComprehensive(performance, filesystem) {
+            if (!performance && !filesystem) {
+                return `
+                    <div class="card">
+                        <h2>⚡ System Performance</h2>
+                        <div class="error-message">Performance data unavailable</div>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="card">
+                    <h2>⚡ System Performance</h2>
+                    ${performance ? `
+                        <div class="metric-row">
+                            <span class="metric-label">CPU Usage:</span>
+                            <span class="metric-value">${performance.cpu_usage_percent?.toFixed(1) || 0}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${performance.cpu_usage_percent > 90 ? 'critical' : performance.cpu_usage_percent > 70 ? 'warning' : ''}" 
+                                 style="width: ${performance.cpu_usage_percent || 0}%"></div>
+                        </div>
+                        
+                        <div class="metric-row">
+                            <span class="metric-label">Memory Usage:</span>
+                            <span class="metric-value">${performance.memory_usage_percent?.toFixed(1) || 0}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${performance.memory_usage_percent > 90 ? 'critical' : performance.memory_usage_percent > 70 ? 'warning' : ''}" 
+                                 style="width: ${performance.memory_usage_percent || 0}%"></div>
+                        </div>
+                        
+                        ${performance.uptime_seconds ? `
+                            <div class="metric-row">
+                                <span class="metric-label">Uptime:</span>
+                                <span class="metric-value">${formatUptime(performance.uptime_seconds)}</span>
+                            </div>
+                        ` : ''}
+                    ` : ''}
+                    
+                    ${filesystem ? `
+                        <div class="metric-row">
+                            <span class="metric-label">Disk Usage:</span>
+                            <span class="metric-value">${filesystem.usage_percent?.toFixed(1) || 0}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${filesystem.usage_percent > 90 ? 'critical' : filesystem.usage_percent > 70 ? 'warning' : ''}" 
+                                 style="width: ${filesystem.usage_percent || 0}%"></div>
+                        </div>
+                        
+                        <div class="metric-row">
+                            <span class="metric-label">Total Space:</span>
+                            <span class="metric-value">${filesystem.total_space_gb?.toFixed(1) || 0} GB</span>
+                        </div>
+                        
+                        <div class="metric-row">
+                            <span class="metric-label">Free Space:</span>
+                            <span class="metric-value">${filesystem.free_space_gb?.toFixed(1) || 0} GB</span>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function renderAlertsSection(alerts) {
+            if (!alerts || alerts.length === 0) {
+                return `
+                    <div class="recommendations">
+                        <h3>✅ System Alerts</h3>
+                        <div class="recommendation-item" style="border-left-color: #4CAF50;">
+                            No alerts - all systems healthy
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="recommendations">
+                    <h3>🚨 System Alerts</h3>
+                    ${alerts.map(alert => `
+                        <div class="recommendation-item" style="border-left-color: ${alert.level === 'critical' ? '#F44336' : alert.level === 'warning' ? '#FF9800' : '#2196F3'};">
+                            <strong>${alert.level.toUpperCase()}</strong> - ${alert.type}<br>
+                            ${alert.message}
+                            <br><small>Time: ${new Date(alert.timestamp * 1000).toLocaleString()}</small>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        function renderRecommendationsSection(recommendations) {
+            if (!recommendations || recommendations.length === 0) {
+                return `
+                    <div class="recommendations">
+                        <h3>💡 Recommendations</h3>
+                        <div class="recommendation-item">
+                            System is optimally configured - no recommendations at this time.
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="recommendations">
+                    <h3>💡 Recommendations</h3>
+                    ${recommendations.map(rec => `
+                        <div class="recommendation-item">
+                            <strong>${rec.title}</strong><br>
+                            ${rec.description}<br>
+                            <strong>Action:</strong> ${rec.action}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        function renderBasicSystemInfo(data) {
+            return `
+                <div class="card">
+                    <h2>📊 Basic System Info</h2>
+                    ${data.filesystem ? `
+                        <div class="metric-row">
+                            <span class="metric-label">Total Space:</span>
+                            <span class="metric-value">${data.filesystem.total_space_gb?.toFixed(1) || 0} GB</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Used Space:</span>
+                            <span class="metric-value">${data.filesystem.used_space_gb?.toFixed(1) || 0} GB</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Free Space:</span>
+                            <span class="metric-value">${data.filesystem.free_space_gb?.toFixed(1) || 0} GB</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Usage:</span>
+                            <span class="metric-value">${data.filesystem.usage_percent?.toFixed(1) || 0}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${data.filesystem.usage_percent > 90 ? 'critical' : data.filesystem.usage_percent > 70 ? 'warning' : ''}" 
+                                 style="width: ${data.filesystem.usage_percent || 0}%"></div>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.performance ? `
+                        <div class="metric-row">
+                            <span class="metric-label">CPU Usage:</span>
+                            <span class="metric-value">${data.performance.cpu_usage_percent?.toFixed(1) || 0}%</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Memory Usage:</span>
+                            <span class="metric-value">${data.performance.memory_usage_percent?.toFixed(1) || 0}%</span>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            
+            if (days > 0) return `${days}d ${hours}h ${mins}m`;
+            if (hours > 0) return `${hours}h ${mins}m`;
+            return `${mins}m`;
+        }
+        
+        function renderDashboard(data) {
+            const content = document.getElementById('dashboard-content');
+            
+            content.innerHTML = `
+                <div class="dashboard-grid">
+                    ${renderHealthOverview(data.health_summary)}
+                    ${renderIPFSStatus(data.ipfs_status)}
+                    ${renderSystemPerformance(data.system_performance)}
+                    ${renderFilesystemBackends(data.filesystem_backends)}
+                </div>
+                ${renderRecommendations(data.health_summary.recommendations)}
+                <div class="timestamp">
+                    Last updated: ${new Date(data.timestamp * 1000).toLocaleString()}
+                </div>
+            `;
+        }
+        
+        function renderHealthOverview(health) {
+            const scoreClass = health.overall_status === 'healthy' ? 'score-healthy' :
+                              health.overall_status === 'warning' ? 'score-warning' : 'score-critical';
+            
+            return `
+                <div class="card">
+                    <h2>🏥 System Health</h2>
+                    <div class="health-score">
+                        <div class="health-score-circle ${scoreClass}">
+                            ${health.health_score}%
+                        </div>
+                        <strong>Status: ${health.overall_status.toUpperCase()}</strong>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Healthy Backends:</span>
+                        <span class="metric-value">${health.healthy_backends}/${health.total_backends}</span>
+                    </div>
+                    ${health.issues.length > 0 ? `
+                        <div style="margin-top: 15px;">
+                            <strong>Issues:</strong>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                ${health.issues.map(issue => `<li style="color: #d32f2f; margin: 5px 0;">${issue}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : '<p style="color: #4CAF50; margin-top: 15px;">✅ No issues detected</p>'}
+                </div>
+            `;
+        }
+        
+        function renderIPFSStatus(ipfs) {
+            const statusClass = ipfs.status === 'running' ? 'status-healthy' :
+                               ipfs.status === 'stopped' ? 'status-offline' : 'status-critical';
+            
+            return `
+                <div class="card">
+                    <h2>🌐 IPFS Node Status</h2>
+                    <div class="metric-row">
+                        <span class="metric-label">
+                            <span class="status-indicator ${statusClass}"></span>
+                            Status:
+                        </span>
+                        <span class="metric-value">${ipfs.status.toUpperCase()}</span>
+                    </div>
+                    ${ipfs.status === 'running' ? `
+                        <div class="metric-row">
+                            <span class="metric-label">Peer ID:</span>
+                            <span class="metric-value" style="font-family: monospace; font-size: 0.8em;">
+                                ${ipfs.peer_id.substring(0, 20)}...
+                            </span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Connected Peers:</span>
+                            <span class="metric-value">${ipfs.connected_peers}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Version:</span>
+                            <span class="metric-value">${ipfs.version}</span>
+                        </div>
+                        ${ipfs.repo_stats ? Object.entries(ipfs.repo_stats).map(([key, value]) => `
+                            <div class="metric-row">
+                                <span class="metric-label">${key}:</span>
+                                <span class="metric-value">${value}</span>
+                            </div>
+                        `).join('') : ''}
+                    ` : `
+                        <div class="error-message">
+                            <strong>IPFS Not Running</strong><br>
+                            ${ipfs.error || 'Unknown error'}
+                            <div class="command-snippet">
+                                Start IPFS: <strong>ipfs daemon</strong>
+                            </div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+        
+        function renderSystemPerformance(system) {
+            if (system.error) {
+                return `
+                    <div class="card">
+                        <h2>⚡ System Performance</h2>
+                        <div class="error-message">Error: ${system.error}</div>
+                    </div>
+                `;
+            }
+            
+            const cpuClass = system.cpu_usage_percent > 90 ? 'critical' :
+                            system.cpu_usage_percent > 70 ? 'warning' : '';
+            
+            const memClass = system.memory.usage_percent > 90 ? 'critical' :
+                            system.memory.usage_percent > 70 ? 'warning' : '';
+            
+            const diskClass = system.disk.usage_percent > 90 ? 'critical' :
+                             system.disk.usage_percent > 70 ? 'warning' : '';
+            
+            return `
+                <div class="card">
+                    <h2>⚡ System Performance</h2>
+                    <div class="metric-row">
+                        <span class="metric-label">CPU Usage:</span>
+                        <span class="metric-value">${system.cpu_usage_percent.toFixed(1)}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${cpuClass}" style="width: ${system.cpu_usage_percent}%"></div>
+                    </div>
+                    
+                    <div class="metric-row">
+                        <span class="metric-label">Memory Usage:</span>
+                        <span class="metric-value">${system.memory.usage_percent.toFixed(1)}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${memClass}" style="width: ${system.memory.usage_percent}%"></div>
+                    </div>
+                    
+                    <div class="metric-row">
+                        <span class="metric-label">Disk Usage:</span>
+                        <span class="metric-value">${system.disk.usage_percent.toFixed(1)}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${diskClass}" style="width: ${system.disk.usage_percent}%"></div>
+                    </div>
+                    
+                    <div class="metric-row">
+                        <span class="metric-label">Available Memory:</span>
+                        <span class="metric-value">${formatBytes(system.memory.available_bytes)}</span>
+                    </div>
+                    
+                    <div class="metric-row">
+                        <span class="metric-label">Free Disk Space:</span>
+                        <span class="metric-value">${formatBytes(system.disk.free_bytes)}</span>
+                    </div>
+                    
+                    <div class="metric-row">
+                        <span class="metric-label">Network Traffic:</span>
+                        <span class="metric-value">
+                            ↑${formatBytes(system.network.bytes_sent)} / ↓${formatBytes(system.network.bytes_recv)}
+                        </span>
+                    </div>
+                    
+                    <div class="metric-row">
+                        <span class="metric-label">Processes:</span>
+                        <span class="metric-value">${system.processes}</span>
+                    </div>
+                    
+                    ${system.load_average ? `
+                        <div class="metric-row">
+                            <span class="metric-label">Load Average:</span>
+                            <span class="metric-value">${system.load_average.map(l => l.toFixed(2)).join(', ')}</span>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function renderFilesystemBackends(backends) {
+            return `
+                <div class="card">
+                    <h2>🗄️ Filesystem Backends</h2>
+                    <ul class="backend-list">
+                        ${Object.entries(backends).map(([name, backend]) => {
+                            const statusClass = backend.healthy ? 'status-healthy' : 'status-critical';
+                            return `
+                                <li class="backend-item">
+                                    <span class="status-indicator ${statusClass}"></span>
+                                    <div class="backend-info">
+                                        <div class="backend-name">${backend.type}</div>
+                                        <div class="backend-details">
+                                            Status: ${backend.status} | Path: ${backend.storage_path}
+                                            ${backend.details.usage_percent ? 
+                                                `<br>Usage: ${backend.details.usage_percent.toFixed(1)}% (${formatBytes(backend.details.used_bytes)} / ${formatBytes(backend.details.total_bytes)})` 
+                                                : ''
+                                            }
+                                            ${backend.details.connected_peers !== undefined ? 
+                                                `<br>Connected Peers: ${backend.details.connected_peers}` 
+                                                : ''
+                                            }
+                                            ${backend.details.error ? 
+                                                `<br><span style="color: #d32f2f;">Error: ${backend.details.error}</span>` 
+                                                : ''
+                                            }
+                                        </div>
+                                    </div>
+                                </li>
+                            `;
+                        }).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        function renderRecommendations(recommendations) {
+            if (!recommendations || recommendations.length === 0) return '';
+            
+            return `
+                <div class="recommendations">
+                    <h3>💡 Recommendations</h3>
+                    ${recommendations.map(rec => `
+                        <div class="recommendation-item">${rec}</div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        function renderError(error) {
+            const content = document.getElementById('dashboard-content');
+            content.innerHTML = `
+                <div class="card">
+                    <h2>❌ Error Loading Dashboard</h2>
+                    <div class="error-message">
+                        <strong>Failed to load filesystem data:</strong><br>
+                        ${error}
+                    </div>
+                    <p>Please check that the server is running and try again.</p>
+                    <button onclick="refreshDashboard()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function refreshDashboard() {
+            const content = document.getElementById('dashboard-content');
+            content.innerHTML = '<div class="loading">Refreshing data...</div>';
+            loadDashboardData();
+        }
+        
+        function startAutoRefresh() {
+            refreshInterval = setInterval(refreshDashboard, 30000); // Refresh every 30 seconds
+        }
+        
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+        
+        // Load initial data and start auto-refresh
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboardData();
+            startAutoRefresh();
+        });
+        
+        // Stop auto-refresh when page is hidden
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopAutoRefresh();
+            } else {
+                startAutoRefresh();
+            }
+        });
+    </script>
+</body>
+</html>
