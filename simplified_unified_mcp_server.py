@@ -64,13 +64,27 @@ except ImportError as e:
 
 # Import dashboard components (optional)
 try:
-    from dashboard.comprehensive_backend_monitor import get_comprehensive_backend_status, get_backend_recommendations
-    COMPONENTS["backend_monitor"] = True
-    logger.info("✓ Backend monitor imported")
+    from dashboard.comprehensive_backend_monitor import (
+        get_comprehensive_backend_status as _get_backend_status_async,
+        get_backend_recommendations as _get_backend_recommendations_async
+    )
+    # Temporarily disable backend monitor due to hanging issues
+    COMPONENTS["backend_monitor"] = False
+    logger.info("⚠️  Backend monitor temporarily disabled")
+    
+    # Fallback functions
+    async def get_comprehensive_backend_status():
+        return {"backends": {}, "summary": {"health_score": 75, "status": "simplified_mode"}}
+    
+    async def get_backend_recommendations():
+        return [{"type": "info", "title": "Backend monitoring in simplified mode"}]
+        
 except ImportError as e:
     logger.warning(f"⚠️  Backend monitor import failed: {e}")
-    # Create fallback functions
-    def get_comprehensive_backend_status():
+    COMPONENTS["backend_monitor"] = False
+    
+    # Fallback functions
+    async def get_comprehensive_backend_status():
         return {"backends": {}, "summary": {"health_score": 0}}
     
     async def get_backend_recommendations():
@@ -433,8 +447,8 @@ class SimplifiedUnifiedMCPServer:
         
         if COMPONENTS["backend_monitor"]:
             try:
-                status = get_comprehensive_backend_status()
-                recommendations = await get_backend_recommendations()  # This is async
+                status = await get_comprehensive_backend_status()
+                recommendations = await get_backend_recommendations()
                 self.server_state["metrics"]["backend_checks"] += 1
                 return {
                     "success": True,

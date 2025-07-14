@@ -33,12 +33,65 @@ import tempfile
 print("✓ tempfile imported", file=sys.stderr, flush=True)
 import platform
 print("✓ platform imported", file=sys.stderr, flush=True)
+import hashlib
+print("✓ hashlib imported", file=sys.stderr, flush=True)
+import sqlite3
+print("✓ sqlite3 imported", file=sys.stderr, flush=True)
+import re
+print("✓ re imported", file=sys.stderr, flush=True)
 from datetime import datetime
 print("✓ datetime imported", file=sys.stderr, flush=True)
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Tuple
 print("✓ typing imported", file=sys.stderr, flush=True)
 from pathlib import Path
 print("✓ pathlib imported", file=sys.stderr, flush=True)
+
+# Try to import optional dependencies for advanced features
+try:
+    import numpy as np
+    HAS_NUMPY = True
+    print("✓ numpy imported", file=sys.stderr, flush=True)
+except ImportError:
+    HAS_NUMPY = False
+    print("⚠ numpy not available - vector search disabled", file=sys.stderr, flush=True)
+
+HAS_SENTENCE_TRANSFORMERS = False
+try:
+    # Test if sentence_transformers can be imported without errors
+    import sentence_transformers
+    from sentence_transformers import SentenceTransformer
+    HAS_SENTENCE_TRANSFORMERS = True
+    print("✓ sentence_transformers imported", file=sys.stderr, flush=True)
+except ImportError:
+    HAS_SENTENCE_TRANSFORMERS = False
+    print("⚠ sentence_transformers not available - advanced vector search disabled", file=sys.stderr, flush=True)
+except Exception as e:
+    HAS_SENTENCE_TRANSFORMERS = False
+    print(f"⚠ sentence_transformers import error: {str(e)[:100]}... - advanced vector search disabled", file=sys.stderr, flush=True)
+
+try:
+    from sklearn.metrics.pairwise import cosine_similarity
+    HAS_SKLEARN = True
+    print("✓ sklearn imported", file=sys.stderr, flush=True)
+except ImportError:
+    HAS_SKLEARN = False
+    print("⚠ sklearn not available - cosine similarity disabled", file=sys.stderr, flush=True)
+
+try:
+    import networkx as nx
+    HAS_NETWORKX = True
+    print("✓ networkx imported", file=sys.stderr, flush=True)
+except ImportError:
+    HAS_NETWORKX = False
+    print("⚠ networkx not available - graph analysis disabled", file=sys.stderr, flush=True)
+
+try:
+    import rdflib
+    HAS_RDFLIB = True
+    print("✓ rdflib imported", file=sys.stderr, flush=True)
+except ImportError:
+    HAS_RDFLIB = False
+    print("⚠ rdflib not available - SPARQL queries disabled", file=sys.stderr, flush=True)
 
 # Configure logging to stderr (stdout is reserved for MCP communication)
 logging.basicConfig(
@@ -49,7 +102,7 @@ logging.basicConfig(
 logger = logging.getLogger("enhanced-mcp-ipfs-kit-daemon-mgmt")
 
 # Server metadata
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 
 # Add the project root to Python path to import ipfs_kit_py
 # Go up from mcp/ipfs_kit/mcp/ to the root directory
@@ -70,12 +123,674 @@ except ImportError as e:
 logger.info("✓ Finished VFS import section")
 
 
+class GraphRAGSearchEngine:
+    """Advanced search engine for VFS/MFS content with GraphRAG, vector search, and SPARQL capabilities."""
+    
+    def __init__(self, workspace_dir: Optional[str] = None):
+        """Initialize the GraphRAG search engine."""
+        self.workspace_dir = workspace_dir or os.path.expanduser("~/.ipfs_mcp_search")
+        os.makedirs(self.workspace_dir, exist_ok=True)
+        
+        # Database for storing content and metadata
+        self.db_path = os.path.join(self.workspace_dir, "search_index.db")
+        self.init_database()
+        
+        # Vector search components
+        self.embeddings_model = None
+        self.knowledge_graph = None
+        self.rdf_graph = None
+        
+        # Initialize components based on available dependencies
+        self.init_vector_search()
+        self.init_knowledge_graph()
+        self.init_rdf_graph()
+        
+        logger.info(f"GraphRAG search engine initialized at {self.workspace_dir}")
+    
+    def init_database(self):
+        """Initialize SQLite database for content indexing."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Create tables for content indexing
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS content_index (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cid TEXT UNIQUE NOT NULL,
+                path TEXT NOT NULL,
+                content_type TEXT,
+                title TEXT,
+                content TEXT,
+                metadata TEXT,
+                embedding BLOB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create table for relationships between content
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS content_relationships (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_cid TEXT NOT NULL,
+                target_cid TEXT NOT NULL,
+                relationship_type TEXT NOT NULL,
+                weight REAL DEFAULT 1.0,
+                metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (source_cid) REFERENCES content_index (cid),
+                FOREIGN KEY (target_cid) REFERENCES content_index (cid)
+            )
+        ''')
+        
+        # Create table for entities extracted from content
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS entities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cid TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_value TEXT NOT NULL,
+                confidence REAL DEFAULT 1.0,
+                metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (cid) REFERENCES content_index (cid)
+            )
+        ''')
+        
+        # Create indexes for performance
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_content_cid ON content_index (cid)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_content_path ON content_index (path)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_relationships_source ON content_relationships (source_cid)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_relationships_target ON content_relationships (target_cid)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_entities_cid ON entities (cid)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_entities_type ON entities (entity_type)')
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info("Content indexing database initialized")
+    
+    def init_vector_search(self):
+        """Initialize vector search capabilities."""
+        if HAS_SENTENCE_TRANSFORMERS:
+            try:
+                # Dynamically import to avoid global import issues
+                from sentence_transformers import SentenceTransformer
+                # Use a lightweight model for embeddings
+                self.embeddings_model = SentenceTransformer('all-MiniLM-L6-v2')
+                logger.info("Vector search initialized with SentenceTransformer")
+            except Exception as e:
+                logger.warning(f"Failed to initialize SentenceTransformer: {e}")
+                self.embeddings_model = None
+        else:
+            logger.info("Vector search not available - sentence-transformers not installed")
+            self.embeddings_model = None
+    
+    def init_knowledge_graph(self):
+        """Initialize knowledge graph for GraphRAG."""
+        if HAS_NETWORKX:
+            self.knowledge_graph = nx.MultiDiGraph()
+            logger.info("Knowledge graph initialized with NetworkX")
+        else:
+            logger.info("Knowledge graph not available - networkx not installed")
+    
+    def init_rdf_graph(self):
+        """Initialize RDF graph for SPARQL queries."""
+        if HAS_RDFLIB:
+            self.rdf_graph = rdflib.Graph()
+            # Add common namespaces
+            self.rdf_graph.bind("ipfs", rdflib.Namespace("http://ipfs.io/"))
+            self.rdf_graph.bind("mfs", rdflib.Namespace("http://ipfs.io/mfs/"))
+            self.rdf_graph.bind("content", rdflib.Namespace("http://ipfs.io/content/"))
+            logger.info("RDF graph initialized for SPARQL queries")
+        else:
+            logger.info("SPARQL queries not available - rdflib not installed")
+    
+    async def index_content(self, cid: str, path: str, content: str, content_type: str = "text", metadata: Dict = None) -> Dict[str, Any]:
+        """Index content for search."""
+        try:
+            # Extract title from content (first line or filename)
+            title = self._extract_title(content, path)
+            
+            # Generate embedding if vector search is available
+            embedding = None
+            if self.embeddings_model and content.strip():
+                try:
+                    embedding_vector = self.embeddings_model.encode([content])[0]
+                    if HAS_NUMPY:
+                        embedding = embedding_vector.tobytes()
+                except Exception as e:
+                    logger.warning(f"Failed to generate embedding: {e}")
+            
+            # Store in database
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT OR REPLACE INTO content_index 
+                (cid, path, content_type, title, content, metadata, embedding, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (cid, path, content_type, title, content, json.dumps(metadata or {}), embedding))
+            
+            conn.commit()
+            conn.close()
+            
+            # Add to knowledge graph
+            self._update_knowledge_graph(cid, path, content, metadata or {})
+            
+            # Add to RDF graph
+            self._update_rdf_graph(cid, path, content, metadata or {})
+            
+            # Extract entities
+            entities = await self._extract_entities(cid, content)
+            
+            return {
+                "success": True,
+                "operation": "index_content",
+                "cid": cid,
+                "path": path,
+                "title": title,
+                "content_length": len(content),
+                "has_embedding": embedding is not None,
+                "entities_extracted": len(entities)
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to index content for CID {cid}: {e}")
+            return {
+                "success": False,
+                "operation": "index_content",
+                "error": str(e)
+            }
+    
+    async def vector_search(self, query: str, limit: int = 10, min_similarity: float = 0.1) -> Dict[str, Any]:
+        """Perform vector similarity search."""
+        if not self.embeddings_model:
+            return {
+                "success": False,
+                "operation": "vector_search",
+                "error": "Vector search not available - sentence-transformers not installed"
+            }
+        
+        try:
+            # Generate query embedding
+            query_embedding = self.embeddings_model.encode([query])[0]
+            
+            # Get all content with embeddings
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT cid, path, title, content, embedding 
+                FROM content_index 
+                WHERE embedding IS NOT NULL
+            ''')
+            
+            results = []
+            for row in cursor.fetchall():
+                cid, path, title, content, embedding_bytes = row
+                
+                if embedding_bytes and HAS_NUMPY and HAS_SKLEARN:
+                    try:
+                        import numpy as np
+                        from sklearn.metrics.pairwise import cosine_similarity
+                        
+                        # Convert bytes back to numpy array
+                        content_embedding = np.frombuffer(embedding_bytes, dtype=np.float32)
+                        
+                        # Calculate similarity
+                        similarity = cosine_similarity(
+                            [query_embedding], 
+                            [content_embedding]
+                        )[0][0]
+                        
+                        if similarity >= min_similarity:
+                            results.append({
+                                "cid": cid,
+                                "path": path,
+                                "title": title,
+                                "content_preview": content[:200] + "..." if len(content) > 200 else content,
+                                "similarity": float(similarity)
+                            })
+                    except Exception as e:
+                        logger.warning(f"Error calculating similarity for {cid}: {e}")
+            
+            conn.close()
+            
+            # Sort by similarity and limit results
+            results.sort(key=lambda x: x["similarity"], reverse=True)
+            results = results[:limit]
+            
+            return {
+                "success": True,
+                "operation": "vector_search",
+                "query": query,
+                "total_results": len(results),
+                "results": results
+            }
+            
+        except Exception as e:
+            logger.error(f"Vector search failed: {e}")
+            return {
+                "success": False,
+                "operation": "vector_search",
+                "error": str(e)
+            }
+    
+    async def graph_search(self, query: str, max_depth: int = 3, algorithm: str = "pagerank") -> Dict[str, Any]:
+        """Perform GraphRAG search using knowledge graph."""
+        if not self.knowledge_graph:
+            return {
+                "success": False,
+                "operation": "graph_search",
+                "error": "Graph search not available - networkx not installed"
+            }
+        
+        try:
+            # Find nodes related to query terms
+            query_terms = query.lower().split()
+            related_nodes = set()
+            
+            for node, data in self.knowledge_graph.nodes(data=True):
+                node_text = str(data.get('content', '')).lower()
+                if any(term in node_text for term in query_terms):
+                    related_nodes.add(node)
+            
+            if not related_nodes:
+                return {
+                    "success": True,
+                    "operation": "graph_search",
+                    "query": query,
+                    "total_results": 0,
+                    "results": []
+                }
+            
+            # Expand search using graph traversal
+            expanded_nodes = set(related_nodes)
+            for node in list(related_nodes):
+                # Add neighbors up to max_depth
+                for depth in range(max_depth):
+                    neighbors = set(self.knowledge_graph.neighbors(node))
+                    expanded_nodes.update(neighbors)
+            
+            # Calculate importance scores
+            if algorithm == "pagerank" and len(expanded_nodes) > 1:
+                try:
+                    import networkx as nx
+                    subgraph = self.knowledge_graph.subgraph(expanded_nodes)
+                    pagerank_scores = nx.pagerank(subgraph)
+                except Exception as e:
+                    logger.warning(f"PageRank calculation failed: {e}")
+                    pagerank_scores = {node: 1.0 for node in expanded_nodes}
+            else:
+                pagerank_scores = {node: 1.0 for node in expanded_nodes}
+            
+            # Prepare results
+            results = []
+            for node in expanded_nodes:
+                data = self.knowledge_graph.nodes[node]
+                score = pagerank_scores.get(node, 0.0)
+                
+                results.append({
+                    "cid": node,
+                    "path": data.get('path', ''),
+                    "title": data.get('title', ''),
+                    "content_preview": str(data.get('content', ''))[:200] + "...",
+                    "importance_score": score,
+                    "in_original_query": node in related_nodes
+                })
+            
+            # Sort by importance score
+            results.sort(key=lambda x: x["importance_score"], reverse=True)
+            
+            return {
+                "success": True,
+                "operation": "graph_search",
+                "query": query,
+                "algorithm": algorithm,
+                "max_depth": max_depth,
+                "total_results": len(results),
+                "results": results[:20]  # Limit to top 20 results
+            }
+            
+        except Exception as e:
+            logger.error(f"Graph search failed: {e}")
+            return {
+                "success": False,
+                "operation": "graph_search",
+                "error": str(e)
+            }
+    
+    async def sparql_search(self, sparql_query: str) -> Dict[str, Any]:
+        """Execute SPARQL query on RDF graph."""
+        if not self.rdf_graph:
+            return {
+                "success": False,
+                "operation": "sparql_search",
+                "error": "SPARQL search not available - rdflib not installed"
+            }
+        
+        try:
+            # Execute SPARQL query
+            results = self.rdf_graph.query(sparql_query)
+            
+            # Convert results to JSON-serializable format
+            result_rows = []
+            for row in results:
+                row_data = {}
+                for i, var in enumerate(results.vars):
+                    value = row[i]
+                    if value is not None:
+                        row_data[str(var)] = str(value)
+                result_rows.append(row_data)
+            
+            return {
+                "success": True,
+                "operation": "sparql_search",
+                "query": sparql_query,
+                "total_results": len(result_rows),
+                "variables": [str(var) for var in results.vars] if results.vars else [],
+                "results": result_rows
+            }
+            
+        except Exception as e:
+            logger.error(f"SPARQL search failed: {e}")
+            return {
+                "success": False,
+                "operation": "sparql_search",
+                "error": str(e)
+            }
+    
+    async def hybrid_search(self, query: str, search_types: List[str] = None, limit: int = 10) -> Dict[str, Any]:
+        """Perform hybrid search combining multiple search methods."""
+        if search_types is None:
+            search_types = ["vector", "graph", "text"]
+        
+        results = {
+            "success": True,
+            "operation": "hybrid_search",
+            "query": query,
+            "search_types": search_types,
+            "results": {}
+        }
+        
+        # Vector search
+        if "vector" in search_types:
+            vector_results = await self.vector_search(query, limit)
+            results["results"]["vector"] = vector_results
+        
+        # Graph search
+        if "graph" in search_types:
+            graph_results = await self.graph_search(query)
+            results["results"]["graph"] = graph_results
+        
+        # Text search
+        if "text" in search_types:
+            text_results = await self.text_search(query, limit)
+            results["results"]["text"] = text_results
+        
+        # Combine and rank results
+        combined_results = await self._combine_search_results(results["results"], query)
+        results["combined"] = combined_results
+        
+        return results
+    
+    async def text_search(self, query: str, limit: int = 10) -> Dict[str, Any]:
+        """Perform traditional text search."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Simple text search with relevance scoring
+            search_terms = query.lower().split()
+            
+            cursor.execute('''
+                SELECT cid, path, title, content 
+                FROM content_index 
+                WHERE LOWER(content) LIKE ? OR LOWER(title) LIKE ?
+            ''', (f'%{query.lower()}%', f'%{query.lower()}%'))
+            
+            results = []
+            for row in cursor.fetchall():
+                cid, path, title, content = row
+                
+                # Calculate simple relevance score
+                content_lower = content.lower()
+                title_lower = title.lower()
+                
+                score = 0
+                for term in search_terms:
+                    score += content_lower.count(term) * 1
+                    score += title_lower.count(term) * 3  # Title matches are more important
+                
+                if score > 0:
+                    results.append({
+                        "cid": cid,
+                        "path": path,
+                        "title": title,
+                        "content_preview": content[:200] + "..." if len(content) > 200 else content,
+                        "relevance_score": score
+                    })
+            
+            conn.close()
+            
+            # Sort by relevance and limit
+            results.sort(key=lambda x: x["relevance_score"], reverse=True)
+            results = results[:limit]
+            
+            return {
+                "success": True,
+                "operation": "text_search",
+                "query": query,
+                "total_results": len(results),
+                "results": results
+            }
+            
+        except Exception as e:
+            logger.error(f"Text search failed: {e}")
+            return {
+                "success": False,
+                "operation": "text_search",
+                "error": str(e)
+            }
+    
+    def _extract_title(self, content: str, path: str) -> str:
+        """Extract title from content or path."""
+        # Try to extract from first line if it looks like a title
+        lines = content.strip().split('\n')
+        if lines:
+            first_line = lines[0].strip()
+            if first_line and len(first_line) < 100 and not first_line.startswith('{'):
+                return first_line
+        
+        # Fallback to filename
+        return os.path.basename(path) or "Untitled"
+    
+    async def _extract_entities(self, cid: str, content: str) -> List[Dict[str, Any]]:
+        """Extract entities from content using simple patterns."""
+        entities = []
+        
+        try:
+            # Simple entity extraction patterns
+            patterns = {
+                "ipfs_hash": r'\b(Qm[1-9A-HJ-NP-Za-km-z]{44}|baf[a-z0-9]{50,})\b',
+                "url": r'https?://[^\s]+',
+                "email": r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+                "file_path": r'[/\\]?(?:[a-zA-Z0-9_.-]+[/\\])*[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+',
+            }
+            
+            for entity_type, pattern in patterns.items():
+                matches = re.findall(pattern, content)
+                for match in matches:
+                    entities.append({
+                        "type": entity_type,
+                        "value": match,
+                        "confidence": 0.8
+                    })
+            
+            # Store entities in database
+            if entities:
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                
+                for entity in entities:
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO entities 
+                        (cid, entity_type, entity_value, confidence)
+                        VALUES (?, ?, ?, ?)
+                    ''', (cid, entity["type"], entity["value"], entity["confidence"]))
+                
+                conn.commit()
+                conn.close()
+            
+        except Exception as e:
+            logger.warning(f"Entity extraction failed: {e}")
+        
+        return entities
+    
+    def _update_knowledge_graph(self, cid: str, path: str, content: str, metadata: Dict):
+        """Update knowledge graph with new content."""
+        if not self.knowledge_graph:
+            return
+        
+        try:
+            # Add node for this content
+            self.knowledge_graph.add_node(cid, 
+                path=path, 
+                content=content[:500],  # Store truncated content
+                title=self._extract_title(content, path),
+                **metadata
+            )
+            
+            # Find relationships to other content
+            # Simple approach: look for references to other CIDs
+            ipfs_pattern = r'\b(Qm[1-9A-HJ-NP-Za-km-z]{44}|baf[a-z0-9]{50,})\b'
+            referenced_cids = re.findall(ipfs_pattern, content)
+            
+            for ref_cid in referenced_cids:
+                if ref_cid != cid and self.knowledge_graph.has_node(ref_cid):
+                    # Add edge with relationship
+                    self.knowledge_graph.add_edge(cid, ref_cid, 
+                        relationship="references",
+                        weight=1.0
+                    )
+            
+        except Exception as e:
+            logger.warning(f"Failed to update knowledge graph: {e}")
+    
+    def _update_rdf_graph(self, cid: str, path: str, content: str, metadata: Dict):
+        """Update RDF graph with new content."""
+        if not self.rdf_graph:
+            return
+        
+        try:
+            import rdflib
+            from rdflib import URIRef, Literal, RDF, RDFS, Namespace
+            
+            # Define namespaces
+            IPFS = Namespace("http://ipfs.io/")
+            CONTENT = Namespace("http://ipfs.io/content/")
+            
+            # Create subject URI
+            subject = IPFS[cid]
+            
+            # Add basic triples
+            self.rdf_graph.add((subject, RDF.type, CONTENT.Document))
+            self.rdf_graph.add((subject, RDFS.label, Literal(self._extract_title(content, path))))
+            self.rdf_graph.add((subject, CONTENT.path, Literal(path)))
+            self.rdf_graph.add((subject, CONTENT.size, Literal(len(content))))
+            
+            # Add metadata
+            for key, value in metadata.items():
+                predicate = CONTENT[key.replace(' ', '_')]
+                self.rdf_graph.add((subject, predicate, Literal(str(value))))
+            
+        except Exception as e:
+            logger.warning(f"Failed to update RDF graph: {e}")
+    
+    async def _combine_search_results(self, search_results: Dict, query: str) -> Dict[str, Any]:
+        """Combine results from multiple search methods."""
+        # Simple combination strategy: merge and deduplicate by CID
+        combined = {}
+        
+        for search_type, results in search_results.items():
+            if results.get("success") and results.get("results"):
+                for result in results["results"]:
+                    cid = result.get("cid")
+                    if cid:
+                        if cid not in combined:
+                            combined[cid] = result.copy()
+                            combined[cid]["search_methods"] = [search_type]
+                            combined[cid]["combined_score"] = result.get("similarity", result.get("importance_score", result.get("relevance_score", 0)))
+                        else:
+                            # Combine scores and methods
+                            combined[cid]["search_methods"].append(search_type)
+                            new_score = result.get("similarity", result.get("importance_score", result.get("relevance_score", 0)))
+                            combined[cid]["combined_score"] = (combined[cid]["combined_score"] + new_score) / 2
+        
+        # Sort by combined score
+        final_results = list(combined.values())
+        final_results.sort(key=lambda x: x["combined_score"], reverse=True)
+        
+        return {
+            "total_unique_results": len(final_results),
+            "results": final_results[:10]  # Top 10 combined results
+        }
+    
+    def get_search_stats(self) -> Dict[str, Any]:
+        """Get statistics about indexed content."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Count total content
+            cursor.execute('SELECT COUNT(*) FROM content_index')
+            total_content = cursor.fetchone()[0]
+            
+            # Count by content type
+            cursor.execute('SELECT content_type, COUNT(*) FROM content_index GROUP BY content_type')
+            content_types = dict(cursor.fetchall())
+            
+            # Count relationships
+            cursor.execute('SELECT COUNT(*) FROM content_relationships')
+            total_relationships = cursor.fetchone()[0]
+            
+            # Count entities
+            cursor.execute('SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type')
+            entity_types = dict(cursor.fetchall())
+            
+            conn.close()
+            
+            return {
+                "total_indexed_content": total_content,
+                "content_types": content_types,
+                "total_relationships": total_relationships,
+                "entity_types": entity_types,
+                "vector_search_available": self.embeddings_model is not None,
+                "graph_search_available": self.knowledge_graph is not None,
+                "sparql_available": self.rdf_graph is not None,
+                "knowledge_graph_nodes": self.knowledge_graph.number_of_nodes() if self.knowledge_graph else 0,
+                "knowledge_graph_edges": self.knowledge_graph.number_of_edges() if self.knowledge_graph else 0,
+                "rdf_triples": len(self.rdf_graph) if self.rdf_graph else 0
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get search stats: {e}")
+            return {"error": str(e)}
+
+
 class IPFSKitIntegration:
     """Integration layer for the IPFS Kit - delegates all daemon management to ipfs_kit_py."""
     
     def __init__(self):
         logger.info("=== IPFSKitIntegration.__init__() starting ===")
         self.ipfs_kit = None
+        
+        # Initialize GraphRAG search engine
+        logger.info("Initializing GraphRAG search engine...")
+        self.search_engine = GraphRAGSearchEngine()
+        logger.info("✓ GraphRAG search engine initialized")
+        
         logger.info("About to call _initialize_ipfs_kit()...")
         self._initialize_ipfs_kit()
         logger.info("=== IPFSKitIntegration.__init__() completed ===")
@@ -211,6 +926,18 @@ class IPFSKitIntegration:
                 cid = kwargs.get("cid")
                 if cid:
                     result = self.ipfs_kit.ipfs_cat_json(cid)
+                    
+                    # Auto-index content for search if successful
+                    if result.get("success") and result.get("data"):
+                        try:
+                            await self.search_engine.index_content(
+                                cid=cid,
+                                path=f"/ipfs/{cid}",
+                                content=result["data"],
+                                content_type="text"
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to index content for search: {e}")
                 else:
                     return {"success": False, "operation": operation, "error": "No CID provided"}
                     
@@ -252,6 +979,71 @@ class IPFSKitIntegration:
                 else:
                     # For other stat types, use direct commands
                     return await self._try_direct_ipfs_operation(operation, **kwargs)
+            
+            # Search operations
+            elif operation == "search_index_content":
+                cid = kwargs.get("cid")
+                path = kwargs.get("path", f"/ipfs/{cid}")
+                content = kwargs.get("content")
+                content_type = kwargs.get("content_type", "text")
+                metadata = kwargs.get("metadata", {})
+                
+                if cid and content:
+                    result = await self.search_engine.index_content(cid, path, content, content_type, metadata)
+                else:
+                    return {"success": False, "operation": operation, "error": "CID and content required"}
+            
+            elif operation == "search_vector":
+                query = kwargs.get("query")
+                limit = kwargs.get("limit", 10)
+                min_similarity = kwargs.get("min_similarity", 0.1)
+                
+                if query:
+                    result = await self.search_engine.vector_search(query, limit, min_similarity)
+                else:
+                    return {"success": False, "operation": operation, "error": "Query required"}
+            
+            elif operation == "search_graph":
+                query = kwargs.get("query")
+                max_depth = kwargs.get("max_depth", 3)
+                algorithm = kwargs.get("algorithm", "pagerank")
+                
+                if query:
+                    result = await self.search_engine.graph_search(query, max_depth, algorithm)
+                else:
+                    return {"success": False, "operation": operation, "error": "Query required"}
+            
+            elif operation == "search_sparql":
+                sparql_query = kwargs.get("sparql_query")
+                
+                if sparql_query:
+                    result = await self.search_engine.sparql_search(sparql_query)
+                else:
+                    return {"success": False, "operation": operation, "error": "SPARQL query required"}
+            
+            elif operation == "search_hybrid":
+                query = kwargs.get("query")
+                search_types = kwargs.get("search_types", ["vector", "graph", "text"])
+                limit = kwargs.get("limit", 10)
+                
+                if query:
+                    result = await self.search_engine.hybrid_search(query, search_types, limit)
+                else:
+                    return {"success": False, "operation": operation, "error": "Query required"}
+            
+            elif operation == "search_text":
+                query = kwargs.get("query")
+                limit = kwargs.get("limit", 10)
+                
+                if query:
+                    result = await self.search_engine.text_search(query, limit)
+                else:
+                    return {"success": False, "operation": operation, "error": "Query required"}
+            
+            elif operation == "search_stats":
+                result = self.search_engine.get_search_stats()
+                result["success"] = True
+                result["operation"] = operation
                     
             else:
                 # For any other operations, try direct command fallback
@@ -341,6 +1133,17 @@ class IPFSKitIntegration:
                     logger.debug(f"ipfs cat stderr: {result.stderr.strip()}")
                     logger.debug(f"ipfs cat returncode: {result.returncode}")
                     if result.returncode == 0 and result.stdout.strip(): # Check if stdout is not empty
+                        # Auto-index content for search
+                        try:
+                            await self.search_engine.index_content(
+                                cid=cid,
+                                path=f"/ipfs/{cid}",
+                                content=result.stdout,
+                                content_type="text"
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to index content for search: {e}")
+                        
                         return {
                             "success": True,
                             "operation": operation,
@@ -912,6 +1715,18 @@ class IPFSKitIntegration:
                     
                     result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
                     if result.returncode == 0:
+                        # Auto-index MFS content for search
+                        try:
+                            await self.search_engine.index_content(
+                                cid=f"mfs_{hashlib.md5(path.encode()).hexdigest()}",
+                                path=path,
+                                content=result.stdout,
+                                content_type="mfs_file",
+                                metadata={"mfs_path": path, "offset": offset, "count": count}
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to index MFS content for search: {e}")
+                        
                         return {
                             "success": True,
                             "operation": operation,
@@ -2368,6 +3183,97 @@ class EnhancedMCPServerWithDaemonMgmt:
                     "required": ["ipfs_path", "vfs_path"]
                 }
             },
+            # Advanced Search Tools (GraphRAG, Vector Search, SPARQL)
+            "search_index_content": {
+                "name": "search_index_content",
+                "description": "Index content for advanced search capabilities",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "cid": {"type": "string", "description": "IPFS CID of the content"},
+                        "path": {"type": "string", "description": "Path to the content"},
+                        "content": {"type": "string", "description": "Content to index"},
+                        "content_type": {"type": "string", "description": "Type of content", "default": "text"},
+                        "metadata": {"type": "object", "description": "Additional metadata for the content"}
+                    },
+                    "required": ["cid", "content"]
+                }
+            },
+            "search_vector": {
+                "name": "search_vector",
+                "description": "Perform vector similarity search using semantic embeddings",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query"},
+                        "limit": {"type": "integer", "description": "Maximum number of results", "default": 10},
+                        "min_similarity": {"type": "number", "description": "Minimum similarity threshold", "default": 0.1}
+                    },
+                    "required": ["query"]
+                }
+            },
+            "search_graph": {
+                "name": "search_graph",
+                "description": "Perform GraphRAG search using knowledge graph relationships",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query"},
+                        "max_depth": {"type": "integer", "description": "Maximum graph traversal depth", "default": 3},
+                        "algorithm": {"type": "string", "enum": ["pagerank", "betweenness", "closeness"], "description": "Graph analysis algorithm", "default": "pagerank"}
+                    },
+                    "required": ["query"]
+                }
+            },
+            "search_sparql": {
+                "name": "search_sparql",
+                "description": "Execute SPARQL queries on RDF knowledge graph",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "sparql_query": {"type": "string", "description": "SPARQL query to execute"}
+                    },
+                    "required": ["sparql_query"]
+                }
+            },
+            "search_hybrid": {
+                "name": "search_hybrid",
+                "description": "Perform hybrid search combining multiple search methods",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query"},
+                        "search_types": {
+                            "type": "array",
+                            "items": {"type": "string", "enum": ["vector", "graph", "text"]},
+                            "description": "Types of search to combine",
+                            "default": ["vector", "graph", "text"]
+                        },
+                        "limit": {"type": "integer", "description": "Maximum number of results per search type", "default": 10}
+                    },
+                    "required": ["query"]
+                }
+            },
+            "search_text": {
+                "name": "search_text",
+                "description": "Perform traditional keyword-based text search",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query"},
+                        "limit": {"type": "integer", "description": "Maximum number of results", "default": 10}
+                    },
+                    "required": ["query"]
+                }
+            },
+            "search_stats": {
+                "name": "search_stats",
+                "description": "Get statistics about indexed content and search capabilities",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
             "system_health": {
                 "name": "system_health",
                 "description": "Get comprehensive system health status including IPFS daemon status",
@@ -2543,6 +3449,21 @@ class EnhancedMCPServerWithDaemonMgmt:
                 return await self.ipfs_integration.execute_ipfs_operation("vfs_sync_to_ipfs", **arguments)
             elif tool_name == "vfs_sync_from_ipfs":
                 return await self.ipfs_integration.execute_ipfs_operation("vfs_sync_from_ipfs", **arguments)
+            # Search Tools
+            elif tool_name == "search_index_content":
+                return await self.ipfs_integration.execute_ipfs_operation("search_index_content", **arguments)
+            elif tool_name == "search_vector":
+                return await self.ipfs_integration.execute_ipfs_operation("search_vector", **arguments)
+            elif tool_name == "search_graph":
+                return await self.ipfs_integration.execute_ipfs_operation("search_graph", **arguments)
+            elif tool_name == "search_sparql":
+                return await self.ipfs_integration.execute_ipfs_operation("search_sparql", **arguments)
+            elif tool_name == "search_hybrid":
+                return await self.ipfs_integration.execute_ipfs_operation("search_hybrid", **arguments)
+            elif tool_name == "search_text":
+                return await self.ipfs_integration.execute_ipfs_operation("search_text", **arguments)
+            elif tool_name == "search_stats":
+                return await self.ipfs_integration.execute_ipfs_operation("search_stats", **arguments)
             elif tool_name == "system_health":
                 return await self.system_health_tool(arguments)
             else:

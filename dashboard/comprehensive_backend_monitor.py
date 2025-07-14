@@ -442,7 +442,7 @@ class BackendMonitor:
             # Check main filesystem
             statvfs = os.statvfs('/')
             total_space = statvfs.f_frsize * statvfs.f_blocks
-            free_space = statvfs.f_frsize * statvfs.f_availe
+            free_space = statvfs.f_frsize * statvfs.f_avail
             used_space = total_space - free_space
             
             filesystem_stats = {

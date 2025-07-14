@@ -1,0 +1,226 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced IPFS Kit Backend Observatory</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0; padding: 20px; background: #f5f5f5;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;
+        }
+        .stats-grid { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px; margin-bottom: 20px;
+        }
+        .stat-card { 
+            background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .backend-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px; margin-bottom: 20px;
+        }
+        .backend-card {
+            background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #ddd;
+        }
+        .backend-card.healthy { border-left-color: #4CAF50; }
+        .backend-card.unhealthy { border-left-color: #f44336; }
+        .backend-card.partial { border-left-color: #FF9800; }
+        .backend-card.unknown { border-left-color: #9E9E9E; }
+        .status-badge {
+            display: inline-block; padding: 4px 8px; border-radius: 4px;
+            font-size: 12px; font-weight: bold; text-transform: uppercase;
+        }
+        .status-healthy { background: #4CAF50; color: white; }
+        .status-unhealthy { background: #f44336; color: white; }
+        .status-partial { background: #FF9800; color: white; }
+        .status-unknown { background: #9E9E9E; color: white; }
+        .metrics-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .metrics-table th, .metrics-table td { 
+            padding: 8px; text-align: left; border-bottom: 1px solid #ddd;
+        }
+        .metrics-table th { background: #f8f9fa; font-weight: 600; }
+        .refresh-btn {
+            background: #007bff; color: white; border: none; padding: 10px 20px;
+            border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px;
+        }
+        .refresh-btn:hover { background: #0056b3; }
+        .auto-refresh { margin-left: 20px; }
+        .error-log {
+            background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px;
+            border-radius: 4px; margin-top: 10px; max-height: 200px; overflow-y: auto;
+        }
+        .insights-card {
+            background: #e8f5e8; border: 1px solid #c3e6c3; padding: 15px;
+            border-radius: 8px; margin-top: 20px;
+        }
+        .chart-container {
+            background: white; padding: 20px; border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔭 Enhanced IPFS Kit Backend Observatory</h1>
+            <p>Comprehensive monitoring and observability for all filesystem backends</p>
+        </div>
+        
+        <div class="controls">
+            <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+            <button class="refresh-btn" onclick="getInsights()">💡 Get Insights</button>
+            <label class="auto-refresh">
+                <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+                Auto-refresh (30s)
+            </label>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>System Status</h3>
+                <div id="systemStatus">Loading...</div>
+            </div>
+            <div class="stat-card">
+                <h3>Backend Summary</h3>
+                <div id="backendSummary">Loading...</div>
+            </div>
+            <div class="stat-card">
+                <h3>Performance</h3>
+                <div id="performanceMetrics">Loading...</div>
+            </div>
+        </div>
+        
+        <div class="backend-grid" id="backendGrid">
+            <!-- Backend cards will be populated here -->
+        </div>
+        
+        <div class="insights-card" id="insightsCard" style="display: none;">
+            <h3>🧠 Development Insights</h3>
+            <div id="insightsContent"></div>
+        </div>
+        
+        <div class="chart-container" id="metricsChart" style="display: none;">
+            <h3>📊 Metrics History</h3>
+            <div id="chartContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+        
+        async function refreshData() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+            }
+        }
+        
+        function updateDashboard(data) {
+            // Update system status
+            document.getElementById('systemStatus').innerHTML = `
+                <div class="status-badge status-${data.status === 'running' ? 'healthy' : 'unhealthy'}">
+                    ${data.status}
+                </div>
+                <p>Uptime: ${Math.floor(data.uptime_seconds / 3600)}h ${Math.floor((data.uptime_seconds % 3600) / 60)}m</p>
+            `;
+            
+            // Update backend summary
+            const backends = data.backend_health || {};
+            const healthyCount = Object.values(backends).filter(b => b.health === 'healthy').length;
+            const totalCount = Object.keys(backends).length;
+            
+            document.getElementById('backendSummary').innerHTML = `
+                <div style="font-size: 24px; font-weight: bold; color: ${healthyCount === totalCount ? '#4CAF50' : '#f44336'};">
+                    ${healthyCount}/${totalCount}
+                </div>
+                <p>Backends Healthy</p>
+            `;
+            
+            // Update performance metrics
+            document.getElementById('performanceMetrics').innerHTML = `
+                <div>Memory: ${data.memory_usage_mb}MB</div>
+                <div>CPU: ${data.cpu_usage_percent}%</div>
+            `;
+            
+            // Update backend grid
+            updateBackendGrid(backends);
+        }
+        
+        function updateBackendGrid(backends) {
+            const grid = document.getElementById('backendGrid');
+            grid.innerHTML = '';
+            
+            for (const [name, backend] of Object.entries(backends)) {
+                const card = document.createElement('div');
+                card.className = `backend-card ${backend.health}`;
+                
+                let metricsHTML = '';
+                if (backend.metrics && Object.keys(backend.metrics).length > 0) {
+                    metricsHTML = '<table class="metrics-table"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>';
+                    for (const [key, value] of Object.entries(backend.metrics)) {
+                        metricsHTML += `<tr><td>${key}</td><td>${typeof value === 'object' ? JSON.stringify(value) : value}</td></tr>`;
+                    }
+                    metricsHTML += '</tbody></table>';
+                }
+                
+                let errorsHTML = '';
+                if (backend.errors && backend.errors.length > 0) {
+                    errorsHTML = '<div class="error-log">';
+                    errorsHTML += '<strong>Recent Errors:</strong><br>';
+                    backend.errors.slice(-3).forEach(error => {
+                        errorsHTML += `<div>${error.timestamp}: ${error.error}</div>`;
+                    });
+                    errorsHTML += '</div>';
+                }
+                
+                card.innerHTML = `
+                    <h3>${backend.name}</h3>
+                    <div class="status-badge status-${backend.health}">${backend.health}</div>
+                    <div class="status-badge status-${backend.status === 'running' ? 'healthy' : 'unknown'}">${backend.status}</div>
+                    <p>Last Check: ${backend.last_check ? new Date(backend.last_check).toLocaleString() : 'Never'}</p>
+                    ${metricsHTML}
+                    ${errorsHTML}
+                `;
+                
+                grid.appendChild(card);
+            }
+        }
+        
+        async function getInsights() {
+            try {
+                const response = await fetch('/api/insights');
+                const data = await response.json();
+                
+                document.getElementById('insightsContent').innerHTML = data.insights || 'No insights available';
+                document.getElementById('insightsCard').style.display = 'block';
+            } catch (error) {
+                console.error('Error getting insights:', error);
+            }
+        }
+        
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(refreshData, 30000);
+            } else {
+                clearInterval(autoRefreshInterval);
+            }
+        }
+        
+        // Initial load
+        refreshData();
+    </script>
+</body>
+</html>
+        
