@@ -1064,6 +1064,118 @@ class BackendHealthMonitor:
                 
             # Wait before next check
             time.sleep(30)  # Check every 30 seconds
+    
+    async def get_package_config(self) -> Dict[str, Any]:
+        """Get package-level configuration."""
+        try:
+            config_path = Path("/home/barberb/.ipfs_kit/config.json")
+            
+            if config_path.exists():
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+            else:
+                config = {}
+            
+            # Add current environment variables and system settings
+            config.update({
+                "system": {
+                    "log_level": os.environ.get("LOG_LEVEL", "INFO"),
+                    "max_workers": os.environ.get("MAX_WORKERS", "4"),
+                    "cache_size": os.environ.get("CACHE_SIZE", "1000"),
+                    "data_directory": os.environ.get("DATA_DIR", "/tmp/ipfs_kit"),
+                },
+                "vfs": {
+                    "cache_enabled": os.environ.get("VFS_CACHE_ENABLED", "true"),
+                    "cache_max_size": os.environ.get("VFS_CACHE_MAX_SIZE", "10GB"),
+                    "vector_dimensions": os.environ.get("VECTOR_DIMENSIONS", "384"),
+                    "knowledge_base_max_nodes": os.environ.get("KB_MAX_NODES", "10000"),
+                },
+                "observability": {
+                    "metrics_enabled": os.environ.get("METRICS_ENABLED", "true"),
+                    "prometheus_port": os.environ.get("PROMETHEUS_PORT", "9090"),
+                    "dashboard_enabled": os.environ.get("DASHBOARD_ENABLED", "true"),
+                    "health_check_interval": os.environ.get("HEALTH_CHECK_INTERVAL", "30"),
+                }
+            })
+            
+            return config
+            
+        except Exception as e:
+            logger.error(f"Error getting package config: {e}")
+            return {}
+    
+    async def save_package_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Save package-level configuration."""
+        try:
+            config_path = Path("/home/barberb/.ipfs_kit/config.json")
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Load existing config
+            if config_path.exists():
+                with open(config_path, 'r') as f:
+                    existing_config = json.load(f)
+            else:
+                existing_config = {}
+            
+            # Update with new config
+            existing_config.update(config_data)
+            
+            # Save to file
+            with open(config_path, 'w') as f:
+                json.dump(existing_config, f, indent=2)
+            
+            # Update environment variables
+            updates = []
+            if "system" in config_data:
+                system_config = config_data["system"]
+                if "log_level" in system_config:
+                    os.environ["LOG_LEVEL"] = system_config["log_level"]
+                    updates.append(f"Log level set to {system_config['log_level']}")
+                if "max_workers" in system_config:
+                    os.environ["MAX_WORKERS"] = system_config["max_workers"]
+                    updates.append(f"Max workers set to {system_config['max_workers']}")
+                if "cache_size" in system_config:
+                    os.environ["CACHE_SIZE"] = system_config["cache_size"]
+                    updates.append(f"Cache size set to {system_config['cache_size']}")
+                if "data_directory" in system_config:
+                    os.environ["DATA_DIR"] = system_config["data_directory"]
+                    updates.append(f"Data directory set to {system_config['data_directory']}")
+            
+            if "vfs" in config_data:
+                vfs_config = config_data["vfs"]
+                if "cache_enabled" in vfs_config:
+                    os.environ["VFS_CACHE_ENABLED"] = vfs_config["cache_enabled"]
+                    updates.append(f"VFS cache enabled: {vfs_config['cache_enabled']}")
+                if "cache_max_size" in vfs_config:
+                    os.environ["VFS_CACHE_MAX_SIZE"] = vfs_config["cache_max_size"]
+                    updates.append(f"VFS cache max size: {vfs_config['cache_max_size']}")
+                if "vector_dimensions" in vfs_config:
+                    os.environ["VECTOR_DIMENSIONS"] = vfs_config["vector_dimensions"]
+                    updates.append(f"Vector dimensions: {vfs_config['vector_dimensions']}")
+                if "knowledge_base_max_nodes" in vfs_config:
+                    os.environ["KB_MAX_NODES"] = vfs_config["knowledge_base_max_nodes"]
+                    updates.append(f"KB max nodes: {vfs_config['knowledge_base_max_nodes']}")
+            
+            if "observability" in config_data:
+                obs_config = config_data["observability"]
+                if "metrics_enabled" in obs_config:
+                    os.environ["METRICS_ENABLED"] = obs_config["metrics_enabled"]
+                    updates.append(f"Metrics enabled: {obs_config['metrics_enabled']}")
+                if "prometheus_port" in obs_config:
+                    os.environ["PROMETHEUS_PORT"] = obs_config["prometheus_port"]
+                    updates.append(f"Prometheus port: {obs_config['prometheus_port']}")
+                if "dashboard_enabled" in obs_config:
+                    os.environ["DASHBOARD_ENABLED"] = obs_config["dashboard_enabled"]
+                    updates.append(f"Dashboard enabled: {obs_config['dashboard_enabled']}")
+                if "health_check_interval" in obs_config:
+                    os.environ["HEALTH_CHECK_INTERVAL"] = obs_config["health_check_interval"]
+                    updates.append(f"Health check interval: {obs_config['health_check_interval']}")
+            
+            return {"success": True, "updates": updates, "config_path": str(config_path)}
+            
+        except Exception as e:
+            logger.error(f"Error saving package config: {e}")
+            return {"error": f"Failed to save package config: {str(e)}"}
 
 
 class VFSObservabilityManager:
@@ -1456,8 +1568,8 @@ class EnhancedUnifiedMCPServer:
         templates_dir = Path(__file__).parent / "templates"
         templates_dir.mkdir(exist_ok=True)
         
-        if not (templates_dir / "index.html").exists():
-            self._create_dashboard_template(templates_dir)
+        # Always recreate the template to ensure it's up to date
+        self._create_dashboard_template(templates_dir)
         
         self.templates = Jinja2Templates(directory=str(templates_dir))
         
@@ -1542,6 +1654,118 @@ class EnhancedUnifiedMCPServer:
         .status-unhealthy { background: #f44336; color: white; }
         .status-partial { background: #FF9800; color: white; }
         .status-unknown { background: #9E9E9E; color: white; }
+        
+        .config-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .config-section h4 {
+            color: #495057;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        
+        .package-config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .config-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .config-card h5 {
+            color: #007bff;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .config-form label {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .config-form input,
+        .config-form select {
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .config-form input:focus,
+        .config-form select:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        
+        .config-form input[type="checkbox"] {
+            width: auto;
+            margin-right: 5px;
+        }
+        
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #218838;
+        }
         .verbose-metrics {
             background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0;
             border: 1px solid #e9ecef;
@@ -1661,12 +1885,12 @@ class EnhancedUnifiedMCPServer:
         
         <div class="tabs">
             <div class="tab-buttons">
-                <button class="tab-button active" onclick="switchTab('overview')">📊 Overview</button>
-                <button class="tab-button" onclick="switchTab('monitoring')">🔍 Monitoring</button>
-                <button class="tab-button" onclick="switchTab('vfs')">💾 VFS Observatory</button>
-                <button class="tab-button" onclick="switchTab('vector-kb')">🧠 Vector & KB</button>
-                <button class="tab-button" onclick="switchTab('configuration')">⚙️ Configuration</button>
-                <button class="tab-button" onclick="switchTab('logs')">📋 Logs</button>
+                <button class="tab-button active" onclick="switchTab('overview', event)">📊 Overview</button>
+                <button class="tab-button" onclick="switchTab('monitoring', event)">🔍 Monitoring</button>
+                <button class="tab-button" onclick="switchTab('vfs', event)">💾 VFS Observatory</button>
+                <button class="tab-button" onclick="switchTab('vector-kb', event)">🧠 Vector & KB</button>
+                <button class="tab-button" onclick="switchTab('configuration', event)">⚙️ Configuration</button>
+                <button class="tab-button" onclick="switchTab('logs', event)">📋 Logs</button>
             </div>
             
             <div id="overview" class="tab-content active">
@@ -1786,9 +2010,81 @@ class EnhancedUnifiedMCPServer:
             
             <div id="configuration" class="tab-content">
                 <div id="configurationContent">
-                    <h3>Backend Configuration</h3>
-                    <p>Select a backend to configure its settings:</p>
-                    <div id="configBackendList"></div>
+                    <h3>🔧 Configuration Management</h3>
+                    
+                    <!-- Package Configuration Section -->
+                    <div class="config-section">
+                        <h4>📦 Package Configuration</h4>
+                        <div class="package-config-grid">
+                            <div class="config-card">
+                                <h5>System Settings</h5>
+                                <div class="config-form">
+                                    <label>Log Level:</label>
+                                    <select id="system-log-level">
+                                        <option value="DEBUG">DEBUG</option>
+                                        <option value="INFO">INFO</option>
+                                        <option value="WARNING">WARNING</option>
+                                        <option value="ERROR">ERROR</option>
+                                    </select>
+                                    
+                                    <label>Max Workers:</label>
+                                    <input type="number" id="system-max-workers" min="1" max="16" value="4">
+                                    
+                                    <label>Cache Size:</label>
+                                    <input type="text" id="system-cache-size" value="1000" placeholder="e.g., 1000, 10MB">
+                                    
+                                    <label>Data Directory:</label>
+                                    <input type="text" id="system-data-dir" value="/tmp/ipfs_kit" placeholder="/path/to/data">
+                                </div>
+                            </div>
+                            
+                            <div class="config-card">
+                                <h5>VFS Settings</h5>
+                                <div class="config-form">
+                                    <label>Cache Enabled:</label>
+                                    <input type="checkbox" id="vfs-cache-enabled" checked>
+                                    
+                                    <label>Cache Max Size:</label>
+                                    <input type="text" id="vfs-cache-max-size" value="10GB" placeholder="e.g., 10GB, 1000MB">
+                                    
+                                    <label>Vector Dimensions:</label>
+                                    <input type="number" id="vfs-vector-dimensions" value="384" min="1" max="2048">
+                                    
+                                    <label>Knowledge Base Max Nodes:</label>
+                                    <input type="number" id="vfs-kb-max-nodes" value="10000" min="100" max="1000000">
+                                </div>
+                            </div>
+                            
+                            <div class="config-card">
+                                <h5>Observability Settings</h5>
+                                <div class="config-form">
+                                    <label>Metrics Enabled:</label>
+                                    <input type="checkbox" id="obs-metrics-enabled" checked>
+                                    
+                                    <label>Prometheus Port:</label>
+                                    <input type="number" id="obs-prometheus-port" value="9090" min="1000" max="65535">
+                                    
+                                    <label>Dashboard Enabled:</label>
+                                    <input type="checkbox" id="obs-dashboard-enabled" checked>
+                                    
+                                    <label>Health Check Interval (seconds):</label>
+                                    <input type="number" id="obs-health-check-interval" value="30" min="5" max="300">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="config-actions">
+                            <button onclick="loadPackageConfig()" class="btn btn-secondary">🔄 Load Current Config</button>
+                            <button onclick="savePackageConfig()" class="btn btn-primary">💾 Save Package Config</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Backend Configuration Section -->
+                    <div class="config-section">
+                        <h4>🔌 Backend Configuration</h4>
+                        <p>Select a backend to configure its settings:</p>
+                        <div id="configBackendList"></div>
+                    </div>
                 </div>
             </div>
             
@@ -1831,7 +2127,7 @@ class EnhancedUnifiedMCPServer:
         let autoRefreshInterval = null;
         let currentBackendData = {};
         
-        function switchTab(tabName) {
+        function switchTab(tabName, event) {
             // Hide all tab contents
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
@@ -1844,7 +2140,19 @@ class EnhancedUnifiedMCPServer:
             
             // Show selected tab content
             document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
+            
+            // Add active class to the clicked button
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // Fallback: find the button by tabName
+                const buttons = document.querySelectorAll('.tab-button');
+                buttons.forEach(button => {
+                    if (button.textContent.toLowerCase().includes(tabName.toLowerCase())) {
+                        button.classList.add('active');
+                    }
+                });
+            }
             
             // Load content for specific tabs
             if (tabName === 'configuration') {
@@ -2058,6 +2366,9 @@ class EnhancedUnifiedMCPServer:
         }
         
         async function loadConfigurationTab() {
+            // Load package configuration
+            await loadPackageConfig();
+            
             const configList = document.getElementById('configBackendList');
             configList.innerHTML = '<div style="text-align: center; padding: 20px;">Loading backend configurations...</div>';
             
@@ -2285,45 +2596,83 @@ class EnhancedUnifiedMCPServer:
                 },
                 'lotus': {
                     'Network': [
-                        { name: 'network', label: 'Network', type: 'select', options: ['mainnet', 'calibnet', 'testnet'], value: 'calibnet' },
-                        { name: 'api_port', label: 'API Port', type: 'number', value: '1234' },
-                        { name: 'enable_splitstore', label: 'Enable Splitstore', type: 'checkbox', value: 'false' }
+                        { name: 'network', label: 'Network', type: 'select', options: ['mainnet', 'calibnet', 'testnet'], value: 'calibnet', description: 'Filecoin network to connect to' },
+                        { name: 'api_port', label: 'API Port', type: 'number', value: '1234', description: 'Lotus API port' },
+                        { name: 'enable_splitstore', label: 'Enable Splitstore', type: 'checkbox', value: 'false', description: 'Enable splitstore for better performance' }
+                    ],
+                    'Authentication': [
+                        { name: 'api_token', label: 'API Token', type: 'password', value: '', description: 'Lotus API authentication token' },
+                        { name: 'jwt_secret', label: 'JWT Secret', type: 'password', value: '', description: 'JWT secret for API authentication' }
                     ],
                     'Performance': [
-                        { name: 'max_peers', label: 'Max Peers', type: 'number', value: '100' },
-                        { name: 'bootstrap', label: 'Enable Bootstrap', type: 'checkbox', value: 'true' }
+                        { name: 'max_peers', label: 'Max Peers', type: 'number', value: '100', description: 'Maximum number of peers' },
+                        { name: 'bootstrap', label: 'Enable Bootstrap', type: 'checkbox', value: 'true', description: 'Enable bootstrap nodes' }
                     ]
                 },
                 'storacha': {
                     'Authentication': [
                         { name: 'api_token', label: 'API Token', type: 'password', value: '', description: 'Storacha API token' },
-                        { name: 'space_did', label: 'Space DID', type: 'text', value: '', description: 'Storacha space identifier' }
+                        { name: 'space_did', label: 'Space DID', type: 'text', value: '', description: 'Storacha space identifier' },
+                        { name: 'private_key', label: 'Private Key', type: 'password', value: '', description: 'Private key for signing' }
                     ],
                     'Endpoints': [
-                        { name: 'primary_endpoint', label: 'Primary Endpoint', type: 'url', value: 'https://up.storacha.network/bridge' },
-                        { name: 'backup_endpoints', label: 'Backup Endpoints', type: 'textarea', value: 'https://api.web3.storage\\nhttps://up.web3.storage/bridge' }
+                        { name: 'primary_endpoint', label: 'Primary Endpoint', type: 'url', value: 'https://up.storacha.network/bridge', description: 'Primary Storacha endpoint' },
+                        { name: 'backup_endpoints', label: 'Backup Endpoints', type: 'textarea', value: 'https://api.web3.storage\\nhttps://up.web3.storage/bridge', description: 'Backup endpoints (one per line)' }
+                    ]
+                },
+                'synapse': {
+                    'Authentication': [
+                        { name: 'private_key', label: 'Private Key', type: 'password', value: '', description: 'Synapse private key for signing' },
+                        { name: 'wallet_address', label: 'Wallet Address', type: 'text', value: '', description: 'Wallet address for transactions' }
+                    ],
+                    'Network': [
+                        { name: 'network', label: 'Network', type: 'select', options: ['mainnet', 'calibration', 'testnet'], value: 'calibration', description: 'Filecoin network' },
+                        { name: 'rpc_endpoint', label: 'RPC Endpoint', type: 'url', value: '', description: 'Custom RPC endpoint (optional)' }
+                    ],
+                    'Configuration': [
+                        { name: 'max_file_size', label: 'Max File Size (MB)', type: 'number', value: '100', description: 'Maximum file size for uploads' },
+                        { name: 'chunk_size', label: 'Chunk Size (MB)', type: 'number', value: '10', description: 'Chunk size for large files' }
                     ]
                 },
                 'huggingface': {
                     'Authentication': [
                         { name: 'token', label: 'HF Token', type: 'password', value: '', description: 'HuggingFace Hub token' },
-                        { name: 'cache_dir', label: 'Cache Directory', type: 'text', value: '~/.cache/huggingface' }
+                        { name: 'username', label: 'Username', type: 'text', value: '', description: 'HuggingFace username' }
+                    ],
+                    'Configuration': [
+                        { name: 'cache_dir', label: 'Cache Directory', type: 'text', value: '~/.cache/huggingface', description: 'Local cache directory' },
+                        { name: 'default_model', label: 'Default Model', type: 'text', value: 'sentence-transformers/all-MiniLM-L6-v2', description: 'Default embedding model' }
                     ]
                 },
                 's3': {
                     'Credentials': [
-                        { name: 'access_key_id', label: 'Access Key ID', type: 'text', value: '' },
-                        { name: 'secret_access_key', label: 'Secret Access Key', type: 'password', value: '' },
-                        { name: 'region', label: 'Region', type: 'text', value: 'us-east-1' }
+                        { name: 'access_key_id', label: 'Access Key ID', type: 'text', value: '', description: 'AWS Access Key ID' },
+                        { name: 'secret_access_key', label: 'Secret Access Key', type: 'password', value: '', description: 'AWS Secret Access Key' },
+                        { name: 'session_token', label: 'Session Token', type: 'password', value: '', description: 'AWS Session Token (optional)' }
                     ],
                     'Configuration': [
+                        { name: 'region', label: 'Region', type: 'text', value: 'us-east-1', description: 'AWS region' },
                         { name: 'endpoint_url', label: 'Endpoint URL', type: 'url', value: '', description: 'Custom S3-compatible endpoint' },
-                        { name: 'bucket', label: 'Default Bucket', type: 'text', value: '' }
+                        { name: 'bucket', label: 'Default Bucket', type: 'text', value: '', description: 'Default S3 bucket' }
+                    ]
+                },
+                'ipfs_cluster': {
+                    'Connection': [
+                        { name: 'api_endpoint', label: 'API Endpoint', type: 'url', value: 'http://127.0.0.1:9094', description: 'IPFS Cluster API endpoint' },
+                        { name: 'proxy_endpoint', label: 'Proxy Endpoint', type: 'url', value: 'http://127.0.0.1:9095', description: 'IPFS Cluster proxy endpoint' }
+                    ],
+                    'Authentication': [
+                        { name: 'basic_auth_user', label: 'Basic Auth User', type: 'text', value: '', description: 'Basic auth username' },
+                        { name: 'basic_auth_pass', label: 'Basic Auth Password', type: 'password', value: '', description: 'Basic auth password' }
+                    ],
+                    'Configuration': [
+                        { name: 'replication_factor', label: 'Replication Factor', type: 'number', value: '1', description: 'Number of replicas' },
+                        { name: 'consensus', label: 'Consensus', type: 'select', options: ['raft', 'crdt'], value: 'raft', description: 'Consensus mechanism' }
                     ]
                 }
             };
             
-            return configs[backendName] || { 'General': [{ name: 'config', label: 'Configuration', type: 'textarea', value: '{}' }] };
+            return configs[backendName] || { 'General': [{ name: 'config', label: 'Configuration', type: 'textarea', value: '{}', description: 'Raw configuration (JSON)' }] };
         }
         
         function createFormField(field, backendName) {
@@ -2701,6 +3050,107 @@ class EnhancedUnifiedMCPServer:
             `;
         }
         
+        // Package Configuration Functions
+        async function loadPackageConfig() {
+            try {
+                const response = await fetch('/api/config/package');
+                const data = await response.json();
+                const config = data.config || {};
+                
+                // Load system settings
+                const system = config.system || {};
+                const systemLogLevel = document.getElementById('system-log-level');
+                if (systemLogLevel) systemLogLevel.value = system.log_level || 'INFO';
+                
+                const systemMaxWorkers = document.getElementById('system-max-workers');
+                if (systemMaxWorkers) systemMaxWorkers.value = system.max_workers || '4';
+                
+                const systemCacheSize = document.getElementById('system-cache-size');
+                if (systemCacheSize) systemCacheSize.value = system.cache_size || '1000';
+                
+                const systemDataDir = document.getElementById('system-data-dir');
+                if (systemDataDir) systemDataDir.value = system.data_directory || '/tmp/ipfs_kit';
+                
+                // Load VFS settings
+                const vfs = config.vfs || {};
+                const vfsCacheEnabled = document.getElementById('vfs-cache-enabled');
+                if (vfsCacheEnabled) vfsCacheEnabled.checked = vfs.cache_enabled !== 'false';
+                
+                const vfsCacheMaxSize = document.getElementById('vfs-cache-max-size');
+                if (vfsCacheMaxSize) vfsCacheMaxSize.value = vfs.cache_max_size || '10GB';
+                
+                const vfsVectorDimensions = document.getElementById('vfs-vector-dimensions');
+                if (vfsVectorDimensions) vfsVectorDimensions.value = vfs.vector_dimensions || '384';
+                
+                const vfsKbMaxNodes = document.getElementById('vfs-kb-max-nodes');
+                if (vfsKbMaxNodes) vfsKbMaxNodes.value = vfs.knowledge_base_max_nodes || '10000';
+                
+                // Load observability settings
+                const obs = config.observability || {};
+                const obsMetricsEnabled = document.getElementById('obs-metrics-enabled');
+                if (obsMetricsEnabled) obsMetricsEnabled.checked = obs.metrics_enabled !== 'false';
+                
+                const obsPrometheusPort = document.getElementById('obs-prometheus-port');
+                if (obsPrometheusPort) obsPrometheusPort.value = obs.prometheus_port || '9090';
+                
+                const obsDashboardEnabled = document.getElementById('obs-dashboard-enabled');
+                if (obsDashboardEnabled) obsDashboardEnabled.checked = obs.dashboard_enabled !== 'false';
+                
+                const obsHealthCheckInterval = document.getElementById('obs-health-check-interval');
+                if (obsHealthCheckInterval) obsHealthCheckInterval.value = obs.health_check_interval || '30';
+                
+                console.log('Package configuration loaded successfully');
+                
+            } catch (error) {
+                console.error('Error loading package configuration:', error);
+                alert('Error loading package configuration: ' + error.message);
+            }
+        }
+        
+        async function savePackageConfig() {
+            try {
+                const config = {
+                    system: {
+                        log_level: document.getElementById('system-log-level')?.value || 'INFO',
+                        max_workers: document.getElementById('system-max-workers')?.value || '4',
+                        cache_size: document.getElementById('system-cache-size')?.value || '1000',
+                        data_directory: document.getElementById('system-data-dir')?.value || '/tmp/ipfs_kit'
+                    },
+                    vfs: {
+                        cache_enabled: document.getElementById('vfs-cache-enabled')?.checked ? 'true' : 'false',
+                        cache_max_size: document.getElementById('vfs-cache-max-size')?.value || '10GB',
+                        vector_dimensions: document.getElementById('vfs-vector-dimensions')?.value || '384',
+                        knowledge_base_max_nodes: document.getElementById('vfs-kb-max-nodes')?.value || '10000'
+                    },
+                    observability: {
+                        metrics_enabled: document.getElementById('obs-metrics-enabled')?.checked ? 'true' : 'false',
+                        prometheus_port: document.getElementById('obs-prometheus-port')?.value || '9090',
+                        dashboard_enabled: document.getElementById('obs-dashboard-enabled')?.checked ? 'true' : 'false',
+                        health_check_interval: document.getElementById('obs-health-check-interval')?.value || '30'
+                    }
+                };
+                
+                const response = await fetch('/api/config/package', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert('Package configuration saved successfully!\\n\\nUpdates applied:\\n' + 
+                          (result.result.updates || []).join('\\n'));
+                } else {
+                    const error = await response.json();
+                    alert('Error saving package configuration: ' + (error.error || response.statusText));
+                }
+                
+            } catch (error) {
+                console.error('Error saving package configuration:', error);
+                alert('Error saving package configuration: ' + error.message);
+            }
+        }
+        
         // Initial load
         refreshData();
     </script>
@@ -2781,6 +3231,24 @@ class EnhancedUnifiedMCPServer:
         async def update_backend_config(backend_name: str, config_data: dict):
             """Update configuration for a specific backend."""
             result = await self.backend_monitor.update_backend_config(backend_name, config_data)
+            return {"backend": backend_name, "result": result}
+        
+        @self.app.get("/api/config/package")
+        async def get_package_config():
+            """Get package-level configuration."""
+            config = await self.backend_monitor.get_package_config()
+            return {"config": config}
+        
+        @self.app.post("/api/config/package")
+        async def save_package_config(config_data: dict):
+            """Save package-level configuration."""
+            result = await self.backend_monitor.save_package_config(config_data)
+            return {"result": result}
+        
+        @self.app.post("/api/backends/{backend_name}/restart")
+        async def restart_backend(backend_name: str):
+            """Restart a specific backend."""
+            result = await self.backend_monitor.restart_backend(backend_name)
             return {"backend": backend_name, "result": result}
         
         @self.app.get("/api/config/export")
