@@ -37,9 +37,34 @@ import mimetypes
 import anyio
 from pathlib import Path
 from io import IOBase, BytesIO
-from typing import Any, BinaryIO, Callable, Dict, List, Optional, Tuple, Union, TypeVar, Literal, Iterator, AsyncIterator
+from typing import Any, BinaryIO, Callable, Dict, List, Optional, Tuple, Union, TypeVar, Literal, Iterator, AsyncIterator, TYPE_CHECKING
 
 import yaml
+
+# TYPE_CHECKING imports for type hints that should not be available at runtime
+if TYPE_CHECKING:
+    try:
+        from pandas import DataFrame
+        from datasets import Dataset
+    except ImportError:
+        # Define as Any if libraries are not present, to satisfy type checkers
+        DataFrame = Any
+        Dataset = Any
+    try:
+        from langchain.docstore.document import Document
+        from langchain.embeddings.base import Embeddings
+    except ImportError:
+        Document = Any
+        Embeddings = Any
+    try:
+        # Corrected import path for llama_index v0.10+
+        from llama_index.core.embeddings.base import BaseEmbedding
+    except ImportError:
+        try:
+            # Fallback for older versions
+            from llama_index.embeddings.base import BaseEmbedding
+        except ImportError:
+            BaseEmbedding = Any
 
 # Internal imports
 # Configure logger first
@@ -60,8 +85,37 @@ except ImportError:
     from ipfs_kit_py.ipfs_kit import IPFSKit, ipfs_kit
     from ipfs_kit_py.fs_journal_integration import enable_filesystem_journaling, FilesystemJournalIntegration
     from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor, JournalVisualization
-    from ipfs_kit_py.validation import validate_parameters
-    from ipfs_kit_py.api_stability import stable_api, beta_api, experimental_api, deprecated
+from ipfs_kit_py.validation import validate_parameters
+from ipfs_kit_py.api_stability import stable_api, beta_api, experimental_api, deprecated
+
+# VFS and related imports with error handling
+try:
+    from .tiered_cache_manager import TieredCacheManager
+    HAS_CACHE = True
+    logger.info("TieredCacheManager imported successfully")
+except ImportError:
+    TieredCacheManager = None
+    HAS_CACHE = False
+    logger.warning("TieredCacheManager not available.")
+
+try:
+    # This was already in the file, but let's ensure it's robust
+    from .fs_journal_replication import FSJournalReplication, create_replication_manager, ReplicationLevel
+    HAS_REPLICATION = True
+    logger.info("FSJournalReplication imported successfully")
+except ImportError:
+    FSJournalReplication = None
+    HAS_REPLICATION = False
+    logger.warning("FSJournalReplication not available.")
+
+try:
+    from .wal_api import WALManager
+    HAS_WAL = True
+    logger.info("WALManager imported successfully")
+except (ImportError, AttributeError): # AttributeError for cases where module exists but class doesn't
+    WALManager = None
+    HAS_WAL = False
+    logger.warning("WALManager not available.")
 
 # Define initial values for FSSpec integration
 HAVE_FSSPEC = False
@@ -244,6 +298,25 @@ try:
     INTEGRATED_SEARCH_AVAILABLE = True
 except ImportError:
     INTEGRATED_SEARCH_AVAILABLE = False
+
+# Optional imports for AI/ML features
+try:
+    import pandas
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+
+try:
+    import langchain
+    LANGCHAIN_AVAILABLE = True
+except ImportError:
+    LANGCHAIN_AVAILABLE = False
+
+try:
+    import llama_index
+    LLAMA_INDEX_AVAILABLE = True
+except ImportError:
+    LLAMA_INDEX_AVAILABLE = False
 
 # Configure logger
 logger = logging.getLogger(__name__)

@@ -1,0 +1,2129 @@
+"""
+Dashboard template manager for generating HTML templates.
+"""
+
+from pathlib import Path
+from typing import Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
+
+class DashboardTemplateManager:
+    """Manages dashboard HTML templates."""
+    
+    def __init__(self, templates_dir: Path):
+        self.templates_dir = templates_dir
+        self.templates_dir.mkdir(exist_ok=True)
+        
+    def create_dashboard_template(self) -> str:
+        """Create the main dashboard template with comprehensive features."""
+        
+        template_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>&#128640; IPFS Kit MCP Server - Enhanced Dashboard</title>
+    <style>
+        /* Base Styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; padding: 20px;
+        }
+        .container { 
+            max-width: 1400px; margin: 0 auto; 
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px; padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .header { 
+            text-align: center; margin-bottom: 30px; 
+            padding-bottom: 20px; border-bottom: 3px solid #e2e8f0;
+        }
+        .header h1 { 
+            color: #2d3748; margin-bottom: 10px; font-size: 2.5rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header p { color: #718096; font-size: 1.1rem; }
+        
+        /* Tab Navigation */
+        .tabs { 
+            display: flex; flex-wrap: wrap; background: #f8fafc;
+            border-radius: 10px; padding: 5px; margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .tab-btn { 
+            flex: 1; min-width: 120px; padding: 12px 20px;
+            background: transparent; border: none; border-radius: 8px;
+            cursor: pointer; font-weight: 600; color: #718096;
+            transition: all 0.3s ease; font-size: 0.9rem; text-align: center;
+        }
+        .tab-btn:hover { background: #e2e8f0; color: #4a5568; }
+        .tab-btn.active { 
+            background: linear-gradient(45deg, #4299e1, #3182ce);
+            color: white; box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+        }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Grid and Cards */
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 20px; margin-bottom: 25px;
+        }
+        .backend-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+            gap: 20px; 
+        }
+        .stat-card, .backend-card { 
+            background: white; padding: 20px; border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0; transition: all 0.2s ease;
+        }
+        .stat-card:hover, .backend-card:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        .stat-card h3, .backend-card h4 { 
+            margin: 0 0 15px 0; color: #2d3748; 
+            border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;
+        }
+        .stat-card h3 { font-size: 1.2rem; }
+        .backend-card h4 { 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .metric { 
+            display: flex; justify-content: space-between; align-items: center;
+            margin: 12px 0; padding: 10px; background: #f8fafc; 
+            border-radius: 8px; border-left: 4px solid #4299e1;
+        }
+        .metric-label { font-weight: 600; color: #4a5568; }
+        .metric-value { 
+            font-family: 'Monaco', 'Menlo', monospace; 
+            font-weight: bold; color: #2d3748;
+        }
+        
+        /* Status indicators */
+        .status-badge { 
+            padding: 4px 8px; border-radius: 12px; 
+            font-size: 0.8rem; font-weight: bold; text-transform: uppercase;
+        }
+        .status-badge.status-healthy { background: #c6f6d5; color: #22543d; }
+        .status-badge.status-unhealthy { background: #fed7d7; color: #742a2a; }
+        .status-badge.status-running { background: #c6f6d5; color: #22543d; }
+        .status-badge.status-stopped { background: #fed7d7; color: #742a2a; }
+        .status-badge.status-error { background: #feb2b2; color: #742a2a; }
+        
+        /* Expandable sections */
+        .expandable { 
+            margin: 20px 0; border: 1px solid #e2e8f0; 
+            border-radius: 8px; overflow: hidden;
+        }
+        .expandable-header { 
+            background: #f8fafc; padding: 15px; cursor: pointer; 
+            font-weight: 600; display: flex; justify-content: space-between;
+            align-items: center;
+        }
+        .expandable-header:hover { background: #e2e8f0; }
+        .expandable-content { padding: 20px; display: none; }
+        .expandable.expanded .expandable-content { display: block; }
+        .expandable-header::after { 
+            content: '+'; font-size: 1.2rem; color: #4a5568;
+        }
+        .expandable.expanded .expandable-header::after { content: '-'; }
+        
+        /* Control buttons */
+        .control-buttons { 
+            display: flex; gap: 15px; margin-bottom: 20px;
+            flex-wrap: wrap; align-items: center;
+        }
+        .refresh-btn { 
+            background: linear-gradient(45deg, #48bb78, #38a169); 
+            color: white; border: none; padding: 10px 20px; 
+            border-radius: 8px; cursor: pointer; font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .refresh-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .auto-refresh { 
+            display: flex; align-items: center; gap: 8px; 
+            font-weight: 600; color: #4a5568;
+        }
+        
+        /* Configuration forms */
+        .config-form { display: grid; gap: 15px; }
+        .config-form label { 
+            font-weight: 600; color: #4a5568; margin-bottom: 5px;
+        }
+        .config-form input, .config-form select, .config-form textarea { 
+            padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px;
+            font-size: 14px; transition: border-color 0.2s;
+        }
+        .config-form input:focus, .config-form select:focus, .config-form textarea:focus {
+            outline: none; border-color: #4299e1;
+        }
+        .config-form textarea { min-height: 100px; font-family: monospace; }
+        
+        /* Backend actions */
+        .backend-actions { 
+            display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap;
+        }
+        .backend-actions button { 
+            padding: 6px 12px; border: none; border-radius: 6px;
+            font-size: 0.8rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-primary { background: #4299e1; color: white; }
+        .btn-secondary { background: #e2e8f0; color: #4a5568; }
+        .btn-danger { background: #f56565; color: white; }
+        .btn-success { background: #48bb78; color: white; }
+        
+        /* Modals */
+        .modal { 
+            display: none; position: fixed; z-index: 1000; 
+            left: 0; top: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+        .modal-content { 
+            background: white; margin: 5% auto; padding: 20px;
+            border-radius: 8px; width: 80%; max-width: 800px;
+            max-height: 80vh; overflow-y: auto;
+        }
+        .close { 
+            color: #aaa; float: right; font-size: 28px; 
+            font-weight: bold; cursor: pointer;
+        }
+        .close:hover { color: black; }
+        
+        /* Health score */
+        .health-score { 
+            text-align: center; font-size: 3rem; font-weight: bold; margin: 20px 0;
+        }
+        .health-score.good { color: #48bb78; }
+        .health-score.warning { color: #ed8936; }
+        .health-score.error { color: #f56565; }
+        
+        /* Metrics table */
+        .metrics-table table { 
+            width: 100%; border-collapse: collapse;
+        }
+        .metrics-table th, .metrics-table td { 
+            padding: 8px; text-align: left; border-bottom: 1px solid #e2e8f0;
+        }
+        .metrics-table th { background: #f8fafc; font-weight: 600; }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container { padding: 15px; }
+            .tabs { flex-direction: column; }
+            .tab-btn { min-width: auto; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .backend-grid { grid-template-columns: 1fr; }
+            .control-buttons { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>&#128640; IPFS Kit MCP Server</h1>
+            <p>Enhanced Dashboard with Full Backend Observability</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('overview')">&#128202; Overview</button>
+            <button class="tab-btn" onclick="showTab('monitoring')">&#128269; Monitoring</button>
+            <button class="tab-btn" onclick="showTab('vfs')">&#128451; VFS Observatory</button>
+            <button class="tab-btn" onclick="showTab('vector-kb')">&#129504; Vector & KB</button>
+            <button class="tab-btn" onclick="showTab('configuration')">&#9881; Configuration</button>
+        </div>
+        
+        <div id="overview" class="tab-content active">
+            <div class="control-buttons">
+                <button class="refresh-btn" onclick="refreshData()">&#128260; Refresh</button>
+                <button class="refresh-btn" onclick="getInsights()">&#129504; Get Insights</button>
+                <button class="refresh-btn" onclick="exportConfig()">&#128228; Export Config</button>
+                <label class="auto-refresh">
+                    <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+                    Auto-refresh (30s)
+                </label>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>System Status</h3>
+                    <div id="systemStatus">Loading...</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Backend Summary</h3>
+                    <div id="backendSummary">Loading...</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Performance</h3>
+                    <div id="performanceMetrics">Loading...</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Component Status</h3>
+                    <div id="componentStatus">Loading...</div>
+                </div>
+            </div>
+            
+            <div class="expandable" id="insightsCard" style="display: none;">
+                <div class="expandable-header">&#129504; Development Insights</div>
+                <div class="expandable-content">
+                    <div id="insightsContent">Loading insights...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="monitoring" class="tab-content">
+            <div class="control-buttons">
+                <button class="refresh-btn" onclick="refreshMonitoring()">&#128260; Refresh Monitoring</button>
+            </div>
+            <div class="backend-grid" id="backendGrid">
+                <!-- Backend cards will be populated here -->
+            </div>
+        </div>
+        
+        <div id="vfs" class="tab-content">
+            <div class="control-buttons">
+                <button class="refresh-btn" onclick="loadVFSTab()">&#128260; Refresh VFS</button>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>&#129513; Cache Performance</h3>
+                    <div id="cachePerformance">Loading cache metrics...</div>
+                </div>
+                <div class="stat-card">
+                    <h3>&#128451; Filesystem Status</h3>
+                    <div id="filesystemStatus">Loading filesystem metrics...</div>
+                </div>
+                <div class="stat-card">
+                    <h3>&#128200; Access Patterns</h3>
+                    <div id="accessPatterns">Loading access patterns...</div>
+                </div>
+                <div class="stat-card">
+                    <h3>&#128187; Resource Usage</h3>
+                    <div id="resourceUsage">Loading resource metrics...</div>
+                </div>
+            </div>
+            
+            <div class="expandable">
+                <div class="expandable-header">Tiered Cache Details</div>
+                <div class="expandable-content">
+                    <div id="tieredCacheDetails">Loading detailed cache information...</div>
+                </div>
+            </div>
+            
+            <div class="expandable">
+                <div class="expandable-header">Hot Content Analysis</div>
+                <div class="expandable-content">
+                    <div id="hotContentAnalysis">Loading hot content analysis...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="vector-kb" class="tab-content">
+            <div class="control-buttons">
+                <button class="refresh-btn" onclick="loadVectorKBTab()">&#128260; Refresh Vector/KB</button>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>&#128269; Vector Index Status</h3>
+                    <div id="vectorIndexStatus">Loading vector index metrics...</div>
+                </div>
+                <div class="stat-card">
+                    <h3>🕸️ Knowledge Graph</h3>
+                    <div id="knowledgeGraphStatus">Loading knowledge graph metrics...</div>
+                </div>
+                <div class="stat-card">
+                    <h3>🎯 Search Performance</h3>
+                    <div id="searchPerformance">Loading search performance...</div>
+                </div>
+                <div class="stat-card">
+                    <h3>&#128202; Content Distribution</h3>
+                    <div id="contentDistribution">Loading content distribution...</div>
+                </div>
+            </div>
+            
+            <div class="expandable">
+                <div class="expandable-header">Vector Index Details</div>
+                <div class="expandable-content">
+                    <div id="vectorIndexDetails">Loading vector index details...</div>
+                </div>
+            </div>
+            
+            <div class="expandable">
+                <div class="expandable-header">Knowledge Base Analytics</div>
+                <div class="expandable-content">
+                    <div id="knowledgeBaseAnalytics">Loading knowledge base analytics...</div>
+                </div>
+            </div>
+            
+            <div class="expandable">
+                <div class="expandable-header">Semantic Cache Performance</div>
+                <div class="expandable-content">
+                    <div id="semanticCachePerformance">Loading semantic cache performance...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="configuration" class="tab-content">
+            <div class="control-buttons">
+                <button class="refresh-btn" onclick="loadConfigurationTab()">&#128260; Refresh Config</button>
+                <button class="refresh-btn" onclick="savePackageConfig()">💾 Save Package Config</button>
+            </div>
+            <div id="configurationContent">
+                <h3>🔧 Configuration Management</h3>
+                
+                <!-- Package Configuration Section -->
+                <div class="expandable expanded">
+                    <div class="expandable-header">📦 Package Configuration</div>
+                    <div class="expandable-content">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h3>System Settings</h3>
+                                <div class="config-form">
+                                    <label>Log Level:</label>
+                                    <select id="system-log-level">
+                                        <option value="DEBUG">DEBUG</option>
+                                        <option value="INFO">INFO</option>
+                                        <option value="WARNING">WARNING</option>
+                                        <option value="ERROR">ERROR</option>
+                                    </select>
+                                    
+                                    <label>Max Workers:</label>
+                                    <input type="number" id="system-max-workers" min="1" max="16" value="4">
+                                    
+                                    <label>Cache Size:</label>
+                                    <input type="text" id="system-cache-size" value="1000" placeholder="e.g., 1000, 10MB">
+                                    
+                                    <label>Data Directory:</label>
+                                    <input type="text" id="system-data-dir" value="/tmp/ipfs_kit" placeholder="/path/to/data">
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <h3>VFS Settings</h3>
+                                <div class="config-form">
+                                    <label>Cache Enabled:</label>
+                                    <input type="checkbox" id="vfs-cache-enabled" checked>
+                                    
+                                    <label>Cache Max Size:</label>
+                                    <input type="text" id="vfs-cache-max-size" value="10GB" placeholder="e.g., 10GB, 1000MB">
+                                    
+                                    <label>Vector Dimensions:</label>
+                                    <input type="number" id="vfs-vector-dimensions" min="128" max="2048" value="384">
+                                    
+                                    <label>KB Max Nodes:</label>
+                                    <input type="number" id="vfs-kb-max-nodes" min="1000" max="100000" value="10000">
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <h3>Observability Settings</h3>
+                                <div class="config-form">
+                                    <label>Metrics Enabled:</label>
+                                    <input type="checkbox" id="obs-metrics-enabled" checked>
+                                    
+                                    <label>Prometheus Port:</label>
+                                    <input type="number" id="obs-prometheus-port" min="1024" max="65535" value="9090">
+                                    
+                                    <label>Dashboard Enabled:</label>
+                                    <input type="checkbox" id="obs-dashboard-enabled" checked>
+                                    
+                                    <label>Health Check Interval (s):</label>
+                                    <input type="number" id="obs-health-check-interval" min="10" max="300" value="30">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Backend Configuration Section -->
+                <div class="expandable">
+                    <div class="expandable-header">🔧 Backend Configuration</div>
+                    <div class="expandable-content">
+                        <div id="configBackendList">Loading backend configurations...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Configuration Modal -->
+    <div id="configModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeConfigModal()">&times;</span>
+            <h2 id="configModalTitle">Backend Configuration</h2>
+            <div id="configModalContent">Loading...</div>
+        </div>
+    </div>
+    
+    <!-- Logs Modal -->
+    <div id="logsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLogsModal()">&times;</span>
+            <h2 id="logsModalTitle">Backend Logs</h2>
+            <div id="logsModalContent">Loading...</div>
+    
+    <script>
+        // Global variables
+        let currentTab = 'overview';
+        let autoRefreshInterval = null;
+        let currentBackendData = {};
+        let backendConfigCache = {};
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeExpandables();
+            refreshData();
+        });
+        
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-btn').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Activate selected tab button
+            event.target.classList.add('active');
+            
+            currentTab = tabName;
+            
+            // Load tab-specific data
+            switch(tabName) {
+                case 'overview':
+                    refreshData();
+                    break;
+                case 'monitoring':
+                    refreshMonitoring();
+                    break;
+                case 'vfs':
+                    loadVFSTab();
+                    break;
+                case 'vector-kb':
+                    loadVectorKBTab();
+                    break;
+                case 'configuration':
+                    loadConfigurationTab();
+                    break;
+            }
+        }
+        
+        // Main data refresh function
+        async function refreshData() {
+            try {
+                // Load system status
+                const healthResponse = await fetch('/api/health');
+                const healthData = await healthResponse.json();
+                
+                // Load backend status
+                const backendResponse = await fetch('/api/backends');
+                const backendData = await backendResponse.json();
+                currentBackendData = backendData;
+                
+                // Update UI
+                updateSystemStatus(healthData);
+                updateBackendSummary(backendData);
+                updatePerformanceMetrics(healthData);
+                updateComponentStatus(healthData);
+                
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+            }
+        }
+        
+        // Refresh monitoring tab
+        async function refreshMonitoring() {
+            try {
+                const response = await fetch('/api/backends');
+                const data = await response.json();
+                
+                const grid = document.getElementById('backendGrid');
+                grid.innerHTML = '';
+                
+                if (data.backends) {
+                    // Update backend grid with comprehensive monitoring
+                    updateBackendGrid(data.backends);
+                } else {
+                    grid.innerHTML = '<div class="stat-card"><h3>No backends found</h3></div>';
+                }
+                
+            } catch (error) {
+                console.error('Error refreshing monitoring:', error);
+                document.getElementById('backendGrid').innerHTML = '<div class="stat-card"><h3>Error loading backends</h3></div>';
+            }
+        }
+        
+        function updateBackendGrid(backends) {
+            const grid = document.getElementById('backendGrid');
+            grid.innerHTML = '';
+            
+            for (const [name, backend] of Object.entries(backends)) {
+                const card = document.createElement('div');
+                card.className = `backend-card ${backend.health}`;
+                
+                // Create verbose metrics display
+                let verboseMetricsHTML = createVerboseMetricsHTML(backend);
+                
+                let errorsHTML = '';
+                if (backend.errors && backend.errors.length > 0) {
+                    errorsHTML = `
+                        <div class="expandable">
+                            <div class="expandable-header">Recent Errors (${backend.errors.length})</div>
+                            <div class="expandable-content">
+                                <div class="error-log">
+                                    ${backend.errors.slice(-5).map(error => 
+                                        `<div><strong>${new Date(error.timestamp).toLocaleString()}:</strong> ${error.error}</div>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                card.innerHTML = `
+                    <div class="backend-header">
+                        <div>
+                            <h3>${backend.name}</h3>
+                            <span class="backend-status ${backend.health}">${backend.health}</span>
+                        </div>
+                        <div class="backend-actions">
+                            <button class="action-btn" onclick="viewLogs('${name}')">&#128221; Logs</button>
+                            <button class="action-btn" onclick="configureBackend('${name}')">&#9881; Config</button>
+                            <button class="action-btn" onclick="restartBackend('${name}')">&#128260; Restart</button>
+                        </div>
+                    </div>
+                    <div class="backend-content">
+                        <div class="backend-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Status:</span>
+                                <span class="metric-value">${backend.status}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Last Check:</span>
+                                <span class="metric-value">${backend.last_check ? new Date(backend.last_check).toLocaleString() : 'Never'}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Health Score:</span>
+                                <span class="metric-value">${backend.health_score || 'Unknown'}</span>
+                            </div>
+                        </div>
+                        ${verboseMetricsHTML}
+                        ${errorsHTML}
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            }
+        }
+        
+        function createVerboseMetricsHTML(backend) {
+            if (!backend.metrics || Object.keys(backend.metrics).length === 0) {
+                return '<div class="verbose-metrics"><em>No metrics available</em></div>';
+            }
+            
+            let html = '<div class="verbose-metrics">';
+            
+            // Group metrics by category
+            const groupedMetrics = groupMetricsByCategory(backend.metrics);
+            
+            for (const [category, metrics] of Object.entries(groupedMetrics)) {
+                html += `
+                    <div class="metrics-section">
+                        <h4>${category}</h4>
+                        <table class="metrics-table">
+                `;
+                
+                for (const [key, value] of Object.entries(metrics)) {
+                    const displayValue = formatMetricValue(value);
+                    html += `
+                        <tr>
+                            <td>${formatMetricKey(key)}</td>
+                            <td class="value">${displayValue}</td>
+                        </tr>
+                    `;
+                }
+                
+                html += '</table></div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function groupMetricsByCategory(metrics) {
+            const groups = {
+                'Connection': {},
+                'Performance': {},
+                'Storage': {},
+                'Process': {},
+                'Network': {},
+                'Configuration': {},
+                'Other': {}
+            };
+            
+            for (const [key, value] of Object.entries(metrics)) {
+                const lowerKey = key.toLowerCase();
+                
+                if (lowerKey.includes('version') || lowerKey.includes('commit') || lowerKey.includes('build')) {
+                    groups['Configuration'][key] = value;
+                } else if (lowerKey.includes('pid') || lowerKey.includes('process') || lowerKey.includes('daemon')) {
+                    groups['Process'][key] = value;
+                } else if (lowerKey.includes('size') || lowerKey.includes('storage') || lowerKey.includes('repo') || lowerKey.includes('objects')) {
+                    groups['Storage'][key] = value;
+                } else if (lowerKey.includes('peer') || lowerKey.includes('endpoint') || lowerKey.includes('connection')) {
+                    groups['Network'][key] = value;
+                } else if (lowerKey.includes('time') || lowerKey.includes('response') || lowerKey.includes('latency')) {
+                    groups['Performance'][key] = value;
+                } else if (lowerKey.includes('connected') || lowerKey.includes('running') || lowerKey.includes('available')) {
+                    groups['Connection'][key] = value;
+                } else {
+                    groups['Other'][key] = value;
+                }
+            }
+            
+            // Remove empty groups
+            return Object.fromEntries(Object.entries(groups).filter(([_, metrics]) => Object.keys(metrics).length > 0));
+        }
+        
+        function formatMetricKey(key) {
+            return key.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase());
+        }
+        
+        function formatMetricValue(value) {
+            if (typeof value === 'number') {
+                if (value > 1000000) {
+                    return (value / 1000000).toFixed(1) + 'M';
+                } else if (value > 1000) {
+                    return (value / 1000).toFixed(1) + 'K';
+                } else {
+                    return value.toString();
+                }
+            } else if (typeof value === 'boolean') {
+                return value ? '✓' : '✗';
+            } else if (typeof value === 'string') {
+                return value.length > 50 ? value.substring(0, 50) + '...' : value;
+            } else {
+                return JSON.stringify(value);
+            }
+        }
+        
+        // Update system status
+        function updateSystemStatus(data) {
+            const healthScore = data.health_score || 0;
+            const statusElement = document.getElementById('systemStatus');
+            
+            const healthClass = healthScore > 70 ? 'good' : healthScore > 40 ? 'warning' : 'error';
+            
+            statusElement.innerHTML = `
+                <div class="health-score ${healthClass}">${healthScore.toFixed(1)}%</div>
+                <div class="metric">
+                    <span class="metric-label">Health Score</span>
+                    <span class="metric-value">${healthScore.toFixed(1)}%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Uptime</span>
+                    <span class="metric-value">${formatUptime(data.uptime_seconds || 0)}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Status</span>
+                    <span class="metric-value">${data.status || 'unknown'}</span>
+                </div>
+            `;
+        }
+        
+        // Update backend summary
+        function updateBackendSummary(data) {
+            const element = document.getElementById('backendSummary');
+            
+            if (data.backends) {
+                const backends = Object.values(data.backends);
+                const healthy = backends.filter(b => b.health === 'healthy').length;
+                const total = backends.length;
+                
+                element.innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">Total Backends</span>
+                        <span class="metric-value">${total}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Healthy</span>
+                        <span class="metric-value">${healthy}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Success Rate</span>
+                        <span class="metric-value">${total > 0 ? (healthy/total*100).toFixed(1) : 0}%</span>
+                    </div>
+                `;
+            } else {
+                element.innerHTML = '<div class="metric"><span class="metric-label">Status</span><span class="metric-value">Loading...</span></div>';
+            }
+        }
+        
+        // Update performance metrics
+        function updatePerformanceMetrics(data) {
+            const element = document.getElementById('performanceMetrics');
+            
+            element.innerHTML = `
+                <div class="metric">
+                    <span class="metric-label">Response Time</span>
+                    <span class="metric-value">${(data.average_response_time || 0).toFixed(3)}s</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Memory Usage</span>
+                    <span class="metric-value">${(data.memory_usage_mb || 0).toFixed(1)}MB</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">CPU Usage</span>
+                    <span class="metric-value">${(data.cpu_usage_percent || 0).toFixed(1)}%</span>
+                </div>
+            `;
+        }
+        
+        // Update component status
+        function updateComponentStatus(data) {
+            const element = document.getElementById('componentStatus');
+            
+            if (data.components) {
+                let html = '';
+                Object.entries(data.components).forEach(([component, available]) => {
+                    const statusClass = available ? 'status-healthy' : 'status-unhealthy';
+                    const indicator = available ? '✓' : '✗';
+                    
+                    html += `
+                        <div class="metric">
+                            <span class="metric-label">${component.replace('_', ' ')}</span>
+                            <span class="metric-value status-badge ${statusClass}">${indicator}</span>
+                        </div>
+                    `;
+                });
+                element.innerHTML = html;
+            } else {
+                element.innerHTML = '<div class="metric"><span class="metric-label">Status</span><span class="metric-value">Loading...</span></div>';
+            }
+        }
+        
+        // Create backend card
+        function createBackendCard(name, backend) {
+            const card = document.createElement('div');
+            card.className = 'backend-card';
+            
+            const statusBadge = backend.health === 'healthy' ? 'status-healthy' : 'status-unhealthy';
+            
+            card.innerHTML = `
+                <h4>${name} <span class="status-badge ${statusBadge}">${backend.health}</span></h4>
+                <div class="metric">
+                    <span class="metric-label">Status</span>
+                    <span class="metric-value">${backend.status || 'unknown'}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Response Time</span>
+                    <span class="metric-value">${(backend.response_time || 0).toFixed(3)}s</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Last Check</span>
+                    <span class="metric-value">${formatTimestamp(backend.last_check)}</span>
+                </div>
+                <div class="backend-actions">
+                    <button class="btn-primary" onclick="openConfigModal('${name}')">&#9881; Configure</button>
+                    <button class="btn-secondary" onclick="openLogsModal('${name}')">&#128221; Logs</button>
+                    <button class="btn-success" onclick="restartBackend('${name}')">&#128260; Restart</button>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        // VFS Tab Functions
+        async function loadVFSTab() {
+            try {
+                // Load VFS statistics
+                const response = await fetch('/api/vfs/statistics');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('cachePerformance').innerHTML = formatCachePerformance(data.cache_performance);
+                    document.getElementById('filesystemStatus').innerHTML = formatFilesystemStatus(data.filesystem_metrics);
+                    document.getElementById('accessPatterns').innerHTML = formatAccessPatterns(data.access_patterns);
+                    document.getElementById('resourceUsage').innerHTML = formatResourceUsage(data.resource_utilization);
+                    
+                    // Load detailed sections
+                    document.getElementById('tieredCacheDetails').innerHTML = formatTieredCacheDetails(data.cache_performance);
+                    document.getElementById('hotContentAnalysis').innerHTML = formatHotContentAnalysis(data.access_patterns);
+                } else {
+                    document.getElementById('cachePerformance').innerHTML = 'VFS monitoring not available';
+                }
+                
+            } catch (error) {
+                console.error('Error loading VFS data:', error);
+                document.getElementById('cachePerformance').innerHTML = 'Error loading VFS data';
+            }
+        }
+        
+        // Vector/KB Tab Functions
+        async function loadVectorKBTab() {
+            try {
+                // Load vector index status
+                const vectorResponse = await fetch('/api/vfs/vector-index');
+                const vectorData = await vectorResponse.json();
+                
+                if (vectorData.success) {
+                    document.getElementById('vectorIndexStatus').innerHTML = formatVectorIndexStatus(vectorData.data);
+                    document.getElementById('searchPerformance').innerHTML = formatSearchPerformance(vectorData.data.search_performance);
+                    document.getElementById('contentDistribution').innerHTML = formatContentDistribution(vectorData.data.content_distribution);
+                    document.getElementById('vectorIndexDetails').innerHTML = formatVectorIndexDetails(vectorData.data);
+                } else {
+                    document.getElementById('vectorIndexStatus').innerHTML = 'Vector index monitoring not available';
+                }
+                
+                // Load knowledge base status
+                const kbResponse = await fetch('/api/vfs/knowledge-base');
+                const kbData = await kbResponse.json();
+                
+                if (kbData.success) {
+                    document.getElementById('knowledgeGraphStatus').innerHTML = formatKnowledgeGraphStatus(kbData.data);
+                    document.getElementById('knowledgeBaseAnalytics').innerHTML = formatKnowledgeBaseAnalytics(kbData.data);
+                } else {
+                    document.getElementById('knowledgeGraphStatus').innerHTML = 'Knowledge base monitoring not available';
+                }
+                
+            } catch (error) {
+                console.error('Error loading Vector/KB data:', error);
+                document.getElementById('vectorIndexStatus').innerHTML = 'Error loading vector/KB data';
+            }
+        }
+        
+        // Configuration Tab Functions
+        async function loadConfigurationTab() {
+            try {
+                // Load package configuration
+                await loadPackageConfig();
+                
+                // Load backend configurations
+                const configList = document.getElementById('configBackendList');
+                configList.innerHTML = '<div style="text-align: center; padding: 20px;">Loading backend configurations...</div>';
+                
+                if (currentBackendData.backends) {
+                    configList.innerHTML = '';
+                    Object.entries(currentBackendData.backends).forEach(([name, backend]) => {
+                        const configCard = document.createElement('div');
+                        configCard.className = 'stat-card';
+                        configCard.style.cursor = 'pointer';
+                        configCard.onclick = () => openConfigModal(name);
+                        
+                        configCard.innerHTML = `
+                            <h4>${name}</h4>
+                            <div class="status-badge status-${backend.health}">${backend.health}</div>
+                            <p style="margin: 8px 0;">Click to configure settings</p>
+                        `;
+                        
+                        configList.appendChild(configCard);
+                    });
+                } else {
+                    configList.innerHTML = '<div style="color: red; padding: 20px;">No backend configurations available</div>';
+                }
+                
+            } catch (error) {
+                console.error('Error loading configuration:', error);
+                document.getElementById('configBackendList').innerHTML = '<div style="color: red; padding: 20px;">Error loading configurations</div>';
+            }
+        }
+        
+        // Configuration functions
+        async function loadPackageConfig() {
+            try {
+                const response = await fetch('/api/config/package');
+                const data = await response.json();
+                
+                if (data.success && data.config) {
+                    const config = data.config;
+                    
+                    // Load system settings
+                    const system = config.system || {};
+                    if (document.getElementById('system-log-level')) {
+                        document.getElementById('system-log-level').value = system.log_level || 'INFO';
+                    }
+                    
+                    // Load other settings...
+                    // (Similar to enhanced version)
+                }
+                
+            } catch (error) {
+                console.error('Error loading package configuration:', error);
+            }
+        }
+        
+        async function savePackageConfig() {
+            try {
+                const config = {
+                    system: {
+                        log_level: document.getElementById('system-log-level')?.value || 'INFO',
+                        max_workers: document.getElementById('system-max-workers')?.value || '4',
+                        cache_size: document.getElementById('system-cache-size')?.value || '1000',
+                        data_directory: document.getElementById('system-data-dir')?.value || '/tmp/ipfs_kit'
+                    },
+                    vfs: {
+                        cache_enabled: document.getElementById('vfs-cache-enabled')?.checked ? 'true' : 'false',
+                        cache_max_size: document.getElementById('vfs-cache-max-size')?.value || '10GB',
+                        vector_dimensions: document.getElementById('vfs-vector-dimensions')?.value || '384',
+                        knowledge_base_max_nodes: document.getElementById('vfs-kb-max-nodes')?.value || '10000'
+                    },
+                    observability: {
+                        metrics_enabled: document.getElementById('obs-metrics-enabled')?.checked ? 'true' : 'false',
+                        prometheus_port: document.getElementById('obs-prometheus-port')?.value || '9090',
+                        dashboard_enabled: document.getElementById('obs-dashboard-enabled')?.checked ? 'true' : 'false',
+                        health_check_interval: document.getElementById('obs-health-check-interval')?.value || '30'
+                    }
+                };
+                
+                const response = await fetch('/api/config/package', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                if (response.ok) {
+                    alert('Package configuration saved successfully!');
+                } else {
+                    alert('Error saving package configuration');
+                }
+                
+            } catch (error) {
+                console.error('Error saving package configuration:', error);
+                alert('Error saving package configuration: ' + error.message);
+            }
+        }
+        
+        // Modal functions
+        async function openConfigModal(backendName) {
+            const modal = document.getElementById('configModal');
+            const title = document.getElementById('configModalTitle');
+            const content = document.getElementById('configModalContent');
+            
+            title.textContent = `Configure ${backendName}`;
+            content.innerHTML = '<div style="text-align: center; padding: 20px;">Loading configuration...</div>';
+            modal.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/backends/${backendName}/config`);
+                const configData = await response.json();
+                
+                if (configData.success) {
+                    backendConfigCache[backendName] = configData.config || {};
+                    content.innerHTML = createConfigForm(backendName, configData.config);
+                } else {
+                    content.innerHTML = `<div style="color: red; padding: 20px;">Error loading configuration: ${configData.error}</div>`;
+                }
+                
+            } catch (error) {
+                content.innerHTML = `<div style="color: red; padding: 20px;">Error loading configuration: ${error.message}</div>`;
+            }
+        }
+        
+        function closeConfigModal() {
+            document.getElementById('configModal').style.display = 'none';
+        }
+        
+        function openLogsModal(backendName) {
+            const modal = document.getElementById('logsModal');
+            const title = document.getElementById('logsModalTitle');
+            const content = document.getElementById('logsModalContent');
+            
+            title.textContent = `${backendName} Logs`;
+            content.innerHTML = '<div style="padding: 20px;">Loading logs...</div>';
+            modal.style.display = 'block';
+            
+            // Load logs
+            fetch(`/api/backends/${backendName}/logs`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        content.innerHTML = `<pre style="background: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto;">${data.logs || 'No logs available'}</pre>`;
+                    } else {
+                        content.innerHTML = `<div style="color: red; padding: 20px;">Error loading logs: ${data.error}</div>`;
+                    }
+                })
+                .catch(error => {
+                    content.innerHTML = `<div style="color: red; padding: 20px;">Error loading logs: ${error.message}</div>`;
+                });
+        }
+        
+        function closeLogsModal() {
+            document.getElementById('logsModal').style.display = 'none';
+        }
+        
+        // Utility functions
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return `${hours}h ${minutes}m`;
+        }
+        
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return 'Never';
+            return new Date(timestamp).toLocaleString();
+        }
+        
+        function createConfigForm(backendName, config) {
+            return `
+                <form onsubmit="saveBackendConfig('${backendName}', event)">
+                    <div class="config-form">
+                        <label>Backend Configuration (JSON):</label>
+                        <textarea name="config" rows="10" style="font-family: monospace;">${JSON.stringify(config, null, 2)}</textarea>
+                    </div>
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button type="button" class="btn-secondary" onclick="closeConfigModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Save</button>
+                    </div>
+                </form>
+            `;
+        }
+        
+        async function saveBackendConfig(backendName, event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const configJson = formData.get('config');
+            
+            try {
+                const config = JSON.parse(configJson);
+                
+                const response = await fetch(`/api/backends/${backendName}/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                if (response.ok) {
+                    alert('Configuration saved successfully!');
+                    closeConfigModal();
+                    refreshData();
+                } else {
+                    alert('Error saving configuration');
+                }
+                
+            } catch (error) {
+                alert('Error saving configuration: ' + error.message);
+            }
+        }
+        
+        async function restartBackend(backendName) {
+            if (!confirm(`Are you sure you want to restart ${backendName}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/backends/${backendName}/restart`, { method: 'POST' });
+                if (response.ok) {
+                    alert(`${backendName} restart initiated`);
+                    refreshData();
+                } else {
+                    alert('Error restarting backend');
+                }
+            } catch (error) {
+                alert('Error restarting backend: ' + error.message);
+            }
+        }
+        
+        async function exportConfig() {
+            try {
+                const response = await fetch('/api/config/export');
+                const config = await response.json();
+                
+                const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ipfs-kit-config-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Error exporting configuration: ' + error.message);
+            }
+        }
+        
+        async function getInsights() {
+            try {
+                const response = await fetch('/api/insights');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('insightsContent').innerHTML = data.insights || 'No insights available';
+                    document.getElementById('insightsCard').style.display = 'block';
+                } else {
+                    document.getElementById('insightsContent').innerHTML = 'Error loading insights';
+                }
+            } catch (error) {
+                console.error('Error getting insights:', error);
+                document.getElementById('insightsContent').innerHTML = 'Error loading insights';
+            }
+        }
+        
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(refreshData, 30000);
+            } else {
+                clearInterval(autoRefreshInterval);
+            }
+        }
+        
+        function initializeExpandables() {
+            document.querySelectorAll('.expandable-header').forEach(header => {
+                header.onclick = () => {
+                    header.parentElement.classList.toggle('expanded');
+                };
+            });
+        }
+        
+        // Format functions (simplified versions)
+        function formatCachePerformance(data) {
+            if (!data) return 'No cache data available';
+            return `
+                <div class="metric">
+                    <span class="metric-label">Hit Rate</span>
+                    <span class="metric-value">${(data.hit_rate * 100).toFixed(1)}%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Size</span>
+                    <span class="metric-value">${data.size_mb || 0}MB</span>
+                </div>
+            `;
+        }
+        
+        function formatFilesystemStatus(data) {
+            if (!data) return 'No filesystem data available';
+            return `
+                <div class="metric">
+                    <span class="metric-label">Operations</span>
+                    <span class="metric-value">${data.operations || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Errors</span>
+                    <span class="metric-value">${data.errors || 0}</span>
+                </div>
+            `;
+        }
+        
+        function formatAccessPatterns(data) {
+            if (!data) return 'No access pattern data available';
+            return `
+                <div class="metric">
+                    <span class="metric-label">Hot Files</span>
+                    <span class="metric-value">${data.hot_files || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Access Count</span>
+                    <span class="metric-value">${data.total_accesses || 0}</span>
+                </div>
+            `;
+        }
+        
+        function formatResourceUsage(data) {
+            if (!data) return 'No resource data available';
+            return `
+                <div class="metric">
+                    <span class="metric-label">Memory</span>
+                    <span class="metric-value">${data.memory_mb || 0}MB</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">CPU</span>
+                    <span class="metric-value">${data.cpu_percent || 0}%</span>
+                </div>
+            `;
+        }
+        
+        function formatVectorIndexStatus(data) {
+            if (!data) return 'No vector index data available';
+            return `
+                <div class="metric">
+                    <span class="metric-label">Index Size</span>
+                    <span class="metric-value">${data.size || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Dimension</span>
+                    <span class="metric-value">${data.dimension || 0}</span>
+                </div>
+            `;
+        }
+        
+        function formatKnowledgeGraphStatus(data) {
+            if (!data) return 'No knowledge graph data available';
+            return `
+                <div class="metric">
+                    <span class="metric-label">Nodes</span>
+                    <span class="metric-value">${data.nodes || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Edges</span>
+                    <span class="metric-value">${data.edges || 0}</span>
+                </div>
+            `;
+        }
+        
+        function formatSearchPerformance(data) {
+            if (!data) return 'No search performance data available';
+            return `
+                <div class="metric">
+                    <span class="metric-label">Avg Query Time</span>
+                    <span class="metric-value">${data.avg_query_time || 0}ms</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">QPS</span>
+                    <span class="metric-value">${data.qps || 0}</span>
+                </div>
+            `;
+        }
+        
+        function formatContentDistribution(data) {
+            if (!data) return 'No content distribution data available';
+            return Object.entries(data).map(([type, count]) => `
+                <div class="metric">
+                    <span class="metric-label">${type}</span>
+                    <span class="metric-value">${count}</span>
+                </div>
+            `).join('');
+        }
+        
+        function formatTieredCacheDetails(data) {
+            if (!data || !data.tiered_cache) return 'No tiered cache data available';
+            const tc = data.tiered_cache;
+            return `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>Memory Tier</h4>
+                        <div class="metric">
+                            <span class="metric-label">Hit Rate</span>
+                            <span class="metric-value">${(tc.memory_tier.hit_rate * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Size</span>
+                            <span class="metric-value">${tc.memory_tier.size_mb}MB</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Items</span>
+                            <span class="metric-value">${tc.memory_tier.items}</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Disk Tier</h4>
+                        <div class="metric">
+                            <span class="metric-label">Hit Rate</span>
+                            <span class="metric-value">${(tc.disk_tier.hit_rate * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Size</span>
+                            <span class="metric-value">${tc.disk_tier.size_gb}GB</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Read Latency</span>
+                            <span class="metric-value">${tc.disk_tier.read_latency_ms}ms</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Performance</h4>
+                        <div class="metric">
+                            <span class="metric-label">Predictive Accuracy</span>
+                            <span class="metric-value">${(tc.predictive_accuracy * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Prefetch Efficiency</span>
+                            <span class="metric-value">${(tc.prefetch_efficiency * 100).toFixed(1)}%</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatHotContentAnalysis(data) {
+            if (!data || !data.hot_content) return 'No hot content data available';
+            return `
+                <div class="metrics-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Content ID</th>
+                                <th>Access Count</th>
+                                <th>Size</th>
+                                <th>Last Access</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.hot_content.map(item => `
+                                <tr>
+                                    <td>${item.cid}</td>
+                                    <td>${item.access_count}</td>
+                                    <td>${item.size_kb}KB</td>
+                                    <td>${new Date().toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="stats-grid" style="margin-top: 20px;">
+                    <div class="stat-card">
+                        <h4>Temporal Patterns</h4>
+                        <div class="metric">
+                            <span class="metric-label">Peak Hours</span>
+                            <span class="metric-value">${data.temporal_patterns.peak_hours.join(', ')}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Weekly Pattern</span>
+                            <span class="metric-value">${data.temporal_patterns.weekly_pattern}</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Content Types</h4>
+                        ${Object.entries(data.content_types).map(([type, percent]) => `
+                            <div class="metric">
+                                <span class="metric-label">${type}</span>
+                                <span class="metric-value">${(percent * 100).toFixed(1)}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatVectorIndexDetails(data) {
+            if (!data) return 'No vector index details available';
+            return `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>Index Health</h4>
+                        <div class="metric">
+                            <span class="metric-label">Status</span>
+                            <span class="metric-value status-badge status-${data.index_health === 'healthy' ? 'healthy' : 'unhealthy'}">${data.index_health}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Total Vectors</span>
+                            <span class="metric-value">${data.total_vectors.toLocaleString()}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Index Type</span>
+                            <span class="metric-value">${data.index_type}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Dimension</span>
+                            <span class="metric-value">${data.dimension}</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Search Performance</h4>
+                        <div class="metric">
+                            <span class="metric-label">Avg Query Time</span>
+                            <span class="metric-value">${data.search_performance.average_query_time_ms}ms</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">QPS</span>
+                            <span class="metric-value">${data.search_performance.queries_per_second}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Recall@10</span>
+                            <span class="metric-value">${(data.search_performance.recall_at_10 * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Precision@10</span>
+                            <span class="metric-value">${(data.search_performance.precision_at_10 * 100).toFixed(1)}%</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Content Distribution</h4>
+                        ${Object.entries(data.content_distribution).map(([type, count]) => `
+                            <div class="metric">
+                                <span class="metric-label">${type.replace('_', ' ')}</span>
+                                <span class="metric-value">${count.toLocaleString()}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatKnowledgeBaseAnalytics(data) {
+            if (!data) return 'No knowledge base analytics available';
+            return `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>Graph Structure</h4>
+                        <div class="metric">
+                            <span class="metric-label">Health</span>
+                            <span class="metric-value status-badge status-${data.graph_health === 'healthy' ? 'healthy' : 'unhealthy'}">${data.graph_health}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Total Nodes</span>
+                            <span class="metric-value">${data.nodes.total.toLocaleString()}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Total Edges</span>
+                            <span class="metric-value">${data.edges.total.toLocaleString()}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Density</span>
+                            <span class="metric-value">${data.graph_metrics.density.toFixed(3)}</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Node Types</h4>
+                        ${Object.entries(data.nodes).filter(([key]) => key !== 'total').map(([type, count]) => `
+                            <div class="metric">
+                                <span class="metric-label">${type}</span>
+                                <span class="metric-value">${count.toLocaleString()}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="stat-card">
+                        <h4>Edge Types</h4>
+                        ${Object.entries(data.edges).filter(([key]) => key !== 'total').map(([type, count]) => `
+                            <div class="metric">
+                                <span class="metric-label">${type.replace('_', ' ')}</span>
+                                <span class="metric-value">${count.toLocaleString()}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="stat-card">
+                        <h4>Content Analysis</h4>
+                        <div class="metric">
+                            <span class="metric-label">Topics</span>
+                            <span class="metric-value">${data.content_analysis.topics_identified}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Languages</span>
+                            <span class="metric-value">${data.content_analysis.languages_detected.join(', ')}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Sentiment</span>
+                            <span class="metric-value">
+                                ${(data.content_analysis.sentiment_distribution.positive * 100).toFixed(0)}% pos, 
+                                ${(data.content_analysis.sentiment_distribution.neutral * 100).toFixed(0)}% neu, 
+                                ${(data.content_analysis.sentiment_distribution.negative * 100).toFixed(0)}% neg
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // VFS Tab Functions
+        async function loadVFSTab() {
+            console.log('Loading VFS Observatory tab...');
+            
+            // Load cache performance
+            try {
+                const response = await fetch('/api/vfs/cache');
+                const data = await response.json();
+                document.getElementById('cachePerformance').innerHTML = formatTieredCacheDetails(data);
+            } catch (error) {
+                console.error('Error loading cache performance:', error);
+                document.getElementById('cachePerformance').innerHTML = 'Error loading cache performance';
+            }
+            
+            // Load filesystem status
+            try {
+                const response = await fetch('/api/vfs/filesystem-metrics');
+                const data = await response.json();
+                document.getElementById('filesystemStatus').innerHTML = formatFilesystemMetrics(data);
+            } catch (error) {
+                console.error('Error loading filesystem status:', error);
+                document.getElementById('filesystemStatus').innerHTML = 'Error loading filesystem status';
+            }
+            
+            // Load access patterns
+            try {
+                const response = await fetch('/api/vfs/access-patterns');
+                const data = await response.json();
+                document.getElementById('accessPatterns').innerHTML = formatAccessPatterns(data);
+            } catch (error) {
+                console.error('Error loading access patterns:', error);
+                document.getElementById('accessPatterns').innerHTML = 'Error loading access patterns';
+            }
+            
+            // Load resource usage
+            try {
+                const response = await fetch('/api/vfs/resource-utilization');
+                const data = await response.json();
+                document.getElementById('resourceUsage').innerHTML = formatResourceUsage(data);
+            } catch (error) {
+                console.error('Error loading resource usage:', error);
+                document.getElementById('resourceUsage').innerHTML = 'Error loading resource usage';
+            }
+            
+            // Load detailed sections
+            try {
+                const response = await fetch('/api/vfs/cache');
+                const data = await response.json();
+                document.getElementById('tieredCacheDetails').innerHTML = formatTieredCacheDetails(data);
+            } catch (error) {
+                console.error('Error loading tiered cache details:', error);
+            }
+            
+            try {
+                const response = await fetch('/api/vfs/access-patterns');
+                const data = await response.json();
+                document.getElementById('hotContentAnalysis').innerHTML = formatHotContentAnalysis(data);
+            } catch (error) {
+                console.error('Error loading hot content analysis:', error);
+            }
+        }
+        
+        // Vector & KB Tab Functions
+        async function loadVectorKBTab() {
+            console.log('Loading Vector & KB tab...');
+            
+            // Load vector index status
+            try {
+                const response = await fetch('/api/vfs/vector-index');
+                const data = await response.json();
+                document.getElementById('vectorIndexStatus').innerHTML = formatVectorIndexStatus(data);
+                document.getElementById('vectorIndexDetails').innerHTML = formatVectorIndexDetails(data);
+            } catch (error) {
+                console.error('Error loading vector index status:', error);
+                document.getElementById('vectorIndexStatus').innerHTML = 'Error loading vector index status';
+            }
+            
+            // Load knowledge graph status
+            try {
+                const response = await fetch('/api/vfs/knowledge-base');
+                const data = await response.json();
+                document.getElementById('knowledgeGraphStatus').innerHTML = formatKnowledgeGraphStatus(data);
+                document.getElementById('knowledgeBaseAnalytics').innerHTML = formatKnowledgeBaseAnalytics(data);
+            } catch (error) {
+                console.error('Error loading knowledge graph status:', error);
+                document.getElementById('knowledgeGraphStatus').innerHTML = 'Error loading knowledge graph status';
+            }
+            
+            // Load search performance
+            try {
+                const response = await fetch('/api/vfs/vector-index');
+                const data = await response.json();
+                document.getElementById('searchPerformance').innerHTML = formatSearchPerformance(data.search_performance);
+            } catch (error) {
+                console.error('Error loading search performance:', error);
+                document.getElementById('searchPerformance').innerHTML = 'Error loading search performance';
+            }
+            
+            // Load content distribution
+            try {
+                const response = await fetch('/api/vfs/vector-index');
+                const data = await response.json();
+                document.getElementById('contentDistribution').innerHTML = formatContentDistribution(data.content_distribution);
+            } catch (error) {
+                console.error('Error loading content distribution:', error);
+                document.getElementById('contentDistribution').innerHTML = 'Error loading content distribution';
+            }
+            
+            // Load semantic cache performance
+            try {
+                const response = await fetch('/api/vfs/cache');
+                const data = await response.json();
+                document.getElementById('semanticCachePerformance').innerHTML = formatSemanticCachePerformance(data.semantic_cache);
+            } catch (error) {
+                console.error('Error loading semantic cache performance:', error);
+            }
+        }
+        
+        function formatFilesystemMetrics(data) {
+            if (!data || !data.mount_points) return 'No filesystem metrics available';
+            
+            return `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>Mount Points</h4>
+                        ${Object.entries(data.mount_points).map(([mount, info]) => `
+                            <div class="metric">
+                                <span class="metric-label">${mount}</span>
+                                <span class="metric-value status-badge status-${info.status === 'active' ? 'healthy' : 'unhealthy'}">${info.status}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="stat-card">
+                        <h4>Operations</h4>
+                        ${Object.entries(data.file_operations).map(([op, count]) => `
+                            <div class="metric">
+                                <span class="metric-label">${op}</span>
+                                <span class="metric-value">${count.toLocaleString()}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="stat-card">
+                        <h4>Bandwidth</h4>
+                        <div class="metric">
+                            <span class="metric-label">Read</span>
+                            <span class="metric-value">${data.bandwidth_usage.read_mbps} Mbps</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Write</span>
+                            <span class="metric-value">${data.bandwidth_usage.write_mbps} Mbps</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Compression</span>
+                            <span class="metric-value">${(data.bandwidth_usage.compression_ratio * 100).toFixed(1)}%</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatSemanticCachePerformance(data) {
+            if (!data) return 'No semantic cache data available';
+            
+            return `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>Semantic Cache Performance</h4>
+                        <div class="metric">
+                            <span class="metric-label">Exact Matches</span>
+                            <span class="metric-value">${data.exact_matches}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Similarity Matches</span>
+                            <span class="metric-value">${data.similarity_matches}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Threshold</span>
+                            <span class="metric-value">${data.similarity_threshold}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Utilization</span>
+                            <span class="metric-value">${(data.cache_utilization * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Model</span>
+                            <span class="metric-value">${data.embedding_model}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Initialize on page load
+        refreshData();
+        initializeExpandables();
+        
+        // Set up auto-refresh
+        setInterval(refreshData, 30000);
+    </script>
+</body>
+</html>
+'''
+        
+        # Save template to file
+        template_path = self.templates_dir / "index.html"
+        with open(template_path, "w") as f:
+            f.write(template_content)
+        
+        logger.info(f"✓ Enhanced dashboard template created at {template_path}")
+        return str(template_path)
+        
+        // Dashboard initialization
+        function initializeDashboard() {
+            console.log('Dashboard initialized');
+        }
+        
+        // WebSocket connection
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = function(event) {
+                console.log('WebSocket connected');
+            };
+            
+            websocket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+            
+            websocket.onclose = function(event) {
+                console.log('WebSocket disconnected');
+                setTimeout(connectWebSocket, 3000); // Reconnect after 3 seconds
+            };
+            
+            websocket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+        }
+        
+        // Handle WebSocket messages
+        function handleWebSocketMessage(data) {
+            if (data.type === 'backend_update') {
+                updateBackendCard(data.backend, data.status);
+            } else if (data.type === 'system_update') {
+                updateSystemStats(data.stats);
+            }
+        }
+        
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                dashboardData = data;
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Failed to load dashboard data:', error);
+            }
+        }
+        
+        // Update dashboard with data
+        function updateDashboard(data) {
+            updateSystemStats(data);
+            updateBackendCards(data.backend_health);
+        }
+        
+        // Update system stats
+        function updateSystemStats(data) {
+            const systemStatus = document.getElementById('system-status');
+            const activeBackends = document.getElementById('active-backends');
+            const performanceStats = document.getElementById('performance-stats');
+            
+            if (systemStatus) {
+                systemStatus.innerHTML = `
+                    <div class="status-badge status-${data.status === 'running' ? 'healthy' : 'unhealthy'}">${data.status}</div>
+                    <p>Uptime: ${formatUptime(data.uptime_seconds)}</p>
+                `;
+            }
+            
+            if (activeBackends && data.backend_health) {
+                const healthy = Object.values(data.backend_health).filter(b => b.health === 'healthy').length;
+                const total = Object.keys(data.backend_health).length;
+                activeBackends.innerHTML = `
+                    <div class="status-badge status-${healthy > 0 ? 'healthy' : 'unhealthy'}">${healthy}/${total}</div>
+                    <p>Healthy backends</p>
+                `;
+            }
+            
+            if (performanceStats) {
+                performanceStats.innerHTML = `
+                    <p>Memory: ${data.memory_usage_mb?.toFixed(1) || 0} MB</p>
+                    <p>CPU: ${data.cpu_usage_percent?.toFixed(1) || 0}%</p>
+                `;
+            }
+        }
+        
+        // Update backend cards
+        function updateBackendCards(backends) {
+            const grid = document.getElementById('backends-grid');
+            if (!grid || !backends) return;
+            
+            grid.innerHTML = '';
+            
+            Object.entries(backends).forEach(([name, backend]) => {
+                const card = createBackendCard(name, backend);
+                grid.appendChild(card);
+            });
+        }
+        
+        // Create backend card
+        function createBackendCard(name, backend) {
+            const card = document.createElement('div');
+            card.className = `backend-card ${backend.health || 'unknown'}`;
+            
+            card.innerHTML = `
+                <div class="backend-header">
+                    <h3>${backend.name || name}</h3>
+                    <div class="backend-actions">
+                        <button class="action-btn config" onclick="openConfigModal('${name}')">&#9881; Config</button>
+                        <button class="action-btn restart" onclick="restartBackend('${name}')">&#128260; Restart</button>
+                        <button class="action-btn logs" onclick="showLogs('${name}')">&#128221; Logs</button>
+                    </div>
+                </div>
+                <div class="status-badge status-${backend.health || 'unknown'}">${backend.health || 'unknown'}</div>
+                <p><strong>Status:</strong> ${backend.status || 'unknown'}</p>
+                <p><strong>Endpoint:</strong> ${backend.endpoint || 'N/A'}</p>
+                <p><strong>Last Check:</strong> ${backend.last_check || 'Never'}</p>
+                ${backend.error ? `<p style="color: red;"><strong>Error:</strong> ${backend.error}</p>` : ''}
+            `;
+            
+            return card;
+        }
+        
+        // Tab loading functions
+        function loadOverviewTab() {
+            loadDashboardData();
+        }
+        
+        function loadMonitoringTab() {
+            // Load monitoring-specific data
+            loadDashboardData();
+        }
+        
+        function loadVFSTab() {
+            // Load VFS-specific data
+            fetch('/api/vfs/statistics')
+                .then(response => response.json())
+                .then(data => {
+                    const vfsStats = document.getElementById('vfs-stats');
+                    if (vfsStats) {
+                        vfsStats.innerHTML = `
+                            <div class="stat-card">
+                                <h4>Cache Statistics</h4>
+                                <p>Cache Hit Rate: ${data.cache_hit_rate || 0}%</p>
+                                <p>Cache Size: ${data.cache_size || 0} items</p>
+                            </div>
+                            <div class="stat-card">
+                                <h4>File System</h4>
+                                <p>Total Files: ${data.total_files || 0}</p>
+                                <p>Total Size: ${data.total_size || 0} bytes</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => console.error('Failed to load VFS data:', error));
+        }
+        
+        function loadVectorKBTab() {
+            // Load vector database and knowledge base data
+            fetch('/api/vfs/vector-index')
+                .then(response => response.json())
+                .then(data => {
+                    const vectorKbStats = document.getElementById('vector-kb-stats');
+                    if (vectorKbStats) {
+                        vectorKbStats.innerHTML = `
+                            <div class="stat-card">
+                                <h4>Vector Index</h4>
+                                <p>Vectors: ${data.vector_count || 0}</p>
+                                <p>Dimensions: ${data.dimensions || 0}</p>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Knowledge Base</h4>
+                                <p>Nodes: ${data.kb_nodes || 0}</p>
+                                <p>Relationships: ${data.kb_relationships || 0}</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => console.error('Failed to load vector KB data:', error));
+        }
+        
+        function loadConfigurationTab() {
+            // Load configuration data
+            Promise.all([
+                fetch('/api/config/package'),
+                fetch('/api/backends')
+            ])
+            .then(responses => Promise.all(responses.map(r => r.json())))
+            .then(([packageConfig, backends]) => {
+                const configSections = document.getElementById('config-sections');
+                if (configSections) {
+                    configSections.innerHTML = createConfigurationUI(packageConfig, backends);
+                }
+            })
+            .catch(error => console.error('Failed to load configuration:', error));
+        }
+        
+        function loadLogsTab() {
+            // Load system logs
+            fetch('/api/logs')
+                .then(response => response.json())
+                .then(data => {
+                    const logsDisplay = document.getElementById('logs-display');
+                    if (logsDisplay) {
+                        logsDisplay.innerHTML = `
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; font-family: monospace;">
+                                <pre>${data.logs || 'No logs available'}</pre>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => console.error('Failed to load logs:', error));
+        }
+        
+        // Configuration UI creation
+        function createConfigurationUI(packageConfig, backends) {
+            return `
+                <div class="config-section">
+                    <h4>Package Configuration</h4>
+                    <div class="package-config-grid">
+                        <div class="config-card">
+                            <h5>System Settings</h5>
+                            <div class="config-form">
+                                <label>Log Level:</label>
+                                <select id="log-level">
+                                    <option value="DEBUG">DEBUG</option>
+                                    <option value="INFO" selected>INFO</option>
+                                    <option value="WARNING">WARNING</option>
+                                    <option value="ERROR">ERROR</option>
+                                </select>
+                                <label>Max Workers:</label>
+                                <input type="number" id="max-workers" value="4" min="1" max="16">
+                                <label>Cache Size:</label>
+                                <input type="number" id="cache-size" value="1000" min="100" max="10000">
+                            </div>
+                        </div>
+                        <div class="config-card">
+                            <h5>VFS Configuration</h5>
+                            <div class="config-form">
+                                <label>Cache Enabled:</label>
+                                <input type="checkbox" id="cache-enabled" checked>
+                                <label>Cache Max Size:</label>
+                                <input type="text" id="cache-max-size" value="10GB">
+                                <label>Vector Dimensions:</label>
+                                <input type="number" id="vector-dimensions" value="384" min="64" max="2048">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <button class="btn btn-primary" onclick="savePackageConfig()">Save Configuration</button>
+                        <button class="btn btn-secondary" onclick="loadConfigurationTab()">Reset</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Modal functions
+        function openConfigModal(backendName) {
+            fetch(`/api/backends/${backendName}/config`)
+                .then(response => response.json())
+                .then(data => {
+                    const modal = document.getElementById('configModal');
+                    const modalTitle = document.getElementById('modal-title');
+                    const modalBody = document.getElementById('modal-body');
+                    
+                    modalTitle.textContent = `${backendName} Configuration`;
+                    modalBody.innerHTML = createBackendConfigForm(backendName, data);
+                    modal.style.display = 'block';
+                })
+                .catch(error => console.error('Failed to load backend config:', error));
+        }
+        
+        function closeConfigModal() {
+            document.getElementById('configModal').style.display = 'none';
+        }
+        
+        function createBackendConfigForm(backendName, config) {
+            return `
+                <form id="backend-config-form">
+                    <div class="config-form">
+                        <h4>Configuration for ${backendName}</h4>
+                        <pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+${JSON.stringify(config, null, 2)}
+                        </pre>
+                        <div class="config-actions">
+                            <button type="button" class="btn btn-primary" onclick="saveBackendConfig('${backendName}')">Save</button>
+                            <button type="button" class="btn btn-secondary" onclick="closeConfigModal()">Cancel</button>
+                        </div>
+                    </div>
+                </form>
+            `;
+        }
+        
+        // Action functions
+        function savePackageConfig() {
+            const config = {
+                system: {
+                    log_level: document.getElementById('log-level')?.value || 'INFO',
+                    max_workers: document.getElementById('max-workers')?.value || '4',
+                    cache_size: document.getElementById('cache-size')?.value || '1000'
+                },
+                vfs: {
+                    cache_enabled: document.getElementById('cache-enabled')?.checked || true,
+                    cache_max_size: document.getElementById('cache-max-size')?.value || '10GB',
+                    vector_dimensions: document.getElementById('vector-dimensions')?.value || '384'
+                }
+            };
+            
+            fetch('/api/config/package', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Configuration saved successfully!');
+                loadConfigurationTab();
+            })
+            .catch(error => {
+                console.error('Failed to save configuration:', error);
+                alert('Failed to save configuration');
+            });
+        }
+        
+        function saveBackendConfig(backendName) {
+            // Implementation for saving backend configuration
+            alert(`Saving configuration for ${backendName}`);
+            closeConfigModal();
+        }
+        
+        function restartBackend(backendName) {
+            if (confirm(`Are you sure you want to restart ${backendName}?`)) {
+                fetch(`/api/backends/${backendName}/restart`, { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(`${backendName} restart initiated`);
+                        loadDashboardData();
+                    })
+                    .catch(error => {
+                        console.error('Failed to restart backend:', error);
+                        alert('Failed to restart backend');
+                    });
+            }
+        }
+        
+        function showLogs(backendName) {
+            fetch(`/api/backends/${backendName}/logs`)
+                .then(response => response.json())
+                .then(data => {
+                    const modal = document.getElementById('configModal');
+                    const modalTitle = document.getElementById('modal-title');
+                    const modalBody = document.getElementById('modal-body');
+                    
+                    modalTitle.textContent = `${backendName} Logs`;
+                    modalBody.innerHTML = `
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; font-family: monospace; max-height: 400px; overflow-y: auto;">
+                            <pre>${data.logs || 'No logs available'}</pre>
+                        </div>
+                        <div class="config-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeConfigModal()">Close</button>
+                        </div>
+                    `;
+                    modal.style.display = 'block';
+                })
+                .catch(error => console.error('Failed to load logs:', error));
+        }
+        
+        // Utility functions
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return `${days}d ${hours}h ${minutes}m`;
+        }
+        
+        // Auto-refresh
+        setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
+    </script>
+</body>
+</html>"""
+        
+        # Save template to file
+        template_path = self.templates_dir / "index.html"
+        with open(template_path, "w") as f:
+            f.write(template_content)
+        
+        logger.info(f"✓ Dashboard template created at {template_path}")
+        return str(template_path)

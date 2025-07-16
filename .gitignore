@@ -24,6 +24,19 @@ random_file.bin
 node_modules/
 *.venv/
 mcp_credential.sh
+
+# SECURITY: Credential files - DO NOT COMMIT
+credentials.json
+**/credentials.json
+.env
+**/.env
+*.key
+*.pem
+*.p12
+*.pfx
+/tmp/ipfs_kit_config/credentials.json
+/tmp/ipfs_kit_config/.env
+
 # Cluster management specific
 *metrics/
 .ipfs*

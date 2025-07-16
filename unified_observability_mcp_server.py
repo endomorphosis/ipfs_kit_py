@@ -764,7 +764,7 @@ class UnifiedObservabilityMCPServer:
         return "\n".join(metrics)
     
     def _get_comprehensive_dashboard_html(self) -> str:
-        """Generate comprehensive dashboard HTML."""
+        """Generate comprehensive dashboard HTML with full tabbed interface."""
         
         health_score = self._calculate_health_score()
         uptime = time.time() - self.start_time

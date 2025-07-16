@@ -59,15 +59,18 @@ def add_s3_credentials(access_key, secret_key, server=None, bucket=None):
     print("S3 credentials securely stored.")
 
 def main():
-    # The S3 credentials to save
-    access_key = "CWINWZKICNPMTKEC"
-    secret_key = "cwoebccrLl2sCY0nG0u49IbxdVHNJb1zPJ25cQwOVeC"
-    server = "object.lga1.coreweave.com"
-    bucket = "ipfs-kit-test"
+    # SECURITY: Credentials have been removed from this file
+    # Use the secure credential management system instead:
+    # 1. Run: python setup_credentials.py
+    # 2. Or use environment variables: IPFS_KIT_S3_ACCESS_KEY, IPFS_KIT_S3_SECRET_KEY
     
-    # Store credentials securely
-    add_s3_credentials(access_key, secret_key, server, bucket)
-    print(f"S3 credentials securely stored for server: {server}")
+    print("❌ This script has been deprecated for security reasons.")
+    print("🔐 Please use the secure credential management system:")
+    print("   1. Run: python setup_credentials.py")
+    print("   2. Or set environment variables:")
+    print("      export IPFS_KIT_S3_ACCESS_KEY='your_access_key'")
+    print("      export IPFS_KIT_S3_SECRET_KEY='your_secret_key'")
+    print("   3. See SECURE_CREDENTIALS_GUIDE.md for more information")
     print("To use these credentials, run: python test_s3.py")
 
 if __name__ == "__main__":
