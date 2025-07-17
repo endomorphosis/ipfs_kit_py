@@ -1,25 +1,3 @@
-"""
-Dashboard template manager for generating HTML templates.
-"""
-
-from pathlib import Path
-import logging
-
-logger = logging.getLogger(__name__)
-
-class DashboardTemplateManager:
-    """Manages dashboard HTML templates."""
-    
-    def __init__(self, templates_dir: Path):
-        self.templates_dir = templates_dir
-        self.templates_dir.mkdir(exist_ok=True)
-        
-    def create_dashboard_template(self) -> str:
-        """Create the main dashboard template with comprehensive features."""
-        
-        template_path = self.templates_dir / "dashboard.html"
-        
-        template_content = r'''
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -638,7 +616,8 @@ class DashboardTemplateManager:
         <div class="tabs">
             <div class="tab-buttons">
                 <button class="tab-button active" onclick="switchTab('overview', event)">📊 Overview</button>
-                <button class="tab-button" onclick="switchTab('monitoring', event)">🔍 Monitoring</button>
+                <button class="tab-button" onclick="switchTab('backends', event)">🔌 Backend Health</button>
+                <button class="tab-button" onclick="switchTab('monitoring', event)">🔍 System Monitor</button>
                 <button class="tab-button" onclick="switchTab('vfs', event)">💾 VFS Observatory</button>
                 <button class="tab-button" onclick="switchTab('vector-kb', event)">🧠 Vector & KB</button>
                 <button class="tab-button" onclick="switchTab('configuration', event)">⚙️ Configuration</button>
@@ -675,6 +654,40 @@ class DashboardTemplateManager:
                 <div class="insights-card" id="insightsCard" style="display: none;">
                     <h3>🧠 Development Insights</h3>
                     <div id="insightsContent"></div>
+                </div>
+            </div>
+            
+            <div id="backends" class="tab-content">
+                <h2>🔌 Backend Health & Configuration Management</h2>
+                <p>Real-time monitoring and configuration of all 9 storage backends</p>
+                
+                <div class="stats-grid" style="margin-bottom: 20px;">
+                    <div class="stat-card">
+                        <h3>🏥 Health Summary</h3>
+                        <div id="backendHealthSummary">Loading health summary...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>🔄 Recent Activity</h3>
+                        <div id="backendActivity">Loading activity...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>⚠️ Alerts & Issues</h3>
+                        <div id="backendAlerts">Loading alerts...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>📊 Performance</h3>
+                        <div id="backendPerformance">Loading performance...</div>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <button class="refresh-btn" onclick="refreshBackendData()">🔄 Refresh Backend Status</button>
+                    <button class="refresh-btn" onclick="restartAllBackends()">🔄 Restart All</button>
+                    <button class="refresh-btn" onclick="exportBackendConfig()">📤 Export Configs</button>
+                </div>
+                
+                <div class="backend-grid" id="detailedBackendGrid">
+                    <!-- Detailed backend cards with real-time data will be populated here -->
                 </div>
             </div>
             
@@ -956,6 +969,217 @@ class DashboardTemplateManager:
         let autoRefreshInterval = null;
         let currentBackendData = {};
         
+        async function refreshBackendData() {
+            console.log('Refreshing backend data...');
+            await Promise.all([
+                loadBackends(),
+                loadBackendHealthSummary(),
+                loadBackendActivity(),
+                loadBackendAlerts(),
+                loadBackendPerformance()
+            ]);
+        }
+
+        async function loadBackends() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (data.data && data.data.backend_health) {
+                    updateBackendGrid(data.data.backend_health);
+                    updateDetailedBackendGrid(data.data.backend_health);
+                }
+            } catch (error) {
+                console.error('Error loading backends:', error);
+            }
+        }
+
+        async function loadBackendHealthSummary() {
+            try {
+                const response = await fetch('/api/health');
+                const healthData = await response.json();
+                
+                let healthyCount = 0;
+                let totalCount = 0;
+                
+                if (healthData.data && healthData.data.backend_health) {
+                    Object.values(healthData.data.backend_health).forEach(backend => {
+                        totalCount++;
+                        if (backend.status === 'healthy' || backend.status === 'running' || backend.health === 'healthy') {
+                            healthyCount++;
+                        }
+                    });
+                }
+                
+                const healthPercentage = totalCount > 0 ? Math.round((healthyCount / totalCount) * 100) : 0;
+                const statusColor = healthPercentage >= 80 ? '#4CAF50' : healthPercentage >= 60 ? '#FF9800' : '#F44336';
+                
+                document.getElementById('backendHealthSummary').innerHTML = `
+                    <div style="color: ${statusColor}; font-size: 24px; font-weight: bold;">${healthyCount}/${totalCount}</div>
+                    <div style="margin-top: 5px;">Backends Healthy (${healthPercentage}%)</div>
+                `;
+            } catch (error) {
+                console.error('Error loading health summary:', error);
+                document.getElementById('backendHealthSummary').innerHTML = 
+                    '<div style="color: #F44336;">Error loading health data</div>';
+            }
+        }
+
+        async function loadBackendActivity() {
+            try {
+                const response = await fetch('/api/health');
+                const healthData = await response.json();
+                
+                const activities = [];
+                if (healthData.data && healthData.data.backend_health) {
+                    Object.entries(healthData.data.backend_health).forEach(([name, backend]) => {
+                        if (backend.last_check) {
+                            const time = new Date(backend.last_check).toLocaleTimeString();
+                            activities.push(`${name}: ${time}`);
+                        }
+                    });
+                }
+                
+                const activityHtml = activities.slice(0, 3).map(activity => 
+                    `<div style="margin: 2px 0; font-size: 12px;">• ${activity}</div>`
+                ).join('') || '<div>No recent activity</div>';
+                
+                document.getElementById('backendActivity').innerHTML = activityHtml;
+            } catch (error) {
+                console.error('Error loading activity:', error);
+                document.getElementById('backendActivity').innerHTML = 
+                    '<div style="color: #F44336;">Error loading activity</div>';
+            }
+        }
+
+        async function loadBackendAlerts() {
+            try {
+                const response = await fetch('/api/health');
+                const healthData = await response.json();
+                
+                const alerts = [];
+                if (healthData.data && healthData.data.backend_health) {
+                    Object.entries(healthData.data.backend_health).forEach(([name, backend]) => {
+                        if (backend.status === 'error' || backend.health === 'unhealthy' || backend.status === 'stopped') {
+                            alerts.push(`${name}: ${backend.status || backend.health}`);
+                        }
+                    });
+                }
+                
+                if (alerts.length === 0) {
+                    document.getElementById('backendAlerts').innerHTML = 
+                        '<div style="color: #4CAF50;">✓ All systems healthy</div>';
+                } else {
+                    const alertsHtml = alerts.map(alert => 
+                        `<div style="color: #F44336; margin: 2px 0; font-size: 12px;">⚠️ ${alert}</div>`
+                    ).join('');
+                    document.getElementById('backendAlerts').innerHTML = alertsHtml;
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+                document.getElementById('backendAlerts').innerHTML = 
+                    '<div style="color: #F44336;">Error loading alerts</div>';
+            }
+        }
+
+        async function loadBackendPerformance() {
+            try {
+                const response = await fetch('/api/health');
+                const healthData = await response.json();
+                
+                let totalResponseTime = 0;
+                let responseCount = 0;
+                
+                if (healthData.data && healthData.data.backend_health) {
+                    Object.values(healthData.data.backend_health).forEach(backend => {
+                        if (backend.response_time) {
+                            totalResponseTime += backend.response_time;
+                            responseCount++;
+                        }
+                    });
+                }
+                
+                const avgResponseTime = responseCount > 0 ? (totalResponseTime / responseCount).toFixed(2) : 'N/A';
+                
+                document.getElementById('backendPerformance').innerHTML = `
+                    <div style="font-size: 18px; font-weight: bold;">${avgResponseTime}ms</div>
+                    <div style="margin-top: 5px;">Avg Response Time</div>
+                `;
+            } catch (error) {
+                console.error('Error loading performance:', error);
+                document.getElementById('backendPerformance').innerHTML = 
+                    '<div style="color: #F44336;">Error loading performance</div>';
+            }
+        }
+
+        async function restartAllBackends() {
+            if (!confirm('Are you sure you want to restart all backends? This may cause temporary service interruption.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/restart-all-backends', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('All backends restart initiated successfully');
+                    setTimeout(() => refreshBackendData(), 3000); // Refresh after 3 seconds
+                } else {
+                    alert(`Restart failed: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error restarting backends:', error);
+                alert('Error restarting backends');
+            }
+        }
+
+        async function exportBackendConfig() {
+            try {
+                const response = await fetch('/api/export-backend-config');
+                const blob = await response.blob();
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `backend-config-${new Date().toISOString().split('T')[0]}.json`;
+                
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                alert('Backend configuration exported successfully');
+            } catch (error) {
+                console.error('Error exporting config:', error);
+                alert('Error exporting configuration');
+            }
+        }
+
+        async function exportSingleBackendConfig(backendName) {
+            try {
+                const response = await fetch(`/api/backend-config/${backendName}`);
+                const config = await response.json();
+                
+                const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `${backendName}-config-${new Date().toISOString().split('T')[0]}.json`;
+                
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                alert(`${backendName} configuration exported successfully`);
+            } catch (error) {
+                console.error(`Error exporting ${backendName} config:`, error);
+                alert(`Error exporting ${backendName} configuration`);
+            }
+        }
+        
         function switchTab(tabName, event) {
             // Hide all tab contents
             document.querySelectorAll('.tab-content').forEach(content => {
@@ -992,6 +1216,10 @@ class DashboardTemplateManager:
                 loadVFSTab();
             } else if (tabName === 'vector-kb') {
                 loadVectorKBTab();
+            } else if (tabName === 'backends') {
+                refreshBackendData();
+            } else if (tabName === 'monitoring') {
+                loadBackends();
             }
         }
         
@@ -1096,6 +1324,95 @@ class DashboardTemplateManager:
                         </div>
                     </div>
                     <p><strong>Last Check:</strong> ${backend.last_check ? new Date(backend.last_check).toLocaleString() : 'Never'}</p>
+                    ${verboseMetricsHTML}
+                    ${errorsHTML}
+                `;
+                
+                grid.appendChild(card);
+            }
+            
+            // Add click handlers for expandable sections
+            document.querySelectorAll('.expandable-header').forEach(header => {
+                header.onclick = () => {
+                    header.parentElement.classList.toggle('expanded');
+                };
+            });
+        }
+        
+        function updateDetailedBackendGrid(backends) {
+            const grid = document.getElementById('detailedBackendGrid');
+            grid.innerHTML = '';
+            
+            for (const [name, backend] of Object.entries(backends)) {
+                const card = document.createElement('div');
+                card.className = `backend-card ${backend.health}`;
+                
+                // Enhanced card for the dedicated backends tab
+                let configPreviewHTML = '';
+                if (backend.config_preview) {
+                    configPreviewHTML = `
+                        <div class="expandable">
+                            <div class="expandable-header">📋 Configuration Preview</div>
+                            <div class="expandable-content">
+                                <pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px;">${JSON.stringify(backend.config_preview, null, 2)}</pre>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                let performanceHTML = '';
+                if (backend.response_time || backend.uptime) {
+                    performanceHTML = `
+                        <div class="performance-metrics" style="margin: 10px 0;">
+                            <strong>Performance:</strong>
+                            ${backend.response_time ? `Response: ${backend.response_time.toFixed(2)}ms` : ''}
+                            ${backend.uptime ? `| Uptime: ${Math.round(backend.uptime / 3600)}h` : ''}
+                        </div>
+                    `;
+                }
+                
+                let verboseMetricsHTML = createVerboseMetricsHTML(backend);
+                
+                let errorsHTML = '';
+                if (backend.errors && backend.errors.length > 0) {
+                    errorsHTML = `
+                        <div class="expandable">
+                            <div class="expandable-header">⚠️ Recent Errors (${backend.errors.length})</div>
+                            <div class="expandable-content">
+                                <div class="error-log">
+                                    ${backend.errors.slice(-5).map(error => 
+                                        `<div><strong>${new Date(error.timestamp).toLocaleString()}:</strong> ${error.error}</div>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                card.innerHTML = `
+                    <div class="backend-header">
+                        <div>
+                            <h3>🔌 ${backend.name}</h3>
+                            <div class="status-badge status-${backend.health}">${backend.health}</div>
+                            <div class="status-badge status-${backend.status === 'running' ? 'healthy' : 'unknown'}">${backend.status}</div>
+                            ${backend.version ? `<small style="color: #666;">v${backend.version}</small>` : ''}
+                        </div>
+                        <div class="backend-actions">
+                            <button class="action-btn config" onclick="openConfigModal('${name}')">⚙️ Configure</button>
+                            ${['ipfs', 'ipfs_cluster', 'ipfs_cluster_follow', 'lotus'].includes(name) ? 
+                                `<button class="action-btn restart" onclick="restartBackend('${name}')">🔄 Restart</button>` : ''}
+                            <button class="action-btn logs" onclick="openLogsModal('${name}')">📋 View Logs</button>
+                            <button class="action-btn config" onclick="exportSingleBackendConfig('${name}')">📤 Export</button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin: 15px 0;">
+                        <p><strong>🕒 Last Health Check:</strong> ${backend.last_check ? new Date(backend.last_check).toLocaleString() : 'Never'}</p>
+                        ${performanceHTML}
+                        ${backend.description ? `<p><strong>📝 Description:</strong> ${backend.description}</p>` : ''}
+                    </div>
+                    
+                    ${configPreviewHTML}
                     ${verboseMetricsHTML}
                     ${errorsHTML}
                 `;
@@ -2349,11 +2666,3 @@ class DashboardTemplateManager:
     </script>
 </body>
 </html>
-'''.strip()
-        
-        # Write the template to file
-        with open(template_path, 'w', encoding='utf-8') as f:
-            f.write(template_content)
-        
-        logger.info(f"Created comprehensive dashboard template at {template_path}")
-        return str(template_path)

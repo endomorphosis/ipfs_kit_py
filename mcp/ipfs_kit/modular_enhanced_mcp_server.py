@@ -19,17 +19,13 @@ from pathlib import Path
 from typing import Dict, Any
 
 # FastAPI imports
-try:
-    from fastapi import FastAPI
-    from fastapi.templating import Jinja2Templates
-    import uvicorn
-    FASTAPI_AVAILABLE = True
-except ImportError:
-    FASTAPI_AVAILABLE = False
+from fastapi import FastAPI
+from fastapi.templating import Jinja2Templates
+import uvicorn
 
 # Modular components
 from .dashboard import DashboardTemplateManager
-from .backends import BackendHealthMonitor
+from .backends import BackendHealthMonitor, VFSObservabilityManager
 from .api import APIRoutes
 from .mcp_tools import MCPToolManager
 
@@ -49,13 +45,10 @@ class ModularEnhancedMCPServer:
         self.port = port
         self.start_time = time.time()
         
-        # Check dependencies
-        if not FASTAPI_AVAILABLE:
-            logger.error("❌ FastAPI not available - install with: pip install fastapi uvicorn")
-            sys.exit(1)
-        
         # Initialize components
         self.backend_monitor = BackendHealthMonitor()
+        self.vfs_observer = VFSObservabilityManager()
+        self.backend_monitor.vfs_observer = self.vfs_observer
         self.mcp_tools = MCPToolManager(self.backend_monitor)
         
         # Server state

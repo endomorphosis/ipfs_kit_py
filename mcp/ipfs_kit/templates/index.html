@@ -537,22 +537,180 @@
         // Refresh monitoring tab
         async function refreshMonitoring() {
             try {
-                const response = await fetch('/api/backends');
-                const data = await response.json();
+                // Load comprehensive monitoring data
+                const [monitoringResponse, metricsResponse, alertsResponse] = await Promise.all([
+                    fetch('/api/monitoring/comprehensive'),
+                    fetch('/api/monitoring/metrics'),
+                    fetch('/api/monitoring/alerts')
+                ]);
+                
+                const monitoringData = await monitoringResponse.json();
+                const metricsData = await metricsResponse.json();
+                const alertsData = await alertsResponse.json();
                 
                 const grid = document.getElementById('backendGrid');
                 grid.innerHTML = '';
                 
-                if (data.backends) {
-                    // Update backend grid with comprehensive monitoring
-                    updateBackendGrid(data.backends);
+                if (monitoringData.success) {
+                    // Create comprehensive monitoring dashboard
+                    updateComprehensiveMonitoring(monitoringData.monitoring_data, metricsData.metrics, alertsData.alerts);
                 } else {
-                    grid.innerHTML = '<div class="stat-card"><h3>No backends found</h3></div>';
+                    grid.innerHTML = '<div class="stat-card"><h3>Error loading monitoring data</h3></div>';
                 }
                 
             } catch (error) {
                 console.error('Error refreshing monitoring:', error);
-                document.getElementById('backendGrid').innerHTML = '<div class="stat-card"><h3>Error loading backends</h3></div>';
+                document.getElementById('backendGrid').innerHTML = '<div class="stat-card"><h3>Error loading monitoring data</h3></div>';
+            }
+        }
+        
+        function updateComprehensiveMonitoring(monitoringData, metricsData, alertsData) {
+            const grid = document.getElementById('backendGrid');
+            
+            // System Metrics Card
+            const systemCard = document.createElement('div');
+            systemCard.className = 'stat-card';
+            systemCard.innerHTML = `
+                <h3>🖥️ System Metrics</h3>
+                <div class="metric">
+                    <span class="metric-label">CPU Usage</span>
+                    <span class="metric-value">${monitoringData.system_metrics.cpu.usage_percent}%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Memory Usage</span>
+                    <span class="metric-value">${monitoringData.system_metrics.memory.used_gb}GB / ${monitoringData.system_metrics.memory.total_gb}GB</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Disk Usage</span>
+                    <span class="metric-value">${monitoringData.system_metrics.disk.used_gb}GB / ${monitoringData.system_metrics.disk.total_gb}GB</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Network RX/TX</span>
+                    <span class="metric-value">${monitoringData.system_metrics.network.rx_mbps}/${monitoringData.system_metrics.network.tx_mbps} Mbps</span>
+                </div>
+            `;
+            grid.appendChild(systemCard);
+            
+            // Performance Indicators Card
+            const performanceCard = document.createElement('div');
+            performanceCard.className = 'stat-card';
+            performanceCard.innerHTML = `
+                <h3>📊 Performance Indicators</h3>
+                <div class="metric">
+                    <span class="metric-label">Uptime</span>
+                    <span class="metric-value">${Math.floor(monitoringData.performance_indicators.uptime_seconds / 86400)} days</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Requests Processed</span>
+                    <span class="metric-value">${monitoringData.performance_indicators.requests_processed.toLocaleString()}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Avg Response Time</span>
+                    <span class="metric-value">${monitoringData.performance_indicators.average_response_time_ms}ms</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Error Rate</span>
+                    <span class="metric-value">${monitoringData.performance_indicators.error_rate_percent}%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Cache Hit Rate</span>
+                    <span class="metric-value">${Math.round(monitoringData.performance_indicators.cache_hit_rate * 100)}%</span>
+                </div>
+            `;
+            grid.appendChild(performanceCard);
+            
+            // Operational Metrics Card
+            const operationalCard = document.createElement('div');
+            operationalCard.className = 'stat-card';
+            operationalCard.innerHTML = `
+                <h3>🔧 Operational Metrics</h3>
+                <div class="metric">
+                    <span class="metric-label">Active Backends</span>
+                    <span class="metric-value">${monitoringData.operational_metrics.active_backends}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Healthy Backends</span>
+                    <span class="metric-value">${monitoringData.operational_metrics.healthy_backends}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Operations (24h)</span>
+                    <span class="metric-value">${monitoringData.operational_metrics.total_operations_24h.toLocaleString()}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Failed Operations (24h)</span>
+                    <span class="metric-value">${monitoringData.operational_metrics.failed_operations_24h}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Data Transferred (24h)</span>
+                    <span class="metric-value">${monitoringData.operational_metrics.data_transferred_gb_24h}GB</span>
+                </div>
+            `;
+            grid.appendChild(operationalCard);
+            
+            // Response Time Metrics Card
+            if (metricsData && metricsData.success) {
+                const responseTimeCard = document.createElement('div');
+                responseTimeCard.className = 'stat-card';
+                responseTimeCard.innerHTML = `
+                    <h3>⚡ Response Time Metrics</h3>
+                    <div class="metric">
+                        <span class="metric-label">IPFS Avg/P95/P99</span>
+                        <span class="metric-value">${metricsData.metrics.response_times.ipfs.avg_ms}/${metricsData.metrics.response_times.ipfs.p95_ms}/${metricsData.metrics.response_times.ipfs.p99_ms}ms</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Cluster Avg/P95/P99</span>
+                        <span class="metric-value">${metricsData.metrics.response_times.cluster.avg_ms}/${metricsData.metrics.response_times.cluster.p95_ms}/${metricsData.metrics.response_times.cluster.p99_ms}ms</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Lotus Avg/P95/P99</span>
+                        <span class="metric-value">${metricsData.metrics.response_times.lotus.avg_ms}/${metricsData.metrics.response_times.lotus.p95_ms}/${metricsData.metrics.response_times.lotus.p99_ms}ms</span>
+                    </div>
+                `;
+                grid.appendChild(responseTimeCard);
+                
+                // Throughput Metrics Card
+                const throughputCard = document.createElement('div');
+                throughputCard.className = 'stat-card';
+                throughputCard.innerHTML = `
+                    <h3>🚀 Throughput & Resource Utilization</h3>
+                    <div class="metric">
+                        <span class="metric-label">Requests/Second</span>
+                        <span class="metric-value">${metricsData.metrics.throughput.requests_per_second}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Data Transfer</span>
+                        <span class="metric-value">${metricsData.metrics.throughput.data_transfer_mbps} Mbps</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Operations/Minute</span>
+                        <span class="metric-value">${metricsData.metrics.throughput.operations_per_minute.toLocaleString()}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">CPU/Memory/Disk/Network</span>
+                        <span class="metric-value">${metricsData.metrics.resource_utilization.cpu_percent}%/${metricsData.metrics.resource_utilization.memory_percent}%/${metricsData.metrics.resource_utilization.disk_io_percent}%/${metricsData.metrics.resource_utilization.network_io_percent}%</span>
+                    </div>
+                `;
+                grid.appendChild(throughputCard);
+            }
+            
+            // Alerts Card
+            if (alertsData && alertsData.success && alertsData.alerts.length > 0) {
+                const alertsCard = document.createElement('div');
+                alertsCard.className = 'stat-card';
+                alertsCard.innerHTML = `
+                    <h3>🚨 Active Alerts (${alertsData.alert_summary.total})</h3>
+                    ${alertsData.alerts.map(alert => `
+                        <div class="metric">
+                            <span class="metric-label">${alert.component} - ${alert.level}</span>
+                            <span class="metric-value">${alert.message}</span>
+                        </div>
+                    `).join('')}
+                    <div class="metric">
+                        <span class="metric-label">Summary</span>
+                        <span class="metric-value">Critical: ${alertsData.alert_summary.critical}, Warning: ${alertsData.alert_summary.warning}, Info: ${alertsData.alert_summary.info}</span>
+                    </div>
+                `;
+                grid.appendChild(alertsCard);
             }
         }
         
@@ -863,72 +1021,272 @@
         }
         
         // Vector/KB Tab Functions
-        async function loadVectorKBTab() {
-            try {
-                // Load vector index status
-                const vectorResponse = await fetch('/api/vfs/vector-index');
-                const vectorData = await vectorResponse.json();
-                
-                if (vectorData.success) {
-                    document.getElementById('vectorIndexStatus').innerHTML = formatVectorIndexStatus(vectorData.data);
-                    document.getElementById('searchPerformance').innerHTML = formatSearchPerformance(vectorData.data.search_performance);
-                    document.getElementById('contentDistribution').innerHTML = formatContentDistribution(vectorData.data.content_distribution);
-                    document.getElementById('vectorIndexDetails').innerHTML = formatVectorIndexDetails(vectorData.data);
-                } else {
-                    document.getElementById('vectorIndexStatus').innerHTML = 'Vector index monitoring not available';
-                }
-                
-                // Load knowledge base status
-                const kbResponse = await fetch('/api/vfs/knowledge-base');
-                const kbData = await kbResponse.json();
-                
-                if (kbData.success) {
-                    document.getElementById('knowledgeGraphStatus').innerHTML = formatKnowledgeGraphStatus(kbData.data);
-                    document.getElementById('knowledgeBaseAnalytics').innerHTML = formatKnowledgeBaseAnalytics(kbData.data);
-                } else {
-                    document.getElementById('knowledgeGraphStatus').innerHTML = 'Knowledge base monitoring not available';
-                }
-                
-            } catch (error) {
-                console.error('Error loading Vector/KB data:', error);
-                document.getElementById('vectorIndexStatus').innerHTML = 'Error loading vector/KB data';
-            }
-        }
+
         
         // Configuration Tab Functions
         async function loadConfigurationTab() {
             try {
-                // Load package configuration
-                await loadPackageConfig();
+                // Load comprehensive configuration
+                const configResponse = await fetch('/api/config');
+                const configData = await configResponse.json();
                 
-                // Load backend configurations
-                const configList = document.getElementById('configBackendList');
-                configList.innerHTML = '<div style="text-align: center; padding: 20px;">Loading backend configurations...</div>';
-                
-                if (currentBackendData.backends) {
-                    configList.innerHTML = '';
-                    Object.entries(currentBackendData.backends).forEach(([name, backend]) => {
-                        const configCard = document.createElement('div');
-                        configCard.className = 'stat-card';
-                        configCard.style.cursor = 'pointer';
-                        configCard.onclick = () => openConfigModal(name);
-                        
-                        configCard.innerHTML = `
-                            <h4>${name}</h4>
-                            <div class="status-badge status-${backend.health}">${backend.health}</div>
-                            <p style="margin: 8px 0;">Click to configure settings</p>
-                        `;
-                        
-                        configList.appendChild(configCard);
-                    });
+                if (configData.success) {
+                    // Update system configuration
+                    updateSystemConfiguration(configData.config.system);
+                    
+                    // Update backend configurations
+                    updateBackendConfigurations(configData.config.backends);
+                    
+                    // Update dashboard configuration
+                    updateDashboardConfiguration(configData.config.dashboard);
+                    
+                    // Update monitoring configuration
+                    updateMonitoringConfiguration(configData.config.monitoring);
+                    
+                    // Update VFS configuration
+                    updateVFSConfiguration(configData.config.vfs);
+                    
+                    // Update security configuration
+                    updateSecurityConfiguration(configData.config.security);
+                    
+                    // Update performance configuration
+                    updatePerformanceConfiguration(configData.config.performance);
+                    
                 } else {
-                    configList.innerHTML = '<div style="color: red; padding: 20px;">No backend configurations available</div>';
+                    document.getElementById('configBackendList').innerHTML = '<div style="color: red; padding: 20px;">Error loading configuration data</div>';
                 }
                 
             } catch (error) {
                 console.error('Error loading configuration:', error);
                 document.getElementById('configBackendList').innerHTML = '<div style="color: red; padding: 20px;">Error loading configurations</div>';
             }
+        }
+        
+        function updateSystemConfiguration(systemConfig) {
+            const systemConfigElement = document.getElementById('systemConfiguration');
+            if (systemConfigElement) {
+                systemConfigElement.innerHTML = `
+                    <div class="stat-card">
+                        <h4>🖥️ System Configuration</h4>
+                        <div class="metric">
+                            <span class="metric-label">Server Host</span>
+                            <span class="metric-value">${systemConfig.server.host}:${systemConfig.server.port}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Debug Mode</span>
+                            <span class="metric-value">${systemConfig.server.debug ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Log Level</span>
+                            <span class="metric-value">${systemConfig.server.log_level}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Database Type</span>
+                            <span class="metric-value">${systemConfig.database.type}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Cache Type</span>
+                            <span class="metric-value">${systemConfig.cache.type} (${systemConfig.cache.max_size_mb}MB)</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function updateBackendConfigurations(backendsConfig) {
+            const configList = document.getElementById('configBackendList');
+            if (configList) {
+                configList.innerHTML = '';
+                
+                Object.entries(backendsConfig).forEach(([name, backend]) => {
+                    const configCard = document.createElement('div');
+                    configCard.className = 'stat-card';
+                    configCard.style.cursor = 'pointer';
+                    configCard.onclick = () => openComprehensiveConfigModal(name, backend);
+                    
+                    configCard.innerHTML = `
+                        <h4>🔧 ${name}</h4>
+                        <div class="metric">
+                            <span class="metric-label">Status</span>
+                            <span class="metric-value">${backend.enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">URL</span>
+                            <span class="metric-value">${backend.url || backend.connection?.url || 'Not configured'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Timeout</span>
+                            <span class="metric-value">${backend.timeout || backend.connection?.timeout || 30}s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Health Check</span>
+                            <span class="metric-value">${backend.monitoring?.health_check_enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        <p style="margin: 8px 0; font-size: 0.9em; color: #666;">Click to configure advanced settings</p>
+                    `;
+                    
+                    configList.appendChild(configCard);
+                });
+            }
+        }
+        
+        function updateDashboardConfiguration(dashboardConfig) {
+            const dashboardConfigElement = document.getElementById('dashboardConfiguration');
+            if (dashboardConfigElement) {
+                dashboardConfigElement.innerHTML = `
+                    <div class="stat-card">
+                        <h4>📊 Dashboard Configuration</h4>
+                        <div class="metric">
+                            <span class="metric-label">Title</span>
+                            <span class="metric-value">${dashboardConfig.title}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Theme</span>
+                            <span class="metric-value">${dashboardConfig.theme}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Auto Refresh</span>
+                            <span class="metric-value">${dashboardConfig.auto_refresh ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Refresh Interval</span>
+                            <span class="metric-value">${dashboardConfig.refresh_interval}ms</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Enabled Tabs</span>
+                            <span class="metric-value">${Object.entries(dashboardConfig.tabs).filter(([_, config]) => config.enabled).map(([name, _]) => name).join(', ')}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function updateMonitoringConfiguration(monitoringConfig) {
+            const monitoringConfigElement = document.getElementById('monitoringConfiguration');
+            if (monitoringConfigElement) {
+                monitoringConfigElement.innerHTML = `
+                    <div class="stat-card">
+                        <h4>📈 Monitoring Configuration</h4>
+                        <div class="metric">
+                            <span class="metric-label">Monitoring Enabled</span>
+                            <span class="metric-value">${monitoringConfig.enabled ? 'Yes' : 'No'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Retention Period</span>
+                            <span class="metric-value">${monitoringConfig.metrics_retention_days} days</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">CPU Alert Threshold</span>
+                            <span class="metric-value">${monitoringConfig.alert_threshold.cpu_percent}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Memory Alert Threshold</span>
+                            <span class="metric-value">${monitoringConfig.alert_threshold.memory_percent}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Response Time Threshold</span>
+                            <span class="metric-value">${monitoringConfig.alert_threshold.response_time_ms}ms</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function updateVFSConfiguration(vfsConfig) {
+            const vfsConfigElement = document.getElementById('vfsConfiguration');
+            if (vfsConfigElement) {
+                vfsConfigElement.innerHTML = `
+                    <div class="stat-card">
+                        <h4>📁 VFS Configuration</h4>
+                        <div class="metric">
+                            <span class="metric-label">Cache Size</span>
+                            <span class="metric-value">${vfsConfig.cache_size_mb}MB</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Index Enabled</span>
+                            <span class="metric-value">${vfsConfig.index_enabled ? 'Yes' : 'No'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Compression</span>
+                            <span class="metric-value">${vfsConfig.compression_enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Analytics</span>
+                            <span class="metric-value">${vfsConfig.analytics_enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Performance Tracking</span>
+                            <span class="metric-value">${vfsConfig.performance_tracking ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function updateSecurityConfiguration(securityConfig) {
+            const securityConfigElement = document.getElementById('securityConfiguration');
+            if (securityConfigElement) {
+                securityConfigElement.innerHTML = `
+                    <div class="stat-card">
+                        <h4>🔐 Security Configuration</h4>
+                        <div class="metric">
+                            <span class="metric-label">Authentication</span>
+                            <span class="metric-value">${securityConfig.authentication.enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">CORS</span>
+                            <span class="metric-value">${securityConfig.cors.enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Rate Limiting</span>
+                            <span class="metric-value">${securityConfig.rate_limiting.enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        ${securityConfig.rate_limiting.enabled ? `
+                            <div class="metric">
+                                <span class="metric-label">Rate Limit</span>
+                                <span class="metric-value">${securityConfig.rate_limiting.requests_per_minute} req/min</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+        }
+        
+        function updatePerformanceConfiguration(performanceConfig) {
+            const performanceConfigElement = document.getElementById('performanceConfiguration');
+            if (performanceConfigElement) {
+                performanceConfigElement.innerHTML = `
+                    <div class="stat-card">
+                        <h4>⚡ Performance Configuration</h4>
+                        <div class="metric">
+                            <span class="metric-label">Connection Pool Size</span>
+                            <span class="metric-value">${performanceConfig.connection_pool_size}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Request Timeout</span>
+                            <span class="metric-value">${performanceConfig.request_timeout}s</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Max Concurrent Requests</span>
+                            <span class="metric-value">${performanceConfig.max_concurrent_requests}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Compression</span>
+                            <span class="metric-value">${performanceConfig.compression_enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Caching</span>
+                            <span class="metric-value">${performanceConfig.caching_enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function openComprehensiveConfigModal(backendName, backendConfig) {
+            console.log('Opening comprehensive config modal for:', backendName);
+            // Implementation for comprehensive backend configuration modal
+            alert(`Comprehensive configuration for ${backendName} would open here.`);
         }
         
         // Configuration functions
@@ -1510,35 +1868,294 @@
         async function loadVFSTab() {
             console.log('Loading VFS Observatory tab...');
             
-            // Load cache performance
             try {
-                const response = await fetch('/api/vfs/cache');
-                const data = await response.json();
-                document.getElementById('cachePerformance').innerHTML = formatTieredCacheDetails(data);
+                // Load comprehensive VFS health, performance, and analytics
+                const [healthResponse, performanceResponse, vectorResponse, kbResponse, recommendationsResponse] = await Promise.all([
+                    fetch('/api/vfs/health'),
+                    fetch('/api/vfs/performance'),
+                    fetch('/api/vfs/vector-index'),
+                    fetch('/api/vfs/knowledge-base'),
+                    fetch('/api/vfs/recommendations')
+                ]);
+                
+                const healthData = await healthResponse.json();
+                const performanceData = await performanceResponse.json();
+                const vectorData = await vectorResponse.json();
+                const kbData = await kbResponse.json();
+                const recommendationsData = await recommendationsResponse.json();
+                
+                // Update VFS health overview
+                updateVFSHealth(healthData);
+                
+                // Update cache performance with comprehensive data
+                document.getElementById('cachePerformance').innerHTML = formatComprehensiveCacheDetails(healthData.detailed_metrics?.cache_performance);
+                
+                // Update filesystem status with comprehensive metrics
+                document.getElementById('filesystemStatus').innerHTML = formatComprehensiveFilesystemMetrics(healthData.detailed_metrics?.filesystem_metrics);
+                
+                // Update access patterns with comprehensive data
+                document.getElementById('accessPatterns').innerHTML = formatComprehensiveAccessPatterns(healthData.detailed_metrics?.access_patterns);
+                
+                // Update resource utilization
+                if (document.getElementById('resourceUtilization')) {
+                    document.getElementById('resourceUtilization').innerHTML = formatResourceUtilization(healthData.detailed_metrics?.resource_utilization);
+                }
+                
+                // Update VFS recommendations
+                if (document.getElementById('vfsRecommendations')) {
+                    document.getElementById('vfsRecommendations').innerHTML = formatVFSRecommendations(recommendationsData);
+                }
+                
             } catch (error) {
-                console.error('Error loading cache performance:', error);
-                document.getElementById('cachePerformance').innerHTML = 'Error loading cache performance';
+                console.error('Error loading VFS Observatory data:', error);
+                document.getElementById('cachePerformance').innerHTML = 'Error loading VFS Observatory data';
             }
+        }
+        
+        function updateVFSHealth(healthData) {
+            if (healthData.success) {
+                const healthElement = document.getElementById('vfsHealthOverview');
+                if (healthElement) {
+                    healthElement.innerHTML = `
+                        <div class="stat-card">
+                            <h3>🏥 VFS Health Overview</h3>
+                            <div class="metric">
+                                <span class="metric-label">Overall Health Score</span>
+                                <span class="metric-value">${Math.round(healthData.overall_health_score * 100)}%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Cache Performance</span>
+                                <span class="metric-value">${Math.round(healthData.health_factors.cache_performance * 100)}%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Index Health</span>
+                                <span class="metric-value">${Math.round(healthData.health_factors.index_health * 100)}%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Resource Health</span>
+                                <span class="metric-value">${Math.round(healthData.health_factors.resource_health * 100)}%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Filesystem Health</span>
+                                <span class="metric-value">${Math.round(healthData.health_factors.filesystem_health * 100)}%</span>
+                            </div>
+                            ${healthData.alerts && healthData.alerts.length > 0 ? `
+                                <div class="metric">
+                                    <span class="metric-label">Active Alerts</span>
+                                    <span class="metric-value">${healthData.alerts.length}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        function formatComprehensiveCacheDetails(cacheData) {
+            if (!cacheData) return 'Cache performance data not available';
             
-            // Load filesystem status
-            try {
-                const response = await fetch('/api/vfs/filesystem-metrics');
-                const data = await response.json();
-                document.getElementById('filesystemStatus').innerHTML = formatFilesystemMetrics(data);
-            } catch (error) {
-                console.error('Error loading filesystem status:', error);
-                document.getElementById('filesystemStatus').innerHTML = 'Error loading filesystem status';
-            }
+            return `
+                <div class="stat-card">
+                    <h4>🚀 Tiered Cache Performance</h4>
+                    <div class="metric">
+                        <span class="metric-label">Memory Tier Hit Rate</span>
+                        <span class="metric-value">${Math.round(cacheData.tiered_cache.memory_tier.hit_rate * 100)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Memory Tier Size</span>
+                        <span class="metric-value">${cacheData.tiered_cache.memory_tier.size_mb}MB (${cacheData.tiered_cache.memory_tier.items} items)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Disk Tier Hit Rate</span>
+                        <span class="metric-value">${Math.round(cacheData.tiered_cache.disk_tier.hit_rate * 100)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Disk Tier Size</span>
+                        <span class="metric-value">${cacheData.tiered_cache.disk_tier.size_gb}GB (${cacheData.tiered_cache.disk_tier.items} items)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Predictive Accuracy</span>
+                        <span class="metric-value">${Math.round(cacheData.tiered_cache.predictive_accuracy * 100)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Prefetch Efficiency</span>
+                        <span class="metric-value">${Math.round(cacheData.tiered_cache.prefetch_efficiency * 100)}%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h4>🧠 Semantic Cache</h4>
+                    <div class="metric">
+                        <span class="metric-label">Similarity Threshold</span>
+                        <span class="metric-value">${cacheData.semantic_cache.similarity_threshold}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Cache Utilization</span>
+                        <span class="metric-value">${Math.round(cacheData.semantic_cache.cache_utilization * 100)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Embedding Model</span>
+                        <span class="metric-value">${cacheData.semantic_cache.embedding_model}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatComprehensiveFilesystemMetrics(fsData) {
+            if (!fsData) return 'Filesystem metrics not available';
             
-            // Load access patterns
-            try {
-                const response = await fetch('/api/vfs/access-patterns');
-                const data = await response.json();
-                document.getElementById('accessPatterns').innerHTML = formatAccessPatterns(data);
-            } catch (error) {
-                console.error('Error loading access patterns:', error);
-                document.getElementById('accessPatterns').innerHTML = 'Error loading access patterns';
-            }
+            return `
+                <div class="stat-card">
+                    <h4>📁 Mount Points</h4>
+                    ${Object.entries(fsData.mount_points).map(([mount, data]) => `
+                        <div class="metric">
+                            <span class="metric-label">${mount}</span>
+                            <span class="metric-value">${data.status} - ${data.size_gb}GB (${data.operations} ops)</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="stat-card">
+                    <h4>📊 File Operations</h4>
+                    <div class="metric">
+                        <span class="metric-label">Reads / Writes</span>
+                        <span class="metric-value">${fsData.file_operations.reads.toLocaleString()} / ${fsData.file_operations.writes.toLocaleString()}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Deletes / Listings</span>
+                        <span class="metric-value">${fsData.file_operations.deletes} / ${fsData.file_operations.listings.toLocaleString()}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Seeks</span>
+                        <span class="metric-value">${fsData.file_operations.seeks.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h4>🌐 Bandwidth Usage</h4>
+                    <div class="metric">
+                        <span class="metric-label">Read / Write Speed</span>
+                        <span class="metric-value">${fsData.bandwidth_usage.read_mbps} / ${fsData.bandwidth_usage.write_mbps} Mbps</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total Transferred</span>
+                        <span class="metric-value">${fsData.bandwidth_usage.total_transferred_gb}GB</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Compression Ratio</span>
+                        <span class="metric-value">${Math.round(fsData.bandwidth_usage.compression_ratio * 100)}%</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatComprehensiveAccessPatterns(accessData) {
+            if (!accessData) return 'Access patterns not available';
+            
+            return `
+                <div class="stat-card">
+                    <h4>🔥 Hot Content</h4>
+                    ${accessData.hot_content.slice(0, 3).map(item => `
+                        <div class="metric">
+                            <span class="metric-label">${item.cid.substring(0, 12)}...</span>
+                            <span class="metric-value">${item.access_count} accesses (${item.size_kb}KB)</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="stat-card">
+                    <h4>⏰ Temporal Patterns</h4>
+                    <div class="metric">
+                        <span class="metric-label">Peak Hours</span>
+                        <span class="metric-value">${accessData.temporal_patterns.peak_hours.join(', ')}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Weekly Pattern</span>
+                        <span class="metric-value">${accessData.temporal_patterns.weekly_pattern}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Seasonal Trend</span>
+                        <span class="metric-value">${accessData.temporal_patterns.seasonal_trend}</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h4>📄 Content Types</h4>
+                    ${Object.entries(accessData.content_types).map(([type, ratio]) => `
+                        <div class="metric">
+                            <span class="metric-label">${type}</span>
+                            <span class="metric-value">${Math.round(ratio * 100)}%</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="stat-card">
+                    <h4>🌍 Geographic Distribution</h4>
+                    <div class="metric">
+                        <span class="metric-label">Local / Remote</span>
+                        <span class="metric-value">${Math.round(accessData.geographic_distribution.local * 100)}% / ${Math.round(accessData.geographic_distribution.remote_gateways * 100)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">CDN Hit Rate</span>
+                        <span class="metric-value">${Math.round(accessData.geographic_distribution.cdn_hits * 100)}%</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatResourceUtilization(resourceData) {
+            if (!resourceData) return 'Resource utilization not available';
+            
+            return `
+                <div class="stat-card">
+                    <h4>💾 Memory Usage</h4>
+                    <div class="metric">
+                        <span class="metric-label">Cache / Index / Buffers</span>
+                        <span class="metric-value">${resourceData.memory_usage.cache_mb}MB / ${resourceData.memory_usage.index_mb}MB / ${resourceData.memory_usage.buffers_mb}MB</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total Used / Available</span>
+                        <span class="metric-value">${resourceData.memory_usage.total_mb}MB / ${resourceData.memory_usage.available_mb}MB</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h4>💽 Disk Usage</h4>
+                    <div class="metric">
+                        <span class="metric-label">Cache / Index / Logs</span>
+                        <span class="metric-value">${resourceData.disk_usage.cache_gb}GB / ${resourceData.disk_usage.index_gb}GB / ${resourceData.disk_usage.logs_gb}GB</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total Used / Available</span>
+                        <span class="metric-value">${resourceData.disk_usage.total_gb}GB / ${resourceData.disk_usage.available_gb}GB</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h4>⚡ CPU & Network Usage</h4>
+                    <div class="metric">
+                        <span class="metric-label">Indexing / Search / Cache</span>
+                        <span class="metric-value">${Math.round(resourceData.cpu_usage.indexing * 100)}% / ${Math.round(resourceData.cpu_usage.search * 100)}% / ${Math.round(resourceData.cpu_usage.cache_management * 100)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Network Connections</span>
+                        <span class="metric-value">IPFS: ${resourceData.network_usage.ipfs_connections}, Cluster: ${resourceData.network_usage.cluster_connections}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatVFSRecommendations(recommendationsData) {
+            if (!recommendationsData || !recommendationsData.success) return 'Recommendations not available';
+            
+            return `
+                <div class="stat-card">
+                    <h4>💡 VFS Optimization Recommendations</h4>
+                    ${recommendationsData.recommendations.map(rec => `
+                        <div class="metric">
+                            <span class="metric-label">${rec.category}</span>
+                            <span class="metric-value">${rec.message}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        // VFS Observatory Tab Functions
+        async function loadVFSObservatoryTab() {
+            console.log('Loading VFS Observatory tab...');
             
             // Load resource usage
             try {

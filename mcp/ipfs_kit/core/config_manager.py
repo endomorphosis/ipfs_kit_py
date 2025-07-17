@@ -10,6 +10,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
+import toml
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +18,26 @@ logger = logging.getLogger(__name__)
 class SecureConfigManager:
     """Secure configuration manager that handles credentials safely."""
     
-    def __init__(self, config_dir: str = "/tmp/ipfs_kit_config"):
+    def __init__(self, config_dir: str = "/tmp/ipfs_kit_config", project_root: Optional[str] = None):
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(exist_ok=True)
         
+        # Determine project root
+        if project_root:
+            self.project_root = Path(project_root)
+        else:
+            # Heuristic to find project root by looking for pyproject.toml
+            self.project_root = Path.cwd()
+            while self.project_root != self.project_root.parent and not (self.project_root / 'pyproject.toml').exists():
+                self.project_root = self.project_root.parent
+        
+        if not (self.project_root / 'pyproject.toml').exists():
+            logger.warning(f"Could not find pyproject.toml in parent directories of {Path.cwd()}. Package config operations will fail.")
+
         # Secure config files (not committed to git)
         self.credentials_file = self.config_dir / "credentials.json"
         self.backend_configs_file = self.config_dir / "backend_configs.json"
+        self.pyproject_file = self.project_root / "pyproject.toml"
         
         # Default configurations (without credentials)
         self.default_backend_configs = {
@@ -61,6 +75,7 @@ class SecureConfigManager:
         }
         
         logger.info(f"✓ Secure config manager initialized with config dir: {config_dir}")
+        logger.info(f"✓ Project root detected as: {self.project_root}")
     
     def get_credential(self, service: str, credential_type: str) -> Optional[str]:
         """Get a credential safely from environment variables or config file."""
@@ -110,54 +125,63 @@ class SecureConfigManager:
         
         try:
             with open(self.credentials_file, 'w') as f:
-                json.dump(credentials, f, indent=2)
+                json.dump(credentials, f, indent=4)
             
-            # Set secure permissions
-            os.chmod(self.credentials_file, 0o600)
-            
-            logger.info(f"✓ Set {service} {credential_type} in secure config")
+            logger.info(f"✓ Set {service} {credential_type} in secure config file")
             
         except Exception as e:
-            logger.error(f"Error saving credentials: {e}")
-    
-    def get_backend_config(self, backend_name: str) -> Dict[str, Any]:
-        """Get backend configuration with credentials safely injected."""
+            logger.error(f"Error setting credential: {e}")
+
+    def get_package_config(self) -> Dict[str, Any]:
+        """Get package configuration from pyproject.toml."""
+        if not self.pyproject_file.exists():
+            logger.error(f"pyproject.toml not found at {self.pyproject_file}")
+            return {"error": "pyproject.toml not found"}
         
+        try:
+            with open(self.pyproject_file, 'r') as f:
+                return toml.load(f)
+        except Exception as e:
+            logger.error(f"Error reading pyproject.toml: {e}")
+            return {"error": str(e)}
+
+    def save_package_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Save package configuration to pyproject.toml."""
+        if not self.pyproject_file.exists():
+            logger.error(f"pyproject.toml not found at {self.pyproject_file}")
+            return {"error": "pyproject.toml not found"}
+            
+        try:
+            with open(self.pyproject_file, 'w') as f:
+                toml.dump(config, f)
+            logger.info(f"✓ Saved package configuration to {self.pyproject_file}")
+            return {"status": "success"}
+        except Exception as e:
+            logger.error(f"Error writing to pyproject.toml: {e}")
+            return {"error": str(e)}
+
+    def get_backend_config(self, backend_name: str) -> Dict[str, Any]:
+        """Get a specific backend configuration, merged with defaults."""
         # Start with default config
         config = self.default_backend_configs.get(backend_name, {}).copy()
         
-        # Load any custom config from file
-        try:
-            if self.backend_configs_file.exists():
+        # Load saved configs from file
+        saved_configs = {}
+        if self.backend_configs_file.exists():
+            try:
                 with open(self.backend_configs_file, 'r') as f:
-                    custom_configs = json.load(f)
-                    if backend_name in custom_configs:
-                        config.update(custom_configs[backend_name])
-        except Exception as e:
-            logger.error(f"Error loading backend configs: {e}")
+                    saved_configs = json.load(f)
+            except Exception as e:
+                logger.error(f"Error reading backend configs file: {e}")
         
-        # Inject credentials securely
-        if backend_name == "huggingface":
-            token = self.get_credential("huggingface", "token")
-            if token:
-                config["token"] = token
-        
-        elif backend_name == "s3":
-            access_key = self.get_credential("s3", "access_key")
-            secret_key = self.get_credential("s3", "secret_key")
-            if access_key and secret_key:
-                config["access_key"] = access_key
-                config["secret_key"] = secret_key
-        
-        elif backend_name == "storacha":
-            token = self.get_credential("storacha", "token")
-            if token:
-                config["token"] = token
+        # Merge saved config with defaults
+        saved_config = saved_configs.get(backend_name, {})
+        config.update(saved_config)
         
         return config
-    
-    def get_all_backend_configs(self) -> Dict[str, Dict[str, Any]]:
-        """Get all backend configurations with credentials safely injected."""
+
+    def get_all_backend_configs(self) -> Dict[str, Any]:
+        """Get all backend configurations, merging defaults with saved configs."""
         
         configs = {}
         for backend_name in self.default_backend_configs.keys():
@@ -166,35 +190,48 @@ class SecureConfigManager:
         return configs
     
     def save_backend_config(self, backend_name: str, config: Dict[str, Any]):
-        """Save backend configuration (without credentials)."""
+        """Save a specific backend configuration."""
         
-        # Remove credentials from config before saving
-        safe_config = config.copy()
-        for cred_key in ["token", "access_key", "secret_key", "password"]:
-            if cred_key in safe_config:
-                del safe_config[cred_key]
-        
-        # Load existing configs
-        configs = {}
+        saved_configs = {}
         if self.backend_configs_file.exists():
             try:
                 with open(self.backend_configs_file, 'r') as f:
-                    configs = json.load(f)
+                    saved_configs = json.load(f)
             except Exception as e:
-                logger.error(f"Error loading backend configs: {e}")
-        
-        # Update and save
-        configs[backend_name] = safe_config
+                logger.error(f"Error reading backend configs file for saving: {e}")
+
+        saved_configs[backend_name] = config
         
         try:
             with open(self.backend_configs_file, 'w') as f:
-                json.dump(configs, f, indent=2)
-            
-            logger.info(f"✓ Saved backend config for {backend_name}")
-            
+                json.dump(saved_configs, f, indent=4)
+            logger.info(f"✓ Saved {backend_name} configuration.")
         except Exception as e:
-            logger.error(f"Error saving backend config: {e}")
-    
+            logger.error(f"Error saving backend config for {backend_name}: {e}")
+
+    def get_full_config(self) -> Dict[str, Any]:
+        """Get the full configuration, including package and all backends."""
+        
+        package_config = self.get_package_config()
+        backend_configs = self.get_all_backend_configs()
+        
+        return {
+            "package_config": package_config,
+            "backend_configs": backend_configs
+        }
+
+    def save_full_config(self, full_config: Dict[str, Any]):
+        """Save the full configuration."""
+        
+        if "package_config" in full_config:
+            self.save_package_config(full_config["package_config"])
+            
+        if "backend_configs" in full_config:
+            for backend_name, config in full_config["backend_configs"].items():
+                self.save_backend_config(backend_name, config)
+        
+        logger.info("✓ Full configuration saved.")
+
     def initialize_example_credentials(self):
         """Initialize example credentials file with placeholders."""
         
