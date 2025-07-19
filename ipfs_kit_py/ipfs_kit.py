@@ -19,6 +19,9 @@ from unittest.mock import MagicMock
 
 import requests
 import urllib3
+import functools
+from typing import Callable, TypeVar, Optional, Any, Dict, List
+
 from .error import (
     IPFSConfigurationError,
     IPFSConnectionError,
@@ -30,8 +33,9 @@ from .error import (
     handle_error,
     perform_with_retry,
 )
-import functools
-from typing import Callable, TypeVar, Optional, Any, Dict, List
+from .performance_metrics import PerformanceMetrics
+from .observability_api import observability_router
+from .cluster.monitoring import ClusterMonitor, MetricsCollector
 
 # Define a generic type variable for the return type
 RT = TypeVar('RT')
@@ -578,6 +582,8 @@ class ipfs_kit:
         # Initialize monitoring components
         self.monitoring = None
         self.dashboard = None
+        self.observability = None # Initialize observability API
+        self.performance_metrics = None # Initialize performance metrics tracker
         enable_monitoring = metadata.get("enable_monitoring", False) if metadata else False
 
         # Initialize knowledge graph components
@@ -2197,6 +2203,59 @@ class ipfs_kit:
         except Exception as e:
             self.logger.error(f"Failed to set up AI/ML integration: {str(e)}")
             return False
+
+    def _setup_monitoring(self, resources=None, metadata=None):
+        """Set up the monitoring components."""
+        try:
+            self.logger.info("Setting up monitoring...")
+            node_id = metadata.get("node_id") if metadata else "unknown_node"
+            metrics_dir = metadata.get("metrics_dir") if metadata else None
+            collection_interval = metadata.get("metrics_collection_interval", 60)
+            retention_days = metadata.get("metrics_retention_days", 7)
+
+            self.performance_metrics = PerformanceMetrics(
+                metrics_dir=metrics_dir,
+                collection_interval=collection_interval,
+                retention_days=retention_days,
+                track_system_resources=True # Always track system resources for dashboard
+            )
+
+            self.metrics_collector = MetricsCollector(
+                node_id=node_id,
+                metrics_dir=metrics_dir,
+                collection_interval=collection_interval,
+                retention_days=retention_days
+            )
+
+            # Register performance_metrics as a source for metrics_collector
+            self.metrics_collector.register_metric_source(
+                "performance", self.performance_metrics.analyze_metrics
+            )
+
+            # Initialize ObservabilityAPI
+            self.observability = ObservabilityAPI(
+                metrics_collector=self.metrics_collector,
+                performance_metrics=self.performance_metrics,
+                ipfs_api_instance=self # Pass self to allow ObservabilityAPI to access IPFSKit methods
+            )
+
+            self.monitoring = ClusterMonitor(
+                node_id=node_id,
+                metrics_collector=self.metrics_collector,
+                check_interval=collection_interval,
+                alert_callback=self.observability.record_alert # Use observability's alert recorder
+            )
+
+            self.logger.info("Monitoring setup complete")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to set up monitoring: {str(e)}")
+            return False
+
+    def _get_gpu_info(self):
+        """Placeholder for getting GPU information."""
+        self.logger.debug("Attempting to get GPU info (placeholder)")
+        return {"gpu_count": 0, "gpu_available": False}
 
     def get_filesystem(self, **kwargs):
         """Get or initialize the FSSpec filesystem interface for IPFS.

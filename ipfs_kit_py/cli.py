@@ -963,6 +963,29 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Port of the server",
     )
     mcp_status_parser.set_defaults(func=lambda api, args, kwargs: api.get_mcp_server_status(**kwargs))
+
+    # Start modular MCP server
+    mcp_modular_parser = mcp_subparsers.add_parser(
+        "modular",
+        help="Start the modular MCP server",
+    )
+    mcp_modular_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind server",
+    )
+    mcp_modular_parser.add_argument(
+        "--port",
+        type=int,
+        default=8765,
+        help="Port to bind server",
+    )
+    mcp_modular_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode",
+    )
+    mcp_modular_parser.set_defaults(func=lambda api, args, kwargs: start_modular_mcp_server(args, **kwargs))
     
     # Credential management commands
     credential_parser = subparsers.add_parser(
@@ -2754,7 +2777,23 @@ def run_command(args: argparse.Namespace) -> Any:
     pass # Placeholder, actual execution happens in main()
 
 
-def main() -> int:
+def start_modular_mcp_server(args, **kwargs):
+    """
+    Start the modular MCP server.
+    """
+    import sys
+    import os
+    
+    # Add the current directory to the Python path to ensure we can import mcp.ipfs_kit
+    current_dir = os.getcwd()
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    
+    from mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
+    server = ModularEnhancedMCPServer(host=args.host, port=args.port)
+    server.start()
+
+def main(argv: Optional[List[str]] = None) -> None:
     """
     Main entry point.
 

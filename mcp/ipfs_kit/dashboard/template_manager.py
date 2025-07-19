@@ -313,19 +313,20 @@ class DashboardTemplateManager:
             white-space: pre-wrap;
         }
         
-        /* File Manager Styles */
+        /* Enhanced File Manager Styles with Drag & Drop */
         .file-manager-container {
             display: flex;
             gap: 20px;
-            height: 600px;
+            height: 700px;
         }
         
         .file-manager-sidebar {
-            width: 250px;
+            width: 280px;
             background: white;
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
         }
         
         .file-manager-main {
@@ -335,6 +336,224 @@ class DashboardTemplateManager:
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Drag & Drop Styles */
+        .drop-zone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 123, 255, 0.1);
+            border: 3px dashed #007bff;
+            border-radius: 8px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            font-size: 18px;
+            color: #007bff;
+            font-weight: 600;
+        }
+        
+        .drop-zone.active {
+            display: flex;
+        }
+        
+        .drop-zone.highlight {
+            background: rgba(0, 123, 255, 0.2);
+            border-color: #0056b3;
+            transform: scale(1.02);
+        }
+        
+        .dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+            transition: all 0.2s;
+        }
+        
+        .drag-ghost {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 4px;
+            opacity: 0.7;
+        }
+        
+        .file-item.drag-over {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+        }
+        
+        /* File Upload Progress */
+        .upload-progress {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 15px;
+            min-width: 300px;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+        }
+        
+        .upload-progress.visible {
+            transform: translateX(0);
+        }
+        
+        .upload-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .upload-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .upload-item .file-name {
+            flex: 1;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .upload-item .progress-bar {
+            width: 60px;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .upload-item .progress-fill {
+            height: 100%;
+            background: #28a745;
+            transition: width 0.3s;
+        }
+        
+        .upload-item .status {
+            font-size: 10px;
+            color: #6c757d;
+        }
+        
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 5px 0;
+            min-width: 150px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .context-menu-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .context-menu-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .context-menu-item.danger:hover {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .context-menu-separator {
+            border-top: 1px solid #dee2e6;
+            margin: 5px 0;
+        }
+        
+        /* Enhanced File Viewer */
+        .file-viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .file-viewer.visible {
+            display: flex;
+        }
+        
+        .file-viewer-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            position: relative;
+        }
+        
+        .file-viewer-header {
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-viewer-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+        
+        .file-viewer-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow: auto;
+        }
+        
+        /* Real-time Updates */
+        .real-time-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .disconnected .real-time-indicator {
+            background: #dc3545;
+            animation: none;
         }
         
         .search-container {
@@ -441,6 +660,7 @@ class DashboardTemplateManager:
         .file-list {
             max-height: 400px;
             overflow-y: auto;
+            flex-grow: 1;
         }
         
         .file-item {
@@ -606,7 +826,6 @@ class DashboardTemplateManager:
         .form-group {
             margin-bottom: 15px;
         }
-        
         .form-group label {
             display: block;
             margin-bottom: 5px;
@@ -842,77 +1061,39 @@ class DashboardTemplateManager:
             </div>
             
             <div id="filemanager" class="tab-content">
-                <div class="controls">
-                    <button class="btn btn-primary" onclick="refreshFileManager()">🔄 Refresh</button>
-                    <button class="btn btn-success" onclick="showCreateDialog()">📁 New Folder</button>
-                    <button class="btn btn-success" onclick="showUploadDialog()">📤 Upload File</button>
-                    <div class="search-container">
-                        <input type="text" id="fileSearch" placeholder="Search files..." onkeyup="searchFiles()">
-                        <button class="btn btn-secondary" onclick="clearSearch()">Clear</button>
-                    </div>
-                </div>
-                
                 <div class="file-manager-container">
                     <div class="file-manager-sidebar">
                         <h4>🗂️ Quick Access</h4>
                         <div class="quick-access">
-                            <div class="quick-access-item" onclick="navigateToPath('/')">
+                            <div class="quick-access-item" onclick="fileManager.navigateTo('/')">
                                 <span class="icon">🏠</span>
                                 <span>Root</span>
-                            </div>
-                            <div class="quick-access-item" onclick="navigateToPath('/tmp')">
-                                <span class="icon">📁</span>
-                                <span>Temp</span>
-                            </div>
-                            <div class="quick-access-item" onclick="navigateToPath('/tmp/vfs')">
-                                <span class="icon">💾</span>
-                                <span>VFS</span>
-                            </div>
-                            <div class="quick-access-item" onclick="navigateToPath('/home')">
-                                <span class="icon">🏠</span>
-                                <span>Home</span>
                             </div>
                         </div>
                         
                         <h4>📊 File Statistics</h4>
-                        <div class="file-stats">
-                            <div class="stat-item">
-                                <span class="label">Total Files:</span>
-                                <span class="value" id="totalFiles">Loading...</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="label">Total Size:</span>
-                                <span class="value" id="totalSize">Loading...</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="label">Last Modified:</span>
-                                <span class="value" id="lastModified">Loading...</span>
-                            </div>
+                        <div class="file-stats" id="fileManagerStats">
+                            <div class="loading">Loading stats...</div>
                         </div>
                     </div>
                     
                     <div class="file-manager-main">
-                        <div class="breadcrumb">
-                            <span class="breadcrumb-item" onclick="navigateToPath('/')">🏠 Root</span>
-                            <span id="breadcrumbPath"></span>
-                        </div>
-                        
                         <div class="file-list-header">
+                            <div class="breadcrumb" id="fileManagerBreadcrumb"></div>
                             <div class="file-list-controls">
-                                <button class="btn btn-sm" onclick="changeView('grid')" id="gridViewBtn">🔲 Grid</button>
-                                <button class="btn btn-sm active" onclick="changeView('list')" id="listViewBtn">📋 List</button>
-                                <select id="sortBy" onchange="sortFiles(this.value)">
-                                    <option value="name">Sort by Name</option>
-                                    <option value="size">Sort by Size</option>
-                                    <option value="modified">Sort by Modified</option>
-                                    <option value="type">Sort by Type</option>
-                                </select>
+                                <button class="btn btn-sm" onclick="fileManager.showCreateFolderModal()">📁 New Folder</button>
+                                <button class="btn btn-sm" onclick="fileManager.triggerUpload()">📤 Upload</button>
+                                <input type="file" id="fileInput" multiple style="display:none;" onchange="uploadSelectedFile()">
+                                <input type="text" id="fileSearch" placeholder="Search..." onkeyup="filterFiles(this.value)">
+                                <button class="btn btn-sm" onclick="fileManager.changeView('grid')" id="gridViewBtn">🔲</button>
+                                <button class="btn btn-sm active" onclick="fileManager.changeView('list')" id="listViewBtn">📋</button>
                             </div>
                         </div>
                         
-                        <div class="file-list" id="fileList">
+                        <div class="file-list" id="fileManagerList">
                             <div class="loading">Loading files...</div>
                         </div>
+                        <div id="dropZone" class="drop-zone">Drop files here to upload</div>
                     </div>
                 </div>
             </div>
@@ -952,6 +1133,74 @@ class DashboardTemplateManager:
         </div>
     </div>
 
+    <!-- File Manager Modals -->
+    <div id="createFolderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Create New Folder</h3>
+                <button class="modal-close" onclick="fileManager.closeModal('createFolderModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="newFolderName">Folder Name</label>
+                <input type="text" id="newFolderName" class="form-control">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fileManager.closeModal('createFolderModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="fileManager.createNewFolder()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="renameModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Rename Item</h3>
+                <button class="modal-close" onclick="fileManager.closeModal('renameModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="newItemName">New Name</label>
+                <input type="text" id="newItemName" class="form-control">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fileManager.closeModal('renameModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="fileManager.renameItem()">Rename</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="moveModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Move Item</h3>
+                <button class="modal-close" onclick="fileManager.closeModal('moveModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="targetPath">Destination Path</label>
+                <input type="text" id="targetPath" class="form-control">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fileManager.closeModal('moveModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="fileManager.moveItem()">Move</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="uploadProgress" class="upload-progress">
+        <h4>Uploads</h4>
+        <div id="uploadProgressList"></div>
+    </div>
+
+    <ul id="contextMenu" class="context-menu">
+        <li class="context-menu-item" data-action="open">Open</li>
+        <li class="context-menu-item" data-action="download">Download</li>
+        <li class="context-menu-separator"></li>
+        <li class="context-menu-item" data-action="rename">Rename</li>
+        <li class="context-menu-item" data-action="move">Move</li>
+        <li class="context-menu-separator"></li>
+        <li class="context-menu-item danger" data-action="delete">Delete</li>
+    </ul>
+
+
     <script>
         let autoRefreshInterval = null;
         let currentBackendData = {};
@@ -984,38 +1233,69 @@ class DashboardTemplateManager:
             }
             
             // Load content for specific tabs
+            console.log('🔄 Switching to tab:', tabName);
             if (tabName === 'configuration') {
+                console.log('⚙️ Loading configuration tab...');
                 loadConfigurationTab();
             } else if (tabName === 'logs') {
+                console.log('📋 Loading logs tab...');
                 loadLogsTab();
             } else if (tabName === 'vfs') {
+                console.log('📁 Loading VFS tab...');
                 loadVFSTab();
             } else if (tabName === 'vector-kb') {
+                console.log('🧠 Loading Vector/KB tab...');
                 loadVectorKBTab();
+            } else if (tabName === 'filemanager') {
+                console.log('📂 Loading File Manager tab...');
+                loadFileManagerTab();
+            } else if (tabName === 'overview') {
+                console.log('🏠 Loading overview tab...');
+                refreshData();
             }
+        }
+
+        // Alias for backward compatibility
+        function showTab(tabName, event) {
+            switchTab(tabName, event);
         }
         
         async function refreshData() {
             try {
+                console.log('🔄 Refreshing dashboard data...');
                 const response = await fetch('/api/health');
-                const data = await response.json();
+                const responseData = await response.json();
+                console.log('📊 Health API response:', responseData);
+                
+                // Handle both wrapped and direct response formats
+                const data = responseData.success ? responseData.data : responseData;
                 currentBackendData = data.backend_health || {};
+                console.log('🔧 Backend data extracted:', currentBackendData);
+                console.log('📈 Updating dashboard with data:', data);
                 updateDashboard(data);
             } catch (error) {
-                console.error('Error refreshing data:', error);
+                console.error('❌ Error refreshing data:', error);
             }
         }
         
         function updateDashboard(data) {
+            console.log('🎨 Updating dashboard with data:', data);
+            
             // Update system status
-            document.getElementById('systemStatus').innerHTML = `
-                <div class="connection-status">
-                    <div class="connection-indicator ${data.status === 'running' ? 'connected' : ''}"></div>
-                    <span>Status: ${data.status}</span>
-                </div>
-                <p><strong>Uptime:</strong> ${Math.floor(data.uptime_seconds / 3600)}h ${Math.floor((data.uptime_seconds % 3600) / 60)}m</p>
-                <p><strong>Components:</strong> ${Object.values(data.components || {}).filter(Boolean).length}/${Object.keys(data.components || {}).length} active</p>
-            `;
+            const systemStatusEl = document.getElementById('systemStatus');
+            if (systemStatusEl) {
+                console.log('✅ Updating system status');
+                systemStatusEl.innerHTML = `
+                    <div class="connection-status">
+                        <div class="connection-indicator ${data.status === 'running' ? 'connected' : ''}"></div>
+                        <span>Status: ${data.status || 'unknown'}</span>
+                    </div>
+                    <p><strong>Uptime:</strong> ${data.uptime_seconds ? `${Math.floor(data.uptime_seconds / 3600)}h ${Math.floor((data.uptime_seconds % 3600) / 60)}m` : 'N/A'}</p>
+                    <p><strong>Components:</strong> ${Object.values(data.components || {}).filter(Boolean).length}/${Object.keys(data.components || {}).length} active</p>
+                `;
+            } else {
+                console.error('❌ systemStatus element not found');
+            }
             
             // Update backend summary
             const backends = data.backend_health || {};
@@ -1023,26 +1303,39 @@ class DashboardTemplateManager:
             const totalCount = Object.keys(backends).length;
             const progressPercent = totalCount > 0 ? (healthyCount / totalCount) * 100 : 0;
             
-            document.getElementById('backendSummary').innerHTML = `
-                <div style="font-size: 24px; font-weight: bold; color: ${healthyCount === totalCount ? '#4CAF50' : '#f44336'};">
-                    ${healthyCount}/${totalCount}
-                </div>
-                <p>Backends Healthy</p>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${progressPercent}%"></div>
-                </div>
-                <div style="font-size: 12px; color: #6c757d;">Health Score: ${progressPercent.toFixed(1)}%</div>
-            `;
+            const backendSummaryEl = document.getElementById('backendSummary');
+            if (backendSummaryEl) {
+                console.log('✅ Updating backend summary:', {healthyCount, totalCount, progressPercent});
+                backendSummaryEl.innerHTML = `
+                    <div style="font-size: 24px; font-weight: bold; color: ${healthyCount === totalCount ? '#4CAF50' : '#f44336'};">
+                        ${healthyCount}/${totalCount}
+                    </div>
+                    <p>Backends Healthy</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                    </div>
+                    <div style="font-size: 12px; color: #6c757d;">Health Score: ${progressPercent.toFixed(1)}%</div>
+                `;
+            } else {
+                console.error('❌ backendSummary element not found');
+            }
             
             // Update performance metrics
-            document.getElementById('performanceMetrics').innerHTML = `
-                <div><strong>Memory:</strong> ${data.memory_usage_mb || 0}MB</div>
-                <div><strong>CPU:</strong> ${data.cpu_usage_percent || 0}%</div>
-                <div><strong>Active Backends:</strong> ${Object.values(backends).filter(b => b.status === 'running').length}</div>
-                <div><strong>Last Update:</strong> ${new Date().toLocaleTimeString()}</div>
-            `;
+            const performanceMetricsEl = document.getElementById('performanceMetrics');
+            if (performanceMetricsEl) {
+                console.log('✅ Updating performance metrics');
+                performanceMetricsEl.innerHTML = `
+                    <div><strong>Memory:</strong> ${data.memory_usage_mb || 'N/A'}MB</div>
+                    <div><strong>CPU:</strong> ${data.cpu_usage_percent || 'N/A'}%</div>
+                    <div><strong>Active Backends:</strong> ${Object.values(backends).filter(b => b.status === 'running').length}</div>
+                    <div><strong>Last Update:</strong> ${new Date().toLocaleTimeString()}</div>
+                `;
+            } else {
+                console.error('❌ performanceMetrics element not found');
+            }
             
             // Update backend grid
+            console.log('🔧 Updating backend grid...');
             updateBackendGrid(backends);
 
             // Also update the VFS and Vector/KB tabs if they are active
@@ -1259,21 +1552,44 @@ class DashboardTemplateManager:
         
         async function loadVFSTab() {
             try {
+                console.log('📁 Starting VFS tab load...');
                 const statsResponse = await fetch('/api/vfs/statistics');
-                const statsData = await statsResponse.json();
+                console.log('📊 VFS statistics response status:', statsResponse.status);
+                const responseData = await statsResponse.json();
+                console.log('📊 VFS statistics data:', responseData);
 
-                if (statsResponse.ok) {
-                    document.getElementById('cachePerformance').innerHTML = formatCachePerformance(statsData.cache_performance);
-                    document.getElementById('filesystemStatus').innerHTML = formatFilesystemStatus(statsData.filesystem_metrics);
-                    document.getElementById('accessPatterns').innerHTML = formatAccessPatterns(statsData.access_patterns);
-                    document.getElementById('resourceUsage').innerHTML = formatResourceUsage(statsData.resource_utilization);
-                    document.getElementById('tieredCacheDetails').innerHTML = formatTieredCacheDetails(statsData.cache_performance);
-                    document.getElementById('hotContentAnalysis').innerHTML = formatHotContentAnalysis(statsData.access_patterns);
+                if (statsResponse.ok && responseData.success) {
+                    const statsData = responseData.data;  // Extract the actual data
+                    console.log('✅ Processing VFS statistics data:', statsData);
+                    
+                    const cacheEl = document.getElementById('cachePerformance');
+                    const filesystemEl = document.getElementById('filesystemStatus');
+                    const accessEl = document.getElementById('accessPatterns');
+                    const resourceEl = document.getElementById('resourceUsage');
+                    
+                    console.log('🔍 Found elements:', {
+                        cachePerformance: !!cacheEl,
+                        filesystemStatus: !!filesystemEl,
+                        accessPatterns: !!accessEl,
+                        resourceUsage: !!resourceEl
+                    });
+                    
+                    if (cacheEl) cacheEl.innerHTML = formatCachePerformance(statsData.cache_performance || {});
+                    if (filesystemEl) filesystemEl.innerHTML = formatFilesystemStatus(statsData.filesystem_metrics || {});
+                    if (accessEl) accessEl.innerHTML = formatAccessPatterns(statsData.access_patterns || {});
+                    if (resourceEl) resourceEl.innerHTML = formatResourceUsage(statsData.resource_utilization || {});
+                    
+                    const tieredEl = document.getElementById('tieredCacheDetails');
+                    const hotEl = document.getElementById('hotContentAnalysis');
+                    if (tieredEl) tieredEl.innerHTML = formatTieredCacheDetails(statsData.cache_performance || {});
+                    if (hotEl) hotEl.innerHTML = formatHotContentAnalysis(statsData.access_patterns || {});
+                    
+                    console.log('✅ VFS tab loaded successfully');
                 } else {
-                    throw new Error(statsData.error || 'Failed to load VFS statistics');
+                    throw new Error(responseData.error || 'Failed to load VFS statistics');
                 }
             } catch (error) {
-                console.error('Error loading VFS data:', error);
+                console.error('❌ Error loading VFS data:', error);
                 document.getElementById('vfs').querySelectorAll('.stat-card div, .expandable-content').forEach(el => {
                     el.innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
                 });
@@ -1283,24 +1599,27 @@ class DashboardTemplateManager:
         async function loadVectorKBTab() {
             try {
                 const vectorResponse = await fetch('/api/vfs/vector-index');
-                const vectorData = await vectorResponse.json();
-                if (!vectorResponse.ok) throw new Error(vectorData.error || 'Failed to load vector index status');
+                const vectorResponseData = await vectorResponse.json();
+                if (!vectorResponse.ok || !vectorResponseData.success) throw new Error(vectorResponseData.error || 'Failed to load vector index status');
+                const vectorData = vectorResponseData.data;
 
                 const kbResponse = await fetch('/api/vfs/knowledge-base');
-                const kbData = await kbResponse.json();
-                if (!kbResponse.ok) throw new Error(kbData.error || 'Failed to load knowledge base status');
+                const kbResponseData = await kbResponse.json();
+                if (!kbResponse.ok || !kbResponseData.success) throw new Error(kbResponseData.error || 'Failed to load knowledge base status');
+                const kbData = kbResponseData.data;
 
                 const cacheResponse = await fetch('/api/vfs/cache');
-                const cacheData = await cacheResponse.json();
-                if (!cacheResponse.ok) throw new Error(cacheData.error || 'Failed to load cache status');
+                const cacheResponseData = await cacheResponse.json();
+                if (!cacheResponse.ok || !cacheResponseData.success) throw new Error(cacheResponseData.error || 'Failed to load cache status');
+                const cacheData = cacheResponseData.data;
 
-                document.getElementById('vectorIndexStatus').innerHTML = formatVectorIndexStatus(vectorData);
-                document.getElementById('knowledgeGraphStatus').innerHTML = formatKnowledgeGraphStatus(kbData);
-                document.getElementById('searchPerformance').innerHTML = formatSearchPerformance(vectorData.search_performance);
-                document.getElementById('contentDistribution').innerHTML = formatContentDistribution(vectorData.content_distribution);
-                document.getElementById('vectorIndexDetails').innerHTML = formatVectorIndexDetails(vectorData);
-                document.getElementById('knowledgeBaseAnalytics').innerHTML = formatKnowledgeBaseAnalytics(kbData);
-                document.getElementById('semanticCachePerformance').innerHTML = formatSemanticCachePerformance(cacheData.semantic_cache);
+                document.getElementById('vectorIndexStatus').innerHTML = formatVectorIndexStatus(vectorData || {});
+                document.getElementById('knowledgeGraphStatus').innerHTML = formatKnowledgeGraphStatus(kbData || {});
+                document.getElementById('searchPerformance').innerHTML = formatSearchPerformance(vectorData.search_performance || {});
+                document.getElementById('contentDistribution').innerHTML = formatContentDistribution(vectorData.content_distribution || {});
+                document.getElementById('vectorIndexDetails').innerHTML = formatVectorIndexDetails(vectorData || {});
+                document.getElementById('knowledgeBaseAnalytics').innerHTML = formatKnowledgeBaseAnalytics(kbData || {});
+                document.getElementById('semanticCachePerformance').innerHTML = formatSemanticCachePerformance(cacheData.semantic_cache || {});
                 
             } catch (error) {
                 console.error('Error loading Vector/KB data:', error);
@@ -1308,6 +1627,283 @@ class DashboardTemplateManager:
                     el.innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
                 });
             }
+        }
+
+        // Vector/KB Helper Functions
+        function formatVectorIndexDetails(data) {
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
+            return `
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <strong>Total Vectors:</strong> ${data.total_vectors || 0}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Dimensions:</strong> ${data.dimensions || 'N/A'}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Index Type:</strong> ${data.index_type || 'N/A'}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Memory Usage:</strong> ${formatBytes(data.memory_usage || 0)}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Last Update:</strong> ${data.last_update ? new Date(data.last_update).toLocaleString() : 'N/A'}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatKnowledgeBaseAnalytics(data) {
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
+            return `
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <strong>Documents:</strong> ${data.document_count || 0}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Entities:</strong> ${data.entity_count || 0}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Relationships:</strong> ${data.relationship_count || 0}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Avg Query Time:</strong> ${data.avg_query_time || 0}ms
+                    </div>
+                    <div class="metric-item">
+                        <strong>Cache Hit Rate:</strong> ${data.cache_hit_rate || 0}%
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // File Manager Helper Functions - Define these before loadFileManagerTab
+        function setupFileManager() {
+            // This function sets up the file manager UI
+            console.log('Setting up file manager...');
+        }
+        
+        function setupDragAndDrop() {
+            const dropArea = document.getElementById('dropZone');
+            if (!dropArea) return;
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+            
+            dropArea.addEventListener('drop', handleDrop, false);
+        }
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        function highlight(e) {
+            document.getElementById('dropZone').classList.add('highlight');
+        }
+        
+        function unhighlight(e) {
+            document.getElementById('dropZone').classList.remove('highlight');
+        }
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            handleFiles(files);
+        }
+        
+        function handleFiles(files) {
+            [...files].forEach(uploadFile);
+        }
+        
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/api/files/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('File uploaded successfully');
+                    refreshFileList();
+                } else {
+                    throw new Error(data.error || 'Upload failed');
+                }
+            })
+            .catch(error => {
+                console.error('Upload error:', error);
+                alert('Upload failed: ' + error.message);
+            });
+        }
+        
+        function uploadSelectedFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length > 0) {
+                handleFiles(fileInput.files);
+            }
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        async function downloadFile(filename) {
+            try {
+                const response = await fetch(`/api/files/${filename}`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Download failed: ' + error.message);
+            }
+        }
+        
+        async function deleteFile(filename) {
+            if (confirm(`Are you sure you want to delete ${filename}?`)) {
+                try {
+                    const response = await fetch(`/api/files/${filename}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        refreshFileList();
+                    } else {
+                        throw new Error(data.error || 'Delete failed');
+                    }
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    alert('Delete failed: ' + error.message);
+                }
+            }
+        }
+
+        function createFolderPrompt() {
+            const folderName = prompt('Enter folder name:');
+            if (folderName) {
+                createFolder(folderName);
+            }
+        }
+
+        async function createFolder(folderName) {
+            try {
+                const response = await fetch('/api/files/create_folder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: folderName })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    refreshFileList();
+                } else {
+                    throw new Error(data.error || 'Create folder failed');
+                }
+            } catch (error) {
+                console.error('Create folder error:', error);
+                alert('Create folder failed: ' + error.message);
+            }
+        }
+
+        async function loadFileManagerTab() {
+            try {
+                console.log('📂 Starting File Manager tab load...');
+                
+                // Initialize file manager UI if not already done
+                if (!window.fileManagerInitialized) {
+                    console.log('🔧 Initializing file manager UI...');
+                    setupFileManager();
+                    window.fileManagerInitialized = true;
+                }
+                
+                // Load current directory contents
+                console.log('📋 Loading file list...');
+                await refreshFileList();
+                
+                // Setup drag and drop functionality
+                console.log('🎯 Setting up drag and drop...');
+                setupDragAndDrop();
+                
+                console.log('✅ File Manager tab loaded successfully');
+            } catch (error) {
+                console.error('❌ Error loading File Manager:', error);
+                document.getElementById('filemanager').innerHTML = `<div style="color: red; padding: 20px;">Error loading File Manager: ${error.message}</div>`;
+            }
+        }
+        
+        async function refreshFileList() {
+            try {
+                console.log('📋 Fetching file list from /api/files/...');
+                const response = await fetch('/api/files/');
+                console.log('📊 File list response status:', response.status);
+                const data = await response.json();
+                console.log('📊 File list data:', data);
+                
+                if (data.success) {
+                    console.log('✅ File list loaded, displaying files:', data.files);
+                    displayFileList(data.files);
+                } else {
+                    throw new Error(data.error || 'Failed to load files');
+                }
+            } catch (error) {
+                console.error('❌ Error loading file list:', error);
+                const fileListEl = document.getElementById('fileList');
+                if (fileListEl) {
+                    fileListEl.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+                } else {
+                    console.error('❌ fileList element not found');
+                }
+            }
+        }
+        
+        function displayFileList(files) {
+            const fileList = document.getElementById('fileList');
+            if (!fileList) return;
+            
+            fileList.innerHTML = files.map(file => `
+                <div class="file-item ${file.type}" data-name="${file.name}">
+                    <span class="file-icon">${file.type === 'directory' ? '📁' : '📄'}</span>
+                    <span class="file-name">${file.name}</span>
+                    <span class="file-size">${formatFileSize(file.size)}</span>
+                    <span class="file-actions">
+                        <button onclick="downloadFile('${file.name}')">📥</button>
+                        <button onclick="deleteFile('${file.name}')">🗑️</button>
+                    </span>
+                </div>
+            `).join('');
         }
         
         let backendConfigCache = {};
@@ -1685,7 +2281,11 @@ class DashboardTemplateManager:
             try {
                 const response = await fetch('/api/insights');
                 const data = await response.json();
-                insightsContent.innerHTML = data.insights || 'No insights available.';
+                if (data.success) {
+                    insightsContent.innerHTML = formatInsights(data.insights);
+                } else {
+                    insightsContent.innerHTML = `<span style="color: red;">Error: ${data.error}</span>`;
+                }
             } catch (error) {
                 insightsContent.innerHTML = '<span style="color: red;">Error loading insights.</span>';
             }
@@ -1721,16 +2321,17 @@ class DashboardTemplateManager:
             }
         }
         
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
             const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
         
         function formatCachePerformance(data) {
-            if (!data) return 'No cache data available';
+            if (!data) return `No cache data available`;
             const tiered = data.tiered_cache || {};
             const semantic = data.semantic_cache || {};
             
@@ -1752,608 +2353,556 @@ class DashboardTemplateManager:
         }
         
         function formatFilesystemStatus(data) {
-            if (!data) return 'No filesystem data available';
-            
+            if (!data) return `No filesystem data available`;
+            const metrics = data;
             return `
                 <div class="metrics-section">
-                    <h4>Mount Points</h4>
-                    ${Object.entries(data.mount_points || {}).map(([mount, info]) => `
-                        <div><strong>${mount}</strong> ${info.status} (${info.size_gb}GB, ${info.operations} ops)</div>
-                    `).join('')}
+                    <h4>Disk Usage</h4>
+                    <div><strong>Total:</strong> ${formatBytes(metrics.disk_usage.total_gb * 1024**3)}</div>
+                    <div><strong>Used:</strong> ${formatBytes(metrics.disk_usage.used_gb * 1024**3)} (${metrics.disk_usage.usage_percent}%)</div>
                 </div>
                 <div class="metrics-section">
-                    <h4>Operations</h4>
-                    <div><strong>Reads:</strong> ${(data.file_operations?.reads || 0).toLocaleString()}</div>
-                    <div><strong>Writes:</strong> ${(data.file_operations?.writes || 0).toLocaleString()}</div>
-                    <div><strong>Bandwidth:</strong> ${data.bandwidth_usage?.read_mbps || 0}MB/s read, ${data.bandwidth_usage?.write_mbps || 0}MB/s write</div>
+                    <h4>IPFS Kit Usage</h4>
+                    <div><strong>Total Size:</strong> ${formatBytes(metrics.ipfs_kit_usage.total_size_mb * 1024**2)}</div>
+                    <div><strong>Total Files:</strong> ${metrics.ipfs_kit_usage.total_files.toLocaleString()}</div>
                 </div>
             `;
         }
         
         function formatAccessPatterns(data) {
-            if (!data) return 'No access pattern data available';
-            
+            if (!data) return `No access pattern data available`;
+            const patterns = data;
             return `
                 <div class="metrics-section">
-                    <h4>Hot Content</h4>
-                    ${(data.hot_content || []).slice(0, 3).map(item => `
-                        <div><strong>${item.cid.substring(0, 8)}...:</strong> ${item.access_count} accesses (${item.size_kb}KB)</div>
+                    <h4>Hot Content (Top 3)</h4>
+                    ${(patterns.hot_content || []).slice(0, 3).map(item => `
+                        <div><strong>${item.path.split('/').pop()}:</strong> ${item.access_count} accesses</div>
                     `).join('')}
                 </div>
                 <div class="metrics-section">
-                    <h4>Content Types</h4>
-                    ${Object.entries(data.content_types || {}).map(([type, percent]) => `
-                        <div><strong>${type}:</strong> ${(percent * 100).toFixed(1)}%</div>
+                    <h4>Operation Distribution</h4>
+                    ${Object.entries(patterns.operation_distribution || {}).map(([type, count]) => `
+                        <div><strong>${type.replace('_', ' ')}:</strong> ${count.toLocaleString()}</div>
                     `).join('')}
                 </div>
             `;
         }
-        
+
         function formatResourceUsage(data) {
-            if (!data) return 'No resource data available';
-            
+            if (!data) return `No resource usage data available`;
+            const usage = data;
             return `
+                <div class="metrics-section">
+                    <h4>CPU Usage</h4>
+                    <div><strong>System:</strong> ${usage.cpu_usage.system_percent}%</div>
+                </div>
                 <div class="metrics-section">
                     <h4>Memory Usage</h4>
-                    <div><strong>Cache:</strong> ${data.memory_usage?.cache_mb || 0}MB</div>
-                    <div><strong>Index:</strong> ${data.memory_usage?.index_mb || 0}MB</div>
-                    <div><strong>Total:</strong> ${data.memory_usage?.total_mb || 0}MB / ${data.memory_usage?.available_mb || 0}MB</div>
-                </div>
-                <div class="metrics-section">
-                    <h4>Disk Usage</h4>
-                    <div><strong>Cache:</strong> ${data.disk_usage?.cache_gb || 0}GB</div>
-                    <div><strong>Available:</strong> ${data.disk_usage?.available_gb || 0}GB</div>
-                    <div><strong>CPU:</strong> ${((data.cpu_usage?.total || 0) * 100).toFixed(1)}%</div>
+                    <div><strong>System:</strong> ${usage.memory_usage.system_used_percent}% (${formatBytes(usage.memory_usage.system_total_mb * 1024**2 - usage.memory_usage.system_available_mb * 1024**2)} / ${formatBytes(usage.memory_usage.system_total_mb * 1024**2)})</div>
+                    <div><strong>Cache:</strong> ${formatBytes(usage.memory_usage.cache_mb * 1024**2)}</div>
+                    <div><strong>Index:</strong> ${formatBytes(usage.memory_usage.index_mb * 1024**2)}</div>
                 </div>
             `;
         }
-        
+
+        function formatInsights(insights) {
+            if (!insights || insights.length === 0) return 'No insights available.';
+            return `<ul>${insights.map(i => `<li><strong>${i.title}:</strong> ${i.description} (Impact: ${i.impact})</li>`).join('')}</ul>`;
+        }
+
         function formatVectorIndexStatus(data) {
-            if (!data) return 'No vector index data available';
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
             return `
                 <div class="metrics-section">
                     <h4>Index Status</h4>
-                    <div><strong>Health:</strong> <span class="status-badge status-${data.index_health === 'healthy' ? 'healthy' : 'unhealthy'}">${data.index_health || 'unknown'}</span></div>
-                    <div><strong>Total Vectors:</strong> ${(data.total_vectors || 0).toLocaleString()}</div>
-                    <div><strong>Index Type:</strong> ${data.index_type || 'N/A'}</div>
-                    <div><strong>Dimension:</strong> ${data.dimension || 'N/A'}</div>
-                    <div><strong>Size:</strong> ${data.index_size_mb || 0}MB</div>
+                    <div><strong>Status:</strong> ${data.status || 'Unknown'}</div>
+                    <div><strong>Total Vectors:</strong> ${data.total_vectors || 0}</div>
+                    <div><strong>Dimensions:</strong> ${data.dimensions || 'N/A'}</div>
+                    <div><strong>Index Size:</strong> ${data.index_size || 'N/A'}</div>
                 </div>
             `;
         }
         
         function formatKnowledgeGraphStatus(data) {
-            if (!data) return 'No knowledge graph data available';
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
             return `
                 <div class="metrics-section">
-                    <h4>Graph Status</h4>
-                    <div><strong>Health:</strong> <span class="status-badge status-${data.graph_health === 'healthy' ? 'healthy' : 'unhealthy'}">${data.graph_health || 'unknown'}</span></div>
-                    <div><strong>Nodes:</strong> ${(data.nodes?.total || 0).toLocaleString()}</div>
-                    <div><strong>Edges:</strong> ${(data.edges?.total || 0).toLocaleString()}</div>
-                    <div><strong>Density:</strong> ${data.graph_metrics?.density || 0}</div>
-                    <div><strong>Components:</strong> ${data.graph_metrics?.connected_components || 0}</div>
+                    <h4>Knowledge Graph</h4>
+                    <div><strong>Nodes:</strong> ${data.total_nodes || 0}</div>
+                    <div><strong>Edges:</strong> ${data.total_edges || 0}</div>
+                    <div><strong>Clusters:</strong> ${data.clusters || 0}</div>
                 </div>
             `;
         }
         
         function formatSearchPerformance(data) {
-            if (!data) return 'No search performance data available';
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
             return `
                 <div class="metrics-section">
-                    <h4>Search Metrics</h4>
-                    <div><strong>Query Time:</strong> ${data.average_query_time_ms || 0}ms</div>
-                    <div><strong>QPS:</strong> ${data.queries_per_second || 0}</div>
-                    <div><strong>Recall@10:</strong> ${((data.recall_at_10 || 0) * 100).toFixed(1)}%</div>
-                    <div><strong>Precision@10:</strong> ${((data.precision_at_10 || 0) * 100).toFixed(1)}%</div>
+                    <h4>Search Performance</h4>
+                    <div><strong>Avg Query Time:</strong> ${data.avg_query_time || 'N/A'}</div>
+                    <div><strong>Throughput:</strong> ${data.throughput || 'N/A'}</div>
+                    <div><strong>Success Rate:</strong> ${data.success_rate || 'N/A'}</div>
                 </div>
             `;
         }
         
         function formatContentDistribution(data) {
-            if (!data) return 'No content distribution data available';
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
             return `
                 <div class="metrics-section">
-                    <h4>Content Types</h4>
-                    ${Object.entries(data).map(([type, count]) => `
-                        <div><strong>${type.replace(/_/g, ' ')}:</strong> ${count.toLocaleString()}</div>
-                    `).join('')}
+                    <h4>Content Distribution</h4>
+                    <div><strong>Text Documents:</strong> ${data.text_documents || 0}</div>
+                    <div><strong>Images:</strong> ${data.images || 0}</div>
+                    <div><strong>Other:</strong> ${data.other || 0}</div>
+                </div>
+            `;
+        }
+        
+        function formatSemanticCachePerformance(data) {
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
+            return `
+                <div class="metrics-section">
+                    <h4>Semantic Cache</h4>
+                    <div><strong>Cache Hit Rate:</strong> ${((data.cache_hit_rate || 0) * 100).toFixed(1)}%</div>
+                    <div><strong>Similarity Threshold:</strong> ${data.similarity_threshold || 'N/A'}</div>
+                    <div><strong>Cache Size:</strong> ${data.cache_size || 'N/A'}</div>
                 </div>
             `;
         }
         
         function formatTieredCacheDetails(data) {
-            if (!data || !data.tiered_cache) return 'No tiered cache data available';
-            const tiered = data.tiered_cache;
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
+            const tiered = data.tiered_cache || {};
+            const memory = tiered.memory_tier || {};
+            const disk = tiered.disk_tier || {};
+            
             return `
-                <div class="metrics-table">
-                    <table style="width: 100%;">
-                        <thead><tr><th>Tier</th><th>Size</th><th>Items</th><th>Hit Rate</th><th>Latency</th></tr></thead>
-                        <tbody>
-                        <tr>
-                            <td>Memory</td>
-                            <td>${tiered.memory_tier?.size_mb || 0}MB</td>
-                            <td>${tiered.memory_tier?.items || 0}</td>
-                            <td>${((tiered.memory_tier?.hit_rate || 0) * 100).toFixed(1)}%</td>
-                            <td>~1ms</td>
-                        </tr>
-                        <tr>
-                            <td>Disk</td>
-                            <td>${tiered.disk_tier?.size_gb || 0}GB</td>
-                            <td>${tiered.disk_tier?.items || 0}</td>
-                            <td>${((tiered.disk_tier?.hit_rate || 0) * 100).toFixed(1)}%</td>
-                            <td>${tiered.disk_tier?.read_latency_ms || 0}ms</td>
-                        </tr>
-                        </tbody>
-                    </table>
+                <div class="metrics-section">
+                    <h4>Memory Tier</h4>
+                    <div><strong>Hit Rate:</strong> ${((memory.hit_rate || 0) * 100).toFixed(1)}%</div>
+                    <div><strong>Size:</strong> ${memory.size_mb || 0}MB</div>
+                    <div><strong>Items:</strong> ${memory.items || 0}</div>
+                </div>
+                <div class="metrics-section">
+                    <h4>Disk Tier</h4>
+                    <div><strong>Hit Rate:</strong> ${((disk.hit_rate || 0) * 100).toFixed(1)}%</div>
+                    <div><strong>Read Latency:</strong> ${disk.read_latency_ms || 0}ms</div>
+                    <div><strong>Write Latency:</strong> ${disk.write_latency_ms || 0}ms</div>
                 </div>
             `;
         }
         
         function formatHotContentAnalysis(data) {
-            if (!data) return 'No hot content data available';
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
+            const hotContent = data.hot_content || [];
+            
             return `
                 <div class="metrics-section">
                     <h4>Most Accessed Content</h4>
-                    ${(data.hot_content || []).map(item => `
-                        <div style="margin-bottom: 8px;">
-                            <strong>${item.cid.substring(0, 12)}...:</strong><br>
-                            <small>Accesses: ${item.access_count} | Size: ${item.size_kb}KB</small>
-                        </div>
+                    ${hotContent.slice(0, 5).map(item => `
+                        <div><strong>${item.path?.split('/').pop() || 'Unknown'}:</strong> ${item.access_count || 0} accesses</div>
                     `).join('')}
                 </div>
-                <div class="metrics-section">
-                    <h4>Geographic Distribution</h4>
-                    <div><strong>Local:</strong> ${((data.geographic_distribution?.local || 0) * 100).toFixed(1)}%</div>
-                    <div><strong>Remote:</strong> ${((data.geographic_distribution?.remote_gateways || 0) * 100).toFixed(1)}%</div>
-                    <div><strong>CDN Hits:</strong> ${((data.geographic_distribution?.cdn_hits || 0) * 100).toFixed(1)}%</div>
-                </div>
-            `;
-        }
-        
-        function formatVectorIndexDetails(data) {
-            if (!data) return 'No vector index details available';
-            return `
-                <div class="metrics-section">
-                    <h4>Index Configuration</h4>
-                    <div><strong>Type:</strong> ${data.index_type || 'N/A'}</div>
-                    <div><strong>Dimension:</strong> ${data.dimension || 'N/A'}</div>
-                    <div><strong>Clusters:</strong> ${data.clusters || 'N/A'}</div>
-                    <div><strong>Last Updated:</strong> ${data.last_updated ? new Date(data.last_updated).toLocaleString() : 'N/A'}</div>
-                </div>
-                <div class="metrics-section">
-                    <h4>Performance Metrics</h4>
-                    <div><strong>Avg Query Time:</strong> ${data.search_performance?.average_query_time_ms || 0}ms</div>
-                    <div><strong>Queries/Second:</strong> ${data.search_performance?.queries_per_second || 0}</div>
-                    <div><strong>Index Size:</strong> ${data.index_size_mb || 0}MB</div>
-                </div>
-            `;
-        }
-        
-        function formatKnowledgeBaseAnalytics(data) {
-            if (!data) return 'No knowledge base analytics available';
-            return `
-                <div class="metrics-section">
-                    <h4>Graph Analytics</h4>
-                    <div><strong>Clustering Coefficient:</strong> ${data.graph_metrics?.clustering_coefficient || 0}</div>
-                    <div><strong>Average Path Length:</strong> ${data.graph_metrics?.average_path_length || 0}</div>
-                    <div><strong>Modularity:</strong> ${data.graph_metrics?.modularity || 0}</div>
-                </div>
-                <div class="metrics-section">
-                    <h4>Content Analysis</h4>
-                    <div><strong>Languages:</strong> ${(data.content_analysis?.languages_detected || []).join(', ')}</div>
-                    <div><strong>Topics:</strong> ${data.content_analysis?.topics_identified || 0}</div>
-                    <div><strong>Sentiment:</strong> 
-                        Pos: ${((data.content_analysis?.sentiment_distribution?.positive || 0) * 100).toFixed(1)}%, 
-                        Neu: ${((data.content_analysis?.sentiment_distribution?.neutral || 0) * 100).toFixed(1)}%, 
-                        Neg: ${((data.content_analysis?.sentiment_distribution?.negative || 0) * 100).toFixed(1)}%
-                    </div>
-                </div>
             `;
         }
 
-        function formatSemanticCachePerformance(data) {
-            if (!data) return 'No semantic cache data available';
-            return `
-                <div class="metrics-section">
-                    <h4>Cache Performance</h4>
-                    <div><strong>Exact Matches:</strong> ${data.exact_matches || 0}</div>
-                    <div><strong>Similarity Matches:</strong> ${data.similarity_matches || 0}</div>
-                    <div><strong>Cache Utilization:</strong> ${((data.cache_utilization || 0) * 100).toFixed(1)}%</div>
-                    <div><strong>Threshold:</strong> ${data.similarity_threshold || 'N/A'}</div>
-                </div>
-                               <div class="metrics-section">
-                    <h4>Model Info</h4>
-                    <div><strong>Embedding Model:</strong> ${data.embedding_model || 'N/A'}</div>
-                </div>
-            `;
-        }
-        
-        // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', function() {
-            refreshData();
-            const autoRefreshCheckbox = document.getElementById('autoRefresh');
-            if (autoRefreshCheckbox) {
-                autoRefreshCheckbox.checked = true;
-                toggleAutoRefresh();
-            }
-            switchTab('overview', { target: document.querySelector('.tab-button') });
+        // Enhanced File Manager Logic
+        const fileManager = {
+            currentPath: '/',
+            files: [],
+            view: 'list',
+            sortBy: 'name',
+            contextTarget: null,
 
-            // Add event listeners for expandable sections
-            document.body.addEventListener('click', function(event) {
-                if (event.target.matches('.expandable-header')) {
-                    event.target.parentElement.classList.toggle('expanded');
-                }
-            });
-        });
-        
-        // File Manager Functions
-        let currentPath = '/';
-        let currentView = 'list';
-        let currentSort = 'name';
-        let files = [];
-        let selectedFiles = [];
-        
-        async function loadFileManager() {
-            try {
-                await loadFiles(currentPath);
-                await loadFileStats();
-                updateBreadcrumb();
-            } catch (error) {
-                console.error('Error loading file manager:', error);
-            }
-        }
-        
-        async function loadFiles(path) {
-            try {
-                const response = await fetch(`/api/files/list?path=${encodeURIComponent(path)}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    files = data.files || [];
-                    displayFiles();
-                } else {
-                    showError('Failed to load files: ' + data.error);
-                }
-            } catch (error) {
-                console.error('Error loading files:', error);
-                showError('Error loading files');
-            }
-        }
-        
-        async function loadFileStats() {
-            try {
-                const response = await fetch('/api/files/stats');
-                const data = await response.json();
-                
-                if (data.success) {
-                    document.getElementById('totalFiles').textContent = data.totalFiles || 0;
-                    document.getElementById('totalSize').textContent = formatFileSize(data.totalSize || 0);
-                    document.getElementById('lastModified').textContent = data.lastModified || 'Never';
-                }
-            } catch (error) {
-                console.error('Error loading file stats:', error);
-            }
-        }
-        
-        function displayFiles() {
-            const fileList = document.getElementById('fileList');
-            
-            if (files.length === 0) {
-                fileList.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">📁</div>
-                        <div>No files found</div>
-                    </div>
-                `;
-                return;
-            }
-            
-            // Sort files
-            const sortedFiles = [...files].sort((a, b) => {
-                switch (currentSort) {
-                    case 'name':
-                        return a.name.localeCompare(b.name);
-                    case 'size':
-                        return (b.size || 0) - (a.size || 0);
-                    case 'modified':
-                        return new Date(b.modified || 0) - new Date(a.modified || 0);
-                    case 'type':
-                        return (a.type || '').localeCompare(b.type || '');
-                    default:
-                        return 0;
-                }
-            });
-            
-            fileList.innerHTML = sortedFiles.map(file => `
-                <div class="file-item" data-path="${file.path}" onclick="selectFile('${file.path}')">
-                    <div class="file-icon">${getFileIcon(file)}</div>
-                    <div class="file-info">
-                        <div class="file-name">${file.name}</div>
-                        <div class="file-meta">
-                            ${file.is_dir ? 'Folder' : formatFileSize(file.size || 0)} • 
-                            ${formatDate(file.modified)}
-                        </div>
-                    </div>
-                    <div class="file-actions">
-                        ${file.is_dir ? 
-                            `<button class="file-action-btn" onclick="event.stopPropagation(); navigateToPath('${file.path}')">Open</button>` :
-                            `<button class="file-action-btn" onclick="event.stopPropagation(); downloadFile('${file.path}')">Download</button>`
-                        }
-                        <button class="file-action-btn" onclick="event.stopPropagation(); renameFile('${file.path}')">Rename</button>
-                        <button class="file-action-btn delete" onclick="event.stopPropagation(); deleteFile('${file.path}')">Delete</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        function getFileIcon(file) {
-            if (file.is_dir) return '📁';
-            
-            const ext = file.name.split('.').pop().toLowerCase();
-            const iconMap = {
-                'txt': '📄', 'md': '📝', 'json': '📋',
-                'js': '📜', 'py': '🐍', 'html': '🌐',
-                'css': '🎨', 'png': '🖼️', 'jpg': '🖼️',
-                'jpeg': '🖼️', 'gif': '🖼️', 'svg': '🖼️',
-                'mp4': '🎬', 'mp3': '🎵', 'wav': '🎵',
-                'pdf': '📕', 'doc': '📘', 'docx': '📘',
-                'zip': '📦', 'tar': '📦', 'gz': '📦'
-            };
-            
-            return iconMap[ext] || '📄';
-        }
-        
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-        
-        function formatDate(dateString) {
-            if (!dateString) return 'Unknown';
-            const date = new Date(dateString);
-            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-        }
-        
-        function navigateToPath(path) {
-            currentPath = path;
-            loadFiles(path);
-            updateBreadcrumb();
-        }
-        
-        function updateBreadcrumb() {
-            const breadcrumbPath = document.getElementById('breadcrumbPath');
-            if (currentPath === '/') {
-                breadcrumbPath.innerHTML = '';
-                return;
-            }
-            
-            const parts = currentPath.split('/').filter(p => p);
-            let currentNavPath = '';
-            
-            breadcrumbPath.innerHTML = parts.map(part => {
-                currentNavPath += '/' + part;
-                return `<span> / </span><span class="breadcrumb-item" onclick="navigateToPath('${currentNavPath}')">${part}</span>`;
-            }).join('');
-        }
-        
-        function selectFile(path) {
-            const fileItems = document.querySelectorAll('.file-item');
-            fileItems.forEach(item => {
-                if (item.dataset.path === path) {
-                    item.classList.toggle('selected');
-                } else {
-                    item.classList.remove('selected');
-                }
-            });
-        }
-        
-        function changeView(view) {
-            currentView = view;
-            const fileList = document.getElementById('fileList');
-            const gridBtn = document.getElementById('gridViewBtn');
-            const listBtn = document.getElementById('listViewBtn');
-            
-            if (view === 'grid') {
-                fileList.classList.add('grid-view');
-                gridBtn.classList.add('active');
-                listBtn.classList.remove('active');
-            } else {
-                fileList.classList.remove('grid-view');
-                listBtn.classList.add('active');
-                gridBtn.classList.remove('active');
-            }
-        }
-        
-        function sortFiles(sortBy) {
-            currentSort = sortBy;
-            displayFiles();
-        }
-        
-        function searchFiles() {
-            const searchTerm = document.getElementById('fileSearch').value.toLowerCase();
-            const fileItems = document.querySelectorAll('.file-item');
-            
-            fileItems.forEach(item => {
-                const fileName = item.querySelector('.file-name').textContent.toLowerCase();
-                if (fileName.includes(searchTerm)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        }
-        
-        function clearSearch() {
-            document.getElementById('fileSearch').value = '';
-            const fileItems = document.querySelectorAll('.file-item');
-            fileItems.forEach(item => {
-                item.style.display = 'flex';
-            });
-        }
-        
-        function refreshFileManager() {
-            loadFiles(currentPath);
-            loadFileStats();
-        }
-        
-        // File operation functions
-        function showCreateDialog() {
-            const name = prompt('Enter folder name:');
-            if (name) {
-                createFolder(name);
-            }
-        }
-        
-        function showUploadDialog() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.multiple = true;
-            input.onchange = (event) => {
-                const files = Array.from(event.target.files);
-                files.forEach(file => uploadFile(file));
-            };
-            input.click();
-        }
-        
-        async function createFolder(name) {
-            try {
-                const response = await fetch('/api/files/create-folder', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        path: currentPath,
-                        name: name 
-                    })
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    loadFiles(currentPath);
-                } else {
-                    showError('Failed to create folder: ' + data.error);
-                }
-            } catch (error) {
-                console.error('Error creating folder:', error);
-                showError('Error creating folder');
-            }
-        }
-        
-        async function uploadFile(file) {
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('path', currentPath);
-                
-                const response = await fetch('/api/files/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    loadFiles(currentPath);
-                } else {
-                    showError('Failed to upload file: ' + data.error);
-                }
-            } catch (error) {
-                console.error('Error uploading file:', error);
-                showError('Error uploading file');
-            }
-        }
-        
-        async function deleteFile(path) {
-            if (!confirm('Are you sure you want to delete this file?')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/files/delete', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: path })
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    loadFiles(currentPath);
-                } else {
-                    showError('Failed to delete file: ' + data.error);
-                }
-            } catch (error) {
-                console.error('Error deleting file:', error);
-                showError('Error deleting file');
-            }
-        }
-        
-        async function renameFile(path) {
-            const currentName = path.split('/').pop();
-            const newName = prompt('Enter new name:', currentName);
-            if (newName && newName !== currentName) {
-                try {
-                    const response = await fetch('/api/files/rename', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            oldPath: path,
-                            newName: newName 
-                        })
+            init() {
+                this.setupEventListeners();
+                this.refresh();
+            },
+
+            setupEventListeners() {
+                const dropZone = document.getElementById('dropZone');
+                const fileList = document.getElementById('fileManagerList');
+
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    document.body.addEventListener(eventName, e => {
+                        e.preventDefault();
+                        e.stopPropagation();
                     });
-                    
+                });
+
+                document.body.addEventListener('dragenter', () => dropZone.style.display = 'flex');
+                dropZone.addEventListener('dragleave', () => dropZone.style.display = 'none');
+                dropZone.addEventListener('drop', e => {
+                    dropZone.style.display = 'none';
+                    this.handleFileUpload(e.dataTransfer.files);
+                });
+
+                fileList.addEventListener('contextmenu', e => {
+                    e.preventDefault();
+                    const target = e.target.closest('.file-item');
+                    if (target) {
+                        this.contextTarget = target;
+                        this.showContextMenu(e.clientX, e.clientY);
+                    }
+                });
+
+                document.addEventListener('click', () => this.hideContextMenu());
+                document.getElementById('contextMenu').addEventListener('click', e => {
+                    const action = e.target.closest('.context-menu-item').dataset.action;
+                    this.handleContextMenuAction(action);
+                });
+            },
+
+            async refresh() {
+                this.renderLoading();
+                try {
+                    const response = await fetch(`/api/files/list?path=${encodeURIComponent(this.currentPath)}`);
                     const data = await response.json();
-                    if (data.success) {
-                        loadFiles(currentPath);
+                    if (data.success && data.data) {
+                        this.files = data.data.files || [];
+                        this.sortFiles();
+                        this.renderFiles();
+                        this.renderBreadcrumb();
+                        this.updateStats();
                     } else {
-                        showError('Failed to rename file: ' + data.error);
+                        this.renderError(data.error || 'Failed to load files');
                     }
                 } catch (error) {
-                    console.error('Error renaming file:', error);
-                    showError('Error renaming file');
+                    this.renderError(error.message);
                 }
-            }
-        }
-        
-        async function downloadFile(path) {
-            try {
-                const response = await fetch(`/api/files/download?path=${encodeURIComponent(path)}`);
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = path.split('/').pop();
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            } catch (error) {
-                console.error('Error downloading file:', error);
-                showError('Error downloading file');
-            }
-        }
-        
-        function showError(message) {
-            alert(message); // Simple error display, could be improved with better UI
-        }
-        
-        // Add file manager to tab switching
-        const originalSwitchTab = switchTab;
-        switchTab = function(tabName, event) {
-            originalSwitchTab(tabName, event);
-            
-            if (tabName === 'filemanager') {
-                loadFileManager();
-            }
+            },
+
+            renderFiles() {
+                const fileList = document.getElementById('fileManagerList');
+                fileList.innerHTML = '';
+                fileList.className = `file-list ${this.view}-view`;
+
+                if (this.files.length === 0) {
+                    fileList.innerHTML = '<div class="empty-state">This folder is empty.</div>';
+                    return;
+                }
+
+                this.files.forEach(file => {
+                    const item = document.createElement('div');
+                    item.className = 'file-item';
+                    item.dataset.path = file.path;
+                    item.dataset.isDir = file.is_dir;
+                    item.innerHTML = this.view === 'list' ? this.renderListItem(file) : this.renderGridItem(file);
+                    
+                    item.addEventListener('dblclick', () => {
+                        if (file.is_dir) {
+                            this.navigateTo(file.path);
+                        } else {
+                            // Implement file preview
+                        }
+                    });
+                    fileList.appendChild(item);
+                });
+            },
+
+            renderListItem(file) {
+                return `
+                    <div class="file-icon">${file.is_dir ? '📁' : '📄'}</div>
+                    <div class="file-info">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-meta">${formatBytes(file.size)} | ${new Date(file.modified * 1000).toLocaleString()}</div>
+                    </div>
+                `;
+            },
+
+            renderGridItem(file) {
+                return `
+                    <div class="file-icon">${file.is_dir ? '📁' : '📄'}</div>
+                    <div class="file-info">
+                        <div class="file-name">${file.name}</div>
+                    </div>
+                `;
+            },
+
+            renderBreadcrumb() {
+                const breadcrumb = document.getElementById('fileManagerBreadcrumb');
+                breadcrumb.innerHTML = '';
+                let path = '';
+                const parts = this.currentPath.split('/').filter(p => p);
+                
+                const root = document.createElement('span');
+                root.className = 'breadcrumb-item';
+                root.textContent = '🏠';
+                root.onclick = () => this.navigateTo('/');
+                breadcrumb.appendChild(root);
+
+                parts.forEach(part => {
+                    path += `/${part}`;
+                    const item = document.createElement('span');
+                    item.className = 'breadcrumb-item';
+                    item.textContent = ` / ${part}`;
+                    const currentPath = path;
+                    item.onclick = () => this.navigateTo(currentPath);
+                    breadcrumb.appendChild(item);
+                });
+            },
+
+            updateStats() {
+                const statsContainer = document.getElementById('fileManagerStats');
+                const totalFiles = this.files.filter(f => !f.is_dir).length;
+                const totalSize = this.files.reduce((acc, f) => acc + (f.is_dir ? 0 : f.size), 0);
+                const lastModified = this.files.length > 0 ? Math.max(...this.files.map(f => f.modified)) : 0;
+
+                statsContainer.innerHTML = `
+                    <div class="stat-item"><span class="label">Files:</span><span class="value">${totalFiles}</span></div>
+                    <div class="stat-item"><span class="label">Size:</span><span class="value">${formatBytes(totalSize)}</span></div>
+                    <div class="stat-item"><span class="label">Modified:</span><span class="value">${lastModified ? new Date(lastModified * 1000).toLocaleDateString() : 'N/A'}</span></div>
+                `;
+            },
+
+            navigateTo(path) {
+                this.currentPath = path;
+                this.refresh();
+            },
+
+            sortFiles(by = this.sortBy) {
+                this.sortBy = by;
+                this.files.sort((a, b) => {
+                    if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+                    if (by === 'name') return a.name.localeCompare(b.name);
+                    if (by === 'size') return b.size - a.size;
+                    if (by === 'modified') return b.modified - a.modified;
+                    return 0;
+                });
+            },
+
+            changeView(view) {
+                this.view = view;
+                document.getElementById('gridViewBtn').classList.toggle('active', view === 'grid');
+                document.getElementById('listViewBtn').classList.toggle('active', view === 'list');
+                this.renderFiles();
+            },
+
+            showContextMenu(x, y) {
+                const menu = document.getElementById('contextMenu');
+                menu.style.display = 'block';
+                menu.style.left = `${x}px`;
+                menu.style.top = `${y}px`;
+            },
+
+            hideContextMenu() {
+                document.getElementById('contextMenu').style.display = 'none';
+            },
+
+            handleContextMenuAction(action) {
+                if (!this.contextTarget) return;
+                const path = this.contextTarget.dataset.path;
+                switch (action) {
+                    case 'rename': this.showRenameModal(path); break;
+                    case 'delete': this.deleteItem(path); break;
+                    case 'move': this.showMoveModal(path); break;
+                    case 'download': this.downloadItem(path); break;
+                }
+            },
+
+            showCreateFolderModal() {
+                this.showModal('createFolderModal');
+            },
+
+            async createNewFolder() {
+                const name = document.getElementById('newFolderName').value;
+                if (!name) return;
+                await this.apiCall('/api/files/create-folder', { path: this.currentPath, name });
+                this.closeModal('createFolderModal');
+                document.getElementById('newFolderName').value = '';
+                this.refresh();
+            },
+
+            showRenameModal(path) {
+                this.contextTarget.dataset.path = path; // Store path for rename
+                document.getElementById('newItemName').value = path.split('/').pop();
+                this.showModal('renameModal');
+            },
+
+            async renameItem() {
+                const oldPath = this.contextTarget.dataset.path;
+                const newName = document.getElementById('newItemName').value;
+                if (!newName) return;
+                const dir = oldPath.substring(0, oldPath.lastIndexOf('/'));
+                const newPath = dir ? `${dir}/${newName}` : newName;
+                await this.apiCall('/api/files/rename', { oldPath, newName: newPath });
+                this.closeModal('renameModal');
+                this.refresh();
+            },
+
+            showMoveModal(path) {
+                this.contextTarget.dataset.path = path; // Store path for move
+                document.getElementById('targetPath').value = this.currentPath;
+                this.showModal('moveModal');
+            },
+
+            async moveItem() {
+                const sourcePath = this.contextTarget.dataset.path;
+                const targetPath = document.getElementById('targetPath').value;
+                if (!targetPath) return;
+                await this.apiCall('/api/files/move', { sourcePath, targetPath: `${targetPath}/${sourcePath.split('/').pop()}` });
+                this.closeModal('moveModal');
+                this.refresh();
+            },
+
+            async deleteItem(path) {
+                if (confirm(`Are you sure you want to delete "${path}"?`)) {
+                    await this.apiCall('/api/files/delete', { path });
+                    this.refresh();
+                }
+            },
+
+            async downloadItem(path) {
+                window.location.href = `/api/files/download?path=${encodeURIComponent(path)}`;
+            },
+
+            triggerUpload() {
+                document.getElementById('fileInput').click();
+            },
+
+            handleFileUpload(files) {
+                const uploadProgress = document.getElementById('uploadProgress');
+                const uploadList = document.getElementById('uploadProgressList');
+                uploadProgress.classList.add('visible');
+
+                Array.from(files).forEach(file => {
+                    const uploadId = `upload-${Date.now()}-${Math.random()}`;
+                    const item = document.createElement('div');
+                    item.className = 'upload-item';
+                    item.id = uploadId;
+                    item.innerHTML = `
+                        <div class="file-name">${file.name}</div>
+                        <div class="progress-bar"><div class="progress-fill"></div></div>
+                        <div class="status">Pending...</div>
+                    `;
+                    uploadList.appendChild(item);
+                    this.uploadFile(file, uploadId);
+                });
+            },
+
+            async uploadFile(file, uploadId) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('path', this.currentPath);
+
+                const response = await fetch('/api/files/upload', {
+                    method: 'POST',
+                    body: formData,
+                    // onUploadProgress can be handled with XMLHttpRequest if needed
+                });
+                
+                const result = await response.json();
+                const item = document.getElementById(uploadId);
+                const statusEl = item.querySelector('.status');
+                const progressFill = item.querySelector('.progress-fill');
+
+                const isSuccess = result.success && (!result.data || result.data.success);
+                if (isSuccess) {
+                    statusEl.textContent = 'Done';
+                    progressFill.style.width = '100%';
+                    this.refresh();
+                    setTimeout(() => item.remove(), 3000);
+                } else {
+                    const errorMsg = result.error || (result.data && result.data.error) || 'Upload failed';
+                    statusEl.textContent = `Error: ${errorMsg}`;
+                    statusEl.style.color = 'red';
+                }
+            },
+
+            async apiCall(endpoint, body) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const data = await response.json();
+                    if (!data.success || (data.data && !data.data.success)) {
+                        const errorMsg = data.error || (data.data && data.data.error) || 'Unknown error';
+                        alert(`Error: ${errorMsg}`);
+                    }
+                    return data;
+                } catch (error) {
+                    alert(`API Error: ${error.message}`);
+                }
+            },
+
+            showModal(id) { document.getElementById(id).style.display = 'block'; },
+            closeModal(id) { document.getElementById(id).style.display = 'none'; },
+            renderLoading() { document.getElementById('fileManagerList').innerHTML = '<div class="loading">Loading...</div>'; },
+            renderError(error) { document.getElementById('fileManagerList').innerHTML = `<div class="empty-state" style="color:red;">${error}</div>`; }
+        };
+
+        // Make functions globally accessible by assigning to window object
+        window.switchTab = switchTab;
+        window.setupDragAndDrop = setupDragAndDrop;
+        window.uploadSelectedFile = uploadSelectedFile;
+        window.createFolderPrompt = createFolderPrompt;
+        window.loadFileManagerTab = loadFileManagerTab;
+        window.downloadFile = downloadFile;
+        window.deleteFile = deleteFile;
+        window.refreshFileList = refreshFileList;
+        window.refreshData = refreshData;
+        window.closeConfigModal = closeConfigModal;
+        window.openLogsModal = openLogsModal;
+        window.closeLogsModal = closeLogsModal;
+
+        // Initial load
+        window.onload = () => {
+            refreshData();
+            fileManager.init();
         };
     </script>
 </body>
 </html>
-'''.strip()
+        '''.strip()
         
-        # Write the template to file
-        with open(template_path, 'w', encoding='utf-8') as f:
+        with open(template_path, "w") as f:
             f.write(template_content)
+            
+        logger.info(f"✓ Dashboard template created at {template_path}")
+        return str(template_path)
+
+    def create_error_template(self, error_details: dict) -> str:
+        """Create a detailed error page template."""
         
-        logger.info(f"Created comprehensive dashboard template at {template_path}")
+        template_path = self.templates_dir / "error.html"
+        
+        template_content = f'''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Server Error</title>
+    <style>
+        body {{ font-family: sans-serif; background: #f8f9fa; color: #343a40; padding: 20px; }}
+        .container {{ max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+        h1 {{ color: #dc3545; }}
+        pre {{ background: #e9ecef; padding: 15px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Server Error</h1>
+        <p><strong>Type:</strong> {error_details.get("error_type", "Unknown")}</p>
+        <p><strong>Message:</strong> {error_details.get("message", "No message")}</p>
+        <p><strong>URL:</strong> {error_details.get("url", "N/A")}</p>
+        <h3>Traceback</h3>
+        <pre>{error_details.get("traceback", "No traceback available")}</pre>
+    </div>
+</body>
+</html>
+        '''.strip()
+        
+        with open(template_path, "w") as f:
+            f.write(template_content)
+            
         return str(template_path)

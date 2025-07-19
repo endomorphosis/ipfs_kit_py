@@ -39,6 +39,8 @@ dependencies = [
     "anyio>=3.7.0", # For async operations with backend flexibility
     "trio>=0.22.0", # Optional backend for anyio
     "cryptography>=38.0.0", # Required for libp2p
+    "toml",
+    "jinja",
 ]
 
 [project.optional-dependencies]

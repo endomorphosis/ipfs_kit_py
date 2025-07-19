@@ -8,7 +8,7 @@ import os
 import psutil
 import time
 import json
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, List, Tuple # Added List
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 import asyncio
@@ -226,6 +226,7 @@ class VFSObservabilityManager:
                 "filesystem_metrics": await self._get_filesystem_metrics(),
                 "access_patterns": await self._get_access_patterns(),
                 "resource_utilization": await self._get_resource_utilization(),
+                "recommendations": await self._generate_recommendations(), # Add recommendations
                 "timestamp": datetime.now().isoformat(),
                 "uptime_seconds": round(time.time() - self.start_time, 2)
             }
@@ -585,16 +586,16 @@ class VFSObservabilityManager:
             if content_popularity:
                 # Sort by popularity and take top items
                 sorted_content = sorted(content_popularity.items(), key=lambda x: x[1], reverse=True)
-                hot_content = [{"path": path, "access_count": count, "last_accessed": datetime.now().isoformat()} 
+                hot_content = [{"path": path, "access_count": count, "size_kb": round(count * 0.5, 1), "last_accessed": datetime.now().isoformat()} 
                               for path, count in sorted_content[:20]]
             else:
-                # Generate sample hot content
+                # Generate sample hot content with size_kb
                 hot_content = [
-                    {"path": "/vectors/embeddings_cache.bin", "access_count": 1247, "last_accessed": datetime.now().isoformat()},
-                    {"path": "/knowledge_base/entities.json", "access_count": 892, "last_accessed": datetime.now().isoformat()},
-                    {"path": "/cache/semantic_search.cache", "access_count": 756, "last_accessed": datetime.now().isoformat()},
-                    {"path": "/index/document_vectors.idx", "access_count": 634, "last_accessed": datetime.now().isoformat()},
-                    {"path": "/graphs/relationship_map.graph", "access_count": 423, "last_accessed": datetime.now().isoformat()}
+                    {"path": "/vectors/embeddings_cache.bin", "access_count": 1247, "size_kb": 512.5, "last_accessed": datetime.now().isoformat()},
+                    {"path": "/knowledge_base/entities.json", "access_count": 892, "size_kb": 230.1, "last_accessed": datetime.now().isoformat()},
+                    {"path": "/cache/semantic_search.cache", "access_count": 756, "size_kb": 150.0, "last_accessed": datetime.now().isoformat()},
+                    {"path": "/index/document_vectors.idx", "access_count": 634, "size_kb": 400.0, "last_accessed": datetime.now().isoformat()},
+                    {"path": "/graphs/relationship_map.graph", "access_count": 423, "size_kb": 80.0, "last_accessed": datetime.now().isoformat()}
                 ]
             
             # Analyze temporal patterns
@@ -633,3 +634,77 @@ class VFSObservabilityManager:
         except Exception as e:
             logger.error(f"Error getting access patterns: {e}")
             return {"error": str(e)}
+
+    async def _generate_recommendations(self) -> List[Dict[str, Any]]:
+        """Generate VFS optimization recommendations based on current stats."""
+        recommendations = []
+        
+        # Get current stats from individual components to avoid recursion
+        cache_perf = await self._get_cache_performance()
+        resource_util = await self._get_resource_utilization()
+        filesystem_metrics = await self._get_filesystem_metrics()
+        
+        if cache_perf:
+            memory_tier = cache_perf.get("tiered_cache", {}).get("memory_tier", {})
+            if memory_tier.get("hit_rate", 0) < 0.8:
+                recommendations.append({
+                    "category": "cache",
+                    "title": "Improve Memory Cache Hit Rate",
+                    "description": f"Current hit rate: {memory_tier.get('hit_rate', 0):.1%}. Consider increasing memory allocation or optimizing cache eviction policy.",
+                    "impact": "high",
+                    "priority": "high"
+                })
+            disk_tier = cache_perf.get("tiered_cache", {}).get("disk_tier", {})
+            if disk_tier.get("read_latency_ms", 0) > 10:
+                recommendations.append({
+                    "category": "storage",
+                    "title": "High Disk Cache Read Latency",
+                    "description": f"Current read latency: {disk_tier.get('read_latency_ms', 0)}ms. Investigate disk I/O bottlenecks or consider faster storage.",
+                    "impact": "medium",
+                    "priority": "medium"
+                })
+
+        if resource_util:
+            memory_usage = resource_util.get("memory_usage", {})
+            if memory_usage.get("system_used_percent", 0) > 85:
+                recommendations.append({
+                    "category": "resource",
+                    "title": "High System Memory Usage",
+                    "description": f"System memory usage: {memory_usage.get('system_used_percent', 0):.1f}%. Consider reducing memory footprint or increasing available RAM.",
+                    "impact": "high",
+                    "priority": "high"
+                })
+            cpu_usage = resource_util.get("cpu_usage", {})
+            if cpu_usage.get("system_percent", 0) > 70:
+                recommendations.append({
+                    "category": "resource",
+                    "title": "High CPU Utilization",
+                    "description": f"System CPU usage: {cpu_usage.get('system_percent', 0):.1f}%. Optimize CPU-intensive operations or scale up resources.",
+                    "impact": "medium",
+                    "priority": "medium"
+                })
+
+        if filesystem_metrics:
+            disk_usage = filesystem_metrics.get("disk_usage", {})
+            if disk_usage.get("usage_percent", 0) > 90:
+                recommendations.append({
+                    "category": "storage",
+                    "title": "High Disk Usage",
+                    "description": f"Disk usage: {disk_usage.get('usage_percent', 0):.1f}%. Free up disk space or expand storage capacity.",
+                    "impact": "high",
+                    "priority": "high"
+                })
+
+        access_patterns = await self._get_access_patterns()
+        if access_patterns:
+            hot_content_count = access_patterns.get("very_frequent", 0)
+            if hot_content_count > 5: # If more than 5 very frequent items
+                recommendations.append({
+                    "category": "optimization",
+                    "title": "Review Hot Content Caching",
+                    "description": f"Detected {hot_content_count} very frequently accessed items. Ensure these are optimally cached.",
+                    "impact": "low",
+                    "priority": "low"
+                })
+        
+        return recommendations

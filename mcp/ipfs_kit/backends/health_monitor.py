@@ -305,6 +305,22 @@ class BackendHealthMonitor:
                         "repo_size": stats.get("RepoSize", 0),
                         "repo_objects": stats.get("NumObjects", 0)
                     })
+
+                # Get bandwidth info
+                bw_result = subprocess.run(
+                    ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/stats/bw"],
+                    capture_output=True, text=True, timeout=5
+                )
+                if bw_result.returncode == 0:
+                    bw_stats = json.loads(bw_result.stdout)
+                    backend["metrics"].update({
+                        "bandwidth_in": bw_stats.get("RateIn", 0),
+                        "bandwidth_out": bw_stats.get("RateOut", 0)
+                    })
+                    backend["detailed_info"].update({
+                        "bandwidth_in": bw_stats.get("RateIn", 0),
+                        "bandwidth_out": bw_stats.get("RateOut", 0)
+                    })
                     
             else:
                 backend["status"] = "stopped"
@@ -430,6 +446,59 @@ class BackendHealthMonitor:
                     backend["metrics"]["version"] = "timeout"
                 except Exception:
                     backend["metrics"]["version"] = "unknown"
+
+                # Try to get chain height and sync status
+                try:
+                    chain_result = subprocess.run(
+                        ["lotus", "sync", "wait"],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if chain_result.returncode == 0:
+                        backend["detailed_info"]["sync_status"] = "synced"
+                        # Attempt to get chain height (requires separate command)
+                        height_result = subprocess.run(
+                            ["lotus", "chain", "head"],
+                            capture_output=True, text=True, timeout=5
+                        )
+                        if height_result.returncode == 0:
+                            backend["detailed_info"]["chain_height"] = height_result.stdout.strip()
+                except subprocess.TimeoutExpired:
+                    backend["detailed_info"]["sync_status"] = "timeout"
+                except Exception:
+                    backend["detailed_info"]["sync_status"] = "unknown"
+
+                # Try to get peer count
+                try:
+                    peers_result = subprocess.run(
+                        ["lotus", "net", "peers"],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    if peers_result.returncode == 0:
+                        peers = peers_result.stdout.strip().split('\n')
+                        backend["detailed_info"]["peers_count"] = len(peers) if peers[0] else 0
+                except subprocess.TimeoutExpired:
+                    backend["detailed_info"]["peers_count"] = "timeout"
+                except Exception:
+                    backend["detailed_info"]["peers_count"] = "unknown"
+
+                # Try to get wallet balance (requires wallet address)
+                try:
+                    wallet_list_result = subprocess.run(
+                        ["lotus", "wallet", "list"],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    if wallet_list_result.returncode == 0 and wallet_list_result.stdout.strip():
+                        wallet_address = wallet_list_result.stdout.strip().split('\n')[0]
+                        balance_result = subprocess.run(
+                            ["lotus", "wallet", "balance", wallet_address],
+                            capture_output=True, text=True, timeout=5
+                        )
+                        if balance_result.returncode == 0:
+                            backend["detailed_info"]["wallet_balance"] = balance_result.stdout.strip()
+                except subprocess.TimeoutExpired:
+                    backend["detailed_info"]["wallet_balance"] = "timeout"
+                except Exception:
+                    backend["detailed_info"]["wallet_balance"] = "unknown"
                     
             else:
                 backend["status"] = "stopped"
@@ -541,7 +610,7 @@ class BackendHealthMonitor:
                     "error": str(e)
                 }
         
-        return results
+        return {"success": True, "backends": results}
     
     async def get_backend_config(self, backend_name: str) -> Dict[str, Any]:
         """Get configuration for a backend."""

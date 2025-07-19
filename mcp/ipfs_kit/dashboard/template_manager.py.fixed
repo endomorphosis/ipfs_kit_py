@@ -1,3 +1,25 @@
+"""
+Dashboard template manager for generating HTML templates.
+"""
+
+from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
+
+class DashboardTemplateManager:
+    """Manages dashboard HTML templates."""
+    
+    def __init__(self, templates_dir: Path):
+        self.templates_dir = templates_dir
+        self.templates_dir.mkdir(exist_ok=True)
+        
+    def create_dashboard_template(self) -> str:
+        """Create the main dashboard template with comprehensive features."""
+        
+        template_path = self.templates_dir / "dashboard.html"
+        
+        template_content = r'''
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -340,6 +362,12 @@
         
         .drop-zone.active {
             display: flex;
+        }
+        
+        .drop-zone.highlight {
+            background: rgba(0, 123, 255, 0.2);
+            border-color: #0056b3;
+            transform: scale(1.02);
         }
         
         .dragging {
@@ -834,7 +862,6 @@
                 <button class="tab-button" onclick="switchTab('vector-kb', event)">🧠 Vector & KB</button>
                 <button class="tab-button" onclick="switchTab('configuration', event)">⚙️ Configuration</button>
                 <button class="tab-button" onclick="switchTab('filemanager', event)">📁 File Manager</button>
-                <button class="tab-button" onclick="switchTab('backends', event)">📦 Backends</button>
                 <button class="tab-button" onclick="switchTab('logs', event)">📋 Logs</button>
             </div>
             
@@ -1034,15 +1061,43 @@
             </div>
             
             <div id="filemanager" class="tab-content">
-                {% include 'file_manager.html' %}
-            </div>
-
-            <div id="backends" class="tab-content">
-                <div id="backend-details-grid" class="backend-grid">
-                    <!-- Backend details will be populated here -->
+                <div class="file-manager-container">
+                    <div class="file-manager-sidebar">
+                        <h4>🗂️ Quick Access</h4>
+                        <div class="quick-access">
+                            <div class="quick-access-item" onclick="fileManager.navigateTo('/')">
+                                <span class="icon">🏠</span>
+                                <span>Root</span>
+                            </div>
+                        </div>
+                        
+                        <h4>📊 File Statistics</h4>
+                        <div class="file-stats" id="fileManagerStats">
+                            <div class="loading">Loading stats...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="file-manager-main">
+                        <div class="file-list-header">
+                            <div class="breadcrumb" id="fileManagerBreadcrumb"></div>
+                            <div class="file-list-controls">
+                                <button class="btn btn-sm" onclick="fileManager.showCreateFolderModal()">📁 New Folder</button>
+                                <button class="btn btn-sm" onclick="fileManager.triggerUpload()">📤 Upload</button>
+                                <input type="file" id="fileInput" multiple style="display:none;" onchange="uploadSelectedFile()">
+                                <input type="text" id="fileSearch" placeholder="Search..." onkeyup="filterFiles(this.value)">
+                                <button class="btn btn-sm" onclick="fileManager.changeView('grid')" id="gridViewBtn">🔲</button>
+                                <button class="btn btn-sm active" onclick="fileManager.changeView('list')" id="listViewBtn">📋</button>
+                            </div>
+                        </div>
+                        
+                        <div class="file-list" id="fileManagerList">
+                            <div class="loading">Loading files...</div>
+                        </div>
+                        <div id="dropZone" class="drop-zone">Drop files here to upload</div>
+                    </div>
                 </div>
             </div>
-
+            
             <div id="logs" class="tab-content">
                 <div id="logsContent">
                     <h3>System Logs</h3>
@@ -1188,57 +1243,12 @@
                 loadVectorKBTab();
             } else if (tabName === 'filemanager') {
                 loadFileManagerTab();
-            } else if (tabName === 'backends') {
-                loadBackendsTab();
             }
         }
 
-        function loadFileManagerTab() {
-            const fileManagerContainer = document.getElementById('filemanager');
-            if (!fileManagerContainer.querySelector('.file-manager-container')) {
-                fetch('file_manager.html')
-                    .then(response => response.text())
-                    .then(html => {
-                        fileManagerContainer.innerHTML = html;
-                        setupDragAndDrop();
-                        fileManager.refresh();
-                    });
-            } else {
-                fileManager.refresh();
-            }
-        }
-
-        function createFolderPrompt() {
-            const folderName = prompt("Enter folder name:");
-            if (folderName) {
-                fileManager.createNewFolder(folderName);
-            }
-        }
-
-        function uploadSelectedFile() {
-            const fileInput = document.getElementById('fileUploadInput');
-            fileInput.click();
-        }
-
-        function setupDragAndDrop() {
-            const dropZone = document.getElementById('dropZone');
-            const fileManagerList = document.getElementById('fileManagerList');
-
-            dropZone.addEventListener('dragover', (event) => {
-                event.preventDefault();
-                dropZone.classList.add('active');
-            });
-
-            dropZone.addEventListener('dragleave', () => {
-                dropZone.classList.remove('active');
-            });
-
-            dropZone.addEventListener('drop', (event) => {
-                event.preventDefault();
-                dropZone.classList.remove('active');
-                const files = event.dataTransfer.files;
-                fileManager.handleFileUpload(files);
-            });
+        // Alias for backward compatibility
+        function showTab(tabName, event) {
+            switchTab(tabName, event);
         }
         
         async function refreshData() {
@@ -1561,6 +1571,270 @@
                     el.innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
                 });
             }
+        }
+
+        // Vector/KB Helper Functions
+        function formatVectorIndexDetails(data) {
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
+            return `
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <strong>Total Vectors:</strong> ${data.total_vectors || 0}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Dimensions:</strong> ${data.dimensions || 'N/A'}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Index Type:</strong> ${data.index_type || 'N/A'}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Memory Usage:</strong> ${formatBytes(data.memory_usage || 0)}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Last Update:</strong> ${data.last_update ? new Date(data.last_update).toLocaleString() : 'N/A'}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatKnowledgeBaseAnalytics(data) {
+            if (!data || typeof data !== 'object') return '<div>No data available</div>';
+            
+            return `
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <strong>Documents:</strong> ${data.document_count || 0}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Entities:</strong> ${data.entity_count || 0}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Relationships:</strong> ${data.relationship_count || 0}
+                    </div>
+                    <div class="metric-item">
+                        <strong>Avg Query Time:</strong> ${data.avg_query_time || 0}ms
+                    </div>
+                    <div class="metric-item">
+                        <strong>Cache Hit Rate:</strong> ${data.cache_hit_rate || 0}%
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // File Manager Helper Functions - Define these before loadFileManagerTab
+        function setupFileManager() {
+            // This function sets up the file manager UI
+            console.log('Setting up file manager...');
+        }
+        
+        function setupDragAndDrop() {
+            const dropArea = document.getElementById('dropZone');
+            if (!dropArea) return;
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+            
+            dropArea.addEventListener('drop', handleDrop, false);
+        }
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        function highlight(e) {
+            document.getElementById('dropZone').classList.add('highlight');
+        }
+        
+        function unhighlight(e) {
+            document.getElementById('dropZone').classList.remove('highlight');
+        }
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            handleFiles(files);
+        }
+        
+        function handleFiles(files) {
+            [...files].forEach(uploadFile);
+        }
+        
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/api/files/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('File uploaded successfully');
+                    refreshFileList();
+                } else {
+                    throw new Error(data.error || 'Upload failed');
+                }
+            })
+            .catch(error => {
+                console.error('Upload error:', error);
+                alert('Upload failed: ' + error.message);
+            });
+        }
+        
+        function uploadSelectedFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length > 0) {
+                handleFiles(fileInput.files);
+            }
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        async function downloadFile(filename) {
+            try {
+                const response = await fetch(`/api/files/${filename}`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Download failed: ' + error.message);
+            }
+        }
+        
+        async function deleteFile(filename) {
+            if (confirm(`Are you sure you want to delete ${filename}?`)) {
+                try {
+                    const response = await fetch(`/api/files/${filename}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        refreshFileList();
+                    } else {
+                        throw new Error(data.error || 'Delete failed');
+                    }
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    alert('Delete failed: ' + error.message);
+                }
+            }
+        }
+
+        function createFolderPrompt() {
+            const folderName = prompt('Enter folder name:');
+            if (folderName) {
+                createFolder(folderName);
+            }
+        }
+
+        async function createFolder(folderName) {
+            try {
+                const response = await fetch('/api/files/create_folder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: folderName })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    refreshFileList();
+                } else {
+                    throw new Error(data.error || 'Create folder failed');
+                }
+            } catch (error) {
+                console.error('Create folder error:', error);
+                alert('Create folder failed: ' + error.message);
+            }
+        }
+
+        async function loadFileManagerTab() {
+            try {
+                console.log('Loading File Manager tab...');
+                
+                // Initialize file manager UI if not already done
+                if (!window.fileManagerInitialized) {
+                    setupFileManager();
+                    window.fileManagerInitialized = true;
+                }
+                
+                // Load current directory contents
+                await refreshFileList();
+                
+                // Setup drag and drop functionality
+                setupDragAndDrop();
+                
+            } catch (error) {
+                console.error('Error loading File Manager:', error);
+                document.getElementById('filemanager').innerHTML = `<div style="color: red; padding: 20px;">Error loading File Manager: ${error.message}</div>`;
+            }
+        }
+        
+        async function refreshFileList() {
+            try {
+                const response = await fetch('/api/files/');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayFileList(data.files);
+                } else {
+                    throw new Error(data.error || 'Failed to load files');
+                }
+            } catch (error) {
+                console.error('Error loading file list:', error);
+                document.getElementById('fileList').innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function displayFileList(files) {
+            const fileList = document.getElementById('fileList');
+            if (!fileList) return;
+            
+            fileList.innerHTML = files.map(file => `
+                <div class="file-item ${file.type}" data-name="${file.name}">
+                    <span class="file-icon">${file.type === 'directory' ? '📁' : '📄'}</span>
+                    <span class="file-name">${file.name}</span>
+                    <span class="file-size">${formatFileSize(file.size)}</span>
+                    <span class="file-actions">
+                        <button onclick="downloadFile('${file.name}')">📥</button>
+                        <button onclick="deleteFile('${file.name}')">🗑️</button>
+                    </span>
+                </div>
+            `).join('');
         }
         
         let backendConfigCache = {};
@@ -1975,41 +2249,6 @@
                 autoRefreshInterval = setInterval(refreshData, 30000);
             } else {
                 clearInterval(autoRefreshInterval);
-            }
-        }
-
-        async function loadBackendsTab() {
-            const grid = document.getElementById('backend-details-grid');
-            grid.innerHTML = '';
-
-            try {
-                const response = await fetch('/api/v0/storage/backends');
-                const data = await response.json();
-
-                for (const backendName in data.backends) {
-                    const backendResponse = await fetch(`/api/v0/storage/backends/${backendName}`);
-                    const backendData = await backendResponse.json();
-                    const backend = backendData.backend;
-
-                    const card = document.createElement('div');
-                    card.className = `backend-card ${backend.status}`;
-
-                    card.innerHTML = `
-                        <div class="backend-header">
-                            <h3>${backend.name}</h3>
-                            <div class="status-badge status-${backend.status}">${backend.status}</div>
-                        </div>
-                        <p><strong>Version:</strong> ${backend.stats.version || 'N/A'}</p>
-                        <p><strong>Health:</strong> ${backend.stats.health || 'N/A'}</p>
-                        <p><strong>Errors:</strong> ${backend.stats.errors || 'N/A'}</p>
-                        <p><strong>Bandwidth (in/out):</strong> ${backend.stats.traffic_in_mbps || 'N/A'} / ${backend.stats.traffic_out_mbps || 'N/A'} Mbps</p>
-                        <p><strong>Storage (used/total):</strong> ${backend.stats.storage_used_gb || 'N/A'} / ${backend.stats.storage_total_gb || 'N/A'} GB</p>
-                    `;
-
-                    grid.appendChild(card);
-                }
-            } catch (error) {
-                console.error('Error loading backend details:', error);
             }
         }
         
@@ -2437,6 +2676,48 @@
             fileManager.init();
         };
     </script>
-    <script src="/static/js/file_manager.js"></script>
 </body>
 </html>
+        '''.strip()
+        
+        with open(template_path, "w") as f:
+            f.write(template_content)
+            
+        logger.info(f"✓ Dashboard template created at {template_path}")
+        return str(template_path)
+
+    def create_error_template(self, error_details: dict) -> str:
+        """Create a detailed error page template."""
+        
+        template_path = self.templates_dir / "error.html"
+        
+        template_content = f'''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Server Error</title>
+    <style>
+        body {{ font-family: sans-serif; background: #f8f9fa; color: #343a40; padding: 20px; }}
+        .container {{ max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+        h1 {{ color: #dc3545; }}
+        pre {{ background: #e9ecef; padding: 15px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Server Error</h1>
+        <p><strong>Type:</strong> {error_details.get("error_type", "Unknown")}</p>
+        <p><strong>Message:</strong> {error_details.get("message", "No message")}</p>
+        <p><strong>URL:</strong> {error_details.get("url", "N/A")}</p>
+        <h3>Traceback</h3>
+        <pre>{error_details.get("traceback", "No traceback available")}</pre>
+    </div>
+</body>
+</html>
+        '''.strip()
+        
+        with open(template_path, "w") as f:
+            f.write(template_content)
+            
+        return str(template_path)

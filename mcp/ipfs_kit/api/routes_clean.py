@@ -15,7 +15,6 @@ import logging
 from .health_endpoints import HealthEndpoints
 from .config_endpoints import ConfigEndpoints
 from .vfs_endpoints import VFSEndpoints
-from .file_endpoints import FileEndpoints
 from .websocket_handler import WebSocketHandler
 
 logger = logging.getLogger(__name__)
@@ -35,7 +34,6 @@ class APIRoutes:
         self.health_endpoints = HealthEndpoints(backend_monitor)
         self.config_endpoints = ConfigEndpoints(backend_monitor)
         self.vfs_endpoints = VFSEndpoints(backend_monitor, vfs_observer)
-        self.file_endpoints = FileEndpoints()
         self.websocket_handler = WebSocketHandler(websocket_manager)
         
         # Setup error handling
@@ -98,11 +96,6 @@ class APIRoutes:
         async def dashboard(request: Request):
             return self.templates.TemplateResponse("index.html", {"request": request})
         
-        # Simple favicon route
-        @self.app.get("/favicon.ico")
-        async def favicon():
-            return JSONResponse({"message": "No favicon configured"}, status_code=404)
-        
         # Health endpoints with enhanced error handling
         @self.app.get("/api/health")
         async def health_check():
@@ -114,17 +107,10 @@ class APIRoutes:
         @self.app.get("/api/backends")
         async def get_backends():
             return await self._safe_endpoint_call(
-                self.backend_monitor.check_all_backends,
+                self.health_endpoints.get_all_backends,
                 "all_backends"
             )
         
-        @self.app.get("/api/backends/status")
-        async def get_all_backends_status():
-            return await self._safe_endpoint_call(
-                self.health_endpoints.get_all_backends_status,
-                "all_backends_status"
-            )
-
         @self.app.get("/api/backends/{backend_name}")
         async def get_backend_status(backend_name: str):
             return await self._safe_endpoint_call(
@@ -149,20 +135,6 @@ class APIRoutes:
                 backend_name=backend_name
             )
         
-        @self.app.get("/api/backends/{backend_name}/logs")
-        async def get_backend_logs(backend_name: str):
-            return await self._safe_endpoint_call(
-                lambda: self._get_backend_logs(backend_name),
-                "backend_logs"
-            )
-        
-        @self.app.post("/api/backends/{backend_name}/restart")
-        async def restart_backend(backend_name: str):
-            return await self._safe_endpoint_call(
-                lambda: self._restart_backend(backend_name),
-                "restart_backend"
-            )
-        
         # Tools endpoint
         @self.app.get("/api/tools")
         async def get_tools():
@@ -170,15 +142,6 @@ class APIRoutes:
             return await self._safe_endpoint_call(
                 self._get_available_tools,
                 "tools"
-            )
-
-        # Insights endpoint for dashboard analytics
-        @self.app.get("/api/insights")
-        async def get_insights():
-            """Get comprehensive system insights for dashboard."""
-            return await self._safe_endpoint_call(
-                self._get_system_insights,
-                "insights"
             )
         
         # Configuration endpoints with enhanced error handling
@@ -230,23 +193,22 @@ class APIRoutes:
         async def import_config(request: Request):
             import_data = await request.json()
             return await self._safe_endpoint_call(
-                lambda: self.config_endpoints.export_config(),  # Use export for now since import doesn't exist
+                lambda: self.config_endpoints.import_config(import_data),
                 "import_config"
             )
         
         # VFS and file management endpoints
-        # VFS endpoints with comprehensive error handling
         @self.app.get("/api/vfs/status")
         async def get_vfs_status():
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.get_vfs_analytics,
+                self.vfs_endpoints.get_vfs_status,
                 "vfs_status"
             )
         
         @self.app.get("/api/vfs/statistics")
         async def get_vfs_statistics():
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.get_vfs_analytics,
+                self.vfs_endpoints.get_vfs_statistics,
                 "vfs_statistics"
             )
         
@@ -257,54 +219,12 @@ class APIRoutes:
                 "vfs_cache"
             )
         
-        @self.app.get("/api/vfs/health")
-        async def get_vfs_health():
-            return await self._safe_endpoint_call(
-                self.vfs_endpoints.get_vfs_health,
-                "vfs_health"
-            )
-        
-        @self.app.get("/api/vfs/performance")
-        async def get_vfs_performance():
-            return await self._safe_endpoint_call(
-                self.vfs_endpoints.get_vfs_performance,
-                "vfs_performance"
-            )
-        
-        @self.app.get("/api/vfs/vector-index")
-        async def get_vfs_vector_index():
-            return await self._safe_endpoint_call(
-                self.vfs_endpoints.get_vfs_vector_index,
-                "vfs_vector_index"
-            )
-        
-        @self.app.get("/api/vfs/knowledge-base")
-        async def get_vfs_knowledge_base():
-            return await self._safe_endpoint_call(
-                self.vfs_endpoints.get_vfs_knowledge_base,
-                "vfs_knowledge_base"
-            )
-        
-        @self.app.get("/api/vfs/recommendations")
-        async def get_vfs_recommendations():
-            return await self._safe_endpoint_call(
-                self.vfs_endpoints.get_vfs_recommendations,
-                "vfs_recommendations"
-            )
-        
-        # Simple test file endpoint
-        @self.app.get("/api/files/")
-        async def simple_list_files(path: str = ""):
-            try:
-                return {"success": True, "files": [], "message": "File endpoint working", "path": path}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
-        
+        # File Management Routes
         @self.app.get("/api/files/list", tags=["File Manager"])
         async def list_files_endpoint(path: str = "/"):
             """List files and directories in the specified path."""
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.list_files,
+                self._list_files,
                 "list_files",
                 path=path
             )
@@ -314,7 +234,7 @@ class APIRoutes:
             """Create a new folder."""
             data = await request.json()
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.create_folder,
+                self._create_folder,
                 "create_folder",
                 path=data.get("path", "/"),
                 name=data.get("name")
@@ -325,7 +245,7 @@ class APIRoutes:
             """Delete a file or directory."""
             data = await request.json()
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.delete_item,
+                self._delete_file,
                 "delete_file",
                 path=data.get("path")
             )
@@ -335,7 +255,7 @@ class APIRoutes:
             """Rename a file or directory."""
             data = await request.json()
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.rename_item,
+                self._rename_file,
                 "rename_file",
                 old_path=data.get("oldPath"),
                 new_name=data.get("newName")
@@ -346,7 +266,7 @@ class APIRoutes:
             """Move a file or directory to a new location."""
             data = await request.json()
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.move_item,
+                self._move_item,
                 "move_file",
                 source_path=data.get("sourcePath"),
                 target_path=data.get("targetPath")
@@ -366,55 +286,64 @@ class APIRoutes:
         async def download_file_endpoint(path: str):
             """Download a file."""
             result = await self._safe_endpoint_call(
-                self.vfs_endpoints.download_file,
+                self._download_file,
                 "download_file",
                 path=path
             )
             
             if result.get("success"):
-                from fastapi.responses import FileResponse
-                # Assuming download_file returns the absolute path to the file
-                file_path = result["file_path"]
-                file_name = result["name"]
-                return FileResponse(path=file_path, filename=file_name, media_type="application/octet-stream")
+                from fastapi.responses import Response
+                return Response(
+                    content=result["content"],
+                    media_type="application/octet-stream",
+                    headers={"Content-Disposition": f"attachment; filename={result['name']}"}
+                )
             else:
-                raise HTTPException(status_code=404, detail=result.get("error", "File not found"))
-
+                return JSONResponse(status_code=404, content=result)
+        
+        # Analytics and monitoring endpoints
+        @self.app.get("/api/analytics/comprehensive")
+        async def get_comprehensive_analytics():
+            return await self._safe_endpoint_call(
+                self._get_comprehensive_monitoring,
+                "comprehensive_analytics"
+            )
+        
+        @self.app.get("/api/analytics/files")
+        async def get_file_analytics():
+            return await self._safe_endpoint_call(
+                self._get_file_stats,
+                "file_analytics"
+            )
+        
         # WebSocket endpoint
-        @self.app.websocket("/ws")
-        async def websocket_endpoint(websocket: WebSocket):
-            await self.websocket_handler.handle_websocket(websocket)
-
+        @self.app.websocket("/ws/{client_id}")
+        async def websocket_endpoint(websocket: WebSocket, client_id: str):
+            await self.websocket_handler.handle_connection(websocket, client_id)
+    
     def _get_current_timestamp(self) -> str:
         """Get current timestamp in ISO format."""
         from datetime import datetime
         return datetime.now().isoformat()
-
+    
     async def _get_available_tools(self) -> Dict[str, Any]:
-        """Get all available MCP tools."""
+        """Get all available MCP tools with enhanced error handling."""
         try:
-            # For now, return a basic tools list
-            # In the future, integrate with tool manager
+            tools = []
+            if hasattr(self.backend_monitor, '_tools') and self.backend_monitor._tools:
+                tools = self.backend_monitor._tools
+            
             return {
                 "success": True,
                 "tools": [
                     {
-                        "name": "vfs_analytics",
-                        "description": "VFS Analytics and monitoring",
-                        "category": "filesystem"
-                    },
-                    {
-                        "name": "backend_monitoring",
-                        "description": "Backend health monitoring",
-                        "category": "monitoring"
-                    },
-                    {
-                        "name": "config_management",
-                        "description": "Configuration management",
-                        "category": "configuration"
+                        "name": tool.name,
+                        "description": tool.description,
+                        "input_schema": tool.input_schema
                     }
+                    for tool in tools
                 ],
-                "count": 3,
+                "count": len(tools),
                 "timestamp": self._get_current_timestamp()
             }
         except Exception as e:
@@ -427,78 +356,76 @@ class APIRoutes:
                 "timestamp": self._get_current_timestamp()
             }
 
-    async def _get_system_insights(self) -> Dict[str, Any]:
-        """Get comprehensive system insights for dashboard."""
-        try:
-            vfs_stats = await self.vfs_observer.get_vfs_statistics()
-            recommendations = vfs_stats.get("recommendations", [])
+    # File management implementation methods
+    async def _list_files(self, path: str = "/") -> Dict[str, Any]:
+        return await self.vfs_endpoints.list_files(path)
 
+    async def _get_file_stats(self) -> Dict[str, Any]:
+        return await self.vfs_endpoints.get_vfs_statistics()
+
+    async def _create_folder(self, path: str, name: str) -> Dict[str, Any]:
+        return await self.vfs_endpoints.create_folder(path, name)
+
+    async def _upload_file(self, request: Request) -> Dict[str, Any]:
+        async with request.form() as form:
+            path = form.get("path", "/")
+            file = form["file"]
+            return await self.vfs_endpoints.upload_file(path, file)
+
+    async def _delete_file(self, path: str) -> Dict[str, Any]:
+        return await self.vfs_endpoints.delete_item(path)
+
+    async def _rename_file(self, old_path: str, new_name: str) -> Dict[str, Any]:
+        return await self.vfs_endpoints.rename_item(old_path, new_name)
+
+    async def _download_file(self, path: str) -> Dict[str, Any]:
+        return await self.vfs_endpoints.download_file(path)
+
+    async def _move_item(self, source_path: str, target_path: str) -> Dict[str, Any]:
+        """Helper to move a file or folder."""
+        return await self.vfs_endpoints.move_item(source_path, target_path)
+
+    async def _get_comprehensive_monitoring(self) -> Dict[str, Any]:
+        """Get comprehensive monitoring data for the monitoring tab."""
+        try:
+            backend_health_task = self.backend_monitor.check_all_backends()
+            vfs_stats_task = self.vfs_endpoints.get_vfs_statistics()
+            file_stats_task = self._get_file_stats()
+            
+            backend_health, vfs_stats, file_stats = await asyncio.gather(
+                backend_health_task,
+                vfs_stats_task,
+                file_stats_task,
+                return_exceptions=True
+            )
+            
             return {
                 "success": True,
-                "insights": recommendations,
-                "summary": {
-                    "total_insights": len(recommendations),
-                    "high_priority": len([i for i in recommendations if i.get("priority") == "high"]),
-                    "medium_priority": len([i for i in recommendations if i.get("priority") == "medium"]),
-                    "low_priority": len([i for i in recommendations if i.get("priority") == "low"])
-                },
+                "backend_health": backend_health if not isinstance(backend_health, Exception) else {"error": str(backend_health)},
+                "vfs_statistics": vfs_stats if not isinstance(vfs_stats, Exception) else {"error": str(vfs_stats)},
+                "file_statistics": file_stats if not isinstance(file_stats, Exception) else {"error": str(file_stats)},
                 "timestamp": self._get_current_timestamp()
             }
         except Exception as e:
-            logger.error(f"Error getting system insights: {e}", exc_info=True)
-            return {
-                "success": False, 
-                "error": str(e),
-                "timestamp": self._get_current_timestamp()
-            }
-
-    async def _get_backend_logs(self, backend_name: str) -> Dict[str, Any]:
-        """Get logs for a specific backend."""
-        try:
-            # For now, return mock logs - in a real implementation, you'd read actual log files
-            import os
-            log_file = f"/tmp/ipfs_kit_logs/{backend_name}.log"
-            
-            if os.path.exists(log_file):
-                with open(log_file, 'r') as f:
-                    logs = f.readlines()[-100:]  # Last 100 lines
-            else:
-                logs = [f"No log file found for {backend_name}"]
-            
-            return {
-                "success": True,
-                "backend": backend_name,
-                "logs": logs,
-                "count": len(logs),
-                "timestamp": self._get_current_timestamp()
-            }
-        except Exception as e:
-            logger.error(f"Error getting logs for {backend_name}: {e}")
+            logger.error(f"Error getting comprehensive monitoring: {e}")
             return {
                 "success": False,
                 "error": str(e),
-                "backend": backend_name,
                 "timestamp": self._get_current_timestamp()
             }
 
-    async def _restart_backend(self, backend_name: str) -> Dict[str, Any]:
-        """Restart a specific backend."""
-        try:
-            # For now, return a mock restart response
-            # In a real implementation, you'd trigger an actual restart
-            logger.info(f"Restart requested for backend: {backend_name}")
-            
-            return {
-                "success": True,
-                "message": f"Restart initiated for {backend_name}",
-                "backend": backend_name,
-                "timestamp": self._get_current_timestamp()
-            }
-        except Exception as e:
-            logger.error(f"Error restarting {backend_name}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "backend": backend_name,
-                "timestamp": self._get_current_timestamp()
-            }
+    def _get_file_type(self, filename: str) -> str:
+        """Get file type based on extension."""
+        ext = filename.split('.')[-1].lower() if '.' in filename else ''
+        
+        type_map = {
+            'txt': 'text', 'md': 'markdown', 'json': 'json',
+            'js': 'javascript', 'py': 'python', 'html': 'html',
+            'css': 'css', 'png': 'image', 'jpg': 'image',
+            'jpeg': 'image', 'gif': 'image', 'svg': 'image',
+            'mp4': 'video', 'mp3': 'audio', 'wav': 'audio',
+            'pdf': 'pdf', 'doc': 'document', 'docx': 'document',
+            'zip': 'archive', 'tar': 'archive', 'gz': 'archive'
+        }
+        
+        return type_map.get(ext, 'unknown')

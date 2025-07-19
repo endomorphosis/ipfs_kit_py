@@ -534,3 +534,30 @@ class ConfigEndpoints:
                 return True
         
         return False
+
+    async def get_global_config(self) -> Dict[str, Any]:
+        """Get global configuration for the dashboard."""
+        try:
+            config = {
+                "package": self.get_package_config(),
+                "system": self._get_system_config(),
+                "backends": await self._get_all_backend_configs(),
+                "dashboard": self._get_dashboard_config(),
+                "monitoring": self._get_monitoring_config(),
+                "vfs": self._get_vfs_config(),
+                "security": self._get_security_config(),
+                "performance": self._get_performance_config()
+            }
+            
+            return {
+                "success": True,
+                "config": config,
+                "meta": {
+                    "config_version": "1.0",
+                    "last_modified": self._get_config_mtime(),
+                    "config_file": str(self.config_file)
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error getting global configuration: {e}")
+            return {"success": False, "error": str(e)}

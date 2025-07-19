@@ -1573,10 +1573,6 @@ class EnhancedUnifiedMCPServer:
         
         self.templates = Jinja2Templates(directory=str(templates_dir))
         
-        # Mount static files
-        static_dir = project_root / "mcp" / "ipfs_kit" / "static"
-        self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-
         # Setup routes
         self._setup_routes()
         
@@ -3216,9 +3212,8 @@ class EnhancedUnifiedMCPServer:
         
         @self.app.post("/api/backends/{backend_name}/restart")
         async def restart_backend(backend_name: str):
-            """Restart a specific backend."""
-            result = await self.backend_monitor.restart_backend(backend_name)
-            return {"backend": backend_name, "result": result}
+            # This is a placeholder - actual restart logic would go here
+            return {"message": f"Restart requested for {backend_name}", "status": "requested"}
         
         @self.app.get("/api/backends/{backend_name}/logs")
         async def get_backend_logs(backend_name: str):

@@ -17,6 +17,17 @@ class HealthEndpoints:
         self.backend_monitor = backend_monitor
         self.start_time = time.time()
     
+    async def get_all_backends_status(self) -> Dict[str, Any]:
+        """Get all backends with their full status."""
+        try:
+            backends_status = {}
+            for backend_name in self.backend_monitor.backends.keys():
+                backends_status[backend_name] = await self.get_backend_detailed(backend_name)
+            return backends_status
+        except Exception as e:
+            logger.error(f"Error getting all backends status: {e}")
+            return {"error": str(e)}
+
     async def get_health(self) -> Dict[str, Any]:
         """Get comprehensive health status."""
         try:
@@ -93,6 +104,113 @@ class HealthEndpoints:
         except Exception as e:
             logger.error(f"Error restarting backend {backend_name}: {e}")
             return {"error": str(e)}
+    
+    async def get_comprehensive_monitoring(self) -> Dict[str, Any]:
+        """Get comprehensive monitoring data."""
+        try:
+            # Get all backends with detailed status
+            backends_status = await self.get_all_backends_status()
+            
+            # Get system performance
+            process = psutil.Process()
+            performance = {
+                "memory_usage_mb": process.memory_info().rss / 1024 / 1024,
+                "cpu_usage_percent": process.cpu_percent(),
+                "uptime_seconds": time.time() - self.start_time
+            }
+            
+            # Get VFS health if available
+            vfs_health = {}
+            if hasattr(self.backend_monitor, 'vfs_observability_manager'):
+                vfs_health = await self.backend_monitor.vfs_observability_manager.get_vfs_health()
+            
+            return {
+                "status": "ok",
+                "timestamp": time.time(),
+                "performance": performance,
+                "backends": backends_status,
+                "vfs_health": vfs_health
+            }
+        except Exception as e:
+            logger.error(f"Error getting comprehensive monitoring: {e}")
+            return {"error": str(e), "status": "error"}
+    
+    async def get_monitoring_metrics(self) -> Dict[str, Any]:
+        """Get monitoring metrics."""
+        try:
+            # Get system metrics
+            process = psutil.Process()
+            metrics = {
+                "memory_usage_mb": process.memory_info().rss / 1024 / 1024,
+                "cpu_usage_percent": process.cpu_percent(),
+                "uptime_seconds": time.time() - self.start_time,
+                "timestamp": time.time()
+            }
+            
+            # Get backend metrics
+            backend_metrics = {}
+            for backend_name in self.backend_monitor.backends.keys():
+                backend_health = await self.backend_monitor.check_backend_health(backend_name)
+                backend_metrics[backend_name] = {
+                    "status": backend_health.get("status", "unknown"),
+                    "response_time_ms": backend_health.get("response_time_ms", 0),
+                    "last_check": backend_health.get("timestamp", 0)
+                }
+            
+            metrics["backends"] = backend_metrics
+            return metrics
+        except Exception as e:
+            logger.error(f"Error getting monitoring metrics: {e}")
+            return {"error": str(e)}
+    
+    async def get_monitoring_alerts(self) -> Dict[str, Any]:
+        """Get monitoring alerts."""
+        try:
+            alerts = []
+            
+            # Check for backend alerts
+            for backend_name in self.backend_monitor.backends.keys():
+                backend_health = await self.backend_monitor.check_backend_health(backend_name)
+                if backend_health.get("status") != "healthy":
+                    alerts.append({
+                        "type": "backend_unhealthy",
+                        "severity": "warning",
+                        "message": f"Backend {backend_name} is {backend_health.get('status', 'unknown')}",
+                        "timestamp": time.time(),
+                        "backend": backend_name
+                    })
+            
+            # Check for system alerts
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / 1024 / 1024
+            cpu_percent = process.cpu_percent()
+            
+            if memory_mb > 1000:  # Alert if memory usage > 1GB
+                alerts.append({
+                    "type": "high_memory_usage",
+                    "severity": "warning",
+                    "message": f"High memory usage: {memory_mb:.1f}MB",
+                    "timestamp": time.time(),
+                    "value": memory_mb
+                })
+            
+            if cpu_percent > 80:  # Alert if CPU usage > 80%
+                alerts.append({
+                    "type": "high_cpu_usage",
+                    "severity": "warning",
+                    "message": f"High CPU usage: {cpu_percent:.1f}%",
+                    "timestamp": time.time(),
+                    "value": cpu_percent
+                })
+            
+            return {
+                "alerts": alerts,
+                "count": len(alerts),
+                "timestamp": time.time()
+            }
+        except Exception as e:
+            logger.error(f"Error getting monitoring alerts: {e}")
+            return {"error": str(e), "alerts": [], "count": 0}
     
     async def get_backend_logs(self, backend_name: str) -> Dict[str, Any]:
         """Get backend logs."""

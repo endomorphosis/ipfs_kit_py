@@ -15,16 +15,12 @@ from typing import Dict, Any, List, Optional, Set
 from pathlib import Path
 
 # Web framework imports
-try:
-    from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
-    from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
-    from fastapi.staticfiles import StaticFiles
-    from fastapi.templating import Jinja2Templates
-    from fastapi.middleware.cors import CORSMiddleware
-    import uvicorn
-    WEB_FRAMEWORK_AVAILABLE = True
-except ImportError:
-    WEB_FRAMEWORK_AVAILABLE = False
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 from .config import DashboardConfig
 from .data_collector import DataCollector
@@ -204,9 +200,17 @@ class WebDashboard:
             """Virtual filesystem analytics page."""
             return self.templates.TemplateResponse("vfs.html", {
                 "request": request,
+            "config": self.config.to_dict()
+        })
+        
+        @self.app.get(f"{self.config.dashboard_path}/file_manager", response_class=HTMLResponse)
+        async def dashboard_file_manager(request: Request):
+            """File manager page."""
+            return self.templates.TemplateResponse("file_manager.html", {
+                "request": request,
                 "config": self.config.to_dict()
             })
-        
+
         @self.app.get(f"{self.config.api_path}/summary")
         async def api_summary():
             """Get dashboard summary data."""

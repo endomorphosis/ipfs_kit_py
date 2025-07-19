@@ -1,13 +1,19 @@
 """
-IPFS Kit - Complete IPFS Integration for Python
-===============================================
+IPFS Kit MCP Module
 
-A comprehensive Python library for IPFS integration with MCP server support.
+This module provides the core components for the IPFS Kit Multi-Cloud Platform (MCP) server,
+including backend management, virtual file system (VFS) observation, and API routing.
 """
 
-__version__ = "2.2.0"
-__author__ = "IPFS Kit Team"
+# Import key classes and functions to make them accessible directly under ipfs_kit
+from .backends import BackendHealthMonitor, VFSObservabilityManager
+from .api.routes import APIRoutes
+from .modular_enhanced_mcp_server import ModularEnhancedMCPServer
 
-from .core import *
-from .tools import *
-from .mcp import *
+# Define __all__ for explicit imports
+__all__ = [
+    "BackendHealthMonitor",
+    "VFSObservabilityManager", 
+    "APIRoutes",
+    "ModularEnhancedMCPServer",
+]
