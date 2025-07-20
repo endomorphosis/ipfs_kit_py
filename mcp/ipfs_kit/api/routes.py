@@ -9,8 +9,10 @@ import os
 import shutil
 from fastapi import FastAPI, Request, HTTPException, WebSocket, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
 import logging
+from pathlib import Path
 
 from .health_endpoints import HealthEndpoints
 from .config_endpoints import ConfigEndpoints
@@ -93,15 +95,26 @@ class APIRoutes:
     def _setup_routes(self):
         """Setup all API routes."""
         
+        # Mount static files for JavaScript, CSS, and other assets
+        static_dir = Path(__file__).parent.parent / "static"
+        if static_dir.exists():
+            self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+            logger.info(f"✓ Static files mounted from: {static_dir}")
+        else:
+            logger.warning(f"⚠ Static directory not found: {static_dir}")
+        
         # Dashboard route
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard(request: Request):
-            return self.templates.TemplateResponse("index.html", {"request": request})
+            return self.templates.TemplateResponse("dashboard.html", {"request": request})
         
-        # Simple favicon route
+        # Simple favicon route - return a simple icon response
         @self.app.get("/favicon.ico")
         async def favicon():
-            return JSONResponse({"message": "No favicon configured"}, status_code=404)
+            # Return a simple 1x1 transparent PNG to avoid 404 errors
+            favicon_content = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a\x9c\x18\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82'
+            from fastapi.responses import Response
+            return Response(content=favicon_content, media_type="image/png")
         
         # Health endpoints with enhanced error handling
         @self.app.get("/api/health")
@@ -180,6 +193,31 @@ class APIRoutes:
                 self._get_system_insights,
                 "insights"
             )
+
+        # Monitoring endpoints
+        @self.app.get("/api/monitoring/metrics")
+        async def get_monitoring_metrics():
+            """Get monitoring metrics."""
+            return await self._safe_endpoint_call(
+                self._get_monitoring_metrics,
+                "monitoring_metrics"
+            )
+        
+        @self.app.get("/api/monitoring/alerts")
+        async def get_monitoring_alerts():
+            """Get monitoring alerts."""
+            return await self._safe_endpoint_call(
+                self._get_monitoring_alerts,
+                "monitoring_alerts"
+            )
+        
+        @self.app.get("/api/monitoring/comprehensive")
+        async def get_comprehensive_monitoring():
+            """Get comprehensive monitoring data."""
+            return await self._safe_endpoint_call(
+                self._get_comprehensive_monitoring,
+                "comprehensive_monitoring"
+            )
         
         # Configuration endpoints with enhanced error handling
         @self.app.get("/api/backends/{backend_name}/config")
@@ -207,7 +245,7 @@ class APIRoutes:
         @self.app.get("/api/config/package")
         async def get_package_config():
             return await self._safe_endpoint_call(
-                self.config_endpoints.get_package_config,
+                lambda: self.config_endpoints.get_package_config(),
                 "package_config"
             )
         
@@ -292,13 +330,15 @@ class APIRoutes:
                 "vfs_recommendations"
             )
         
-        # Simple test file endpoint
+        # File listing endpoint
         @self.app.get("/api/files/")
-        async def simple_list_files(path: str = ""):
-            try:
-                return {"success": True, "files": [], "message": "File endpoint working", "path": path}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+        async def simple_list_files(path: str = "/"):
+            """List files and directories in the specified path."""
+            return await self._safe_endpoint_call(
+                self.vfs_endpoints.list_files,
+                "list_files",
+                path=path
+            )
         
         @self.app.get("/api/files/list", tags=["File Manager"])
         async def list_files_endpoint(path: str = "/"):
@@ -353,7 +393,7 @@ class APIRoutes:
             )
 
         @self.app.post("/api/files/upload", tags=["File Manager"])
-        async def upload_file_endpoint(path: str = Form("/"), file: UploadFile = File(...)):
+        async def upload_file_endpoint(file: UploadFile = File(...), path: str = Form("/")):
             """Upload a file to the specified path."""
             return await self._safe_endpoint_call(
                 self.vfs_endpoints.upload_file,
@@ -500,5 +540,95 @@ class APIRoutes:
                 "success": False,
                 "error": str(e),
                 "backend": backend_name,
+                "timestamp": self._get_current_timestamp()
+            }
+
+    async def _get_monitoring_metrics(self) -> Dict[str, Any]:
+        """Get monitoring metrics."""
+        try:
+            # Get basic metrics from VFS and backends
+            vfs_stats = await self.vfs_observer.get_vfs_statistics()
+            backend_health = await self.backend_monitor.check_all_backends()
+            
+            return {
+                "success": True,
+                "metrics": {
+                    "vfs": vfs_stats.get("data", {}),
+                    "backends": backend_health,
+                    "system": {
+                        "uptime": vfs_stats.get("data", {}).get("uptime_seconds", 0),
+                        "memory_usage": vfs_stats.get("data", {}).get("resource_utilization", {}).get("memory_usage", {}),
+                        "cpu_usage": vfs_stats.get("data", {}).get("resource_utilization", {}).get("cpu_usage", {})
+                    }
+                },
+                "timestamp": self._get_current_timestamp()
+            }
+        except Exception as e:
+            logger.error(f"Error getting monitoring metrics: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "timestamp": self._get_current_timestamp()
+            }
+
+    async def _get_monitoring_alerts(self) -> Dict[str, Any]:
+        """Get monitoring alerts."""
+        try:
+            # Generate alerts based on system status
+            alerts = []
+            
+            # Check backend health for alerts
+            backend_health = await self.backend_monitor.check_all_backends()
+            for backend_name, status in backend_health.items():
+                if not status.get("healthy", False):
+                    alerts.append({
+                        "type": "error",
+                        "message": f"Backend {backend_name} is unhealthy",
+                        "source": backend_name,
+                        "timestamp": self._get_current_timestamp()
+                    })
+            
+            return {
+                "success": True,
+                "alerts": alerts,
+                "count": len(alerts),
+                "timestamp": self._get_current_timestamp()
+            }
+        except Exception as e:
+            logger.error(f"Error getting monitoring alerts: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "timestamp": self._get_current_timestamp()
+            }
+
+    async def _get_comprehensive_monitoring(self) -> Dict[str, Any]:
+        """Get comprehensive monitoring data."""
+        try:
+            # Combine metrics and alerts for comprehensive view
+            metrics = await self._get_monitoring_metrics()
+            alerts = await self._get_monitoring_alerts()
+            insights = await self._get_system_insights()
+            
+            return {
+                "success": True,
+                "comprehensive": {
+                    "metrics": metrics.get("metrics", {}),
+                    "alerts": alerts.get("alerts", []),
+                    "insights": insights.get("insights", []),
+                    "summary": {
+                        "total_backends": len(metrics.get("metrics", {}).get("backends", {})),
+                        "healthy_backends": len([b for b in metrics.get("metrics", {}).get("backends", {}).values() if b.get("healthy", False)]),
+                        "total_alerts": alerts.get("count", 0),
+                        "total_insights": len(insights.get("insights", []))
+                    }
+                },
+                "timestamp": self._get_current_timestamp()
+            }
+        except Exception as e:
+            logger.error(f"Error getting comprehensive monitoring: {e}")
+            return {
+                "success": False,
+                "error": str(e),
                 "timestamp": self._get_current_timestamp()
             }

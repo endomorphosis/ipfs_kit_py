@@ -662,54 +662,6 @@ class VFSEndpoints:
         except Exception as e:
             logger.error(f"Error downloading file '{path}': {e}", exc_info=True)
             return {"success": False, "error": str(e)}
-
-    async def list_files(self) -> Dict[str, Any]:
-        """List files in the VFS root directory."""
-        try:
-            files = []
-            for item in VFS_ROOT.iterdir():
-                try:
-                    item_stat = item.stat()
-                    files.append({
-                        "name": item.name,
-                        "type": "directory" if item.is_dir() else "file",
-                        "size": item_stat.st_size if item.is_file() else 0,
-                        "modified": item_stat.st_mtime,
-                        "permissions": stat.filemode(item_stat.st_mode)
-                    })
-                except Exception as e:
-                    logger.warning(f"Error reading file {item}: {e}")
-                    continue
-            
-            return {
-                "success": True,
-                "files": sorted(files, key=lambda x: (x["type"] == "file", x["name"]))
-            }
-        except Exception as e:
-            logger.error(f"Error listing files: {e}")
-            return {"success": False, "error": str(e)}
-    
-    async def upload_file(self, file: UploadFile) -> Dict[str, Any]:
-        """Upload a file to the VFS."""
-        try:
-            file_path = VFS_ROOT / file.filename
-            
-            # Read file content
-            content = await file.read()
-            
-            # Write to VFS
-            with open(file_path, "wb") as f:
-                f.write(content)
-            
-            return {
-                "success": True,
-                "message": f"File '{file.filename}' uploaded successfully",
-                "size": len(content),
-                "path": str(file_path)
-            }
-        except Exception as e:
-            logger.error(f"Error uploading file: {e}")
-            return {"success": False, "error": str(e)}
     
     async def delete_file(self, filename: str) -> Dict[str, Any]:
         """Delete a file from the VFS."""
@@ -732,31 +684,4 @@ class VFSEndpoints:
             }
         except Exception as e:
             logger.error(f"Error deleting file '{filename}': {e}")
-            return {"success": False, "error": str(e)}
-
-    async def create_folder(self, folder_name: str) -> Dict[str, Any]:
-        """Create a new folder in the VFS."""
-        try:
-            if not folder_name:
-                return {"success": False, "error": "Folder name is required"}
-            
-            # Sanitize folder name
-            folder_name = folder_name.strip()
-            if not folder_name or '/' in folder_name or '\\' in folder_name:
-                return {"success": False, "error": "Invalid folder name"}
-            
-            folder_path = VFS_ROOT / folder_name
-            
-            if folder_path.exists():
-                return {"success": False, "error": "Folder already exists"}
-            
-            folder_path.mkdir(parents=True, exist_ok=True)
-            
-            return {
-                "success": True,
-                "message": f"Folder '{folder_name}' created successfully",
-                "path": str(folder_path)
-            }
-        except Exception as e:
-            logger.error(f"Error creating folder '{folder_name}': {e}")
             return {"success": False, "error": str(e)}

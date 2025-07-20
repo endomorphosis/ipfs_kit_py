@@ -17,75 +17,23 @@ logger = logging.getLogger(__name__)
 
 # Dictionary to track extension availability
 extensions = {
-    "huggingface": False,
-    "s3": False,
-    "filecoin": False,
-    "storacha": False,
-    "lassie": False,
-    "migration": False,
-    "metrics": False,
-    "auth": False,
-    "routing": False,
-    "search": True,  # Enable search extension
-    "websocket": False,
-    "udm": False,
-    "webrtc": False,
+    "huggingface": True,
+    "s3": True,
+    "filecoin": True,
+    "storacha": True,
+    "lassie": True,
+    "migration": True,
+    "metrics": True,
+    "auth": True,
+    "routing": True,
+    "search": True,
+    "websocket": True,
+    "udm": True,
+    "webrtc": True,
 }
 
 
-# Try to import each extension
-def _import_extension(name: str) -> bool:
-    """
-    Import an extension module if available.
 
-    Args:
-        name: Name of the extension
-
-    Returns:
-        bool: True if imported successfully
-    """
-    try:
-        # Check if the extension file exists
-        file_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            f"{name}.py",  # Use the new file name pattern
-        )
-        if not os.path.exists(file_path):
-            # Also check for the old name pattern for robustness during transition
-            old_file_path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), f"{name}_extension.py"
-            )
-            if os.path.exists(old_file_path):
-                file_path = old_file_path  # Use old path if new one doesn't exist
-            else:
-                logger.warning(f"Extension file not found: {file_path} or {old_file_path}")
-                return False
-
-        # Use the new module path structure
-        module_fullname = f"ipfs_kit_py.mcp.extensions.{name}"
-
-        # Import the extension
-        if module_fullname in sys.modules:
-            logger.debug(f"Extension {name} already imported as {module_fullname}")
-            return True
-
-        spec = importlib.util.spec_from_file_location(module_fullname, file_path)
-        if spec is None or spec.loader is None:
-            logger.warning(f"Could not load spec for extension: {name} from {file_path}")
-            return False
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        sys.modules[module_fullname] = module  # Use the new full name
-        logger.info(f"Successfully imported extension: {name} as {module_fullname}")
-        return True
-    except Exception as e:
-        logger.error(f"Error importing extension {name}: {e}")
-        return False
-
-
-# Import all available extensions
-for ext_name in extensions:
-    extensions[ext_name] = _import_extension(ext_name)
 
 
 def create_extension_routers(api_prefix: str) -> List:

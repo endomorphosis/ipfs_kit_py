@@ -427,25 +427,15 @@ class storacha_kit:
         try:
             # Attempt to import the installer module directly
             try:
-                # Get the path to the installer file
-                this_dir = os.path.dirname(os.path.realpath(__file__))
-                installer_path = os.path.join(os.path.dirname(this_dir), "install_storacha.py")
-                
-                # Add the parent directory to the path temporarily
-                sys.path.insert(0, os.path.dirname(this_dir))
-                
-                # Try to import the installer module
-                import importlib.util
-                spec = importlib.util.spec_from_file_location("install_storacha", installer_path)
-                install_storacha = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(install_storacha)
+                from ipfs_kit_py import install_storacha
                 
                 # Use the function directly
                 verbose = self.metadata.get("debug", False)
                 force = kwargs.get("force", False)
                 
                 # Run the installer
-                success = install_storacha.install_dependencies_auto(force=force, verbose=verbose)
+                installer = install_storacha.install_storacha()
+                success = installer.install_storacha_dependencies()
                 
                 if success:
                     result["success"] = True
