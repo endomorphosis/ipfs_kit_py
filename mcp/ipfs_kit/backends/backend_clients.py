@@ -23,6 +23,7 @@ class BackendClient(ABC):
         self.endpoint = endpoint
         self.config = kwargs
         self.session = None
+        self.log_manager = None  # Will be set by health monitor
         
     async def __aenter__(self):
         self.session = aiohttp.ClientSession()
@@ -31,6 +32,24 @@ class BackendClient(ABC):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
+    
+    def set_log_manager(self, log_manager):
+        """Set the log manager for this backend."""
+        self.log_manager = log_manager
+    
+    def log(self, level: str, message: str, extra_data: Optional[Dict] = None):
+        """Log a message for this backend."""
+        if self.log_manager:
+            self.log_manager.add_log_entry(self.name, level, message, extra_data)
+        else:
+            getattr(logger, level.lower(), logger.info)(f"[{self.name}] {message}")
+    
+    async def get_logs(self, limit: int = 100) -> List[str]:
+        """Get recent logs for this backend."""
+        if self.log_manager:
+            log_entries = self.log_manager.get_backend_logs(self.name, limit)
+            return [f"{entry['timestamp']} [{entry['level']}] {entry['message']}" for entry in log_entries]
+        return [f"No log manager configured for {self.name}"]
     
     @abstractmethod
     async def health_check(self) -> Dict[str, Any]:
@@ -61,6 +80,7 @@ class IPFSClient(BackendClient):
     
     async def health_check(self) -> Dict[str, Any]:
         """Check IPFS health."""
+        self.log("INFO", f"Starting health check for {self.endpoint}")
         try:
             if not self.session:
                 self.session = aiohttp.ClientSession()
@@ -68,6 +88,7 @@ class IPFSClient(BackendClient):
             async with self.session.get(f"{self.endpoint}/api/v0/id", timeout=5) as response:
                 if response.status == 200:
                     data = await response.json()
+                    self.log("INFO", f"Health check successful - Peer ID: {data.get('ID', 'unknown')}")
                     return {
                         "status": "healthy",
                         "endpoint": self.endpoint,
@@ -76,18 +97,24 @@ class IPFSClient(BackendClient):
                         "public_key": data.get("PublicKey", "unknown")
                     }
                 else:
+                    error_msg = f"Health check failed - HTTP {response.status}"
+                    self.log("WARNING", error_msg)
                     return {
                         "status": "unhealthy",
                         "endpoint": self.endpoint,
                         "error": f"HTTP {response.status}"
                     }
         except asyncio.TimeoutError:
+            error_msg = "Health check failed - Connection timeout"
+            self.log("ERROR", error_msg)
             return {
                 "status": "unhealthy",
                 "endpoint": self.endpoint,
                 "error": "Connection timeout"
             }
         except Exception as e:
+            error_msg = f"Health check failed - {str(e)}"
+            self.log("ERROR", error_msg)
             return {
                 "status": "unhealthy",
                 "endpoint": self.endpoint,
@@ -352,6 +379,101 @@ class LotusClient(BackendClient):
     async def set_config(self, config: Dict[str, Any]) -> bool:
         """Set Lotus configuration."""
         return False  # Not implemented for safety
+
+
+class LassieClient(BackendClient):
+    """Client for Lassie Kit backend."""
+    
+    def __init__(self, binary_path: str = "lassie", **kwargs):
+        # Lassie doesn't have a persistent endpoint, it's a CLI tool
+        super().__init__("Lassie", "cli", binary_path=binary_path, **kwargs)
+        self.binary_path = binary_path
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """Check if Lassie binary is available and working."""
+        import subprocess
+        
+        try:
+            # Test if lassie binary is available
+            result = subprocess.run(
+                [self.binary_path, "version"], 
+                capture_output=True, 
+                text=True, 
+                timeout=5
+            )
+            
+            if result.returncode == 0:
+                version_info = result.stdout.strip()
+                self.log("INFO", f"Lassie binary check passed: {version_info}")
+                return {
+                    "status": "healthy",
+                    "binary_available": True,
+                    "version": version_info,
+                    "binary_path": self.binary_path
+                }
+            else:
+                error_msg = result.stderr or "Unknown error"
+                self.log("ERROR", f"Lassie binary error: {error_msg}")
+                return {
+                    "status": "unhealthy",
+                    "binary_available": False,
+                    "error": error_msg
+                }
+                
+        except subprocess.TimeoutExpired:
+            self.log("ERROR", "Lassie binary check timed out")
+            return {
+                "status": "unhealthy",
+                "binary_available": False,
+                "error": "Binary check timed out"
+            }
+        except FileNotFoundError:
+            self.log("ERROR", f"Lassie binary not found at: {self.binary_path}")
+            return {
+                "status": "unhealthy",
+                "binary_available": False,
+                "error": f"Binary not found at: {self.binary_path}"
+            }
+        except Exception as e:
+            self.log("ERROR", f"Lassie health check failed: {str(e)}")
+            return {
+                "status": "unhealthy",
+                "binary_available": False,
+                "error": str(e)
+            }
+    
+    async def get_status(self) -> Dict[str, Any]:
+        """Get current status of Lassie binary."""
+        health_result = await self.health_check()
+        return {
+            "name": self.name,
+            "status": health_result.get("status", "unknown"),
+            "binary_available": health_result.get("binary_available", False),
+            "version": health_result.get("version", "unknown"),
+            "binary_path": self.binary_path
+        }
+    
+    async def get_config(self) -> Dict[str, Any]:
+        """Get Lassie configuration."""
+        return {
+            "binary_path": self.binary_path,
+            "integration_mode": self.config.get("integration_mode", "standalone"),
+            "timeout": self.config.get("timeout", "30s"),
+            "concurrent_downloads": self.config.get("concurrent_downloads", 10),
+            "temp_directory": self.config.get("temp_directory", ""),
+            "providers": self.config.get("provider_endpoints", "").split('\n') if self.config.get("provider_endpoints") else [],
+            "enable_bitswap": self.config.get("enable_bitswap", True),
+            "enable_graphsync": self.config.get("enable_graphsync", True)
+        }
+    
+    async def set_config(self, config: Dict[str, Any]) -> bool:
+        """Set Lassie configuration."""
+        # Update internal config
+        self.config.update(config)
+        if "binary_path" in config:
+            self.binary_path = config["binary_path"]
+        self.log("INFO", "Lassie configuration updated")
+        return True
 
 
 class StorachaClient(BackendClient):

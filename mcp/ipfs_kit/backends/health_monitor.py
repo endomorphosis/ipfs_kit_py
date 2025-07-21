@@ -11,15 +11,16 @@ import subprocess
 import os
 import threading
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from collections import defaultdict, deque
 from datetime import datetime
 
 from .backend_clients import (
     IPFSClient, IPFSClusterClient, LotusClient, StorachaClient,
-    SynapseClient, S3Client, HuggingFaceClient, ParquetClient
+    SynapseClient, S3Client, HuggingFaceClient, ParquetClient, LassieClient
 )
 from .vfs_observer import VFSObservabilityManager
+from .log_manager import BackendLogManager
 from ..core.config_manager import SecureConfigManager
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,9 @@ class BackendHealthMonitor:
         
         # Initialize secure configuration manager
         self.config_manager = SecureConfigManager(config_dir)
+        
+        # Initialize log manager
+        self.log_manager = BackendLogManager()
         
         # Initialize backends structure (real data from reference)
         self.backends = {
@@ -109,6 +113,24 @@ class BackendHealthMonitor:
                     "api_address": "/ip4/127.0.0.1/tcp/1234/http",
                     "version": "unknown",
                     "commit": "unknown"
+                }
+            },
+            "lassie": {
+                "name": "Lassie Kit",
+                "status": "unknown",
+                "health": "unknown",
+                "last_check": None,
+                "metrics": {},
+                "errors": [],
+                "binary_available": False,
+                "detailed_info": {
+                    "version": "unknown",
+                    "binary_path": None,
+                    "providers": [],
+                    "concurrent_downloads": 10,
+                    "timeout": "30s",
+                    "temp_directory": None,
+                    "integration_mode": "standalone"  # standalone or lotus-integrated
                 }
             },
             "storacha": {
@@ -204,12 +226,16 @@ class BackendHealthMonitor:
     async def check_backend_health(self, backend_name: str) -> Dict[str, Any]:
         """Check health of a specific backend with real implementations."""
         if backend_name not in self.backends:
+            error_msg = f"Backend {backend_name} not configured"
+            self.log_manager.add_log_entry(backend_name, "ERROR", error_msg)
             return {
                 "name": backend_name,
                 "status": "not_configured",
                 "health": "unknown",
-                "error": "Backend not configured"
+                "error": error_msg
             }
+        
+        self.log_manager.add_log_entry(backend_name, "INFO", f"Starting health check for {backend_name}")
         
         backend = self.backends[backend_name].copy()
         
@@ -223,6 +249,8 @@ class BackendHealthMonitor:
                 backend = await self._check_ipfs_cluster_follow_health(backend)
             elif backend_name == "lotus":
                 backend = await self._check_lotus_health(backend)
+            elif backend_name == "lassie":
+                backend = await self._check_lassie_health(backend)
             elif backend_name == "storacha":
                 backend = await self._check_storacha_health(backend)
             elif backend_name == "synapse":
@@ -233,6 +261,16 @@ class BackendHealthMonitor:
                 backend = await self._check_huggingface_health(backend)
             elif backend_name == "parquet":
                 backend = await self._check_parquet_health(backend)
+            
+            # Log the result
+            status = backend.get("status", "unknown")
+            health = backend.get("health", "unknown")
+            log_level = "INFO" if health == "healthy" else "WARNING"
+            self.log_manager.add_log_entry(
+                backend_name, 
+                log_level,
+                f"Health check completed - Status: {status}, Health: {health}"
+            )
             
             # Store metrics
             self.metrics_history[backend_name].append({
@@ -270,72 +308,88 @@ class BackendHealthMonitor:
             return error_result
     
     async def _check_ipfs_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Check IPFS daemon health with real implementation."""
+        """Check IPFS daemon health using enhanced client with connection pooling and CLI fallback."""
         try:
-            # Check if daemon is running
-            result = subprocess.run(
-                ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
-                capture_output=True, text=True, timeout=5
-            )
+            from .ipfs_client_enhanced import get_ipfs_client
             
-            if result.returncode == 0:
-                version_info = json.loads(result.stdout)
+            # Get enhanced IPFS client
+            client = await get_ipfs_client()
+            
+            # Perform comprehensive health check
+            health_result = await client.health_check()
+            
+            if health_result["status"] == "healthy":
                 backend["status"] = "running"
                 backend["health"] = "healthy"
                 backend["metrics"] = {
-                    "version": version_info.get("Version", "unknown"),
-                    "commit": version_info.get("Commit", "unknown"),
-                    "response_time_ms": 0  # Could measure actual response time
+                    "version": health_result.get("version", "unknown"),
+                    "commit": health_result.get("commit", "unknown"),
+                    "golang_version": health_result.get("golang_version", "unknown"),
+                    "response_time_ms": 0,
+                    "connection_failures": health_result.get("connection_failures", 0)
                 }
                 
-                # Check additional metrics
-                stats_result = subprocess.run(
-                    ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/stats/repo"],
-                    capture_output=True, text=True, timeout=5
-                )
+                # Add repo stats if available
+                if "repo_size" in health_result:
+                    backend["metrics"].update({
+                        "repo_size": health_result["repo_size"],
+                        "storage_max": health_result.get("storage_max", 0),
+                        "num_objects": health_result.get("num_objects", 0)
+                    })
+                    backend["detailed_info"].update({
+                        "repo_size": health_result["repo_size"],
+                        "repo_objects": health_result.get("num_objects", 0)
+                    })
                 
-                if stats_result.returncode == 0:
-                    stats = json.loads(stats_result.stdout)
-                    backend["metrics"].update({
-                        "repo_size": stats.get("RepoSize", 0),
-                        "storage_max": stats.get("StorageMax", 0),
-                        "num_objects": stats.get("NumObjects", 0)
-                    })
-                    backend["detailed_info"].update({
-                        "repo_size": stats.get("RepoSize", 0),
-                        "repo_objects": stats.get("NumObjects", 0)
-                    })
-
-                # Get bandwidth info
-                bw_result = subprocess.run(
-                    ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/stats/bw"],
-                    capture_output=True, text=True, timeout=5
-                )
-                if bw_result.returncode == 0:
-                    bw_stats = json.loads(bw_result.stdout)
-                    backend["metrics"].update({
-                        "bandwidth_in": bw_stats.get("RateIn", 0),
-                        "bandwidth_out": bw_stats.get("RateOut", 0)
-                    })
-                    backend["detailed_info"].update({
-                        "bandwidth_in": bw_stats.get("RateIn", 0),
-                        "bandwidth_out": bw_stats.get("RateOut", 0)
-                    })
-                    
+                # Add peer count if available
+                if "peer_count" in health_result:
+                    backend["metrics"]["peer_count"] = health_result["peer_count"]
+                    backend["detailed_info"]["peer_count"] = health_result["peer_count"]
+                
+                # Update detailed info
+                backend["detailed_info"].update({
+                    "version": health_result.get("version", "unknown"),
+                    "api_available": health_result.get("api_available", False),
+                    "connection_method": "enhanced_client"
+                })
+                
             else:
-                backend["status"] = "stopped"
+                backend["status"] = "disconnected"
                 backend["health"] = "unhealthy"
-                backend["metrics"] = {}
                 
+                # Add connection failure info
+                error_details = {
+                    "connection_failures": health_result.get("connection_failures", 0),
+                    "in_backoff": health_result.get("in_backoff", False)
+                }
+                
+                if health_result.get("last_failure"):
+                    error_details["last_failure"] = health_result["last_failure"]
+                
+                backend["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "error": f"IPFS daemon health check failed: {health_result.get('error', 'Unknown error')}",
+                    "details": error_details
+                })
+                
+        except ImportError as e:
+            # Fallback to direct ipfshttpclient if enhanced client not available
+            backend["status"] = "error"
+            backend["health"] = "unhealthy"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": f"Enhanced IPFS client not available: {e}"
+            })
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
             backend["errors"].append({
                 "timestamp": datetime.now().isoformat(),
-                "error": str(e)
+                "error": f"IPFS health check failed: {str(e)}"
             })
             
         backend["last_check"] = datetime.now().isoformat()
+        return backend
         return backend
     
     async def _check_ipfs_cluster_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
@@ -343,7 +397,7 @@ class BackendHealthMonitor:
         try:
             # Check if cluster daemon is running
             result = subprocess.run(
-                ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
+                ["curl", "-s", "-X", "POST", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
                 capture_output=True, text=True, timeout=5
             )
             
@@ -524,8 +578,107 @@ class BackendHealthMonitor:
             
         backend["last_check"] = datetime.now().isoformat()
         return backend
+
+    async def _check_lassie_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
+        """Check Lassie Kit health using LassieClient."""
+        try:
+            from .backend_clients import LassieClient
+            
+            # Get configuration from backend details
+            config = backend.get("config", {})
+            binary_path = config.get("binary_path", "lassie")
+            
+            # Create LassieClient instance
+            client = LassieClient(binary_path=binary_path, config=config)
+            
+            # Perform health check
+            health_result = await client.health_check()
+            
+            # Update backend status based on health check result
+            if health_result["status"] == "healthy":
+                backend["status"] = "available"
+                backend["health"] = "healthy"
+                backend["detailed_info"].update({
+                    "binary_available": health_result.get("binary_available", False),
+                    "version": health_result.get("version", "unknown"),
+                    "binary_path": health_result.get("binary_path", binary_path)
+                })
+                backend["metrics"] = {
+                    "binary_available": True,
+                    "version_check": "passed",
+                    "response_time": 0.1  # Quick binary check
+                }
+            else:
+                backend["status"] = "unavailable"
+                backend["health"] = "unhealthy"
+                backend["detailed_info"]["binary_available"] = health_result.get("binary_available", False)
+                backend["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "error": health_result.get("error", "Unknown error")
+                })
+                
+        except Exception as e:
+            backend["status"] = "error"
+            backend["health"] = "unhealthy"
+            backend["detailed_info"]["binary_available"] = False
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            })
+            
+        backend["last_check"] = datetime.now().isoformat()
         return backend
     
+    async def _check_lassie_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
+        """Check Lassie Kit health using LassieClient."""
+        try:
+            from .backend_clients import LassieClient
+            
+            # Get configuration from backend details
+            config = backend.get("config", {})
+            binary_path = config.get("binary_path", "lassie")
+            
+            # Create LassieClient instance
+            client = LassieClient(binary_path=binary_path, config=config)
+            
+            # Perform health check
+            health_result = await client.health_check()
+            
+            # Update backend status based on health check result
+            if health_result["status"] == "healthy":
+                backend["status"] = "available"
+                backend["health"] = "healthy"
+                backend["detailed_info"].update({
+                    "binary_available": health_result.get("binary_available", False),
+                    "version": health_result.get("version", "unknown"),
+                    "binary_path": health_result.get("binary_path", binary_path)
+                })
+                backend["metrics"] = {
+                    "binary_available": True,
+                    "version_check": "passed",
+                    "response_time": 0.1  # Quick binary check
+                }
+            else:
+                backend["status"] = "unavailable"
+                backend["health"] = "unhealthy"
+                backend["detailed_info"]["binary_available"] = health_result.get("binary_available", False)
+                backend["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "error": health_result.get("error", "Unknown error")
+                })
+                
+        except Exception as e:
+            backend["status"] = "error"
+            backend["health"] = "unhealthy"
+            backend["detailed_info"]["binary_available"] = False
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            })
+            
+        backend["last_check"] = datetime.now().isoformat()
+        return backend
+
     async def _check_storacha_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check Storacha/Web3.Storage health with real implementation."""
         try:
@@ -654,27 +807,38 @@ class BackendHealthMonitor:
             return False
         
         try:
-            # For most backends, restart means reinitializing the client
-            config = self.backend_configs.get(backend_name, {})
-            
-            if backend_name == "ipfs":
-                self.backends[backend_name] = IPFSClient(**config)
-            elif backend_name == "ipfs_cluster":
-                self.backends[backend_name] = IPFSClusterClient(**config)
-            elif backend_name == "lotus":
-                self.backends[backend_name] = LotusClient(**config)
-            elif backend_name == "synapse":
-                self.backends[backend_name] = SynapseClient(**config)
+            backend_obj = self.backends.get(backend_name)
+            if backend_obj and hasattr(backend_obj, 'restart'):
+                result = await backend_obj.restart()
+                if result.get("success", False):
+                    logger.info(f"✓ Restarted {backend_name} backend")
+                    return True
+                else:
+                    logger.error(f"Failed to restart {backend_name}: {result.get("error", "Unknown error")}")
+                    return False
             else:
                 logger.warning(f"Restart not supported for {backend_name}")
                 return False
             
-            logger.info(f"✓ Restarted {backend_name} backend")
-            return True
-            
         except Exception as e:
             logger.error(f"Failed to restart {backend_name}: {e}")
             return False
+
+    async def get_backend_logs(self, backend_name: str) -> List[str]:
+        """Get logs for a specific backend."""
+        if backend_name not in self.backends:
+            return [f"Backend {backend_name} not found."]
+        
+        try:
+            backend_obj = self.backends.get(backend_name)
+            if backend_obj and hasattr(backend_obj, 'get_logs'):
+                logs = await backend_obj.get_logs()
+                return logs
+            else:
+                return [f"Log retrieval not supported for {backend_name}."]
+        except Exception as e:
+            logger.error(f"Failed to get logs for {backend_name}: {e}")
+            return [f"Error retrieving logs for {backend_name}: {str(e)}"]
     
     def get_metrics_history(self, backend_name: str, limit: int = 10) -> list:
         """Get metrics history for a backend."""

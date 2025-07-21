@@ -44,6 +44,8 @@ from .api.routes import APIRoutes
 from .dashboard.template_manager import DashboardTemplateManager
 from .dashboard.websocket_manager import WebSocketManager
 
+from .setup import SetupManager
+
 # Configure logging with enhanced log directory
 log_dir = Path("/tmp/ipfs_kit_logs")
 log_dir.mkdir(exist_ok=True)
@@ -93,6 +95,10 @@ class ModularEnhancedMCPServer:
         self.host = host
         self.port = port
         self.start_time = time.time()
+
+        # Run setup
+        setup_manager = SetupManager()
+        setup_manager.run_setup()
         
         # Initialize monitoring components with full feature set
         self.backend_monitor = BackendHealthMonitor()
@@ -337,6 +343,20 @@ class ModularEnhancedMCPServer:
             except Exception as e:
                 logger.error(f"Error getting logs: {e}")
                 return {"error": str(e), "logs": []}
+
+        @self.app.get("/api/backends")
+        async def get_backends_status():
+            """Get backend status and configuration information."""
+            try:
+                backend_health = await self.backend_monitor.check_all_backends()
+                return {
+                    "success": True,
+                    "backends": backend_health,
+                    "timestamp": datetime.now().isoformat()
+                }
+            except Exception as e:
+                logger.error(f"Error getting backend status: {e}")
+                return {"error": str(e), "success": False}
         
         @self.app.get("/api/insights")
         async def get_development_insights():

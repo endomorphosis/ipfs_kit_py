@@ -30,18 +30,7 @@ let autoRefreshInterval = null;
 let currentBackendData = {};
 let backendConfigCache = {};
 
-// Initialize dashboard
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOMContentLoaded: Initializing dashboard...');
-    initializeExpandables();
-    refreshData();
-    // Initialize file manager if available
-    if (typeof fileManager !== 'undefined' && fileManager.init) {
-        fileManager.init();
-    }
-});
-
-// Tab switching
+// Tab switching function (needs to be available immediately)
 function showTab(tabName, event) {
     console.log('showTab: Switching to tab:', tabName);
     // Hide all tab contents
@@ -50,7 +39,7 @@ function showTab(tabName, event) {
     });
     
     // Remove active class from all tab buttons
-    document.querySelectorAll('.tab-btn').forEach(button => {
+    document.querySelectorAll('.tab-btn, .tab-button').forEach(button => {
         button.classList.remove('active');
     });
     
@@ -61,42 +50,83 @@ function showTab(tabName, event) {
     if (selectedTab) {
         selectedTab.classList.add('active');
         currentTab = tabName;
+        
+        // Load tab-specific content
+        switch(tabName) {
+            case 'overview':
+                refreshData();
+                break;
+            case 'monitoring':
+                if (typeof loadBackendsTab === 'function') loadBackendsTab();
+                break;
+            case 'vfs':
+                if (typeof loadVFSTab === 'function') loadVFSTab();
+                break;
+            case 'vfs-journal':
+                if (typeof loadVFSJournal === 'function') loadVFSJournal();
+                break;
+            case 'vector-kb':
+                if (typeof loadVectorKBTab === 'function') loadVectorKBTab();
+                break;
+            case 'configuration':
+                if (typeof loadConfigurationTab === 'function') loadConfigurationTab();
+                break;
+            case 'filemanager':
+                if (typeof loadFileManagerTab === 'function') loadFileManagerTab();
+                break;
+            case 'backends':
+                if (typeof loadBackendsTab === 'function') loadBackendsTab();
+                break;
+            case 'logs':
+                if (typeof loadLogsTab === 'function') loadLogsTab();
+                break;
+        }
     }
     
     if (selectedButton) {
         selectedButton.classList.add('active');
     }
     
-    // Load tab-specific data
-    switch(tabName) {
-        case 'overview':
-            refreshData();
-            break;
-        case 'monitoring':
-            if (typeof refreshMonitoring === 'function') refreshMonitoring();
-            break;
-        case 'vfs':
-        case 'vfs-observatory':
-            if (typeof loadVFSTab === 'function') loadVFSTab();
-            break;
-        case 'vector-kb':
-            if (typeof loadVectorKBTab === 'function') loadVectorKBTab();
-            break;
-        case 'file-manager':
-            if (typeof fileManager !== 'undefined' && fileManager.refresh) {
-                fileManager.refresh();
-            } else if (typeof loadFileManagerTab === 'function') {
-                loadFileManagerTab();
-            }
-            break;
-        case 'backends':
-            if (typeof loadBackendsTab === 'function') loadBackendsTab();
-            break;
-        case 'configuration':
-            if (typeof loadConfigurationTab === 'function') loadConfigurationTab();
-            break;
+    // Prevent default button behavior
+    if (event) {
+        event.preventDefault();
     }
 }
+
+// Make switchTab available globally immediately
+window.switchTab = showTab;
+window.showTab = showTab;
+
+// Initialize dashboard
+async function populateBackendFilter() {
+    const backendFilter = document.getElementById('journalBackendFilter');
+    if (!backendFilter) return;
+
+    try {
+        const data = await dashboardAPI.fetch('/api/v0/storage/backends');
+        if (data.success) {
+            for (const backendName of Object.keys(data.backends)) {
+                const option = document.createElement('option');
+                option.value = backendName;
+                option.textContent = backendName;
+                backendFilter.appendChild(option);
+            }
+        }
+    } catch (error) {
+        console.error('Error populating backend filter:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded: Initializing dashboard...');
+    initializeExpandables();
+    refreshData();
+    populateBackendFilter();
+    // Initialize file manager if available
+    if (typeof fileManager !== 'undefined' && fileManager.init) {
+        fileManager.init();
+    }
+});
 
 // Auto-refresh functionality
 function startAutoRefresh() {
@@ -171,35 +201,48 @@ async function refreshData() {
 
 function updateDashboard(data) {
     console.log('updateDashboard: Updating dashboard with data:', data);
-    // Update system status
+    // Update system status with comprehensive information
     const systemStatusElement = document.getElementById('systemStatus');
     if (systemStatusElement) {
         console.log('updateDashboard: #systemStatus element found. Current innerHTML:', systemStatusElement.innerHTML);
         systemStatusElement.innerHTML = `
             <div class="connection-status">
-                <div class="connection-indicator ${data.status === 'running' ? 'connected' : ''}"></div>
+                <div class="connection-indicator ${data.status === 'healthy' || data.status === 'running' ? 'connected' : ''}"></div>
                 <span>Status: ${data.status || 'unknown'}</span>
             </div>
-            <p><strong>Uptime:</strong> ${data.uptime_seconds ? `${Math.floor(data.uptime_seconds / 3600)}h ${Math.floor((data.uptime_seconds % 3600) / 60)}m` : 'N/A'}</p>
-            <p><strong>Components:</strong> ${Object.values(data.components || {}).filter(Boolean).length}/${Object.keys(data.components || {}).length} active</p>
+            <p><strong>Uptime:</strong> ${data.uptime_seconds ? formatUptime(data.uptime_seconds) : 'N/A'}</p>
+            <p><strong>Memory Usage:</strong> ${data.memory_usage_mb ? `${data.memory_usage_mb.toFixed(1)} MB` : 'N/A'}</p>
+            <p><strong>CPU Usage:</strong> ${data.cpu_usage_percent !== undefined ? `${data.cpu_usage_percent}%` : 'N/A'}</p>
+            <p><strong>Python Version:</strong> ${data.system?.python_version || 'N/A'}</p>
+            <p><strong>Platform:</strong> ${data.system?.platform || 'N/A'}</p>
         `;
         console.log('updateDashboard: systemStatusElement updated. New innerHTML:', systemStatusElement.innerHTML);
     } else {
         console.error('updateDashboard: #systemStatus element not found.');
     }
     
-    // Update backend summary
+    // Update backend summary with detailed health information
     const backendSummaryElement = document.getElementById('backendSummary');
     if (backendSummaryElement) {
         console.log('updateDashboard: #backendSummary element found. Current innerHTML:', backendSummaryElement.innerHTML);
-        const backends = data.backend_health.backends || {}; // Access backends from backend_health.backends
+        const backends = data.backend_health?.backends || {}; // Access backends from backend_health.backends
         const healthyCount = Object.values(backends).filter(b => b.health === 'healthy').length;
+        const runningCount = Object.values(backends).filter(b => b.status === 'running').length;
         const totalCount = Object.keys(backends).length;
         const progressPercent = totalCount > 0 ? (healthyCount / totalCount) * 100 : 0;
         
+        // Get status breakdown
+        const statusCounts = {};
+        Object.values(backends).forEach(backend => {
+            statusCounts[backend.status] = (statusCounts[backend.status] || 0) + 1;
+        });
+        
+        const statusBreakdown = Object.entries(statusCounts)
+            .map(([status, count]) => `${status}: ${count}`)
+            .join(', ');
+        
         backendSummaryElement.innerHTML = `
-            <div style="font-size: 24px; font-weight: bold; color: ${healthyCount === totalCount ? '#4CAF50' : '#f44336'};
-">
+            <div style="font-size: 24px; font-weight: bold; color: ${healthyCount === totalCount ? '#4CAF50' : '#f44336'};">
                 ${healthyCount}/${totalCount}
             </div>
             <p>Backends Healthy</p>
@@ -207,20 +250,29 @@ function updateDashboard(data) {
                 <div class="progress-fill" style="width: ${progressPercent}%"></div>
             </div>
             <div style="font-size: 12px; color: #6c757d;">Health Score: ${progressPercent.toFixed(1)}%</div>
+            <div style="font-size: 11px; margin-top: 5px; color: #888;">
+                Running: ${runningCount} | ${statusBreakdown}
+            </div>
         `;
         console.log('updateDashboard: backendSummaryElement updated. New innerHTML:', backendSummaryElement.innerHTML);
     } else {
         console.error('updateDashboard: #backendSummary element not found.');
     }
     
-    // Update performance metrics
+    // Update performance metrics with detailed information
     const performanceMetricsElement = document.getElementById('performanceMetrics');
     if (performanceMetricsElement) {
         console.log('updateDashboard: #performanceMetrics element found. Current innerHTML:', performanceMetricsElement.innerHTML);
+        const backends = data.backend_health?.backends || {};
+        const activeBackends = Object.values(backends).filter(b => b.status === 'running').length;
+        const authenticatedBackends = Object.values(backends).filter(b => b.status === 'authenticated').length;
+        const availableBackends = Object.values(backends).filter(b => b.status === 'available').length;
+        
         performanceMetricsElement.innerHTML = `
-            <div><strong>Memory:</strong> ${data.memory_usage_mb || 'N/A'}MB</div>
-            <div><strong>CPU:</strong> ${data.cpu_usage_percent || 'N/A'}%</div>
-            <div><strong>Active Backends:</strong> ${Object.values(data.backend_health.backends || {}).filter(b => b.status === 'running').length}</div>
+            <div><strong>Memory:</strong> ${data.memory_usage_mb ? `${data.memory_usage_mb.toFixed(1)} MB` : 'N/A'}</div>
+            <div><strong>CPU:</strong> ${data.cpu_usage_percent !== undefined ? `${data.cpu_usage_percent}%` : 'N/A'}</div>
+            <div><strong>Active Backends:</strong> ${activeBackends}</div>
+            <div><strong>Ready Backends:</strong> ${authenticatedBackends + availableBackends}</div>
             <div><strong>Last Update:</strong> ${new Date().toLocaleTimeString()}</div>
         `;
         console.log('updateDashboard: performanceMetricsElement updated. New innerHTML:', performanceMetricsElement.innerHTML);
@@ -229,7 +281,7 @@ function updateDashboard(data) {
     }
     
     // Update backend grid
-    updateBackendGrid(data.backend_health.backends || {});
+    updateBackendGrid(data.backend_health?.backends || {});
 
     // Also update the VFS and Vector/KB tabs if they are active
     if (document.getElementById('vfs').classList.contains('active')) {
@@ -253,9 +305,24 @@ function updateBackendGrid(backends) {
         const card = document.createElement('div');
         card.className = `backend-card ${backend.health}`;
         
-        // Create verbose metrics display
-        let verboseMetricsHTML = createVerboseMetricsHTML(backend);
-        
+        let metricsHTML = '';
+        if (backend.metrics && Object.keys(backend.metrics).length > 0) {
+            metricsHTML = `
+                <div class="metrics-grid">
+                    <div><strong>Version:</strong> ${backend.metrics.version || 'N/A'}</div>
+                    <div><strong>Repo Size:</strong> ${formatBytes(backend.metrics.repo_size || 0)}</div>
+                    <div><strong>Storage Max:</strong> ${formatBytes(backend.metrics.storage_max || 0)}</div>
+                    <div><strong>Objects:</strong> ${backend.metrics.num_objects || 0}</div>
+                    <div><strong>Peers:</strong> ${backend.metrics.peer_count || 0}</div>
+                    <div><strong>Pins:</strong> ${backend.metrics.pin_count || 0}</div>
+                    <div><strong>Bandwidth In:</strong> ${formatBytes(backend.metrics.bandwidth_rate_in || 0)}/s</div>
+                    <div><strong>Bandwidth Out:</strong> ${formatBytes(backend.metrics.bandwidth_rate_out || 0)}/s</div>
+                    <div><strong>Total In:</strong> ${formatBytes(backend.metrics.bandwidth_total_in || 0)}</div>
+                    <div><strong>Total Out:</strong> ${formatBytes(backend.metrics.bandwidth_total_out || 0)}</div>
+                </div>
+            `;
+        }
+
         let errorsHTML = '';
         if (backend.errors && backend.errors.length > 0) {
             errorsHTML = `
@@ -287,7 +354,7 @@ function updateBackendGrid(backends) {
                 </div>
             </div>
             <p><strong>Last Check:</strong> ${backend.last_check ? new Date(backend.last_check).toLocaleString() : 'Never'}</p>
-            ${verboseMetricsHTML}
+            ${metricsHTML}
             ${errorsHTML}
         `;
         
@@ -410,35 +477,41 @@ async function loadConfigurationTab() {
     
     try {
         const response = await dashboardAPI.fetch('/api/backends');
-        const backends = response; // Assuming response is directly the backends object
-        currentBackendData = backends; // Update backend data
-        configList.innerHTML = ''; // Clear loading message
+        
+        if (response && response.success && response.backends) {
+            const backends = response.backends;
+            currentBackendData = backends; // Update backend data
+            configList.innerHTML = ''; // Clear loading message
 
-        for (const [name, backend] of Object.entries(currentBackendData)) {
-            const configCard = document.createElement('div');
-            configCard.className = 'stat-card';
-            configCard.style.cursor = 'pointer';
-            configCard.onclick = () => openConfigModal(name);
-            
-            let configPreview = 'Click to configure';
-            if (backend.config) {
-                const keys = Object.keys(backend.config);
-                if (keys.length > 0) {
-                    configPreview = `${keys.length} config sections: ${keys.slice(0, 3).join(', ')}...`;
-                } else {
-                    configPreview = 'No configuration available';
+            for (const [backendKey, backend] of Object.entries(backends)) {
+                const configCard = document.createElement('div');
+                configCard.className = 'stat-card';
+                configCard.style.cursor = 'pointer';
+                configCard.onclick = () => openConfigModal(backendKey);
+                
+                let configPreview = 'Click to configure';
+                if (backend.detailed_info) {
+                    const configKeys = Object.keys(backend.detailed_info);
+                    if (configKeys.length > 0) {
+                        configPreview = `${configKeys.length} config options available`;
+                    } else {
+                        configPreview = 'No configuration available';
+                    }
                 }
-            }
 
-            configCard.innerHTML = `
-                <h4>${backend.name}</h4>
-                <div class="status-badge status-${backend.health}">${backend.health}</div>
-                <p style="font-size: 0.9em; color: #6c757d; margin: 8px 0;">${configPreview}</p>
-            `;
-            
-            configList.appendChild(configCard);
+                configCard.innerHTML = `
+                    <h4>${backend.name || backendKey}</h4>
+                    <div class="status-badge status-${backend.health || 'unknown'}">${backend.health || 'unknown'}</div>
+                    <div class="status-badge status-${backend.status || 'unknown'}">${backend.status || 'unknown'}</div>
+                    <p style="font-size: 0.9em; color: #6c757d; margin: 8px 0;">${configPreview}</p>
+                `;
+                
+                configList.appendChild(configCard);
+            }
+            console.log('loadConfigurationTab: Backend configurations loaded.');
+        } else {
+            configList.innerHTML = '<div style="color: red; padding: 20px;">No backend data available</div>';
         }
-        console.log('loadConfigurationTab: Backend configurations loaded.');
     } catch (error) {
         console.error('loadConfigurationTab: Error loading configurations:', error);
         configList.innerHTML = `<div style="color: red; padding: 20px;">Error loading configurations: ${error.message}</div>`;
@@ -447,24 +520,1010 @@ async function loadConfigurationTab() {
 
 async function loadLogsTab() {
     console.log('loadLogsTab: Loading logs tab...');
+    const logViewer = document.getElementById('logViewer');
+    const searchInput = document.getElementById('logSearch');
+    const levelFilter = document.getElementById('logLevelFilter');
+    const sourceFilter = document.getElementById('logSourceFilter');
+    
+    if (!logViewer) {
+        console.error('loadLogsTab: #logViewer element not found.');
+        return;
+    }
+
+    const searchQuery = searchInput ? searchInput.value : '';
+    const levelFilter_value = levelFilter ? levelFilter.value : '';
+    const sourceFilter_value = sourceFilter ? sourceFilter.value : '';
+    
+    logViewer.innerHTML = '<div class="loading">Loading system logs...</div>';
+
     try {
-        const data = await dashboardAPI.fetch('/api/logs');
-        console.log('loadLogsTab: Received logs data:', data);
-        const logs = data.logs.join('');
-        const logViewerElement = document.getElementById('logViewer');
-        if (logViewerElement) {
-            logViewerElement.textContent = logs;
-            console.log('loadLogsTab: Log viewer updated.');
+        // Get logs from the working endpoint
+        const logData = await dashboardAPI.fetch('/api/logs?limit=100');
+        
+        if (logData && logData.logs) {
+            // Convert structured log data to formatted log strings
+            let logs = [];
+            
+            // Process each backend's logs
+            for (const [backend, backendLogs] of Object.entries(logData.logs)) {
+                if (Array.isArray(backendLogs)) {
+                    for (const logEntry of backendLogs) {
+                        // Format: timestamp - backend - level - message
+                        const formattedLog = `${logEntry.formatted_time} - ${logEntry.backend} - ${logEntry.level} - ${logEntry.message}`;
+                        logs.push(formattedLog);
+                    }
+                }
+            }
+            
+            // Apply client-side filtering
+            if (searchQuery) {
+                logs = logs.filter(log => 
+                    log.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+            }
+            
+            if (levelFilter_value) {
+                logs = logs.filter(log => 
+                    log.includes(` - ${levelFilter_value} - `)
+                );
+            }
+
+            if (sourceFilter_value) {
+                logs = logs.filter(log => 
+                    log.includes(sourceFilter_value)
+                );
+            }
+
+            // Always use renderLogEntries for proper layout (logs first, stats at bottom)
+            renderLogEntries(logs, logViewer, false);
         } else {
-            console.error('loadLogsTab: #logViewer element not found.');
+            // Generate sample log data for demonstration
+            const sampleLogs = generateSampleLogData(levelFilter_value, sourceFilter_value, searchQuery);
+            renderLogEntries(sampleLogs, logViewer, true);
         }
     } catch (error) {
         console.error('loadLogsTab: Error loading logs:', error);
-        const logViewerElement = document.getElementById('logViewer');
-        if (logViewerElement) {
-            logViewerElement.textContent = `Error loading logs: ${error.message}`;
+        // Generate sample data on error
+        const sampleLogs = generateSampleLogData(levelFilter_value, sourceFilter_value, searchQuery);
+        renderLogEntries(sampleLogs, logViewer, true);
+    }
+}
+
+function filterLogs() {
+    loadLogsTab();
+}
+
+function clearLogFilters() {
+    const searchInput = document.getElementById('logSearch');
+    const levelFilter = document.getElementById('logLevelFilter');
+    const sourceFilter = document.getElementById('logSourceFilter');
+    
+    if (searchInput) searchInput.value = '';
+    if (levelFilter) levelFilter.value = '';
+    if (sourceFilter) sourceFilter.value = '';
+    
+    loadLogsTab();
+}
+
+function toggleAutoRefresh() {
+    const btn = document.getElementById('autoRefreshBtn');
+    
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        btn.textContent = '▶️ Auto-Refresh';
+        btn.classList.remove('paused');
+    } else {
+        autoRefreshInterval = setInterval(() => {
+            if (document.getElementById('logs').classList.contains('active')) {
+                loadLogsTab();
+            }
+        }, 5000); // Refresh every 5 seconds
+        btn.textContent = '⏸️ Auto-Refresh';
+        btn.classList.add('paused');
+    }
+}
+
+function renderLogEntries(logs, container, isSample = false) {
+    // Clean and sort logs
+    let cleanedLogs = logs
+        .filter(log => log && log.trim().length > 0) // Remove empty lines
+        .map(log => log.trim()) // Remove leading/trailing whitespace
+        .sort((a, b) => {
+            // Extract timestamps and sort by most recent first
+            const timestampA = extractTimestamp(a);
+            const timestampB = extractTimestamp(b);
+            return timestampB - timestampA; // Most recent first
+        });
+    
+    const logStats = calculateLogStats(cleanedLogs);
+    
+    // Put the log entries first, then stats at the bottom
+    let logHTML = `<div class="log-entries">`;
+    
+    if (cleanedLogs.length === 0) {
+        logHTML += `<div class="log-entry INFO">No log entries found matching current filters.</div>`;
+    } else {
+        for (const logEntry of cleanedLogs) {
+            const level = extractLogLevel(logEntry);
+            const formattedEntry = formatLogEntry(logEntry);
+            
+            logHTML += `<div class="log-entry ${level}">${formattedEntry}</div>`;
         }
     }
+    
+    logHTML += '</div>';
+    
+    // Add colored statistics indicators below the logs
+    logHTML += `
+        <div class="log-stats-indicators">
+            <div class="stat-indicator total">
+                <div class="stat-number">${cleanedLogs.length}</div>
+                <div class="stat-label">Total</div>
+            </div>
+            <div class="stat-indicator errors">
+                <div class="stat-number">${logStats.errors}</div>
+                <div class="stat-label">Errors</div>
+            </div>
+            <div class="stat-indicator warnings">
+                <div class="stat-number">${logStats.warnings}</div>
+                <div class="stat-label">Warnings</div>
+            </div>
+            <div class="stat-indicator info">
+                <div class="stat-number">${logStats.info}</div>
+                <div class="stat-label">Info</div>
+            </div>
+        </div>
+    `;
+    
+    if (isSample) {
+        logHTML += `
+            <div class="sample-notice">
+                <p><em>📊 This is sample log data showing typical system activity.</em></p>
+                <p><em>🔌 Connect to a running server with active backends to see real log entries.</em></p>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = logHTML;
+}
+
+function calculateLogStats(logs) {
+    const stats = { errors: 0, warnings: 0, info: 0, debug: 0, critical: 0 };
+    
+    for (const log of logs) {
+        if (log.includes(' - ERROR - ')) stats.errors++;
+        else if (log.includes(' - WARNING - ')) stats.warnings++;
+        else if (log.includes(' - INFO - ')) stats.info++;
+        else if (log.includes(' - DEBUG - ')) stats.debug++;
+        else if (log.includes(' - CRITICAL - ')) stats.critical++;
+    }
+    
+    return stats;
+}
+
+function extractLogLevel(logEntry) {
+    if (logEntry.includes(' - ERROR - ')) return 'ERROR';
+    if (logEntry.includes(' - WARNING - ')) return 'WARNING';
+    if (logEntry.includes(' - INFO - ')) return 'INFO';
+    if (logEntry.includes(' - DEBUG - ')) return 'DEBUG';
+    if (logEntry.includes(' - CRITICAL - ')) return 'CRITICAL';
+    return 'INFO';
+}
+
+function extractTimestamp(logEntry) {
+    // Extract timestamp from log entry
+    // New format: "HH:MM:SS - backend - LEVEL - message"
+    const timeMatch = logEntry.match(/^(\d{2}:\d{2}:\d{2})\s*-/);
+    if (timeMatch) {
+        const timeStr = timeMatch[1];
+        // Create a date object with today's date and the extracted time
+        const today = new Date();
+        const [hours, minutes, seconds] = timeStr.split(':');
+        const timestamp = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 
+                                 parseInt(hours), parseInt(minutes), parseInt(seconds));
+        return timestamp.getTime();
+    }
+    
+    // Fallback: try full timestamp format "YYYY-MM-DD HH:MM:SS,mmm - ..."
+    const timestampMatch = logEntry.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})[,\.]?\d*\s*-/);
+    if (timestampMatch) {
+        const timestampStr = timestampMatch[1];
+        const timestamp = new Date(timestampStr);
+        return timestamp.getTime();
+    }
+    
+    // Fallback: try ISO format
+    const isoMatch = logEntry.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);
+    if (isoMatch) {
+        return new Date(isoMatch[1]).getTime();
+    }
+    
+    // If no timestamp found, return 0 (will be sorted to end)
+    return 0;
+}
+
+function formatLogEntry(logEntry) {
+    // Remove excessive newlines, tabs, and extra spaces while preserving single spaces
+    return logEntry
+        .replace(/\n+/g, ' ')  // Replace newlines with single space
+        .replace(/\t+/g, ' ')  // Replace tabs with single space
+        .replace(/\s{2,}/g, ' ')  // Replace multiple spaces with single space
+        .trim();  // Remove leading/trailing whitespace
+}
+
+function generateSampleLogData(levelFilter = '', sourceFilter = '', searchQuery = '') {
+    const now = new Date();
+    const levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'];
+    const sources = ['backend.ipfs', 'backend.lotus', 'backend.storacha', 'api.server', 'mcp.server'];
+    const operations = [
+        'Health check completed',
+        'Backend status updated',
+        'VFS operation: read',
+        'VFS operation: write', 
+        'API request processed',
+        'Configuration updated',
+        'Cache miss, loading from storage',
+        'Cache hit, serving cached data',
+        'Peer connection established',
+        'File upload completed',
+        'Index update finished',
+        'Search operation completed',
+        'Backup operation started',
+        'Cleanup task executed'
+    ];
+    
+    const logs = [];
+    
+    for (let i = 50; i >= 0; i--) {
+        const timestamp = new Date(now.getTime() - i * 10000); // Every 10 seconds
+        const level = levels[Math.floor(Math.random() * levels.length)];
+        const source = sources[Math.floor(Math.random() * sources.length)];
+        const operation = operations[Math.floor(Math.random() * operations.length)];
+        
+        // Apply filters if specified
+        if (levelFilter && level !== levelFilter) continue;
+        if (sourceFilter && !source.includes(sourceFilter)) continue;
+        if (searchQuery && !operation.toLowerCase().includes(searchQuery.toLowerCase())) continue;
+        
+        const logEntry = `${timestamp.toISOString().replace('T', ' ').slice(0, 19)} - ${source} - ${level} - ${operation}`;
+        logs.push(logEntry);
+    }
+    
+    return logs;
+}
+
+function renderLogsInterface(logData, container) {
+    console.log('renderLogsInterface: This function is deprecated, using renderLogEntries instead');
+    // Redirect to use the proper log display with sample data
+    const sampleLogs = generateSampleLogData();
+    renderLogEntries(sampleLogs, container, true);
+}
+
+function loadLogOverview() {
+    // Stub function - could load overview statistics
+    console.log('loadLogOverview: Loading log overview');
+}
+
+function loadRecentLogs() {
+    // Stub function - could load recent logs
+    console.log('loadRecentLogs: Loading recent logs');
+}
+
+function loadErrorLogs() {
+    // Stub function - could load error logs
+    console.log('loadErrorLogs: Loading error logs');
+}
+
+function populateBackendSelects() {
+    // Stub function - could populate backend dropdowns
+    console.log('populateBackendSelects: Populating backend selects');
+}
+
+function filterRecentLogs() {
+    // Stub function - could filter recent logs
+    console.log('filterRecentLogs: Filtering recent logs');
+}
+
+function filterErrorLogs() {
+    // Stub function - could filter error logs
+    console.log('filterErrorLogs: Filtering error logs');
+}
+
+function loadBackendLogs() {
+    // Stub function - could load backend-specific logs
+    console.log('loadBackendLogs: Loading backend logs');
+}
+
+function loadAllBackendLogs() {
+    // Stub function - could load all backend logs
+    console.log('loadAllBackendLogs: Loading all backend logs');
+}
+
+function renderLogsWithStats(statsData, container) {
+    console.log('renderLogsWithStats: This function is deprecated, using renderLogEntries instead');
+    // Redirect to use the proper log display with sample data
+    const sampleLogs = generateSampleLogData();
+    renderLogEntries(sampleLogs, container, true);
+}
+
+function renderSampleLogs(container) {
+    const sampleLogs = generateSampleSystemLogs();
+    container.innerHTML = `
+        <div class="logs-interface">
+            <div class="log-info-banner">
+                <p><strong>Demo Mode:</strong> These are sample logs. Connect to a running server for real system logs.</p>
+            </div>
+            <div class="logs-tabs">
+                <button class="log-tab-btn active" onclick="showLogSection('overview')">📊 Sample Overview</button>
+            </div>
+            <div class="log-sections">
+                <div id="overview-logs" class="log-section active">
+                    <div class="log-content-area">
+                        <pre class="log-display">${sampleLogs}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateSampleSystemLogs() {
+    const now = new Date();
+    const logs = [];
+    
+    // Generate realistic system activity logs
+    for (let i = 20; i >= 0; i--) {
+        const timestamp = new Date(now.getTime() - i * 60000).toISOString();
+        
+        const activities = [
+            `${timestamp} - INFO - Backend health check completed for IPFS`,
+            `${timestamp} - INFO - VFS operation: read /vectors/embeddings_cache.bin (245ms)`,
+            `${timestamp} - DEBUG - Memory usage: 629.18MB, CPU: 12.3%`,
+            `${timestamp} - INFO - WebSocket connection established from 127.0.0.1`,
+            `${timestamp} - WARNING - IPFS cluster connection timeout, retrying...`,
+            `${timestamp} - INFO - Semantic search query processed: 'document classification' (34ms)`,
+            `${timestamp} - INFO - Cache hit for vector similarity search`,
+            `${timestamp} - DEBUG - Processing file upload to storage backend`,
+            `${timestamp} - INFO - Knowledge graph updated: 5 new entities added`,
+            `${timestamp} - ERROR - Failed to connect to Lotus daemon: connection refused`,
+            `${timestamp} - INFO - Dashboard page accessed from 127.0.0.1`,
+            `${timestamp} - INFO - Backend status updated: Storacha (healthy)`,
+            `${timestamp} - DEBUG - Garbage collection: freed 45.2MB`,
+            `${timestamp} - INFO - VFS journal entry: write operation completed`,
+            `${timestamp} - WARNING - High memory usage detected: 85% threshold exceeded`
+        ];
+        
+        // Add random activity
+        if (Math.random() > 0.3) {
+            logs.push(activities[Math.floor(Math.random() * activities.length)]);
+        }
+    }
+    
+    return logs.join('\n');
+}
+
+function highlightLogLevels(element) {
+    const content = element.innerHTML;
+    const highlighted = content
+        .replace(/(ERROR|CRITICAL)/g, '<span style="color: #f44336; font-weight: bold;">$1</span>')
+        .replace(/(WARNING)/g, '<span style="color: #ff9800; font-weight: bold;">$1</span>')
+        .replace(/(INFO)/g, '<span style="color: #4CAF50;">$1</span>')
+        .replace(/(DEBUG)/g, '<span style="color: #2196F3;">$1</span>');
+    
+    element.innerHTML = highlighted;
+}
+
+function showLogSection(sectionName) {
+    console.log('showLogSection: Switching to section:', sectionName);
+    
+    // Hide all sections
+    document.querySelectorAll('.log-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.log-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected section
+    const targetSection = document.getElementById(`${sectionName}-logs`);
+    if (targetSection) {
+        targetSection.classList.add('active');
+    }
+    
+    // Activate selected tab
+    const activeTab = document.querySelector(`[onclick*="showLogSection('${sectionName}')"]`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+}
+
+async function loadLogOverview() {
+    try {
+        const statsData = await dashboardAPI.fetch('/api/logs/statistics');
+        const overviewContent = document.getElementById('overviewContent');
+        
+        if (statsData && statsData.success) {
+            const stats = statsData.data;
+            overviewContent.innerHTML = `
+                <div class="overview-sections">
+                    <div class="recent-activity">
+                        <h4>Recent Activity</h4>
+                        <div class="activity-stats">
+                            <span>Last Hour: ${stats.recent_activity?.last_hour || 0}</span>
+                            <span>Last 24h: ${stats.recent_activity?.last_24h || 0}</span>
+                            <span>Last Week: ${stats.recent_activity?.last_week || 0}</span>
+                        </div>
+                    </div>
+                    <div class="backend-overview">
+                        <h4>Backend Status</h4>
+                        <div class="backend-overview-grid">
+                            ${Object.entries(stats.backends || {}).map(([name, data]) => `
+                                <div class="backend-overview-card">
+                                    <div class="backend-name">${name}</div>
+                                    <div class="backend-info">
+                                        <span>${data.total_entries} entries</span>
+                                        <span>Last: ${data.last_entry ? new Date(data.last_entry).toLocaleString() : 'Never'}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            overviewContent.innerHTML = '<div class="info-message">No overview data available</div>';
+        }
+    } catch (error) {
+        console.error('Error loading log overview:', error);
+        const overviewContent = document.getElementById('overviewContent');
+        if (overviewContent) {
+            overviewContent.innerHTML = '<div class="error-message">Error loading overview</div>';
+        }
+    }
+}
+
+async function loadRecentLogs() {
+    try {
+        const recentData = await dashboardAPI.fetch('/api/logs/recent?minutes=30');
+        const recentContent = document.getElementById('recentLogsContent');
+        
+        if (recentData && recentData.success && recentData.data) {
+            const logs = Array.isArray(recentData.data) ? recentData.data : [recentData.data];
+            recentContent.innerHTML = `
+                <div class="log-table-container">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Backend</th>
+                                <th>Level</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${logs.map(log => `
+                                <tr class="log-row log-${log.level?.toLowerCase() || 'info'}">
+                                    <td class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</td>
+                                    <td class="log-backend">${log.backend || 'system'}</td>
+                                    <td class="log-level">${log.level || 'INFO'}</td>
+                                    <td class="log-message">${log.message || ''}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            recentContent.innerHTML = '<div class="info-message">No recent logs available</div>';
+        }
+    } catch (error) {
+        console.error('Error loading recent logs:', error);
+        const recentContent = document.getElementById('recentLogsContent');
+        if (recentContent) {
+            recentContent.innerHTML = '<div class="error-message">Error loading recent logs</div>';
+        }
+    }
+}
+
+async function loadErrorLogs() {
+    try {
+        const errorData = await dashboardAPI.fetch('/api/logs/errors');
+        const errorContent = document.getElementById('errorLogsContent');
+        
+        if (errorData && errorData.success && errorData.data) {
+            const errors = Array.isArray(errorData.data) ? errorData.data : [errorData.data];
+            errorContent.innerHTML = `
+                <div class="log-table-container">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Backend</th>
+                                <th>Level</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${errors.map(error => `
+                                <tr class="log-row log-${error.level?.toLowerCase() || 'error'}">
+                                    <td class="log-time">${new Date(error.timestamp).toLocaleTimeString()}</td>
+                                    <td class="log-backend">${error.backend || 'system'}</td>
+                                    <td class="log-level">${error.level || 'ERROR'}</td>
+                                    <td class="log-message">${error.message || ''}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            errorContent.innerHTML = '<div class="info-message">No error logs found</div>';
+        }
+    } catch (error) {
+        console.error('Error loading error logs:', error);
+        const errorContent = document.getElementById('errorLogsContent');
+        if (errorContent) {
+            errorContent.innerHTML = '<div class="error-message">Error loading error logs</div>';
+        }
+    }
+}
+
+async function populateBackendSelects() {
+    try {
+        const backendData = await dashboardAPI.fetch('/api/backends/status');
+        if (backendData && backendData.success) {
+            const backends = Object.keys(backendData.backends || {});
+            
+            // Populate backend selectors
+            const selectors = ['errorLogBackend', 'backendLogSelect'];
+            selectors.forEach(selectorId => {
+                const selector = document.getElementById(selectorId);
+                if (selector) {
+                    backends.forEach(backend => {
+                        const option = document.createElement('option');
+                        option.value = backend;
+                        option.textContent = backend;
+                        selector.appendChild(option);
+                    });
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error populating backend selects:', error);
+    }
+}
+
+async function loadVFSJournal() {
+    console.log('loadVFSJournal: Loading VFS journal...');
+    const journalContent = document.getElementById('vfsJournalContent');
+    const searchInput = document.getElementById('journalSearch');
+    const backendFilter = document.getElementById('journalBackendFilter');
+    const operationFilter = document.getElementById('journalOperationFilter');
+
+    if (!journalContent) {
+        console.error('loadVFSJournal: #vfsJournalContent element not found.');
+        return;
+    }
+
+    const query = searchInput ? searchInput.value : '';
+    const backend = backendFilter ? backendFilter.value : '';
+    const operation = operationFilter ? operationFilter.value : '';
+
+    journalContent.innerHTML = '<div class="loading">Loading VFS journal...</div>';
+
+    try {
+        // Try to get real VFS data first
+        let journalData = null;
+        let vfsStats = null;
+        let backendHealth = null;
+        
+        try {
+            // Get VFS statistics for real content access patterns
+            vfsStats = await dashboardAPI.fetch('/api/vfs/statistics');
+            backendHealth = await dashboardAPI.fetch('/api/health');
+            
+            // Try VFS journal endpoint
+            const journalResponse = await dashboardAPI.fetch(`/api/vfs/journal?query=${encodeURIComponent(query)}&backend=${backend}&operation=${operation}`);
+            if (journalResponse && journalResponse.success) {
+                journalData = journalResponse;
+            }
+        } catch (e) {
+            console.log('loadVFSJournal: API endpoints not fully available, using enhanced sample data');
+        }
+
+        if (journalData && journalData.journal && journalData.journal.length > 0) {
+            // Use real journal data
+            renderJournalTable(journalData.journal, journalContent, false);
+        } else {
+            // Generate enhanced journal data based on real backend and VFS statistics
+            const enhancedJournal = generateEnhancedVFSJournal(backend, operation, query, vfsStats, backendHealth);
+            renderJournalTable(enhancedJournal, journalContent, true);
+        }
+    } catch (error) {
+        console.error('loadVFSJournal: Error loading VFS journal:', error);
+        journalContent.innerHTML = `
+            <div class="error-state">
+                <h3>Error Loading VFS Journal</h3>
+                <p>${error.message}</p>
+                <button onclick="loadVFSJournal()">Retry</button>
+            </div>
+        `;
+    }
+}
+
+function generateEnhancedVFSJournal(backendFilter = '', operationFilter = '', searchQuery = '', vfsStats = null, backendHealth = null) {
+    const now = new Date();
+    const journal = [];
+    
+    // Get real backend statuses if available
+    let activeBackends = ['ipfs', 'lotus', 'storacha', 's3', 'local'];
+    let hotContent = [];
+    let operationCounts = {};
+    
+    if (backendHealth && backendHealth.backend_health && backendHealth.backend_health.backends) {
+        const backends = backendHealth.backend_health.backends;
+        activeBackends = Object.keys(backends).filter(name => 
+            backends[name].status === 'running' || 
+            backends[name].status === 'authenticated' || 
+            backends[name].status === 'available'
+        );
+    }
+    
+    if (vfsStats && vfsStats.success && vfsStats.data.access_patterns) {
+        hotContent = vfsStats.data.access_patterns.hot_content || [];
+        operationCounts = vfsStats.data.access_patterns.operation_distribution || {};
+    }
+    
+    // Generate realistic journal entries based on real VFS activity
+    const operations = ['read', 'write', 'upload', 'download', 'delete', 'list', 'index', 'search'];
+    const baseOperations = Object.keys(operationCounts).length > 0 ? 
+        Object.keys(operationCounts).map(op => op.replace('_operations', '')) : operations;
+    
+    // Use hot content paths if available, otherwise use default paths
+    const paths = hotContent.length > 0 ? 
+        hotContent.map(item => item.path) : [
+            '/vectors/embeddings_cache.bin',
+            '/documents/research_papers/ai_trends_2024.pdf',
+            '/knowledge_base/entities.json',
+            '/cache/semantic_search.cache',
+            '/index/document_vectors.idx',
+            '/graphs/relationship_map.graph',
+            '/datasets/training_data.parquet',
+            '/models/transformer_weights.bin'
+        ];
+    
+    // Generate entries based on real access patterns
+    const totalEntries = Math.min(100, Math.max(20, Object.values(operationCounts).reduce((a, b) => a + b, 0) / 100));
+    
+    for (let i = totalEntries; i >= 0; i--) {
+        const timestamp = new Date(now.getTime() - i * 15000).toISOString(); // Every 15 seconds
+        
+        // Weight backend selection towards active backends
+        const backend = activeBackends.length > 0 ? 
+            activeBackends[Math.floor(Math.random() * activeBackends.length)] :
+            ['ipfs', 'storacha', 'local'][Math.floor(Math.random() * 3)];
+            
+        // Weight operation selection based on real operation distribution
+        const operation = baseOperations[Math.floor(Math.random() * baseOperations.length)];
+        
+        // Weight path selection towards hot content
+        const pathIndex = hotContent.length > 0 && Math.random() < 0.7 ? 
+            Math.floor(Math.random() * Math.min(hotContent.length, 5)) : 
+            Math.floor(Math.random() * paths.length);
+        const path = paths[pathIndex];
+        
+        // Apply filters if specified
+        if (backendFilter && backend !== backendFilter) continue;
+        if (operationFilter && operation !== operationFilter) continue;
+        if (searchQuery && !path.toLowerCase().includes(searchQuery.toLowerCase())) continue;
+        
+        // Use real file sizes if available from hot content
+        let size_bytes = Math.floor(Math.random() * 10000000); // Default random size
+        if (hotContent.length > 0 && pathIndex < hotContent.length) {
+            size_bytes = hotContent[pathIndex].size_kb * 1024;
+        }
+        
+        const entry = {
+            timestamp: timestamp,
+            backend: backend,
+            operation: operation,
+            path: path,
+            size_bytes: size_bytes,
+            duration_ms: Math.random() * 1000 + 10, // 10ms to 1s
+            success: Math.random() > 0.1, // 90% success rate for active backends
+            details: generateRealisticOperationDetails(operation, backend, path, vfsStats)
+        };
+        
+        journal.push(entry);
+    }
+    
+    // Sort by timestamp (newest first)
+    return journal.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+}
+
+function generateRealisticOperationDetails(operation, backend, path, vfsStats = null) {
+    // Generate more realistic details based on actual VFS statistics
+    const cacheHitRate = vfsStats?.data?.cache_performance?.tiered_cache?.memory_tier?.hit_rate || 0.85;
+    const avgQueryTime = vfsStats?.data?.vector_index_status?.search_performance?.average_query_time_ms || 25;
+    
+    const detailsMap = {
+        read: [
+            `Cache hit (${(cacheHitRate * 100).toFixed(1)}% hit rate)`,
+            'Cache miss, loaded from disk',
+            'Network retrieval from peer',
+            'Index lookup completed',
+            `Retrieved from ${backend} storage`
+        ],
+        write: [
+            'Data committed to storage',
+            'Index updated successfully',
+            'Backup created automatically',
+            'Metadata synchronized',
+            `Written to ${backend} backend`
+        ],
+        upload: [
+            'File uploaded successfully',
+            'Checksum verified',
+            'Distributed to cluster nodes',
+            'Pinned to IPFS network',
+            `Stored via ${backend} backend`
+        ],
+        download: [
+            'Retrieved from cache',
+            'Downloaded from peer network',
+            'Fetched from gateway',
+            'Streamed from storage',
+            `Downloaded via ${backend}`
+        ],
+        search: [
+            `Vector similarity search (${avgQueryTime.toFixed(1)}ms)`,
+            'Full-text search completed',
+            'Metadata query processed',
+            'Graph traversal executed',
+            'Semantic search performed'
+        ],
+        index: [
+            'Vector index updated',
+            'Document indexed successfully',
+            'Embeddings generated',
+            'Knowledge graph updated',
+            'Search index rebuilt'
+        ]
+    };
+    
+    const operationDetails = detailsMap[operation] || ['Operation completed'];
+    return operationDetails[Math.floor(Math.random() * operationDetails.length)];
+}
+
+function renderJournalTable(journal, container, isSample = false) {
+    let journalHTML = `
+        <div class="journal-stats">
+            <div class="stat">
+                <strong>Total Entries:</strong> ${journal.length}
+            </div>
+            <div class="stat">
+                <strong>Time Range:</strong> ${getTimeRange(journal)}
+            </div>
+            <div class="stat">
+                <strong>Backends Active:</strong> ${getUniqueBackends(journal).length}
+            </div>
+            ${isSample ? '<div class="stat sample-indicator"><strong>Mode:</strong> Sample Data</div>' : ''}
+        </div>
+        <div class="journal-table-container">
+            <table class="journal-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Backend</th>
+                        <th>Operation</th>
+                        <th>Path</th>
+                        <th>Size</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    for (const entry of journal) {
+        const statusClass = entry.success ? 'success' : 'error';
+        const statusIcon = entry.success ? '✓' : '✗';
+        const sizeFormatted = entry.size_bytes ? formatBytes(entry.size_bytes) : '-';
+        const durationFormatted = entry.duration_ms ? `${entry.duration_ms.toFixed(2)}ms` : '-';
+        
+        journalHTML += `
+            <tr class="journal-entry ${statusClass}">
+                <td class="timestamp">${new Date(entry.timestamp).toLocaleString()}</td>
+                <td class="backend">
+                    <span class="backend-badge backend-${entry.backend}">${entry.backend}</span>
+                </td>
+                <td class="operation">
+                    <span class="operation-badge operation-${entry.operation}">${entry.operation}</span>
+                </td>
+                <td class="path" title="${entry.path}">
+                    ${truncatePath(entry.path, 40)}
+                </td>
+                <td class="size">${sizeFormatted}</td>
+                <td class="duration">${durationFormatted}</td>
+                <td class="status">
+                    <span class="status-indicator ${statusClass}">
+                        ${statusIcon} ${entry.success ? 'Success' : 'Failed'}
+                    </span>
+                </td>
+                <td class="details" title="${entry.details || ''}">${truncateText(entry.details || '-', 30)}</td>
+            </tr>
+        `;
+    }
+    
+    journalHTML += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    if (isSample) {
+        journalHTML += `
+            <div class="sample-notice">
+                <p><em>📊 This is sample VFS journal data showing typical filesystem operations across different backends.</em></p>
+                <p><em>🔌 Connect to a running server with active backends to see real journal entries.</em></p>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = journalHTML;
+}
+
+function generateSampleVFSJournal(backendFilter = '', operationFilter = '', searchQuery = '') {
+    const now = new Date();
+    const backends = ['ipfs', 'ipfs_cluster', 'lotus', 'storacha', 's3', 'local'];
+    const operations = ['read', 'write', 'delete', 'list', 'upload', 'download', 'index', 'search'];
+    const paths = [
+        '/vectors/embeddings_cache.bin',
+        '/documents/research_papers/ai_trends_2024.pdf',
+        '/knowledge_base/entities.json',
+        '/cache/semantic_search.cache',
+        '/index/document_vectors.idx',
+        '/graphs/relationship_map.graph',
+        '/datasets/training_data.parquet',
+        '/models/transformer_weights.bin',
+        '/logs/system_activity.log',
+        '/config/backend_settings.yaml',
+        '/uploads/user_document.txt',
+        '/temp/processing_queue.json'
+    ];
+    
+    const journal = [];
+    
+    for (let i = 100; i >= 0; i--) {
+        const timestamp = new Date(now.getTime() - i * 30000).toISOString(); // Every 30 seconds
+        
+        const backend = backends[Math.floor(Math.random() * backends.length)];
+        const operation = operations[Math.floor(Math.random() * operations.length)];
+        const path = paths[Math.floor(Math.random() * paths.length)];
+        
+        // Apply filters if specified
+        if (backendFilter && backend !== backendFilter) continue;
+        if (operationFilter && operation !== operationFilter) continue;
+        if (searchQuery && !path.toLowerCase().includes(searchQuery.toLowerCase())) continue;
+        
+        const entry = {
+            timestamp: timestamp,
+            backend: backend,
+            operation: operation,
+            path: path,
+            size_bytes: Math.floor(Math.random() * 10000000), // Random size up to 10MB
+            duration_ms: Math.random() * 1000 + 10, // 10ms to 1s
+            success: Math.random() > 0.15, // 85% success rate
+            details: generateOperationDetails(operation, backend, path)
+        };
+        
+        journal.push(entry);
+    }
+    
+    // Sort by timestamp (newest first)
+    return journal.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+}
+
+function generateOperationDetails(operation, backend, path) {
+    const details = {
+        read: [
+            'Cache hit',
+            'Cache miss, loaded from disk',
+            'Network retrieval',
+            'Index lookup'
+        ],
+        write: [
+            'Data committed to storage',
+            'Index updated',
+            'Backup created',
+            'Metadata synchronized'
+        ],
+        upload: [
+            'File uploaded successfully',
+            'Checksum verified',
+            'Distributed to cluster',
+            'Pinned to IPFS'
+        ],
+        download: [
+            'Retrieved from cache',
+            'Downloaded from peer',
+            'Fetched from gateway',
+            'Streamed from storage'
+        ],
+        delete: [
+            'File removed',
+            'Index cleaned up',
+            'References updated',
+            'Garbage collected'
+        ],
+        search: [
+            'Vector similarity search',
+            'Full-text search',
+            'Metadata query',
+            'Graph traversal'
+        ]
+    };
+    
+    const operationDetails = details[operation] || ['Operation completed'];
+    return operationDetails[Math.floor(Math.random() * operationDetails.length)];
+}
+
+function getTimeRange(journal) {
+    if (journal.length === 0) return 'No entries';
+    
+    const timestamps = journal.map(entry => new Date(entry.timestamp));
+    const earliest = new Date(Math.min(...timestamps));
+    const latest = new Date(Math.max(...timestamps));
+    
+    const timeDiff = latest - earliest;
+    const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    } else {
+        return `${minutes}m`;
+    }
+}
+
+function getUniqueBackends(journal) {
+    return [...new Set(journal.map(entry => entry.backend))];
+}
+
+function truncatePath(path, maxLength) {
+    if (path.length <= maxLength) return path;
+    
+    const parts = path.split('/');
+    if (parts.length <= 2) {
+        return path.substring(0, maxLength - 3) + '...';
+    }
+    
+    return parts[0] + '/.../' + parts[parts.length - 1];
+}
+
+function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength - 3) + '...';
+}
+
+function filterVFSJournal() {
+    loadVFSJournal();
+}
+
+function clearVFSJournalFilters() {
+    const searchInput = document.getElementById('journalSearch');
+    const backendFilter = document.getElementById('journalBackendFilter');
+    const operationFilter = document.getElementById('journalOperationFilter');
+    
+    if (searchInput) searchInput.value = '';
+    if (backendFilter) backendFilter.value = '';
+    if (operationFilter) operationFilter.value = '';
+    
+    loadVFSJournal();
 }
 
 async function loadVFSTab() {
@@ -677,6 +1736,26 @@ function getBackendConfigOptions(backendName) {
                 { name: 'bootstrap', label: 'Enable Bootstrap', type: 'checkbox', value: 'true', description: 'Enable bootstrap nodes' }
             ]
         },
+        'lassie': {
+            'Binary': [
+                { name: 'binary_path', label: 'Lassie Binary Path', type: 'text', value: 'lassie', description: 'Path to lassie binary executable' },
+                { name: 'binary_available', label: 'Binary Available', type: 'checkbox', value: 'false', description: 'Whether lassie binary is available', readonly: true }
+            ],
+            'Retrieval': [
+                { name: 'concurrent_downloads', label: 'Concurrent Downloads', type: 'number', value: '10', description: 'Number of concurrent downloads' },
+                { name: 'timeout', label: 'Timeout', type: 'text', value: '30s', description: 'Timeout for retrieval operations' },
+                { name: 'temp_directory', label: 'Temp Directory', type: 'text', value: '', description: 'Temporary directory for downloads' }
+            ],
+            'Providers': [
+                { name: 'provider_endpoints', label: 'Provider Endpoints', type: 'textarea', value: '', description: 'Provider endpoints (one per line)' },
+                { name: 'enable_bitswap', label: 'Enable Bitswap', type: 'checkbox', value: 'true', description: 'Enable Bitswap protocol' },
+                { name: 'enable_graphsync', label: 'Enable GraphSync', type: 'checkbox', value: 'true', description: 'Enable GraphSync protocol' }
+            ],
+            'Integration': [
+                { name: 'integration_mode', label: 'Integration Mode', type: 'select', options: ['standalone', 'lotus-integrated'], value: 'standalone', description: 'How lassie integrates with the system' },
+                { name: 'lotus_endpoint', label: 'Lotus Endpoint', type: 'url', value: 'http://127.0.0.1:1234/rpc/v0', description: 'Lotus API endpoint for integration' }
+            ]
+        },
         'storacha': {
             'Authentication': [
                 { name: 'api_token', label: 'API Token', type: 'password', value: '', description: 'Storacha API token' },
@@ -777,7 +1856,9 @@ function createFormField(field, backendName) {
 
 function getCurrentConfigValue(backendName, fieldName) {
     if (backendConfigCache[backendName]) {
-        return getNestedValue(backendConfigCache[backendName], fieldName);
+        const value = getNestedValue(backendConfigCache[backendName], fieldName);
+        // Return empty string instead of undefined to prevent "undefined" text
+        return value !== undefined ? value : '';
     }
     return '';
 }
@@ -789,7 +1870,7 @@ function getNestedValue(obj, path) {
         if (value && typeof value === 'object' && key in value) {
             value = value[key];
         } else {
-            return undefined;
+            return undefined; // Return undefined but handle it in getCurrentConfigValue
         }
     }
     return value;
@@ -986,23 +2067,66 @@ async function loadBackendsTab() {
         console.error('loadBackendsTab: #backend-details-grid element not found.');
         return;
     }
-    grid.innerHTML = '';
+    grid.innerHTML = '<div class="loading">Loading backend details...</div>';
 
     try {
         const data = await dashboardAPI.fetch('/api/v0/storage/backends');
         console.log('loadBackendsTab: Received backends data:', data);
+        grid.innerHTML = ''; // Clear loading message
 
-        for (const backendName in data.backends) {
-            const backendData = await dashboardAPI.fetch(`/api/v0/storage/backends/${backendName}`);
-            const backend = backendData.backend;
+        if (!data.backends || Object.keys(data.backends).length === 0) {
+            grid.innerHTML = '<div class="empty-state">No backends found.</div>';
+            return;
+        }
 
+        for (const [backendName, backendInfo] of Object.entries(data.backends)) {
             const card = document.createElement('div');
-            card.className = `backend-card ${backend.status}`;
+            card.className = `backend-card ${backendInfo.status || 'unknown'}`;
+
+            let storageInfoHTML = '<p><strong>Storage:</strong> N/A</p>';
+            if (backendInfo.storage_info) {
+                const { type, used_bytes, available_bytes, total_bytes } = backendInfo.storage_info;
+                const used = formatBytes(used_bytes || 0);
+                const total = formatBytes(total_bytes || 0);
+                const progress = total_bytes > 0 ? ((used_bytes || 0) / total_bytes) * 100 : 0;
+
+                storageInfoHTML = `
+                    <div class="storage-details">
+                        <p><strong>Storage Type:</strong> ${type || 'N/A'}</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progress.toFixed(2)}%;"></div>
+                        </div>
+                        <div class="storage-stats">
+                            <span>${used} / ${total}</span>
+                            <span>${progress.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let capabilitiesHTML = '';
+            if (backendInfo.capabilities && backendInfo.capabilities.length > 0) {
+                capabilitiesHTML = `
+                    <div class="capabilities">
+                        <strong>Capabilities:</strong>
+                        <div class="capability-tags">
+                            ${backendInfo.capabilities.map(cap => `<span class="tag">${cap}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
 
             card.innerHTML = `
                 <div class="backend-header">
-                    <h3>${backend.name}</h3>
-                    <div class="status-badge status-${backend.status}">${backend.status}</div>
+                    <h3>${backendInfo.name || backendName}</h3>
+                    <div class="status-badge status-${backendInfo.status || 'unknown'}">${backendInfo.status || 'unknown'}</div>
+                </div>
+                <div class="backend-details">
+                    <p><strong>Backend Type:</strong> ${backendInfo.backend_type || backendName}</p>
+                    <p><strong>Priority:</strong> ${backendInfo.priority || 'N/A'}</p>
+                    <p><strong>Last Check:</strong> ${backendInfo.last_check ? new Date(backendInfo.last_check).toLocaleString() : 'Never'}</p>
+                    ${storageInfoHTML}
+                    ${capabilitiesHTML}
                 </div>
             `;
             grid.appendChild(card);
@@ -1010,34 +2134,368 @@ async function loadBackendsTab() {
         console.log('loadBackendsTab: Backends tab updated.');
     } catch (error) {
         console.error('loadBackendsTab: Error loading backends tab:', error);
-        grid.innerHTML = `<div style="color: red; padding: 20px;">Error loading backends: ${error.message}</div>`;
+        grid.innerHTML = `<div class="error-state">Error loading backends: ${error.message}</div>`;
     }
 }
 
 // Placeholder functions for VFS and Vector/KB formatting (if not already defined)
 function formatCachePerformance(data) {
-    return `<p>Cache Hits: ${data.hits || 0}</p><p>Cache Misses: ${data.misses || 0}</p>`;
+    if (!data.tiered_cache && !data.semantic_cache) {
+        return `<p>No cache data available</p>`;
+    }
+    
+    let html = '';
+    
+    if (data.tiered_cache) {
+        const tc = data.tiered_cache;
+        html += `
+            <div class="cache-section">
+                <h4>Tiered Cache</h4>
+                <div class="cache-tier">
+                    <strong>Memory Tier:</strong>
+                    <p>Hit Rate: ${(tc.memory_tier?.hit_rate * 100 || 0).toFixed(1)}%</p>
+                    <p>Size: ${formatBytes((tc.memory_tier?.size_mb || 0) * 1024 * 1024)}</p>
+                    <p>Items: ${tc.memory_tier?.items || 0}</p>
+                    <p>Avg Item Size: ${tc.memory_tier?.average_item_size || 'N/A'}</p>
+                    <p>Evictions/hr: ${tc.memory_tier?.evictions_per_hour || 0}</p>
+                </div>
+                <div class="cache-tier">
+                    <strong>Disk Tier:</strong>
+                    <p>Hit Rate: ${(tc.disk_tier?.hit_rate * 100 || 0).toFixed(1)}%</p>
+                    <p>Size: ${formatBytes((tc.disk_tier?.size_gb || 0) * 1024 * 1024 * 1024)}</p>
+                    <p>Items: ${tc.disk_tier?.items || 0}</p>
+                    <p>Read Latency: ${tc.disk_tier?.read_latency_ms || 0}ms</p>
+                    <p>Write Latency: ${tc.disk_tier?.write_latency_ms || 0}ms</p>
+                </div>
+                <p><strong>Predictive Accuracy:</strong> ${(tc.predictive_accuracy * 100 || 0).toFixed(1)}%</p>
+                <p><strong>Prefetch Efficiency:</strong> ${(tc.prefetch_efficiency * 100 || 0).toFixed(1)}%</p>
+            </div>
+        `;
+    }
+    
+    if (data.semantic_cache) {
+        const sc = data.semantic_cache;
+        html += `
+            <div class="cache-section">
+                <h4>Semantic Cache</h4>
+                <p><strong>Model:</strong> ${sc.embedding_model || 'N/A'}</p>
+                <p><strong>Similarity Threshold:</strong> ${sc.similarity_threshold || 0}</p>
+                <p><strong>Cache Entries:</strong> ${sc.cache_entries || 0}</p>
+                <p><strong>Exact Matches:</strong> ${sc.exact_matches || 0}</p>
+                <p><strong>Similarity Matches:</strong> ${sc.similarity_matches || 0}</p>
+                <p><strong>Utilization:</strong> ${(sc.cache_utilization * 100 || 0).toFixed(1)}%</p>
+                <p><strong>Avg Similarity:</strong> ${(sc.average_similarity * 100 || 0).toFixed(1)}%</p>
+            </div>
+        `;
+    }
+    
+    return html;
 }
 function formatFilesystemStatus(data) {
-    return `<p>Total Space: ${formatBytes(data.total_space || 0)}</p><p>Used Space: ${formatBytes(data.used_space || 0)}</p>`;
+    if (!data.disk_usage && !data.ipfs_kit_usage && !data.io_stats) {
+        return `<p>No filesystem data available</p>`;
+    }
+    
+    let html = '';
+    
+    if (data.disk_usage) {
+        const du = data.disk_usage;
+        html += `
+            <div class="filesystem-section">
+                <h4>Disk Usage</h4>
+                <p><strong>Total:</strong> ${formatBytes(du.total_gb * 1024 * 1024 * 1024)}</p>
+                <p><strong>Used:</strong> ${formatBytes(du.used_gb * 1024 * 1024 * 1024)} (${du.usage_percent?.toFixed(1)}%)</p>
+                <p><strong>Free:</strong> ${formatBytes(du.free_gb * 1024 * 1024 * 1024)}</p>
+                <div class="progress-bar" style="margin: 5px 0;">
+                    <div class="progress-fill" style="width: ${du.usage_percent || 0}%; background-color: ${du.usage_percent > 80 ? '#f44336' : '#4CAF50'};"></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (data.ipfs_kit_usage) {
+        const iku = data.ipfs_kit_usage;
+        html += `
+            <div class="filesystem-section">
+                <h4>IPFS Kit Usage</h4>
+                <p><strong>Size:</strong> ${formatBytes(iku.total_size_mb * 1024 * 1024)}</p>
+                <p><strong>Files:</strong> ${iku.total_files || 0}</p>
+                <p><strong>Avg File Size:</strong> ${formatBytes((iku.average_file_size_kb || 0) * 1024)}</p>
+            </div>
+        `;
+    }
+    
+    if (data.io_stats) {
+        const io = data.io_stats;
+        html += `
+            <div class="filesystem-section">
+                <h4>I/O Statistics</h4>
+                <p><strong>Read Ops/sec:</strong> ${io.read_ops_per_sec?.toFixed(1) || 0}</p>
+                <p><strong>Write Ops/sec:</strong> ${io.write_ops_per_sec?.toFixed(1) || 0}</p>
+                <p><strong>Read Bandwidth:</strong> ${io.read_bandwidth_mbps?.toFixed(1) || 0} MB/s</p>
+                <p><strong>Write Bandwidth:</strong> ${io.write_bandwidth_mbps?.toFixed(1) || 0} MB/s</p>
+                <p><strong>I/O Utilization:</strong> ${io.io_utilization_percent?.toFixed(1) || 0}%</p>
+            </div>
+        `;
+    }
+    
+    return html;
 }
 function formatAccessPatterns(data) {
-    return `<p>Reads: ${data.reads || 0}</p><p>Writes: ${data.writes || 0}</p>`;
+    if (!data.hot_content && !data.operation_distribution && !data.temporal_patterns) {
+        return `<p>No access pattern data available</p>`;
+    }
+    
+    let html = '';
+    
+    if (data.hot_content && data.hot_content.length > 0) {
+        html += `
+            <div class="access-section">
+                <h4>Hot Content</h4>
+                ${data.hot_content.slice(0, 5).map(item => `
+                    <div class="hot-item">
+                        <p><strong>${item.path}</strong></p>
+                        <p>Accesses: ${item.access_count} | Size: ${formatBytes(item.size_kb * 1024)}</p>
+                        <p>Last: ${new Date(item.last_accessed).toLocaleString()}</p>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    if (data.operation_distribution) {
+        const od = data.operation_distribution;
+        html += `
+            <div class="access-section">
+                <h4>Operation Distribution</h4>
+                <p><strong>Read Operations:</strong> ${od.read_operations || 0}</p>
+                <p><strong>Write Operations:</strong> ${od.write_operations || 0}</p>
+                <p><strong>Search Operations:</strong> ${od.search_operations || 0}</p>
+                <p><strong>Cache Operations:</strong> ${od.cache_operations || 0}</p>
+            </div>
+        `;
+    }
+    
+    if (data.temporal_patterns && data.temporal_patterns.peak_hours) {
+        const tp = data.temporal_patterns;
+        html += `
+            <div class="access-section">
+                <h4>Temporal Patterns</h4>
+                <p><strong>Peak Hours:</strong> ${tp.peak_hours.join(', ')}</p>
+                <p><strong>Low Activity:</strong> ${tp.low_activity_hours.join(', ')}</p>
+            </div>
+        `;
+    }
+    
+    if (data.access_frequency) {
+        const af = data.access_frequency;
+        html += `
+            <div class="access-section">
+                <h4>Access Frequency</h4>
+                <p><strong>Very Frequent:</strong> ${af.very_frequent || 0}</p>
+                <p><strong>Frequent:</strong> ${af.frequent || 0}</p>
+                <p><strong>Moderate:</strong> ${af.moderate || 0}</p>
+                <p><strong>Infrequent:</strong> ${af.infrequent || 0}</p>
+            </div>
+        `;
+    }
+    
+    return html;
 }
 function formatResourceUsage(data) {
-    return `<p>CPU: ${data.cpu_percent || 0}%</p><p>Memory: ${formatBytes(data.memory_usage || 0)}</p>`;
+    if (!data.memory_usage && !data.disk_usage && !data.cpu_usage && !data.network_usage) {
+        return `<p>No resource usage data available</p>`;
+    }
+    
+    let html = '';
+    
+    if (data.memory_usage) {
+        const mu = data.memory_usage;
+        html += `
+            <div class="resource-section">
+                <h4>Memory Usage</h4>
+                <p><strong>Cache:</strong> ${formatBytes((mu.cache_mb || 0) * 1024 * 1024)}</p>
+                <p><strong>Index:</strong> ${formatBytes((mu.index_mb || 0) * 1024 * 1024)}</p>
+                <p><strong>System Total:</strong> ${formatBytes((mu.system_total_mb || 0) * 1024 * 1024)}</p>
+                <p><strong>System Available:</strong> ${formatBytes((mu.system_available_mb || 0) * 1024 * 1024)}</p>
+                <p><strong>System Used:</strong> ${mu.system_used_percent?.toFixed(1) || 0}%</p>
+            </div>
+        `;
+    }
+    
+    if (data.disk_usage) {
+        const du = data.disk_usage;
+        html += `
+            <div class="resource-section">
+                <h4>Disk Usage</h4>
+                <p><strong>Cache:</strong> ${formatBytes((du.cache_gb || 0) * 1024 * 1024 * 1024)}</p>
+                <p><strong>Index:</strong> ${formatBytes((du.index_gb || 0) * 1024 * 1024 * 1024)}</p>
+                <p><strong>Total Used:</strong> ${formatBytes((du.total_used_gb || 0) * 1024 * 1024 * 1024)}</p>
+            </div>
+        `;
+    }
+    
+    if (data.cpu_usage) {
+        const cu = data.cpu_usage;
+        html += `
+            <div class="resource-section">
+                <h4>CPU Usage</h4>
+                <p><strong>System:</strong> ${cu.system_percent?.toFixed(1) || 0}%</p>
+                <p><strong>Indexing (est):</strong> ${cu.indexing_estimated?.toFixed(1) || 0}%</p>
+                <p><strong>Search (est):</strong> ${cu.search_estimated?.toFixed(1) || 0}%</p>
+                <p><strong>Cache Mgmt (est):</strong> ${cu.cache_management_estimated?.toFixed(1) || 0}%</p>
+            </div>
+        `;
+    }
+    
+    if (data.network_usage) {
+        const nu = data.network_usage;
+        html += `
+            <div class="resource-section">
+                <h4>Network Usage</h4>
+                <p><strong>Connections:</strong> ${nu.estimated_connections || 0}</p>
+                <p><strong>Bandwidth Utilization:</strong> ${(nu.bandwidth_utilization * 100 || 0).toFixed(1)}%</p>
+            </div>
+        `;
+    }
+    
+    return html;
 }
 function formatTieredCacheDetails(data) {
-    return `<p>Tier 1 Size: ${formatBytes(data.tier1_size || 0)}</p><p>Tier 2 Size: ${formatBytes(data.tier2_size || 0)}</p>`;
+    // This is redundant with formatCachePerformance, but keeping for compatibility
+    if (!data.tiered_cache) {
+        return `<p>No tiered cache data available</p>`;
+    }
+    
+    const tc = data.tiered_cache;
+    return `
+        <div class="tiered-cache-details">
+            <p><strong>Memory Tier Hit Rate:</strong> ${(tc.memory_tier?.hit_rate * 100 || 0).toFixed(1)}%</p>
+            <p><strong>Disk Tier Hit Rate:</strong> ${(tc.disk_tier?.hit_rate * 100 || 0).toFixed(1)}%</p>
+            <p><strong>Predictive Accuracy:</strong> ${(tc.predictive_accuracy * 100 || 0).toFixed(1)}%</p>
+            <p><strong>Prefetch Efficiency:</strong> ${(tc.prefetch_efficiency * 100 || 0).toFixed(1)}%</p>
+        </div>
+    `;
 }
+
 function formatHotContentAnalysis(data) {
-    return `<p>Hot Files: ${data.hot_files || 0}</p><p>Cold Files: ${data.cold_files || 0}</p>`;
+    if (!data.hot_content || data.hot_content.length === 0) {
+        return `<p>No hot content data available</p>`;
+    }
+    
+    const topFiles = data.hot_content.slice(0, 3);
+    return `
+        <div class="hot-content-analysis">
+            <h4>Most Accessed Files</h4>
+            ${topFiles.map(file => `
+                <div class="hot-file">
+                    <p><strong>${file.path.split('/').pop()}</strong></p>
+                    <p>${file.access_count} accesses • ${formatBytes(file.size_kb * 1024)}</p>
+                </div>
+            `).join('')}
+            <p><strong>Total Hot Files:</strong> ${data.hot_content.length}</p>
+        </div>
+    `;
 }
 function formatVectorIndexStatus(data) {
-    return `<p>Indexed Vectors: ${data.indexed_vectors || 0}</p><p>Index Size: ${formatBytes(data.index_size || 0)}</p>`;
+    if (!data.index_health && !data.total_vectors) {
+        return `<p>No vector index data available</p>`;
+    }
+    
+    return `
+        <div class="vector-index-status">
+            <p><strong>Health:</strong> <span style="color: ${data.index_health === 'healthy' ? 'green' : data.index_health === 'initializing' ? 'orange' : 'red'}">${data.index_health || 'unknown'}</span></p>
+            <p><strong>Total Vectors:</strong> ${(data.total_vectors || 0).toLocaleString()}</p>
+            <p><strong>Index Type:</strong> ${(data.index_type || 'unknown').toUpperCase()}</p>
+            <p><strong>Dimensions:</strong> ${data.dimension || 0}</p>
+            <p><strong>Clusters:</strong> ${data.clusters || 0}</p>
+            <p><strong>Index Size:</strong> ${formatBytes((data.index_size_mb || 0) * 1024 * 1024)}</p>
+            <p><strong>Last Updated:</strong> ${data.last_updated ? new Date(data.last_updated).toLocaleString() : 'Never'}</p>
+            <p><strong>Update Frequency:</strong> ${data.update_frequency || 'unknown'}</p>
+            ${data.search_performance ? `
+                <div class="search-performance">
+                    <h5>Search Performance</h5>
+                    <p>Avg Query Time: ${data.search_performance.average_query_time_ms || 0}ms</p>
+                    <p>Queries/Second: ${data.search_performance.queries_per_second || 0}</p>
+                    <p>Recall@10: ${(data.search_performance.recall_at_10 * 100 || 0).toFixed(1)}%</p>
+                    <p>Precision@10: ${(data.search_performance.precision_at_10 * 100 || 0).toFixed(1)}%</p>
+                    <p>Total Searches: ${(data.search_performance.total_searches || 0).toLocaleString()}</p>
+                </div>
+            ` : ''}
+            ${data.content_distribution ? `
+                <div class="content-distribution">
+                    <h5>Content Distribution</h5>
+                    <p>Text Documents: ${(data.content_distribution.text_documents || 0).toLocaleString()}</p>
+                    <p>Code Files: ${(data.content_distribution.code_files || 0).toLocaleString()}</p>
+                    <p>Markdown Files: ${(data.content_distribution.markdown_files || 0).toLocaleString()}</p>
+                    <p>JSON Objects: ${(data.content_distribution.json_objects || 0).toLocaleString()}</p>
+                </div>
+            ` : ''}
+        </div>
+    `;
 }
+
 function formatKnowledgeGraphStatus(data) {
-    return `<p>Nodes: ${data.nodes || 0}</p><p>Edges: ${data.edges || 0}</p>`;
+    if (!data.graph_health && !data.nodes && !data.edges) {
+        return `<p>No knowledge graph data available</p>`;
+    }
+    
+    return `
+        <div class="knowledge-graph-status">
+            <p><strong>Graph Health:</strong> <span style="color: ${data.graph_health === 'healthy' ? 'green' : data.graph_health === 'empty' ? 'orange' : 'red'}">${data.graph_health || 'unknown'}</span></p>
+            ${data.nodes ? `
+                <div class="graph-nodes">
+                    <h5>Nodes</h5>
+                    <p>Total: ${(data.nodes.total || 0).toLocaleString()}</p>
+                    <p>Documents: ${(data.nodes.documents || 0).toLocaleString()}</p>
+                    <p>Entities: ${(data.nodes.entities || 0).toLocaleString()}</p>
+                    <p>Concepts: ${(data.nodes.concepts || 0).toLocaleString()}</p>
+                    <p>Relations: ${(data.nodes.relations || 0).toLocaleString()}</p>
+                </div>
+            ` : ''}
+            ${data.edges ? `
+                <div class="graph-edges">
+                    <h5>Edges</h5>
+                    <p>Total: ${(data.edges.total || 0).toLocaleString()}</p>
+                    <p>Semantic Links: ${(data.edges.semantic_links || 0).toLocaleString()}</p>
+                    <p>Reference Links: ${(data.edges.reference_links || 0).toLocaleString()}</p>
+                    <p>Temporal Links: ${(data.edges.temporal_links || 0).toLocaleString()}</p>
+                </div>
+            ` : ''}
+            ${data.graph_metrics ? `
+                <div class="graph-metrics">
+                    <h5>Graph Metrics</h5>
+                    <p>Density: ${data.graph_metrics.density || 0}</p>
+                    <p>Clustering Coefficient: ${data.graph_metrics.clustering_coefficient?.toFixed(2) || 0}</p>
+                    <p>Avg Path Length: ${data.graph_metrics.average_path_length?.toFixed(1) || 0}</p>
+                    <p>Modularity: ${data.graph_metrics.modularity?.toFixed(2) || 0}</p>
+                    <p>Connected Components: ${data.graph_metrics.connected_components || 0}</p>
+                </div>
+            ` : ''}
+            ${data.content_analysis ? `
+                <div class="content-analysis">
+                    <h5>Content Analysis</h5>
+                    <p>Languages: ${data.content_analysis.languages_detected?.join(', ') || 'none'}</p>
+                    <p>Topics Identified: ${data.content_analysis.topics_identified || 0}</p>
+                    ${data.content_analysis.sentiment_distribution ? `
+                        <div class="sentiment">
+                            <p>Sentiment - Positive: ${(data.content_analysis.sentiment_distribution.positive * 100 || 0).toFixed(1)}%</p>
+                            <p>Neutral: ${(data.content_analysis.sentiment_distribution.neutral * 100 || 0).toFixed(1)}%</p>
+                            <p>Negative: ${(data.content_analysis.sentiment_distribution.negative * 100 || 0).toFixed(1)}%</p>
+                        </div>
+                    ` : ''}
+                    ${data.content_analysis.complexity_scores ? `
+                        <div class="complexity">
+                            <p>Complexity - Low: ${(data.content_analysis.complexity_scores.low * 100 || 0).toFixed(1)}%</p>
+                            <p>Medium: ${(data.content_analysis.complexity_scores.medium * 100 || 0).toFixed(1)}%</p>
+                            <p>High: ${(data.content_analysis.complexity_scores.high * 100 || 0).toFixed(1)}%</p>
+                        </div>
+                    ` : ''}
+                </div>
+            ` : ''}
+            <p><strong>Last Updated:</strong> ${data.last_updated ? new Date(data.last_updated).toLocaleString() : 'Never'}</p>
+        </div>
+    `;
 }
 function formatSearchPerformance(data) {
     return `<p>Query Latency: ${data.query_latency_ms || 0}ms</p><p>Queries Per Second: ${data.qps || 0}</p>`;
@@ -1129,6 +2587,246 @@ window.exportConfig = exportConfig;
 window.toggleAutoRefresh = toggleAutoRefresh;
 window.openConfigModal = openConfigModal;
 window.closeConfigModal = closeConfigModal;
+// Vector & KB Search Functions
+async function performVectorSearch() {
+    console.log('performVectorSearch: Starting vector search');
+    const query = document.getElementById('vectorSearch').value.trim();
+    if (!query) {
+        alert('Please enter a search query');
+        return;
+    }
+    
+    const resultsContainer = document.getElementById('searchResults');
+    const resultsContent = document.getElementById('searchResultsContent');
+    
+    resultsContainer.style.display = 'block';
+    resultsContent.innerHTML = '<div style="text-align: center; padding: 20px;">🔍 Searching vector database...</div>';
+    
+    try {
+        const response = await dashboardAPI.fetch(`/api/vector/search?query=${encodeURIComponent(query)}&limit=10`);
+        
+        if (response.success && response.results) {
+            resultsContent.innerHTML = formatVectorSearchResults(response);
+        } else {
+            resultsContent.innerHTML = `<div style="color: red;">Vector search failed: ${response.error || 'Unknown error'}</div>`;
+        }
+        
+    } catch (error) {
+        console.error('performVectorSearch: Error:', error);
+        resultsContent.innerHTML = `<div style="color: red;">Error performing vector search: ${error.message}</div>`;
+    }
+}
+
+async function performEntitySearch() {
+    console.log('performEntitySearch: Starting entity search');
+    const entityId = document.getElementById('entitySearch').value.trim();
+    if (!entityId) {
+        alert('Please enter an entity ID');
+        return;
+    }
+    
+    const resultsContainer = document.getElementById('searchResults');
+    const resultsContent = document.getElementById('searchResultsContent');
+    
+    resultsContainer.style.display = 'block';
+    resultsContent.innerHTML = '<div style="text-align: center; padding: 20px;">🕸️ Exploring knowledge graph...</div>';
+    
+    try {
+        const response = await dashboardAPI.fetch(`/api/kg/search?entity_id=${encodeURIComponent(entityId)}`);
+        
+        if (response.success && response.entity) {
+            resultsContent.innerHTML = formatEntitySearchResults(response);
+        } else {
+            resultsContent.innerHTML = `<div style="color: red;">Entity search failed: ${response.error || 'Unknown error'}</div>`;
+        }
+        
+    } catch (error) {
+        console.error('performEntitySearch: Error:', error);
+        resultsContent.innerHTML = `<div style="color: red;">Error exploring entity: ${error.message}</div>`;
+    }
+}
+
+async function listVectorCollections() {
+    console.log('listVectorCollections: Starting collection listing');
+    const resultsContainer = document.getElementById('searchResults');
+    const resultsContent = document.getElementById('searchResultsContent');
+    
+    resultsContainer.style.display = 'block';
+    resultsContent.innerHTML = '<div style="text-align: center; padding: 20px;">📋 Loading vector collections...</div>';
+    
+    try {
+        const response = await dashboardAPI.fetch('/api/vector/collections');
+        
+        if (response.success && response.collections) {
+            resultsContent.innerHTML = formatVectorCollections(response);
+        } else {
+            resultsContent.innerHTML = `<div style="color: red;">Failed to load collections: ${response.error || 'Unknown error'}</div>`;
+        }
+        
+    } catch (error) {
+        console.error('listVectorCollections: Error:', error);
+        resultsContent.innerHTML = `<div style="color: red;">Error loading collections: ${error.message}</div>`;
+    }
+}
+
+function formatVectorSearchResults(response) {
+    const { query, results, total_found, search_time_ms } = response;
+    
+    if (!results || results.length === 0) {
+        return `
+            <div style="text-align: center; color: #666;">
+                <h4>No Results Found</h4>
+                <p>No vectors found matching "${query}"</p>
+            </div>
+        `;
+    }
+    
+    let html = `
+        <div style="margin-bottom: 15px;">
+            <h4>🔍 Vector Search Results for "${query}"</h4>
+            <p style="color: #666;">Found ${total_found} results in ${search_time_ms}ms</p>
+        </div>
+        <div style="max-height: 400px; overflow-y: auto;">
+    `;
+    
+    results.forEach((result, index) => {
+        const similarity = (result.score * 100).toFixed(1);
+        html += `
+            <div style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin-bottom: 10px; background: ${index % 2 === 0 ? '#f9f9f9' : 'white'};">
+                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
+                    <strong style="color: #007bff;">${result.cid || result.id || 'Unknown'}</strong>
+                    <span style="background: #e3f2fd; color: #1976d2; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                        ${similarity}% match
+                    </span>
+                </div>
+                ${result.title ? `<h5 style="margin: 5px 0; color: #333;">${result.title}</h5>` : ''}
+                ${result.content ? `<p style="margin: 5px 0; color: #666; font-size: 14px;">${result.content.substring(0, 200)}${result.content.length > 200 ? '...' : ''}</p>` : ''}
+                <div style="display: flex; gap: 10px; margin-top: 10px; font-size: 12px; color: #888;">
+                    ${result.content_type ? `<span>Type: ${result.content_type}</span>` : ''}
+                    ${result.created_at ? `<span>Created: ${new Date(result.created_at).toLocaleDateString()}</span>` : ''}
+                    ${result.size ? `<span>Size: ${formatBytes(result.size)}</span>` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+function formatEntitySearchResults(response) {
+    const { entity_id, entity, related_entities } = response;
+    
+    let html = `
+        <div style="margin-bottom: 15px;">
+            <h4>🕸️ Entity Details for "${entity_id}"</h4>
+        </div>
+    `;
+    
+    if (entity) {
+        html += `
+            <div style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
+                <h5 style="color: #333; margin-bottom: 10px;">Entity Information</h5>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div><strong>ID:</strong> ${entity.id || entity_id}</div>
+                    <div><strong>Type:</strong> ${entity.type || 'Unknown'}</div>
+                    ${entity.created_at ? `<div><strong>Created:</strong> ${new Date(entity.created_at * 1000).toLocaleString()}</div>` : ''}
+                    ${entity.updated_at ? `<div><strong>Updated:</strong> ${new Date(entity.updated_at * 1000).toLocaleString()}</div>` : ''}
+                </div>
+                ${entity.properties ? `
+                    <div style="margin-top: 10px;">
+                        <strong>Properties:</strong>
+                        <pre style="background: white; padding: 10px; border-radius: 4px; margin-top: 5px; font-size: 12px; overflow-x: auto;">${JSON.stringify(entity.properties, null, 2)}</pre>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+    
+    if (related_entities && related_entities.length > 0) {
+        html += `
+            <div style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; background: white;">
+                <h5 style="color: #333; margin-bottom: 10px;">Related Entities (${related_entities.length})</h5>
+                <div style="max-height: 300px; overflow-y: auto;">
+        `;
+        
+        related_entities.forEach((rel, index) => {
+            html += `
+                <div style="border-bottom: 1px solid #eee; padding: 10px 0; ${index === related_entities.length - 1 ? 'border-bottom: none;' : ''}">
+                    <div style="display: flex; justify-content: between; align-items: center;">
+                        <strong style="color: #007bff;">${rel.entity_id || rel.id}</strong>
+                        <span style="background: #e8f5e8; color: #2e7d32; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                            ${rel.relationship_type || 'connected'}
+                        </span>
+                    </div>
+                    ${rel.type ? `<div style="font-size: 12px; color: #666; margin-top: 2px;">Type: ${rel.type}</div>` : ''}
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    } else {
+        html += `
+            <div style="text-align: center; color: #666; padding: 20px; border: 1px solid #ddd; border-radius: 4px;">
+                No related entities found
+            </div>
+        `;
+    }
+    
+    return html;
+}
+
+function formatVectorCollections(response) {
+    const { collections, total_collections } = response;
+    
+    if (!collections || collections.length === 0) {
+        return `
+            <div style="text-align: center; color: #666;">
+                <h4>No Collections Found</h4>
+                <p>No vector collections are currently available</p>
+            </div>
+        `;
+    }
+    
+    let html = `
+        <div style="margin-bottom: 15px;">
+            <h4>📋 Vector Collections (${total_collections})</h4>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+    `;
+    
+    collections.forEach(collection => {
+        html += `
+            <div style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; background: white;">
+                <h5 style="color: #333; margin-bottom: 10px;">${collection.name}</h5>
+                <div style="font-size: 14px; color: #666;">
+                    <div><strong>Type:</strong> ${collection.type}</div>
+                    <div><strong>Documents:</strong> ${collection.document_count}</div>
+                    <div><strong>Vectors:</strong> ${collection.vector_count}</div>
+                </div>
+                <button onclick="searchInCollection('${collection.name}')" 
+                        style="margin-top: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                    Search in Collection
+                </button>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+function searchInCollection(collectionName) {
+    const query = prompt(`Enter search query for collection "${collectionName}":`);
+    if (query) {
+        document.getElementById('vectorSearch').value = `collection:${collectionName} ${query}`;
+        performVectorSearch();
+    }
+}
+
 window.openLogsModal = openLogsModal;
 window.closeLogsModal = closeLogsModal;
 window.loadPackageConfig = loadPackageConfig;
@@ -1142,3 +2840,16 @@ window.loadVFSTab = loadVFSTab;
 window.loadVectorKBTab = loadVectorKBTab;
 window.loadBackendsTab = loadBackendsTab;
 window.loadConfigurationTab = loadConfigurationTab;
+window.loadLogsTab = loadLogsTab;
+window.filterLogs = filterLogs;
+window.clearLogFilters = clearLogFilters;
+window.filterVFSJournal = filterVFSJournal;
+window.clearVFSJournalFilters = clearVFSJournalFilters;
+window.showLogSection = showLogSection;
+window.loadVFSJournal = loadVFSJournal;
+
+// Vector & KB Search Functions
+window.performVectorSearch = performVectorSearch;
+window.performEntitySearch = performEntitySearch;
+window.listVectorCollections = listVectorCollections;
+window.searchInCollection = searchInCollection;

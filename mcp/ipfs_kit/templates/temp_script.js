@@ -1865,6 +1865,69 @@
             } catch (error) {
                 console.error('Error loading semantic cache performance:', error);
             }
+
+            // Add search forms
+            document.getElementById('vectorSearch').innerHTML = `
+                <form onsubmit="searchVector(event)">
+                    <input type="text" id="vectorQuery" placeholder="Search Vector DB">
+                    <button type="submit">Search</button>
+                </form>
+                <div id="vectorSearchResults"></div>
+            `;
+
+            document.getElementById('kbSearch').innerHTML = `
+                <form onsubmit="searchKB(event)">
+                    <input type="text" id="kbQuery" placeholder="Search KB by Entity ID">
+                    <button type="submit">Search</button>
+                </form>
+                <div id="kbSearchResults"></div>
+            `;
+        }
+
+        async function searchVector(event) {
+            event.preventDefault();
+            const query = document.getElementById('vectorQuery').value;
+            const resultsContainer = document.getElementById('vectorSearchResults');
+            resultsContainer.innerHTML = 'Searching...';
+
+            try {
+                const response = await fetch('/api/vfs/vector-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    resultsContainer.innerHTML = data.results.map(r => `<div class="search-result"><strong>${r.id}</strong> (Score: ${r.score.toFixed(2)})<br>${r.text}</div>`).join('');
+                } else {
+                    resultsContainer.innerHTML = `<div class="error">${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error">${error.message}</div>`;
+            }
+        }
+
+        async function searchKB(event) {
+            event.preventDefault();
+            const entityId = document.getElementById('kbQuery').value;
+            const resultsContainer = document.getElementById('kbSearchResults');
+            resultsContainer.innerHTML = 'Searching...';
+
+            try {
+                const response = await fetch('/api/vfs/kb-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entity_id: entityId })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    resultsContainer.innerHTML = `<div class="search-result"><strong>${data.results.label}</strong> (${data.results.entity_id})<br>${data.results.properties.description}</div>`;
+                } else {
+                    resultsContainer.innerHTML = `<div class="error">${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error">${error.message}</div>`;
+            }
         }
         
         function formatFilesystemMetrics(data) {

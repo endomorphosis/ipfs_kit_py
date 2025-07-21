@@ -49,114 +49,153 @@ __description__ = "Production-ready MCP server for IPFS operations"
 server_start_time = datetime.now()
 request_count = 0
 
-# ============================================================================
-# ENHANCED MOCK IPFS IMPLEMENTATION
-# ============================================================================
+import ipfshttpclient
+import requests
+import tarfile
+from ipfs_kit_py.install_lassie import install_lassie
 
-class MockIPFSKit:
+# Configure comprehensive logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("final_mcp_server.log", mode='w'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("final-mcp")
+
+# Server metadata
+__version__ = "2.1.0"
+__author__ = "ipfs_kit_py"
+__description__ = "Production-ready MCP server for IPFS operations"
+
+# Global state
+server_start_time = datetime.now()
+request_count = 0
+
+# Global IPFS and Lassie client instances
+ipfs = None
+lassie_installer = None
+lassie_client = None
+
+IPFS_PATH = os.path.join(os.path.expanduser("~"), ".ipfs")
+IPFS_BIN_PATH = os.path.join(IPFS_PATH, "go-ipfs", "ipfs")
+
+async def _check_and_install_ipfs_daemon():
     """
-    Enhanced Mock IPFS implementation for reliable testing.
-    Provides all core IPFS operations with realistic behavior.
+    Checks for IPFS daemon and installs it if not found.
     """
+    if Path(IPFS_BIN_PATH).is_file():
+        logger.info(f"✅ IPFS binary found at {IPFS_BIN_PATH}")
+        return
+
+    logger.warning("IPFS binary not found. Attempting to download and install go-ipfs...")
     
-    def __init__(self):
-        self.storage = {}
-        self.pins = set()
-        self.stats = {
-            "operations": 0,
-            "storage_size": 0,
-            "pin_count": 0
-        }
-        logger.info("🚀 MockIPFSKit initialized")
+    # Determine OS and architecture
+    system = sys.platform
+    if system == "linux":
+        os_type = "linux"
+    elif system == "darwin":
+        os_type = "darwin"
+    elif system == "win32":
+        os_type = "windows"
+    else:
+        logger.error(f"Unsupported OS: {system}")
+        return
+
+    arch = os.uname().machine
+    if arch == "x86_64":
+        arch_type = "amd64"
+    elif arch == "aarch64":
+        arch_type = "arm64"
+    else:
+        logger.error(f"Unsupported architecture: {arch}")
+        return
+
+    # Latest go-ipfs release (can be fetched from GitHub API for robustness)
+    version = "v0.20.0"
+    download_url = f"https://dist.ipfs.tech/go-ipfs/{version}/go-ipfs_{version}_{os_type}-{arch_type}.tar.gz"
     
-    async def add(self, content: Union[str, bytes]) -> str:
-        """Add content to mock IPFS storage"""
+    logger.info(f"Attempting to download go-ipfs from: {download_url}")
+    
+    try:
+        response = requests.get(download_url, stream=True)
+        response.raise_for_status()
+        
+        tar_path = Path(IPFS_PATH) / f"go-ipfs_{version}_{os_type}-{arch_type}.tar.gz"
+        tar_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(tar_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        logger.info(f"Downloaded go-ipfs to {tar_path}")
+        
+        with tarfile.open(tar_path, "r:gz") as tar:
+            tar.extractall(path=IPFS_PATH)
+        logger.info(f"Extracted go-ipfs to {IPFS_PATH}")
+        
+        # Make ipfs binary executable
+        os.chmod(IPFS_BIN_PATH, 0o755)
+        logger.info(f"✅ IPFS binary installed at {IPFS_BIN_PATH}")
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to download or install go-ipfs: {e}")
+
+async def _initialize_ipfs_repo():
+    """
+    Initializes IPFS repository if it doesn't exist.
+    """
+    if not Path(IPFS_PATH).is_dir():
+        logger.info(f"IPFS_PATH {IPFS_PATH} does not exist. Creating...")
+        Path(IPFS_PATH).mkdir(parents=True, exist_ok=True)
+
+    if not (Path(IPFS_PATH) / "api").is_dir(): # Check for a common repo file/dir
+        logger.warning("IPFS repository not initialized. Running ipfs init...")
         try:
-            if isinstance(content, str):
-                content = content.encode('utf-8')
+            process = await asyncio.create_subprocess_exec(
+                IPFS_BIN_PATH, "init",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
             
-            # Generate realistic CID
-            cid = f"Qm{hashlib.sha256(content).hexdigest()[:44]}"
-            self.storage[cid] = content
-            self.stats["operations"] += 1
-            self.stats["storage_size"] += len(content)
-            
-            logger.info(f"✅ Added {len(content)} bytes -> {cid}")
-            return cid
-            
-        except Exception as e:
-            logger.error(f"❌ Add operation failed: {e}")
-            raise
-    
-    async def cat(self, cid: str) -> bytes:
-        """Retrieve content from mock IPFS storage"""
-        try:
-            if cid in self.storage:
-                content = self.storage[cid]
-                self.stats["operations"] += 1
-                logger.info(f"✅ Retrieved {len(content)} bytes from {cid}")
-                return content
+            if process.returncode == 0:
+                logger.info(f"✅ IPFS repository initialized: {stdout.decode().strip()}")
             else:
-                # Generate mock content for unknown CIDs (realistic behavior)
-                mock_content = f"Mock content for CID: {cid}\nGenerated at: {datetime.now().isoformat()}".encode('utf-8')
-                logger.info(f"🔧 Generated mock content for unknown CID: {cid}")
-                return mock_content
-                
+                logger.error(f"❌ Failed to initialize IPFS repository: {stderr.decode().strip()}")
         except Exception as e:
-            logger.error(f"❌ Cat operation failed for {cid}: {e}")
-            raise
-    
-    async def pin_add(self, cid: str) -> Dict[str, Any]:
-        """Pin content in mock IPFS"""
-        try:
-            self.pins.add(cid)
-            self.stats["operations"] += 1
-            self.stats["pin_count"] = len(self.pins)
-            
-            logger.info(f"📌 Pinned CID: {cid}")
-            return {"Pins": [cid], "Progress": cid}
-            
-        except Exception as e:
-            logger.error(f"❌ Pin add failed for {cid}: {e}")
-            raise
-    
-    async def pin_rm(self, cid: str) -> Dict[str, Any]:
-        """Unpin content from mock IPFS"""
-        try:
-            self.pins.discard(cid)
-            self.stats["operations"] += 1
-            self.stats["pin_count"] = len(self.pins)
-            
-            logger.info(f"📌❌ Unpinned CID: {cid}")
-            return {"Pins": [cid]}
-            
-        except Exception as e:
-            logger.error(f"❌ Pin remove failed for {cid}: {e}")
-            raise
-    
-    async def version(self) -> Dict[str, Any]:
-        """Get mock IPFS version information"""
-        return {
-            "Version": "0.20.0-mock",
-            "Commit": "mock-commit-final",
-            "Repo": "15", 
-            "System": "amd64/linux",
-            "Golang": "go1.19.1",
-            "Server": f"ipfs_kit_py-{__version__}"
-        }
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Get storage statistics"""
-        return {
-            "total_operations": self.stats["operations"],
-            "storage_size_bytes": self.stats["storage_size"],
-            "pinned_count": self.stats["pin_count"],
-            "stored_objects": len(self.storage),
-            "server_uptime": str(datetime.now() - server_start_time)
-        }
+            logger.error(f"❌ Error running ipfs init: {e}")
+    else:
+        logger.info("✅ IPFS repository already initialized.")
 
-# Global IPFS instance
-ipfs = MockIPFSKit()
+async def _connect_to_ipfs():
+    """
+    Connects to the IPFS daemon with retries.
+    """
+    global ipfs
+    retries = 5
+    delay = 2
+    for i in range(retries):
+        try:
+            # Start IPFS daemon if not running
+            # This part needs to be robust enough not to fail if daemon is already running
+            # or to handle its startup in a non-blocking way.
+            # For simplicity, we'll just try to connect and assume it's handled externally or by previous steps.
+            
+            # Connect to IPFS daemon
+            ipfs = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
+            ipfs.id() # Test connection
+            logger.info("✅ Connected to IPFS daemon.")
+            return
+        except ipfshttpclient.exceptions.ConnectionError as e:
+            logger.warning(f"Attempt {i+1}/{retries}: IPFS daemon connection failed: {e}")
+            await asyncio.sleep(delay)
+        except Exception as e:
+            logger.error(f"❌ Failed to connect to IPFS daemon: {e}")
+            break
+    logger.error("❌ All retries failed. Could not connect to IPFS daemon.")
+    ipfs = None
 
 # ============================================================================
 # FASTAPI APPLICATION WITH ENHANCED FEATURES
@@ -247,14 +286,23 @@ try:
     @app.get("/health", summary="Health Check")
     async def health():
         """Comprehensive health check endpoint"""
-        stats = ipfs.get_stats()
+        ipfs_status = "disconnected"
+        ipfs_version_info = {}
+        if ipfs:
+            try:
+                ipfs_version_info = ipfs.version()
+                ipfs_status = "connected"
+            except Exception as e:
+                logger.warning(f"Could not get IPFS version: {e}")
+                ipfs_status = "error"
+
         return {
             "status": "healthy",
             "version": __version__,
             "timestamp": datetime.now().isoformat(),
             "uptime": str(datetime.now() - server_start_time),
-            "ipfs_mock": True,
-            "stats": stats,
+            "ipfs_connection": ipfs_status,
+            "ipfs_version_info": ipfs_version_info,
             "system": {
                 "python_version": sys.version,
                 "platform": sys.platform
@@ -304,12 +352,17 @@ try:
     @app.post("/ipfs/add", summary="Add Content to IPFS")
     async def add_content(request: AddRequest):
         """Add content to IPFS and return CID"""
+        if not ipfs:
+            raise HTTPException(status_code=503, detail="IPFS daemon not connected")
         try:
-            cid = await ipfs.add(request.content)
+            # ipfshttpclient's add method expects bytes or a file-like object
+            content_bytes = request.content.encode('utf-8')
+            result = ipfs.add(content_bytes, pin=True)
+            cid = result["Hash"]
             return {
                 "success": True,
                 "cid": cid,
-                "size": len(request.content.encode('utf-8')),
+                "size": len(content_bytes),
                 "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
@@ -319,13 +372,17 @@ try:
     @app.get("/ipfs/cat/{cid}", summary="Get Content from IPFS")
     async def get_content(cid: str):
         """Retrieve content from IPFS by CID"""
+        if not ipfs:
+            raise HTTPException(status_code=503, detail="IPFS daemon not connected")
         try:
-            content = await ipfs.cat(cid)
+            content = ipfs.cat(cid)
+            # content is a generator, so read it all
+            full_content = b''.join(content)
             return {
                 "success": True,
-                "content": content.decode('utf-8', errors='replace'),
+                "content": full_content.decode('utf-8', errors='replace'),
                 "cid": cid,
-                "size": len(content),
+                "size": len(full_content),
                 "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
@@ -335,8 +392,10 @@ try:
     @app.post("/ipfs/pin/add/{cid}", summary="Pin Content")
     async def pin_content(cid: str, pin_request: PinRequest = PinRequest()):
         """Pin content in IPFS"""
+        if not ipfs:
+            raise HTTPException(status_code=503, detail="IPFS daemon not connected")
         try:
-            result = await ipfs.pin_add(cid)
+            result = ipfs.pin.add(cid)
             return {
                 "success": True,
                 "result": result,
@@ -351,8 +410,10 @@ try:
     @app.delete("/ipfs/pin/rm/{cid}", summary="Unpin Content")
     async def unpin_content(cid: str):
         """Remove pin from content in IPFS"""
+        if not ipfs:
+            raise HTTPException(status_code=503, detail="IPFS daemon not connected")
         try:
-            result = await ipfs.pin_rm(cid)
+            result = ipfs.pin.rm(cid)
             return {
                 "success": True,
                 "result": result,
@@ -366,8 +427,10 @@ try:
     @app.get("/ipfs/version", summary="Get IPFS Version")
     async def get_ipfs_version():
         """Get IPFS version information"""
+        if not ipfs:
+            raise HTTPException(status_code=503, detail="IPFS daemon not connected")
         try:
-            result = await ipfs.version()
+            result = ipfs.version()
             return {
                 "success": True,
                 "version": result,
@@ -380,9 +443,16 @@ try:
     @app.get("/stats", summary="Server Statistics")
     async def get_stats():
         """Get detailed server statistics"""
+        ipfs_stats = {}
+        if ipfs:
+            try:
+                ipfs_stats = ipfs.stats.repo()
+            except Exception as e:
+                logger.warning(f"Could not get IPFS repo stats: {e}")
+
         return {
             "success": True,
-            "stats": ipfs.get_stats(),
+            "ipfs_stats": ipfs_stats,
             "server": {
                 "version": __version__,
                 "uptime": str(datetime.now() - server_start_time),
@@ -390,6 +460,21 @@ try:
                 "start_time": server_start_time.isoformat()
             }
         }
+
+    @app.get("/lassie/fetch/{cid}", summary="Fetch Content with Lassie")
+    async def lassie_fetch_content(cid: str):
+        """Fetch content using Lassie and return it."""
+        if not lassie_client:
+            raise HTTPException(status_code=503, detail="Lassie client not initialized")
+        try:
+            # Assuming Lassie daemon runs on default port 41443
+            lassie_url = f"http://localhost:41443/ipfs/{cid}"
+            response = lassie_client.get(lassie_url, timeout=30)
+            response.raise_for_status()
+            return {"success": True, "cid": cid, "content": response.content.decode('utf-8', errors='replace')}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Lassie fetch failed for {cid}: {e}")
+            raise HTTPException(status_code=500, detail=f"Lassie fetch failed: {e}")
 
 except ImportError as e:
     logger.error(f"❌ FastAPI dependencies not available: {e}")
@@ -485,6 +570,34 @@ Author: {__author__}
     logger.info(f"🚀 Final MCP Server v{__version__} starting...")
     logger.info(f"📍 Binding to {args.host}:{args.port}")
     logger.info(f"🔍 Debug mode: {args.debug}")
+
+    # Check and install IPFS daemon
+    asyncio.run(_check_and_install_ipfs_daemon())
+    asyncio.run(_initialize_ipfs_repo())
+    asyncio.run(_connect_to_ipfs())
+
+    # Initialize Lassie installer and run installation/configuration
+    global lassie_installer, lassie_client
+    lassie_installer = install_lassie()
+    logger.info("🚀 Lassie installer initialized.")
+    
+    if lassie_installer.install_lassie_daemon():
+        logger.info("✅ Lassie daemon installed.")
+        if lassie_installer.config_lassie():
+            logger.info("✅ Lassie configured.")
+            # Connect to Lassie daemon
+            try:
+                # Assuming Lassie daemon runs on default port 41443
+                lassie_client = requests.Session()
+                lassie_client.mount("http://", requests.adapters.HTTPAdapter(max_retries=3))
+                lassie_client.mount("https://", requests.adapters.HTTPAdapter(max_retries=3))
+                logger.info("✅ Lassie client initialized.")
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize Lassie client: {e}")
+        else:
+            logger.error("❌ Failed to configure Lassie.")
+    else:
+        logger.error("❌ Failed to install Lassie daemon.")
     
     if app is None:
         logger.error("❌ FastAPI not available - cannot start server")

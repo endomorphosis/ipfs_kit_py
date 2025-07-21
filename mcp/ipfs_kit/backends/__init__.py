@@ -8,6 +8,7 @@ storage backends and services.
 from .health_monitor import BackendHealthMonitor
 from .vfs_observer import VFSObservabilityManager
 from .backend_manager import BackendManager
+from .log_manager import BackendLogManager
 from .backend_clients import (
     IPFSClient,
     IPFSClusterClient, 
@@ -20,15 +21,16 @@ from .backend_clients import (
 )
 
 __all__ = [
-    'BackendHealthMonitor',
-    'VFSObservabilityManager', 
-    'BackendManager',
-    'IPFSClient',
-    'IPFSClusterClient',
-    'LotusClient',
-    'StorachaClient',
-    'SynapseClient',
-    'S3Client',
-    'HuggingFaceClient',
-    'ParquetClient'
+    "BackendHealthMonitor",
+    "VFSObservabilityManager", 
+    "BackendManager",
+    "BackendLogManager",
+    "IPFSClient",
+    "IPFSClusterClient",
+    "LotusClient", 
+    "StorachaClient",
+    "SynapseClient",
+    "S3Client",
+    "HuggingFaceClient",
+    "ParquetClient"
 ]

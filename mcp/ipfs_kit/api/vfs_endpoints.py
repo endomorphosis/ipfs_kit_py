@@ -4,7 +4,7 @@ VFS API endpoints for comprehensive VFS analytics and observability.
 
 import asyncio
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import shutil
 from pathlib import Path
 import stat
@@ -25,6 +25,18 @@ class VFSEndpoints:
     def __init__(self, backend_monitor, vfs_observer): # Modified to accept vfs_observer
         self.backend_monitor = backend_monitor
         self.vfs_observer = vfs_observer # Store vfs_observer
+
+    async def get_vfs_journal(self, backend_filter: Optional[str] = None, search_query: Optional[str] = None) -> Dict[str, Any]:
+        """Get the VFS journal with optional filtering and searching."""
+        try:
+            if self.vfs_observer:
+                journal_entries = await self.vfs_observer.get_vfs_journal(backend_filter, search_query)
+                return {"success": True, "journal": journal_entries}
+            else:
+                return {"success": False, "error": "VFS Observer not available"}
+        except Exception as e:
+            logger.error(f"Error getting VFS journal: {e}")
+            return {"success": False, "error": str(e)}
 
     async def get_vfs_analytics(self) -> Dict[str, Any]:
         """Get comprehensive VFS analytics with timeout protection."""
@@ -531,6 +543,7 @@ class VFSEndpoints:
 
     async def create_folder(self, path: str, name: str) -> Dict[str, Any]:
         """Creates a new folder for the file manager."""
+        start_time = time.time()
         try:
             base_path = Path("/tmp/vfs")
             target_dir = (base_path / path.strip("/")).resolve()
@@ -540,15 +553,42 @@ class VFSEndpoints:
                 raise ValueError("Invalid path for creating folder.")
 
             new_folder_path.mkdir(parents=True)
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="create_folder", 
+                path=str(new_folder_path.relative_to(base_path)), 
+                success=True, 
+                duration_ms=duration_ms
+            )
             return {"success": True, "message": f"Folder '{name}' created at '{path}'."}
         except FileExistsError:
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="create_folder", 
+                path=str(new_folder_path.relative_to(base_path)), 
+                success=False, 
+                duration_ms=duration_ms,
+                details="Folder already exists"
+            )
             return {"success": False, "error": f"Folder '{name}' already exists at '{path}'."}
         except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="create_folder", 
+                path=name, 
+                success=False, 
+                duration_ms=duration_ms,
+                details=str(e)
+            )
             logger.error(f"Error creating folder '{name}' in '{path}': {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     async def delete_item(self, path: str) -> Dict[str, Any]:
         """Deletes a file or folder for the file manager."""
+        start_time = time.time()
         try:
             base_path = Path("/tmp/vfs")
             target_path = (base_path / path.strip("/")).resolve()
@@ -563,13 +603,32 @@ class VFSEndpoints:
                 shutil.rmtree(target_path)
             else:
                 target_path.unlink()
+            
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="delete_item", 
+                path=path, 
+                success=True, 
+                duration_ms=duration_ms
+            )
             return {"success": True, "message": f"Item '{path}' deleted."}
         except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="delete_item", 
+                path=path, 
+                success=False, 
+                duration_ms=duration_ms,
+                details=str(e)
+            )
             logger.error(f"Error deleting item '{path}': {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     async def rename_item(self, old_path: str, new_name: str) -> Dict[str, Any]:
         """Renames a file or folder for the file manager."""
+        start_time = time.time()
         try:
             base_path = Path("/tmp/vfs")
             full_old_path = (base_path / old_path.strip("/")).resolve()
@@ -589,13 +648,32 @@ class VFSEndpoints:
                 return {"success": False, "error": f"'{new_name}' already exists."}
 
             full_old_path.rename(new_path)
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="rename_item", 
+                path=old_path, 
+                success=True, 
+                duration_ms=duration_ms,
+                details=f"Renamed to {new_name}"
+            )
             return {"success": True, "message": "Item renamed successfully."}
         except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="rename_item", 
+                path=old_path, 
+                success=False, 
+                duration_ms=duration_ms,
+                details=str(e)
+            )
             logger.error(f"Error renaming item '{old_path}': {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     async def upload_file(self, path: str, file: UploadFile) -> Dict[str, Any]:
         """Uploads a file to the specified path for the file manager."""
+        start_time = time.time()
         try:
             base_path = Path("/tmp/vfs")
             target_dir = (base_path / path.strip("/")).resolve()
@@ -610,13 +688,31 @@ class VFSEndpoints:
             with target_file_path.open("wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
 
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="upload_file", 
+                path=str(target_file_path.relative_to(base_path)), 
+                success=True, 
+                duration_ms=duration_ms
+            )
             return {"success": True, "message": f"File '{file.filename}' uploaded to '{path}'."}
         except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="upload_file", 
+                path=file.filename, 
+                success=False, 
+                duration_ms=duration_ms,
+                details=str(e)
+            )
             logger.error(f"Error uploading file to '{path}': {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     async def move_item(self, source_path: str, target_path: str) -> Dict[str, Any]:
         """Moves a file or folder to a new location for the file manager."""
+        start_time = time.time()
         try:
             base_path = Path("/tmp/vfs")
             full_source_path = (base_path / source_path.strip("/")).resolve()
@@ -636,8 +732,26 @@ class VFSEndpoints:
 
             shutil.move(str(full_source_path), str(full_target_path))
             
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="move_item", 
+                path=source_path, 
+                success=True, 
+                duration_ms=duration_ms,
+                details=f"Moved to {target_path}"
+            )
             return {"success": True, "message": f"Item '{source_path}' moved to '{target_path}'."}
         except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            self.vfs_observer.log_vfs_operation(
+                backend="VFS", 
+                operation="move_item", 
+                path=source_path, 
+                success=False, 
+                duration_ms=duration_ms,
+                details=str(e)
+            )
             logger.error(f"Error moving item from '{source_path}' to '{target_path}': {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 

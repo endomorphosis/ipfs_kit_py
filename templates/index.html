@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -349,6 +348,18 @@
             </div>
             
             <div id="vfs" class="tab-content">
+                <div class="controls">
+                    <label for="vfsBackendFilter">Filter by Backend:</label>
+                    <select id="vfsBackendFilter" onchange="loadVFSJournal()">
+                        <option value="all">All</option>
+                        <option value="ipfs">IPFS</option>
+                        <option value="s3">S3</option>
+                        <option value="lotus">Lotus</option>
+                        <!-- Add other backends dynamically if needed -->
+                    </select>
+                    <label for="vfsSearch">Search Journal:</label>
+                    <input type="text" id="vfsSearch" onkeyup="loadVFSJournal()" placeholder="Search path or operation...">
+                </div>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <h3>🧬 Cache Performance</h3>
@@ -368,6 +379,13 @@
                     </div>
                 </div>
                 
+                <div class="expandable">
+                    <div class="expandable-header">VFS Journal History</div>
+                    <div class="expandable-content">
+                        <div id="vfsJournalHistory">Loading VFS journal...</div>
+                    </div>
+                </div>
+
                 <div class="expandable">
                     <div class="expandable-header">Tiered Cache Details</div>
                     <div class="expandable-content">
@@ -421,6 +439,8 @@
                     <div class="expandable-header">Semantic Cache Performance</div>
                     <div class="expandable-content">
                         <div id="semanticCachePerformance">Loading semantic cache performance...</div>
+                        <div id="vectorSearch"></div>
+                        <div id="kbSearch"></div>
                     </div>
                 </div>
             </div>
@@ -598,11 +618,12 @@
             // Update system status
             document.getElementById('systemStatus').innerHTML = `
                 <div class="connection-status">
-                    <div class="connection-indicator ${data.status === 'running' ? 'connected' : ''}"></div>
-                    <span>Status: ${data.status}</span>
-                </div>
-                <p><strong>Uptime:</strong> ${Math.floor(data.uptime_seconds / 3600)}h ${Math.floor((data.uptime_seconds % 3600) / 60)}m</p>
-                <p><strong>Components:</strong> ${Object.values(data.components || {}).filter(Boolean).length}/${Object.keys(data.components || {}).length} active</p>
+                <div class="connection-indicator ${data.status === 'running' ? 'connected' : ''}"></div>
+                <span>Status: ${data.status}</span>
+            </div>
+            <p><strong>Uptime:</strong> ${formatUptime(data.uptime_seconds)}</p>
+            <p><strong>Python Version:</strong> ${data.python_version || 'N/A'}</p>
+            <p><strong>Platform:</strong> ${data.platform || 'N/A'}</p>
             `;
             
             // Update backend summary
@@ -624,8 +645,8 @@
             
             // Update performance metrics
             document.getElementById('performanceMetrics').innerHTML = `
-                <div><strong>Memory:</strong> ${data.memory_usage_mb || 0}MB</div>
-                <div><strong>CPU:</strong> ${data.cpu_usage_percent || 0}%</div>
+                <div><strong>Memory:</strong> ${data.memory_usage_mb ? data.memory_usage_mb.toFixed(2) : 'N/A'}MB</div>
+                <div><strong>CPU:</strong> ${data.cpu_usage_percent ? data.cpu_usage_percent.toFixed(2) : 'N/A'}%</div>
                 <div><strong>Active Backends:</strong> ${Object.values(backends).filter(b => b.status === 'running').length}</div>
                 <div><strong>Last Update:</strong> ${new Date().toLocaleTimeString()}</div>
             `;
@@ -643,7 +664,7 @@
                 card.className = `backend-card ${backend.health}`;
                 
                 // Create verbose metrics display
-                let verboseMetricsHTML = createVerboseMetricsHTML(backend);
+                let verboseMetricsHTML = createVerboseMetricsHTML(backend.details || backend.metrics || {});
                 
                 let errorsHTML = '';
                 if (backend.errors && backend.errors.length > 0) {
@@ -676,7 +697,7 @@
                         </div>
                     </div>
                     <p><strong>Last Check:</strong> ${backend.last_check ? new Date(backend.last_check).toLocaleString() : 'Never'}</p>
-                    ${verboseMetricsHTML}
+                    ${renderDetailsAndMetrics(backend.details, backend.metrics)}
                     ${errorsHTML}
                 `;
                 
@@ -691,37 +712,32 @@
             });
         }
         
-        function createVerboseMetricsHTML(backend) {
-            if (!backend.metrics || Object.keys(backend.metrics).length === 0) {
-                return '<div class="verbose-metrics"><em>No metrics available</em></div>';
-            }
-            
-            let html = '<div class="verbose-metrics">';
-            
-            // Group metrics by category
-            const groupedMetrics = groupMetricsByCategory(backend.metrics);
-            
-            for (const [category, metrics] of Object.entries(groupedMetrics)) {
-                html += `
-                    <div class="metrics-section">
-                        <h4>${category}</h4>
-                        <table class="metrics-table">
-                `;
-                
-                for (const [key, value] of Object.entries(metrics)) {
-                    const displayValue = formatMetricValue(value);
-                    html += `
-                        <tr>
-                            <td>${formatMetricKey(key)}</td>
-                            <td class="value">${displayValue}</td>
-                        </tr>
-                    `;
+        function renderDetailsAndMetrics(details, metrics) {
+            let html = '';
+
+            if (details && Object.keys(details).length > 0) {
+                html += '<div class="verbose-metrics"><h4>Details</h4><table class="metrics-table">';
+                for (const [key, value] of Object.entries(details)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td class="value">${formatMetricValue(value)}</td></tr>`;
                 }
-                
                 html += '</table></div>';
             }
-            
-            html += '</div>';
+
+            if (metrics && Object.keys(metrics).length > 0) {
+                html += '<div class="verbose-metrics"><h4>Metrics</h4><table class="metrics-table">';
+                const groupedMetrics = groupMetricsByCategory(metrics);
+                for (const [category, categoryMetrics] of Object.entries(groupedMetrics)) {
+                    html += `<tr><td colspan="2"><strong>${category}</strong></td></tr>`;
+                    for (const [key, value] of Object.entries(categoryMetrics)) {
+                        html += `<tr><td>${formatMetricKey(key)}</td><td class="value">${formatMetricValue(value)}</td></tr>`;
+                    }
+                }
+                html += '</table></div>';
+            }
+
+            if (!details && !metrics) {
+                html = '<div class="verbose-metrics"><em>No details or metrics available</em></div>';
+            }
             return html;
         }
         
@@ -831,7 +847,7 @@
         
         async function loadLogsTab() {
             try {
-                const response = await fetch('/api/logs');
+                const response = await fetch('/api/system/logs');
                 const data = await response.json();
                 const logs = data.logs.join('');
                 document.getElementById('logViewer').textContent = logs;
@@ -857,10 +873,58 @@
                 // Load detailed cache information
                 document.getElementById('tieredCacheDetails').innerHTML = formatTieredCacheDetails(cacheData);
                 document.getElementById('hotContentAnalysis').innerHTML = formatHotContentAnalysis(fsData.access_patterns);
+
+                // Load VFS Journal
+                loadVFSJournal();
                 
             } catch (error) {
                 console.error('Error loading VFS data:', error);
                 document.getElementById('cachePerformance').innerHTML = 'Error loading cache data';
+            }
+        }
+
+        async function loadVFSJournal() {
+            const backendFilter = document.getElementById('vfsBackendFilter').value;
+            const searchQuery = document.getElementById('vfsSearch').value;
+            
+            let url = '/api/v0/fs/journal';
+            const params = [];
+
+            if (backendFilter !== 'all') {
+                params.push(`backend=${backendFilter}`);
+            }
+            if (searchQuery) {
+                params.push(`search=${searchQuery}`);
+            }
+
+            if (params.length > 0) {
+                url += `?${params.join('&')}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                const journalEntries = data.entries;
+
+                let html = '';
+                if (journalEntries && journalEntries.length > 0) {
+                    html += '<table class="metrics-table"><thead><tr><th>Timestamp</th><th>Operation</th><th>Path</th><th>Success</th><th>Details</th></tr></thead><tbody>';
+                    for (const entry of journalEntries) {
+                        const date = new Date(entry.timestamp * 1000).toLocaleString();
+                        const success = entry.success ? '✓' : '✗';
+                        const error = entry.error ? `<br><span style="color: red;">${entry.error}</span>` : '';
+                        const metadata = entry.metadata ? `<pre>${JSON.stringify(entry.metadata, null, 2)}</pre>` : '';
+                        html += `<tr><td>${date}</td><td>${entry.op_type}</td><td>${entry.path}</td><td>${success}</td><td>${metadata}${error}</td></tr>`;
+                    }
+                    html += '</tbody></table>';
+                } else {
+                    html = '<p>No VFS journal entries found.</p>';
+                }
+                document.getElementById('vfsJournalHistory').innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading VFS journal:', error);
+                document.getElementById('vfsJournalHistory').innerHTML = 'Error loading VFS journal.';
             }
         }
         
@@ -1034,7 +1098,7 @@
                     ],
                     'Endpoints': [
                         { name: 'primary_endpoint', label: 'Primary Endpoint', type: 'url', value: 'https://up.storacha.network/bridge', description: 'Primary Storacha endpoint' },
-                        { name: 'backup_endpoints', label: 'Backup Endpoints', type: 'textarea', value: 'https://api.web3.storage\\nhttps://up.web3.storage/bridge', description: 'Backup endpoints (one per line)' }
+                        { name: 'backup_endpoints', label: 'Backup Endpoints', type: 'textarea', value: 'https://api.web3.storage\nhttps://up.web3.storage/bridge', description: 'Backup endpoints (one per line)' }
                     ]
                 },
                 'synapse': {
@@ -1241,6 +1305,15 @@
                     header.parentElement.classList.toggle('expanded');
                 };
             });
+
+            // Basic setupDragAndDrop function to resolve ReferenceError
+            function setupDragAndDrop() {
+                console.log("setupDragAndDrop function called. Implement full drag and drop logic if needed.");
+                // Add your drag and drop logic here if required for the overall dashboard
+            }
+
+            // Call setupDragAndDrop if it's meant to be initialized on DOMContentLoaded
+            setupDragAndDrop();
         });
         
         // VFS Data Formatting Functions
@@ -1268,62 +1341,116 @@
         function formatFilesystemStatus(data) {
             if (!data) return 'No filesystem data available';
             
-            return `
-                <div class="metrics-section">
-                    <h4>Mount Points</h4>
-                    ${Object.entries(data.mount_points).map(([mount, info]) => `
-                        <div><strong>${mount}</strong> ${info.status} (${info.size_gb}GB, ${info.operations} ops)</div>
-                    `).join('')}
-                </div>
-                <div class="metrics-section">
-                    <h4>Operations</h4>
-                    <div><strong>Reads:</strong> ${data.file_operations.reads.toLocaleString()}</div>
-                    <div><strong>Writes:</strong> ${data.file_operations.writes.toLocaleString()}</div>
-                    <div><strong>Bandwidth:</strong> ${data.bandwidth_usage.read_mbps}MB/s read, ${data.bandwidth_usage.write_mbps}MB/s write</div>
-                </div>
-            `;
+            let html = '';
+            if (data.mount_points && Object.keys(data.mount_points).length > 0) {
+                html += `<div class="metrics-section"><h4>Mount Points</h4><table class="metrics-table"><tr><th>Mount</th><th>Status</th><th>Size (GB)</th><th>Operations</th></tr>`;
+                for (const [mount, info] of Object.entries(data.mount_points)) {
+                    html += `<tr><td>${mount}</td><td>${info.status}</td><td>${info.size_gb}</td><td>${info.operations}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.file_operations && Object.keys(data.file_operations).length > 0) {
+                html += `<div class="metrics-section"><h4>Operations</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.file_operations)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${value.toLocaleString()}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.bandwidth_usage && Object.keys(data.bandwidth_usage).length > 0) {
+                html += `<div class="metrics-section"><h4>Bandwidth</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.bandwidth_usage)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${value}MB/s</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            return html || 'No filesystem data available';
         }
         
         function formatAccessPatterns(data) {
             if (!data) return 'No access pattern data available';
             
-            return `
-                <div class="metrics-section">
-                    <h4>Hot Content</h4>
-                    ${data.hot_content.slice(0, 3).map(item => `
-                        <div><strong>${item.cid.substring(0, 8)}...:</strong> ${item.access_count} accesses (${item.size_kb}KB)</div>
-                    `).join('')}
-                </div>
-                <div class="metrics-section">
-                    <h4>Content Types</h4>
-                    ${Object.entries(data.content_types).map(([type, percent]) => `
-                        <div><strong>${type}:</strong> ${(percent * 100).toFixed(1)}%</div>
-                    `).join('')}
-                </div>
-            `;
+            let html = '';
+            if (data.hot_content && data.hot_content.length > 0) {
+                html += `<div class="metrics-section"><h4>Hot Content</h4><table class="metrics-table"><tr><th>CID</th><th>Accesses</th><th>Size (KB)</th><th>Last Accessed</th></tr>`;
+                for (const item of data.hot_content) {
+                    html += `<tr><td>${item.cid.substring(0, 8)}...</td><td>${item.access_count}</td><td>${item.size_kb}</td><td>${new Date(item.last_accessed).toLocaleString()}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.content_types && Object.keys(data.content_types).length > 0) {
+                html += `<div class="metrics-section"><h4>Content Types</h4><table class="metrics-table">`;
+                for (const [type, percent] of Object.entries(data.content_types)) {
+                    html += `<tr><td>${type}</td><td>${(percent * 100).toFixed(1)}%</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.operation_distribution && Object.keys(data.operation_distribution).length > 0) {
+                html += `<div class="metrics-section"><h4>Operation Distribution</h4><table class="metrics-table">`;
+                for (const [op, count] of Object.entries(data.operation_distribution)) {
+                    html += `<tr><td>${formatMetricKey(op)}</td><td>${count.toLocaleString()}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.temporal_patterns && Object.keys(data.temporal_patterns).length > 0) {
+                html += `<div class="metrics-section"><h4>Temporal Patterns</h4><table class="metrics-table">`;
+                for (const [pattern, value] of Object.entries(data.temporal_patterns)) {
+                    html += `<tr><td>${formatMetricKey(pattern)}</td><td>${Array.isArray(value) ? value.join(', ') : value}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            return html || 'No access pattern data available';
         }
         
         function formatResourceUsage(data) {
             if (!data) return 'No resource data available';
             
-            return `
-                <div class="metrics-section">
-                    <h4>Memory Usage</h4>
-                    <div><strong>Cache:</strong> ${data.memory_usage.cache_mb}MB</div>
-                    <div><strong>Index:</strong> ${data.memory_usage.index_mb}MB</div>
-                    <div><strong>Total:</strong> ${data.memory_usage.total_mb}MB / ${data.memory_usage.available_mb}MB</div>
-                </div>
-                <div class="metrics-section">
-                    <h4>Disk Usage</h4>
-                    <div><strong>Cache:</strong> ${data.disk_usage.cache_gb}GB</div>
-                    <div><strong>Available:</strong> ${data.disk_usage.available_gb}GB</div>
-                    <div><strong>CPU:</strong> ${(data.cpu_usage.total * 100).toFixed(1)}%</div>
-                </div>
-            `;
+            let html = '';
+            if (data.memory_usage && Object.keys(data.memory_usage).length > 0) {
+                html += `<div class="metrics-section"><h4>Memory Usage</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.memory_usage)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${value}MB</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.disk_usage && Object.keys(data.disk_usage).length > 0) {
+                html += `<div class="metrics-section"><h4>Disk Usage</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.disk_usage)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${value}GB</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.cpu_usage && Object.keys(data.cpu_usage).length > 0) {
+                html += `<div class="metrics-section"><h4>CPU Usage</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.cpu_usage)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${(value * 100).toFixed(1)}%</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.network_usage && Object.keys(data.network_usage).length > 0) {
+                html += `<div class="metrics-section"><h4>Network Usage</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.network_usage)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${value}MB/s</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            return html || 'No resource data available';
         }
         
         function formatVectorIndexStatus(data) {
-            return `
+            if (!data) return 'No vector index data available';
+            
+            let html = `
                 <div class="metrics-section">
                     <h4>Index Status</h4>
                     <div><strong>Health:</strong> <span class="status-badge status-${data.index_health === 'healthy' ? 'healthy' : 'unhealthy'}">${data.index_health}</span></div>
@@ -1333,10 +1460,26 @@
                     <div><strong>Size:</strong> ${data.index_size_mb}MB</div>
                 </div>
             `;
+
+            if (data.last_updated) {
+                html += `<div class="metrics-section"><div><strong>Last Updated:</strong> ${new Date(data.last_updated).toLocaleString()}</div></div>`;
+            }
+
+            if (data.index_metrics && Object.keys(data.index_metrics).length > 0) {
+                html += `<div class="metrics-section"><h4>Index Metrics</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.index_metrics)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${formatMetricValue(value)}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            return html;
         }
         
         function formatKnowledgeGraphStatus(data) {
-            return `
+            if (!data) return 'No knowledge graph data available';
+
+            let html = `
                 <div class="metrics-section">
                     <h4>Graph Status</h4>
                     <div><strong>Health:</strong> <span class="status-badge status-${data.graph_health === 'healthy' ? 'healthy' : 'unhealthy'}">${data.graph_health}</span></div>
@@ -1346,10 +1489,30 @@
                     <div><strong>Components:</strong> ${data.graph_metrics.connected_components}</div>
                 </div>
             `;
+
+            if (data.node_types && Object.keys(data.node_types).length > 0) {
+                html += `<div class="metrics-section"><h4>Node Types</h4><table class="metrics-table">`;
+                for (const [type, count] of Object.entries(data.node_types)) {
+                    html += `<tr><td>${formatMetricKey(type)}</td><td>${count.toLocaleString()}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.edge_types && Object.keys(data.edge_types).length > 0) {
+                html += `<div class="metrics-section"><h4>Edge Types</h4><table class="metrics-table">`;
+                for (const [type, count] of Object.entries(data.edge_types)) {
+                    html += `<tr><td>${formatMetricKey(type)}</td><td>${count.toLocaleString()}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            return html;
         }
         
         function formatSearchPerformance(data) {
-            return `
+            if (!data) return 'No search performance data available';
+
+            let html = `
                 <div class="metrics-section">
                     <h4>Search Metrics</h4>
                     <div><strong>Query Time:</strong> ${data.average_query_time_ms}ms</div>
@@ -1358,10 +1521,30 @@
                     <div><strong>Precision@10:</strong> ${(data.precision_at_10 * 100).toFixed(1)}%</div>
                 </div>
             `;
+
+            if (data.latency_distribution && Object.keys(data.latency_distribution).length > 0) {
+                html += `<div class="metrics-section"><h4>Latency Distribution (ms)</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.latency_distribution)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${value.toFixed(2)}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.query_types && Object.keys(data.query_types).length > 0) {
+                html += `<div class="metrics-section"><h4>Query Types</h4><table class="metrics-table">`;
+                for (const [type, count] of Object.entries(data.query_types)) {
+                    html += `<tr><td>${formatMetricKey(type)}</td><td>${count.toLocaleString()}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            return html;
         }
         
         function formatContentDistribution(data) {
-            return `
+            if (!data) return 'No content distribution data available';
+
+            let html = `
                 <div class="metrics-section">
                     <h4>Content Types</h4>
                     ${Object.entries(data).map(([type, count]) => `
@@ -1369,6 +1552,24 @@
                     `).join('')}
                 </div>
             `;
+
+            if (data.language_distribution && Object.keys(data.language_distribution).length > 0) {
+                html += `<div class="metrics-section"><h4>Language Distribution</h4><table class="metrics-table">`;
+                for (const [lang, count] of Object.entries(data.language_distribution)) {
+                    html += `<tr><td>${formatMetricKey(lang)}</td><td>${count.toLocaleString()}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.topic_distribution && Object.keys(data.topic_distribution).length > 0) {
+                html += `<div class="metrics-section"><h4>Topic Distribution</h4><table class="metrics-table">`;
+                for (const [topic, count] of Object.entries(data.topic_distribution)) {
+                    html += `<tr><td>${formatMetricKey(topic)}</td><td>${count.toLocaleString()}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            return html;
         }
         
         function formatTieredCacheDetails(data) {
@@ -1417,7 +1618,9 @@
         }
         
         function formatVectorIndexDetails(data) {
-            return `
+            if (!data) return 'No vector index details available';
+
+            let html = `
                 <div class="metrics-section">
                     <h4>Index Configuration</h4>
                     <div><strong>Type:</strong> ${data.index_type}</div>
@@ -1425,34 +1628,68 @@
                     <div><strong>Clusters:</strong> ${data.clusters}</div>
                     <div><strong>Last Updated:</strong> ${new Date(data.last_updated).toLocaleString()}</div>
                 </div>
-                <div class="metrics-section">
-                    <h4>Performance Metrics</h4>
-                    <div><strong>Avg Query Time:</strong> ${data.search_performance.average_query_time_ms}ms</div>
-                    <div><strong>Queries/Second:</strong> ${data.search_performance.queries_per_second}</div>
-                    <div><strong>Index Size:</strong> ${data.index_size_mb}MB</div>
-                </div>
             `;
+
+            if (data.performance_metrics && Object.keys(data.performance_metrics).length > 0) {
+                html += `<div class="metrics-section"><h4>Performance Metrics</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.performance_metrics)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${formatMetricValue(value)}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.index_structure && Object.keys(data.index_structure).length > 0) {
+                html += `<div class="metrics-section"><h4>Index Structure</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.index_structure)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${formatMetricValue(value)}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            return html;
         }
         
         function formatKnowledgeBaseAnalytics(data) {
-            return `
+            if (!data) return 'No knowledge base analytics available';
+
+            let html = `
                 <div class="metrics-section">
                     <h4>Graph Analytics</h4>
                     <div><strong>Clustering Coefficient:</strong> ${data.graph_metrics.clustering_coefficient}</div>
                     <div><strong>Average Path Length:</strong> ${data.graph_metrics.average_path_length}</div>
                     <div><strong>Modularity:</strong> ${data.graph_metrics.modularity}</div>
                 </div>
-                <div class="metrics-section">
-                    <h4>Content Analysis</h4>
-                    <div><strong>Languages:</strong> ${data.content_analysis.languages_detected.join(', ')}</div>
-                    <div><strong>Topics:</strong> ${data.content_analysis.topics_identified}</div>
-                    <div><strong>Sentiment:</strong> Pos: ${(data.content_analysis.sentiment_distribution.positive * 100).toFixed(1)}%, Neu: ${(data.content_analysis.sentiment_distribution.neutral * 100).toFixed(1)}%, Neg: ${(data.content_analysis.sentiment_distribution.negative * 100).toFixed(1)}%</div>
-                </div>
             `;
+
+            if (data.content_analysis && Object.keys(data.content_analysis).length > 0) {
+                html += `<div class="metrics-section"><h4>Content Analysis</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.content_analysis)) {
+                    if (key === 'languages_detected' && Array.isArray(value)) {
+                        html += `<tr><td>${formatMetricKey(key)}</td><td>${value.join(', ')}</td></tr>`;
+                    } else if (key === 'sentiment_distribution' && typeof value === 'object') {
+                        html += `<tr><td>${formatMetricKey(key)}</td><td>Pos: ${(value.positive * 100).toFixed(1)}%, Neu: ${(value.neutral * 100).toFixed(1)}%, Neg: ${(value.negative * 100).toFixed(1)}%</td></tr>`;
+                    } else {
+                        html += `<tr><td>${formatMetricKey(key)}</td><td>${formatMetricValue(value)}</td></tr>`;
+                    }
+                }
+                html += `</table></div>`;
+            }
+
+            if (data.entity_recognition && Object.keys(data.entity_recognition).length > 0) {
+                html += `<div class="metrics-section"><h4>Entity Recognition</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.entity_recognition)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${formatMetricValue(value)}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            return html;
         }
         
         function formatSemanticCachePerformance(data) {
-            return `
+            if (!data) return 'No semantic cache performance data available';
+
+            let html = `
                 <div class="metrics-section">
                     <h4>Cache Performance</h4>
                     <div><strong>Exact Matches:</strong> ${data.exact_matches}</div>
@@ -1460,11 +1697,17 @@
                     <div><strong>Cache Utilization:</strong> ${(data.cache_utilization * 100).toFixed(1)}%</div>
                     <div><strong>Threshold:</strong> ${data.similarity_threshold}</div>
                 </div>
-                <div class="metrics-section">
-                    <h4>Model Info</h4>
-                    <div><strong>Embedding Model:</strong> ${data.embedding_model}</div>
-                </div>
             `;
+
+            if (data.model_info && Object.keys(data.model_info).length > 0) {
+                html += `<div class="metrics-section"><h4>Model Info</h4><table class="metrics-table">`;
+                for (const [key, value] of Object.entries(data.model_info)) {
+                    html += `<tr><td>${formatMetricKey(key)}</td><td>${formatMetricValue(value)}</td></tr>`;
+                }
+                html += `</table></div>`;
+            }
+
+            return html;
         }
         
         // Package Configuration Functions
@@ -1555,8 +1798,8 @@
                 
                 if (response.ok) {
                     const result = await response.json();
-                    alert('Package configuration saved successfully!\\n\\nUpdates applied:\\n' + 
-                          (result.result.updates || []).join('\\n'));
+                    alert('Package configuration saved successfully!\n\nUpdates applied:\n' +
+                          (result.result.updates || []).join('\n'));
                 } else {
                     const error = await response.json();
                     alert('Error saving package configuration: ' + (error.error || response.statusText));
@@ -1573,4 +1816,3 @@
     </script>
 </body>
 </html>
-        

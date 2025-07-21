@@ -41,10 +41,11 @@ class FSOperation:
     Represents a filesystem operation for journaling purposes.
     """
     
-    def __init__(self, op_type: FSOperationType, path: str, metadata: Optional[Dict[str, Any]] = None):
+    def __init__(self, op_type: FSOperationType, path: str, backend_name: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None):
         self.op_type = op_type
         self.path = path
         self.timestamp = time.time()
+        self.backend_name = backend_name
         self.metadata = metadata or {}
     
     def to_dict(self) -> Dict[str, Any]:
@@ -53,6 +54,7 @@ class FSOperation:
             "op_type": self.op_type.value,
             "path": self.path,
             "timestamp": self.timestamp,
+            "backend_name": self.backend_name,
             "metadata": self.metadata,
             "datetime": datetime.fromtimestamp(self.timestamp).isoformat()
         }
@@ -63,6 +65,7 @@ class FSOperation:
         return cls(
             FSOperationType(data["op_type"]),
             data["path"],
+            data.get("backend_name"),
             data.get("metadata", {})
         )
 
@@ -98,25 +101,33 @@ class FSJournal:
         
         # Log the operation
         if success:
-            logger.debug(f"FS Operation: {operation.op_type.value} on {operation.path}")
+            logger.debug(f"FS Operation: {operation.op_type.value} on {operation.path} (Backend: {operation.backend_name})")
         else:
-            logger.warning(f"Failed FS Operation: {operation.op_type.value} on {operation.path}: {error_message}")
+            logger.warning(f"Failed FS Operation: {operation.op_type.value} on {operation.path} (Backend: {operation.backend_name}): {error_message}")
         
         # Save to file if journal path is set
         if self.journal_path:
             self._append_to_file(entry)
     
-    def get_operations_for_path(self, path: str) -> List[Dict[str, Any]]:
+    def get_journal_entries(self, backend_name: Optional[str] = None, search_query: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        Get all operations for a specific path.
-        
-        Args:
-            path: The path to find operations for
-            
-        Returns:
-            List of operation entries that match the path
+        Get all journal entries, optionally filtered by backend and search query.
         """
-        return [op for op in self.operations if op["path"] == path]
+        filtered_entries = []
+        for op in self.operations:
+            match = True
+            if backend_name and op.get("backend_name") != backend_name:
+                match = False
+            if search_query:
+                search_query_lower = search_query.lower()
+                if not (search_query_lower in op["op_type"].lower() or
+                        search_query_lower in op["path"].lower() or
+                        (op.get("error") and search_query_lower in op["error"].lower()) or
+                        (op.get("metadata") and search_query_lower in json.dumps(op["metadata"]).lower())):
+                    match = False
+            if match:
+                filtered_entries.append(op)
+        return filtered_entries
     
     def _load_from_file(self) -> None:
         """Load operations from the journal file if it exists."""
@@ -720,7 +731,7 @@ class VirtualFS:
             True if the move was successful, False otherwise
         """
         # Record the operation
-        operation = FSOperation(FSOperationType.MOVE, src_path, {"destination": dst_path})
+        operation = FSOperation(FSOperationType.MOVE, src_path, backend_name="vfs", metadata={"destination": dst_path})
         
         try:
             # First copy the file or directory
@@ -878,14 +889,10 @@ class FSController:
                     raise HTTPException(status_code=400, detail="Failed to move")
             
             @router.get("/fs/journal")
-            async def get_journal(limit: int = Query(100), path: Optional[str] = Query(None)):
-                """Get the filesystem journal entries."""
-                if path:
-                    entries = self.virtual_fs.journal.get_operations_for_path(path)
-                    return {"entries": entries[:limit], "total": len(entries), "filtered_by_path": path}
-                else:
-                    entries = self.virtual_fs.journal.operations
-                    return {"entries": entries[-limit:], "total": len(entries)}
+            async def get_journal(limit: int = Query(100), backend: Optional[str] = Query(None), search: Optional[str] = Query(None)):
+                """Get the filesystem journal entries, with optional filtering and searching."""
+                entries = self.virtual_fs.journal.get_journal_entries(backend_name=backend, search_query=search)
+                return {"entries": entries[-limit:], "total": len(entries), "filtered_by_backend": backend, "search_query": search}
             
             @router.get("/fs/cid/{cid}")
             async def get_paths_for_cid(cid: str = Path(...)):

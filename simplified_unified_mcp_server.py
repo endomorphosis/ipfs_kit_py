@@ -389,6 +389,34 @@ class SimplifiedUnifiedMCPServer:
                 "hit_ratio": 0.85,
                 "total_size": 50 * 1024**2
             })
+
+        @self.app.post("/api/vfs/vector-search")
+        async def api_vfs_vector_search(request: Request):
+            try:
+                data = await request.json()
+                query = data.get("query")
+                if not query:
+                    raise HTTPException(status_code=400, detail="Query parameter is required")
+                
+                # Simulate a vector search
+                results = self._simulate_vector_search(query)
+                return JSONResponse({"success": True, "results": results})
+            except Exception as e:
+                return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+        @self.app.post("/api/vfs/kb-search")
+        async def api_vfs_kb_search(request: Request):
+            try:
+                data = await request.json()
+                entity_id = data.get("entity_id")
+                if not entity_id:
+                    raise HTTPException(status_code=400, detail="Entity ID parameter is required")
+                
+                # Simulate a knowledge graph search
+                results = self._simulate_kb_search(entity_id)
+                return JSONResponse({"success": True, "results": results})
+            except Exception as e:
+                return JSONResponse({"success": False, "error": str(e)}, status_code=500)
         
         # Metrics endpoint
         @self.app.get("/metrics")
@@ -743,6 +771,36 @@ class SimplifiedUnifiedMCPServer:
             "process_id": os.getpid(),
             "available_memory_gb": psutil.virtual_memory().total / (1024**3),
             "cpu_count": psutil.cpu_count()
+        }
+
+    def _simulate_vector_search(self, query: str) -> List[Dict[str, Any]]:
+        """Simulate a vector search."""
+        # In a real implementation, this would query a vector database like Faiss or Chroma
+        return [
+            {
+                "id": f"doc_{i}",
+                "score": 0.9 - (i * 0.1),
+                "text": f"This is a simulated search result for '{query}' number {i}"
+            } for i in range(5)
+        ]
+
+    def _simulate_kb_search(self, entity_id: str) -> Dict[str, Any]:
+        """Simulate a knowledge graph search."""
+        # In a real implementation, this would query a graph database like Neo4j
+        return {
+            "entity_id": entity_id,
+            "label": "Simulated Entity",
+            "properties": {
+                "description": f"This is a simulated entity with ID {entity_id}",
+                "type": "Simulated"
+            },
+            "relations": [
+                {
+                    "type": "RELATED_TO",
+                    "target_id": "related_entity_1",
+                    "target_label": "Another Entity"
+                }
+            ]
         }
     
     def _get_prometheus_metrics(self) -> str:

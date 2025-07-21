@@ -545,3 +545,55 @@ class IPFSBackend(BackendStorage):
             Dict with detailed statistics for the operation
         """
         return self.monitor.get_operation_stats(operation_type)
+
+    async def get_logs(self) -> List[str]:
+        """
+        Get mock log entries for the IPFS backend.
+        """
+        return [
+            f"[{time.ctime()}] INFO: IPFS backend log entry 1",
+            f"[{time.ctime()}] DEBUG: IPFS backend log entry 2",
+            f"[{time.ctime()}] ERROR: IPFS backend encountered a mock error."
+        ]
+
+    async def restart(self) -> Dict[str, Any]:
+        """
+        Simulate restarting the IPFS backend.
+        """
+        logger.info(f"Simulating restart for IPFS backend.")
+        return {"success": True, "message": "IPFS backend simulated restart successful."}
+
+    async def get_status(self) -> Dict[str, Any]:
+        """
+        Get mock status for the IPFS backend, including access times, bandwidth, and storage.
+        """
+        # In a real implementation, this data would come from actual IPFS daemon metrics.
+        return {
+            "status": "running",
+            "peer_id": "QmMockPeerID",
+            "version": "go-ipfs/0.12.0/mock",
+            "api_url": "/ip4/127.0.0.1/tcp/5001",
+            "repo_size": "10GB",
+            "num_objects": 1000,
+            "health_checks": {
+                "api_connection": "healthy",
+                "swarm_peers": "healthy"
+            },
+            "access_times": {
+                "average_latency_ms": 50,
+                "last_24h_requests": 1500,
+                "error_rate_percent": 0.5
+            },
+            "bandwidth": {
+                "total_in_mb": 1024,
+                "total_out_mb": 2048,
+                "current_rate_in_mbps": 1.5,
+                "current_rate_out_mbps": 3.2
+            },
+            "storage": {
+                "repo_size_gb": 10,
+                "repo_used_gb": 7.5,
+                "num_pinned_objects": 500,
+                "storage_max_gb": 100
+            }
+        }

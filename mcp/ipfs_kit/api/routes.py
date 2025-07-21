@@ -10,7 +10,7 @@ import shutil
 from fastapi import FastAPI, Request, HTTPException, WebSocket, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
 from pathlib import Path
 
@@ -19,6 +19,7 @@ from .config_endpoints import ConfigEndpoints
 from .vfs_endpoints import VFSEndpoints
 from .file_endpoints import FileEndpoints
 from .websocket_handler import WebSocketHandler
+from .vector_kb_endpoints import VectorKBEndpoints
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class APIRoutes:
         self.health_endpoints = HealthEndpoints(backend_monitor)
         self.config_endpoints = ConfigEndpoints(backend_monitor)
         self.vfs_endpoints = VFSEndpoints(backend_monitor, vfs_observer)
+        self.vector_kb_endpoints = VectorKBEndpoints(backend_monitor, vfs_observer)
         self.file_endpoints = FileEndpoints()
         self.websocket_handler = WebSocketHandler(websocket_manager)
         
@@ -131,6 +133,23 @@ class APIRoutes:
                 "all_backends"
             )
         
+        # Storage backends endpoint for dashboard compatibility
+        @self.app.get("/api/v0/storage/backends")
+        async def get_storage_backends():
+            """Get storage backend configurations for dashboard."""
+            return await self._safe_endpoint_call(
+                self.backend_monitor.check_all_backends,
+                "storage_backends"
+            )
+        
+        @self.app.get("/api/v0/storage/backends/{backend_name}")
+        async def get_storage_backend_detail(backend_name: str):
+            """Get detailed configuration for a specific storage backend."""
+            return await self._safe_endpoint_call(
+                lambda: self.backend_monitor.check_backend_health(backend_name),
+                f"storage_backend_{backend_name}"
+            )
+        
         @self.app.get("/api/backends/status")
         async def get_all_backends_status():
             return await self._safe_endpoint_call(
@@ -167,6 +186,55 @@ class APIRoutes:
             return await self._safe_endpoint_call(
                 lambda: self._get_backend_logs(backend_name),
                 "backend_logs"
+            )
+        
+        # Enhanced logging endpoints
+        @self.app.get("/api/logs")
+        async def get_logs():
+            """Get logs from all backends (redirect to all logs)."""
+            return await self._safe_endpoint_call(
+                self._get_all_backend_logs,
+                "all_logs"
+            )
+        
+        @self.app.get("/api/logs/all")
+        async def get_all_logs():
+            """Get logs from all backends."""
+            return await self._safe_endpoint_call(
+                self._get_all_backend_logs,
+                "all_logs"
+            )
+        
+        @self.app.get("/api/logs/recent")
+        async def get_recent_logs(minutes: int = 30):
+            """Get recent logs from all backends."""
+            return await self._safe_endpoint_call(
+                lambda: self._get_recent_logs(minutes),
+                "recent_logs"
+            )
+        
+        @self.app.get("/api/logs/errors")
+        async def get_error_logs():
+            """Get error and warning logs from all backends."""
+            return await self._safe_endpoint_call(
+                self._get_error_logs,
+                "error_logs"
+            )
+        
+        @self.app.get("/api/logs/statistics")
+        async def get_log_statistics():
+            """Get logging statistics for dashboard."""
+            return await self._safe_endpoint_call(
+                self._get_log_statistics,
+                "log_statistics"
+            )
+        
+        @self.app.post("/api/logs/clear/{backend_name}")
+        async def clear_backend_logs(backend_name: str):
+            """Clear logs for a specific backend."""
+            return await self._safe_endpoint_call(
+                lambda: self._clear_backend_logs(backend_name),
+                "clear_logs"
             )
         
         @self.app.post("/api/backends/{backend_name}/restart")
@@ -244,10 +312,18 @@ class APIRoutes:
         
         @self.app.get("/api/config/package")
         async def get_package_config():
-            return await self._safe_endpoint_call(
-                lambda: self.config_endpoints.get_package_config(),
-                "package_config"
-            )
+            try:
+                # Call synchronous method directly since it's not async
+                result = self.config_endpoints.get_package_config()
+                return {"success": True, "data": result}
+            except Exception as e:
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "type": type(e).__name__,
+                    "endpoint": "package_config",
+                    "timestamp": self._get_current_timestamp()
+                }
         
         @self.app.post("/api/config/package")
         async def set_package_config(request: Request):
@@ -273,6 +349,15 @@ class APIRoutes:
             )
         
         # VFS and file management endpoints
+        @self.app.get("/api/vfs/journal")
+        async def get_vfs_journal(backend: Optional[str] = None, query: Optional[str] = None):
+            return await self._safe_endpoint_call(
+                self.vfs_endpoints.get_vfs_journal,
+                "vfs_journal",
+                backend_filter=backend,
+                search_query=query
+            )
+
         # VFS endpoints with comprehensive error handling
         @self.app.get("/api/vfs/status")
         async def get_vfs_status():
@@ -312,15 +397,44 @@ class APIRoutes:
         @self.app.get("/api/vfs/vector-index")
         async def get_vfs_vector_index():
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.get_vfs_vector_index,
-                "vfs_vector_index"
+                self.vector_kb_endpoints.get_enhanced_vector_index_status,
+                "enhanced_vector_index"
             )
         
         @self.app.get("/api/vfs/knowledge-base")
         async def get_vfs_knowledge_base():
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.get_vfs_knowledge_base,
-                "vfs_knowledge_base"
+                self.vector_kb_endpoints.get_enhanced_knowledge_base_status,
+                "enhanced_knowledge_base"
+            )
+        
+        # Enhanced Vector & KB search endpoints
+        @self.app.get("/api/vector/search")
+        async def search_vector_database(query: str, limit: int = 10, min_similarity: float = 0.1):
+            return await self._safe_endpoint_call(
+                lambda: self.vector_kb_endpoints.search_vector_database(query, limit, min_similarity),
+                "vector_search"
+            )
+        
+        @self.app.get("/api/vector/collections")
+        async def list_vector_collections():
+            return await self._safe_endpoint_call(
+                self.vector_kb_endpoints.list_vector_collections,
+                "vector_collections"
+            )
+        
+        @self.app.get("/api/kg/entity/{entity_id}")
+        async def get_entity_details(entity_id: str):
+            return await self._safe_endpoint_call(
+                lambda: self.vector_kb_endpoints.get_entity_details(entity_id),
+                "entity_details"
+            )
+        
+        @self.app.get("/api/kg/search")
+        async def search_knowledge_graph_by_entity(entity_id: str):
+            return await self._safe_endpoint_call(
+                lambda: self.vector_kb_endpoints.search_knowledge_graph_by_entity(entity_id),
+                "kg_entity_search"
             )
         
         @self.app.get("/api/vfs/recommendations")
@@ -495,8 +609,6 @@ class APIRoutes:
     async def _get_backend_logs(self, backend_name: str) -> Dict[str, Any]:
         """Get logs for a specific backend."""
         try:
-            # For now, return mock logs - in a real implementation, you'd read actual log files
-            import os
             log_file = f"/tmp/ipfs_kit_logs/{backend_name}.log"
             
             if os.path.exists(log_file):
@@ -630,5 +742,131 @@ class APIRoutes:
             return {
                 "success": False,
                 "error": str(e),
+                "timestamp": self._get_current_timestamp()
+            }
+    
+    async def _get_all_backend_logs(self) -> Dict[str, Any]:
+        """Get logs from all backends."""
+        try:
+            if hasattr(self.backend_monitor, 'log_manager'):
+                all_logs = self.backend_monitor.log_manager.get_all_backend_logs(limit=50)
+                return {
+                    "success": True,
+                    "logs": all_logs,
+                    "total_backends": len(all_logs),
+                    "timestamp": self._get_current_timestamp()
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Log manager not available",
+                    "timestamp": self._get_current_timestamp()
+                }
+        except Exception as e:
+            logger.error(f"Error getting all backend logs: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "timestamp": self._get_current_timestamp()
+            }
+    
+    async def _get_recent_logs(self, minutes: int = 30) -> Dict[str, Any]:
+        """Get recent logs from all backends."""
+        try:
+            if hasattr(self.backend_monitor, 'log_manager'):
+                recent_logs = self.backend_monitor.log_manager.get_recent_logs(minutes=minutes, limit=200)
+                return {
+                    "success": True,
+                    "logs": recent_logs,
+                    "minutes": minutes,
+                    "count": len(recent_logs),
+                    "timestamp": self._get_current_timestamp()
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Log manager not available",
+                    "timestamp": self._get_current_timestamp()
+                }
+        except Exception as e:
+            logger.error(f"Error getting recent logs: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "timestamp": self._get_current_timestamp()
+            }
+    
+    async def _get_error_logs(self) -> Dict[str, Any]:
+        """Get error and warning logs from all backends."""
+        try:
+            if hasattr(self.backend_monitor, 'log_manager'):
+                error_logs = self.backend_monitor.log_manager.get_error_logs(limit=100)
+                return {
+                    "success": True,
+                    "error_logs": error_logs,
+                    "count": len(error_logs),
+                    "timestamp": self._get_current_timestamp()
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Log manager not available",
+                    "timestamp": self._get_current_timestamp()
+                }
+        except Exception as e:
+            logger.error(f"Error getting error logs: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "timestamp": self._get_current_timestamp()
+            }
+    
+    async def _get_log_statistics(self) -> Dict[str, Any]:
+        """Get logging statistics for dashboard."""
+        try:
+            if hasattr(self.backend_monitor, 'log_manager'):
+                stats = self.backend_monitor.log_manager.get_log_statistics()
+                return {
+                    "success": True,
+                    "statistics": stats,
+                    "timestamp": self._get_current_timestamp()
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Log manager not available",
+                    "timestamp": self._get_current_timestamp()
+                }
+        except Exception as e:
+            logger.error(f"Error getting log statistics: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "timestamp": self._get_current_timestamp()
+            }
+    
+    async def _clear_backend_logs(self, backend_name: str) -> Dict[str, Any]:
+        """Clear logs for a specific backend."""
+        try:
+            if hasattr(self.backend_monitor, 'log_manager'):
+                self.backend_monitor.log_manager.clear_backend_logs(backend_name)
+                return {
+                    "success": True,
+                    "message": f"Logs cleared for {backend_name}",
+                    "backend": backend_name,
+                    "timestamp": self._get_current_timestamp()
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Log manager not available",
+                    "timestamp": self._get_current_timestamp()
+                }
+        except Exception as e:
+            logger.error(f"Error clearing logs for {backend_name}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "backend": backend_name,
                 "timestamp": self._get_current_timestamp()
             }

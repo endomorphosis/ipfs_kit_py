@@ -31,7 +31,11 @@ from fastapi.websockets import WebSocket, WebSocketDisconnect
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("mcp_server.log"),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger("mcp_server")
 
@@ -132,8 +136,11 @@ async def initialize_components():
     
     logger.info("Initializing MCP components...")
     
-    # Initialize Backend Manager
-    backend_manager = BackendManager()
+    # Initialize Backend Health Monitor and Manager
+    from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+    health_monitor = BackendHealthMonitor()
+    backend_manager = BackendManager(health_monitor=health_monitor)
+    logger.info(f"BackendManager instance created: {type(backend_manager)}")
     
     # Configure default IPFS backend
     ipfs_resources = {
@@ -155,9 +162,17 @@ async def initialize_components():
     try:
         ipfs_backend = IPFSBackend(ipfs_resources, ipfs_metadata)
         backend_manager.add_backend("ipfs", ipfs_backend)
-        logger.info("Added IPFS backend to manager")
+        logger.info(f"Added IPFS backend 'ipfs' to manager. Backend object: {ipfs_backend}")
     except Exception as e:
         logger.error(f"Error initializing IPFS backend: {e}")
+
+    # Add logging to verify backends in backend_manager after initialization
+    if backend_manager:
+        all_backends = backend_manager.list_backends()
+        logger.info(f"Backends in manager after initialization: {all_backends}")
+        logger.info(f"Type of backend_manager.backends: {type(backend_manager.backends)}")
+        for name, backend_obj in backend_manager.backends.items():
+            logger.info(f"Backend '{name}' type: {type(backend_obj)}")
     
     # TODO: Add other backends as needed
     
@@ -322,6 +337,15 @@ async def initialize_components():
                     logger.warning(f"IPFS DHT functionality initialization failed: {dht_result.get('error', 'Unknown error')}")
         except Exception as e:
             logger.error(f"Error initializing IPFS DHT functionality: {e}")
+
+    # Initialize VFS and FSController
+    from ipfs_kit_py.mcp.fs.fs_journal import FSJournal, VirtualFS, FSController
+    journal_path = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "fs_journal.json")
+    fs_journal = FSJournal(journal_path)
+    virtual_fs = VirtualFS(fs_journal)
+    fs_controller = FSController(virtual_fs)
+    app.include_router(fs_controller.create_router(), prefix="/api/v0")
+    logger.info("Initialized VFS and FSController")
     
     logger.info("All MCP components initialized successfully")
 
@@ -621,6 +645,67 @@ async def storage_get(
             # Return as JSON
             return {"data": data}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/backends/{backend_name}/logs")
+async def get_backend_logs(backend_name: str, current_user: User = Depends(get_current_user)):
+    """
+    Get logs for a specific backend.
+    """
+    if not COMPONENTS_INITIALIZED or not backend_manager:
+        raise HTTPException(status_code=500, detail="MCP components not initialized")
+    
+    try:
+        backend = backend_manager.get_backend(backend_name)
+        if not backend:
+            raise HTTPException(status_code=404, detail=f"Backend '{backend_name}' not found")
+        
+        # Assuming backend objects have a get_logs method
+        # Assuming backend.errors contains log entries from BackendHealthMonitor
+        logs = await backend_manager.health_monitor.get_backend_logs(backend_name)
+        return {"success": True, "backend": backend_name, "logs": logs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/backends/{backend_name}/restart")
+async def restart_backend(backend_name: str, current_user: User = Depends(get_current_user)):
+    """
+    Restart a specific backend.
+    """
+    if not COMPONENTS_INITIALIZED or not backend_manager:
+        raise HTTPException(status_code=500, detail="MCP components not initialized")
+    
+    try:
+        result = await backend_manager.health_monitor.restart_backend(backend_name)
+        if result:
+            return {"success": True, "backend": backend_name, "message": "Backend restarted"}
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to restart backend '{backend_name}'")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v0/storage/backends/{backend_name}")
+async def get_storage_backend_details(backend_name: str, current_user: User = Depends(get_current_user)):
+    """
+    Get details for a specific storage backend.
+    """
+    if not COMPONENTS_INITIALIZED or not backend_manager:
+        raise HTTPException(status_code=500, detail="MCP components not initialized")
+    
+    try:
+        backend = backend_manager.get_backend(backend_name)
+        if not backend:
+            logger.error(f"Backend '{backend_name}' not found in backend_manager. Available backends: {backend_manager.list_backends()}")
+            raise HTTPException(status_code=404, detail=f"Backend '{backend_name}' not found")
+        
+        logger.info(f"Retrieved backend object for {backend_name}: {backend}")
+        details = await backend.get_status()
+        return {"success": True, "backend": backend_name, "details": details}
+    except Exception as e:
+        logger.error(f"Error getting details for backend {backend_name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

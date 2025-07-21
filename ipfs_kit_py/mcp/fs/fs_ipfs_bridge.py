@@ -221,7 +221,7 @@ class IPFSFSBridge:
                         path_or_cid = args[0] if args else kwargs.get('cid', kwargs.get('path', 'unknown'))
                         
                         # Create and record the operation
-                        operation = FSOperation(op_type, str(path_or_cid))
+                        operation = FSOperation(op_type, str(path_or_cid), backend_name="ipfs")
                         
                         try:
                             # Call the original method

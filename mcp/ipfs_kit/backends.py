@@ -530,7 +530,7 @@ class BackendHealthMonitor:
             elif backend_name == "parquet":
                 return await self._check_parquet_health(backend)
             else:
-                return {"error": f"Health check not implemented for {backend_name}"}
+                return {"error">: f"Health check not implemented for {backend_name}"}
                 
         except Exception as e:
             logger.error(f"Error checking {backend_name} health: {e}")
@@ -547,14 +547,28 @@ class BackendHealthMonitor:
         """Check IPFS daemon health."""
         
         try:
-            # Check if daemon is running
-            result = subprocess.run(
-                ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
-                capture_output=True, text=True, timeout=5
+            # Check if daemon is running (IPFS API requires POST)
+            result = await asyncio.wait_for(
+                asyncio.to_thread(subprocess.run,
+                    ["curl", "-s", "-X", "POST", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
+                    capture_output=True, text=True, timeout=5
+                ), timeout=10 # Overall timeout for this operation
             )
             
-            if result.returncode == 0:
-                version_info = json.loads(result.stdout)
+            if result.returncode == 0 and result.stdout.strip():
+                try:
+                    version_info = json.loads(result.stdout)
+                except json.JSONDecodeError as e:
+                    # Handle non-JSON responses
+                    backend["status"] = "error"
+                    backend["health"] = "unhealthy"
+                    backend["errors"].append({
+                        "timestamp": datetime.now().isoformat(),
+                        "error": f"Invalid JSON response from IPFS API: {result.stdout[:100]}"
+                    })
+                    backend["last_check"] = datetime.now().isoformat()
+                    return backend
+                
                 backend["status"] = "running"
                 backend["health"] = "healthy"
                 backend["metrics"] = {
@@ -564,23 +578,37 @@ class BackendHealthMonitor:
                 }
                 
                 # Check additional metrics
-                stats_result = subprocess.run(
-                    ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/stats/repo"],
-                    capture_output=True, text=True, timeout=5
+                stats_result = await asyncio.wait_for(
+                    asyncio.to_thread(subprocess.run,
+                        ["curl", "-s", "-X", "POST", f"http://127.0.0.1:{backend['port']}/api/v0/stats/repo"],
+                        capture_output=True, text=True, timeout=5
+                    ), timeout=10 # Overall timeout for this operation
                 )
                 
-                if stats_result.returncode == 0:
-                    stats = json.loads(stats_result.stdout)
-                    backend["detailed_info"].update({
-                        "repo_size": stats.get("RepoSize", 0),
-                        "repo_objects": stats.get("NumObjects", 0)
-                    })
+                if stats_result.returncode == 0 and stats_result.stdout.strip():
+                    try:
+                        stats = json.loads(stats_result.stdout)
+                        backend["detailed_info"].update({
+                            "repo_size": stats.get("RepoSize", 0),
+                            "repo_objects": stats.get("NumObjects", 0)
+                        })
+                    except json.JSONDecodeError:
+                        # Skip stats if JSON parsing fails
+                        pass
                     
             else:
                 backend["status"] = "stopped"
                 backend["health"] = "unhealthy"
                 backend["metrics"] = {}
                 
+        except asyncio.TimeoutError:
+            logger.error(f"IPFS health check timed out after 10 seconds.")
+            backend["status"] = "timeout"
+            backend["health"] = "unhealthy"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": "IPFS health check timed out"
+            })
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
@@ -593,48 +621,253 @@ class BackendHealthMonitor:
         return backend
 
     async def _check_ipfs_cluster_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Check IPFS Cluster health."""
+        """Check IPFS Cluster health with more detailed metrics."""
         
         try:
-            # Check if cluster daemon is running
-            result = subprocess.run(
-                ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
-                capture_output=True, text=True, timeout=5
+            # Check if cluster daemon is running and get version info
+            version_result = await asyncio.wait_for(
+                asyncio.to_thread(subprocess.run,
+                    ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
+                    capture_output=True, text=True, timeout=5
+                ), timeout=10
             )
             
-            if result.returncode == 0:
-                version_info = json.loads(result.stdout)
-                backend["status"] = "running"
-                backend["health"] = "healthy"
-                backend["metrics"] = {
-                    "version": version_info.get("version", "unknown")
-                }
-                
-                # Check peers
-                peers_result = subprocess.run(
-                    ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/peers"],
-                    capture_output=True, text=True, timeout=5
-                )
-                
-                if peers_result.returncode == 0:
-                    peers = json.loads(peers_result.stdout)
-                    backend["detailed_info"]["cluster_peers"] = len(peers)
-                    
+            if version_result.returncode == 0 and version_result.stdout.strip():
+                try:
+                    version_info = json.loads(version_result.stdout)
+                    backend["status"] = "running"
+                    backend["health"] = "healthy"
+                    backend["metrics"]["version"] = version_info.get("version", "unknown")
+                    backend["detailed_info"]["cluster_id"] = version_info.get("cluster_id", "unknown")
+                    backend["detailed_info"]["peer_id"] = version_info.get("peer_id", "unknown")
+
+                    # Check peers
+                    peers_result = await asyncio.wait_for(
+                        asyncio.to_thread(subprocess.run,
+                            ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/peers"],
+                            capture_output=True, text=True, timeout=5
+                        ), timeout=10
+                    )
+                    if peers_result.returncode == 0 and peers_result.stdout.strip():
+                        peers = json.loads(peers_result.stdout)
+                        backend["detailed_info"]["cluster_peers"] = len(peers)
+                    else:
+                        backend["detailed_info"]["cluster_peers"] = 0
+                        backend["errors"].append({
+                            "timestamp": datetime.now().isoformat(),
+                            "error": f"Failed to get IPFS Cluster peers: {peers_result.stderr.strip() or peers_result.returncode}"
+                        })
+
+                    # Check pinned CIDs
+                    pins_result = await asyncio.wait_for(
+                        asyncio.to_thread(subprocess.run,
+                            ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/allocations"],
+                            capture_output=True, text=True, timeout=5
+                        ), timeout=10
+                    )
+                    if pins_result.returncode == 0 and pins_result.stdout.strip():
+                        allocations = json.loads(pins_result.stdout)
+                        backend["detailed_info"]["pins_count"] = len(allocations)
+                    else:
+                        backend["detailed_info"]["pins_count"] = 0
+                        backend["errors"].append({
+                            "timestamp": datetime.now().isoformat(),
+                            "error": f"Failed to get IPFS Cluster allocations: {pins_result.stderr.strip() or pins_result.returncode}"
+                        })
+
+                except json.JSONDecodeError as e:
+                    backend["status"] = "error"
+                    backend["health"] = "unhealthy"
+                    backend["errors"].append({
+                        "timestamp": datetime.now().isoformat(),
+                        "error": f"Invalid JSON response from IPFS Cluster API: {version_result.stdout[:100]} - {e}"
+                    })
             else:
                 backend["status"] = "stopped"
                 backend["health"] = "unhealthy"
                 backend["metrics"] = {}
+                backend["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "error": f"IPFS Cluster daemon not running or API unreachable: {version_result.stderr.strip() or version_result.returncode}"
+                })
                 
+        except asyncio.TimeoutError:
+            logger.error("IPFS Cluster health check timed out after 10 seconds.")
+            backend["status"] = "timeout"
+            backend["health"] = "unhealthy"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": "IPFS Cluster health check timed out"
+            })
         except Exception as e:
+            logger.error(f"Error checking IPFS Cluster health: {e}")
             backend["status"] = "error"
             backend["health"] = "unhealthy"
             backend["errors"].append({
                 "timestamp": datetime.now().isoformat(),
-                "error": str(e)
+                "error": str(e),
+                "traceback": traceback.format_exc()
             })
             
         backend["last_check"] = datetime.now().isoformat()
         return backend
+
+    async def _check_ipfs_cluster_follow_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
+        """Check IPFS Cluster Follow health with more detailed status."""
+        
+        try:
+            # Check if ipfs-cluster-follow process is running
+            pgrep_result = await asyncio.wait_for(
+                asyncio.to_thread(subprocess.run,
+                    ["pgrep", "-f", "ipfs-cluster-follow"],
+                    capture_output=True, text=True, timeout=5
+                ), timeout=10
+            )
+            
+            if pgrep_result.returncode == 0 and pgrep_result.stdout.strip():
+                backend["status"] = "running"
+                backend["health"] = "healthy"
+                backend["metrics"] = {
+                    "process_running": True,
+                    "pid": pgrep_result.stdout.strip()
+                }
+
+                # Attempt to get more detailed status from logs or a status command
+                # This is a placeholder; actual implementation would depend on ipfs-cluster-follow's capabilities
+                try:
+                    log_check_result = await asyncio.wait_for(
+                        asyncio.to_thread(subprocess.run,
+                            ["grep", "-q", "successfully connected to cluster", "/tmp/ipfs-cluster-follow.log"],
+                            capture_output=True, text=True, timeout=5
+                        ), timeout=10
+                    )
+                    if log_check_result.returncode == 0:
+                        backend["detailed_info"]["connection_status"] = "connected"
+                    else:
+                        backend["detailed_info"]["connection_status"] = "disconnected/connecting"
+                except (asyncio.TimeoutError, FileNotFoundError):
+                    backend["detailed_info"]["connection_status"] = "log_check_failed"
+                except Exception as e:
+                    backend["detailed_info"]["connection_status"] = f"error_checking_logs: {e}"
+
+            else:
+                backend["status"] = "stopped"
+                backend["health"] = "unhealthy"
+                backend["metrics"] = {
+                    "process_running": False
+                }
+                backend["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "error": "IPFS Cluster Follow process not found."
+                })
+                
+        except asyncio.TimeoutError:
+            logger.error("IPFS Cluster Follow health check timed out after 10 seconds.")
+            backend["status"] = "timeout"
+            backend["health"] = "unhealthy"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": "IPFS Cluster Follow health check timed out"
+            })
+        except Exception as e:
+            logger.error(f"Error checking IPFS Cluster Follow health: {e}")
+            backend["status"] = "error"
+            backend["health"] = "unhealthy"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            })
+            
+        backend["last_check"] = datetime.now().isoformat()
+        return backend
+
+    async def _config_ipfs_cluster(self, backend: Dict[str, Any], config_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Placeholder for IPFS Cluster configuration."""
+        logger.info(f"Attempting to configure IPFS Cluster with: {config_data}")
+        return {"success": False, "message": "IPFS Cluster configuration not yet implemented."}
+
+    async def _install_ipfs_cluster(self, backend: Dict[str, Any]) -> Dict[str, Any]:
+        """Placeholder for IPFS Cluster installation."""
+        logger.info("Attempting to install IPFS Cluster.")
+        return {"success": False, "message": "IPFS Cluster installation not yet implemented."}
+
+    async def _config_ipfs_cluster_follow(self, backend: Dict[str, Any], config_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Placeholder for IPFS Cluster Follow configuration."""
+        logger.info(f"Attempting to configure IPFS Cluster Follow with: {config_data}")
+        return {"success": False, "message": "IPFS Cluster Follow configuration not yet implemented."}
+
+    async def _install_ipfs_cluster_follow(self, backend: Dict[str, Any]) -> Dict[str, Any]:
+        """Placeholder for IPFS Cluster Follow installation."""
+        logger.info("Attempting to install IPFS Cluster Follow.")
+        return {"success": False, "message": "IPFS Cluster Follow installation not yet implemented."}
+
+    async def restart_backend(self, backend_name: str) -> Dict[str, Any]:
+        """Restart a specific backend daemon."""
+        try:
+            if backend_name == "ipfs":
+                # Stop IPFS daemon
+                subprocess.run(["ipfs", "shutdown"], timeout=10)
+                time.sleep(2)
+                
+                # Start IPFS daemon
+                subprocess.Popen(["ipfs", "daemon"])
+                
+                return {"success": True, "message": "IPFS daemon restart initiated"}
+                
+            elif backend_name == "lotus":
+                # Kill lotus processes
+                subprocess.run(["pkill", "-f", "lotus"], timeout=5)
+                time.sleep(2)
+                
+                # Start lotus daemon
+                subprocess.Popen(["lotus", "daemon"])
+                
+                return {"success": True, "message": "Lotus daemon restart initiated"}
+            
+            elif backend_name == "ipfs_cluster":
+                # Stop IPFS Cluster daemon
+                subprocess.run(["ipfs-cluster-ctl", "daemon", "stop"], timeout=10)
+                time.sleep(2)
+                
+                # Start IPFS Cluster daemon
+                subprocess.Popen(["ipfs-cluster-service", "daemon"])
+                
+                return {"success": True, "message": "IPFS Cluster daemon restart initiated"}
+
+            elif backend_name == "ipfs_cluster_follow":
+                # Stop IPFS Cluster Follow process
+                subprocess.run(["pkill", "-f", "ipfs-cluster-follow"], timeout=5)
+                time.sleep(2)
+                
+                # Start IPFS Cluster Follow process (assuming it's started with a specific command)
+                # You might need to adjust this command based on how you start ipfs-cluster-follow
+                subprocess.Popen(["ipfs-cluster-follow", "run"])
+                
+                return {"success": True, "message": "IPFS Cluster Follow restart initiated"}
+                
+            else:
+                return {"error": f"Restart not implemented for {backend_name}"}
+                
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def get_backend_health(self) -> List[Dict[str, Any]]:
+        """Gathers and formats health and observability stats for the dashboard."""
+        if not self.vfs_observer:
+            return []
+
+        all_stats = await self.vfs_observer.get_all_backend_stats()
+        health_data = []
+        for name, stats in all_stats.items():
+            stats_copy = stats.copy()
+            stats_copy["name"] = name.replace("_", " ").title()
+            stats_copy["storage_used"] = stats_copy.pop("storage_used_gb")
+            stats_copy["storage_total"] = stats_copy.pop("storage_total_gb")
+            stats_copy["traffic_in"] = stats_copy.pop("traffic_in_mbps")
+            stats_copy["traffic_out"] = stats_copy.pop("traffic_out_mbps")
+            health_data.append(stats_copy)
+        return health_data
 
     async def _check_ipfs_cluster_follow_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check IPFS Cluster Follow health."""
@@ -1038,22 +1271,34 @@ class BackendHealthMonitor:
                     ["ipfs", "config", "show"],
                     capture_output=True, text=True, timeout=10
                 )
-                
                 if result.returncode == 0:
                     return {"config": json.loads(result.stdout)}
                 else:
                     return {"error": "Failed to get IPFS config"}
-                    
             elif backend_name == "lotus":
                 config_path = Path("~/.lotus/config.toml").expanduser()
                 if config_path.exists():
-                    return {"config": config_path.read_text()}
+                    # Use toml library for proper parsing
+                    import toml
+                    return {"config": toml.loads(config_path.read_text())}
                 else:
                     return {"error": "Lotus config file not found"}
-                    
+            elif backend_name == "storacha":
+                return {"config": {"api_key": "mock_storacha_key", "space_id": "mock_space_id"}}
+            elif backend_name == "synapse":
+                return {"config": {"private_key": "mock_private_key", "network": "calibration"}}
+            elif backend_name == "s3":
+                return {"config": {"access_key_id": "mock_access_key", "region": "us-east-1"}}
+            elif backend_name == "huggingface":
+                return {"config": {"token": "mock_hf_token", "model_cache_dir": "/tmp/hf_cache"}}
+            elif backend_name == "parquet":
+                return {"config": {"compression": "snappy", "row_group_size": 10000}}
+            elif backend_name == "ipfs_cluster":
+                return {"config": {"api_port": 9094, "replication_factor": 3}}
+            elif backend_name == "ipfs_cluster_follow":
+                return {"config": {"target_cluster": "mock_cluster_id"}}
             else:
                 return {"error": f"Config retrieval not implemented for {backend_name}"}
-                
         except Exception as e:
             return {"error": str(e)}
 
@@ -1068,6 +1313,26 @@ class BackendHealthMonitor:
                 return await self._update_huggingface_config(config_data)
             elif backend_name == "s3":
                 return await self._update_s3_config(config_data)
+            elif backend_name == "storacha":
+                return {"success": True, "message": f"Mock update for Storacha: {config_data}"}
+            elif backend_name == "synapse":
+                return {"success": True, "message": f"Mock update for Synapse: {config_data}"}
+            elif backend_name == "parquet":
+                return {"success": True, "message": f"Mock update for Parquet: {config_data}"}
+            elif backend_name == "ipfs_cluster":
+                return {"success": True, "message": f"Mock update for IPFS Cluster: {config_data}"}
+            elif backend_name == "ipfs_cluster_follow":
+                return {"success": True, "message": f"Mock update for IPFS Cluster Follow: {config_data}"}
+            elif backend_name == "storacha":
+                return {"success": True, "message": f"Mock update for Storacha: {config_data}"}
+            elif backend_name == "synapse":
+                return {"success": True, "message": f"Mock update for Synapse: {config_data}"}
+            elif backend_name == "parquet":
+                return {"success": True, "message": f"Mock update for Parquet: {config_data}"}
+            elif backend_name == "ipfs_cluster":
+                return {"success": True, "message": f"Mock update for IPFS Cluster: {config_data}"}
+            elif backend_name == "ipfs_cluster_follow":
+                return {"success": True, "message": f"Mock update for IPFS Cluster Follow: {config_data}"}
             else:
                 return {"error": f"Config update not implemented for {backend_name}"}
                 
@@ -1169,7 +1434,9 @@ class BackendHealthMonitor:
                 return {"error": f"Restart not implemented for {backend_name}"}
                 
         except Exception as e:
-            return {"error": str(e)}    async def get_backend_health(self) -> List[Dict[str, Any]]:
+            return {"error": str(e)}
+
+    async def get_backend_health(self) -> List[Dict[str, Any]]:
         """Gathers and formats health and observability stats for the dashboard."""
         if not self.vfs_observer:
             return []

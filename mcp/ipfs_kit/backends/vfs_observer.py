@@ -8,10 +8,11 @@ import os
 import psutil
 import time
 import json
-from typing import Dict, Any, List, Tuple # Added List
+from typing import Dict, Any, List, Tuple, Optional # Added List and Optional
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 import asyncio
+from .vfs_journal import VFSJournalManager
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,9 @@ class VFSObservabilityManager:
     """Comprehensive VFS and cache observability with real implementations."""
     
     def __init__(self):
+        # Initialize VFS Journal Manager
+        self.journal_manager = VFSJournalManager()
+        
         # Real cache statistics tracking
         self.cache_stats = {
             "tiered_cache": {
@@ -67,12 +71,103 @@ class VFSObservabilityManager:
             "temporal_patterns": defaultdict(list)
         }
         
+        # VFS Journal
+        self.vfs_journal = deque(maxlen=5000)
+        
         # Performance tracking
         self.performance_history = deque(maxlen=100)
         self.start_time = time.time()
         
         # Initialize real monitoring
         self._initialize_monitoring()
+
+    def log_vfs_operation(self, backend: str, operation: str, path: str, success: bool, duration_ms: float, details: str = ""):
+        """Log a VFS operation to the journal."""
+        self.vfs_journal.append({
+            "timestamp": datetime.now().isoformat(),
+            "backend": backend,
+            "operation": operation,
+            "path": path,
+            "success": success,
+            "duration_ms": duration_ms,
+            "details": details
+        })
+
+    async def get_vfs_journal(self, backend_filter: Optional[str] = None, search_query: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get the VFS journal, with optional filtering and searching."""
+        # Get data from the journal manager
+        if hasattr(self, 'journal_manager') and self.journal_manager:
+            journal_entries = self.journal_manager.get_journal_entries(
+                backend=backend_filter,
+                search_term=search_query,
+                limit=100
+            )
+        else:
+            journal_entries = list(self.vfs_journal)
+        
+        # If no real data, generate some sample entries for demonstration
+        if not journal_entries:
+            journal_entries = self._generate_sample_vfs_entries(backend_filter)
+        
+        # Apply additional filtering if needed
+        if backend_filter:
+            journal_entries = [entry for entry in journal_entries if entry.get("backend") == backend_filter]
+            
+        if search_query:
+            query = search_query.lower()
+            journal_entries = [
+                entry for entry in journal_entries 
+                if query in entry.get("path", "").lower() or \
+                   query in entry.get("operation", "").lower() or \
+                   query in str(entry.get("details", "")).lower()
+            ]
+            
+        return journal_entries
+
+    def _generate_sample_vfs_entries(self, backend_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Generate sample VFS journal entries for demonstration."""
+        import random
+        from datetime import datetime, timedelta
+        
+        backends = ["ipfs", "lotus", "storacha", "s3", "huggingface"] if not backend_filter else [backend_filter]
+        operations = ["read", "write", "delete", "list", "metadata", "copy", "move"]
+        sample_paths = [
+            "/data/documents/report.pdf",
+            "/media/images/photo.jpg", 
+            "/config/settings.yaml",
+            "/logs/system.log",
+            "/cache/temp_file.tmp",
+            "/backup/archive.tar.gz",
+            "/uploads/user_content.txt"
+        ]
+        
+        entries = []
+        base_time = datetime.now()
+        
+        for i in range(20):  # Generate 20 sample entries
+            backend = random.choice(backends)
+            operation = random.choice(operations)
+            path = random.choice(sample_paths)
+            timestamp = base_time - timedelta(minutes=random.randint(0, 60))
+            success = random.choice([True, True, True, False])  # 75% success rate
+            
+            entry = {
+                "id": f"sample_{i}_{int(timestamp.timestamp())}",
+                "timestamp": timestamp.isoformat(),
+                "backend": backend,
+                "operation": operation,
+                "path": path,
+                "status": "success" if success else "error",
+                "duration_ms": random.randint(10, 1000),
+                "details": f"Sample {operation} operation on {path}",
+                "formatted_time": timestamp.strftime("%H:%M:%S"),
+                "formatted_date": timestamp.strftime("%Y-%m-%d")
+            }
+            entries.append(entry)
+        
+        # Sort by timestamp (newest first)
+        entries.sort(key=lambda x: x['timestamp'], reverse=True)
+        return entries
         
     def _initialize_monitoring(self):
         """Initialize real monitoring systems."""

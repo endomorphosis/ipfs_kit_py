@@ -831,6 +831,7 @@
                 <button class="tab-button active" onclick="switchTab('overview', event)">📊 Overview</button>
                 <button class="tab-button" onclick="switchTab('monitoring', event)">🔍 Monitoring</button>
                 <button class="tab-button" onclick="switchTab('vfs', event)">💾 VFS Observatory</button>
+                <button class="tab-button" onclick="switchTab('vfs-journal', event)">📓 VFS Journal</button>
                 <button class="tab-button" onclick="switchTab('vector-kb', event)">🧠 Vector & KB</button>
                 <button class="tab-button" onclick="switchTab('configuration', event)">⚙️ Configuration</button>
                 <button class="tab-button" onclick="switchTab('filemanager', event)">📁 File Manager</button>
@@ -910,8 +911,92 @@
                     </div>
                 </div>
             </div>
+
+            <div id="vfs-journal" class="tab-content">
+                <h3>🗂️ Virtual FileSystem Observatory</h3>
+                <p class="tab-description">Monitor filesystem operations across all storage backends with real-time journal tracking</p>
+                
+                <div class="journal-controls">
+                    <div class="filter-group">
+                        <label for="journalSearch">🔍 Search Operations:</label>
+                        <input type="text" id="journalSearch" placeholder="Search paths, files, or operations..." 
+                               onkeyup="if(event.key==='Enter') filterVFSJournal()">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="journalBackendFilter">🔧 Backend Filter:</label>
+                        <select id="journalBackendFilter" onchange="filterVFSJournal()">
+                            <option value="">All Backends</option>
+                            <option value="ipfs">IPFS</option>
+                            <option value="ipfs_cluster">IPFS Cluster</option>
+                            <option value="lotus">Lotus (Filecoin)</option>
+                            <option value="storacha">Storacha</option>
+                            <option value="s3">Amazon S3</option>
+                            <option value="local">Local Storage</option>
+                            <option value="huggingface">HuggingFace</option>
+                            <option value="synapse">Synapse</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="journalOperationFilter">⚡ Operation Filter:</label>
+                        <select id="journalOperationFilter" onchange="filterVFSJournal()">
+                            <option value="">All Operations</option>
+                            <option value="read">Read</option>
+                            <option value="write">Write</option>
+                            <option value="upload">Upload</option>
+                            <option value="download">Download</option>
+                            <option value="delete">Delete</option>
+                            <option value="list">List</option>
+                            <option value="index">Index</option>
+                            <option value="search">Search</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button onclick="filterVFSJournal()" class="btn-primary">🔄 Refresh</button>
+                        <button onclick="clearVFSJournalFilters()" class="btn-secondary">🗑️ Clear Filters</button>
+                    </div>
+                </div>
+                
+                <div id="vfsJournalContent" class="journal-content"></div>
+            </div>
             
             <div id="vector-kb" class="tab-content">
+                <!-- Search Interface -->
+                <div class="search-interface" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3>🔍 Vector & Knowledge Graph Search</h3>
+                    <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                        <div style="flex: 1;">
+                            <label for="vectorSearch" style="display: block; margin-bottom: 5px; font-weight: 600;">Vector Search:</label>
+                            <input type="text" id="vectorSearch" placeholder="Enter text to search in vector database..." 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label for="entitySearch" style="display: block; margin-bottom: 5px; font-weight: 600;">Entity ID Search:</label>
+                            <input type="text" id="entitySearch" placeholder="Enter entity ID to explore knowledge graph..." 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="performVectorSearch()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            🔍 Search Vectors
+                        </button>
+                        <button onclick="performEntitySearch()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            🕸️ Explore Entity
+                        </button>
+                        <button onclick="listVectorCollections()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📋 List Collections
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div id="searchResults" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: none;">
+                    <h3>🎯 Search Results</h3>
+                    <div id="searchResultsContent"></div>
+                </div>
+
                 <div class="stats-grid">
                     <div class="stat-card">
                         <h3>🔍 Vector Index Status</h3>
@@ -1044,9 +1129,52 @@
             </div>
 
             <div id="logs" class="tab-content">
-                <div id="logsContent">
-                    <h3>System Logs</h3>
-                    <div class="log-viewer" id="logViewer">Loading logs...</div>
+                <div class="tab-header">
+                    <h3>📋 System Activity Logs</h3>
+                    <p class="tab-description">Monitor real-time system activity across all backend services and operations</p>
+                </div>
+                
+                <div class="log-controls">
+                    <div class="filter-group">
+                        <label for="logSearch">🔍 Search Logs:</label>
+                        <input type="text" id="logSearch" placeholder="Search log entries..." 
+                               onkeyup="if(event.key==='Enter') filterLogs()">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="logLevelFilter">📊 Log Level:</label>
+                        <select id="logLevelFilter" onchange="filterLogs()">
+                            <option value="">All Levels</option>
+                            <option value="DEBUG">Debug</option>
+                            <option value="INFO">Info</option>
+                            <option value="WARNING">Warning</option>
+                            <option value="ERROR">Error</option>
+                            <option value="CRITICAL">Critical</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="logSourceFilter">🔧 Source Filter:</label>
+                        <select id="logSourceFilter" onchange="filterLogs()">
+                            <option value="">All Sources</option>
+                            <option value="system">System</option>
+                            <option value="backend">Backend</option>
+                            <option value="api">API</option>
+                            <option value="mcp">MCP Server</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button onclick="filterLogs()" class="btn-primary">🔄 Refresh</button>
+                        <button onclick="clearLogFilters()" class="btn-secondary">🗑️ Clear Filters</button>
+                        <button onclick="toggleAutoRefresh()" id="autoRefreshBtn" class="btn-toggle">⏸️ Auto-Refresh</button>
+                    </div>
+                </div>
+                
+                <div class="log-viewer-container">
+                    <div id="logViewer" class="log-viewer">
+                        <div class="loading">Loading system logs...</div>
+                    </div>
                 </div>
             </div>
         </div>

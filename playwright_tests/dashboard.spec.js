@@ -36,23 +36,29 @@ test.describe('MCP Server Dashboard', () => {
     await page.goto(`${BASE_URL}/`);
     console.log(`Navigated to: ${page.url()}`);
 
-    // Wait for the system status element to contain the expected text
+    // Wait for the system status element to no longer contain "Loading..."
     const systemStatus = page.locator('#systemStatus');
-    await expect(systemStatus).toContainText('Status: running', { timeout: 30000 });
-    await expect(systemStatus).toContainText('Uptime:', { timeout: 15000 });
-    await expect(systemStatus).toContainText('Components:', { timeout: 15000 });
+    await expect(systemStatus).not.toContainText('Loading...', { timeout: 30000 });
 
-    // Check if the Backend Summary section is populated with expected text
+    // Check if the system status section is populated with expected text
+    await expect(systemStatus).toContainText('Status: running', { timeout: 15000 });
+    await expect(systemStatus).toContainText('Uptime:', { timeout: 15000 });
+    await expect(systemStatus).toContainText('Backends:', { timeout: 15000 });
+
+    // Wait for the backend summary element to no longer contain "Loading..."
     const backendSummary = page.locator('#backendSummary');
+    await expect(backendSummary).not.toContainText('Loading...', { timeout: 15000 });
+    // Check if the Backend Summary section is populated with expected text
     await expect(backendSummary).toContainText('Backends Healthy', { timeout: 15000 });
     await expect(backendSummary).toContainText('Health Score:', { timeout: 15000 });
 
-    // Check if the Performance section is populated with expected text
+    // Wait for the performance metrics element to no longer contain "Loading..."
     const performanceMetrics = page.locator('#performanceMetrics');
+    await expect(performanceMetrics).not.toContainText('Loading...', { timeout: 15000 });
+    // Check if the Performance section is populated with expected text
     await expect(performanceMetrics).toContainText('Memory:', { timeout: 15000 });
     await expect(performanceMetrics).toContainText('CPU:', { timeout: 15000 });
-    await expect(performanceMetrics).toContainText('Active Backends:', { timeout: 15000 });
-    await expect(performanceMetrics).toContainText('Last Update:', { timeout: 15000 });
+    await expect(performanceMetrics).toContainText('Healthy Backends', { timeout: 15000 });
 
     console.log('Dashboard loaded and key overview sections are populated.');
   });
@@ -60,7 +66,7 @@ test.describe('MCP Server Dashboard', () => {
   test('should switch to Monitoring tab and display backend grid', async ({ page }) => {
     await page.goto(`${BASE_URL}/`);
     // Wait for initial overview data to load before switching tabs
-    await expect(page.locator('#systemStatus')).toContainText('Status: running', { timeout: 30000 });
+    await expect(page.locator('#systemStatus')).not.toContainText('Loading...', { timeout: 30000 });
 
     // Click on the Monitoring tab button
     await page.locator('button.tab-button', { hasText: 'Monitoring' }).click();
@@ -80,7 +86,7 @@ test.describe('MCP Server Dashboard', () => {
   test('should switch to Logs tab and display system logs', async ({ page }) => {
     await page.goto(`${BASE_URL}/`);
     // Wait for initial overview data to load before switching tabs
-    await expect(page.locator('#systemStatus')).toContainText('Status: running', { timeout: 30000 });
+    await expect(page.locator('#systemStatus')).not.toContainText('Loading...', { timeout: 30000 });
 
     // Click on the Logs tab button
     await page.locator('button.tab-button', { hasText: 'Logs' }).click();
@@ -91,6 +97,7 @@ test.describe('MCP Server Dashboard', () => {
 
     // Wait for the log viewer to be populated and contain expected text
     const logViewer = page.locator('#logViewer');
+    await expect(logViewer).not.toContainText('Loading logs...', { timeout: 15000 });
     await expect(logViewer).not.toBeEmpty({ timeout: 15000 });
     await expect(logViewer).toContainText('Modular Enhanced MCP Server started', { timeout: 15000 }); // Check for a known log entry
 

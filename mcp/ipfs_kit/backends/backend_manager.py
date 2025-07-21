@@ -27,6 +27,10 @@ class BackendManager:
     def get_backend_names(self) -> List[str]:
         """Get list of all backend names."""
         return list(self.backends.keys())
+
+    def get_backend(self, backend_name: str) -> Any:
+        """Get a specific backend object by name."""
+        return self.backends.get(backend_name)
     
     async def restart_all_backends(self) -> Dict[str, bool]:
         """Restart all backends."""
@@ -38,3 +42,30 @@ class BackendManager:
                 logger.error(f"Failed to restart {backend_name}: {e}")
                 results[backend_name] = False
         return results
+    
+    async def get_backend_logs(self, backend_name: str, limit: int = 100) -> List[str]:
+        """Get logs for a specific backend."""
+        return await self.health_monitor.get_backend_logs(backend_name)
+    
+    def get_all_backend_logs(self, limit: int = 50) -> Dict[str, List]:
+        """Get logs for all backends."""
+        if hasattr(self.health_monitor, 'log_manager'):
+            return self.health_monitor.log_manager.get_all_backend_logs(limit)
+        return {}
+    
+    def get_log_statistics(self) -> Dict[str, Any]:
+        """Get logging statistics."""
+        if hasattr(self.health_monitor, 'log_manager'):
+            return self.health_monitor.log_manager.get_log_statistics()
+        return {"error": "Log manager not available"}
+    
+    def clear_backend_logs(self, backend_name: str) -> bool:
+        """Clear logs for a specific backend."""
+        try:
+            if hasattr(self.health_monitor, 'log_manager'):
+                self.health_monitor.log_manager.clear_backend_logs(backend_name)
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to clear logs for {backend_name}: {e}")
+            return False
