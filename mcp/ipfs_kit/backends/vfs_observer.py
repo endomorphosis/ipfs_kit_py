@@ -129,7 +129,7 @@ class VFSObservabilityManager:
         import random
         from datetime import datetime, timedelta
         
-        backends = ["ipfs", "lotus", "storacha", "s3", "huggingface"] if not backend_filter else [backend_filter]
+        backends = ["ipfs", "lotus", "storacha", "gdrive", "s3", "huggingface"] if not backend_filter else [backend_filter]
         operations = ["read", "write", "delete", "list", "metadata", "copy", "move"]
         sample_paths = [
             "/data/documents/report.pdf",

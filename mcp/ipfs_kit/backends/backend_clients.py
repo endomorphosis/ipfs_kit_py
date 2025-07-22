@@ -806,3 +806,152 @@ class ParquetClient(BackendClient):
         self.data_dir = config.get("data_dir", self.data_dir)
         self.endpoint = f"file://{self.data_dir}"
         return True
+
+
+class GDriveClient(BackendClient):
+    """Client for Google Drive backend."""
+    
+    def __init__(self, endpoint: str = "https://www.googleapis.com/drive/v3", **kwargs):
+        super().__init__("Google Drive", endpoint, **kwargs)
+        self.authenticated = False
+        self.access_token = kwargs.get("access_token")
+        
+    async def check_health(self) -> Dict[str, Any]:
+        """Check Google Drive health."""
+        try:
+            import aiohttp
+            import socket
+            
+            # Check DNS resolution
+            try:
+                socket.gethostbyname("www.googleapis.com")
+                dns_ok = True
+            except socket.gaierror:
+                dns_ok = False
+            
+            if not dns_ok:
+                return {
+                    "status": "unhealthy",
+                    "endpoint": self.endpoint,
+                    "error": "DNS resolution failed"
+                }
+            
+            # Check API endpoint
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+            
+            try:
+                async with self.session.head("https://www.googleapis.com/drive/v3/about", timeout=10) as response:
+                    if response.status < 500:
+                        # Check authentication if token available
+                        if self.access_token:
+                            headers = {"Authorization": f"Bearer {self.access_token}"}
+                            async with self.session.get(
+                                f"{self.endpoint}/about", 
+                                headers=headers,
+                                params={"fields": "user"}
+                            ) as auth_response:
+                                if auth_response.status == 200:
+                                    return {
+                                        "status": "healthy",
+                                        "endpoint": self.endpoint,
+                                        "authenticated": True
+                                    }
+                                else:
+                                    return {
+                                        "status": "degraded",
+                                        "endpoint": self.endpoint,
+                                        "authenticated": False,
+                                        "note": "API accessible but authentication failed"
+                                    }
+                        else:
+                            return {
+                                "status": "degraded",
+                                "endpoint": self.endpoint,
+                                "authenticated": False,
+                                "note": "API accessible but not authenticated"
+                            }
+                    else:
+                        return {
+                            "status": "unhealthy",
+                            "endpoint": self.endpoint,
+                            "error": f"API returned HTTP {response.status}"
+                        }
+            except Exception as e:
+                return {
+                    "status": "unhealthy", 
+                    "endpoint": self.endpoint,
+                    "error": f"API request failed: {str(e)}"
+                }
+                
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "endpoint": self.endpoint,
+                "error": str(e)
+            }
+    
+    async def get_status(self) -> Dict[str, Any]:
+        """Get detailed Google Drive status."""
+        try:
+            import aiohttp
+            
+            status_info = {
+                "authenticated": self.authenticated,
+                "endpoint": self.endpoint,
+                "quota_info": {},
+                "connectivity": False
+            }
+            
+            # Check connectivity
+            try:
+                if not self.session:
+                    self.session = aiohttp.ClientSession()
+                
+                async with self.session.head("https://www.googleapis.com/drive/v3/about", timeout=10) as response:
+                    status_info["connectivity"] = response.status < 500
+            except Exception:
+                status_info["connectivity"] = False
+            
+            # Get quota information if authenticated
+            if self.access_token and status_info["connectivity"]:
+                try:
+                    headers = {"Authorization": f"Bearer {self.access_token}"}
+                    async with self.session.get(
+                        f"{self.endpoint}/about",
+                        headers=headers,
+                        params={"fields": "storageQuota"}
+                    ) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            quota = data.get("storageQuota", {})
+                            status_info["quota_info"] = {
+                                "limit": int(quota.get("limit", 0)),
+                                "usage": int(quota.get("usage", 0)),
+                                "usage_in_drive": int(quota.get("usageInDrive", 0)),
+                                "available": int(quota.get("limit", 0)) - int(quota.get("usage", 0))
+                            }
+                            self.authenticated = True
+                            status_info["authenticated"] = True
+                except Exception as e:
+                    status_info["quota_error"] = str(e)
+            
+            return status_info
+            
+        except Exception as e:
+            return {"error": str(e)}
+    
+    async def get_config(self) -> Dict[str, Any]:
+        """Get Google Drive configuration."""
+        return {
+            "endpoint": self.endpoint,
+            "authenticated": self.authenticated,
+            "config_dir": "~/.ipfs_kit/gdrive"
+        }
+    
+    async def set_config(self, config: Dict[str, Any]) -> bool:
+        """Set Google Drive configuration."""
+        if "access_token" in config:
+            self.access_token = config["access_token"]
+            return True
+        return False

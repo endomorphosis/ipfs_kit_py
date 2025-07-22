@@ -136,6 +136,7 @@ from .ipfs_kit_extensions import extend_ipfs_kit
 from .ipget import ipget
 from .s3_kit import s3_kit
 from .storacha_kit import storacha_kit
+from .gdrive_kit import gdrive_kit
 from .test_fio import test_fio
 
 # Try to import synapse_storage
@@ -271,7 +272,7 @@ class ipfs_kit:
 
     Manages underlying components like IPFS daemon interaction (`ipfs_py`),
     IPFS Cluster components (`ipfs_cluster_service`, `ipfs_cluster_ctl`,
-    `ipfs_cluster_follow`), storage integrations (`s3_kit`, `storacha_kit`),
+    `ipfs_cluster_follow`), storage integrations (`s3_kit`, `storacha_kit`, `gdrive_kit`),
     FSSpec interface, tiered caching, metadata indexing, libp2p networking,
     advanced cluster management, AI/ML tools, and more.
 
@@ -488,6 +489,7 @@ class ipfs_kit:
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
+                self.gdrive_kit = gdrive_kit(resources=resources, metadata=metadata)
                 # Initialize Synapse storage if available
                 if HAS_SYNAPSE:
                     self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
@@ -521,6 +523,7 @@ class ipfs_kit:
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
+                self.gdrive_kit = gdrive_kit(resources=resources, metadata=metadata)
                 # Initialize Synapse storage if available
                 if HAS_SYNAPSE:
                     self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
@@ -556,6 +559,7 @@ class ipfs_kit:
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
+                self.gdrive_kit = gdrive_kit(resources=resources, metadata=metadata)
                 # Initialize Synapse storage if available
                 if HAS_SYNAPSE:
                     self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)

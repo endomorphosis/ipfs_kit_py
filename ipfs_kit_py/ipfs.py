@@ -88,9 +88,42 @@ class ipfs_py:
             transport=httpx.HTTPTransport(retries=3),
             event_hooks={'request': [self._log_request], 'response': [self._log_response]}
         )
+        
+        # Initialize daemon manager attributes (will be created on demand)
+        self._daemon_manager = None
+        self._has_daemon_manager = None  # Unknown until first access
+            
+        # Initialize API address
         self.ipfs_api_addr = None
-        if self.config and 'Addresses' in self.config and 'API' in self.config['Addresses']:
+        if hasattr(self, 'config') and self.config and 'Addresses' in self.config and 'API' in self.config['Addresses']:
             self.ipfs_api_addr = self.config['Addresses']['API']
+
+    @property
+    def daemon_manager(self):
+        """Get daemon manager, creating it on first access."""
+        if self._daemon_manager is None and self._has_daemon_manager is None:
+            # First time access - try to create daemon manager
+            try:
+                from .ipfs_daemon_manager import IPFSDaemonManager, IPFSConfig
+                daemon_config = IPFSConfig(ipfs_path=self.ipfs_path)
+                self._daemon_manager = IPFSDaemonManager(daemon_config)
+                self._has_daemon_manager = True
+                logger.info("✓ Daemon manager created successfully")
+            except ImportError as e:
+                logger.warning(f"Could not import daemon manager: {e}")
+                self._has_daemon_manager = False
+            except Exception as e:
+                logger.error(f"Error creating daemon manager: {e}")
+                self._has_daemon_manager = False
+        
+        return self._daemon_manager
+    
+    @property
+    def has_daemon_manager(self):
+        """Check if daemon manager is available."""
+        # Access daemon_manager property to trigger creation if needed
+        _ = self.daemon_manager
+        return self._has_daemon_manager or False
 
     def _log_request(self, request):
         logger.debug(f"Request: {request.method} {request.url}")
@@ -281,6 +314,109 @@ class ipfs_py:
 
         return True
 
+    def _check_api_responsiveness(self, timeout=5):
+        """Check if IPFS API is responsive with a simple version call."""
+        try:
+            response = self._http_request("POST", "/api/v0/version", timeout=timeout)
+            return True
+        except Exception:
+            return False
+
+    def _cleanup_port_conflicts(self, ports, correlation_id=None):
+        """Kill processes using specified ports and clean up IPFS lock files."""
+        result = {"ports_cleaned": [], "processes_killed": [], "lock_files_removed": []}
+        
+        for port in ports:
+            try:
+                # Find processes using the port
+                cmd = ["lsof", "-ti", f":{port}"]
+                port_result = self.run_ipfs_command(cmd, check=False, correlation_id=correlation_id)
+                
+                if port_result["success"] and port_result.get("stdout", "").strip():
+                    pids = [pid.strip() for pid in port_result.get("stdout", "").split("\n") if pid.strip()]
+                    
+                    for pid in pids:
+                        try:
+                            # Kill the process
+                            kill_cmd = ["kill", "-9", pid]
+                            kill_result = self.run_ipfs_command(kill_cmd, check=False, correlation_id=correlation_id)
+                            
+                            if kill_result["success"]:
+                                result["processes_killed"].append({"port": port, "pid": pid})
+                                logger.info(f"Killed process {pid} using port {port}")
+                            else:
+                                logger.warning(f"Failed to kill process {pid} on port {port}")
+                        except Exception as e:
+                            logger.warning(f"Error killing process {pid}: {str(e)}")
+                    
+                    result["ports_cleaned"].append(port)
+                    
+            except Exception as e:
+                logger.debug(f"Error checking port {port}: {str(e)}")
+        
+        # Clean up IPFS lock and API files
+        if hasattr(self, "ipfs_path"):
+            lock_file = os.path.join(self.ipfs_path, "repo.lock")
+            api_file = os.path.join(self.ipfs_path, "api")
+            
+            for file_path in [lock_file, api_file]:
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                        result["lock_files_removed"].append(file_path)
+                        logger.info(f"Removed lock/API file: {file_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove {file_path}: {str(e)}")
+        
+        return result
+
+    def _kill_existing_ipfs_processes(self, correlation_id=None):
+        """Kill all existing IPFS daemon processes."""
+        result = {"processes_killed": [], "success": True}
+        
+        try:
+            # Find all IPFS daemon processes
+            find_cmd = ["pgrep", "-f", "ipfs daemon"]
+            find_result = self.run_ipfs_command(find_cmd, check=False, correlation_id=correlation_id)
+            
+            if find_result["success"] and find_result.get("stdout", "").strip():
+                pids = [pid.strip() for pid in find_result.get("stdout", "").split("\n") if pid.strip()]
+                
+                for pid in pids:
+                    try:
+                        # First try SIGTERM
+                        term_cmd = ["kill", "-TERM", pid]
+                        term_result = self.run_ipfs_command(term_cmd, check=False, correlation_id=correlation_id)
+                        
+                        # Wait a moment for graceful shutdown
+                        time.sleep(2)
+                        
+                        # Check if process still exists
+                        check_cmd = ["kill", "-0", pid]
+                        check_result = self.run_ipfs_command(check_cmd, check=False, correlation_id=correlation_id)
+                        
+                        if check_result["returncode"] == 0:  # Process still exists
+                            # Force kill with SIGKILL
+                            kill_cmd = ["kill", "-9", pid]
+                            kill_result = self.run_ipfs_command(kill_cmd, check=False, correlation_id=correlation_id)
+                            
+                            if kill_result["success"]:
+                                result["processes_killed"].append({"pid": pid, "method": "SIGKILL"})
+                                logger.info(f"Force killed IPFS process {pid}")
+                        else:
+                            result["processes_killed"].append({"pid": pid, "method": "SIGTERM"})
+                            logger.info(f"Gracefully terminated IPFS process {pid}")
+                            
+                    except Exception as e:
+                        logger.warning(f"Error killing IPFS process {pid}: {str(e)}")
+                        result["success"] = False
+            
+        except Exception as e:
+            logger.error(f"Error finding IPFS processes: {str(e)}")
+            result["success"] = False
+        
+        return result
+
     def pin_multiple(self, cids, **kwargs):
         results = {
             "success": True,
@@ -344,136 +480,6 @@ class ipfs_py:
 
         return results
 
-    def _cleanup_ipfs_ports(self, correlation_id: str = None):
-        """
-        Clean up processes that may be using IPFS ports.
-        
-        This method identifies and kills processes using the standard IPFS ports:
-        - 5001 (API port)
-        - 8080 (Gateway port)
-        - 4001 (P2P port)
-        
-        Args:
-            correlation_id: Optional correlation ID for tracking
-            
-        Returns:
-            Dict with cleanup results
-        """
-        operation = "cleanup_ipfs_ports"
-        result = create_result_dict(operation, correlation_id)
-        
-        # Standard IPFS ports
-        ipfs_ports = [5001, 8080, 4001]
-        cleanup_results = {}
-        
-        try:
-            # Try to get configured ports from IPFS config
-            try:
-                config_cmd = ["ipfs", "config", "show"]
-                config_result = self.run_ipfs_command(config_cmd, check=False, correlation_id=correlation_id)
-                if config_result["success"]:
-                    import json
-                    config_data = json.loads(config_result["stdout"])
-                    addresses = config_data.get("Addresses", {})
-                    
-                    # Extract port from API address
-                    api_addr = addresses.get("API", "")
-                    if "/tcp/" in api_addr:
-                        api_port = int(api_addr.split("/tcp/")[-1])
-                        if api_port not in ipfs_ports:
-                            ipfs_ports.append(api_port)
-                    
-                    # Extract port from Gateway address
-                    gateway_addr = addresses.get("Gateway", "")
-                    if "/tcp/" in gateway_addr:
-                        gateway_port = int(gateway_addr.split("/tcp/")[-1])
-                        if gateway_port not in ipfs_ports:
-                            ipfs_ports.append(gateway_port)
-                            
-            except Exception as e:
-                logger.debug(f"Could not read IPFS config for port cleanup: {e}")
-            
-            for port in ipfs_ports:
-                try:
-                    # Use lsof to find processes using the port
-                    lsof_cmd = ["lsof", "-ti", f":{port}"]
-                    lsof_result = self.run_ipfs_command(lsof_cmd, check=False, correlation_id=correlation_id)
-                    
-                    if lsof_result["success"] and lsof_result.get("stdout", "").strip():
-                        pids = lsof_result["stdout"].strip().split('\n')
-                        killed_pids = []
-                        failed_kills = []
-                        
-                        for pid_str in pids:
-                            if pid_str.strip().isdigit():
-                                pid = int(pid_str.strip())
-                                try:
-                                    # First try SIGTERM
-                                    os.kill(pid, 15)  # SIGTERM
-                                    time.sleep(1)
-                                    
-                                    # Check if process still exists
-                                    try:
-                                        os.kill(pid, 0)
-                                        # If it still exists, use SIGKILL
-                                        os.kill(pid, 9)  # SIGKILL
-                                        logger.info(f"Killed process {pid} on port {port} (required SIGKILL)")
-                                    except OSError:
-                                        logger.info(f"Process {pid} on port {port} terminated with SIGTERM")
-                                    
-                                    killed_pids.append(pid)
-                                    
-                                except OSError as e:
-                                    if e.errno == 3:  # No such process
-                                        logger.debug(f"Process {pid} no longer exists")
-                                    else:
-                                        failed_kills.append({"pid": pid, "error": str(e)})
-                                        logger.warning(f"Failed to kill process {pid} on port {port}: {e}")
-                                except Exception as e:
-                                    failed_kills.append({"pid": pid, "error": str(e)})
-                                    logger.warning(f"Error killing process {pid} on port {port}: {e}")
-                        
-                        cleanup_results[port] = {
-                            "found_pids": [int(p) for p in pids if p.strip().isdigit()],
-                            "killed_pids": killed_pids,
-                            "failed_kills": failed_kills
-                        }
-                        
-                        if killed_pids:
-                            logger.info(f"Cleaned up {len(killed_pids)} processes on port {port}")
-                    else:
-                        cleanup_results[port] = {"found_pids": [], "killed_pids": [], "failed_kills": []}
-                        logger.debug(f"No processes found on port {port}")
-                        
-                except Exception as e:
-                    cleanup_results[port] = {"error": str(e), "error_type": type(e).__name__}
-                    logger.warning(f"Error checking port {port}: {e}")
-            
-            result["success"] = True
-            result["cleanup_results"] = cleanup_results
-            result["ports_checked"] = ipfs_ports
-            
-            # Summary statistics
-            total_killed = sum(len(r.get("killed_pids", [])) for r in cleanup_results.values() if isinstance(r, dict))
-            total_failed = sum(len(r.get("failed_kills", [])) for r in cleanup_results.values() if isinstance(r, dict))
-            
-            result["summary"] = {
-                "ports_checked": len(ipfs_ports),
-                "total_processes_killed": total_killed,
-                "total_kill_failures": total_failed
-            }
-            
-            if total_killed > 0:
-                result["message"] = f"Cleaned up {total_killed} processes on IPFS ports"
-            else:
-                result["message"] = "No processes found on IPFS ports"
-                
-        except Exception as e:
-            logger.error(f"Port cleanup failed: {e}")
-            result = handle_error(result, IPFSError(f"Port cleanup failed: {e}"))
-        
-        return result
-
     def daemon_start(self, **kwargs):
         operation = "daemon_start"
         correlation_id = kwargs.get("correlation_id")
@@ -490,35 +496,31 @@ class ipfs_py:
             result["cluster_name"] = cluster_name
 
         try:
+            # First check if daemon is already running and responsive
             cmd = ["ps", "-ef"]
             ps_result = self.run_ipfs_command(cmd, shell=False, correlation_id=correlation_id)
 
             if ps_result["success"]:
                 output = ps_result.get("stdout", "")
                 if "ipfs daemon" in output and "grep" not in output:
-                    result["success"] = True
-                    result["status"] = "already_running"
-                    result["message"] = "IPFS daemon is already running"
-                    return result
+                    # Found running process, check if API is responsive
+                    if self._check_api_responsiveness():
+                        result["success"] = True
+                        result["status"] = "already_running_responsive"
+                        result["message"] = "IPFS daemon is already running and API is responsive"
+                        return result
+                    else:
+                        # Process exists but API not responsive - need cleanup
+                        logger.warning("IPFS daemon process found but API not responsive, performing cleanup")
+                        cleanup_result = self._kill_existing_ipfs_processes(correlation_id)
+                        result["cleanup_result"] = cleanup_result
         except Exception as e:
             logger.debug(f"Error checking if daemon is already running: {str(e)}")
 
-        # Clean up any processes using IPFS ports before starting daemon
-        cleanup_ports = kwargs.get("cleanup_ports", True)
-        if cleanup_ports:
-            logger.info("Cleaning up processes on IPFS ports before starting daemon")
-            port_cleanup_result = self._cleanup_ipfs_ports(correlation_id)
-            result["port_cleanup"] = port_cleanup_result
-            
-            if port_cleanup_result["success"]:
-                summary = port_cleanup_result.get("summary", {})
-                killed_count = summary.get("total_processes_killed", 0)
-                if killed_count > 0:
-                    logger.info(f"Killed {killed_count} processes blocking IPFS ports")
-                    # Wait a moment for ports to be released
-                    time.sleep(2)
-            else:
-                logger.warning("Port cleanup failed, proceeding anyway")
+        # Check and kill processes on IPFS ports before starting daemon
+        ipfs_ports = [4001, 5001, 8080]  # Swarm, API, Gateway
+        port_cleanup_result = self._cleanup_port_conflicts(ipfs_ports, correlation_id)
+        result["port_cleanup_result"] = port_cleanup_result
 
         repo_lock_path = os.path.join(os.path.expanduser(self.ipfs_path), "repo.lock")
         lock_file_exists = os.path.exists(repo_lock_path)
@@ -558,10 +560,21 @@ class ipfs_py:
                     result["lock_file_removed"] = False
                     result["lock_removal_error"] = str(e)
             elif not lock_is_stale:
-                result["success"] = True
-                result["status"] = "already_running" 
-                result["message"] = "IPFS daemon appears to be running (active lock file found)"
-                return result
+                # Process might be responsive now, check API again
+                if self._check_api_responsiveness():
+                    result["success"] = True
+                    result["status"] = "already_running_responsive"
+                    result["message"] = "IPFS daemon appears to be running and API is responsive"
+                    return result
+                else:
+                    # Kill unresponsive daemon and continue with fresh start
+                    logger.warning("Lock file indicates running process but API unresponsive, forcing cleanup")
+                    self._kill_existing_ipfs_processes(correlation_id)
+                    try:
+                        os.remove(repo_lock_path)
+                        logger.info(f"Removed unresponsive daemon lock file: {repo_lock_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove lock file: {str(e)}")
             elif lock_is_stale and not remove_stale_lock:
                 result["success"] = False
                 result["error"] = "Stale lock file detected but removal not requested"
@@ -585,18 +598,13 @@ class ipfs_py:
                     "returncode": systemctl_result.get("returncode"),
                 }
 
-                check_cmd = ["pgrep", "-f", "ipfs daemon"]
-                check_result = self.run_ipfs_command(
-                    check_cmd,
-                    check=False,
-                    correlation_id=correlation_id,
-                )
-
-                if check_result["success"] and check_result.get("stdout", "").strip():
+                # Wait a moment and check if API is responsive
+                time.sleep(2)
+                if self._check_api_responsiveness():
                     ipfs_ready = True
                     result["success"] = True
                     result["status"] = "started_via_systemctl"
-                    result["message"] = "IPFS daemon started via systemctl"
+                    result["message"] = "IPFS daemon started via systemctl and API is responsive"
                     result["method"] = "systemctl"
                     result["attempts"] = start_attempts
                     return result
@@ -630,25 +638,43 @@ class ipfs_py:
                 time.sleep(1)
 
                 if daemon_process.poll() is None:
-                    extra_wait_time = 3
-                    logger.info(f"IPFS daemon process started, waiting {extra_wait_time} seconds to verify stability")
-                    time.sleep(extra_wait_time)
+                    extra_wait_time = 5  # Increased wait time for API to be ready
+                    logger.info(f"IPFS daemon process started, waiting {extra_wait_time} seconds for API to be ready")
                     
+                    # Wait and check API responsiveness
+                    for i in range(extra_wait_time):
+                        time.sleep(1)
+                        if self._check_api_responsiveness():
+                            start_attempts["direct"] = {"success": True, "pid": daemon_process.pid}
+                            result["success"] = True
+                            result["status"] = "started_via_direct_invocation"
+                            result["message"] = "IPFS daemon started via direct invocation and API is responsive"
+                            result["method"] = "direct"
+                            result["pid"] = daemon_process.pid
+                            result["attempts"] = start_attempts
+                            
+                            repo_lock_path = os.path.join(os.path.expanduser(self.ipfs_path), "repo.lock")
+                            if not os.path.exists(repo_lock_path):
+                                logger.warning(f"IPFS daemon started but no lock file was created at {repo_lock_path}")
+                            return result
+                    
+                    # If we get here, daemon started but API not responsive
                     if daemon_process.poll() is None:
-                        start_attempts["direct"] = {"success": True, "pid": daemon_process.pid}
-    
-                        result["success"] = True
-                        result["status"] = "started_via_direct_invocation"
-                        result["message"] = "IPFS daemon started via direct invocation"
-                        result["method"] = "direct"
-                        result["pid"] = daemon_process.pid
-                        result["attempts"] = start_attempts
-                        
-                        repo_lock_path = os.path.join(os.path.expanduser(self.ipfs_path), "repo.lock")
-                        if not os.path.exists(repo_lock_path):
-                            logger.warning(f"IPFS daemon started but no lock file was created at {repo_lock_path}")
+                        logger.warning("IPFS daemon started but API not responsive after 5 seconds")
+                        start_attempts["direct"] = {
+                            "success": False,
+                            "pid": daemon_process.pid,
+                            "note": "Process started but API not responsive"
+                        }
+                        # Kill the unresponsive daemon
+                        try:
+                            daemon_process.terminate()
+                            daemon_process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            daemon_process.kill()
+                        return handle_error(result, IPFSError("IPFS daemon started but API not responsive"))
                     else:
-                        stderr = daemon_process.stderr.read().decode("utf-8", errors="replace")
+                        stderr = daemon_process.stderr.read().decode("utf-8", errors="replace") if daemon_process.stderr else ""
                         start_attempts["direct"] = {
                             "success": False,
                             "returncode": daemon_process.returncode,
@@ -660,7 +686,7 @@ class ipfs_py:
                         logger.error(error_msg)
                         return handle_error(result, IPFSError(error_msg))
                 else:
-                    stderr = daemon_process.stderr.read().decode("utf-8", errors="replace")
+                    stderr = daemon_process.stderr.read().decode("utf-8", errors="replace") if daemon_process.stderr else ""
                     start_attempts["direct"] = {
                         "success": False,
                         "returncode": daemon_process.returncode,
@@ -681,7 +707,7 @@ class ipfs_py:
                             "has_config": os.path.exists(os.path.join(self.ipfs_path, "config")) if hasattr(self, "ipfs_path") else False
                         }
                         self.logger.debug(f"IPFS daemon start diagnostic details: {error_details}")
-                        return handle_error(result, IPFSError(f"Daemon failed to start: {stderr}"), context=error_details)
+                        return handle_error(result, IPFSError(f"Daemon failed to start: {stderr}"))
 
             except Exception as e:
                 error_info = {
@@ -699,15 +725,15 @@ class ipfs_py:
                             if os.path.exists(lock_file):
                                 os.remove(lock_file)
                                 self.logger.info(f"Removed lock file: {lock_file}")
-                                error_info["lock_file_removed"] = True
+                                error_info["lock_file_removed"] = str(True)
                             
                             if os.path.exists(api_file):
                                 os.remove(api_file)
                                 self.logger.info(f"Removed API file: {api_file}")
-                                error_info["api_file_removed"] = True
+                                error_info["api_file_removed"] = str(True)
                                 
                             self.logger.info("Retrying daemon start after lock cleanup...")
-                            return self.daemon_start()
+                            return self.daemon_start(**kwargs)
                         except Exception as cleanup_e:
                             error_info["cleanup_error"] = str(cleanup_e)
                             self.logger.error(f"Error cleaning up locks: {cleanup_e}")
@@ -718,7 +744,7 @@ class ipfs_py:
                     "error_type": type(e).__name__,
                     "details": error_info
                 }
-                return handle_error(result, e, context={"attempts": start_attempts})
+                return handle_error(result, e)
 
         if not result.get("success", False):
             result["attempts"] = start_attempts
@@ -1786,3 +1812,178 @@ class ipfs_py:
 
     def cat(self, cid):
         return self.run_ipfs_command(["ipfs", "cat", cid])
+
+    # Enhanced Daemon Management Methods
+    def start_daemon(self, force_restart: bool = False, **kwargs) -> Dict[str, Any]:
+        """
+        Start IPFS daemon with comprehensive management.
+        
+        If daemon is running and responsive, does nothing.
+        If daemon is unresponsive, cleans up ports and locks, then restarts.
+        
+        Args:
+            force_restart: Force restart even if daemon is responsive
+            **kwargs: Additional arguments for compatibility
+            
+        Returns:
+            Dict with success status and detailed information
+        """
+        if self._has_daemon_manager:
+            return self.daemon_manager.start_daemon(force_restart=force_restart)
+        else:
+            # Fallback to original daemon_start method
+            logger.warning("Enhanced daemon manager not available, using fallback method")
+            return self.daemon_start(**kwargs)
+    
+    def stop_daemon(self, **kwargs) -> Dict[str, Any]:
+        """
+        Stop IPFS daemon gracefully.
+        
+        Returns:
+            Dict with success status and detailed information
+        """
+        if self._has_daemon_manager:
+            return self.daemon_manager.stop_daemon()
+        else:
+            # Fallback to original daemon_stop method if it exists
+            if hasattr(self, 'daemon_stop'):
+                return self.daemon_stop(**kwargs)
+            else:
+                return {
+                    "success": False,
+                    "error": "No daemon stop method available",
+                    "operation": "daemon_stop"
+                }
+    
+    def restart_daemon(self, force: bool = True, **kwargs) -> Dict[str, Any]:
+        """
+        Restart IPFS daemon.
+        
+        Args:
+            force: Force restart even if daemon is responsive
+            **kwargs: Additional arguments for compatibility
+            
+        Returns:
+            Dict with success status and detailed information
+        """
+        if self._has_daemon_manager:
+            return self.daemon_manager.restart_daemon(force=force)
+        else:
+            # Fallback: stop then start
+            logger.warning("Enhanced daemon manager not available, using fallback restart")
+            stop_result = self.stop_daemon(**kwargs)
+            time.sleep(2)
+            start_result = self.start_daemon(force_restart=force, **kwargs)
+            return {
+                "success": start_result.get("success", False),
+                "operation": "daemon_restart",
+                "stop_result": stop_result,
+                "start_result": start_result
+            }
+    
+    def is_daemon_healthy(self) -> bool:
+        """
+        Check if IPFS daemon is healthy (running and API responsive).
+        
+        Returns:
+            True if daemon is healthy
+        """
+        if self._has_daemon_manager:
+            return self.daemon_manager.is_daemon_healthy()
+        else:
+            # Fallback: basic check
+            try:
+                response = self.http_client.post(
+                    f"http://127.0.0.1:5001/api/v0/version",
+                    timeout=5
+                )
+                return response.status_code == 200
+            except Exception:
+                return False
+    
+    def get_daemon_status(self) -> Dict[str, Any]:
+        """
+        Get comprehensive daemon status.
+        
+        Returns:
+            Dict with detailed daemon status information
+        """
+        if self._has_daemon_manager:
+            return self.daemon_manager.get_daemon_status()
+        else:
+            # Fallback: basic status
+            return {
+                "running": self.is_daemon_healthy(),
+                "api_responsive": self.is_daemon_healthy(),
+                "enhanced_manager_available": False
+            }
+    
+    def ensure_daemon_running(self, max_retries: int = 3) -> Dict[str, Any]:
+        """
+        Ensure IPFS daemon is running and responsive.
+        
+        This method will:
+        1. Check if daemon is healthy
+        2. If not, attempt to start/restart it
+        3. Retry up to max_retries times
+        4. Clean up ports and locks as needed
+        
+        Args:
+            max_retries: Maximum number of restart attempts
+            
+        Returns:
+            Dict with success status and details of actions taken
+        """
+        result = {
+            "success": False,
+            "operation": "ensure_daemon_running",
+            "attempts": 0,
+            "actions_taken": [],
+            "final_status": None
+        }
+        
+        for attempt in range(max_retries):
+            result["attempts"] = attempt + 1
+            
+            # Check current status
+            if self.is_daemon_healthy():
+                result["success"] = True
+                result["actions_taken"].append(f"attempt_{attempt + 1}_already_healthy")
+                result["final_status"] = self.get_daemon_status()
+                return result
+            
+            # Daemon not healthy, try to start/restart
+            logger.info(f"Daemon not healthy, attempt {attempt + 1}/{max_retries} to start")
+            
+            if attempt == 0:
+                # First attempt: try gentle start
+                start_result = self.start_daemon(force_restart=False)
+            else:
+                # Subsequent attempts: force restart
+                start_result = self.start_daemon(force_restart=True)
+            
+            result["actions_taken"].append({
+                "attempt": attempt + 1,
+                "action": "force_restart" if attempt > 0 else "start",
+                "result": start_result
+            })
+            
+            if start_result.get("success"):
+                # Wait a moment for daemon to stabilize
+                time.sleep(2)
+                
+                # Check if it's actually healthy now
+                if self.is_daemon_healthy():
+                    result["success"] = True
+                    result["final_status"] = self.get_daemon_status()
+                    return result
+            
+            # Wait before next attempt
+            if attempt < max_retries - 1:
+                time.sleep(3)
+        
+        # All attempts failed
+        result["final_status"] = self.get_daemon_status()
+        result["error"] = f"Failed to ensure daemon running after {max_retries} attempts"
+        
+        return result

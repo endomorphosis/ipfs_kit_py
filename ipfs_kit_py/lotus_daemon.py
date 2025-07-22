@@ -847,6 +847,23 @@ class lotus_daemon:
                 result["error_type"] = "stale_lock_file"
                 return result
         
+        # Clean up any processes using Lotus ports before starting daemon
+        cleanup_ports = kwargs.get("cleanup_ports", True)
+        if cleanup_ports:
+            logger.info("Cleaning up processes on Lotus ports before starting daemon")
+            port_cleanup_result = self._cleanup_lotus_ports(correlation_id)
+            result["port_cleanup"] = port_cleanup_result
+            
+            if port_cleanup_result["success"]:
+                summary = port_cleanup_result.get("summary", {})
+                killed_count = summary.get("total_processes_killed", 0)
+                if killed_count > 0:
+                    logger.info(f"Killed {killed_count} processes blocking Lotus ports")
+                    # Wait a moment for ports to be released
+                    time.sleep(2)
+            else:
+                logger.warning("Lotus port cleanup failed, proceeding anyway")
+
         # Track which methods we attempt and their results
         start_attempts = {}
         daemon_ready = False

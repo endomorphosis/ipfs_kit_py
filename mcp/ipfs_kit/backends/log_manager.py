@@ -47,7 +47,7 @@ class BackendLogManager:
         """Setup individual loggers for each backend."""
         backends = [
             "ipfs", "ipfs_cluster", "ipfs_cluster_follow", 
-            "lotus", "storacha", "synapse", "s3", 
+            "lotus", "storacha", "gdrive", "synapse", "s3", 
             "huggingface", "parquet"
         ]
         
