@@ -120,7 +120,75 @@ body {
 
 .backend-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e9ecef;
+    flex-wrap: wrap;
+}
+
+.backend-actions .btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.backend-actions .btn-sm {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+.backend-actions .btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.backend-actions .btn-success:hover {
+    background: #218838;
+}
+
+.backend-actions .btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.backend-actions .btn-danger:hover {
+    background: #c82333;
+}
+
+.backend-actions .btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.backend-actions .btn-warning:hover {
+    background: #e0a800;
+}
+
+.backend-actions .btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.backend-actions .btn-primary:hover {
+    background: #0056b3;
+}
+
+.backend-actions .btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.backend-actions .btn-info:hover {
+    background: #138496;
 }
 
 .action-btn {
@@ -615,41 +683,45 @@ body {
 
 .log-entry {
     margin: 2px 0;
-    padding: 4px 8px;
-    border-radius: 3px;
-    border-left: 3px solid transparent;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border-left: 4px solid transparent;
     white-space: pre-wrap;
     word-wrap: break-word;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
 .log-entry.DEBUG {
-    background-color: rgba(99, 102, 241, 0.1);
+    background-color: rgba(99, 102, 241, 0.15);
     border-left-color: #6366f1;
-    color: #a5b4fc;
+    color: #4338ca;
 }
 
 .log-entry.INFO {
-    background-color: rgba(34, 197, 94, 0.1);
+    background-color: rgba(34, 197, 94, 0.15);
     border-left-color: #22c55e;
-    color: #86efac;
+    color: #16a34a;
 }
 
 .log-entry.WARNING {
-    background-color: rgba(245, 158, 11, 0.1);
+    background-color: rgba(245, 158, 11, 0.15);
     border-left-color: #f59e0b;
-    color: #fbbf24;
+    color: #d97706;
 }
 
 .log-entry.ERROR {
-    background-color: rgba(239, 68, 68, 0.1);
+    background-color: rgba(239, 68, 68, 0.15);
     border-left-color: #ef4444;
-    color: #fca5a5;
+    color: #dc2626;
 }
 
 .log-entry.CRITICAL {
-    background-color: rgba(190, 18, 60, 0.2);
+    background-color: rgba(190, 18, 60, 0.25);
     border-left-color: #be123c;
-    color: #fda4af;
+    color: #991b1b;
+    font-weight: 600;
 }
 
 /* New bottom stats layout */
@@ -674,62 +746,98 @@ body {
     font-style: italic;
 }
 
-/* Log statistics indicators */
-.log-stats-indicators {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    padding: 12px;
-    background: #1e1e1e;
-    border-top: 1px solid #444;
-    margin-top: 8px;
+/* Enhanced log viewer container with proper spacing for bottom stats */
+#logs .log-viewer-container {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    height: 600px; /* Fixed height for consistent layout */
 }
 
-.stat-indicator {
+#logs .log-viewer {
+    height: calc(100% - 80px); /* Reserve space for bottom stats */
+    overflow-y: auto;
+    padding: 15px;
+    background: #ffffff;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+#logs .log-entries {
+    padding-bottom: 20px; /* Extra space before stats */
+}
+
+/* Log statistics indicators - Fixed at bottom of logs tab */
+#logs .log-stats-indicators {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-top: 2px solid #dee2e6;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    z-index: 10;
+}
+
+#logs .stat-indicator {
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 8px;
     min-width: 80px;
     font-weight: bold;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.stat-indicator .stat-number {
-    font-size: 24px;
+#logs .stat-indicator:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+#logs .stat-indicator .stat-number {
+    font-size: 22px;
     font-weight: bold;
     margin-bottom: 4px;
 }
 
-.stat-indicator .stat-label {
-    font-size: 12px;
+#logs .stat-indicator .stat-label {
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    opacity: 0.8;
 }
 
-/* Color coding for different log levels */
-.stat-indicator.errors {
-    background: rgba(220, 53, 69, 0.2);
-    border: 1px solid #dc3545;
-    color: #ff6b7a;
+/* Enhanced color coding for different log levels */
+#logs .stat-indicator.errors {
+    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+    border: 2px solid #ef4444;
+    color: #dc2626;
 }
 
-.stat-indicator.warnings {
-    background: rgba(255, 193, 7, 0.2);
-    border: 1px solid #ffc107;
-    color: #ffdb4d;
+#logs .stat-indicator.warnings {
+    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    border: 2px solid #f59e0b;
+    color: #d97706;
 }
 
-.stat-indicator.info {
-    background: rgba(13, 202, 240, 0.2);
-    border: 1px solid #0dcaf0;
-    color: #4dd4f0;
+#logs .stat-indicator.info {
+    background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);
+    border: 2px solid #3b82f6;
+    color: #1d4ed8;
 }
 
-.stat-indicator.total {
-    background: rgba(108, 117, 125, 0.2);
-    border: 1px solid #6c757d;
-    color: #adb5bd;
+#logs .stat-indicator.total {
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    border: 2px solid #6b7280;
+    color: #374151;
 }
 
 /* Remove old stats styles that were causing issues */

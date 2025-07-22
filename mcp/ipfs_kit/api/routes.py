@@ -7,7 +7,7 @@ import traceback
 import asyncio
 import os
 import shutil
-from fastapi import FastAPI, Request, HTTPException, WebSocket, UploadFile, File, Form
+from fastapi import FastAPI, Request, HTTPException, WebSocket, UploadFile, File, Form, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any, Optional
@@ -20,6 +20,7 @@ from .vfs_endpoints import VFSEndpoints
 from .file_endpoints import FileEndpoints
 from .websocket_handler import WebSocketHandler
 from .vector_kb_endpoints import VectorKBEndpoints
+from .peer_endpoints import PeerEndpoints
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class APIRoutes:
         self.vector_kb_endpoints = VectorKBEndpoints(backend_monitor, vfs_observer)
         self.file_endpoints = FileEndpoints()
         self.websocket_handler = WebSocketHandler(websocket_manager)
+        self.peer_endpoints = PeerEndpoints(backend_monitor)
         
         # Setup error handling
         self._setup_error_handlers()
@@ -242,6 +244,20 @@ class APIRoutes:
             return await self._safe_endpoint_call(
                 lambda: self._restart_backend(backend_name),
                 "restart_backend"
+            )
+        
+        @self.app.post("/api/backends/{backend_name}/start")
+        async def start_backend(backend_name: str):
+            return await self._safe_endpoint_call(
+                lambda: self._start_backend(backend_name),
+                "start_backend"
+            )
+        
+        @self.app.post("/api/backends/{backend_name}/stop")
+        async def stop_backend(backend_name: str):
+            return await self._safe_endpoint_call(
+                lambda: self._stop_backend(backend_name),
+                "stop_backend"
             )
         
         # Tools endpoint
@@ -534,6 +550,122 @@ class APIRoutes:
             else:
                 raise HTTPException(status_code=404, detail=result.get("error", "File not found"))
 
+        # Peer Management API Routes
+        @self.app.get("/api/peers/summary")
+        async def get_peers_summary():
+            """Get summary of all discovered peers."""
+            return await self._safe_endpoint_call(
+                self.peer_endpoints.get_peers_summary,
+                "peers_summary"
+            )
+        
+        @self.app.get("/api/peers/list")
+        async def get_peers_list(
+            limit: int = Query(50, ge=1, le=500),
+            offset: int = Query(0, ge=0),
+            filter_protocol: Optional[str] = Query(None),
+            filter_connected: Optional[bool] = Query(None)
+        ):
+            """Get paginated list of discovered peers."""
+            return await self._safe_endpoint_call(
+                lambda: self.peer_endpoints.get_peers_list(limit, offset, filter_protocol, filter_connected),
+                "peers_list"
+            )
+        
+        @self.app.get("/api/peers/{peer_id}")
+        async def get_peer_details(peer_id: str):
+            """Get detailed information about a specific peer."""
+            return await self._safe_endpoint_call(
+                lambda: self.peer_endpoints.get_peer_details(peer_id),
+                "peer_details"
+            )
+        
+        @self.app.get("/api/peers/{peer_id}/content")
+        async def get_peer_content(peer_id: str):
+            """Get content shared by a specific peer."""
+            return await self._safe_endpoint_call(
+                lambda: self.peer_endpoints.get_peer_content(peer_id),
+                "peer_content"
+            )
+        
+        @self.app.post("/api/peers/{peer_id}/connect")
+        async def connect_to_peer(peer_id: str, request: Request):
+            """Connect to a specific peer."""
+            data = await request.json()
+            multiaddr = data.get("multiaddr")
+            return await self._safe_endpoint_call(
+                lambda: self.peer_endpoints.connect_to_peer(peer_id, multiaddr),
+                "connect_peer"
+            )
+        
+        @self.app.post("/api/peers/{peer_id}/disconnect")
+        async def disconnect_from_peer(peer_id: str):
+            """Disconnect from a specific peer."""
+            return await self._safe_endpoint_call(
+                lambda: self.peer_endpoints.disconnect_from_peer(peer_id),
+                "disconnect_peer"
+            )
+        
+        @self.app.get("/api/peers/search")
+        async def search_peers(query: str):
+            """Search peers by various criteria."""
+            return await self._safe_endpoint_call(
+                lambda: self.peer_endpoints.search_peers(query),
+                "search_peers"
+            )
+        
+        @self.app.get("/api/peers/discovery/status")
+        async def get_peer_discovery_status():
+            """Get the status of peer discovery."""
+            return await self._safe_endpoint_call(
+                self.peer_endpoints.get_peer_discovery_status,
+                "discovery_status"
+            )
+        
+        @self.app.post("/api/peers/discovery/start")
+        async def start_peer_discovery():
+            """Start peer discovery."""
+            return await self._safe_endpoint_call(
+                self.peer_endpoints.start_peer_discovery,
+                "start_discovery"
+            )
+        
+        @self.app.post("/api/peers/discovery/stop")
+        async def stop_peer_discovery():
+            """Stop peer discovery."""
+            return await self._safe_endpoint_call(
+                self.peer_endpoints.stop_peer_discovery,
+                "stop_discovery"
+            )
+        
+        @self.app.post("/api/peers/bootstrap/add")
+        async def add_bootstrap_peer(request: Request):
+            """Add a bootstrap peer."""
+            data = await request.json()
+            multiaddr = data.get("multiaddr")
+            return await self._safe_endpoint_call(
+                lambda: self.peer_endpoints.add_bootstrap_peer(multiaddr),
+                "add_bootstrap"
+            )
+        
+        @self.app.post("/api/peers/bootstrap/remove")
+        async def remove_bootstrap_peer(request: Request):
+            """Remove a bootstrap peer."""
+            data = await request.json()
+            multiaddr = data.get("multiaddr")
+            return await self._safe_endpoint_call(
+                lambda: self.peer_endpoints.remove_bootstrap_peer(multiaddr),
+                "remove_bootstrap"
+            )
+        
+        @self.app.get("/api/peers/network/stats")
+        async def get_peer_network_stats():
+            """Get network statistics for the peer network."""
+            return await self._safe_endpoint_call(
+                self.peer_endpoints.get_peer_network_stats,
+                "network_stats"
+            )
+
         # WebSocket endpoint
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
@@ -648,6 +780,170 @@ class APIRoutes:
             }
         except Exception as e:
             logger.error(f"Error restarting {backend_name}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "backend": backend_name,
+                "timestamp": self._get_current_timestamp()
+            }
+
+    async def _start_backend(self, backend_name: str) -> Dict[str, Any]:
+        """Start a specific backend."""
+        try:
+            logger.info(f"Start requested for backend: {backend_name}")
+            
+            # Check if backend is already running
+            backend_health = await self.backend_monitor.check_backend(backend_name)
+            if backend_health.get("status") == "healthy":
+                return {
+                    "success": True,
+                    "message": f"{backend_name} is already running",
+                    "backend": backend_name,
+                    "status": "already_running",
+                    "timestamp": self._get_current_timestamp()
+                }
+            
+            # Start the backend using backend_monitor
+            if hasattr(self.backend_monitor, 'start_backend'):
+                result = await self.backend_monitor.start_backend(backend_name)
+                return {
+                    "success": True,
+                    "message": f"Start initiated for {backend_name}",
+                    "backend": backend_name,
+                    "status": "starting",
+                    "details": result,
+                    "timestamp": self._get_current_timestamp()
+                }
+            else:
+                return {
+                    "success": True,
+                    "message": f"Start simulated for {backend_name} (not yet implemented)",
+                    "backend": backend_name,
+                    "status": "simulated",
+                    "timestamp": self._get_current_timestamp()
+                }
+        except Exception as e:
+            logger.error(f"Error starting {backend_name}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "backend": backend_name,
+                "timestamp": self._get_current_timestamp()
+            }
+
+    async def _stop_backend(self, backend_name: str) -> Dict[str, Any]:
+        """Stop a specific backend."""
+        try:
+            logger.info(f"Stop requested for backend: {backend_name}")
+            
+            # Stop the backend using backend_monitor
+            if hasattr(self.backend_monitor, 'stop_backend'):
+                result = await self.backend_monitor.stop_backend(backend_name)
+                return {
+                    "success": True,
+                    "message": f"Stop initiated for {backend_name}",
+                    "backend": backend_name,
+                    "status": "stopping",
+                    "details": result,
+                    "timestamp": self._get_current_timestamp()
+                }
+            else:
+                return {
+                    "success": True,
+                    "message": f"Stop simulated for {backend_name} (not yet implemented)",
+                    "backend": backend_name,
+                    "status": "simulated",
+                    "timestamp": self._get_current_timestamp()
+                }
+        except Exception as e:
+            logger.error(f"Error stopping {backend_name}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "backend": backend_name,
+                "timestamp": self._get_current_timestamp()
+            }
+
+    async def _get_backend_config(self, backend_name: str) -> Dict[str, Any]:
+        """Get configuration for a specific backend."""
+        try:
+            logger.info(f"Config requested for backend: {backend_name}")
+            
+            # Get backend configuration from backend_monitor
+            if hasattr(self.backend_monitor, 'get_backend_config'):
+                result = await self.backend_monitor.get_backend_config(backend_name)
+                
+                # Handle different response formats
+                if isinstance(result, dict):
+                    if "error" in result:
+                        return {
+                            "success": False,
+                            "error": result["error"],
+                            "backend": backend_name,
+                            "timestamp": self._get_current_timestamp()
+                        }
+                    elif "config" in result:
+                        # If wrapped in config key, unwrap it
+                        config = result["config"]
+                    else:
+                        # Direct config data
+                        config = result
+                else:
+                    config = {"error": "Invalid config format returned"}
+                    
+            else:
+                # Mock configuration for now
+                config = {
+                    "enabled": True,
+                    "port": 5001 if backend_name == "ipfs" else 9042 if backend_name == "cassandra" else 8080,
+                    "host": "localhost",
+                    "max_connections": 100,
+                    "timeout": 30,
+                    "debug": False
+                }
+            
+            return {
+                "success": True,
+                "backend": backend_name,
+                "config": config,
+                "timestamp": self._get_current_timestamp()
+            }
+        except Exception as e:
+            logger.error(f"Error getting config for {backend_name}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "backend": backend_name,
+                "timestamp": self._get_current_timestamp()
+            }
+
+    async def _set_backend_config(self, backend_name: str, config_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Set configuration for a specific backend."""
+        try:
+            logger.info(f"Config update requested for backend: {backend_name}")
+            
+            # Set backend configuration using backend_monitor
+            if hasattr(self.backend_monitor, 'set_backend_config'):
+                result = await self.backend_monitor.set_backend_config(backend_name, config_data)
+                return {
+                    "success": True,
+                    "message": f"Configuration updated for {backend_name}",
+                    "backend": backend_name,
+                    "config": config_data,
+                    "details": result,
+                    "timestamp": self._get_current_timestamp()
+                }
+            else:
+                return {
+                    "success": True,
+                    "message": f"Configuration simulated for {backend_name} (not yet implemented)",
+                    "backend": backend_name,
+                    "config": config_data,
+                    "status": "simulated",
+                    "timestamp": self._get_current_timestamp()
+                }
+        except Exception as e:
+            logger.error(f"Error setting config for {backend_name}: {e}")
             return {
                 "success": False,
                 "error": str(e),

@@ -344,6 +344,136 @@ class ipfs_py:
 
         return results
 
+    def _cleanup_ipfs_ports(self, correlation_id: str = None):
+        """
+        Clean up processes that may be using IPFS ports.
+        
+        This method identifies and kills processes using the standard IPFS ports:
+        - 5001 (API port)
+        - 8080 (Gateway port)
+        - 4001 (P2P port)
+        
+        Args:
+            correlation_id: Optional correlation ID for tracking
+            
+        Returns:
+            Dict with cleanup results
+        """
+        operation = "cleanup_ipfs_ports"
+        result = create_result_dict(operation, correlation_id)
+        
+        # Standard IPFS ports
+        ipfs_ports = [5001, 8080, 4001]
+        cleanup_results = {}
+        
+        try:
+            # Try to get configured ports from IPFS config
+            try:
+                config_cmd = ["ipfs", "config", "show"]
+                config_result = self.run_ipfs_command(config_cmd, check=False, correlation_id=correlation_id)
+                if config_result["success"]:
+                    import json
+                    config_data = json.loads(config_result["stdout"])
+                    addresses = config_data.get("Addresses", {})
+                    
+                    # Extract port from API address
+                    api_addr = addresses.get("API", "")
+                    if "/tcp/" in api_addr:
+                        api_port = int(api_addr.split("/tcp/")[-1])
+                        if api_port not in ipfs_ports:
+                            ipfs_ports.append(api_port)
+                    
+                    # Extract port from Gateway address
+                    gateway_addr = addresses.get("Gateway", "")
+                    if "/tcp/" in gateway_addr:
+                        gateway_port = int(gateway_addr.split("/tcp/")[-1])
+                        if gateway_port not in ipfs_ports:
+                            ipfs_ports.append(gateway_port)
+                            
+            except Exception as e:
+                logger.debug(f"Could not read IPFS config for port cleanup: {e}")
+            
+            for port in ipfs_ports:
+                try:
+                    # Use lsof to find processes using the port
+                    lsof_cmd = ["lsof", "-ti", f":{port}"]
+                    lsof_result = self.run_ipfs_command(lsof_cmd, check=False, correlation_id=correlation_id)
+                    
+                    if lsof_result["success"] and lsof_result.get("stdout", "").strip():
+                        pids = lsof_result["stdout"].strip().split('\n')
+                        killed_pids = []
+                        failed_kills = []
+                        
+                        for pid_str in pids:
+                            if pid_str.strip().isdigit():
+                                pid = int(pid_str.strip())
+                                try:
+                                    # First try SIGTERM
+                                    os.kill(pid, 15)  # SIGTERM
+                                    time.sleep(1)
+                                    
+                                    # Check if process still exists
+                                    try:
+                                        os.kill(pid, 0)
+                                        # If it still exists, use SIGKILL
+                                        os.kill(pid, 9)  # SIGKILL
+                                        logger.info(f"Killed process {pid} on port {port} (required SIGKILL)")
+                                    except OSError:
+                                        logger.info(f"Process {pid} on port {port} terminated with SIGTERM")
+                                    
+                                    killed_pids.append(pid)
+                                    
+                                except OSError as e:
+                                    if e.errno == 3:  # No such process
+                                        logger.debug(f"Process {pid} no longer exists")
+                                    else:
+                                        failed_kills.append({"pid": pid, "error": str(e)})
+                                        logger.warning(f"Failed to kill process {pid} on port {port}: {e}")
+                                except Exception as e:
+                                    failed_kills.append({"pid": pid, "error": str(e)})
+                                    logger.warning(f"Error killing process {pid} on port {port}: {e}")
+                        
+                        cleanup_results[port] = {
+                            "found_pids": [int(p) for p in pids if p.strip().isdigit()],
+                            "killed_pids": killed_pids,
+                            "failed_kills": failed_kills
+                        }
+                        
+                        if killed_pids:
+                            logger.info(f"Cleaned up {len(killed_pids)} processes on port {port}")
+                    else:
+                        cleanup_results[port] = {"found_pids": [], "killed_pids": [], "failed_kills": []}
+                        logger.debug(f"No processes found on port {port}")
+                        
+                except Exception as e:
+                    cleanup_results[port] = {"error": str(e), "error_type": type(e).__name__}
+                    logger.warning(f"Error checking port {port}: {e}")
+            
+            result["success"] = True
+            result["cleanup_results"] = cleanup_results
+            result["ports_checked"] = ipfs_ports
+            
+            # Summary statistics
+            total_killed = sum(len(r.get("killed_pids", [])) for r in cleanup_results.values() if isinstance(r, dict))
+            total_failed = sum(len(r.get("failed_kills", [])) for r in cleanup_results.values() if isinstance(r, dict))
+            
+            result["summary"] = {
+                "ports_checked": len(ipfs_ports),
+                "total_processes_killed": total_killed,
+                "total_kill_failures": total_failed
+            }
+            
+            if total_killed > 0:
+                result["message"] = f"Cleaned up {total_killed} processes on IPFS ports"
+            else:
+                result["message"] = "No processes found on IPFS ports"
+                
+        except Exception as e:
+            logger.error(f"Port cleanup failed: {e}")
+            result = handle_error(result, IPFSError(f"Port cleanup failed: {e}"))
+        
+        return result
+
     def daemon_start(self, **kwargs):
         operation = "daemon_start"
         correlation_id = kwargs.get("correlation_id")
@@ -372,6 +502,23 @@ class ipfs_py:
                     return result
         except Exception as e:
             logger.debug(f"Error checking if daemon is already running: {str(e)}")
+
+        # Clean up any processes using IPFS ports before starting daemon
+        cleanup_ports = kwargs.get("cleanup_ports", True)
+        if cleanup_ports:
+            logger.info("Cleaning up processes on IPFS ports before starting daemon")
+            port_cleanup_result = self._cleanup_ipfs_ports(correlation_id)
+            result["port_cleanup"] = port_cleanup_result
+            
+            if port_cleanup_result["success"]:
+                summary = port_cleanup_result.get("summary", {})
+                killed_count = summary.get("total_processes_killed", 0)
+                if killed_count > 0:
+                    logger.info(f"Killed {killed_count} processes blocking IPFS ports")
+                    # Wait a moment for ports to be released
+                    time.sleep(2)
+            else:
+                logger.warning("Port cleanup failed, proceeding anyway")
 
         repo_lock_path = os.path.join(os.path.expanduser(self.ipfs_path), "repo.lock")
         lock_file_exists = os.path.exists(repo_lock_path)

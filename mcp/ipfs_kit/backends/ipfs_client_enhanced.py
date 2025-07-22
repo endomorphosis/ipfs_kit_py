@@ -175,8 +175,8 @@ class EnhancedIPFSClient:
     async def version(self) -> Dict[str, Any]:
         """Get IPFS version with HTTP/CLI fallback."""
         try:
-            # Try HTTP first
-            result = await self._http_request("/version")
+            # Try HTTP first - IPFS API requires POST method
+            result = await self._http_request("/version", method="POST")
             return result
         except Exception as http_error:
             logger.info(f"HTTP version request failed, trying CLI: {http_error}")
@@ -191,8 +191,8 @@ class EnhancedIPFSClient:
     async def stats_repo(self) -> Dict[str, Any]:
         """Get repository statistics."""
         try:
-            # Try HTTP first
-            result = await self._http_request("/repo/stat")
+            # Try HTTP first - IPFS API requires POST method
+            result = await self._http_request("/repo/stat", method="POST")
             return result
         except Exception as http_error:
             logger.info(f"HTTP repo stats failed, trying CLI: {http_error}")
@@ -207,8 +207,8 @@ class EnhancedIPFSClient:
     async def stats_bw(self) -> Dict[str, Any]:
         """Get bandwidth statistics."""
         try:
-            # Try HTTP first
-            result = await self._http_request("/stats/bw")
+            # Try HTTP first - IPFS API requires POST method
+            result = await self._http_request("/stats/bw", method="POST")
             return result
         except Exception as http_error:
             logger.info(f"HTTP bandwidth stats failed, trying CLI: {http_error}")
@@ -223,8 +223,8 @@ class EnhancedIPFSClient:
     async def swarm_peers(self) -> Dict[str, Any]:
         """Get swarm peers."""
         try:
-            # Try HTTP first
-            result = await self._http_request("/swarm/peers")
+            # Try HTTP first - IPFS API requires POST method
+            result = await self._http_request("/swarm/peers", method="POST")
             return result
         except Exception as http_error:
             logger.info(f"HTTP swarm peers failed, trying CLI: {http_error}")

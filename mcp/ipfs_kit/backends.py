@@ -15,6 +15,32 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Optional imports that may not be available
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
+try:
+    import requests
+except ImportError:
+    requests = None
+
+try:
+    import pyarrow
+except ImportError:
+    pyarrow = None
+
+try:
+    import pandas
+except ImportError:
+    pandas = None
+
+try:
+    import polars
+except ImportError:
+    polars = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -475,6 +501,34 @@ class BackendHealthMonitor:
         self._monitor_thread = None
         self.last_health_check = {}  # Track last health check timestamps
         self.vfs_observer: 'VFSObservabilityManager' = None
+        
+        # Load saved configurations
+        self._load_saved_configurations()
+
+    def _load_saved_configurations(self):
+        """Load saved configurations from config files."""
+        try:
+            config_dir = Path("config")
+            if config_dir.exists():
+                # Load S3 configuration
+                s3_config_file = config_dir / "s3_config.json"
+                if s3_config_file.exists():
+                    with open(s3_config_file, 'r') as f:
+                        s3_config = json.load(f)
+                        # Apply environment variables
+                        if "access_key_id" in s3_config:
+                            os.environ["AWS_ACCESS_KEY_ID"] = s3_config["access_key_id"]
+                        if "secret_access_key" in s3_config:
+                            os.environ["AWS_SECRET_ACCESS_KEY"] = s3_config["secret_access_key"]
+                        if "region" in s3_config:
+                            os.environ["AWS_DEFAULT_REGION"] = s3_config["region"]
+                        logger.info("S3 configuration loaded from config file")
+                
+                # Load other backend configurations here as needed
+                # TODO: Add loading for IPFS, Lotus, HuggingFace, etc.
+                
+        except Exception as e:
+            logger.error(f"Error loading saved configurations: {e}")
 
     def start_monitoring(self):
         """Start background monitoring thread."""
@@ -621,55 +675,78 @@ class BackendHealthMonitor:
         return backend
 
     async def _check_ipfs_cluster_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Check IPFS Cluster health with more detailed metrics."""
+        """Check IPFS Cluster health with detailed metrics (daemon manager handles lifecycle)."""
+        
+        # First ensure binaries are in PATH
+        project_bin = str(Path(__file__).parent.parent.parent / "ipfs_kit_py" / "bin")
+        os.environ["PATH"] = f"{project_bin}:{os.environ.get('PATH', '')}"
         
         try:
-            # Check if cluster daemon is running and get version info
+            # Check if cluster daemon is running and get info via /id endpoint
             version_result = await asyncio.wait_for(
                 asyncio.to_thread(subprocess.run,
-                    ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
+                    ["curl", "-s", f"http://127.0.0.1:{backend['port']}/id"],
                     capture_output=True, text=True, timeout=5
                 ), timeout=10
             )
             
             if version_result.returncode == 0 and version_result.stdout.strip():
                 try:
-                    version_info = json.loads(version_result.stdout)
+                    cluster_info = json.loads(version_result.stdout)
                     backend["status"] = "running"
                     backend["health"] = "healthy"
-                    backend["metrics"]["version"] = version_info.get("version", "unknown")
-                    backend["detailed_info"]["cluster_id"] = version_info.get("cluster_id", "unknown")
-                    backend["detailed_info"]["peer_id"] = version_info.get("peer_id", "unknown")
+                    backend["metrics"]["version"] = cluster_info.get("version", "unknown")
+                    # DEBUG: Add a test value to verify the code is running
+                    backend["metrics"]["debug_test"] = f"Updated code running at {datetime.now().isoformat()}"
+                    backend["detailed_info"]["cluster_id"] = cluster_info.get("id", "unknown")
+                    backend["detailed_info"]["peer_id"] = cluster_info.get("id", "unknown")
+                    backend["detailed_info"]["cluster_peers"] = len(cluster_info.get("cluster_peers", []))
+                    
+                    # Set cluster-specific metrics (different from IPFS node metrics)
+                    cluster_peers = cluster_info.get("cluster_peers", [])
+                    backend["metrics"]["cluster_peers"] = len(cluster_peers)
+                    # For cluster, we use pins instead of repo objects
+                    backend["metrics"]["repo_objects"] = 0  # Will be updated with pins count below
+                    
+                    # Get IPFS connection info
+                    ipfs_info = cluster_info.get("ipfs", {})
+                    backend["detailed_info"]["ipfs_connected"] = bool(ipfs_info.get("id"))
+                    backend["detailed_info"]["ipfs_peer_id"] = ipfs_info.get("id", "unknown")
 
-                    # Check peers
-                    peers_result = await asyncio.wait_for(
-                        asyncio.to_thread(subprocess.run,
-                            ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/peers"],
-                            capture_output=True, text=True, timeout=5
-                        ), timeout=10
-                    )
-                    if peers_result.returncode == 0 and peers_result.stdout.strip():
-                        peers = json.loads(peers_result.stdout)
-                        backend["detailed_info"]["cluster_peers"] = len(peers)
-                    else:
-                        backend["detailed_info"]["cluster_peers"] = 0
-                        backend["errors"].append({
-                            "timestamp": datetime.now().isoformat(),
-                            "error": f"Failed to get IPFS Cluster peers: {peers_result.stderr.strip() or peers_result.returncode}"
-                        })
-
-                    # Check pinned CIDs
+                    # Check pinned CIDs via pins endpoint
                     pins_result = await asyncio.wait_for(
                         asyncio.to_thread(subprocess.run,
-                            ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/allocations"],
+                            ["curl", "-s", f"http://127.0.0.1:{backend['port']}/pins"],
                             capture_output=True, text=True, timeout=5
                         ), timeout=10
                     )
                     if pins_result.returncode == 0 and pins_result.stdout.strip():
-                        allocations = json.loads(pins_result.stdout)
-                        backend["detailed_info"]["pins_count"] = len(allocations)
+                        try:
+                            # Try to parse as JSON array first
+                            allocations = json.loads(pins_result.stdout)
+                            pin_count = len(allocations)
+                            backend["detailed_info"]["pins_count"] = pin_count
+                            # For cluster, show pins as "objects" since that's what the dashboard displays
+                            backend["metrics"]["repo_objects"] = pin_count
+                        except json.JSONDecodeError:
+                            # IPFS Cluster pins endpoint returns concatenated JSON objects, not an array
+                            # Count the number of valid JSON lines instead
+                            pin_lines = pins_result.stdout.strip().split('\n')
+                            pin_count = 0
+                            for line in pin_lines:
+                                line = line.strip()
+                                if line:
+                                    try:
+                                        json.loads(line)  # Validate it's valid JSON
+                                        pin_count += 1
+                                    except json.JSONDecodeError:
+                                        continue
+                            backend["detailed_info"]["pins_count"] = pin_count
+                            # For cluster, show pins as "objects" since that's what the dashboard displays
+                            backend["metrics"]["repo_objects"] = pin_count
                     else:
                         backend["detailed_info"]["pins_count"] = 0
+                        backend["metrics"]["repo_objects"] = 0
                         backend["errors"].append({
                             "timestamp": datetime.now().isoformat(),
                             "error": f"Failed to get IPFS Cluster allocations: {pins_result.stderr.strip() or pins_result.returncode}"
@@ -714,6 +791,10 @@ class BackendHealthMonitor:
 
     async def _check_ipfs_cluster_follow_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check IPFS Cluster Follow health with more detailed status."""
+        
+        # First ensure binaries are in PATH
+        project_bin = str(Path(__file__).parent.parent.parent / "ipfs_kit_py" / "bin")
+        os.environ["PATH"] = f"{project_bin}:{os.environ.get('PATH', '')}"
         
         try:
             # Check if ipfs-cluster-follow process is running
@@ -783,24 +864,92 @@ class BackendHealthMonitor:
         return backend
 
     async def _config_ipfs_cluster(self, backend: Dict[str, Any], config_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Placeholder for IPFS Cluster configuration."""
-        logger.info(f"Attempting to configure IPFS Cluster with: {config_data}")
-        return {"success": False, "message": "IPFS Cluster configuration not yet implemented."}
+        """Configure IPFS Cluster service."""
+        try:
+            # Import the installer for configuration
+            from ipfs_kit_py.install_ipfs import install_ipfs
+            
+            installer = install_ipfs()
+            
+            # Configure cluster service
+            logger.info("Configuring IPFS Cluster Service...")
+            config_result = installer.config_ipfs_cluster_service(**config_data)
+            
+            if config_result:
+                return {"success": True, "message": "IPFS Cluster Service configured successfully"}
+            else:
+                return {"success": False, "message": "Failed to configure IPFS Cluster Service"}
+                
+        except Exception as e:
+            logger.error(f"Error configuring IPFS Cluster: {e}")
+            return {"success": False, "message": f"Configuration failed: {str(e)}"}
 
     async def _install_ipfs_cluster(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Placeholder for IPFS Cluster installation."""
-        logger.info("Attempting to install IPFS Cluster.")
-        return {"success": False, "message": "IPFS Cluster installation not yet implemented."}
+        """Install IPFS Cluster binaries."""
+        try:
+            # Import the installer
+            from ipfs_kit_py.install_ipfs import install_ipfs
+            
+            installer = install_ipfs()
+            
+            # Install cluster service
+            logger.info("Installing IPFS Cluster Service...")
+            service_result = installer.install_ipfs_cluster_service()
+            
+            # Install cluster control
+            logger.info("Installing IPFS Cluster Control...")
+            ctl_result = installer.install_ipfs_cluster_ctl()
+            
+            if service_result and ctl_result:
+                return {"success": True, "message": "IPFS Cluster binaries installed successfully"}
+            else:
+                return {"success": False, "message": "Failed to install some IPFS Cluster binaries"}
+                
+        except Exception as e:
+            logger.error(f"Error installing IPFS Cluster: {e}")
+            return {"success": False, "message": f"Installation failed: {str(e)}"}
 
     async def _config_ipfs_cluster_follow(self, backend: Dict[str, Any], config_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Placeholder for IPFS Cluster Follow configuration."""
-        logger.info(f"Attempting to configure IPFS Cluster Follow with: {config_data}")
-        return {"success": False, "message": "IPFS Cluster Follow configuration not yet implemented."}
+        """Configure IPFS Cluster Follow."""
+        try:
+            # Import the installer for configuration
+            from ipfs_kit_py.install_ipfs import install_ipfs
+            
+            installer = install_ipfs()
+            
+            # Configure cluster follow
+            logger.info("Configuring IPFS Cluster Follow...")
+            config_result = installer.config_ipfs_cluster_follow(**config_data)
+            
+            if config_result:
+                return {"success": True, "message": "IPFS Cluster Follow configured successfully"}
+            else:
+                return {"success": False, "message": "Failed to configure IPFS Cluster Follow"}
+                
+        except Exception as e:
+            logger.error(f"Error configuring IPFS Cluster Follow: {e}")
+            return {"success": False, "message": f"Configuration failed: {str(e)}"}
 
     async def _install_ipfs_cluster_follow(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Placeholder for IPFS Cluster Follow installation."""
-        logger.info("Attempting to install IPFS Cluster Follow.")
-        return {"success": False, "message": "IPFS Cluster Follow installation not yet implemented."}
+        """Install IPFS Cluster Follow binary."""
+        try:
+            # Import the installer
+            from ipfs_kit_py.install_ipfs import install_ipfs
+            
+            installer = install_ipfs()
+            
+            # Install cluster follow
+            logger.info("Installing IPFS Cluster Follow...")
+            follow_result = installer.install_ipfs_cluster_follow()
+            
+            if follow_result:
+                return {"success": True, "message": "IPFS Cluster Follow installed successfully"}
+            else:
+                return {"success": False, "message": "Failed to install IPFS Cluster Follow"}
+                
+        except Exception as e:
+            logger.error(f"Error installing IPFS Cluster Follow: {e}")
+            return {"success": False, "message": f"Installation failed: {str(e)}"}
 
     async def restart_backend(self, backend_name: str) -> Dict[str, Any]:
         """Restart a specific backend daemon."""
@@ -846,8 +995,96 @@ class BackendHealthMonitor:
                 
                 return {"success": True, "message": "IPFS Cluster Follow restart initiated"}
                 
+            elif backend_name == "synapse":
+                # For Synapse SDK, restart means reinitializing the environment
+                try:
+                    from ipfs_kit_py.synapse_kit import synapse_kit
+                    kit = synapse_kit()
+                    result = kit.restart()
+                    return result
+                except Exception as e:
+                    return {"error": f"Failed to restart Synapse: {str(e)}"}
+                
             else:
                 return {"error": f"Restart not implemented for {backend_name}"}
+                
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def start_backend(self, backend_name: str) -> Dict[str, Any]:
+        """Start a specific backend daemon."""
+        try:
+            if backend_name == "ipfs":
+                # Start IPFS daemon
+                subprocess.Popen(["ipfs", "daemon"])
+                return {"success": True, "message": "IPFS daemon start initiated"}
+                
+            elif backend_name == "lotus":
+                # Start lotus daemon
+                subprocess.Popen(["lotus", "daemon"])
+                return {"success": True, "message": "Lotus daemon start initiated"}
+            
+            elif backend_name == "ipfs_cluster":
+                # Start IPFS Cluster daemon
+                subprocess.Popen(["ipfs-cluster-service", "daemon"])
+                return {"success": True, "message": "IPFS Cluster daemon start initiated"}
+
+            elif backend_name == "ipfs_cluster_follow":
+                # Start IPFS Cluster Follow process
+                subprocess.Popen(["ipfs-cluster-follow", "run"])
+                return {"success": True, "message": "IPFS Cluster Follow start initiated"}
+                
+            elif backend_name == "synapse":
+                # For Synapse SDK, start means ensuring the environment is ready
+                try:
+                    from ipfs_kit_py.synapse_kit import synapse_kit
+                    kit = synapse_kit()
+                    result = kit.start()
+                    return result
+                except Exception as e:
+                    return {"error": f"Failed to start Synapse: {str(e)}"}
+                
+            else:
+                return {"error": f"Start not implemented for {backend_name}"}
+                
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def stop_backend(self, backend_name: str) -> Dict[str, Any]:
+        """Stop a specific backend daemon."""
+        try:
+            if backend_name == "ipfs":
+                # Stop IPFS daemon
+                subprocess.run(["ipfs", "shutdown"], timeout=10)
+                return {"success": True, "message": "IPFS daemon stopped"}
+                
+            elif backend_name == "lotus":
+                # Kill lotus processes
+                subprocess.run(["pkill", "-f", "lotus"], timeout=5)
+                return {"success": True, "message": "Lotus daemon stopped"}
+            
+            elif backend_name == "ipfs_cluster":
+                # Stop IPFS Cluster daemon
+                subprocess.run(["ipfs-cluster-ctl", "daemon", "stop"], timeout=10)
+                return {"success": True, "message": "IPFS Cluster daemon stopped"}
+
+            elif backend_name == "ipfs_cluster_follow":
+                # Stop IPFS Cluster Follow process
+                subprocess.run(["pkill", "-f", "ipfs-cluster-follow"], timeout=5)
+                return {"success": True, "message": "IPFS Cluster Follow stopped"}
+                
+            elif backend_name == "synapse":
+                # For Synapse SDK, stop is mostly a no-op
+                try:
+                    from ipfs_kit_py.synapse_kit import synapse_kit
+                    kit = synapse_kit()
+                    result = kit.stop()
+                    return result
+                except Exception as e:
+                    return {"error": f"Failed to stop Synapse: {str(e)}"}
+                
+            else:
+                return {"error": f"Stop not implemented for {backend_name}"}
                 
         except Exception as e:
             return {"error": str(e)}
@@ -952,8 +1189,16 @@ class BackendHealthMonitor:
         """Check Storacha/Web3.Storage health."""
         
         try:
-            import requests
-            
+            if requests is None:
+                backend["status"] = "error"
+                backend["health"] = "unhealthy"
+                backend["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "error": "requests library not available"
+                })
+                backend["last_check"] = datetime.now().isoformat()
+                return backend
+                        
             healthy_endpoints = 0
             endpoint_results = []
             
@@ -1149,33 +1394,30 @@ class BackendHealthMonitor:
             libraries = {}
             
             # Check PyArrow
-            try:
-                import pyarrow
+            if pyarrow is not None:
                 libraries["pyarrow"] = {
                     "available": True,
                     "version": pyarrow.__version__
                 }
-            except ImportError:
+            else:
                 libraries["pyarrow"] = {"available": False}
             
             # Check Pandas
-            try:
-                import pandas
+            if pandas is not None:
                 libraries["pandas"] = {
                     "available": True,
                     "version": pandas.__version__
                 }
-            except ImportError:
+            else:
                 libraries["pandas"] = {"available": False}
             
             # Check Polars
-            try:
-                import polars
+            if polars is not None:
                 libraries["polars"] = {
                     "available": True,
                     "version": polars.__version__
                 }
-            except ImportError:
+            else:
                 libraries["polars"] = {"available": False}
             
             available_libraries = [name for name, info in libraries.items() if info["available"]]
@@ -1224,7 +1466,7 @@ class BackendHealthMonitor:
                     "health": "unhealthy"
                 }
                 
-                return results
+        return results
 
     async def get_backend_logs(self, backend_name: str) -> str:
         """Get logs for a specific backend."""
@@ -1267,40 +1509,210 @@ class BackendHealthMonitor:
         """Get current configuration for a backend."""
         try:
             if backend_name == "ipfs":
-                result = subprocess.run(
-                    ["ipfs", "config", "show"],
-                    capture_output=True, text=True, timeout=10
-                )
-                if result.returncode == 0:
-                    return {"config": json.loads(result.stdout)}
-                else:
-                    return {"error": "Failed to get IPFS config"}
+                # Get essential IPFS configuration values
+                config = await self._get_ipfs_essential_config()
+                return config
             elif backend_name == "lotus":
-                config_path = Path("~/.lotus/config.toml").expanduser()
-                if config_path.exists():
-                    # Use toml library for proper parsing
-                    import toml
-                    return {"config": toml.loads(config_path.read_text())}
-                else:
-                    return {"error": "Lotus config file not found"}
+                # Get essential Lotus configuration
+                config = await self._get_lotus_essential_config()
+                return config
             elif backend_name == "storacha":
-                return {"config": {"api_key": "mock_storacha_key", "space_id": "mock_space_id"}}
+                return {
+                    "api_endpoint": "https://up.storacha.network/bridge",
+                    "space_id": "your_space_id_here",
+                    "enabled": True,
+                    "timeout": 30
+                }
             elif backend_name == "synapse":
-                return {"config": {"private_key": "mock_private_key", "network": "calibration"}}
+                return {
+                    "network": "calibration",
+                    "private_key": "your_private_key_here",
+                    "rpc_endpoint": "https://api.calibration.node.glif.io/rpc/v1",
+                    "enabled": True
+                }
             elif backend_name == "s3":
-                return {"config": {"access_key_id": "mock_access_key", "region": "us-east-1"}}
+                # Load S3 configuration from saved file
+                config_dir = Path("config")
+                config_file = config_dir / "s3_config.json"
+                
+                if config_file.exists():
+                    try:
+                        with open(config_file, 'r') as f:
+                            saved_config = json.load(f)
+                        return {
+                            "access_key_id": saved_config.get("access_key_id", ""),
+                            "secret_access_key": saved_config.get("secret_access_key", ""),
+                            "region": saved_config.get("region", "us-east-1"),
+                            "bucket": saved_config.get("bucket", ""),
+                            "endpoint_url": saved_config.get("endpoint_url", ""),
+                            "enabled": saved_config.get("enabled", True)
+                        }
+                    except Exception as e:
+                        logger.error(f"Error loading S3 config: {e}")
+                
+                # Return defaults if no saved config
+                return {
+                    "access_key_id": "",
+                    "secret_access_key": "",
+                    "region": "us-east-1",
+                    "bucket": "",
+                    "endpoint_url": "",
+                    "enabled": True
+                }
             elif backend_name == "huggingface":
-                return {"config": {"token": "mock_hf_token", "model_cache_dir": "/tmp/hf_cache"}}
+                return {
+                    "token": "your_hf_token_here",
+                    "model_cache_dir": "/tmp/huggingface_cache",
+                    "use_auth_token": True,
+                    "enabled": True
+                }
             elif backend_name == "parquet":
-                return {"config": {"compression": "snappy", "row_group_size": 10000}}
+                return {
+                    "compression": "snappy",
+                    "row_group_size": 10000,
+                    "page_size": 1000000,
+                    "enabled": True
+                }
             elif backend_name == "ipfs_cluster":
-                return {"config": {"api_port": 9094, "replication_factor": 3}}
+                return {
+                    "api_port": 9094,
+                    "gateway_port": 8080,
+                    "replication_factor": 3,
+                    "cluster_secret": "your_cluster_secret",
+                    "enabled": True
+                }
             elif backend_name == "ipfs_cluster_follow":
-                return {"config": {"target_cluster": "mock_cluster_id"}}
+                return {
+                    "target_cluster": "your_cluster_multiaddr",
+                    "api_port": 9094,
+                    "enabled": False
+                }
             else:
                 return {"error": f"Config retrieval not implemented for {backend_name}"}
         except Exception as e:
             return {"error": str(e)}
+
+    async def _get_ipfs_essential_config(self) -> Dict[str, Any]:
+        """Get essential IPFS configuration values."""
+        try:
+            # Try to get IPFS config
+            result = subprocess.run(
+                ["ipfs", "config", "show"],
+                capture_output=True, text=True, timeout=10
+            )
+            
+            if result.returncode == 0:
+                full_config = json.loads(result.stdout)
+                
+                # Extract essential values
+                api_addr = full_config.get("Addresses", {}).get("API", "/ip4/127.0.0.1/tcp/5001")
+                gateway_addr = full_config.get("Addresses", {}).get("Gateway", "/ip4/127.0.0.1/tcp/8080")
+                peer_id = full_config.get("Identity", {}).get("PeerID", "unknown")
+                
+                # Parse addresses
+                api_url = self._parse_multiaddr_to_url(api_addr, "http")
+                gateway_url = self._parse_multiaddr_to_url(gateway_addr, "http")
+                
+                # Get storage and GC settings
+                storage_max = full_config.get("Datastore", {}).get("StorageMax", "10GB")
+                gc_period = full_config.get("Datastore", {}).get("GCPeriod", "1h")
+                storage_gc_watermark = full_config.get("Datastore", {}).get("StorageGCWatermark", 90)
+                
+                # Get network settings
+                swarm_addrs = full_config.get("Addresses", {}).get("Swarm", [])
+                enable_mdns = full_config.get("Discovery", {}).get("MDNS", {}).get("Enabled", True)
+                disable_bandwidth_metrics = full_config.get("Swarm", {}).get("DisableBandwidthMetrics", False)
+                
+                return {
+                    "api_url": api_url,
+                    "gateway_url": gateway_url,
+                    "peer_id": peer_id,
+                    "storage_max": storage_max,
+                    "gc_period": gc_period,
+                    "storage_gc_watermark": storage_gc_watermark,
+                    "enable_mdns": enable_mdns,
+                    "disable_bandwidth_metrics": disable_bandwidth_metrics,
+                    "swarm_addresses": swarm_addrs[:3],  # Show first 3 addresses
+                    "enabled": True
+                }
+            else:
+                # Return defaults if can't get config
+                return {
+                    "api_url": "http://127.0.0.1:5001",
+                    "gateway_url": "http://127.0.0.1:8080", 
+                    "peer_id": "Not available",
+                    "storage_max": "10GB",
+                    "gc_period": "1h",
+                    "storage_gc_watermark": 90,
+                    "enable_mdns": True,
+                    "disable_bandwidth_metrics": False,
+                    "swarm_addresses": [],
+                    "enabled": True
+                }
+        except Exception as e:
+            # Return defaults on any error
+            return {
+                "api_url": "http://127.0.0.1:5001",
+                "gateway_url": "http://127.0.0.1:8080",
+                "peer_id": f"Error: {str(e)}",
+                "storage_max": "10GB", 
+                "gc_period": "1h",
+                "storage_gc_watermark": 90,
+                "enable_mdns": True,
+                "disable_bandwidth_metrics": False,
+                "swarm_addresses": [],
+                "enabled": True
+            }
+
+    async def _get_lotus_essential_config(self) -> Dict[str, Any]:
+        """Get essential Lotus configuration values."""
+        try:
+            config_path = Path("~/.lotus/config.toml").expanduser()
+            if config_path.exists():
+                import toml
+                full_config = toml.loads(config_path.read_text())
+                
+                api_section = full_config.get("API", {})
+                
+                return {
+                    "api_address": api_section.get("ListenAddress", "/ip4/127.0.0.1/tcp/1234/http"),
+                    "api_timeout": api_section.get("Timeout", "30s"),
+                    "remote_tracer": api_section.get("RemoteTracer", ""),
+                    "disable_metrics": api_section.get("DisableMetrics", False),
+                    "enabled": True
+                }
+            else:
+                return {
+                    "api_address": "/ip4/127.0.0.1/tcp/1234/http",
+                    "api_timeout": "30s", 
+                    "remote_tracer": "",
+                    "disable_metrics": False,
+                    "enabled": False,
+                    "error": "Config file not found"
+                }
+        except Exception as e:
+            return {
+                "api_address": "/ip4/127.0.0.1/tcp/1234/http",
+                "api_timeout": "30s",
+                "remote_tracer": "",
+                "disable_metrics": False,
+                "enabled": False,
+                "error": str(e)
+            }
+
+    def _parse_multiaddr_to_url(self, multiaddr: str, protocol: str = "http") -> str:
+        """Parse multiaddr to HTTP URL."""
+        try:
+            # Parse multiaddr like /ip4/127.0.0.1/tcp/5001
+            parts = multiaddr.strip('/').split('/')
+            if len(parts) >= 4 and parts[0] == 'ip4' and parts[2] == 'tcp':
+                ip = parts[1]
+                port = parts[3]
+                return f"{protocol}://{ip}:{port}"
+            else:
+                return multiaddr
+        except Exception:
+            return multiaddr
 
     async def update_backend_config(self, backend_name: str, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update configuration for a backend."""
@@ -1338,6 +1750,10 @@ class BackendHealthMonitor:
                 
         except Exception as e:
             return {"error": str(e)}
+
+    async def set_backend_config(self, backend_name: str, config_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Set backend configuration (alias for update_backend_config for API compatibility)."""
+        return await self.update_backend_config(backend_name, config_data)
 
     async def _update_ipfs_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update IPFS configuration."""
@@ -1395,16 +1811,60 @@ class BackendHealthMonitor:
     async def _update_s3_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update S3 configuration."""
         try:
-            if "access_key" in config_data:
-                os.environ["AWS_ACCESS_KEY_ID"] = config_data["access_key"]
-            if "secret_key" in config_data:
-                os.environ["AWS_SECRET_ACCESS_KEY"] = config_data["secret_key"]
+            logger.info(f"Updating S3 configuration with data: {config_data}")
+            
+            # Create config directory if it doesn't exist
+            config_dir = Path("config")
+            config_dir.mkdir(exist_ok=True)
+            config_file = config_dir / "s3_config.json"
+            
+            # Load existing config or create new one
+            if config_file.exists():
+                with open(config_file, 'r') as f:
+                    existing_config = json.load(f)
+                logger.info(f"Loaded existing S3 config: {existing_config}")
+            else:
+                existing_config = {}
+                logger.info("No existing S3 config found, creating new one")
+            
+            # Update configuration with new values
+            updated_fields = []
+            if "access_key_id" in config_data:
+                existing_config["access_key_id"] = config_data["access_key_id"]
+                os.environ["AWS_ACCESS_KEY_ID"] = config_data["access_key_id"]
+                updated_fields.append("access_key_id")
+            if "secret_access_key" in config_data:
+                existing_config["secret_access_key"] = config_data["secret_access_key"]
+                os.environ["AWS_SECRET_ACCESS_KEY"] = config_data["secret_access_key"]
+                updated_fields.append("secret_access_key")
             if "region" in config_data:
+                existing_config["region"] = config_data["region"]
                 os.environ["AWS_DEFAULT_REGION"] = config_data["region"]
+                updated_fields.append("region")
+            if "bucket" in config_data:
+                existing_config["bucket"] = config_data["bucket"]
+                updated_fields.append("bucket")
+            if "endpoint_url" in config_data:
+                existing_config["endpoint_url"] = config_data["endpoint_url"]
+                updated_fields.append("endpoint_url")
+            if "enabled" in config_data:
+                existing_config["enabled"] = config_data["enabled"]
+                updated_fields.append("enabled")
                 
-            return {"success": True, "message": "S3 configuration updated"}
+            # Save configuration to file
+            with open(config_file, 'w') as f:
+                json.dump(existing_config, f, indent=2)
+                
+            logger.info(f"S3 configuration saved to {config_file}, updated fields: {updated_fields}")
+            return {
+                "success": True, 
+                "message": f"S3 configuration updated and saved. Updated: {', '.join(updated_fields)}",
+                "config_file": str(config_file),
+                "updated_fields": updated_fields
+            }
             
         except Exception as e:
+            logger.error(f"Error updating S3 config: {e}")
             return {"error": str(e)}
 
     async def restart_backend(self, backend_name: str) -> Dict[str, Any]:
@@ -1429,6 +1889,16 @@ class BackendHealthMonitor:
                 subprocess.Popen(["lotus", "daemon"])
                 
                 return {"success": True, "message": "Lotus daemon restart initiated"}
+                
+            elif backend_name == "synapse":
+                # For Synapse SDK, restart means reinitializing the environment
+                try:
+                    from ipfs_kit_py.synapse_kit import synapse_kit
+                    kit = synapse_kit()
+                    result = kit.restart()
+                    return result
+                except Exception as e:
+                    return {"error": f"Failed to restart Synapse: {str(e)}"}
                 
             else:
                 return {"error": f"Restart not implemented for {backend_name}"}

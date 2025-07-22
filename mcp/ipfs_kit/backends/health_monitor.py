@@ -182,6 +182,26 @@ class BackendHealthMonitor:
                 "metrics": {},
                 "errors": [],
                 "libraries": ["pyarrow", "pandas"]
+            },
+            "libp2p": {
+                "name": "LibP2P Peer Network",
+                "status": "unknown",
+                "health": "unknown",
+                "last_check": None,
+                "metrics": {},
+                "errors": [],
+                "peer_manager": None,
+                "detailed_info": {
+                    "peer_id": "unknown",
+                    "total_peers": 0,
+                    "connected_peers": 0,
+                    "bootstrap_peers": 0,
+                    "protocols": [],
+                    "discovery_active": False,
+                    "files_accessible": 0,
+                    "pins_accessible": 0,
+                    "listen_addresses": []
+                }
             }
         }
         
@@ -261,6 +281,8 @@ class BackendHealthMonitor:
                 backend = await self._check_huggingface_health(backend)
             elif backend_name == "parquet":
                 backend = await self._check_parquet_health(backend)
+            elif backend_name == "libp2p":
+                backend = await self._check_libp2p_health(backend)
             
             # Log the result
             status = backend.get("status", "unknown")
@@ -770,34 +792,126 @@ class BackendHealthMonitor:
         if backend_name not in self.backends:
             return {"error": f"Backend {backend_name} not found"}
         
-        client = self.backends[backend_name]
-        
         try:
-            async with client:
-                config = await client.get_config()
-                return {"backend": backend_name, "config": config}
+            # Return stored configuration or defaults
+            if backend_name in self.backend_configs:
+                return self.backend_configs[backend_name]
+            else:
+                # Return default configuration based on backend type
+                return self._get_default_config(backend_name)
         except Exception as e:
+            logger.error(f"Error getting config for {backend_name}: {e}")
             return {"error": str(e)}
+
+    def _get_default_config(self, backend_name: str) -> Dict[str, Any]:
+        """Get default configuration for a backend."""
+        defaults = {
+            "s3": {
+                "access_key_id": "",
+                "secret_access_key": "",
+                "bucket": "",
+                "region": "us-east-1",
+                "endpoint_url": "",
+                "enabled": True
+            },
+            "ipfs": {
+                "api_url": "http://127.0.0.1:5001",
+                "gateway_url": "http://127.0.0.1:8080",
+                "enabled": True
+            },
+            "huggingface": {
+                "token": "",
+                "model_cache_dir": "/tmp/huggingface_cache",
+                "use_auth_token": True,
+                "enabled": True
+            }
+        }
+        return defaults.get(backend_name, {"enabled": True})
     
     async def set_backend_config(self, backend_name: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Set configuration for a backend."""
         if backend_name not in self.backends:
             return {"error": f"Backend {backend_name} not found"}
         
-        client = self.backends[backend_name]
-        
         try:
-            async with client:
-                success = await client.set_config(config)
+            logger.info(f"Setting config for {backend_name}: {config}")
+            
+            # Apply backend-specific configuration logic
+            result = await self._apply_backend_config(backend_name, config)
+            
+            if result.get("success", True):  # Default to success if not specified
+                # Update stored config
+                self.backend_configs[backend_name] = config.copy()
+                self._save_backend_configs()
                 
-                if success:
-                    # Update stored config
-                    self.backend_configs[backend_name].update(config)
-                    self._save_backend_configs()
-                    
-                    return {"success": True, "message": f"Configuration updated for {backend_name}"}
-                else:
-                    return {"success": False, "error": "Failed to update configuration"}
+                return {"success": True, "message": f"Configuration updated for {backend_name}"}
+            else:
+                return result
+        except Exception as e:
+            logger.error(f"Error setting config for {backend_name}: {e}")
+            return {"error": str(e)}
+
+    async def _apply_backend_config(self, backend_name: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply configuration changes for specific backend types."""
+        try:
+            if backend_name == "s3":
+                return await self._apply_s3_config(config)
+            elif backend_name == "ipfs":
+                return await self._apply_ipfs_config(config)
+            elif backend_name == "huggingface":
+                return await self._apply_huggingface_config(config)
+            else:
+                # For other backends, just store the config
+                return {"success": True, "message": f"Configuration stored for {backend_name}"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def _apply_s3_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply S3-specific configuration."""
+        try:
+            # Create config directory if it doesn't exist
+            config_dir = self.config_dir / "backends"
+            config_dir.mkdir(exist_ok=True)
+            config_file = config_dir / "s3_config.json"
+            
+            # Set environment variables
+            if config.get("access_key_id"):
+                os.environ["AWS_ACCESS_KEY_ID"] = config["access_key_id"]
+            if config.get("secret_access_key"):
+                os.environ["AWS_SECRET_ACCESS_KEY"] = config["secret_access_key"]
+            if config.get("region"):
+                os.environ["AWS_DEFAULT_REGION"] = config["region"]
+                
+            # Save to file for persistence
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+                
+            logger.info(f"S3 configuration applied and saved to {config_file}")
+            return {"success": True, "message": "S3 configuration applied successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error applying S3 config: {e}")
+            return {"error": str(e)}
+
+    async def _apply_ipfs_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply IPFS-specific configuration."""
+        # For now, just store the config
+        return {"success": True, "message": "IPFS configuration stored"}
+
+    async def _apply_huggingface_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply HuggingFace-specific configuration."""
+        try:
+            if config.get("token"):
+                os.environ["HUGGINGFACE_HUB_TOKEN"] = config["token"]
+                
+                # Also save to HF config file
+                hf_config_dir = Path("~/.cache/huggingface").expanduser()
+                hf_config_dir.mkdir(parents=True, exist_ok=True)
+                
+                token_file = hf_config_dir / "token"
+                token_file.write_text(config["token"])
+                
+            return {"success": True, "message": "HuggingFace configuration applied"}
         except Exception as e:
             return {"error": str(e)}
     
@@ -1132,6 +1246,86 @@ class BackendHealthMonitor:
                 "timestamp": datetime.now().isoformat(),
                 "error": str(e)
             })
+            
+        backend["last_check"] = datetime.now().isoformat()
+        return backend
+    async def _check_libp2p_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
+        """Check libp2p peer network health."""
+        try:
+            # Initialize unified peer manager if not already done
+            if not backend.get("peer_manager"):
+                from ipfs_kit_py.libp2p.peer_manager import get_peer_manager
+                peer_manager = get_peer_manager(config_dir=self.config_dir / "libp2p")
+                backend["peer_manager"] = peer_manager
+                # Start the peer manager if not already started
+                if not peer_manager.discovery_active:
+                    await peer_manager.start()
+            else:
+                peer_manager = backend["peer_manager"]
+                
+            # Get peer statistics from unified manager
+            stats = peer_manager.get_peer_statistics()
+            
+            # Update backend info
+            backend["detailed_info"].update({
+                "peer_id": str(peer_manager.host.get_id()) if peer_manager.host else "unknown",
+                "total_peers": stats["total_peers"],
+                "connected_peers": stats["connected_peers"],
+                "bootstrap_peers": stats["bootstrap_peers"],
+                "protocols": stats["protocols_supported"],
+                "discovery_active": stats["discovery_active"],
+                "files_accessible": stats["total_files"],
+                "pins_accessible": stats["total_pins"]
+            })
+            
+            # Get listen addresses if host is available
+            if peer_manager.host:
+                try:
+                    listen_addrs = []
+                    for addr in peer_manager.host.get_addrs():
+                        listen_addrs.append(str(addr))
+                    backend["detailed_info"]["listen_addresses"] = listen_addrs
+                except Exception:
+                    backend["detailed_info"]["listen_addresses"] = []
+            
+            # Update metrics
+            backend["metrics"] = {
+                "peer_discovery": {
+                    "total_peers": stats["total_peers"],
+                    "connected_peers": stats["connected_peers"],
+                    "bootstrap_peers": stats["bootstrap_peers"],
+                    "discovery_active": stats["discovery_active"]
+                },
+                "network_data": {
+                    "files_accessible": stats["total_files"],
+                    "pins_accessible": stats["total_pins"],
+                    "protocols_count": len(stats["protocols_supported"])
+                },
+                "connectivity": {
+                    "host_active": peer_manager.host is not None,
+                    "protocols_supported": stats["protocols_supported"]
+                }
+            }
+            
+            # Determine status based on peer manager state
+            if peer_manager.host and stats["total_peers"] > 0:
+                backend["status"] = "running"
+                backend["health"] = "healthy"
+            elif peer_manager.host:
+                backend["status"] = "running"
+                backend["health"] = "degraded"  # Host running but no peers
+            else:
+                backend["status"] = "stopped"
+                backend["health"] = "unhealthy"
+                
+        except Exception as e:
+            backend["status"] = "error"
+            backend["health"] = "unhealthy"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            })
+            logger.error(f"Error checking libp2p health: {e}")
             
         backend["last_check"] = datetime.now().isoformat()
         return backend

@@ -341,7 +341,7 @@ class EnhancedDaemonManager:
             return result
     
     def _start_ipfs_cluster_service(self) -> Dict[str, Any]:
-        """Start the IPFS cluster service with enhanced error handling."""
+        """Start the IPFS cluster service with enhanced error handling and lockfile management."""
         result = {"success": False, "error": None, "status": None}
         
         try:
@@ -349,6 +349,11 @@ class EnhancedDaemonManager:
             if not self._is_daemon_running("ipfs"):
                 result["error"] = "IPFS daemon must be running before starting cluster service"
                 return result
+            
+            # Handle lockfile cleanup and daemon lifecycle management
+            lockfile_result = self._manage_cluster_lockfile_and_daemon()
+            if not lockfile_result["success"]:
+                logger.warning(f"Lockfile management issue: {lockfile_result['error']}")
             
             # Check if we have cluster service manager
             if self.ipfs_kit and hasattr(self.ipfs_kit, 'ipfs_cluster_service'):
@@ -789,3 +794,132 @@ class EnhancedDaemonManager:
             logger.error(traceback.format_exc())
             result["errors"].append(error_msg)
             return result
+
+    def _manage_cluster_lockfile_and_daemon(self) -> Dict[str, Any]:
+        """
+        Manage IPFS cluster lockfile and daemon lifecycle.
+        
+        Logic:
+        1. If lockfile exists and no daemon is running -> delete lockfile, start daemon
+        2. If daemon is running -> test API, if API fails -> kill daemon, delete lockfile, restart daemon
+        3. If no lockfile and no daemon -> normal startup
+        """
+        result = {"success": True, "action": "none", "error": None}
+        
+        try:
+            # Define paths
+            cluster_config_dir = Path.home() / ".ipfs-cluster"
+            lockfile_path = cluster_config_dir / "cluster.lock"
+            project_bin = Path(__file__).parent / "bin"
+            
+            # Add project bin to PATH for cluster commands
+            os.environ["PATH"] = f"{project_bin}:{os.environ.get('PATH', '')}"
+            
+            # Check if lockfile exists
+            lockfile_exists = lockfile_path.exists()
+            
+            # Check if daemon is running
+            daemon_running = self._is_cluster_daemon_running()
+            
+            # Check API health if daemon is running
+            api_healthy = False
+            if daemon_running:
+                api_healthy = self._test_cluster_api_health()
+            
+            logger.info(f"Cluster state: lockfile={lockfile_exists}, daemon={daemon_running}, api_healthy={api_healthy}")
+            
+            # Case 1: Lockfile exists but no daemon running
+            if lockfile_exists and not daemon_running:
+                logger.info("Stale lockfile detected - removing lockfile")
+                try:
+                    lockfile_path.unlink()
+                    result["action"] = "removed_stale_lockfile"
+                    logger.info("✓ Removed stale cluster lockfile")
+                except Exception as e:
+                    result["error"] = f"Failed to remove stale lockfile: {e}"
+                    return result
+            
+            # Case 2: Daemon running but API unhealthy
+            elif daemon_running and not api_healthy:
+                logger.warning("Cluster daemon running but API unhealthy - restarting daemon")
+                try:
+                    # Kill the daemon
+                    self._kill_cluster_daemon()
+                    time.sleep(2)  # Give it time to shut down
+                    
+                    # Remove lockfile if it exists
+                    if lockfile_path.exists():
+                        lockfile_path.unlink()
+                        logger.info("✓ Removed lockfile after killing unhealthy daemon")
+                    
+                    result["action"] = "restarted_unhealthy_daemon"
+                    logger.info("✓ Killed unhealthy cluster daemon and cleaned up lockfile")
+                    
+                except Exception as e:
+                    result["error"] = f"Failed to restart unhealthy daemon: {e}"
+                    return result
+            
+            # Case 3: Everything looks good
+            elif daemon_running and api_healthy:
+                result["action"] = "daemon_healthy"
+                logger.info("✓ Cluster daemon is running and healthy")
+            
+            # Case 4: Clean state - no lockfile, no daemon
+            else:
+                result["action"] = "clean_state"
+                logger.info("✓ Clean state - ready for normal startup")
+            
+            return result
+            
+        except Exception as e:
+            result["success"] = False
+            result["error"] = f"Lockfile management failed: {e}"
+            logger.error(f"Lockfile management error: {e}")
+            logger.error(traceback.format_exc())
+            return result
+    
+    def _is_cluster_daemon_running(self) -> bool:
+        """Check if IPFS cluster daemon is running."""
+        try:
+            result = subprocess.run(
+                ["pgrep", "-f", "ipfs-cluster-service"],
+                capture_output=True, text=True, timeout=10
+            )
+            return result.returncode == 0 and result.stdout.strip()
+        except Exception as e:
+            logger.error(f"Error checking cluster daemon: {e}")
+            return False
+    
+    def _test_cluster_api_health(self) -> bool:
+        """Test if the cluster API is responding."""
+        try:
+            result = subprocess.run(
+                ["curl", "-s", "--max-time", "3", "http://127.0.0.1:9094/api/v0/version"],
+                capture_output=True, text=True, timeout=5
+            )
+            # API is healthy if curl succeeds and returns JSON-like content
+            return result.returncode == 0 and ("{" in result.stdout or "version" in result.stdout.lower())
+        except Exception as e:
+            logger.error(f"Error testing cluster API: {e}")
+            return False
+    
+    def _kill_cluster_daemon(self) -> bool:
+        """Kill running cluster daemon processes."""
+        try:
+            # Try graceful shutdown first
+            subprocess.run(
+                ["pkill", "-TERM", "-f", "ipfs-cluster-service"],
+                timeout=10
+            )
+            time.sleep(3)
+            
+            # Force kill if still running
+            subprocess.run(
+                ["pkill", "-KILL", "-f", "ipfs-cluster-service"],
+                timeout=5
+            )
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error killing cluster daemon: {e}")
+            return False

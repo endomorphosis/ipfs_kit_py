@@ -817,6 +817,315 @@
             height: 100px;
             resize: vertical;
         }
+        
+        /* Peer Management Styles */
+        .peer-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 14px;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+        
+        .peer-stats-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .peer-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 6px;
+            border-left: 4px solid #4299e1;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #718096;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-top: 5px;
+        }
+        
+        .peer-list-container,
+        .peer-content-container {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .peer-list-header,
+        .peer-content-header {
+            background: #f7fafc;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .peer-list-header h4,
+        .peer-content-header h4 {
+            margin: 0;
+            color: #2d3748;
+            font-weight: 600;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .btn-pagination {
+            padding: 6px 12px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-pagination:hover {
+            background: #3182ce;
+        }
+        
+        .btn-pagination:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+        
+        .page-info {
+            font-size: 14px;
+            color: #718096;
+            font-weight: 500;
+        }
+        
+        .peer-list,
+        .peer-content {
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .peer-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .peer-item:hover {
+            background: #edf2f7;
+            border-color: #4299e1;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .peer-item.connected {
+            border-left: 4px solid #48bb78;
+        }
+        
+        .peer-item.disconnected {
+            border-left: 4px solid #ed8936;
+        }
+        
+        .peer-item.discovered {
+            border-left: 4px solid #4299e1;
+        }
+        
+        .peer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .peer-id {
+            font-family: monospace;
+            font-size: 12px;
+            color: #4a5568;
+            background: #edf2f7;
+            padding: 4px 8px;
+            border-radius: 4px;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .peer-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .peer-status.connected {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .peer-status.disconnected {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        .peer-status.discovered {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+        
+        .peer-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .peer-detail {
+            font-size: 12px;
+        }
+        
+        .peer-detail-label {
+            color: #718096;
+            font-weight: 600;
+        }
+        
+        .peer-detail-value {
+            color: #2d3748;
+            margin-left: 5px;
+        }
+        
+        .peer-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .btn-peer-action {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-connect {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-connect:hover {
+            background: #38a169;
+        }
+        
+        .btn-disconnect {
+            background: #ed8936;
+            color: white;
+        }
+        
+        .btn-disconnect:hover {
+            background: #dd6b20;
+        }
+        
+        .btn-query {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .btn-query:hover {
+            background: #3182ce;
+        }
+        
+        .content-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .content-hash {
+            font-family: monospace;
+            font-size: 12px;
+            color: #4a5568;
+            background: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .content-metadata {
+            font-size: 12px;
+            color: #718096;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
@@ -833,6 +1142,7 @@
                 <button class="tab-button" onclick="switchTab('vfs', event)">💾 VFS Observatory</button>
                 <button class="tab-button" onclick="switchTab('vfs-journal', event)">📓 VFS Journal</button>
                 <button class="tab-button" onclick="switchTab('vector-kb', event)">🧠 Vector & KB</button>
+                <button class="tab-button" onclick="switchTab('peer-management', event)">🌐 Peer Management</button>
                 <button class="tab-button" onclick="switchTab('configuration', event)">⚙️ Configuration</button>
                 <button class="tab-button" onclick="switchTab('filemanager', event)">📁 File Manager</button>
                 <button class="tab-button" onclick="switchTab('backends', event)">📦 Backends</button>
@@ -1128,6 +1438,87 @@
                 </div>
             </div>
 
+            <div id="peer-management" class="tab-content">
+                <div class="tab-header">
+                    <h3>🌐 Peer Management & Discovery</h3>
+                    <p class="tab-description">Discover, connect, and manage libp2p peers with integrated IPFS/Cluster bootstrapping</p>
+                </div>
+                
+                <div class="peer-controls">
+                    <div class="control-group">
+                        <button onclick="peerManager.discoverPeers()" class="btn-primary">🔍 Discover Peers</button>
+                        <button onclick="peerManager.refreshAll()" class="btn-secondary">🔄 Refresh All</button>
+                        <button onclick="peerManager.toggleAutoRefresh()" id="peerAutoRefreshBtn" class="btn-toggle">⏸️ Auto-Refresh</button>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="peerSearch">🔍 Search Peers:</label>
+                        <input type="text" id="peerSearch" placeholder="Search by peer ID, address, or metadata..." 
+                               onkeyup="if(event.key==='Enter') peerManager.applyFilters()">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="peerStatusFilter">📊 Status Filter:</label>
+                        <select id="peerStatusFilter" onchange="peerManager.applyFilters()">
+                            <option value="">All Peers</option>
+                            <option value="connected">Connected</option>
+                            <option value="disconnected">Disconnected</option>
+                            <option value="discovered">Discovered</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="peer-stats-container">
+                    <div class="stat-card">
+                        <h4>📊 Peer Statistics</h4>
+                        <div id="peerStats" class="peer-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Total Peers:</span>
+                                <span id="totalPeers" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Connected:</span>
+                                <span id="connectedPeers" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Discovered:</span>
+                                <span id="discoveredPeers" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">With Content:</span>
+                                <span id="peersWithContent" class="stat-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="peer-list-container">
+                    <div class="peer-list-header">
+                        <h4>🌐 Discovered Peers</h4>
+                        <div class="pagination-controls">
+                            <button onclick="peerManager.previousPage()" id="prevPageBtn" class="btn-pagination">← Previous</button>
+                            <span id="pageInfo" class="page-info">Page 1 of 1</span>
+                            <button onclick="peerManager.nextPage()" id="nextPageBtn" class="btn-pagination">Next →</button>
+                        </div>
+                    </div>
+                    
+                    <div id="peerList" class="peer-list">
+                        <div class="loading">Discovering peers...</div>
+                    </div>
+                </div>
+                
+                <div class="peer-content-container">
+                    <div class="peer-content-header">
+                        <h4>📁 Peer Content & Metadata</h4>
+                        <button onclick="peerManager.refreshContent()" class="btn-secondary">🔄 Refresh Content</button>
+                    </div>
+                    
+                    <div id="peerContent" class="peer-content">
+                        <div class="loading">Loading peer content...</div>
+                    </div>
+                </div>
+            </div>
+
             <div id="logs" class="tab-content">
                 <div class="tab-header">
                     <h3>📋 System Activity Logs</h3>
@@ -1278,5 +1669,6 @@
     
     <script src="/static/js/dashboard-core.js"></script>
     <script src="/static/js/file_manager.js"></script>
+    <script src="/static/js/peer-management.js"></script>
 </body>
 </html>

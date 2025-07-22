@@ -1910,21 +1910,452 @@ async function restartBackend(backendName) {
     console.log('restartBackend: Restarting backend:', backendName);
     if (confirm(`Are you sure you want to restart ${backendName}?`)) {
         try {
-            const response = await dashboardAPI.fetch(`/api/backends/${backendName}/restart`, { method: 'POST' });
-            if (response.ok) {
-                alert(`${backendName} restart initiated.`);
+            const data = await dashboardAPI.fetch(`/api/backends/${backendName}/restart`, { method: 'POST' });
+            if (data.success) {
+                alert(`${backendName} restart initiated successfully.`);
                 setTimeout(refreshData, 2000); // Refresh after a delay
                 console.log('restartBackend: Restart initiated successfully.');
             } else {
-                const errorData = await response.json();
-                alert(`Error restarting backend: ${errorData.error || response.statusText}`);
-                console.error('restartBackend: Error restarting backend:', errorData);
+                alert(`Error restarting backend: ${data.error || 'Unknown error'}`);
+                console.error('restartBackend: Error restarting backend:', data);
             }
         } catch (error) {
             alert(`Error restarting backend: ${error.message}`);
             console.error('restartBackend: Error restarting backend (fetch failed):', error);
         }
     }
+}
+
+async function startBackend(backendName) {
+    console.log('startBackend: Starting backend:', backendName);
+    if (confirm(`Are you sure you want to start ${backendName}?`)) {
+        try {
+            const data = await dashboardAPI.fetch(`/api/backends/${backendName}/start`, { method: 'POST' });
+            if (data.success) {
+                alert(`${backendName} start initiated successfully.`);
+                setTimeout(refreshData, 2000); // Refresh after a delay
+                console.log('startBackend: Start initiated successfully.');
+            } else {
+                alert(`Error starting backend: ${data.error || 'Unknown error'}`);
+                console.error('startBackend: Error starting backend:', data);
+            }
+        } catch (error) {
+            alert(`Error starting backend: ${error.message}`);
+            console.error('startBackend: Error starting backend (fetch failed):', error);
+        }
+    }
+}
+
+async function stopBackend(backendName) {
+    console.log('stopBackend: Stopping backend:', backendName);
+    if (confirm(`Are you sure you want to stop ${backendName}? This may affect system functionality.`)) {
+        try {
+            const data = await dashboardAPI.fetch(`/api/backends/${backendName}/stop`, { method: 'POST' });
+            if (data.success) {
+                alert(`${backendName} stop initiated successfully.`);
+                setTimeout(refreshData, 2000); // Refresh after a delay
+                console.log('stopBackend: Stop initiated successfully.');
+            } else {
+                alert(`Error stopping backend: ${data.error || 'Unknown error'}`);
+                console.error('stopBackend: Error stopping backend:', data);
+            }
+        } catch (error) {
+            alert(`Error stopping backend: ${error.message}`);
+            console.error('stopBackend: Error stopping backend (fetch failed):', error);
+        }
+    }
+}
+
+async function configureBackend(backendName) {
+    console.log('configureBackend: Opening configuration for backend:', backendName);
+    try {
+        // Fetch current configuration
+        const data = await dashboardAPI.fetch(`/api/backends/${backendName}/config`);
+        if (data.success) {
+            showBackendConfigModal(backendName, data.config);
+        } else {
+            alert(`Error loading configuration for ${backendName}: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        alert(`Error loading configuration: ${error.message}`);
+        console.error('configureBackend: Error loading configuration:', error);
+    }
+}
+
+async function viewBackendLogs(backendName) {
+    console.log('viewBackendLogs: Opening logs for backend:', backendName);
+    try {
+        // Fetch recent logs for this backend
+        const data = await dashboardAPI.fetch(`/api/backends/${backendName}/logs?limit=100`);
+        if (data.success) {
+            showBackendLogsModal(backendName, data.logs);
+        } else {
+            alert(`Error loading logs for ${backendName}: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        alert(`Error loading logs: ${error.message}`);
+        console.error('viewBackendLogs: Error loading logs:', error);
+    }
+}
+
+function showBackendConfigModal(backendName, config) {
+    const modal = document.getElementById('configModal');
+    const title = document.getElementById('configModalTitle');
+    const content = document.getElementById('configModalContent');
+    
+    title.textContent = `Configure ${backendName}`;
+    
+    // Generate configuration form based on backend type and actual config data
+    let configHTML = `
+        <form id="backendConfigForm" onsubmit="saveBackendConfig('${backendName}'); return false;">
+    `;
+    
+    // Add different config fields based on backend type
+    if (backendName === 'ipfs') {
+        configHTML += `
+            <div class="config-section">
+                <h4>Connection</h4>
+                <div class="form-group">
+                    <label for="ipfs-api-url">API Address</label>
+                    <input type="text" id="ipfs-api-url" value="${config.api_url || 'http://127.0.0.1:5001'}" class="form-control">
+                    <small class="form-text text-muted">IPFS API multiaddr</small>
+                </div>
+                <div class="form-group">
+                    <label for="ipfs-gateway-url">Gateway Address</label>
+                    <input type="text" id="ipfs-gateway-url" value="${config.gateway_url || 'http://127.0.0.1:8080'}" class="form-control">
+                    <small class="form-text text-muted">IPFS Gateway multiaddr</small>
+                </div>
+                <div class="form-group">
+                    <label for="ipfs-peer-id">Peer ID</label>
+                    <input type="text" id="ipfs-peer-id" value="${config.peer_id || 'Loading...'}" class="form-control" readonly>
+                    <small class="form-text text-muted">IPFS node peer ID (read-only)</small>
+                </div>
+            </div>
+            <div class="config-section">
+                <h4>Storage</h4>
+                <div class="form-group">
+                    <label for="ipfs-storage-max">Storage Max</label>
+                    <input type="text" id="ipfs-storage-max" value="${config.storage_max || '10GB'}" class="form-control">
+                    <small class="form-text text-muted">Maximum storage size</small>
+                </div>
+                <div class="form-group">
+                    <label for="ipfs-gc-period">GC Period</label>
+                    <input type="text" id="ipfs-gc-period" value="${config.gc_period || '1h'}" class="form-control">
+                    <small class="form-text text-muted">Garbage collection period</small>
+                </div>
+                <div class="form-group">
+                    <label for="ipfs-gc-watermark">GC Watermark (%)</label>
+                    <input type="number" id="ipfs-gc-watermark" value="${config.storage_gc_watermark || 90}" class="form-control" min="1" max="100">
+                    <small class="form-text text-muted">Storage threshold for GC</small>
+                </div>
+            </div>
+            <div class="config-section">
+                <h4>Network</h4>
+                <div class="form-group">
+                    <label for="ipfs-enable-mdns">
+                        <input type="checkbox" id="ipfs-enable-mdns" ${config.enable_mdns ? 'checked' : ''}>
+                        Enable mDNS
+                    </label>
+                    <small class="form-text text-muted">Enable local network discovery</small>
+                </div>
+                <div class="form-group">
+                    <label for="ipfs-disable-bandwidth">
+                        <input type="checkbox" id="ipfs-disable-bandwidth" ${config.disable_bandwidth_metrics ? 'checked' : ''}>
+                        Disable Bandwidth Metrics
+                    </label>
+                    <small class="form-text text-muted">Disable bandwidth tracking</small>
+                </div>
+            </div>
+            <div class="config-section">
+                <h4>Raw Configuration (Advanced)</h4>
+                <div class="form-group">
+                    <textarea id="ipfs-raw-config" class="form-control" rows="6" placeholder="Advanced users can edit raw configuration here...">${JSON.stringify(config, null, 2)}</textarea>
+                </div>
+            </div>
+        `;
+    } else if (backendName === 's3') {
+        configHTML += `
+            <div class="config-section">
+                <h4>AWS S3 Configuration</h4>
+                <div class="form-group">
+                    <label for="s3-access-key">Access Key ID</label>
+                    <input type="text" id="s3-access-key" value="${config.access_key_id || ''}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="s3-secret-key">Secret Access Key</label>
+                    <input type="password" id="s3-secret-key" value="${config.secret_access_key || ''}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="s3-bucket">Bucket Name</label>
+                    <input type="text" id="s3-bucket" value="${config.bucket || ''}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="s3-region">Region</label>
+                    <input type="text" id="s3-region" value="${config.region || 'us-east-1'}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="s3-endpoint-url">Endpoint URL (Optional)</label>
+                    <input type="text" id="s3-endpoint-url" value="${config.endpoint_url || ''}" class="form-control" placeholder="https://s3.amazonaws.com">
+                </div>
+                <div class="form-group">
+                    <label for="s3-enabled">
+                        <input type="checkbox" id="s3-enabled" ${config.enabled ? 'checked' : ''}>
+                        Enable S3 Backend
+                    </label>
+                </div>
+            </div>
+        `;
+    } else if (backendName === 'huggingface') {
+        configHTML += `
+            <div class="config-section">
+                <h4>Hugging Face Configuration</h4>
+                <div class="form-group">
+                    <label for="hf-token">API Token</label>
+                    <input type="password" id="hf-token" value="${config.token || ''}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="hf-cache-dir">Model Cache Directory</label>
+                    <input type="text" id="hf-cache-dir" value="${config.model_cache_dir || '/tmp/huggingface_cache'}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="hf-use-auth">
+                        <input type="checkbox" id="hf-use-auth" ${config.use_auth_token ? 'checked' : ''}>
+                        Use Authentication Token
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="hf-enabled">
+                        <input type="checkbox" id="hf-enabled" ${config.enabled ? 'checked' : ''}>
+                        Enable Hugging Face Backend
+                    </label>
+                </div>
+            </div>
+        `;
+    } else if (backendName === 'synapse') {
+        configHTML += `
+            <div class="config-section">
+                <h4>Synapse Configuration</h4>
+                <div class="form-group">
+                    <label for="synapse-network">Network</label>
+                    <select id="synapse-network" class="form-control">
+                        <option value="calibration" ${config.network === 'calibration' ? 'selected' : ''}>Calibration (Testnet)</option>
+                        <option value="mainnet" ${config.network === 'mainnet' ? 'selected' : ''}>Mainnet</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="synapse-private-key">Private Key</label>
+                    <input type="password" id="synapse-private-key" value="${config.private_key || ''}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="synapse-rpc">RPC Endpoint</label>
+                    <input type="text" id="synapse-rpc" value="${config.rpc_endpoint || ''}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="synapse-enabled">
+                        <input type="checkbox" id="synapse-enabled" ${config.enabled ? 'checked' : ''}>
+                        Enable Synapse Backend
+                    </label>
+                </div>
+            </div>
+        `;
+    } else if (backendName === 'storacha') {
+        configHTML += `
+            <div class="config-section">
+                <h4>Storacha Configuration</h4>
+                <div class="form-group">
+                    <label for="storacha-endpoint">API Endpoint</label>
+                    <input type="text" id="storacha-endpoint" value="${config.api_endpoint || ''}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="storacha-space-id">Space ID</label>
+                    <input type="text" id="storacha-space-id" value="${config.space_id || ''}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="storacha-timeout">Timeout (seconds)</label>
+                    <input type="number" id="storacha-timeout" value="${config.timeout || 30}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="storacha-enabled">
+                        <input type="checkbox" id="storacha-enabled" ${config.enabled ? 'checked' : ''}>
+                        Enable Storacha Backend
+                    </label>
+                </div>
+            </div>
+        `;
+    } else {
+        // Generic configuration for other backends
+        configHTML += `
+            <div class="config-section">
+                <h4>${backendName} Configuration</h4>
+                <div class="form-group">
+                    <label for="generic-enabled">
+                        <input type="checkbox" id="generic-enabled" ${config.enabled ? 'checked' : ''}>
+                        Enable Backend
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="generic-config">Configuration (JSON)</label>
+                    <textarea id="generic-config" class="form-control" rows="10">${JSON.stringify(config, null, 2)}</textarea>
+                </div>
+            </div>
+        `;
+    }
+    
+    configHTML += `
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Configuration</button>
+                <button type="button" class="btn btn-secondary" onclick="closeConfigModal()">Cancel</button>
+            </div>
+        </form>
+    `;
+    
+    content.innerHTML = configHTML;
+    modal.style.display = 'block';
+}
+
+function showBackendLogsModal(backendName, logs) {
+    const modal = document.getElementById('logsModal');
+    const title = document.getElementById('logsModalTitle');
+    const content = document.getElementById('logsModalContent');
+    
+    title.textContent = `${backendName} Logs`;
+    
+    let logsHTML = `
+        <div class="logs-viewer">
+            <div class="logs-header">
+                <h4>Recent Activity (Last 100 entries)</h4>
+                <button onclick="refreshBackendLogs('${backendName}')" class="btn btn-primary">🔄 Refresh</button>
+            </div>
+            <div class="logs-content">
+    `;
+    
+    if (logs && logs.length > 0) {
+        logs.forEach(log => {
+            const timestamp = new Date(log.timestamp || Date.now()).toLocaleString();
+            const level = log.level || 'INFO';
+            logsHTML += `
+                <div class="log-entry ${level}">
+                    <span class="log-time">${timestamp}</span>
+                    <span class="log-level">[${level}]</span>
+                    <span class="log-message">${log.message || log}</span>
+                </div>
+            `;
+        });
+    } else {
+        logsHTML += '<div class="log-entry INFO">No recent log entries found.</div>';
+    }
+    
+    logsHTML += `
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = logsHTML;
+    modal.style.display = 'block';
+}
+
+async function saveBackendConfig(backendName) {
+    console.log('saveBackendConfig: Saving configuration for backend:', backendName);
+    try {
+        let configData = {};
+        
+        // Collect configuration data based on backend type
+        if (backendName === 'ipfs') {
+            configData = {
+                api_url: document.getElementById('ipfs-api-url').value,
+                gateway_url: document.getElementById('ipfs-gateway-url').value,
+                peer_id: document.getElementById('ipfs-peer-id').value,
+                storage_max: document.getElementById('ipfs-storage-max').value,
+                gc_period: document.getElementById('ipfs-gc-period').value,
+                storage_gc_watermark: parseInt(document.getElementById('ipfs-gc-watermark').value),
+                enable_mdns: document.getElementById('ipfs-enable-mdns').checked,
+                disable_bandwidth_metrics: document.getElementById('ipfs-disable-bandwidth').checked,
+                enabled: true
+            };
+        } else if (backendName === 's3') {
+            // Add null checks for S3 form elements
+            const accessKeyEl = document.getElementById('s3-access-key');
+            const secretKeyEl = document.getElementById('s3-secret-key');
+            const bucketEl = document.getElementById('s3-bucket');
+            const regionEl = document.getElementById('s3-region');
+            const endpointEl = document.getElementById('s3-endpoint-url');
+            const enabledEl = document.getElementById('s3-enabled');
+            
+            if (!accessKeyEl || !secretKeyEl || !bucketEl || !regionEl || !enabledEl) {
+                throw new Error('S3 configuration form elements not found');
+            }
+            
+            configData = {
+                access_key_id: accessKeyEl.value,
+                secret_access_key: secretKeyEl.value,
+                bucket: bucketEl.value,
+                region: regionEl.value,
+                endpoint_url: endpointEl ? endpointEl.value : '',
+                enabled: enabledEl.checked
+            };
+        } else if (backendName === 'huggingface') {
+            configData = {
+                token: document.getElementById('hf-token').value,
+                model_cache_dir: document.getElementById('hf-cache-dir').value,
+                use_auth_token: document.getElementById('hf-use-auth').checked,
+                enabled: document.getElementById('hf-enabled').checked
+            };
+        } else if (backendName === 'synapse') {
+            configData = {
+                network: document.getElementById('synapse-network').value,
+                private_key: document.getElementById('synapse-private-key').value,
+                rpc_endpoint: document.getElementById('synapse-rpc').value,
+                enabled: document.getElementById('synapse-enabled').checked
+            };
+        } else if (backendName === 'storacha') {
+            configData = {
+                api_endpoint: document.getElementById('storacha-endpoint').value,
+                space_id: document.getElementById('storacha-space-id').value,
+                timeout: parseInt(document.getElementById('storacha-timeout').value),
+                enabled: document.getElementById('storacha-enabled').checked
+            };
+        } else {
+            // Generic configuration
+            const enabled = document.getElementById('generic-enabled')?.checked || false;
+            const configText = document.getElementById('generic-config')?.value || '{}';
+            try {
+                configData = JSON.parse(configText);
+                configData.enabled = enabled;
+            } catch (e) {
+                alert('Invalid JSON configuration');
+                return;
+            }
+        }
+        
+        const data = await dashboardAPI.fetch(`/api/backends/${backendName}/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(configData)
+        });
+        
+        if (data.success) {
+            alert(`Configuration saved successfully for ${backendName}`);
+            closeConfigModal();
+            setTimeout(refreshData, 1000); // Refresh after a delay
+        } else {
+            alert(`Error saving configuration: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        alert(`Error saving configuration: ${error.message}`);
+        console.error('saveBackendConfig: Error saving configuration:', error);
+    }
+}
+
+async function refreshBackendLogs(backendName) {
+    await viewBackendLogs(backendName);
+}
+
+function closeConfigModal() {
+    document.getElementById('configModal').style.display = 'none';
+}
+
+function closeLogsModal() {
+    document.getElementById('logsModal').style.display = 'none';
 }
 
 async function loadPackageConfig() {
@@ -2127,6 +2558,23 @@ async function loadBackendsTab() {
                     <p><strong>Last Check:</strong> ${backendInfo.last_check ? new Date(backendInfo.last_check).toLocaleString() : 'Never'}</p>
                     ${storageInfoHTML}
                     ${capabilitiesHTML}
+                </div>
+                <div class="backend-actions">
+                    <button onclick="startBackend('${backendName}')" class="btn btn-success btn-sm" title="Start Backend">
+                        ▶️ Start
+                    </button>
+                    <button onclick="stopBackend('${backendName}')" class="btn btn-danger btn-sm" title="Stop Backend">
+                        ⏹️ Stop
+                    </button>
+                    <button onclick="restartBackend('${backendName}')" class="btn btn-warning btn-sm" title="Restart Backend">
+                        🔄 Restart
+                    </button>
+                    <button onclick="configureBackend('${backendName}')" class="btn btn-primary btn-sm" title="Configure Backend">
+                        ⚙️ Config
+                    </button>
+                    <button onclick="viewBackendLogs('${backendName}')" class="btn btn-info btn-sm" title="View Logs">
+                        📋 Logs
+                    </button>
                 </div>
             `;
             grid.appendChild(card);
@@ -2832,6 +3280,10 @@ window.closeLogsModal = closeLogsModal;
 window.loadPackageConfig = loadPackageConfig;
 window.savePackageConfig = savePackageConfig;
 window.restartBackend = restartBackend;
+window.startBackend = startBackend;
+window.stopBackend = stopBackend;
+window.configureBackend = configureBackend;
+window.viewBackendLogs = viewBackendLogs;
 window.loadFileManagerTab = loadFileManagerTab;
 window.createFolderPrompt = createFolderPrompt;
 window.uploadSelectedFile = uploadSelectedFile;

@@ -10,8 +10,17 @@ pydantic>=2.5.0
 
 # IPFS Kit dependencies
 requests>=2.31.0
+httpx>=0.24.0                # For async HTTP requests
 aiohttp>=3.9.0
 ipfshttpclient>=0.8.0
+
+# LibP2P peer management dependencies
+libp2p>=0.2.8               # Core libp2p functionality
+multiaddr>=0.0.9            # For peer addressing
+multiformats>=0.2.0         # For content addressing
+base58>=2.1.1               # Used by CIDs and peer IDs
+cryptography>=38.0.0        # For key generation and encryption
+protobuf>=3.20.0,<5.0.0     # Compatible protobuf version range
 
 # Search and AI dependencies (optional but recommended)
 sentence-transformers>=2.2.0  # For vector embeddings

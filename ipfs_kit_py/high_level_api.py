@@ -85,8 +85,8 @@ except ImportError:
     from ipfs_kit_py.ipfs_kit import IPFSKit, ipfs_kit
     from ipfs_kit_py.fs_journal_integration import enable_filesystem_journaling, FilesystemJournalIntegration
     from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor, JournalVisualization
-from ipfs_kit_py.validation import validate_parameters
-from ipfs_kit_py.api_stability import stable_api, beta_api, experimental_api, deprecated
+    from ipfs_kit_py.validation import validate_parameters
+    from ipfs_kit_py.api_stability import stable_api, beta_api, experimental_api, deprecated
 
 # VFS and related imports with error handling
 try:

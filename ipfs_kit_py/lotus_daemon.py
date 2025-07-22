@@ -622,6 +622,115 @@ class lotus_daemon:
             logger.exception(f"Exception running command: {command_str}")
             return handle_error(result, e)
     
+    def _cleanup_lotus_ports(self, correlation_id: str = None):
+        """
+        Clean up processes that may be using Lotus ports.
+        
+        This method identifies and kills processes using the Lotus ports:
+        - 1234 (API port)
+        - 2345 (P2P port)
+        - Any custom ports configured
+        
+        Args:
+            correlation_id: Optional correlation ID for tracking
+            
+        Returns:
+            Dict with cleanup results
+        """
+        operation = "cleanup_lotus_ports"
+        result = create_result_dict(operation, correlation_id)
+        
+        # Lotus ports (use instance values if available)
+        lotus_ports = [getattr(self, 'api_port', 1234), getattr(self, 'p2p_port', 2345)]
+        cleanup_results = {}
+        
+        try:
+            for port in lotus_ports:
+                try:
+                    # Use lsof to find processes using the port
+                    lsof_cmd = ["lsof", "-ti", f":{port}"]
+                    lsof_result = subprocess.run(
+                        lsof_cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                    
+                    if lsof_result.returncode == 0 and lsof_result.stdout.strip():
+                        pids = lsof_result.stdout.strip().split('\n')
+                        killed_pids = []
+                        failed_kills = []
+                        
+                        for pid_str in pids:
+                            if pid_str.strip().isdigit():
+                                pid = int(pid_str.strip())
+                                try:
+                                    # First try SIGTERM
+                                    os.kill(pid, signal.SIGTERM)
+                                    time.sleep(1)
+                                    
+                                    # Check if process still exists
+                                    try:
+                                        os.kill(pid, 0)
+                                        # If it still exists, use SIGKILL
+                                        os.kill(pid, signal.SIGKILL)
+                                        logger.info(f"Killed process {pid} on port {port} (required SIGKILL)")
+                                    except OSError:
+                                        logger.info(f"Process {pid} on port {port} terminated with SIGTERM")
+                                    
+                                    killed_pids.append(pid)
+                                    
+                                except OSError as e:
+                                    if e.errno == 3:  # No such process
+                                        logger.debug(f"Process {pid} no longer exists")
+                                    else:
+                                        failed_kills.append({"pid": pid, "error": str(e)})
+                                        logger.warning(f"Failed to kill process {pid} on port {port}: {e}")
+                                except Exception as e:
+                                    failed_kills.append({"pid": pid, "error": str(e)})
+                                    logger.warning(f"Error killing process {pid} on port {port}: {e}")
+                        
+                        cleanup_results[port] = {
+                            "found_pids": [int(p) for p in pids if p.strip().isdigit()],
+                            "killed_pids": killed_pids,
+                            "failed_kills": failed_kills
+                        }
+                        
+                        if killed_pids:
+                            logger.info(f"Cleaned up {len(killed_pids)} processes on Lotus port {port}")
+                    else:
+                        cleanup_results[port] = {"found_pids": [], "killed_pids": [], "failed_kills": []}
+                        logger.debug(f"No processes found on Lotus port {port}")
+                        
+                except Exception as e:
+                    cleanup_results[port] = {"error": str(e), "error_type": type(e).__name__}
+                    logger.warning(f"Error checking Lotus port {port}: {e}")
+            
+            result["success"] = True
+            result["cleanup_results"] = cleanup_results
+            result["ports_checked"] = lotus_ports
+            
+            # Summary statistics
+            total_killed = sum(len(r.get("killed_pids", [])) for r in cleanup_results.values() if isinstance(r, dict))
+            total_failed = sum(len(r.get("failed_kills", [])) for r in cleanup_results.values() if isinstance(r, dict))
+            
+            result["summary"] = {
+                "ports_checked": len(lotus_ports),
+                "total_processes_killed": total_killed,
+                "total_kill_failures": total_failed
+            }
+            
+            if total_killed > 0:
+                result["message"] = f"Cleaned up {total_killed} processes on Lotus ports"
+            else:
+                result["message"] = "No processes found on Lotus ports"
+                
+        except Exception as e:
+            logger.error(f"Lotus port cleanup failed: {e}")
+            result = handle_error(result, LotusError(f"Lotus port cleanup failed: {e}"))
+        
+        return result
+
     def daemon_start(self, **kwargs):
         """Start the Lotus daemon with standardized error handling.
         
