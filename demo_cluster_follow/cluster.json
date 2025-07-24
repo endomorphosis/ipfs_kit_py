@@ -1,0 +1,8 @@
+{
+  "cluster_name": "demo-cluster",
+  "bootstrap_peer": "/ip4/127.0.0.1/tcp/9096/p2p/12D3KooWExample",
+  "follow_mode": true,
+  "role": "leecher",
+  "created_at": 1753238923.5928366,
+  "config_version": "1.0"
+}

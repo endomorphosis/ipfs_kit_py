@@ -456,6 +456,102 @@
             margin: 5px 0;
         }
         
+        /* Replication Management Styles */
+        .backend-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+        }
+        
+        .backend-status {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .backend-status.enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .backend-status.disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .btn-danger-small {
+            padding: 4px 8px;
+            font-size: 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-danger-small:hover {
+            background: #c82333;
+        }
+        
+        .btn-primary, .btn-secondary {
+            padding: 8px 16px;
+            margin: 4px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .backend-controls, .backup-controls {
+            margin-bottom: 15px;
+        }
+        
+        #replication-settings-form {
+            display: grid;
+            gap: 10px;
+        }
+        
+        #replication-settings-form label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #replication-settings-form input {
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100px;
+        }
+        
+        #replication-settings-form input[type="checkbox"] {
+            width: auto;
+        }
+        
         /* Enhanced File Viewer */
         .file-viewer {
             position: fixed;
@@ -1142,6 +1238,7 @@
                 <button class="tab-button" onclick="switchTab('vfs', event)">💾 VFS Observatory</button>
                 <button class="tab-button" onclick="switchTab('vfs-journal', event)">📓 VFS Journal</button>
                 <button class="tab-button" onclick="switchTab('vector-kb', event)">🧠 Vector & KB</button>
+                <button class="tab-button" onclick="switchTab('replication', event)">🔄 Replication</button>
                 <button class="tab-button" onclick="switchTab('peer-management', event)">🌐 Peer Management</button>
                 <button class="tab-button" onclick="switchTab('configuration', event)">⚙️ Configuration</button>
                 <button class="tab-button" onclick="switchTab('filemanager', event)">📁 File Manager</button>
@@ -1438,6 +1535,61 @@
                 </div>
             </div>
 
+            <div id="replication" class="tab-content">
+                <div class="tab-header">
+                    <h3>🔄 Replication Management</h3>
+                    <p class="tab-description">Manage pin replication across storage backends with data loss protection</p>
+                </div>
+                
+                <!-- Replication Status Overview -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>📊 Replication Status</h4>
+                        <div id="replication-overview">
+                            <p><strong>Total Pins:</strong> <span id="total-pins">-</span></p>
+                            <p><strong>Replicated Pins:</strong> <span id="replicated-pins">-</span></p>
+                            <p><strong>Storage Backends:</strong> <span id="storage-backends">-</span></p>
+                            <p><strong>Health Status:</strong> <span id="replication-health">-</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <h4>⚙️ Replication Settings</h4>
+                        <form id="replication-settings-form">
+                            <label>Target Replicas: <input type="number" id="target-replicas" min="1" max="10" value="3"></label>
+                            <label>Max Storage (GB): <input type="number" id="max-storage" min="1" value="100"></label>
+                            <label>Auto Replication: <input type="checkbox" id="auto-replication" checked></label>
+                            <button type="submit" class="btn-primary">💾 Save Settings</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Storage Backends Management -->
+                <div class="stat-card">
+                    <h4>💾 Storage Backends</h4>
+                    <div class="backend-controls">
+                        <button onclick="replicationManager.addBackend()" class="btn-primary">➕ Add Backend</button>
+                        <button onclick="replicationManager.refreshBackends()" class="btn-secondary">🔄 Refresh</button>
+                    </div>
+                    <div id="storage-backends-list">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+                
+                <!-- Export/Import Tools -->
+                <div class="stat-card">
+                    <h4>📦 Backup & Restore</h4>
+                    <div class="backup-controls">
+                        <button onclick="replicationManager.exportPins()" class="btn-primary">📤 Export Pins</button>
+                        <button onclick="replicationManager.importPins()" class="btn-secondary">📥 Import Pins</button>
+                        <input type="file" id="import-file" accept=".json" style="display: none;">
+                    </div>
+                    <div id="backup-status">
+                        <p>Ready to export or import pin data for backup protection</p>
+                    </div>
+                </div>
+            </div>
+
             <div id="peer-management" class="tab-content">
                 <div class="tab-header">
                     <h3>🌐 Peer Management & Discovery</h3>
@@ -1670,5 +1822,230 @@
     <script src="/static/js/dashboard-core.js"></script>
     <script src="/static/js/file_manager.js"></script>
     <script src="/static/js/peer-management.js"></script>
+    
+    <script>
+        // Replication Manager JavaScript
+        const replicationManager = {
+            async loadReplicationStatus() {
+                try {
+                    const response = await fetch('/api/replication/status');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        document.getElementById('total-pins').textContent = data.total_pins || 0;
+                        document.getElementById('replicated-pins').textContent = data.replicated_pins || 0;
+                        document.getElementById('storage-backends').textContent = data.total_backends || 0;
+                        document.getElementById('replication-health').textContent = data.replication_health || 'Unknown';
+                    }
+                } catch (error) {
+                    console.error('Failed to load replication status:', error);
+                }
+            },
+            
+            async loadSettings() {
+                try {
+                    const response = await fetch('/api/replication/settings');
+                    const data = await response.json();
+                    
+                    if (data.success && data.settings) {
+                        document.getElementById('target-replicas').value = data.settings.target_replicas || 3;
+                        document.getElementById('max-storage').value = data.settings.max_total_storage_gb || 100;
+                        document.getElementById('auto-replication').checked = data.settings.auto_replication || false;
+                    }
+                } catch (error) {
+                    console.error('Failed to load replication settings:', error);
+                }
+            },
+            
+            async saveSettings() {
+                try {
+                    const settings = {
+                        target_replicas: parseInt(document.getElementById('target-replicas').value),
+                        max_total_storage_gb: parseFloat(document.getElementById('max-storage').value),
+                        auto_replication: document.getElementById('auto-replication').checked
+                    };
+                    
+                    const response = await fetch('/api/replication/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(settings)
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast('Replication settings saved successfully', 'success');
+                    } else {
+                        showToast('Failed to save settings: ' + data.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to save replication settings:', error);
+                    showToast('Failed to save settings', 'error');
+                }
+            },
+            
+            async loadBackends() {
+                try {
+                    const response = await fetch('/api/replication/backends');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const backendsList = document.getElementById('storage-backends-list');
+                        backendsList.innerHTML = '';
+                        
+                        data.backends.forEach(backend => {
+                            const backendDiv = document.createElement('div');
+                            backendDiv.className = 'backend-item';
+                            backendDiv.innerHTML = `
+                                <strong>${backend.name}</strong> (${backend.backend_type})
+                                <span class="backend-status ${backend.enabled ? 'enabled' : 'disabled'}">
+                                    ${backend.enabled ? 'Enabled' : 'Disabled'}
+                                </span>
+                                <button onclick="replicationManager.removeBackend('${backend.name}')" class="btn-danger-small">Remove</button>
+                            `;
+                            backendsList.appendChild(backendDiv);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Failed to load backends:', error);
+                }
+            },
+            
+            async addBackend() {
+                const name = prompt('Backend name:');
+                const type = prompt('Backend type (ipfs_cluster, storacha, pinata, etc.):');
+                
+                if (name && type) {
+                    try {
+                        const response = await fetch('/api/replication/backends', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: name,
+                                backend_type: type,
+                                config: { endpoint: prompt('Backend endpoint:') || 'http://localhost:9094' },
+                                enabled: true
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                            showToast('Backend added successfully', 'success');
+                            this.loadBackends();
+                        } else {
+                            showToast('Failed to add backend: ' + data.error, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Failed to add backend:', error);
+                        showToast('Failed to add backend', 'error');
+                    }
+                }
+            },
+            
+            async removeBackend(backendName) {
+                if (confirm(`Remove backend "${backendName}"?`)) {
+                    try {
+                        const response = await fetch(`/api/replication/backends/${backendName}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                            showToast('Backend removed successfully', 'success');
+                            this.loadBackends();
+                        } else {
+                            showToast('Failed to remove backend: ' + data.error, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Failed to remove backend:', error);
+                        showToast('Failed to remove backend', 'error');
+                    }
+                }
+            },
+            
+            async refreshBackends() {
+                await this.loadBackends();
+                await this.loadReplicationStatus();
+                showToast('Backends refreshed', 'info');
+            },
+            
+            async exportPins() {
+                try {
+                    const response = await fetch('/api/replication/backends/local/export', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast(`Exported ${data.count} pins to ${data.export_file}`, 'success');
+                    } else {
+                        showToast('Failed to export pins: ' + data.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to export pins:', error);
+                    showToast('Failed to export pins', 'error');
+                }
+            },
+            
+            async importPins() {
+                document.getElementById('import-file').click();
+            },
+            
+            async init() {
+                await this.loadReplicationStatus();
+                await this.loadSettings();
+                await this.loadBackends();
+                
+                // Setup form handler
+                document.getElementById('replication-settings-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveSettings();
+                });
+                
+                // Setup file import handler
+                document.getElementById('import-file').addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        
+                        try {
+                            const response = await fetch('/api/replication/backends/local/import', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            
+                            const data = await response.json();
+                            if (data.success) {
+                                showToast(`Imported ${data.count} pins successfully`, 'success');
+                                this.loadReplicationStatus();
+                            } else {
+                                showToast('Failed to import pins: ' + data.error, 'error');
+                            }
+                        } catch (error) {
+                            console.error('Failed to import pins:', error);
+                            showToast('Failed to import pins', 'error');
+                        }
+                    }
+                });
+            }
+        };
+        
+        // Initialize replication manager when replication tab is shown
+        function switchTab(tabName, event) {
+            // Original switchTab function logic
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Initialize replication manager when replication tab is activated
+            if (tabName === 'replication') {
+                replicationManager.init();
+            }
+        }
+    </script>
 </body>
 </html>

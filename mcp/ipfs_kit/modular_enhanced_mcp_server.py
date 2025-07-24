@@ -139,6 +139,18 @@ class ModularEnhancedMCPServer:
         # MCP Tools
         self.mcp_tools = self._create_mcp_tools()
         
+        # Import cluster config tools
+        try:
+            from .api.cluster_config_api import CLUSTER_CONFIG_TOOLS, handle_cluster_config_tool
+            self.cluster_config_tools = CLUSTER_CONFIG_TOOLS
+            self.handle_cluster_config_tool = handle_cluster_config_tool
+            self.server_state["tools_loaded"] += len(CLUSTER_CONFIG_TOOLS)
+            logger.info(f"✓ Loaded {len(CLUSTER_CONFIG_TOOLS)} cluster configuration tools")
+        except ImportError as e:
+            self.cluster_config_tools = []
+            self.handle_cluster_config_tool = None
+            logger.warning(f"Could not load cluster config tools: {e}")
+        
         logger.info(f"🚀 Modular Enhanced MCP Server initialized on {host}:{port}")
         
         # Initialize web server
@@ -372,6 +384,74 @@ class ModularEnhancedMCPServer:
             except Exception as e:
                 logger.error(f"Error getting insights: {e}")
                 return {"error": str(e)}
+        
+        @self.app.get("/api/tools")
+        async def get_available_tools():
+            """Get all available MCP tools including cluster configuration tools."""
+            try:
+                all_tools = []
+                
+                # Add standard MCP tools
+                for tool in self.mcp_tools:
+                    all_tools.append({
+                        "name": tool.name,
+                        "description": tool.description,
+                        "input_schema": tool.input_schema,
+                        "category": "system"
+                    })
+                
+                # Add cluster configuration tools
+                if hasattr(self, 'cluster_config_tools') and self.cluster_config_tools:
+                    for tool_config in self.cluster_config_tools:
+                        all_tools.append({
+                            "name": tool_config["name"],
+                            "description": tool_config["description"],
+                            "input_schema": tool_config["inputSchema"],
+                            "category": "cluster_config"
+                        })
+                
+                return {
+                    "success": True,
+                    "tools": all_tools,
+                    "total_count": len(all_tools),
+                    "categories": {
+                        "system": len([t for t in all_tools if t["category"] == "system"]),
+                        "cluster_config": len([t for t in all_tools if t["category"] == "cluster_config"])
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+            except Exception as e:
+                logger.error(f"Error getting tools: {e}")
+                return {"error": str(e), "success": False}
+    
+    def get_all_tools(self) -> List[Dict[str, Any]]:
+        """Get all available tools in a structured format.
+        
+        Returns:
+            List of all tools with their schemas
+        """
+        all_tools = []
+        
+        # Add standard MCP tools
+        for tool in self.mcp_tools:
+            all_tools.append({
+                "name": tool.name,
+                "description": tool.description,
+                "input_schema": tool.input_schema,
+                "category": "system"
+            })
+        
+        # Add cluster configuration tools
+        if hasattr(self, 'cluster_config_tools') and self.cluster_config_tools:
+            for tool_config in self.cluster_config_tools:
+                all_tools.append({
+                    "name": tool_config["name"],
+                    "description": tool_config["description"],
+                    "input_schema": tool_config["inputSchema"],
+                    "category": "cluster_config"
+                })
+        
+        return all_tools
     
     def _generate_development_insights(self, backend_health: Dict[str, Any]) -> str:
         """Generate development insights based on backend status."""
@@ -492,6 +572,13 @@ class ModularEnhancedMCPServer:
                 lines = arguments.get("lines", 100)
                 # This would be implemented by the logs endpoint
                 return {"message": f"System logs (last {lines} lines)", "status": "available"}
+            
+            # Handle cluster configuration tools
+            elif hasattr(self, 'handle_cluster_config_tool') and self.handle_cluster_config_tool:
+                # Check if this is a cluster config tool
+                cluster_tool_names = [tool["name"] for tool in self.cluster_config_tools] if self.cluster_config_tools else []
+                if tool_name in cluster_tool_names:
+                    return await self.handle_cluster_config_tool(tool_name, arguments)
             
             else:
                 return {"error": f"Unknown tool: {tool_name}"}

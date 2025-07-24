@@ -8,6 +8,7 @@ import json
 import os
 import yaml
 from pathlib import Path
+from datetime import datetime, timedelta
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
@@ -272,7 +273,7 @@ class ConfigEndpoints:
         }
     
     async def _get_all_backend_configs(self) -> Dict[str, Any]:
-        """Get configuration for all backends."""
+        """Get configuration for all backends with comprehensive settings."""
         backends = {}
         backend_names = ["ipfs", "cluster", "lotus", "storacha", "s3", "huggingface", "pinata"]
         
@@ -296,6 +297,64 @@ class ConfigEndpoints:
                     "circuit_breaker_enabled": True,
                     "cache_enabled": True,
                     "compression_enabled": True
+                },
+                "storage": {
+                    "quota_gb": self._get_backend_quota(backend_name),
+                    "quota_enabled": True,
+                    "quota_warning_threshold": 0.8,
+                    "quota_enforcement": "soft",
+                    "used_gb": 0.0,
+                    "available_gb": self._get_backend_quota(backend_name)
+                },
+                "cache_policy": {
+                    "enabled": True,
+                    "type": "lru",  # lru, lfu, fifo, ttl
+                    "max_size_gb": self._get_cache_size(backend_name),
+                    "ttl_hours": 24,
+                    "eviction_policy": "size_based",  # size_based, time_based, hybrid
+                    "compression_enabled": True,
+                    "auto_cleanup": True,
+                    "cleanup_interval_hours": 6
+                },
+                "replication": {
+                    "enabled": backend_name in ["ipfs", "cluster"],
+                    "priority": self._get_replication_priority(backend_name),
+                    "auto_replicate": True,
+                    "min_replicas": 1,
+                    "max_replicas": 3,
+                    "replication_strategy": "balanced",  # balanced, performance, redundancy
+                    "verify_integrity": True,
+                    "repair_on_failure": True
+                },
+                "metadata": {
+                    "import_enabled": True,
+                    "export_enabled": True,
+                    "auto_import": backend_name in ["ipfs", "cluster"],
+                    "auto_export": backend_name in ["ipfs", "cluster"],
+                    "import_format": "json",  # json, yaml, csv
+                    "export_format": "json",
+                    "include_vfs_metadata": True,
+                    "include_traffic_data": True,
+                    "metadata_compression": True
+                },
+                "pins": {
+                    "import_enabled": True,
+                    "export_enabled": True,
+                    "auto_import": backend_name in ["ipfs", "cluster"],
+                    "auto_export": backend_name in ["ipfs", "cluster"],
+                    "pin_format": "json",
+                    "recursive_pins": True,
+                    "verify_pins": True,
+                    "pin_metadata": True
+                },
+                "traffic_monitoring": {
+                    "enabled": True,
+                    "track_requests": True,
+                    "track_data_transfer": True,
+                    "track_response_times": True,
+                    "detailed_logging": False,
+                    "analytics_retention_days": 30,
+                    "real_time_alerts": False
                 },
                 "monitoring": {
                     "health_check_enabled": True,
@@ -534,6 +593,358 @@ class ConfigEndpoints:
                 return True
         
         return False
+
+    def _get_backend_quota(self, backend_name: str) -> float:
+        """Get default storage quota for backend in GB."""
+        quotas = {
+            "ipfs": 100.0,
+            "cluster": 200.0,
+            "lotus": 500.0,
+            "storacha": 1000.0,
+            "s3": 2000.0,
+            "huggingface": 50.0,
+            "pinata": 100.0
+        }
+        return quotas.get(backend_name, 100.0)
+    
+    def _get_cache_size(self, backend_name: str) -> float:
+        """Get default cache size for backend in GB."""
+        cache_sizes = {
+            "ipfs": 10.0,
+            "cluster": 20.0,
+            "lotus": 50.0,
+            "storacha": 100.0,
+            "s3": 200.0,
+            "huggingface": 5.0,
+            "pinata": 10.0
+        }
+        return cache_sizes.get(backend_name, 10.0)
+    
+    def _get_replication_priority(self, backend_name: str) -> int:
+        """Get replication priority for backend (1-10, higher = more priority)."""
+        priorities = {
+            "ipfs": 8,
+            "cluster": 9,
+            "lotus": 7,
+            "storacha": 6,
+            "s3": 5,
+            "huggingface": 4,
+            "pinata": 3
+        }
+        return priorities.get(backend_name, 5)
+
+    async def get_backend_storage_stats(self, backend_name: str) -> Dict[str, Any]:
+        """Get storage statistics for a specific backend."""
+        try:
+            # Get basic storage info
+            config = await self.get_backend_config(backend_name)
+            storage_config = config.get("storage", {})
+            
+            # Calculate storage usage (mock data for now)
+            quota_gb = storage_config.get("quota_gb", 100.0)
+            used_gb = await self._calculate_backend_usage(backend_name)
+            available_gb = max(0, quota_gb - used_gb)
+            usage_percentage = (used_gb / quota_gb) * 100 if quota_gb > 0 else 0
+            
+            return {
+                "success": True,
+                "backend": backend_name,
+                "storage": {
+                    "quota_gb": quota_gb,
+                    "used_gb": used_gb,
+                    "available_gb": available_gb,
+                    "usage_percentage": round(usage_percentage, 2),
+                    "quota_enabled": storage_config.get("quota_enabled", True),
+                    "warning_threshold": storage_config.get("quota_warning_threshold", 0.8),
+                    "enforcement": storage_config.get("quota_enforcement", "soft")
+                },
+                "cache": await self._get_backend_cache_stats(backend_name),
+                "traffic": await self._get_backend_traffic_stats(backend_name)
+            }
+        except Exception as e:
+            logger.error(f"Error getting storage stats for {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def set_backend_storage_config(self, backend_name: str, storage_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Set storage configuration for a backend."""
+        try:
+            # Get current backend config
+            current_config = await self.get_backend_config(backend_name)
+            
+            # Update storage section
+            current_config["storage"].update(storage_config)
+            
+            # Validate storage config
+            validation_result = self._validate_storage_config(storage_config)
+            if not validation_result["valid"]:
+                return {
+                    "success": False,
+                    "error": "Storage configuration validation failed",
+                    "validation_errors": validation_result["errors"]
+                }
+            
+            # Save updated config
+            result = await self.set_backend_config(backend_name, current_config)
+            
+            return {
+                "success": True,
+                "message": f"Storage configuration for {backend_name} updated successfully",
+                "requires_restart": result.get("restart_required", False)
+            }
+        except Exception as e:
+            logger.error(f"Error setting storage config for {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def export_backend_metadata(self, backend_name: str, export_type: str = "both") -> Dict[str, Any]:
+        """Export filesystem metadata and/or pins for a backend."""
+        try:
+            result = {
+                "success": True,
+                "backend": backend_name,
+                "export_type": export_type,
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": {}
+            }
+            
+            # Export filesystem metadata
+            if export_type in ["metadata", "both"]:
+                result["data"]["filesystem_metadata"] = await self._export_filesystem_metadata(backend_name)
+            
+            # Export pins
+            if export_type in ["pins", "both"]:
+                result["data"]["pins"] = await self._export_pins_data(backend_name)
+            
+            # Export traffic data if enabled
+            config = await self.get_backend_config(backend_name)
+            if config.get("metadata", {}).get("include_traffic_data", True):
+                result["data"]["traffic_stats"] = await self._get_backend_traffic_stats(backend_name)
+            
+            # Export VFS metadata if enabled
+            if config.get("metadata", {}).get("include_vfs_metadata", True):
+                result["data"]["vfs_metadata"] = await self._export_vfs_metadata(backend_name)
+            
+            return result
+        except Exception as e:
+            logger.error(f"Error exporting metadata for {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def import_backend_metadata(self, backend_name: str, import_data: Dict[str, Any], import_type: str = "both") -> Dict[str, Any]:
+        """Import filesystem metadata and/or pins for a backend."""
+        try:
+            imported_items = []
+            
+            # Import filesystem metadata
+            if import_type in ["metadata", "both"] and "filesystem_metadata" in import_data:
+                metadata_result = await self._import_filesystem_metadata(backend_name, import_data["filesystem_metadata"])
+                imported_items.append(f"filesystem_metadata: {metadata_result.get('count', 0)} items")
+            
+            # Import pins
+            if import_type in ["pins", "both"] and "pins" in import_data:
+                pins_result = await self._import_pins_data(backend_name, import_data["pins"])
+                imported_items.append(f"pins: {pins_result.get('count', 0)} items")
+            
+            # Import VFS metadata if present
+            if "vfs_metadata" in import_data:
+                vfs_result = await self._import_vfs_metadata(backend_name, import_data["vfs_metadata"])
+                imported_items.append(f"vfs_metadata: {vfs_result.get('count', 0)} items")
+            
+            return {
+                "success": True,
+                "backend": backend_name,
+                "import_type": import_type,
+                "imported": imported_items,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error importing metadata for {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_backend_cache_stats(self, backend_name: str) -> Dict[str, Any]:
+        """Get cache statistics for a backend."""
+        try:
+            return await self._get_backend_cache_stats(backend_name)
+        except Exception as e:
+            logger.error(f"Error getting cache stats for {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def clear_backend_cache(self, backend_name: str, cache_type: str = "all") -> Dict[str, Any]:
+        """Clear cache for a backend."""
+        try:
+            # Clear different types of cache
+            cleared_items = []
+            
+            if cache_type in ["all", "data"]:
+                data_result = await self._clear_data_cache(backend_name)
+                cleared_items.append(f"data_cache: {data_result.get('count', 0)} items")
+            
+            if cache_type in ["all", "metadata"]:
+                metadata_result = await self._clear_metadata_cache(backend_name)
+                cleared_items.append(f"metadata_cache: {metadata_result.get('count', 0)} items")
+            
+            if cache_type in ["all", "traffic"]:
+                traffic_result = await self._clear_traffic_cache(backend_name)
+                cleared_items.append(f"traffic_cache: {traffic_result.get('count', 0)} items")
+            
+            return {
+                "success": True,
+                "backend": backend_name,
+                "cache_type": cache_type,
+                "cleared": cleared_items,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error clearing cache for {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def optimize_backend_cache(self, backend_name: str) -> Dict[str, Any]:
+        """Optimize cache for a backend based on its policy."""
+        try:
+            config = await self.get_backend_config(backend_name)
+            cache_policy = config.get("cache_policy", {})
+            
+            # Run optimization based on policy
+            optimization_result = await self._run_cache_optimization(backend_name, cache_policy)
+            
+            return {
+                "success": True,
+                "backend": backend_name,
+                "optimization": optimization_result,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error optimizing cache for {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # Helper methods for backend operations
+    async def _calculate_backend_usage(self, backend_name: str) -> float:
+        """Calculate storage usage for backend in GB."""
+        # Mock implementation - would integrate with actual backend
+        usage_mock = {
+            "ipfs": 25.5,
+            "cluster": 45.2,
+            "lotus": 125.8,
+            "storacha": 234.1,
+            "s3": 567.9,
+            "huggingface": 12.3,
+            "pinata": 34.7
+        }
+        return usage_mock.get(backend_name, 10.0)
+    
+    async def _get_backend_cache_stats(self, backend_name: str) -> Dict[str, Any]:
+        """Get cache statistics for a backend."""
+        return {
+            "cache_size_gb": self._get_cache_size(backend_name),
+            "used_gb": await self._calculate_backend_usage(backend_name) * 0.2,  # Mock: 20% of storage is cache
+            "hit_rate": 0.75,  # Mock cache hit rate
+            "miss_rate": 0.25,
+            "evictions": 145,
+            "last_cleanup": (datetime.utcnow() - timedelta(hours=3)).isoformat()
+        }
+    
+    async def _get_backend_traffic_stats(self, backend_name: str) -> Dict[str, Any]:
+        """Get traffic statistics for a backend."""
+        return {
+            "requests_total": 1250,
+            "requests_success": 1175,
+            "requests_failed": 75,
+            "data_transferred_gb": 45.2,
+            "avg_response_time_ms": 150,
+            "last_request": (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+        }
+    
+    async def _export_filesystem_metadata(self, backend_name: str) -> Dict[str, Any]:
+        """Export filesystem metadata for a backend."""
+        # Mock implementation
+        return {
+            "count": 150,
+            "metadata": [
+                {"path": "/example/file.txt", "size": 1024, "cid": "QmExample1"},
+                {"path": "/example/dir/", "type": "directory", "cid": "QmExample2"}
+            ]
+        }
+    
+    async def _export_pins_data(self, backend_name: str) -> Dict[str, Any]:
+        """Export pins data for a backend."""
+        # Mock implementation
+        return {
+            "count": 75,
+            "pins": [
+                {"cid": "QmPin1", "type": "recursive", "size": 2048},
+                {"cid": "QmPin2", "type": "direct", "size": 1024}
+            ]
+        }
+    
+    async def _export_vfs_metadata(self, backend_name: str) -> Dict[str, Any]:
+        """Export VFS metadata for a backend."""
+        # Mock implementation
+        return {
+            "count": 200,
+            "vfs_entries": [
+                {"vfs_id": "vfs_001", "backend_cid": "QmVFS1", "metadata": {}},
+                {"vfs_id": "vfs_002", "backend_cid": "QmVFS2", "metadata": {}}
+            ]
+        }
+    
+    async def _import_filesystem_metadata(self, backend_name: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Import filesystem metadata for a backend."""
+        # Mock implementation
+        return {"count": len(metadata.get("metadata", [])), "success": True}
+    
+    async def _import_pins_data(self, backend_name: str, pins_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Import pins data for a backend."""
+        # Mock implementation
+        return {"count": len(pins_data.get("pins", [])), "success": True}
+    
+    async def _import_vfs_metadata(self, backend_name: str, vfs_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Import VFS metadata for a backend."""
+        # Mock implementation
+        return {"count": len(vfs_data.get("vfs_entries", [])), "success": True}
+    
+    async def _clear_data_cache(self, backend_name: str) -> Dict[str, Any]:
+        """Clear data cache for a backend."""
+        # Mock implementation
+        return {"count": 50, "success": True}
+    
+    async def _clear_metadata_cache(self, backend_name: str) -> Dict[str, Any]:
+        """Clear metadata cache for a backend."""
+        # Mock implementation
+        return {"count": 25, "success": True}
+    
+    async def _clear_traffic_cache(self, backend_name: str) -> Dict[str, Any]:
+        """Clear traffic cache for a backend."""
+        # Mock implementation
+        return {"count": 15, "success": True}
+    
+    async def _run_cache_optimization(self, backend_name: str, cache_policy: Dict[str, Any]) -> Dict[str, Any]:
+        """Run cache optimization based on policy."""
+        # Mock implementation
+        return {
+            "items_evicted": 25,
+            "space_freed_gb": 2.5,
+            "optimization_type": cache_policy.get("type", "lru"),
+            "duration_ms": 150
+        }
+    
+    def _validate_storage_config(self, storage_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate storage configuration."""
+        errors = []
+        
+        quota_gb = storage_config.get("quota_gb")
+        if quota_gb is not None and (not isinstance(quota_gb, (int, float)) or quota_gb <= 0):
+            errors.append("quota_gb must be a positive number")
+        
+        warning_threshold = storage_config.get("quota_warning_threshold")
+        if warning_threshold is not None and (not isinstance(warning_threshold, (int, float)) or not 0 < warning_threshold <= 1):
+            errors.append("quota_warning_threshold must be between 0 and 1")
+        
+        enforcement = storage_config.get("quota_enforcement")
+        if enforcement is not None and enforcement not in ["soft", "hard"]:
+            errors.append("quota_enforcement must be 'soft' or 'hard'")
+        
+        return {
+            "valid": len(errors) == 0,
+            "errors": errors
+        }
 
     async def get_global_config(self) -> Dict[str, Any]:
         """Get global configuration for the dashboard."""

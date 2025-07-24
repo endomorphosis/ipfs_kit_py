@@ -108,19 +108,19 @@ class ipfs_py:
                 daemon_config = IPFSConfig(ipfs_path=self.ipfs_path)
                 self._daemon_manager = IPFSDaemonManager(daemon_config)
                 self._has_daemon_manager = True
-                logger.info("✓ Daemon manager created successfully")
+                logger.info("✓ Enhanced IPFS daemon manager created successfully")
             except ImportError as e:
-                logger.warning(f"Could not import daemon manager: {e}")
+                logger.warning(f"Enhanced daemon manager not available: {e}")
                 self._has_daemon_manager = False
             except Exception as e:
-                logger.error(f"Error creating daemon manager: {e}")
+                logger.error(f"Error creating enhanced daemon manager: {e}")
                 self._has_daemon_manager = False
         
         return self._daemon_manager
     
     @property
     def has_daemon_manager(self):
-        """Check if daemon manager is available."""
+        """Check if enhanced daemon manager is available."""
         # Access daemon_manager property to trigger creation if needed
         _ = self.daemon_manager
         return self._has_daemon_manager or False
@@ -480,7 +480,7 @@ class ipfs_py:
 
         return results
 
-    def daemon_start(self, **kwargs):
+    def daemon_start_fallback(self, **kwargs):
         operation = "daemon_start"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
@@ -753,7 +753,7 @@ class ipfs_py:
 
         return result
 
-    def daemon_stop(self, **kwargs):
+    def daemon_stop_fallback(self, **kwargs):
         operation = "daemon_stop"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
@@ -1828,12 +1828,13 @@ class ipfs_py:
         Returns:
             Dict with success status and detailed information
         """
-        if self._has_daemon_manager:
+        if self.has_daemon_manager:
+            logger.info("Using enhanced IPFS daemon manager for start operation")
             return self.daemon_manager.start_daemon(force_restart=force_restart)
         else:
             # Fallback to original daemon_start method
             logger.warning("Enhanced daemon manager not available, using fallback method")
-            return self.daemon_start(**kwargs)
+            return self.daemon_start_fallback(**kwargs)
     
     def stop_daemon(self, **kwargs) -> Dict[str, Any]:
         """
@@ -1842,18 +1843,13 @@ class ipfs_py:
         Returns:
             Dict with success status and detailed information
         """
-        if self._has_daemon_manager:
+        if self.has_daemon_manager:
+            logger.info("Using enhanced IPFS daemon manager for stop operation")
             return self.daemon_manager.stop_daemon()
         else:
-            # Fallback to original daemon_stop method if it exists
-            if hasattr(self, 'daemon_stop'):
-                return self.daemon_stop(**kwargs)
-            else:
-                return {
-                    "success": False,
-                    "error": "No daemon stop method available",
-                    "operation": "daemon_stop"
-                }
+            # Fallback to original daemon_stop method
+            logger.warning("Enhanced daemon manager not available, using fallback method")
+            return self.daemon_stop_fallback(**kwargs)
     
     def restart_daemon(self, force: bool = True, **kwargs) -> Dict[str, Any]:
         """
@@ -1866,7 +1862,8 @@ class ipfs_py:
         Returns:
             Dict with success status and detailed information
         """
-        if self._has_daemon_manager:
+        if self.has_daemon_manager:
+            logger.info("Using enhanced IPFS daemon manager for restart operation")
             return self.daemon_manager.restart_daemon(force=force)
         else:
             # Fallback: stop then start
@@ -1888,7 +1885,7 @@ class ipfs_py:
         Returns:
             True if daemon is healthy
         """
-        if self._has_daemon_manager:
+        if self.has_daemon_manager:
             return self.daemon_manager.is_daemon_healthy()
         else:
             # Fallback: basic check
@@ -1908,7 +1905,7 @@ class ipfs_py:
         Returns:
             Dict with detailed daemon status information
         """
-        if self._has_daemon_manager:
+        if self.has_daemon_manager:
             return self.daemon_manager.get_daemon_status()
         else:
             # Fallback: basic status

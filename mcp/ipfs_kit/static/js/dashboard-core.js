@@ -2007,7 +2007,7 @@ function showBackendConfigModal(backendName, config) {
     
     // Generate configuration form based on backend type and actual config data
     let configHTML = `
-        <form id="backendConfigForm" onsubmit="saveBackendConfig('${backendName}'); return false;">
+        <form id="backendConfigForm" onsubmit="saveBackendConfig('${backendName}', event); return false;">
     `;
     
     // Add different config fields based on backend type
@@ -2254,97 +2254,8 @@ function showBackendLogsModal(backendName, logs) {
     modal.style.display = 'block';
 }
 
-async function saveBackendConfig(backendName) {
-    console.log('saveBackendConfig: Saving configuration for backend:', backendName);
-    try {
-        let configData = {};
-        
-        // Collect configuration data based on backend type
-        if (backendName === 'ipfs') {
-            configData = {
-                api_url: document.getElementById('ipfs-api-url').value,
-                gateway_url: document.getElementById('ipfs-gateway-url').value,
-                peer_id: document.getElementById('ipfs-peer-id').value,
-                storage_max: document.getElementById('ipfs-storage-max').value,
-                gc_period: document.getElementById('ipfs-gc-period').value,
-                storage_gc_watermark: parseInt(document.getElementById('ipfs-gc-watermark').value),
-                enable_mdns: document.getElementById('ipfs-enable-mdns').checked,
-                disable_bandwidth_metrics: document.getElementById('ipfs-disable-bandwidth').checked,
-                enabled: true
-            };
-        } else if (backendName === 's3') {
-            // Add null checks for S3 form elements
-            const accessKeyEl = document.getElementById('s3-access-key');
-            const secretKeyEl = document.getElementById('s3-secret-key');
-            const bucketEl = document.getElementById('s3-bucket');
-            const regionEl = document.getElementById('s3-region');
-            const endpointEl = document.getElementById('s3-endpoint-url');
-            const enabledEl = document.getElementById('s3-enabled');
-            
-            if (!accessKeyEl || !secretKeyEl || !bucketEl || !regionEl || !enabledEl) {
-                throw new Error('S3 configuration form elements not found');
-            }
-            
-            configData = {
-                access_key_id: accessKeyEl.value,
-                secret_access_key: secretKeyEl.value,
-                bucket: bucketEl.value,
-                region: regionEl.value,
-                endpoint_url: endpointEl ? endpointEl.value : '',
-                enabled: enabledEl.checked
-            };
-        } else if (backendName === 'huggingface') {
-            configData = {
-                token: document.getElementById('hf-token').value,
-                model_cache_dir: document.getElementById('hf-cache-dir').value,
-                use_auth_token: document.getElementById('hf-use-auth').checked,
-                enabled: document.getElementById('hf-enabled').checked
-            };
-        } else if (backendName === 'synapse') {
-            configData = {
-                network: document.getElementById('synapse-network').value,
-                private_key: document.getElementById('synapse-private-key').value,
-                rpc_endpoint: document.getElementById('synapse-rpc').value,
-                enabled: document.getElementById('synapse-enabled').checked
-            };
-        } else if (backendName === 'storacha') {
-            configData = {
-                api_endpoint: document.getElementById('storacha-endpoint').value,
-                space_id: document.getElementById('storacha-space-id').value,
-                timeout: parseInt(document.getElementById('storacha-timeout').value),
-                enabled: document.getElementById('storacha-enabled').checked
-            };
-        } else {
-            // Generic configuration
-            const enabled = document.getElementById('generic-enabled')?.checked || false;
-            const configText = document.getElementById('generic-config')?.value || '{}';
-            try {
-                configData = JSON.parse(configText);
-                configData.enabled = enabled;
-            } catch (e) {
-                alert('Invalid JSON configuration');
-                return;
-            }
-        }
-        
-        const data = await dashboardAPI.fetch(`/api/backends/${backendName}/config`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(configData)
-        });
-        
-        if (data.success) {
-            alert(`Configuration saved successfully for ${backendName}`);
-            closeConfigModal();
-            setTimeout(refreshData, 1000); // Refresh after a delay
-        } else {
-            alert(`Error saving configuration: ${data.error || 'Unknown error'}`);
-        }
-    } catch (error) {
-        alert(`Error saving configuration: ${error.message}`);
-        console.error('saveBackendConfig: Error saving configuration:', error);
-    }
-}
+// Removed duplicate saveBackendConfig function that was looking for specific element IDs
+// The correct saveBackendConfig function with event parameter is used instead
 
 async function refreshBackendLogs(backendName) {
     await viewBackendLogs(backendName);

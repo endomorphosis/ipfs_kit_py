@@ -15,9 +15,21 @@ from typing import Dict, Any, Optional, List
 from collections import defaultdict, deque
 from datetime import datetime
 
+# Import our API clients for enhanced cluster monitoring
+try:
+    from ipfs_kit_py.ipfs_cluster_api import IPFSClusterAPIClient, IPFSClusterFollowAPIClient
+except ImportError:
+    # Create stub classes if import fails
+    class IPFSClusterAPIClient:
+        def __init__(self, *args, **kwargs):
+            pass
+    class IPFSClusterFollowAPIClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
 from .backend_clients import (
     IPFSClient, IPFSClusterClient, LotusClient, StorachaClient,
-    SynapseClient, S3Client, HuggingFaceClient, ParquetClient, LassieClient
+    SynapseClient, S3Client, HuggingFaceClient, ParquetClient, LassieClient, GDriveClient
 )
 from .vfs_observer import VFSObservabilityManager
 from .log_manager import BackendLogManager
@@ -91,7 +103,14 @@ class BackendHealthMonitor:
                 "metrics": {},
                 "errors": [],
                 "daemon_pid": None,
-                "port": 9095
+                "port": 9097,  # Use a different port from cluster service (9094-9096)
+                "detailed_info": {
+                    "cluster_name": "unknown",
+                    "bootstrap_peer": None,
+                    "api_address": "/ip4/127.0.0.1/tcp/9097/http",
+                    "trusted_peers": [],
+                    "connection_status": "unknown"
+                }
             },
             "lotus": {
                 "name": "Lotus",
@@ -182,6 +201,28 @@ class BackendHealthMonitor:
                 "metrics": {},
                 "errors": [],
                 "libraries": ["pyarrow", "pandas"]
+            },
+            "gdrive": {
+                "name": "Google Drive",
+                "status": "unknown",
+                "health": "unknown",
+                "last_check": None,
+                "metrics": {},
+                "errors": [],
+                "oauth_configured": False,
+                "detailed_info": {
+                    "quota_total": 0,
+                    "quota_used": 0,
+                    "quota_available": 0,
+                    "files_count": 0,
+                    "authenticated": False,
+                    "token_valid": False,
+                    "api_responsive": False,
+                    "connectivity": False,
+                    "config_dir": "~/.ipfs_kit/gdrive",
+                    "credentials_file": "credentials.json",
+                    "token_file": "token.json"
+                }
             },
             "libp2p": {
                 "name": "LibP2P Peer Network",
@@ -281,6 +322,8 @@ class BackendHealthMonitor:
                 backend = await self._check_huggingface_health(backend)
             elif backend_name == "parquet":
                 backend = await self._check_parquet_health(backend)
+            elif backend_name == "gdrive":
+                backend = await self._check_gdrive_health(backend)
             elif backend_name == "libp2p":
                 backend = await self._check_libp2p_health(backend)
             
@@ -329,81 +372,143 @@ class BackendHealthMonitor:
             
             return error_result
     
+    async def check_all_backends_health(self) -> Dict[str, Any]:
+        """Check health of all configured backends.
+        
+        Returns:
+            Dict with health status for all backends
+        """
+        results = {}
+        
+        # Check all backends in parallel for better performance
+        tasks = []
+        for backend_name in self.backends.keys():
+            task = asyncio.create_task(self.check_backend_health(backend_name))
+            tasks.append((backend_name, task))
+        
+        # Wait for all health checks to complete
+        for backend_name, task in tasks:
+            try:
+                results[backend_name] = await task
+            except Exception as e:
+                logger.error(f"Error checking {backend_name} health: {e}")
+                results[backend_name] = {
+                    "name": backend_name,
+                    "status": "error",
+                    "health": "unhealthy",
+                    "error": str(e),
+                    "last_check": datetime.now().isoformat()
+                }
+        
+        return results
+    
     async def _check_ipfs_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Check IPFS daemon health using enhanced client with connection pooling and CLI fallback."""
+        """Check IPFS daemon health using enhanced daemon manager with automatic healing."""
         try:
-            from .ipfs_client_enhanced import get_ipfs_client
+            # Use the enhanced daemon manager for comprehensive health checking
+            from ipfs_kit_py.ipfs_daemon_manager import IPFSDaemonManager, IPFSConfig
             
-            # Get enhanced IPFS client
-            client = await get_ipfs_client()
+            # Create daemon manager with configuration
+            config = IPFSConfig()
+            daemon_manager = IPFSDaemonManager(config)
             
-            # Perform comprehensive health check
-            health_result = await client.health_check()
+            # Get comprehensive daemon status
+            daemon_status = daemon_manager.get_daemon_status()
             
-            if health_result["status"] == "healthy":
+            if daemon_status.get("running") and daemon_status.get("api_responsive"):
                 backend["status"] = "running"
                 backend["health"] = "healthy"
+                backend["daemon_pid"] = daemon_status.get("pid")
+                
+                # Extract metrics from daemon status
                 backend["metrics"] = {
-                    "version": health_result.get("version", "unknown"),
-                    "commit": health_result.get("commit", "unknown"),
-                    "golang_version": health_result.get("golang_version", "unknown"),
+                    "pid": daemon_status.get("pid"),
+                    "api_responsive": daemon_status.get("api_responsive"),
                     "response_time_ms": 0,
-                    "connection_failures": health_result.get("connection_failures", 0)
+                    "connection_failures": 0
                 }
                 
-                # Add repo stats if available
-                if "repo_size" in health_result:
-                    backend["metrics"].update({
-                        "repo_size": health_result["repo_size"],
-                        "storage_max": health_result.get("storage_max", 0),
-                        "num_objects": health_result.get("num_objects", 0)
-                    })
-                    backend["detailed_info"].update({
-                        "repo_size": health_result["repo_size"],
-                        "repo_objects": health_result.get("num_objects", 0)
-                    })
-                
-                # Add peer count if available
-                if "peer_count" in health_result:
-                    backend["metrics"]["peer_count"] = health_result["peer_count"]
-                    backend["detailed_info"]["peer_count"] = health_result["peer_count"]
+                # Add port usage information
+                port_usage = daemon_status.get("port_usage", {})
+                backend["metrics"]["ports"] = {
+                    "api": port_usage.get("api", {}).get("port", 5001),
+                    "gateway": port_usage.get("gateway", {}).get("port", 8080),
+                    "swarm": port_usage.get("swarm", {}).get("port", 4001)
+                }
                 
                 # Update detailed info
                 backend["detailed_info"].update({
-                    "version": health_result.get("version", "unknown"),
-                    "api_available": health_result.get("api_available", False),
-                    "connection_method": "enhanced_client"
+                    "daemon_pid": daemon_status.get("pid"),
+                    "api_available": daemon_status.get("api_responsive"),
+                    "connection_method": "enhanced_daemon_manager",
+                    "lock_file_exists": daemon_status.get("lock_file_exists"),
+                    "port_usage": port_usage
                 })
                 
+                # Try to get additional IPFS info via API
+                try:
+                    import httpx
+                    async with httpx.AsyncClient(timeout=5) as client:
+                        response = await client.post("http://127.0.0.1:5001/api/v0/version")
+                        if response.status_code == 200:
+                            version_data = response.json()
+                            backend["metrics"].update({
+                                "version": version_data.get("Version", "unknown"),
+                                "commit": version_data.get("Commit", "unknown"),
+                                "golang_version": version_data.get("Golang", "unknown")
+                            })
+                            backend["detailed_info"]["version"] = version_data.get("Version", "unknown")
+                except Exception as api_e:
+                    logger.debug(f"Could not get IPFS version info: {api_e}")
+                
             else:
+                # Daemon not healthy - attempt to fix it
                 backend["status"] = "disconnected"
                 backend["health"] = "unhealthy"
                 
-                # Add connection failure info
-                error_details = {
-                    "connection_failures": health_result.get("connection_failures", 0),
-                    "in_backoff": health_result.get("in_backoff", False)
-                }
-                
-                if health_result.get("last_failure"):
-                    error_details["last_failure"] = health_result["last_failure"]
-                
-                backend["errors"].append({
-                    "timestamp": datetime.now().isoformat(),
-                    "error": f"IPFS daemon health check failed: {health_result.get('error', 'Unknown error')}",
-                    "details": error_details
-                })
+                # Try to start/fix the daemon
+                try:
+                    logger.info("IPFS daemon unhealthy, attempting to start...")
+                    start_result = daemon_manager.start_daemon()
+                    
+                    if start_result.get("success"):
+                        # Daemon fixed, update status
+                        new_status = daemon_manager.get_daemon_status()
+                        if new_status.get("running") and new_status.get("api_responsive"):
+                            backend["status"] = "running"
+                            backend["health"] = "healthy"
+                            backend["daemon_pid"] = new_status.get("pid")
+                            backend["detailed_info"]["auto_healed"] = True
+                            backend["detailed_info"]["heal_timestamp"] = datetime.now().isoformat()
+                        else:
+                            backend["errors"].append({
+                                "timestamp": datetime.now().isoformat(),
+                                "error": f"IPFS daemon start succeeded but still not responsive",
+                                "start_result": start_result
+                            })
+                    else:
+                        backend["errors"].append({
+                            "timestamp": datetime.now().isoformat(),
+                            "error": f"Failed to start IPFS daemon: {start_result.get('error', 'Unknown error')}",
+                            "start_result": start_result
+                        })
+                        
+                except Exception as heal_e:
+                    backend["errors"].append({
+                        "timestamp": datetime.now().isoformat(),
+                        "error": f"Error attempting to heal IPFS daemon: {str(heal_e)}"
+                    })
                 
         except ImportError as e:
-            # Fallback to direct ipfshttpclient if enhanced client not available
+            # Fallback to basic health check if daemon manager not available
             backend["status"] = "error"
             backend["health"] = "unhealthy"
             backend["errors"].append({
                 "timestamp": datetime.now().isoformat(),
-                "error": f"Enhanced IPFS client not available: {e}"
+                "error": f"Enhanced IPFS daemon manager not available: {e}"
             })
         except Exception as e:
-            backend["status"] = "error"
+            backend["status"] = "error" 
             backend["health"] = "unhealthy"
             backend["errors"].append({
                 "timestamp": datetime.now().isoformat(),
@@ -412,81 +517,367 @@ class BackendHealthMonitor:
             
         backend["last_check"] = datetime.now().isoformat()
         return backend
-        return backend
     
     async def _check_ipfs_cluster_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Check IPFS Cluster health with real implementation."""
+        """Check IPFS Cluster health with enhanced daemon manager and API client."""
         try:
-            # Check if cluster daemon is running
-            result = subprocess.run(
-                ["curl", "-s", "-X", "POST", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
-                capture_output=True, text=True, timeout=5
-            )
+            # Use the enhanced cluster daemon manager for comprehensive health checking
+            from ipfs_kit_py.ipfs_cluster_daemon_manager import IPFSClusterDaemonManager
             
-            if result.returncode == 0:
-                version_info = json.loads(result.stdout)
+            # Create cluster daemon manager
+            cluster_manager = IPFSClusterDaemonManager()
+            
+            # Get comprehensive cluster status via API
+            api_status = await cluster_manager.get_cluster_status_via_api()
+            
+            if api_status.get("api_responsive"):
+                backend["status"] = "running"
+                backend["health"] = "healthy"
+                
+                # Extract comprehensive metrics from API response
+                cluster_info = api_status.get("cluster_info", {})
+                id_info = cluster_info.get("id", {})
+                peers_info = cluster_info.get("peers", {})
+                pins_info = cluster_info.get("pins", {})
+                
+                backend["metrics"] = {
+                    "api_responsive": True,
+                    "peer_id": id_info.get("id", "unknown") if isinstance(id_info, dict) else "unknown",
+                    "version": id_info.get("version", "unknown") if isinstance(id_info, dict) else "unknown",
+                    "peer_count": len(peers_info) if isinstance(peers_info, list) else 0,
+                    "pin_count": len(pins_info) if isinstance(pins_info, list) else 0
+                }
+                
+                # Update detailed info with API data
+                backend["detailed_info"].update({
+                    "cluster_id": id_info.get("id", "unknown") if isinstance(id_info, dict) else "unknown",
+                    "api_port": cluster_manager.config.api_port,
+                    "proxy_port": cluster_manager.config.proxy_port,
+                    "cluster_port": cluster_manager.config.cluster_port,
+                    "enhanced_monitoring": True
+                })
+            else:
+                # Fallback to basic daemon status check
+                cluster_status = await cluster_manager.get_cluster_service_status()
+                
+                if cluster_status.get("running"):
+                    backend["status"] = "running"
+                    backend["health"] = "degraded"
+                    backend["errors"].append({
+                        "timestamp": datetime.now().isoformat(),
+                        "error": "Cluster daemon running but API not responsive"
+                    })
+                else:
+                    backend["status"] = "stopped"
+                    backend["health"] = "unhealthy"
+            cluster_status = await cluster_manager.get_cluster_service_status()
+            
+            if cluster_status.get("running") and cluster_status.get("api_responsive"):
                 backend["status"] = "running"
                 backend["health"] = "healthy"
                 backend["metrics"] = {
-                    "version": version_info.get("version", "unknown"),
-                    "commit": version_info.get("commit", "unknown")
+                    "pid": cluster_status.get("pid"),
+                    "version": cluster_status.get("version", "unknown"),
+                    "peer_count": cluster_status.get("peer_count", 0),
+                    "api_responsive": cluster_status.get("api_responsive", False),
+                    "config_valid": cluster_status.get("config_valid", False)
                 }
                 
-                # Check peers
-                peers_result = subprocess.run(
-                    ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/peers"],
-                    capture_output=True, text=True, timeout=5
-                )
+                # Update detailed info
+                backend["detailed_info"].update({
+                    "cluster_pid": cluster_status.get("pid"),
+                    "cluster_peers": cluster_status.get("peer_count", 0),
+                    "api_available": cluster_status.get("api_responsive", False),
+                    "config_path": cluster_manager.config.cluster_path,
+                    "api_port": cluster_manager.config.api_port,
+                    "port_status": cluster_status.get("port_status", {}),
+                    "version": cluster_status.get("version", "unknown")
+                })
                 
-                if peers_result.returncode == 0:
-                    peers = json.loads(peers_result.stdout)
-                    peer_count = len(peers) if isinstance(peers, list) else 0
-                    backend["metrics"]["peer_count"] = peer_count
-                    backend["detailed_info"]["cluster_peers"] = peer_count
+            elif cluster_status.get("running") and not cluster_status.get("api_responsive"):
+                backend["status"] = "running"
+                backend["health"] = "degraded"
+                backend["metrics"] = {
+                    "pid": cluster_status.get("pid"),
+                    "api_responsive": False,
+                    "config_valid": cluster_status.get("config_valid", False)
+                }
+                backend["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "error": "Cluster daemon running but API not responsive"
+                })
+                
+                # Add a longer wait before attempting restart to avoid restart loops
+                last_restart = backend.get("detailed_info", {}).get("last_restart_attempt")
+                now = datetime.now()
+                
+                if not last_restart or (now - datetime.fromisoformat(last_restart)).total_seconds() > 300:  # 5 minutes
+                    # Try to restart if API is unresponsive and it's been more than 5 minutes since last attempt
+                    logger.warning("IPFS Cluster API unresponsive for >5 minutes, attempting restart...")
+                    try:
+                        restart_result = await cluster_manager.restart_cluster_service()
+                        backend["detailed_info"]["last_restart_attempt"] = now.isoformat()
+                        
+                        if restart_result.get("success"):
+                            backend["detailed_info"]["auto_healed"] = True
+                            backend["detailed_info"]["heal_timestamp"] = datetime.now().isoformat()
+                            backend["detailed_info"]["heal_action"] = "api_unresponsive_restart"
+                            
+                            # Re-check status after restart
+                            new_status = await cluster_manager.get_cluster_service_status()
+                            if new_status.get("api_responsive"):
+                                backend["status"] = "running"
+                                backend["health"] = "healthy"
+                                backend["metrics"]["api_responsive"] = True
+                        else:
+                            backend["errors"].append({
+                                "timestamp": datetime.now().isoformat(),
+                                "error": f"Auto-restart failed: {restart_result.get('error', 'Unknown error')}"
+                            })
+                    except Exception as restart_e:
+                        backend["errors"].append({
+                            "timestamp": datetime.now().isoformat(),
+                            "error": f"Error during auto-restart: {str(restart_e)}"
+                        })
+                else:
+                    # Too soon since last restart attempt
+                    time_since_restart = (now - datetime.fromisoformat(last_restart)).total_seconds()
+                    backend["detailed_info"]["restart_cooldown_remaining"] = 300 - time_since_restart
                     
             else:
+                # Daemon not running - attempt to start it
                 backend["status"] = "stopped"
                 backend["health"] = "unhealthy"
                 
-        except Exception as e:
+                # Try to start the daemon
+                try:
+                    logger.info("IPFS Cluster not running, attempting to start...")
+                    start_result = await cluster_manager.start_cluster_service()
+                    
+                    if start_result.get("success"):
+                        # Daemon started successfully
+                        backend["status"] = "running"
+                        backend["health"] = "healthy" if start_result.get("api_responsive") else "degraded"
+                        backend["metrics"] = {
+                            "pid": start_result.get("pid"),
+                            "api_responsive": start_result.get("api_responsive", False)
+                        }
+                        backend["detailed_info"]["auto_healed"] = True
+                        backend["detailed_info"]["heal_timestamp"] = datetime.now().isoformat()
+                        backend["detailed_info"]["heal_action"] = "daemon_auto_start"
+                    else:
+                        backend["errors"].append({
+                            "timestamp": datetime.now().isoformat(),
+                            "error": f"Failed to start cluster daemon: {start_result.get('errors', ['Unknown error'])}"
+                        })
+                        
+                except Exception as start_e:
+                    backend["errors"].append({
+                        "timestamp": datetime.now().isoformat(),
+                        "error": f"Error attempting to start cluster daemon: {str(start_e)}"
+                    })
+            
+        except ImportError as e:
+            # Fallback to basic health check if cluster daemon manager not available
             backend["status"] = "error"
             backend["health"] = "unhealthy"
             backend["errors"].append({
                 "timestamp": datetime.now().isoformat(),
-                "error": str(e)
+                "error": f"Enhanced cluster daemon manager not available: {e}"
+            })
+            
+            # Basic curl-based fallback
+            try:
+                # Use correct IPFS Cluster API endpoint (no /api/v0/ prefix)
+                result = subprocess.run(
+                    ["curl", "-s", "-X", "GET", f"http://127.0.0.1:{backend['port']}/version"],
+                    capture_output=True, text=True, timeout=5
+                )
+                
+                if result.returncode == 0:
+                    version_info = json.loads(result.stdout)
+                    backend["status"] = "running"
+                    backend["health"] = "degraded"  # Degraded because no enhanced management
+                    backend["metrics"] = {
+                        "version": version_info.get("version", "unknown"),
+                        "management_mode": "basic_fallback"
+                    }
+                else:
+                    backend["status"] = "stopped"
+                    backend["health"] = "unhealthy"
+                    
+            except Exception as fallback_e:
+                backend["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "error": f"Fallback health check also failed: {str(fallback_e)}"
+                })
+        except Exception as e:
+            backend["status"] = "error" 
+            backend["health"] = "unhealthy"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": f"Cluster health check failed: {str(e)}"
             })
             
         backend["last_check"] = datetime.now().isoformat()
         return backend
     
     async def _check_ipfs_cluster_follow_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Check IPFS Cluster Follow health with real implementation."""
+        """Check IPFS Cluster Follow health with enhanced daemon manager and API client."""
         try:
-            # Check if follow daemon is running
-            result = subprocess.run(
-                ["pgrep", "-f", "ipfs-cluster-follow"],
-                capture_output=True, text=True, timeout=5
-            )
+            # Use the enhanced cluster follow daemon manager for comprehensive health checking
+            from ipfs_kit_py.ipfs_cluster_follow_daemon_manager import IPFSClusterFollowDaemonManager
             
-            if result.returncode == 0:
+            # Create cluster follow daemon manager
+            cluster_name = backend.get("cluster_name", "default")
+            follow_manager = IPFSClusterFollowDaemonManager(cluster_name)
+            
+            # Get comprehensive follow status via API
+            api_status = await follow_manager.get_follow_status_via_api()
+            
+            if api_status.get("api_responsive"):
                 backend["status"] = "running"
                 backend["health"] = "healthy"
-                backend["daemon_pid"] = result.stdout.strip()
-                backend["metrics"] = {
-                    "process_running": True,
-                    "pid": backend["daemon_pid"]
-                }
-            else:
-                backend["status"] = "stopped"
-                backend["health"] = "unhealthy"
-                backend["daemon_pid"] = None
                 
-        except Exception as e:
+                # Extract comprehensive metrics from API response
+                follow_info = api_status.get("follow_info", {})
+                id_info = follow_info.get("id", {})
+                pins_info = follow_info.get("pins", {})
+                
+                backend["metrics"] = {
+                    "api_responsive": True,
+                    "peer_id": id_info.get("id", "unknown") if isinstance(id_info, dict) else "unknown",
+                    "pin_count": len(pins_info) if isinstance(pins_info, list) else 0,
+                    "cluster_name": cluster_name
+                }
+                
+                # Update detailed info with API data
+                backend["detailed_info"].update({
+                    "follow_id": id_info.get("id", "unknown") if isinstance(id_info, dict) else "unknown",
+                    "api_port": follow_manager.config.api_port,
+                    "proxy_port": follow_manager.config.proxy_port,
+                    "cluster_name": cluster_name,
+                    "enhanced_monitoring": True
+                })
+            else:
+                # Fallback to basic daemon status check
+                follow_status = await follow_manager.get_cluster_follow_status()
+                
+                if follow_status.get("running"):
+                    backend["status"] = "running"
+                    backend["health"] = "degraded"
+                    backend["errors"].append({
+                        "timestamp": datetime.now().isoformat(),
+                        "error": "Cluster follow daemon running but API not responsive"
+                    })
+                else:
+                    backend["status"] = "stopped"
+                    backend["health"] = "unhealthy"
+                    
+                    # Check if we have bootstrap peer info for auto-healing
+                    bootstrap_peer = backend.get("bootstrap_peer")
+                    if bootstrap_peer:
+                        # Add a longer wait before attempting restart to avoid restart loops
+                        last_restart = backend.get("detailed_info", {}).get("last_restart_attempt")
+                        now = datetime.now()
+                        
+                        if not last_restart or (now - datetime.fromisoformat(last_restart)).total_seconds() > 300:  # 5 minutes
+                            # Try to start if not running and it's been more than 5 minutes since last attempt
+                            logger.warning("IPFS Cluster Follow not running for >5 minutes, attempting start...")
+                            try:
+                                start_result = await follow_manager.start_cluster_follow(bootstrap_peer)
+                                backend["detailed_info"]["last_restart_attempt"] = now.isoformat()
+                                
+                                if start_result.get("success"):
+                                    backend["detailed_info"]["auto_healed"] = True
+                                    backend["detailed_info"]["heal_timestamp"] = datetime.now().isoformat()
+                                    backend["detailed_info"]["heal_action"] = "follow_daemon_auto_start"
+                                    
+                                    # Re-check status after start
+                                    new_status = await follow_manager.get_cluster_follow_status()
+                                    if new_status.get("running") and new_status.get("api_responsive"):
+                                        backend["status"] = "running"
+                                        backend["health"] = "healthy"
+                                        backend["metrics"]["api_responsive"] = True
+                                else:
+                                    backend["errors"].append({
+                                        "timestamp": datetime.now().isoformat(),
+                                        "error": f"Auto-start failed: {start_result.get('errors', ['Unknown error'])}"
+                                    })
+                            except Exception as start_e:
+                                backend["errors"].append({
+                                    "timestamp": datetime.now().isoformat(),
+                                    "error": f"Error during auto-start: {str(start_e)}"
+                                })
+                        else:
+                            # Too soon since last restart attempt
+                            time_since_restart = (now - datetime.fromisoformat(last_restart)).total_seconds()
+                            backend["detailed_info"]["restart_cooldown_remaining"] = 300 - time_since_restart
+            
+            # Update comprehensive status information
+            follow_status = await follow_manager.get_cluster_follow_status()
+            
+            if follow_status.get("running"):
+                backend["metrics"] = {
+                    "pid": follow_status.get("pid"),
+                    "cluster_name": follow_status.get("cluster_name", cluster_name),
+                    "pin_count": follow_status.get("pin_count", 0),
+                    "api_responsive": follow_status.get("api_responsive", False),
+                    "leader_connected": follow_status.get("leader_connected", False)
+                }
+                
+                # Update detailed info
+                backend["detailed_info"].update({
+                    "follow_pid": follow_status.get("pid"),
+                    "cluster_name": follow_status.get("cluster_name", cluster_name),
+                    "pins_followed": follow_status.get("pin_count", 0),
+                    "api_available": follow_status.get("api_responsive", False),
+                    "config_path": follow_manager.config.cluster_path,
+                    "api_port": follow_manager.config.api_port,
+                    "port_status": follow_status.get("port_status", {}),
+                    "leader_connected": follow_status.get("leader_connected", False)
+                })
+                
+        except ImportError as e:
+            # Fallback to basic health check if follow daemon manager not available
             backend["status"] = "error"
             backend["health"] = "unhealthy"
             backend["errors"].append({
                 "timestamp": datetime.now().isoformat(),
-                "error": str(e)
+                "error": f"Enhanced cluster follow daemon manager not available: {e}"
+            })
+            
+            # Basic curl-based fallback
+            try:
+                # Use correct IPFS Cluster Follow API endpoint (no /api/v0/ prefix)
+                result = subprocess.run(
+                    ["curl", "-s", "-X", "GET", f"http://127.0.0.1:{backend['port']}/id"],
+                    capture_output=True, text=True, timeout=5
+                )
+                
+                if result.returncode == 0:
+                    id_info = json.loads(result.stdout)
+                    backend["status"] = "running"
+                    backend["health"] = "degraded"  # Degraded because no enhanced management
+                    backend["metrics"] = {
+                        "peer_id": id_info.get("id", "unknown"),
+                        "management_mode": "basic_fallback"
+                    }
+                else:
+                    backend["status"] = "stopped"
+                    backend["health"] = "unhealthy"
+                    
+            except Exception as fallback_e:
+                backend["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "error": f"Fallback health check also failed: {str(fallback_e)}"
+                })
+        except Exception as e:
+            backend["status"] = "error" 
+            backend["health"] = "unhealthy"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": f"Cluster follow health check failed: {str(e)}"
             })
             
         backend["last_check"] = datetime.now().isoformat()
@@ -496,19 +887,85 @@ class BackendHealthMonitor:
         """Check Lotus daemon health with safe implementation to prevent loops."""
         try:
             # Use simple process check first to avoid lotus_kit import issues
-            result = subprocess.run(
-                ["pgrep", "-f", "lotus"],
-                capture_output=True, text=True, timeout=3
-            )
+            # Check both 'lotus' and 'lotus daemon' patterns for broader compatibility
+            lotus_found = False
+            daemon_pid = None
             
-            if result.returncode == 0:
+            # Try multiple process patterns to find Lotus
+            patterns = ["lotus daemon", "lotus", "lotus-daemon"]
+            
+            for pattern in patterns:
+                result = subprocess.run(
+                    ["pgrep", "-f", pattern],
+                    capture_output=True, text=True, timeout=3
+                )
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    # Verify the process is actually Lotus by checking the command line
+                    pids = result.stdout.strip().split('\n')
+                    for pid in pids:
+                        if pid.strip():
+                            try:
+                                # First check if the process still exists
+                                proc_check = subprocess.run(
+                                    ["ps", "-p", pid.strip()],
+                                    capture_output=True, text=True, timeout=2
+                                )
+                                
+                                if proc_check.returncode != 0:
+                                    # Process no longer exists, skip it
+                                    continue
+                                
+                                # Double-check the process exists and is stable
+                                # by waiting a moment and checking again
+                                import time
+                                time.sleep(0.1)  # Small delay
+                                
+                                proc_check2 = subprocess.run(
+                                    ["ps", "-p", pid.strip()],
+                                    capture_output=True, text=True, timeout=2
+                                )
+                                
+                                if proc_check2.returncode != 0:
+                                    # Process died between checks, skip it
+                                    continue
+                                
+                                # Check if this PID is actually a Lotus process
+                                ps_result = subprocess.run(
+                                    ["ps", "-p", pid.strip(), "-o", "cmd="],
+                                    capture_output=True, text=True, timeout=2
+                                )
+                                
+                                if ps_result.returncode == 0:
+                                    cmd_line = ps_result.stdout.strip().lower()
+                                    # Look for actual Lotus daemon indicators and exclude Python scripts
+                                    if ("lotus" in cmd_line and 
+                                        ("daemon" in cmd_line or 
+                                         "lotus " in cmd_line or
+                                         cmd_line.endswith("lotus")) and
+                                        "python" not in cmd_line and  # Exclude Python scripts
+                                        "/bin/lotus" in cmd_line or "lotus daemon" in cmd_line or cmd_line.strip().endswith("lotus")):
+                                        lotus_found = True
+                                        daemon_pid = pid.strip()
+                                        break
+                            except Exception:
+                                continue
+                
+                if lotus_found:
+                    break
+            
+            if lotus_found:
                 backend["status"] = "running"
                 backend["health"] = "healthy"
-                backend["daemon_pid"] = result.stdout.strip()
+                backend["daemon_pid"] = daemon_pid
                 backend["metrics"] = {
                     "process_running": True,
-                    "pid": backend["daemon_pid"]
+                    "pid": daemon_pid
                 }
+                
+                # Initialize detailed_info if not exists
+                if "detailed_info" not in backend:
+                    backend["detailed_info"] = {}
                 
                 # Try to get basic version info with timeout
                 try:
@@ -517,31 +974,63 @@ class BackendHealthMonitor:
                         capture_output=True, text=True, timeout=5
                     )
                     if version_result.returncode == 0:
-                        backend["metrics"]["version"] = version_result.stdout.strip()
+                        version_lines = version_result.stdout.strip().split('\n')
+                        backend["detailed_info"]["version"] = version_lines[0] if version_lines else "unknown"
+                        backend["metrics"]["version"] = backend["detailed_info"]["version"]
+                        # Look for commit info in version output
+                        for line in version_lines:
+                            if "Commit:" in line:
+                                backend["detailed_info"]["commit"] = line.split("Commit:")[-1].strip()
+                    else:
+                        backend["detailed_info"]["version"] = "error"
+                        backend["metrics"]["version"] = "error"
                 except subprocess.TimeoutExpired:
+                    backend["detailed_info"]["version"] = "timeout"
                     backend["metrics"]["version"] = "timeout"
                 except Exception:
+                    backend["detailed_info"]["version"] = "unknown"
                     backend["metrics"]["version"] = "unknown"
 
-                # Try to get chain height and sync status
+                # Try to get sync status - use 'sync status' instead of 'sync wait'
                 try:
-                    chain_result = subprocess.run(
-                        ["lotus", "sync", "wait"],
+                    sync_result = subprocess.run(
+                        ["lotus", "sync", "status"],
                         capture_output=True, text=True, timeout=10
                     )
-                    if chain_result.returncode == 0:
-                        backend["detailed_info"]["sync_status"] = "synced"
-                        # Attempt to get chain height (requires separate command)
-                        height_result = subprocess.run(
-                            ["lotus", "chain", "head"],
-                            capture_output=True, text=True, timeout=5
-                        )
-                        if height_result.returncode == 0:
-                            backend["detailed_info"]["chain_height"] = height_result.stdout.strip()
+                    if sync_result.returncode == 0:
+                        sync_output = sync_result.stdout.strip()
+                        if "sync done" in sync_output.lower() or "sync complete" in sync_output.lower():
+                            backend["detailed_info"]["sync_status"] = "synced"
+                        elif "syncing" in sync_output.lower():
+                            backend["detailed_info"]["sync_status"] = "syncing"
+                        else:
+                            backend["detailed_info"]["sync_status"] = "checking"
+                            
+                        # Try to extract chain height from sync status
+                        import re
+                        height_match = re.search(r'Height: (\d+)', sync_output)
+                        if height_match:
+                            backend["detailed_info"]["chain_height"] = int(height_match.group(1))
+                        else:
+                            # Fallback to chain head command
+                            try:
+                                height_result = subprocess.run(
+                                    ["lotus", "chain", "head"],
+                                    capture_output=True, text=True, timeout=5
+                                )
+                                if height_result.returncode == 0:
+                                    backend["detailed_info"]["chain_height"] = height_result.stdout.strip()
+                            except:
+                                backend["detailed_info"]["chain_height"] = 0
+                    else:
+                        backend["detailed_info"]["sync_status"] = "error"
+                        backend["detailed_info"]["chain_height"] = 0
                 except subprocess.TimeoutExpired:
                     backend["detailed_info"]["sync_status"] = "timeout"
+                    backend["detailed_info"]["chain_height"] = 0
                 except Exception:
                     backend["detailed_info"]["sync_status"] = "unknown"
+                    backend["detailed_info"]["chain_height"] = 0
 
                 # Try to get peer count
                 try:
@@ -550,8 +1039,10 @@ class BackendHealthMonitor:
                         capture_output=True, text=True, timeout=5
                     )
                     if peers_result.returncode == 0:
-                        peers = peers_result.stdout.strip().split('\n')
-                        backend["detailed_info"]["peers_count"] = len(peers) if peers[0] else 0
+                        peers_lines = [line.strip() for line in peers_result.stdout.strip().split('\n') if line.strip()]
+                        backend["detailed_info"]["peers_count"] = len(peers_lines)
+                    else:
+                        backend["detailed_info"]["peers_count"] = 0
                 except subprocess.TimeoutExpired:
                     backend["detailed_info"]["peers_count"] = "timeout"
                 except Exception:
@@ -564,23 +1055,59 @@ class BackendHealthMonitor:
                         capture_output=True, text=True, timeout=5
                     )
                     if wallet_list_result.returncode == 0 and wallet_list_result.stdout.strip():
-                        wallet_address = wallet_list_result.stdout.strip().split('\n')[0]
-                        balance_result = subprocess.run(
-                            ["lotus", "wallet", "balance", wallet_address],
-                            capture_output=True, text=True, timeout=5
-                        )
-                        if balance_result.returncode == 0:
-                            backend["detailed_info"]["wallet_balance"] = balance_result.stdout.strip()
+                        wallet_lines = [line.strip() for line in wallet_list_result.stdout.strip().split('\n') if line.strip()]
+                        if wallet_lines:
+                            wallet_address = wallet_lines[0]
+                            balance_result = subprocess.run(
+                                ["lotus", "wallet", "balance", wallet_address],
+                                capture_output=True, text=True, timeout=5
+                            )
+                            if balance_result.returncode == 0:
+                                backend["detailed_info"]["wallet_balance"] = balance_result.stdout.strip()
+                            else:
+                                backend["detailed_info"]["wallet_balance"] = "0 FIL"
+                        else:
+                            backend["detailed_info"]["wallet_balance"] = "no wallet"
+                    else:
+                        backend["detailed_info"]["wallet_balance"] = "unknown"
                 except subprocess.TimeoutExpired:
                     backend["detailed_info"]["wallet_balance"] = "timeout"
                 except Exception:
                     backend["detailed_info"]["wallet_balance"] = "unknown"
+                    
+                # Try to get API info
+                try:
+                    config_result = subprocess.run(
+                        ["lotus", "config", "get", "API.ListenAddress"],
+                        capture_output=True, text=True, timeout=3
+                    )
+                    if config_result.returncode == 0:
+                        api_addr = config_result.stdout.strip().strip('"')
+                        backend["detailed_info"]["api_address"] = api_addr
+                    else:
+                        backend["detailed_info"]["api_address"] = "/ip4/127.0.0.1/tcp/1234/http"
+                except Exception:
+                    backend["detailed_info"]["api_address"] = "/ip4/127.0.0.1/tcp/1234/http"
+                    
+                # Set network and node type based on common configurations
+                backend["detailed_info"]["node_type"] = "fullnode"
+                backend["detailed_info"]["network"] = "mainnet"  # Default, could be detected from config
                     
             else:
                 backend["status"] = "stopped"
                 backend["health"] = "unhealthy"
                 backend["daemon_pid"] = None
                 backend["metrics"] = {"process_running": False}
+                # Keep detailed_info but mark everything as unavailable
+                if "detailed_info" not in backend:
+                    backend["detailed_info"] = {}
+                backend["detailed_info"].update({
+                    "sync_status": "unavailable",
+                    "chain_height": 0,
+                    "peers_count": 0,
+                    "wallet_balance": "unavailable",
+                    "version": "unavailable"
+                })
                 
         except subprocess.TimeoutExpired:
             backend["status"] = "timeout"
@@ -1249,74 +1776,54 @@ class BackendHealthMonitor:
             
         backend["last_check"] = datetime.now().isoformat()
         return backend
-    async def _check_libp2p_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Check libp2p peer network health."""
+    
+    async def _check_gdrive_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
+        """Check Google Drive backend health."""
         try:
-            # Initialize unified peer manager if not already done
-            if not backend.get("peer_manager"):
-                from ipfs_kit_py.libp2p.peer_manager import get_peer_manager
-                peer_manager = get_peer_manager(config_dir=self.config_dir / "libp2p")
-                backend["peer_manager"] = peer_manager
-                # Start the peer manager if not already started
-                if not peer_manager.discovery_active:
-                    await peer_manager.start()
-            else:
-                peer_manager = backend["peer_manager"]
-                
-            # Get peer statistics from unified manager
-            stats = peer_manager.get_peer_statistics()
-            
-            # Update backend info
-            backend["detailed_info"].update({
-                "peer_id": str(peer_manager.host.get_id()) if peer_manager.host else "unknown",
-                "total_peers": stats["total_peers"],
-                "connected_peers": stats["connected_peers"],
-                "bootstrap_peers": stats["bootstrap_peers"],
-                "protocols": stats["protocols_supported"],
-                "discovery_active": stats["discovery_active"],
-                "files_accessible": stats["total_files"],
-                "pins_accessible": stats["total_pins"]
-            })
-            
-            # Get listen addresses if host is available
-            if peer_manager.host:
-                try:
-                    listen_addrs = []
-                    for addr in peer_manager.host.get_addrs():
-                        listen_addrs.append(str(addr))
-                    backend["detailed_info"]["listen_addresses"] = listen_addrs
-                except Exception:
-                    backend["detailed_info"]["listen_addresses"] = []
-            
-            # Update metrics
-            backend["metrics"] = {
-                "peer_discovery": {
-                    "total_peers": stats["total_peers"],
-                    "connected_peers": stats["connected_peers"],
-                    "bootstrap_peers": stats["bootstrap_peers"],
-                    "discovery_active": stats["discovery_active"]
-                },
-                "network_data": {
-                    "files_accessible": stats["total_files"],
-                    "pins_accessible": stats["total_pins"],
-                    "protocols_count": len(stats["protocols_supported"])
-                },
-                "connectivity": {
-                    "host_active": peer_manager.host is not None,
-                    "protocols_supported": stats["protocols_supported"]
-                }
-            }
-            
-            # Determine status based on peer manager state
-            if peer_manager.host and stats["total_peers"] > 0:
-                backend["status"] = "running"
-                backend["health"] = "healthy"
-            elif peer_manager.host:
-                backend["status"] = "running"
-                backend["health"] = "degraded"  # Host running but no peers
-            else:
-                backend["status"] = "stopped"
+            # Use the GDriveClient for health checking
+            try:
+                from .backend_clients import GDriveClient
+                async with GDriveClient() as client:
+                    health_result = await client.check_health()
+                    
+                    if health_result.get("success", False):
+                        backend["status"] = health_result.get("status", "available")
+                        backend["health"] = health_result.get("health", "degraded")
+                        
+                        # Update detailed info from health check
+                        detailed = health_result.get("detailed_info", {})
+                        backend["detailed_info"].update({
+                            "connectivity": detailed.get("connectivity", False),
+                            "api_responsive": detailed.get("api_responsive", False),
+                            "authenticated": detailed.get("authenticated", False),
+                            "token_valid": detailed.get("token_valid", False),
+                            "config_dir": detailed.get("config_dir", "~/.ipfs_kit/gdrive")
+                        })
+                        
+                        # Update metrics
+                        metrics = health_result.get("metrics", {})
+                        backend["metrics"] = {
+                            "connectivity": metrics.get("connectivity", False),
+                            "authenticated": metrics.get("authenticated", False),
+                            "api_responsive": metrics.get("api_responsive", False),
+                            "note": metrics.get("note", "")
+                        }
+                        
+                    else:
+                        backend["status"] = "error"
+                        backend["health"] = "unhealthy"
+                        backend["errors"].append({
+                            "timestamp": datetime.now().isoformat(),
+                            "error": health_result.get("error", "Unknown health check error")
+                        })
+                        
+            except Exception as client_error:
+                backend["status"] = "error"
                 backend["health"] = "unhealthy"
+                backend["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "error": f"Client error: {str(client_error)}"
+                })
                 
         except Exception as e:
             backend["status"] = "error"
@@ -1325,7 +1832,296 @@ class BackendHealthMonitor:
                 "timestamp": datetime.now().isoformat(),
                 "error": str(e)
             })
-            logger.error(f"Error checking libp2p health: {e}")
             
         backend["last_check"] = datetime.now().isoformat()
         return backend
+
+    async def _check_libp2p_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
+        """Check LibP2P peer network health with enhanced monitoring, auto-healing, and content sharing."""
+        try:
+            # Initialize enhanced LibP2P manager if not already done
+            if not backend.get("libp2p_manager"):
+                # Import the enhanced LibP2P manager
+                import sys
+                import os
+                sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+                
+                from enhanced_libp2p_manager import get_libp2p_manager, start_libp2p_manager
+                
+                # Get or create the LibP2P manager
+                manager = get_libp2p_manager(config_dir=self.config_dir / "libp2p")
+                backend["libp2p_manager"] = manager
+                
+                # Start the manager if not already started
+                if not manager.host_active:
+                    logger.info("Starting Enhanced LibP2P Manager for health monitoring...")
+                    start_result = await start_libp2p_manager(config_dir=self.config_dir / "libp2p")
+                    backend["detailed_info"]["auto_started"] = True
+                    backend["detailed_info"]["start_timestamp"] = datetime.now().isoformat()
+                    backend["detailed_info"]["start_result"] = {
+                        "success": start_result is not None,
+                        "peer_id": start_result.stats.get("peer_id") if start_result else None,
+                        "protocols_started": list(start_result.protocols_active) if start_result else []
+                    }
+            else:
+                manager = backend["libp2p_manager"]
+            
+            # Get comprehensive statistics
+            stats = manager.get_peer_statistics()
+            shared_content = manager.get_shared_content_summary()
+            all_peers = manager.get_all_peers()
+            
+            # Build enhanced network information
+            network_info = {
+                "peer_id": stats.get("peer_id"),
+                "total_peers": stats.get("total_peers", 0),
+                "connected_peers": stats.get("connected_peers", 0),
+                "bootstrap_peers": stats.get("bootstrap_peers", 0),
+                "protocols": stats.get("protocols_supported", []),
+                "discovery_active": stats.get("discovery_active", False),
+                "files_accessible": stats.get("files_accessible", 0),
+                "pins_accessible": stats.get("pins_accessible", 0),
+                "listen_addresses": stats.get("listen_addresses", []),
+                "host_active": manager.host_active
+            }
+            
+            # Add content sharing information
+            network_info["content_sharing"] = {
+                "pinsets": {
+                    "peers_sharing": shared_content.get("pinsets", {}).get("peers", 0),
+                    "total_pins": shared_content.get("pinsets", {}).get("total_pins", 0)
+                },
+                "vectors": {
+                    "peers_sharing": shared_content.get("vectors", {}).get("peers", 0),
+                    "total_vectors": shared_content.get("vectors", {}).get("total_vectors", 0)
+                },
+                "knowledge": {
+                    "peers_sharing": shared_content.get("knowledge", {}).get("peers", 0),
+                    "total_entities": shared_content.get("knowledge", {}).get("total_entities", 0)
+                },
+                "files": {
+                    "peers_sharing": shared_content.get("files", {}).get("peers", 0),
+                    "total_files": shared_content.get("files", {}).get("total_files", 0)
+                }
+            }
+            
+            # Add peer source breakdown
+            peer_sources = {}
+            for peer_id, peer_info in all_peers.items():
+                source = peer_info.get("source", "unknown")
+                peer_sources[source] = peer_sources.get(source, 0) + 1
+            network_info["peer_sources"] = peer_sources
+            
+            # Check for connectivity issues and implement auto-healing
+            connectivity_issues = []
+            
+            # Check if discovery is active but no peers found
+            if stats.get("discovery_active") and stats.get("total_peers", 0) == 0:
+                connectivity_issues.append("discovery_active_no_peers")
+                
+                # Try to restart discovery
+                try:
+                    logger.warning("LibP2P discovery active but no peers found, restarting discovery...")
+                    await manager.restart_discovery()
+                    network_info["auto_healed"] = True
+                    network_info["heal_action"] = "restart_discovery"
+                    network_info["heal_timestamp"] = datetime.now().isoformat()
+                except Exception as heal_e:
+                    backend["errors"].append({
+                        "timestamp": datetime.now().isoformat(),
+                        "error": f"Failed to restart discovery: {str(heal_e)}"
+                    })
+            
+            # Check if host is inactive
+            if not manager.host_active:
+                connectivity_issues.append("host_inactive")
+                
+                # Try to restart the manager
+                try:
+                    logger.warning("LibP2P host inactive, attempting restart...")
+                    restart_result = await manager.start()
+                    if restart_result and restart_result.get("success"):
+                        network_info["auto_healed"] = True
+                        network_info["heal_action"] = "restart_host"
+                        network_info["heal_timestamp"] = datetime.now().isoformat()
+                        
+                        # Update stats after restart
+                        stats = manager.get_peer_statistics()
+                        network_info.update({
+                            "total_peers": stats.get("total_peers", 0),
+                            "connected_peers": stats.get("connected_peers", 0),
+                            "discovery_active": stats.get("discovery_active", False),
+                            "host_active": manager.host_active
+                        })
+                except Exception as restart_e:
+                    backend["errors"].append({
+                        "timestamp": datetime.now().isoformat(),
+                        "error": f"Failed to restart LibP2P host: {str(restart_e)}"
+                    })
+            
+            # Check for low peer connectivity
+            total_peers = stats.get("total_peers", 0)
+            connected_peers = stats.get("connected_peers", 0)
+            if total_peers > 0 and connected_peers < total_peers * 0.5:
+                connectivity_issues.append("low_connectivity")
+                network_info["connectivity_ratio"] = connected_peers / total_peers
+            
+            # Check for insufficient content sharing
+            total_content = (
+                shared_content.get("pinsets", {}).get("total_pins", 0) +
+                shared_content.get("files", {}).get("total_files", 0) +
+                shared_content.get("vectors", {}).get("total_vectors", 0) +
+                shared_content.get("knowledge", {}).get("total_entities", 0)
+            )
+            if total_content == 0:
+                connectivity_issues.append("no_content_available")
+            
+            # Update backend detailed info
+            backend["detailed_info"].update(network_info)
+            backend["detailed_info"]["connectivity_issues"] = connectivity_issues
+            
+            # Update comprehensive metrics
+            backend["metrics"] = {
+                "peer_discovery": {
+                    "total_peers": total_peers,
+                    "connected_peers": connected_peers,
+                    "bootstrap_peers": stats.get("bootstrap_peers", 0),
+                    "discovery_active": stats.get("discovery_active", False),
+                    "connectivity_ratio": connected_peers / max(total_peers, 1),
+                    "peer_sources": peer_sources
+                },
+                "content_sharing": {
+                    "pinsets_available": shared_content.get("pinsets", {}).get("total_pins", 0),
+                    "files_accessible": shared_content.get("files", {}).get("total_files", 0),
+                    "vectors_available": shared_content.get("vectors", {}).get("total_vectors", 0),
+                    "knowledge_entities": shared_content.get("knowledge", {}).get("total_entities", 0),
+                    "total_shared_content": total_content,
+                    "content_available": total_content > 0
+                },
+                "network_capabilities": {
+                    "protocols_count": len(stats.get("protocols_supported", [])),
+                    "protocols_supported": stats.get("protocols_supported", []),
+                    "features_enabled": [
+                        "peer_discovery",
+                        "pinset_sharing",
+                        "vector_embeddings", 
+                        "knowledge_graph",
+                        "filesystem_sharing"
+                    ],
+                    "bootstrap_sources": list(peer_sources.keys())
+                },
+                "connectivity": {
+                    "host_active": manager.host_active,
+                    "discovery_working": stats.get("discovery_active", False) and total_peers > 0,
+                    "network_health_score": self._calculate_enhanced_libp2p_health_score(stats, shared_content, connectivity_issues)
+                }
+            }
+            
+            # Determine comprehensive status and health
+            health_score = backend["metrics"]["connectivity"]["network_health_score"]
+            
+            if manager.host_active and stats.get("discovery_active", False):
+                if health_score >= 85:
+                    backend["status"] = "running"
+                    backend["health"] = "healthy"
+                    backend["status_message"] = f"LibP2P fully operational with {connected_peers} peers and content sharing active"
+                elif health_score >= 70:
+                    backend["status"] = "running"
+                    backend["health"] = "degraded"
+                    backend["status_message"] = f"LibP2P running with minor issues: {', '.join(connectivity_issues[:2])}"
+                else:
+                    backend["status"] = "running"
+                    backend["health"] = "unhealthy"
+                    backend["status_message"] = f"LibP2P running with significant issues: {', '.join(connectivity_issues)}"
+            elif manager.host_active:
+                backend["status"] = "running"
+                backend["health"] = "degraded"
+                backend["status_message"] = "LibP2P host running but discovery inactive"
+            else:
+                backend["status"] = "stopped"
+                backend["health"] = "unhealthy"
+                backend["status_message"] = "LibP2P host not running"
+                
+        except ImportError as e:
+            backend["status"] = "error"
+            backend["health"] = "unhealthy"
+            backend["status_message"] = "Enhanced LibP2P manager not available"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": f"Import error: {str(e)}"
+            })
+            logger.error(f"Failed to import enhanced LibP2P manager: {e}")
+            
+        except Exception as e:
+            backend["status"] = "error"
+            backend["health"] = "unhealthy"
+            backend["status_message"] = f"LibP2P health check failed: {str(e)}"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            })
+            logger.error(f"Error checking LibP2P health: {e}")
+            
+        backend["last_check"] = datetime.now().isoformat()
+        return backend
+    
+    def _calculate_enhanced_libp2p_health_score(self, stats: Dict[str, Any], shared_content: Dict[str, Any], issues: List[str]) -> int:
+        """Calculate an enhanced health score for LibP2P network (0-100).
+        
+        Args:
+            stats: Peer statistics
+            shared_content: Content sharing statistics
+            issues: List of connectivity issues
+            
+        Returns:
+            Health score from 0-100
+        """
+        score = 100
+        
+        # Deduct points for discovery and connectivity issues
+        if not stats.get("discovery_active", False):
+            score -= 25
+        
+        total_peers = stats.get("total_peers", 0)
+        connected_peers = stats.get("connected_peers", 0)
+        
+        if total_peers == 0:
+            score -= 30
+        elif total_peers < 3:
+            score -= 15
+        
+        if total_peers > 0 and connected_peers < total_peers * 0.5:
+            score -= 15
+        
+        # Content sharing scoring
+        pinsets = shared_content.get("pinsets", {}).get("total_pins", 0)
+        files = shared_content.get("files", {}).get("total_files", 0)
+        vectors = shared_content.get("vectors", {}).get("total_vectors", 0)
+        knowledge = shared_content.get("knowledge", {}).get("total_entities", 0)
+        
+        # Bonus points for content availability
+        if pinsets > 0:
+            score += 5
+        if files > 0:
+            score += 5
+        if vectors > 0:
+            score += 5
+        if knowledge > 0:
+            score += 5
+        
+        # Deduct points for no content at all
+        if pinsets + files + vectors + knowledge == 0:
+            score -= 20
+        
+        # Deduct points for specific issues
+        for issue in issues:
+            if issue == "host_inactive":
+                score -= 40
+            elif issue == "discovery_active_no_peers":
+                score -= 20
+            elif issue == "low_connectivity":
+                score -= 10
+            elif issue == "no_content_available":
+                score -= 15
+        
+        return max(0, min(100, score))

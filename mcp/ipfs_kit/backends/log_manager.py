@@ -134,11 +134,41 @@ class BackendLogManager:
                         pids = result.stdout.strip().split('\n')
                         for pid in pids[:1]:  # Check first PID only
                             if pid.strip():
-                                self.add_log_entry(
-                                    backend_name, 
-                                    "INFO", 
-                                    f"Process {process_name} (PID: {pid}) is running"
-                                )
+                                # Verify the PID still exists before logging
+                                try:
+                                    proc_check = subprocess.run(
+                                        ["ps", "-p", pid.strip()],
+                                        capture_output=True, text=True, timeout=1
+                                    )
+                                    if proc_check.returncode == 0:
+                                        # For Lotus, verify it's not a Python script or other false positive
+                                        if process_name == "lotus":
+                                            try:
+                                                cmd_result = subprocess.run(
+                                                    ["ps", "-p", pid.strip(), "-o", "cmd="],
+                                                    capture_output=True, text=True, timeout=1
+                                                )
+                                                if cmd_result.returncode == 0:
+                                                    cmd_line = cmd_result.stdout.strip().lower()
+                                                    # Skip Python scripts and other non-Lotus processes
+                                                    if ("python" in cmd_line or 
+                                                        "test" in cmd_line or
+                                                        not ("/bin/lotus" in cmd_line or 
+                                                             "lotus daemon" in cmd_line or 
+                                                             cmd_line.strip().endswith("lotus"))):
+                                                        continue
+                                            except Exception:
+                                                continue
+                                        
+                                        self.add_log_entry(
+                                            backend_name, 
+                                            "INFO", 
+                                            f"Process {process_name} (PID: {pid}) is running"
+                                        )
+                                    # If process doesn't exist, don't log anything
+                                except Exception:
+                                    # If we can't verify the process, don't log it
+                                    pass
                 except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
                     continue
                     

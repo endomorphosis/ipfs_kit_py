@@ -831,6 +831,7 @@ class GDriveClient(BackendClient):
             
             if not dns_ok:
                 return {
+                    "success": False,
                     "status": "unhealthy",
                     "endpoint": self.endpoint,
                     "error": "DNS resolution failed"
@@ -853,40 +854,82 @@ class GDriveClient(BackendClient):
                             ) as auth_response:
                                 if auth_response.status == 200:
                                     return {
+                                        "success": True,
                                         "status": "healthy",
+                                        "health": "healthy",
                                         "endpoint": self.endpoint,
-                                        "authenticated": True
+                                        "metrics": {
+                                            "connectivity": True,
+                                            "authenticated": True,
+                                            "api_responsive": True
+                                        },
+                                        "detailed_info": {
+                                            "connectivity": True,
+                                            "api_responsive": True,
+                                            "authenticated": True,
+                                            "token_valid": True
+                                        }
                                     }
                                 else:
                                     return {
-                                        "status": "degraded",
+                                        "success": True,
+                                        "status": "degraded", 
+                                        "health": "degraded",
                                         "endpoint": self.endpoint,
-                                        "authenticated": False,
-                                        "note": "API accessible but authentication failed"
+                                        "metrics": {
+                                            "connectivity": True,
+                                            "authenticated": False,
+                                            "api_responsive": True,
+                                            "note": "API accessible but authentication failed"
+                                        },
+                                        "detailed_info": {
+                                            "connectivity": True,
+                                            "api_responsive": True,
+                                            "authenticated": False,
+                                            "token_valid": False
+                                        }
                                     }
                         else:
                             return {
+                                "success": True,
                                 "status": "degraded",
+                                "health": "degraded", 
                                 "endpoint": self.endpoint,
-                                "authenticated": False,
-                                "note": "API accessible but not authenticated"
+                                "metrics": {
+                                    "connectivity": True,
+                                    "authenticated": False,
+                                    "api_responsive": True,
+                                    "note": "API accessible but not authenticated"
+                                },
+                                "detailed_info": {
+                                    "connectivity": True,
+                                    "api_responsive": True,
+                                    "authenticated": False,
+                                    "token_valid": False
+                                }
                             }
                     else:
                         return {
+                            "success": False,
                             "status": "unhealthy",
+                            "health": "unhealthy",
                             "endpoint": self.endpoint,
                             "error": f"API returned HTTP {response.status}"
                         }
             except Exception as e:
                 return {
-                    "status": "unhealthy", 
+                    "success": False,
+                    "status": "unhealthy",
+                    "health": "unhealthy",
                     "endpoint": self.endpoint,
                     "error": f"API request failed: {str(e)}"
                 }
                 
         except Exception as e:
             return {
+                "success": False,
                 "status": "unhealthy",
+                "health": "unhealthy", 
                 "endpoint": self.endpoint,
                 "error": str(e)
             }
@@ -940,6 +983,11 @@ class GDriveClient(BackendClient):
             
         except Exception as e:
             return {"error": str(e)}
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """Health check for Google Drive backend (required by BackendClient)."""
+        # Delegate to check_health method
+        return await self.check_health()
     
     async def get_config(self) -> Dict[str, Any]:
         """Get Google Drive configuration."""

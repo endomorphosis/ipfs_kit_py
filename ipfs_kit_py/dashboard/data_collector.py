@@ -434,7 +434,7 @@ class DataCollector:
             
             # Process backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -696,7 +696,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -958,7 +958,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -1220,7 +1220,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -1482,7 +1482,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -1744,7 +1744,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -2006,7 +2006,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -2268,7 +2268,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -2530,7 +2530,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -2792,7 +2792,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -3054,7 +3054,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -3316,7 +3316,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -3578,7 +3578,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -3840,7 +3840,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -4102,7 +4102,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -4364,7 +4364,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -4626,7 +4626,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -4888,7 +4888,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -5150,7 +5150,7 @@ class DataCollector:
             
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
-            if backend_health and 'backends' in backend_health::
+            if backend_health and 'backends' in backend_health:
                 summary = backend_health.get('summary', {})
                 self._add_metric("vfs_backend_total_count", summary.get('total_backends', 0))
                 self._add_metric("vfs_backend_healthy_count", summary.get('healthy_backends', 0))
@@ -5413,3 +5413,9 @@ class DataCollector:
             # Analyze backend health
             backend_health = analytics.get('backend_health', {})
             if backend_health and 'backends' in backend_health:
+                pass  # TODO: Implement backend health analysis
+        except Exception as e:
+            logger.error(f'Error generating VFS insights: {e}')
+            return insights
+
+        return insights

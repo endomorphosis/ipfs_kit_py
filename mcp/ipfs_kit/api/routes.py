@@ -22,6 +22,21 @@ from .websocket_handler import WebSocketHandler
 from .vector_kb_endpoints import VectorKBEndpoints
 from .peer_endpoints import PeerEndpoints
 
+# Import replication management
+try:
+    from ipfs_kit_py.dashboard.replication_api import ReplicationAPI
+    from ipfs_kit_py.dashboard.replication_manager import ReplicationManager
+    REPLICATION_AVAILABLE = True
+except ImportError:
+    REPLICATION_AVAILABLE = False
+
+# Import enhanced dashboard API
+try:
+    from .enhanced_dashboard_api import DashboardController
+    ENHANCED_DASHBOARD_AVAILABLE = True
+except ImportError:
+    ENHANCED_DASHBOARD_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,6 +58,33 @@ class APIRoutes:
         self.file_endpoints = FileEndpoints()
         self.websocket_handler = WebSocketHandler(websocket_manager)
         self.peer_endpoints = PeerEndpoints(backend_monitor)
+        
+        # Initialize replication manager if available
+        if REPLICATION_AVAILABLE:
+            try:
+                self.replication_manager = ReplicationManager()
+                self.replication_api = ReplicationAPI(self.replication_manager)
+                logger.info("✓ Replication management available")
+            except Exception as e:
+                logger.warning(f"⚠ Failed to initialize replication manager: {e}")
+                self.replication_manager = None
+                self.replication_api = None
+        else:
+            self.replication_manager = None
+            self.replication_api = None
+            logger.info("⚠ Replication management not available")
+        
+        # Initialize enhanced dashboard controller if available
+        if ENHANCED_DASHBOARD_AVAILABLE:
+            try:
+                self.dashboard_controller = DashboardController()
+                logger.info("✓ Enhanced dashboard controller available")
+            except Exception as e:
+                logger.warning(f"⚠ Failed to initialize enhanced dashboard controller: {e}")
+                self.dashboard_controller = None
+        else:
+            self.dashboard_controller = None
+            logger.info("⚠ Enhanced dashboard controller not available")
         
         # Setup error handling
         self._setup_error_handlers()
@@ -111,6 +153,12 @@ class APIRoutes:
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard(request: Request):
             return self.templates.TemplateResponse("dashboard.html", {"request": request})
+        
+        # Replication dashboard route
+        @self.app.get("/replication", response_class=HTMLResponse)
+        async def replication_dashboard(request: Request):
+            """Standalone replication management dashboard."""
+            return self.templates.TemplateResponse("replication_dashboard.html", {"request": request})
         
         # Simple favicon route - return a simple icon response
         @self.app.get("/favicon.ico")
@@ -665,6 +713,223 @@ class APIRoutes:
                 self.peer_endpoints.get_peer_network_stats,
                 "network_stats"
             )
+
+        # Replication Management API endpoints
+        if self.replication_api:
+            
+            @self.app.get("/api/replication/status")
+            async def get_replication_status():
+                """Get overall replication status."""
+                return await self._safe_endpoint_call(
+                    self.replication_api.get_replication_status,
+                    "replication_status"
+                )
+            
+            @self.app.get("/api/replication/settings")
+            async def get_replication_settings():
+                """Get replication settings."""
+                return await self._safe_endpoint_call(
+                    self.replication_api.get_replication_settings,
+                    "replication_settings"
+                )
+            
+            @self.app.post("/api/replication/settings")
+            async def update_replication_settings(request: Request):
+                """Update replication settings."""
+                settings_data = await request.json()
+                return await self._safe_endpoint_call(
+                    lambda: self.replication_api.update_replication_settings(settings_data),
+                    "update_replication_settings"
+                )
+            
+            @self.app.get("/api/replication/backends")
+            async def list_storage_backends():
+                """List all storage backends."""
+                return await self._safe_endpoint_call(
+                    self.replication_api.list_storage_backends,
+                    "list_storage_backends"
+                )
+            
+            @self.app.post("/api/replication/backends")
+            async def add_storage_backend(request: Request):
+                """Add a new storage backend."""
+                backend_data = await request.json()
+                return await self._safe_endpoint_call(
+                    lambda: self.replication_api.add_storage_backend(backend_data),
+                    "add_storage_backend"
+                )
+            
+            @self.app.put("/api/replication/backends/{backend_name}")
+            async def update_storage_backend(backend_name: str, request: Request):
+                """Update an existing storage backend."""
+                backend_data = await request.json()
+                return await self._safe_endpoint_call(
+                    lambda: self.replication_api.update_storage_backend(backend_name, backend_data),
+                    "update_storage_backend"
+                )
+            
+            @self.app.delete("/api/replication/backends/{backend_name}")
+            async def remove_storage_backend(backend_name: str):
+                """Remove a storage backend."""
+                return await self._safe_endpoint_call(
+                    lambda: self.replication_api.remove_storage_backend(backend_name),
+                    "remove_storage_backend"
+                )
+            
+            @self.app.post("/api/replication/pins/{cid}/register")
+            async def register_pin_for_replication(cid: str, request: Request):
+                """Register a pin for replication."""
+                pin_data = await request.json()
+                return await self._safe_endpoint_call(
+                    lambda: self.replication_api.register_pin_for_replication(cid, pin_data),
+                    "register_pin_for_replication"
+                )
+            
+            @self.app.get("/api/replication/pins/{cid}/status")
+            async def get_pin_replication_status(cid: str):
+                """Get replication status for a specific pin."""
+                return await self._safe_endpoint_call(
+                    lambda: self.replication_api.get_pin_replication_status(cid),
+                    "pin_replication_status"
+                )
+            
+            @self.app.post("/api/replication/pins/{cid}/replicate")
+            async def replicate_pin_to_backend(cid: str, request: Request):
+                """Replicate a pin to specific backends."""
+                replication_data = await request.json()
+                return await self._safe_endpoint_call(
+                    lambda: self.replication_api.replicate_pin_to_backend(cid, replication_data),
+                    "replicate_pin_to_backend"
+                )
+            
+            @self.app.post("/api/replication/operation")
+            async def bulk_replication_operation(request: Request):
+                """Perform bulk replication operations."""
+                operation_data = await request.json()
+                return await self._safe_endpoint_call(
+                    lambda: self.replication_api.bulk_replication_operation(operation_data),
+                    "bulk_replication_operation"
+                )
+            
+            @self.app.post("/api/replication/backends/{backend_name}/export")
+            async def export_backend_pins(backend_name: str, request: Request):
+                """Export pins from a storage backend."""
+                export_data = await request.json()
+                return await self._safe_endpoint_call(
+                    lambda: self.replication_api.export_backend_pins(backend_name, export_data),
+                    "export_backend_pins"
+                )
+            
+            @self.app.post("/api/replication/backends/{backend_name}/import")
+            async def import_backend_pins(backend_name: str, request: Request):
+                """Import pins to a storage backend."""
+                import_data = await request.json()
+                return await self._safe_endpoint_call(
+                    lambda: self.replication_api.import_backend_pins(backend_name, import_data),
+                    "import_backend_pins"
+                )
+            
+            @self.app.get("/api/replication/health")
+            async def get_replication_health():
+                """Get replication system health."""
+                return await self._safe_endpoint_call(
+                    self.replication_api.get_replication_health,
+                    "replication_health"
+                )
+            
+            logger.info("✓ Replication management API endpoints registered")
+        else:
+            logger.warning("⚠ Replication management API endpoints not available")
+
+        # Enhanced Dashboard API endpoints
+        if self.dashboard_controller:
+            
+            @self.app.get("/api/dashboard/replication/status")
+            async def get_dashboard_replication_status(cid: Optional[str] = None):
+                """Get replication status for specific CID or all pins."""
+                return await self._safe_endpoint_call(
+                    lambda: self.dashboard_controller.replication_manager.get_replication_status(cid),
+                    "dashboard_replication_status"
+                )
+            
+            @self.app.get("/api/dashboard/analytics/traffic")
+            async def get_traffic_analytics(backend: Optional[str] = None, time_range: str = "session"):
+                """Get comprehensive traffic analytics for backends."""
+                return await self._safe_endpoint_call(
+                    lambda: self.dashboard_controller.replication_manager.get_traffic_analytics(backend, time_range),
+                    "traffic_analytics"
+                )
+            
+            @self.app.get("/api/dashboard/analytics/traffic/{backend}")
+            async def get_backend_traffic_analytics(backend: str, time_range: str = "session"):
+                """Get traffic analytics for a specific backend."""
+                return await self._safe_endpoint_call(
+                    lambda: self.dashboard_controller.replication_manager.get_traffic_analytics(backend, time_range),
+                    "backend_traffic_analytics"
+                )
+            
+            @self.app.get("/api/dashboard/vfs/backend_mapping")
+            async def get_vfs_backend_mapping():
+                """Get mapping of VFS metadata to backend storage locations."""
+                return await self._safe_endpoint_call(
+                    self.dashboard_controller.replication_manager.get_vfs_backend_mapping,
+                    "vfs_backend_mapping"
+                )
+            
+            @self.app.get("/api/dashboard/analytics/backend_usage")
+            async def get_backend_usage_analytics():
+                """Get comprehensive backend usage analytics."""
+                return await self._safe_endpoint_call(
+                    self.dashboard_controller.get_backend_usage_summary,
+                    "backend_usage_analytics"
+                )
+            
+            @self.app.get("/api/dashboard/pins/{cid}/links")
+            async def get_cid_filesystem_links(cid: str):
+                """Get filesystem links for a specific CID across all backends."""
+                return await self._safe_endpoint_call(
+                    lambda: self.dashboard_controller.get_cid_filesystem_links(cid),
+                    "cid_filesystem_links"
+                )
+            
+            @self.app.get("/api/dashboard/pins/{cid}/locations")
+            async def get_cid_storage_locations(cid: str):
+                """Get storage locations for a specific CID."""
+                return await self._safe_endpoint_call(
+                    lambda: self.dashboard_controller.get_cid_storage_locations(cid),
+                    "cid_storage_locations"
+                )
+            
+            @self.app.post("/api/dashboard/pins/{cid}/replicate")
+            async def replicate_pin_with_tracking(cid: str, request: Request):
+                """Replicate a pin with traffic tracking and VFS linking."""
+                replication_data = await request.json()
+                vfs_metadata_id = replication_data.get("vfs_metadata_id")
+                backends = replication_data.get("backends", [])
+                return await self._safe_endpoint_call(
+                    lambda: self.dashboard_controller.replication_manager.replicate_pin(cid, backends, vfs_metadata_id),
+                    "replicate_pin_with_tracking"
+                )
+            
+            @self.app.get("/api/dashboard/pins")
+            async def list_all_pins():
+                """List all pins with their backend locations and VFS metadata."""
+                return await self._safe_endpoint_call(
+                    self.dashboard_controller.get_all_pins_with_locations,
+                    "list_all_pins"
+                )
+            
+            @self.app.get("/api/dashboard/backends/{backend_name}/pins")
+            async def get_backend_pins(backend_name: str):
+                """Get all pins stored on a specific backend."""
+                return await self._safe_endpoint_call(
+                    lambda: self.dashboard_controller.get_backend_pins(backend_name),
+                    "backend_pins"
+                )
+            
+            logger.info("✓ Enhanced dashboard API endpoints registered")
+        else:
+            logger.warning("⚠ Enhanced dashboard API endpoints not available")
 
         # WebSocket endpoint
         @self.app.websocket("/ws")

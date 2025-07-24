@@ -26,8 +26,14 @@ class PeerEndpoints:
         self.backend_monitor = backend_monitor
         self.peer_manager = None
         
-        # Initialize peer manager
-        asyncio.create_task(self._initialize_peer_manager())
+        # Initialize peer manager safely
+        try:
+            # Try to schedule initialization if we're in an async context
+            loop = asyncio.get_running_loop()
+            asyncio.create_task(self._initialize_peer_manager())
+        except RuntimeError:
+            # No running event loop - defer initialization until first API call
+            logger.info("No running event loop, peer manager will be initialized on first API call")
     
     async def _initialize_peer_manager(self):
         """Initialize the unified peer manager."""
@@ -43,10 +49,18 @@ class PeerEndpoints:
             # Create a fallback peer manager
             self.peer_manager = get_peer_manager()
     
+    async def _ensure_peer_manager(self):
+        """Ensure peer manager is initialized, initialize if needed."""
+        if not self.peer_manager:
+            await self._initialize_peer_manager()
+    
     async def get_peers_summary(self) -> Dict[str, Any]:
         """Get summary of all discovered peers."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             # Get peer statistics from unified manager
@@ -87,7 +101,10 @@ class PeerEndpoints:
     ) -> Dict[str, Any]:
         """Get paginated list of discovered peers with optional filtering."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             peers = self.peer_manager.get_all_peers()
@@ -132,7 +149,10 @@ class PeerEndpoints:
     async def get_peer_details(self, peer_id: str) -> Dict[str, Any]:
         """Get detailed information about a specific peer."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             peers = self.peer_manager.get_all_peers()
@@ -172,7 +192,10 @@ class PeerEndpoints:
     async def get_peer_content(self, peer_id: str) -> Dict[str, Any]:
         """Get content (pins/files) shared by a specific peer."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             # Get pinset and metadata from unified manager
@@ -201,7 +224,10 @@ class PeerEndpoints:
     async def connect_to_peer(self, peer_id: str, multiaddr: Optional[str] = None) -> Dict[str, Any]:
         """Connect to a specific peer."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             result = await self.peer_manager.connect_to_peer(peer_id, multiaddr)
@@ -214,7 +240,10 @@ class PeerEndpoints:
     async def disconnect_from_peer(self, peer_id: str) -> Dict[str, Any]:
         """Disconnect from a specific peer."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             result = await self.peer_manager.disconnect_from_peer(peer_id)
@@ -227,7 +256,10 @@ class PeerEndpoints:
     async def search_peers(self, query: str) -> Dict[str, Any]:
         """Search peers by various criteria."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             peers = self.peer_manager.get_all_peers()
@@ -266,7 +298,10 @@ class PeerEndpoints:
     async def get_peer_discovery_status(self) -> Dict[str, Any]:
         """Get the status of peer discovery."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             stats = self.peer_manager.get_peer_statistics()
@@ -289,7 +324,10 @@ class PeerEndpoints:
     async def start_peer_discovery(self) -> Dict[str, Any]:
         """Start peer discovery."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             await self.peer_manager.start_discovery()
@@ -304,7 +342,10 @@ class PeerEndpoints:
     async def stop_peer_discovery(self) -> Dict[str, Any]:
         """Stop peer discovery."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             await self.peer_manager.stop_discovery()
@@ -319,7 +360,10 @@ class PeerEndpoints:
     async def add_bootstrap_peer(self, multiaddr: str) -> Dict[str, Any]:
         """Add a bootstrap peer."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             self.peer_manager.add_bootstrap_peer(multiaddr)
@@ -334,7 +378,10 @@ class PeerEndpoints:
     async def remove_bootstrap_peer(self, multiaddr: str) -> Dict[str, Any]:
         """Remove a bootstrap peer."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             self.peer_manager.bootstrap_peers.discard(multiaddr)
@@ -349,7 +396,10 @@ class PeerEndpoints:
     async def get_peer_network_stats(self) -> Dict[str, Any]:
         """Get network statistics for the peer network."""
         try:
+            await self._ensure_peer_manager()
+
             if not self.peer_manager:
+
                 return {"success": False, "error": "Peer manager not initialized"}
             
             stats = self.peer_manager.get_peer_statistics()

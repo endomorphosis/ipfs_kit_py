@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - IPFS Kit Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .search-box {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .search-results {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .search-result-item {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        .score-badge {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .collection-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid #007bff;
+        }
+        .sidebar {
+            background: #f8f9fa;
+            min-height: 100vh;
+            border-right: 1px solid #dee2e6;
+        }
+        .nav-link.active {
+            background: #007bff;
+            color: white !important;
+            border-radius: 5px;
+        }
+        .vector-search-input {
+            font-size: 1.1rem;
+            padding: 12px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 sidebar p-3">
+                <h5 class="mb-4">IPFS Kit Dashboard</h5>
+                <nav class="nav flex-column">
+                    <a class="nav-link" href="/dashboard">
+                        <i class="fas fa-tachometer-alt me-2"></i>Overview
+                    </a>
+                    <a class="nav-link" href="/dashboard/vfs">
+                        <i class="fas fa-database me-2"></i>Virtual Filesystem
+                    </a>
+                    <a class="nav-link {% if current_page == 'vector' %}active{% endif %}" href="/dashboard/vector">
+                        <i class="fas fa-search me-2"></i>Vector Index
+                    </a>
+                    <a class="nav-link" href="/dashboard/knowledge-graph">
+                        <i class="fas fa-project-diagram me-2"></i>Knowledge Graph
+                    </a>
+                    <a class="nav-link" href="/dashboard/pinset">
+                        <i class="fas fa-thumbtack me-2"></i>Pinset Management
+                    </a>
+                    <a class="nav-link" href="/dashboard/health">
+                        <i class="fas fa-heartbeat me-2"></i>System Health
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>{{ title }}</h2>
+                    <div>
+                        <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshData()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <span class="text-muted" id="lastUpdated">Last updated: --</span>
+                    </div>
+                </div>
+
+                <!-- Vector Index Metrics -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value" id="totalCollections">--</div>
+                            <div class="metric-label">Vector Collections</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value" id="totalVectors">--</div>
+                            <div class="metric-label">Total Vectors</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value" id="indexingCoverage">--%</div>
+                            <div class="metric-label">Indexing Coverage</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value" id="indexStatus">--</div>
+                            <div class="metric-label">Index Status</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vector Search Interface -->
+                <div class="search-box">
+                    <h4 class="mb-3">
+                        <i class="fas fa-search me-2"></i>Vector Search
+                    </h4>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <input type="text" class="form-control vector-search-input" 
+                                   id="vectorSearchQuery" 
+                                   placeholder="Enter your search query (e.g., 'machine learning algorithms')">
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select" id="searchCollection">
+                                <option value="">All Collections</option>
+                                <!-- Collections will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-primary w-100" onclick="performVectorSearch()">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Max Results</label>
+                            <select class="form-select" id="maxResults">
+                                <option value="5">5 results</option>
+                                <option value="10" selected>10 results</option>
+                                <option value="20">20 results</option>
+                                <option value="50">50 results</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mt-4">
+                                <input type="checkbox" class="form-check-input" id="includeMetadata" checked>
+                                <label class="form-check-label">Include Metadata</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div class="search-results" id="searchResultsContainer" style="display: none;">
+                    <div class="p-3 border-bottom">
+                        <h5 class="mb-0">Search Results</h5>
+                        <small class="text-muted" id="searchResultsInfo">Found 0 results</small>
+                    </div>
+                    <div id="searchResultsList">
+                        <!-- Search results will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Vector Collections -->
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4>Vector Collections</h4>
+                        <button class="btn btn-success btn-sm" onclick="createNewCollection()">
+                            <i class="fas fa-plus"></i> New Collection
+                        </button>
+                    </div>
+                    <div id="collectionsContainer">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading collections...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Collection Modal -->
+    <div class="modal fade" id="exportCollectionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Export Collection to CAR Archive</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Export the vector collection <strong id="exportCollectionName"></strong> to a CAR archive for sharing via IPFS.</p>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The CAR archive will include the vector index data and metadata for distribution to other peers.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="executeCollectionExport()">Export</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let searchTimeout;
+        let currentExportCollectionId;
+
+        async function loadVectorData() {
+            try {
+                // Load vector index status
+                const statusResponse = await fetch('/api/vector/status');
+                const statusData = await statusResponse.json();
+                
+                if (statusData.success) {
+                    const status = statusData.status;
+                    document.getElementById('totalCollections').textContent = status.indexed_datasets || 0;
+                    document.getElementById('totalVectors').textContent = formatNumber(status.total_vectors || 0);
+                    document.getElementById('indexingCoverage').textContent = (status.indexing_coverage || 0) + '%';
+                    document.getElementById('indexStatus').textContent = status.index_status || 'Unknown';
+                }
+
+                // Load collections
+                await loadCollections();
+
+                document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+
+            } catch (error) {
+                console.error('Error loading vector data:', error);
+                showAlert('Error loading data: ' + error.message, 'danger');
+            }
+        }
+
+        async function loadCollections() {
+            try {
+                const response = await fetch('/api/vector/collections');
+                const data = await response.json();
+
+                const container = document.getElementById('collectionsContainer');
+                const searchSelect = document.getElementById('searchCollection');
+                
+                // Clear existing content
+                container.innerHTML = '';
+                searchSelect.innerHTML = '<option value="">All Collections</option>';
+
+                if (data.success && data.collections.length > 0) {
+                    data.collections.forEach(collection => {
+                        // Add to search dropdown
+                        const option = document.createElement('option');
+                        option.value = collection.collection_id;
+                        option.textContent = collection.name;
+                        searchSelect.appendChild(option);
+
+                        // Create collection card
+                        const card = document.createElement('div');
+                        card.className = 'collection-card';
+                        card.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="mb-2">${collection.name}</h5>
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Vectors</small><br>
+                                            <strong>${formatNumber(collection.vector_count)}</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Dimensions</small><br>
+                                            <strong>${collection.dimensions || 'N/A'}</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Index Type</small><br>
+                                            <strong>${collection.index_type || 'Unknown'}</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Created</small><br>
+                                            <strong>${collection.created_at ? new Date(collection.created_at).toLocaleDateString() : 'N/A'}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="searchInCollection('${collection.collection_id}')">
+                                        <i class="fas fa-search"></i> Search
+                                    </button>
+                                    <button class="btn btn-outline-success btn-sm" onclick="exportCollection('${collection.collection_id}', '${collection.name}')">
+                                        <i class="fas fa-download"></i> Export
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-5">
+                            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Vector Collections Found</h5>
+                            <p class="text-muted">Create your first vector collection to start searching.</p>
+                            <button class="btn btn-primary" onclick="createNewCollection()">
+                                <i class="fas fa-plus"></i> Create Collection
+                            </button>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                console.error('Error loading collections:', error);
+                document.getElementById('collectionsContainer').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error loading vector collections: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function performVectorSearch() {
+            const query = document.getElementById('vectorSearchQuery').value.trim();
+            if (!query) {
+                showAlert('Please enter a search query', 'warning');
+                return;
+            }
+
+            const collectionId = document.getElementById('searchCollection').value;
+            const maxResults = document.getElementById('maxResults').value;
+            const includeMetadata = document.getElementById('includeMetadata').checked;
+
+            try {
+                // Show loading state
+                const container = document.getElementById('searchResultsContainer');
+                const resultsList = document.getElementById('searchResultsList');
+                container.style.display = 'block';
+                resultsList.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Searching...</span>
+                        </div>
+                        <div class="mt-2">Searching vectors...</div>
+                    </div>
+                `;
+
+                // Build search parameters
+                const params = new URLSearchParams({
+                    query: query,
+                    top_k: maxResults,
+                    include_metadata: includeMetadata
+                });
+                
+                if (collectionId) {
+                    params.append('collection_id', collectionId);
+                }
+
+                const response = await fetch(`/api/vector/search?${params}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    displaySearchResults(data);
+                } else {
+                    resultsList.innerHTML = `
+                        <div class="alert alert-danger m-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Search failed: ${data.error || 'Unknown error'}
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                console.error('Error performing vector search:', error);
+                showAlert('Search error: ' + error.message, 'danger');
+            }
+        }
+
+        function displaySearchResults(data) {
+            const resultsList = document.getElementById('searchResultsList');
+            const resultsInfo = document.getElementById('searchResultsInfo');
+            
+            resultsInfo.textContent = `Found ${data.results.length} results for "${data.query}"`;
+
+            if (data.results.length === 0) {
+                resultsList.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-search fa-2x text-muted mb-2"></i>
+                        <h6 class="text-muted">No results found</h6>
+                        <p class="text-muted">Try adjusting your search query or selecting a different collection.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            resultsList.innerHTML = '';
+
+            data.results.forEach((result, index) => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'search-result-item';
+                
+                let metadataHtml = '';
+                if (result.metadata && Object.keys(result.metadata).length > 0) {
+                    metadataHtml = `
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                ${Object.entries(result.metadata).map(([key, value]) => 
+                                    `<span class="badge bg-light text-dark me-1">${key}: ${value}</span>`
+                                ).join('')}
+                            </small>
+                        </div>
+                    `;
+                }
+
+                resultItem.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge bg-primary me-2">#${index + 1}</span>
+                                <span class="score-badge">${(result.score * 100).toFixed(1)}% match</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>ID:</strong> <code>${result.id}</code>
+                            </div>
+                            <div class="mb-2">
+                                ${result.content || 'No content preview available'}
+                            </div>
+                            ${metadataHtml}
+                        </div>
+                        <div class="ms-3">
+                            <button class="btn btn-outline-primary btn-sm" onclick="viewVector('${result.id}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                resultsList.appendChild(resultItem);
+            });
+        }
+
+        function searchInCollection(collectionId) {
+            document.getElementById('searchCollection').value = collectionId;
+            document.getElementById('vectorSearchQuery').focus();
+        }
+
+        function exportCollection(collectionId, collectionName) {
+            currentExportCollectionId = collectionId;
+            document.getElementById('exportCollectionName').textContent = collectionName;
+            new bootstrap.Modal(document.getElementById('exportCollectionModal')).show();
+        }
+
+        async function executeCollectionExport() {
+            try {
+                const response = await fetch(`/api/vector/collection/${currentExportCollectionId}/export-car`);
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('Collection successfully exported to CAR archive', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('exportCollectionModal')).hide();
+                    
+                    // Optionally offer download
+                    if (result.car_path) {
+                        const downloadConfirm = confirm('Export completed. Would you like to download the CAR file?');
+                        if (downloadConfirm) {
+                            window.open(`/api/vfs/car-archives/${result.collection_id}/download`, '_blank');
+                        }
+                    }
+                } else {
+                    showAlert('Export failed: ' + result.error, 'danger');
+                }
+
+            } catch (error) {
+                console.error('Error exporting collection:', error);
+                showAlert('Export error: ' + error.message, 'danger');
+            }
+        }
+
+        function createNewCollection() {
+            showAlert('New collection creation feature coming soon!', 'info');
+        }
+
+        function viewVector(vectorId) {
+            showAlert(`Vector details for ${vectorId} - feature coming soon!`, 'info');
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+
+        function showAlert(message, type) {
+            // Simple alert - in production would use a proper notification system
+            alert(message);
+        }
+
+        function refreshData() {
+            loadVectorData();
+        }
+
+        // Real-time search as user types
+        document.getElementById('vectorSearchQuery').addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            
+            if (query.length >= 3) {
+                searchTimeout = setTimeout(() => {
+                    performVectorSearch();
+                }, 1000); // Wait 1 second after user stops typing
+            }
+        });
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadVectorData();
+            // Refresh every 60 seconds
+            setInterval(loadVectorData, 60000);
+        });
+    </script>
+</body>
+</html>
