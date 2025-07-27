@@ -1555,7 +1555,7 @@
                     
                     <div class="stat-card">
                         <h4>⚙️ Replication Settings</h4>
-                        <form id="replication-settings-form">
+                        <form id="replication-settings-form" onsubmit="replicationManager.saveSettings(event)">
                             <label>Target Replicas: <input type="number" id="target-replicas" min="1" max="10" value="3"></label>
                             <label>Max Storage (GB): <input type="number" id="max-storage" min="1" value="100"></label>
                             <label>Auto Replication: <input type="checkbox" id="auto-replication" checked></label>
@@ -1582,7 +1582,7 @@
                     <div class="backup-controls">
                         <button onclick="replicationManager.exportPins()" class="btn-primary">📤 Export Pins</button>
                         <button onclick="replicationManager.importPins()" class="btn-secondary">📥 Import Pins</button>
-                        <input type="file" id="import-file" accept=".json" style="display: none;">
+                        <input type="file" id="import-file" accept=".json" style="display: none;" onchange="replicationManager.handleImport(event)">
                     </div>
                     <div id="backup-status">
                         <p>Ready to export or import pin data for backup protection</p>
@@ -1857,7 +1857,8 @@
                 }
             },
             
-            async saveSettings() {
+            async saveSettings(event) {
+                event.preventDefault();
                 try {
                     const settings = {
                         target_replicas: parseInt(document.getElementById('target-replicas').value),
@@ -1991,34 +1992,22 @@
             async importPins() {
                 document.getElementById('import-file').click();
             },
-            
-            async init() {
-                await this.loadReplicationStatus();
-                await this.loadSettings();
-                await this.loadBackends();
-                
-                // Setup form handler
-                document.getElementById('replication-settings-form').addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    this.saveSettings();
-                });
-                
-                // Setup file import handler
-                document.getElementById('import-file').addEventListener('change', async (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const formData = new FormData();
-                        formData.append('file', file);
-                        
+
+            async handleImport(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
                         try {
+                            const pins = JSON.parse(e.target.result);
                             const response = await fetch('/api/replication/backends/local/import', {
                                 method: 'POST',
-                                body: formData
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ pins: pins })
                             });
-                            
                             const data = await response.json();
                             if (data.success) {
-                                showToast(`Imported ${data.count} pins successfully`, 'success');
+                                showToast(`Imported ${data.count} pins`, 'success');
                                 this.loadReplicationStatus();
                             } else {
                                 showToast('Failed to import pins: ' + data.error, 'error');
@@ -2027,25 +2016,27 @@
                             console.error('Failed to import pins:', error);
                             showToast('Failed to import pins', 'error');
                         }
-                    }
-                });
+                    };
+                    reader.readAsText(file);
+                }
+            },
+            
+            async init() {
+                await this.loadReplicationStatus();
+                await this.loadSettings();
+                await this.loadBackends();
+                
+                // Setup form handler
+                const form = document.getElementById('replication-settings-form');
+                if(form) {
+                    form.addEventListener('submit', this.saveSettings);
+                }
             }
         };
-        
-        // Initialize replication manager when replication tab is shown
-        function switchTab(tabName, event) {
-            // Original switchTab function logic
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
-            
-            // Initialize replication manager when replication tab is activated
-            if (tabName === 'replication') {
-                replicationManager.init();
-            }
-        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            replicationManager.init();
+        });
     </script>
 </body>
 </html>

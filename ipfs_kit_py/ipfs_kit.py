@@ -36,6 +36,7 @@ from .error import (
 from .performance_metrics import PerformanceMetrics
 from .observability_api import observability_router
 from .cluster.monitoring import ClusterMonitor, MetricsCollector
+from .program_state import get_program_state_manager
 
 # Define a generic type variable for the return type
 RT = TypeVar('RT')
@@ -484,27 +485,36 @@ class ipfs_kit:
 
             # Initialize components based on role
             if self.role == "leecher":
+                # Check for disabled components
+                disabled_components = metadata.get("disabled_components", [])
+                
                 # Leecher only needs IPFS daemon
                 self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
                 self.gdrive_kit = gdrive_kit(resources=resources, metadata=metadata)
-                # Initialize Synapse storage if available
-                if HAS_SYNAPSE:
+                
+                # Initialize Synapse storage if available and not disabled
+                if HAS_SYNAPSE and "synapse" not in disabled_components:
                     self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
                     self.logger.info("Initialized Synapse storage for Filecoin PDP integration")
                 else:
                     self.synapse_storage = None # Initialize to None
+                    if "synapse" in disabled_components:
+                        self.logger.info("Synapse storage disabled for leecher role")
+                        
                 # Initialize HuggingFace Hub integration if available
                 if HAS_HUGGINGFACE:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 else:
                     self.huggingface_kit = None # Initialize to None
+                    
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
-                # Initialize Lotus Kit if available
-                if HAS_LOTUS:
+                
+                # Initialize Lotus Kit if available and not disabled
+                if HAS_LOTUS and "lotus" not in disabled_components:
                     # Auto-start is opted into based on metadata, default to True for leecher role too
                     lotus_metadata = self.metadata.copy()
                     lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", True)
@@ -512,33 +522,51 @@ class ipfs_kit:
                     self.logger.info("Initialized Lotus Kit for Filecoin integration")
                 else:
                     self.lotus_kit = None # Initialize to None
+                    if "lotus" in disabled_components:
+                        self.logger.info("Lotus Kit disabled for leecher role")
 
             elif self.role == "worker":
+                # Check for disabled components
+                disabled_components = metadata.get("disabled_components", [])
+                
                 # Worker needs IPFS daemon and cluster-follow
                 self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
-                self.ipfs_cluster_follow = ipfs_cluster_follow(
-                    resources=resources,
-                    metadata={"role": self.role, "cluster_name": metadata.get("cluster_name")},
-                )
+                
+                # Initialize cluster-follow if not disabled
+                if "ipfs_cluster_follow" not in disabled_components:
+                    self.ipfs_cluster_follow = ipfs_cluster_follow(
+                        resources=resources,
+                        metadata={"role": self.role, "cluster_name": metadata.get("cluster_name")},
+                    )
+                else:
+                    self.ipfs_cluster_follow = None
+                    self.logger.info("IPFS Cluster Follow disabled for worker role")
+                    
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
                 self.gdrive_kit = gdrive_kit(resources=resources, metadata=metadata)
-                # Initialize Synapse storage if available
-                if HAS_SYNAPSE:
+                
+                # Initialize Synapse storage if available and not disabled
+                if HAS_SYNAPSE and "synapse" not in disabled_components:
                     self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
                     self.logger.info("Initialized Synapse storage for Filecoin PDP integration")
                 else:
                     self.synapse_storage = None # Initialize to None
+                    if "synapse" in disabled_components:
+                        self.logger.info("Synapse storage disabled for worker role")
+                        
                 # Initialize HuggingFace Hub integration if available
                 if HAS_HUGGINGFACE:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 else:
                     self.huggingface_kit = None # Initialize to None
+                    
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
-                # Initialize Lotus Kit if available
-                if HAS_LOTUS:
+                
+                # Initialize Lotus Kit if available and not disabled
+                if HAS_LOTUS and "lotus" not in disabled_components:
                     # Auto-start is opted into based on metadata, default to True for worker role too
                     lotus_metadata = self.metadata.copy()
                     lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", True)
@@ -546,35 +574,54 @@ class ipfs_kit:
                     self.logger.info("Initialized Lotus Kit for Filecoin integration")
                 else:
                     self.lotus_kit = None # Initialize to None
+                    if "lotus" in disabled_components:
+                        self.logger.info("Lotus Kit disabled for worker role")
 
             elif self.role == "master":
+                # Check for disabled components
+                disabled_components = metadata.get("disabled_components", [])
+                
                 # Master needs IPFS daemon, cluster-service, and cluster-ctl
                 self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
-                self.ipfs_cluster_service = ipfs_cluster_service(
-                    resources=resources, metadata={"role": self.role}
-                )
-                self.ipfs_cluster_ctl = ipfs_cluster_ctl(
-                    resources=resources, metadata={"role": self.role}
-                )
+                
+                # Initialize cluster service if not disabled
+                if "ipfs_cluster" not in disabled_components:
+                    self.ipfs_cluster_service = ipfs_cluster_service(
+                        resources=resources, metadata={"role": self.role}
+                    )
+                    self.ipfs_cluster_ctl = ipfs_cluster_ctl(
+                        resources=resources, metadata={"role": self.role}
+                    )
+                else:
+                    self.ipfs_cluster_service = None
+                    self.ipfs_cluster_ctl = None
+                    self.logger.info("IPFS Cluster service and ctl disabled for master role")
+                    
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
                 self.gdrive_kit = gdrive_kit(resources=resources, metadata=metadata)
-                # Initialize Synapse storage if available
-                if HAS_SYNAPSE:
+                
+                # Initialize Synapse storage if available and not disabled
+                if HAS_SYNAPSE and "synapse" not in disabled_components:
                     self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
                     self.logger.info("Initialized Synapse storage for Filecoin PDP integration")
                 else:
                     self.synapse_storage = None # Initialize to None
+                    if "synapse" in disabled_components:
+                        self.logger.info("Synapse storage disabled for master role")
+                        
                 # Initialize HuggingFace Hub integration if available
                 if HAS_HUGGINGFACE:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 else:
                     self.huggingface_kit = None # Initialize to None
+                    
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
-                # Initialize Lotus Kit if available
-                if HAS_LOTUS:
+                
+                # Initialize Lotus Kit if available and not disabled
+                if HAS_LOTUS and "lotus" not in disabled_components:
                     # Auto-start is opted into based on metadata, but default to true for master role
                     lotus_metadata = self.metadata.copy()
                     lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", True)
@@ -582,6 +629,8 @@ class ipfs_kit:
                     self.logger.info("Initialized Lotus Kit for Filecoin integration")
                 else:
                     self.lotus_kit = None # Initialize to None
+                    if "lotus" in disabled_components:
+                        self.logger.info("Lotus Kit disabled for master role")
 
         # Initialize monitoring components
         self.monitoring = None
@@ -678,6 +727,20 @@ class ipfs_kit:
         # Start all required daemons based on role if auto-start is enabled
         if self.auto_start_daemons:
             self._start_required_daemons()
+
+        # Initialize program state manager for tracking system state
+        try:
+            self.program_state = get_program_state_manager()
+            self.logger.info("Program state manager initialized")
+            
+            # Initialize state with basic information
+            self.program_state.update_system_state(
+                ipfs_version=getattr(self.ipfs, 'version', ''),
+                last_updated=time.time()
+            )
+        except Exception as e:
+            self.logger.warning(f"Failed to initialize program state manager: {e}")
+            self.program_state = None
 
     def _setup_cluster_management(self, resources=None, metadata=None):
         """Set up the cluster management component with standardized error handling."""
@@ -902,8 +965,10 @@ class ipfs_kit:
                 else:
                     self.logger.info(f"IPFS daemon started successfully: {ipfs_result.get('status', 'running')}") # type: ignore
                     
-            # Start Lotus daemon if available and auto-start is configured
-            if hasattr(self, 'lotus_kit'):
+            # Start Lotus daemon if available and auto-start is configured and not disabled
+            disabled_components = self.metadata.get("disabled_components", [])
+            
+            if hasattr(self, 'lotus_kit') and self.lotus_kit is not None and "lotus" not in disabled_components:
                 # Check if auto-start is enabled for lotus daemon
                 should_start_lotus = False
                 if hasattr(self.lotus_kit, 'auto_start_daemon'):
@@ -915,17 +980,21 @@ class ipfs_kit:
                         self.logger.error(f"Failed to start Lotus daemon: {lotus_result.get('error', 'Unknown error')}") # type: ignore
                     else:
                         self.logger.info(f"Lotus daemon started successfully: {lotus_result.get('status', 'running')}") # type: ignore
+            elif "lotus" in disabled_components:
+                self.logger.info("Lotus daemon startup skipped - disabled for this role")
 
-            # Master role needs IPFS Cluster Service
-            if self.role == "master" and hasattr(self, 'ipfs_cluster_service'):
+            # Master role needs IPFS Cluster Service (if not disabled)
+            if self.role == "master" and hasattr(self, 'ipfs_cluster_service') and self.ipfs_cluster_service is not None and "ipfs_cluster" not in disabled_components:
                 cluster_service_result = self.ipfs_cluster_service.ipfs_cluster_service_start() # type: ignore
                 if not cluster_service_result.get("success", False): # type: ignore
                     self.logger.error(f"Failed to start IPFS Cluster Service: {cluster_service_result.get('error', 'Unknown error')}") # type: ignore
                 else:
                     self.logger.info("IPFS Cluster Service started successfully")
+            elif self.role == "master" and "ipfs_cluster" in disabled_components:
+                self.logger.info("IPFS Cluster Service startup skipped - disabled for this role")
 
-            # Worker role needs IPFS Cluster Follow
-            if self.role == "worker" and hasattr(self, 'ipfs_cluster_follow'):
+            # Worker role needs IPFS Cluster Follow (if not disabled)
+            if self.role == "worker" and hasattr(self, 'ipfs_cluster_follow') and self.ipfs_cluster_follow is not None and "ipfs_cluster_follow" not in disabled_components:
                 # Get cluster name from metadata
                 cluster_name = None
                 if hasattr(self, "cluster_name"):
@@ -941,6 +1010,8 @@ class ipfs_kit:
                         self.logger.info("IPFS Cluster Follow started successfully")
                 else:
                     self.logger.error("Cannot start IPFS Cluster Follow: No cluster name provided")
+            elif self.role == "worker" and "ipfs_cluster_follow" in disabled_components:
+                self.logger.info("IPFS Cluster Follow startup skipped - disabled for this role")
 
             # Verify daemon status
             status = self.check_daemon_status()
@@ -949,6 +1020,11 @@ class ipfs_kit:
                 all_running = all(daemon.get("running", False) for daemon in daemon_status.values())
                 if all_running:
                     self.logger.info("All required daemons are running")
+                    
+                    # Start background state updates if program state is available
+                    if hasattr(self, 'program_state') and self.program_state is not None:
+                        self._start_background_state_updates()
+                    
                     return {
                         'success': True,
                         'message': 'All required daemons are running',
@@ -1238,6 +1314,23 @@ class ipfs_kit:
                 result["success"] = False # type: ignore
                 result["error"] = f"{daemon_type} daemon is not running and auto_start_daemons is disabled" # type: ignore
                 return result
+
+            # Check if the daemon type is disabled
+            disabled_components = self.metadata.get("disabled_components", [])
+            if disabled_components:
+                # Map daemon types to component names
+                daemon_to_component = {
+                    "ipfs_cluster_service": "ipfs_cluster",
+                    "ipfs_cluster_follow": "ipfs_cluster_follow", 
+                    "lotus": "lotus"
+                }
+                
+                component_name = daemon_to_component.get(daemon_type)
+                if component_name and component_name in disabled_components:
+                    result["success"] = False # type: ignore
+                    result["error"] = f"{daemon_type} daemon startup disabled - component '{component_name}' is disabled for this role" # type: ignore
+                    self.logger.info(f"Skipping {daemon_type} daemon startup - disabled for this role")
+                    return result
 
             # Start the requested daemon
             self.logger.info(f"{daemon_type} daemon not running, attempting to start it automatically")
@@ -2262,6 +2355,7 @@ class ipfs_kit:
         return {"gpu_count": 0, "gpu_available": False}
 
     def get_filesystem(self, **kwargs):
+        from .ipfs_fsspec import IPFSFileSystem
         """Get or initialize the FSSpec filesystem interface for IPFS.
 
         Args:
@@ -3513,6 +3607,150 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
+
+    def update_program_state(self):
+        """Update the program state with current system information"""
+        if not hasattr(self, 'program_state') or self.program_state is None:
+            return
+        
+        try:
+            # Update system state
+            system_updates = {}
+            
+            # Get bandwidth information if available
+            try:
+                if hasattr(self, 'ipfs') and self.ipfs:
+                    # Try to get stats
+                    stats_result = self.ipfs.get_stats() if hasattr(self.ipfs, 'get_stats') else None
+                    if stats_result and stats_result.get('success'):
+                        stats = stats_result.get('data', {})
+                        system_updates['bandwidth_in'] = stats.get('bandwidth_in', 0)
+                        system_updates['bandwidth_out'] = stats.get('bandwidth_out', 0)
+                        system_updates['repo_size'] = stats.get('repo_size', 0)
+            except Exception:
+                pass  # Skip if stats not available
+            
+            # Get peer count
+            try:
+                if hasattr(self, 'ipfs') and self.ipfs:
+                    peers_result = self.ipfs.get_peers() if hasattr(self.ipfs, 'get_peers') else None
+                    if peers_result and peers_result.get('success'):
+                        peers = peers_result.get('data', [])
+                        system_updates['peer_count'] = len(peers) if isinstance(peers, list) else 0
+            except Exception:
+                pass  # Skip if peers not available
+            
+            # Get IPFS version
+            try:
+                if hasattr(self, 'ipfs') and self.ipfs:
+                    version_result = self.ipfs.version() if hasattr(self.ipfs, 'version') else None
+                    if version_result and version_result.get('success'):
+                        system_updates['ipfs_version'] = version_result.get('version', '')
+            except Exception:
+                pass  # Skip if version not available
+            
+            if system_updates:
+                self.program_state.update_system_state(**system_updates)
+            
+            # Update storage state
+            storage_updates = {}
+            backends_active = []
+            backends_healthy = []
+            
+            # Check storage backends
+            if hasattr(self, 's3_kit') and self.s3_kit:
+                backends_active.append('s3')
+                # Could add health check here
+                backends_healthy.append('s3')
+            
+            if hasattr(self, 'storacha_kit') and self.storacha_kit:
+                backends_active.append('storacha')
+                backends_healthy.append('storacha')
+            
+            if hasattr(self, 'gdrive_kit') and self.gdrive_kit:
+                backends_active.append('gdrive') 
+                backends_healthy.append('gdrive')
+            
+            if hasattr(self, 'synapse_storage') and self.synapse_storage:
+                backends_active.append('synapse')
+                backends_healthy.append('synapse')
+            
+            if hasattr(self, 'huggingface_kit') and self.huggingface_kit:
+                backends_active.append('huggingface')
+                backends_healthy.append('huggingface')
+            
+            storage_updates['backends_active'] = backends_active
+            storage_updates['backends_healthy'] = backends_healthy
+            
+            if storage_updates:
+                self.program_state.update_storage_state(**storage_updates)
+            
+            # Update network state
+            network_updates = {}
+            
+            # Determine network health based on daemon status
+            daemon_status = self.check_daemon_status()
+            if daemon_status.get('success'):
+                daemons = daemon_status.get('daemons', {})
+                ipfs_running = daemons.get('ipfs', {}).get('running', False)
+                network_updates['network_health'] = 'healthy' if ipfs_running else 'degraded'
+                
+                # Check cluster status
+                cluster_running = daemons.get('ipfs_cluster_service', {}).get('running', False)
+                network_updates['cluster_status'] = 'running' if cluster_running else 'stopped'
+            else:
+                network_updates['network_health'] = 'unknown'
+                network_updates['cluster_status'] = 'unknown'
+            
+            if network_updates:
+                self.program_state.update_network_state(**network_updates)
+            
+            # Export to Parquet for external access
+            self.program_state.export_to_parquet()
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to update program state: {e}")
+
+    def get_program_state_summary(self):
+        """Get a summary of the current program state"""
+        if not hasattr(self, 'program_state') or self.program_state is None:
+            return {"error": "Program state not initialized"}
+        
+        try:
+            return self.program_state.get_state_summary()
+        except Exception as e:
+            return {"error": f"Failed to get program state: {e}"}
+
+    def _start_background_state_updates(self):
+        """Start a background thread to periodically update program state"""
+        if hasattr(self, '_state_update_thread') and self._state_update_thread.is_alive():
+            return  # Already running
+        
+        import threading
+        
+        def state_update_loop():
+            """Background loop to update program state every 30 seconds"""
+            while getattr(self, '_state_update_running', True):
+                try:
+                    self.update_program_state()
+                    time.sleep(30)  # Update every 30 seconds
+                except Exception as e:
+                    self.logger.warning(f"Background state update failed: {e}")
+                    time.sleep(60)  # Wait longer on error
+        
+        self._state_update_running = True
+        self._state_update_thread = threading.Thread(target=state_update_loop, daemon=True)
+        self._state_update_thread.start()
+        self.logger.info("Started background program state updates")
+
+    def stop_background_state_updates(self):
+        """Stop the background state update thread"""
+        self._state_update_running = False
+        if hasattr(self, '_state_update_thread'):
+            try:
+                self._state_update_thread.join(timeout=5)
+            except Exception:
+                pass  # Thread cleanup can fail silently
 
 # Create CamelCase alias for compatibility
 IPFSKit = ipfs_kit

@@ -63,6 +63,7 @@ WAL_API_AVAILABLE = False
 GRAPHQL_AVAILABLE = False
 FS_JOURNAL_AVAILABLE = False
 METADATA_INDEX_AVAILABLE = False
+ENHANCED_PIN_API_AVAILABLE = False
 PROMETHEUS_AVAILABLE = False
 BENCHMARKING_AVAILABLE = False
 
@@ -205,6 +206,13 @@ try:
     except ImportError:
         METADATA_INDEX_AVAILABLE = False
 
+    # Try to import Enhanced Pin API
+    try:
+        from . import enhanced_pin_api
+        ENHANCED_PIN_API_AVAILABLE = True
+    except ImportError:
+        ENHANCED_PIN_API_AVAILABLE = False
+
     # Try to import Benchmarking API
     try:
         from . import benchmarking_api
@@ -287,6 +295,13 @@ except ImportError:
         METADATA_INDEX_AVAILABLE = True
     except ImportError:
         METADATA_INDEX_AVAILABLE = False
+
+    # Try to import Enhanced Pin API
+    try:
+        from ipfs_kit_py import enhanced_pin_api
+        ENHANCED_PIN_API_AVAILABLE = True
+    except ImportError:
+        ENHANCED_PIN_API_AVAILABLE = False
 
     # Try to import Benchmarking API
     try:
@@ -1432,6 +1447,18 @@ if FASTAPI_AVAILABLE:
                 logger.warning("METADATA_INDEX_AVAILABLE is True, but metadata_index_router could not be imported.")
         except ImportError:
             logger.warning("Failed to import metadata_index_router despite METADATA_INDEX_AVAILABLE=True.")
+
+    # Enhanced Pin API
+    if ENHANCED_PIN_API_AVAILABLE:
+        try:
+            from .enhanced_pin_api import enhanced_pin_router
+            if enhanced_pin_router:
+                app.include_router(enhanced_pin_router)
+                logger.info("Enhanced Pin API available at /api/v0/enhanced-pins")
+            else:
+                logger.warning("ENHANCED_PIN_API_AVAILABLE is True, but enhanced_pin_router could not be imported.")
+        except ImportError:
+            logger.warning("Failed to import enhanced_pin_router despite ENHANCED_PIN_API_AVAILABLE=True.")
 
     # Benchmarking API
     if BENCHMARKING_AVAILABLE:

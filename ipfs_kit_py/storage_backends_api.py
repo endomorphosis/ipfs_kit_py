@@ -21,6 +21,16 @@ import fastapi
 from fastapi import Body, HTTPException, Query, Request, BackgroundTasks
 from pydantic import BaseModel
 
+# Import enhanced pin index for storage analytics
+try:
+    from ipfs_kit_py.enhanced_pin_index import (
+        get_global_enhanced_pin_index, 
+        get_cli_pin_metrics
+    )
+    ENHANCED_PIN_INDEX_AVAILABLE = True
+except ImportError:
+    ENHANCED_PIN_INDEX_AVAILABLE = False
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -443,3 +453,166 @@ async def check_content(
     except Exception as e:
         logger.exception(f"Error checking content: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error checking content: {str(e)}")
+
+
+@storage_router.get("/pin-analytics", response_model=Dict[str, Any])
+async def get_storage_pin_analytics():
+    """
+    Get comprehensive pin analytics from the enhanced pin metadata index.
+    
+    This endpoint provides storage-related analytics including tier distribution,
+    access patterns, and storage optimization recommendations.
+    
+    Returns:
+        Dictionary containing comprehensive pin analytics
+    """
+    if not ENHANCED_PIN_INDEX_AVAILABLE:
+        return {
+            "success": False,
+            "error": "Enhanced pin analytics not available",
+            "install_command": "pip install duckdb pandas pyarrow"
+        }
+    
+    try:
+        # Get comprehensive metrics
+        metrics = get_cli_pin_metrics()
+        
+        return {
+            "success": True,
+            "operation": "get_pin_analytics",
+            "timestamp": time.time(),
+            "analytics": {
+                "traffic_metrics": metrics.get("traffic_metrics", {}),
+                "vfs_analytics": metrics.get("vfs_analytics", {}),
+                "performance_metrics": metrics.get("performance_metrics", {})
+            }
+        }
+    except Exception as e:
+        logger.exception(f"Error getting pin analytics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting pin analytics: {str(e)}")
+
+
+@storage_router.post("/record-access", response_model=Dict[str, Any])
+async def record_storage_access(
+    cid: str = Body(..., description="Content ID"),
+    backend: str = Body(..., description="Storage backend used"),
+    operation: str = Body("read", description="Operation type (read/write)"),
+    size_bytes: Optional[int] = Body(None, description="Content size in bytes"),
+    vfs_path: Optional[str] = Body(None, description="VFS path if applicable")
+):
+    """
+    Record a storage access event for analytics.
+    
+    This endpoint allows storage backends to record access events
+    for comprehensive analytics and performance tracking.
+    
+    Args:
+        cid: Content ID that was accessed
+        backend: Storage backend that handled the request
+        operation: Type of operation (read, write, etc.)
+        size_bytes: Size of content in bytes
+        vfs_path: Virtual filesystem path if available
+    
+    Returns:
+        Success status and recorded information
+    """
+    if not ENHANCED_PIN_INDEX_AVAILABLE:
+        return {
+            "success": False,
+            "error": "Enhanced pin index not available for access recording"
+        }
+    
+    try:
+        # Get the enhanced pin index
+        enhanced_index = get_global_enhanced_pin_index()
+        
+        # Map backend to tier
+        tier_mapping = {
+            "ipfs": "ipfs",
+            "s3": "s3",
+            "storacha": "storacha",
+            "huggingface": "huggingface",
+            "filecoin": "filecoin",
+            "lassie": "ipfs",
+            "gdrive": "gdrive"
+        }
+        tier = tier_mapping.get(backend.lower(), backend.lower())
+        
+        # Determine access pattern based on operation
+        access_pattern_mapping = {
+            "read": "sequential",
+            "write": "sequential", 
+            "stream": "streaming",
+            "random": "random"
+        }
+        access_pattern = access_pattern_mapping.get(operation.lower(), "unknown")
+        
+        # Record the access
+        enhanced_index.record_enhanced_access(
+            cid=cid,
+            access_pattern=access_pattern,
+            vfs_path=vfs_path,
+            tier=tier,
+            size_bytes=size_bytes,
+            pin_type="file",  # Default assumption
+            storage_tiers=[tier]
+        )
+        
+        return {
+            "success": True,
+            "operation": "record_access",
+            "timestamp": time.time(),
+            "recorded": {
+                "cid": cid,
+                "backend": backend,
+                "tier": tier,
+                "operation": operation,
+                "access_pattern": access_pattern,
+                "vfs_path": vfs_path
+            }
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error recording storage access: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error recording storage access: {str(e)}")
+
+
+@storage_router.get("/tier-recommendations", response_model=Dict[str, Any])
+async def get_tier_recommendations():
+    """
+    Get storage tier optimization recommendations.
+    
+    This endpoint provides recommendations for optimizing storage
+    tier placement based on access patterns and performance metrics.
+    
+    Returns:
+        Dictionary containing tier optimization recommendations
+    """
+    if not ENHANCED_PIN_INDEX_AVAILABLE:
+        return {
+            "success": False,
+            "error": "Enhanced pin analytics not available for recommendations"
+        }
+    
+    try:
+        # Get the enhanced pin index
+        enhanced_index = get_global_enhanced_pin_index()
+        
+        # Get comprehensive metrics including recommendations
+        if hasattr(enhanced_index, 'get_comprehensive_metrics'):
+            metrics = enhanced_index.get_comprehensive_metrics()
+            recommendations = metrics.storage_recommendations
+        else:
+            recommendations = []
+        
+        return {
+            "success": True,
+            "operation": "get_tier_recommendations",
+            "timestamp": time.time(),
+            "recommendations": recommendations,
+            "total_recommendations": len(recommendations)
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error getting tier recommendations: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting tier recommendations: {str(e)}")

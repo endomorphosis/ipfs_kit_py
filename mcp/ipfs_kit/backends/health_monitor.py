@@ -33,6 +33,16 @@ from .backend_clients import (
 )
 from .vfs_observer import VFSObservabilityManager
 from .log_manager import BackendLogManager
+
+# Try to import pin metadata index - create fallback if not available
+
+
+# Import enhanced pin index if available
+try:
+    from ipfs_kit_py.enhanced_pin_index import get_global_enhanced_pin_index, EnhancedPinMetadataIndex
+    ENHANCED_PIN_INDEX_AVAILABLE = True
+except ImportError:
+    ENHANCED_PIN_INDEX_AVAILABLE = False
 from ..core.config_manager import SecureConfigManager
 
 logger = logging.getLogger(__name__)
@@ -253,6 +263,32 @@ class BackendHealthMonitor:
         # Initialize VFS observer
         self.vfs_observer = VFSObservabilityManager()
         
+        # Initialize IPFS pin metadata index for performance optimization
+        # Use enhanced pin index if available, otherwise fall back to basic version
+        if ENHANCED_PIN_INDEX_AVAILABLE:
+            try:
+                self.pin_metadata_index = get_global_enhanced_pin_index(
+                    data_dir=str(Path.home() / ".ipfs_kit" / "enhanced_pin_index"),
+                    update_interval=300,
+                    enable_analytics=True,
+                    enable_predictions=True
+                )
+                self.enhanced_pin_index = True
+                logger.info("✓ Using enhanced pin metadata index with VFS integration")
+            except Exception as e:
+                logger.warning(f"Failed to initialize enhanced pin index, falling back to basic: {e}")
+                self.pin_metadata_index = get_global_pin_index(
+                    data_dir="/tmp/ipfs_kit_duckdb",
+                    update_interval=300
+                )
+                self.enhanced_pin_index = False
+        else:
+            self.pin_metadata_index = get_global_pin_index(
+                data_dir="/tmp/ipfs_kit_duckdb",
+                update_interval=300
+            )
+            self.enhanced_pin_index = False
+        
         # Load configuration
         self._load_backend_configs()
         
@@ -260,6 +296,11 @@ class BackendHealthMonitor:
         self.monitoring_active = False
         self.last_check_time = {}
         self._monitor_thread = None
+        
+        # Background health update state
+        self._cached_backend_health = {}
+        self._health_update_task = None
+        self._health_update_interval = 60  # Update cached health every 60 seconds
         
         logger.info("✓ Backend health monitor initialized with comprehensive real implementations")
     
@@ -424,8 +465,14 @@ class BackendHealthMonitor:
                 backend["metrics"] = {
                     "pid": daemon_status.get("pid"),
                     "api_responsive": daemon_status.get("api_responsive"),
-                    "response_time_ms": 0,
-                    "connection_failures": 0
+                    "response_time_ms": daemon_status.get("performance_metrics", {}).get("api_response_time", 0) * 1000,
+                    "connection_failures": 0, # This needs to be tracked separately
+                    "repo_size_bytes": daemon_status.get("performance_metrics", {}).get("repo_stats", {}).get("RepoSize", 0),
+                    "repo_objects": daemon_status.get("performance_metrics", {}).get("repo_stats", {}).get("NumObjects", 0),
+                    "bandwidth_in_bytes": daemon_status.get("performance_metrics", {}).get("bandwidth_stats", {}).get("TotalIn", 0),
+                    "bandwidth_out_bytes": daemon_status.get("performance_metrics", {}).get("bandwidth_stats", {}).get("TotalOut", 0),
+                    "bandwidth_rate_in": daemon_status.get("performance_metrics", {}).get("bandwidth_stats", {}).get("RateIn", 0),
+                    "bandwidth_rate_out": daemon_status.get("performance_metrics", {}).get("bandwidth_stats", {}).get("RateOut", 0)
                 }
                 
                 # Add port usage information
@@ -442,9 +489,83 @@ class BackendHealthMonitor:
                     "api_available": daemon_status.get("api_responsive"),
                     "connection_method": "enhanced_daemon_manager",
                     "lock_file_exists": daemon_status.get("lock_file_exists"),
-                    "port_usage": port_usage
+                    "port_usage": port_usage,
+                    "repo_size_gb": round(daemon_status.get("performance_metrics", {}).get("repo_stats", {}).get("RepoSize", 0) / (1024**3), 2),
+                    "num_objects": daemon_status.get("performance_metrics", {}).get("repo_stats", {}).get("NumObjects", 0),
+                    "total_in_gb": round(daemon_status.get("performance_metrics", {}).get("bandwidth_stats", {}).get("TotalIn", 0) / (1024**3), 2),
+                    "total_out_gb": round(daemon_status.get("performance_metrics", {}).get("bandwidth_stats", {}).get("TotalOut", 0) / (1024**3), 2)
                 })
+
+                # Get comprehensive IPFS metrics using pin metadata index
+                try:
+                    if self.enhanced_pin_index:
+                        # Use enhanced metrics with VFS and analytics
+                        traffic_metrics = self.pin_metadata_index.get_comprehensive_metrics()
+                        cache_stats = self.pin_metadata_index.get_performance_metrics()
+                        vfs_analytics = self.pin_metadata_index.get_vfs_analytics()
+                        
+                        # Enhanced metrics with VFS integration
+                        backend["metrics"].update({
+                            "pins_count_cached": traffic_metrics.total_pins,
+                            "repo_size_bytes_cached": traffic_metrics.total_size_bytes,
+                            "pins_accessed_last_hour": traffic_metrics.pins_accessed_last_hour,
+                            "pins_accessed_last_day": traffic_metrics.pins_accessed_last_day,
+                            "bandwidth_estimate_bytes": traffic_metrics.bandwidth_estimate_bytes,
+                            "cache_hit_rate": cache_stats.get("cache_performance", {}).get("cache_hit_rate", 0),
+                            "pin_cache_age_seconds": cache_stats.get("background_services", {}).get("last_update_duration", 0),
+                            
+                            # Enhanced metrics
+                            "vfs_mounts": traffic_metrics.vfs_mounts,
+                            "directory_pins": traffic_metrics.directory_pins,
+                            "file_pins": traffic_metrics.file_pins,
+                            "verified_pins": traffic_metrics.verified_pins,
+                            "corrupted_pins": traffic_metrics.corrupted_pins,
+                            "tier_distribution": traffic_metrics.tier_distribution,
+                            "hotness_analysis": {
+                                "hot_pins_count": len(traffic_metrics.hot_pins),
+                                "cache_efficiency": traffic_metrics.cache_efficiency
+                            },
+                            "vfs_operations_today": vfs_analytics.get("operations_summary", {}),
+                            "mount_points_active": len(vfs_analytics.get("mount_points", {}))
+                        })
+                    else:
+                        # Use basic metrics
+                        traffic_metrics = self.pin_metadata_index.get_traffic_metrics()
+                        cache_stats = self.pin_metadata_index.get_cache_stats()
+                        
+                        # Basic pin metadata for fast pin and storage statistics
+                        backend["metrics"].update({
+                            "pins_count_cached": traffic_metrics.total_pins,
+                            "repo_size_bytes_cached": traffic_metrics.total_size_bytes,
+                            "pins_accessed_last_hour": traffic_metrics.pins_accessed_last_hour,
+                            "bandwidth_estimate_bytes": traffic_metrics.bandwidth_estimate_bytes,
+                            "cache_hit_rate": cache_stats.get("cache_hit_rate", 0),
+                            "pin_cache_age_seconds": cache_stats.get("last_update_age", 0)
+                        })
+                    
+                    # Update detailed info with cached pin data
+                    backend["detailed_info"].update({
+                        "pins_count": traffic_metrics.total_pins,
+                        "repo_size_gb": round(traffic_metrics.total_size_bytes / (1024**3), 2),
+                        "bandwidth_estimate_gb": round(traffic_metrics.bandwidth_estimate_bytes / (1024**3), 2),
+                        "hot_pins": traffic_metrics.hot_pins[:5],  # Top 5 most accessed
+                        "performance_optimized": True,
+                        "using_pin_metadata_cache": True
+                    })
+                    
+                except Exception as pin_index_e:
+                    logger.warning(f"Could not get IPFS metrics from pin index: {pin_index_e}")
+                    # Fall back to traditional metrics if available
+                    backend["detailed_info"]["performance_optimized"] = False
                 
+                # Get comprehensive IPFS metrics
+                try:
+                    ipfs_metrics = await daemon_manager._get_ipfs_metrics()
+                    backend["metrics"].update(ipfs_metrics)
+                    backend["detailed_info"].update(ipfs_metrics)
+                except Exception as metrics_e:
+                    logger.warning(f"Could not get IPFS metrics: {metrics_e}")
+
                 # Try to get additional IPFS info via API
                 try:
                     import httpx
@@ -545,16 +666,32 @@ class BackendHealthMonitor:
                     "peer_id": id_info.get("id", "unknown") if isinstance(id_info, dict) else "unknown",
                     "version": id_info.get("version", "unknown") if isinstance(id_info, dict) else "unknown",
                     "peer_count": len(peers_info) if isinstance(peers_info, list) else 0,
-                    "pin_count": len(pins_info) if isinstance(pins_info, list) else 0
+                    "pin_count": len(pins_info) if isinstance(pins_info, list) else 0,
+                    "repo_size_bytes": api_status.get("repo_size_bytes", 0),
+                    "repo_objects": api_status.get("repo_objects", 0),
+                    "bandwidth_in_bytes": api_status.get("bandwidth_in_bytes", 0),
+                    "bandwidth_out_bytes": api_status.get("bandwidth_out_bytes", 0)
                 }
                 
+                # Get comprehensive IPFS Cluster metrics
+                try:
+                    cluster_metrics = await cluster_manager._get_cluster_metrics()
+                    backend["metrics"].update(cluster_metrics)
+                    backend["detailed_info"].update(cluster_metrics)
+                except Exception as metrics_e:
+                    logger.warning(f"Could not get IPFS Cluster metrics: {metrics_e}")
+
                 # Update detailed info with API data
                 backend["detailed_info"].update({
                     "cluster_id": id_info.get("id", "unknown") if isinstance(id_info, dict) else "unknown",
                     "api_port": cluster_manager.config.api_port,
                     "proxy_port": cluster_manager.config.proxy_port,
                     "cluster_port": cluster_manager.config.cluster_port,
-                    "enhanced_monitoring": True
+                    "enhanced_monitoring": True,
+                    "repo_size_gb": round(api_status.get("repo_size_bytes", 0) / (1024**3), 2),
+                    "num_objects": api_status.get("repo_objects", 0),
+                    "total_in_gb": round(api_status.get("bandwidth_in_bytes", 0) / (1024**3), 2),
+                    "total_out_gb": round(api_status.get("bandwidth_out_bytes", 0) / (1024**3), 2)
                 })
             else:
                 # Fallback to basic daemon status check
@@ -1092,6 +1229,85 @@ class BackendHealthMonitor:
                 # Set network and node type based on common configurations
                 backend["detailed_info"]["node_type"] = "fullnode"
                 backend["detailed_info"]["network"] = "mainnet"  # Default, could be detected from config
+
+                # Try to get chain stats (storage usage)
+                try:
+                    chain_stat_result = subprocess.run(
+                        ["lotus", "chain", "stat"],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    if chain_stat_result.returncode == 0:
+                        chain_stat_output = chain_stat_result.stdout.strip()
+                        # Example output: "Chain size: 123.45 GiB, Blocks: 1234567"
+                        size_match = re.search(r'Chain size: ([\d.]+) (\w+)', chain_stat_output)
+                        if size_match:
+                            size_val = float(size_match.group(1))
+                            size_unit = size_match.group(2)
+                            # Convert to bytes for consistency
+                            if size_unit == "KiB":
+                                backend["metrics"]["chain_size_bytes"] = size_val * 1024
+                            elif size_unit == "MiB":
+                                backend["metrics"]["chain_size_bytes"] = size_val * (1024**2)
+                            elif size_unit == "GiB":
+                                backend["metrics"]["chain_size_bytes"] = size_val * (1024**3)
+                            elif size_unit == "TiB":
+                                backend["metrics"]["chain_size_bytes"] = size_val * (1024**4)
+                            else:
+                                backend["metrics"]["chain_size_bytes"] = size_val # Assume bytes if no unit
+                            backend["detailed_info"]["chain_size"] = f"{size_val} {size_unit}"
+                        
+                        blocks_match = re.search(r'Blocks: (\d+)', chain_stat_output)
+                        if blocks_match:
+                            backend["metrics"]["chain_blocks"] = int(blocks_match.group(1))
+                            backend["detailed_info"]["chain_blocks"] = int(blocks_match.group(1))
+                    else:
+                        logger.debug(f"Lotus chain stat failed: {chain_stat_result.stderr.strip()}")
+                except subprocess.TimeoutExpired:
+                    backend["detailed_info"]["chain_size"] = "timeout"
+                    backend["metrics"]["chain_size_bytes"] = 0
+                except Exception as e:
+                    logger.debug(f"Error getting Lotus chain stats: {e}")
+                    backend["detailed_info"]["chain_size"] = "unknown"
+                    backend["metrics"]["chain_size_bytes"] = 0
+
+                # Try to get network stats (bandwidth)
+                try:
+                    net_stat_result = subprocess.run(
+                        ["lotus", "net", "stat"],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    if net_stat_result.returncode == 0:
+                        net_stat_output = net_stat_result.stdout.strip()
+                        # Example output: "TotalIn: 123456789, TotalOut: 987654321, RateIn: 1234.56, RateOut: 9876.54"
+                        total_in_match = re.search(r'TotalIn: (\d+)', net_stat_output)
+                        total_out_match = re.search(r'TotalOut: (\d+)', net_stat_output)
+                        rate_in_match = re.search(r'RateIn: ([\d.]+)', net_stat_output)
+                        rate_out_match = re.search(r'RateOut: ([\d.]+)', net_stat_output)
+
+                        if total_in_match:
+                            backend["metrics"]["bandwidth_in_bytes"] = int(total_in_match.group(1))
+                        if total_out_match:
+                            backend["metrics"]["bandwidth_out_bytes"] = int(total_out_match.group(1))
+                        if rate_in_match:
+                            backend["metrics"]["bandwidth_rate_in"] = float(rate_in_match.group(1))
+                        if rate_out_match:
+                            backend["metrics"]["bandwidth_rate_out"] = float(rate_out_match.group(1))
+                        
+                        backend["detailed_info"]["total_in_gb"] = round(backend["metrics"].get("bandwidth_in_bytes", 0) / (1024**3), 2)
+                        backend["detailed_info"]["total_out_gb"] = round(backend["metrics"].get("bandwidth_out_bytes", 0) / (1024**3), 2)
+                    else:
+                        logger.debug(f"Lotus net stat failed: {net_stat_result.stderr.strip()}")
+                except subprocess.TimeoutExpired:
+                    backend["detailed_info"]["total_in_gb"] = "timeout"
+                    backend["detailed_info"]["total_out_gb"] = "timeout"
+                    backend["metrics"]["bandwidth_in_bytes"] = 0
+                    backend["metrics"]["bandwidth_out_bytes"] = 0
+                except Exception as e:
+                    logger.debug(f"Error getting Lotus network stats: {e}")
+                    backend["detailed_info"]["total_in_gb"] = "unknown"
+                    backend["detailed_info"]["total_out_gb"] = "unknown"
+                    backend["metrics"]["bandwidth_in_bytes"] = 0
+                    backend["metrics"]["bandwidth_out_bytes"] = 0
                     
             else:
                 backend["status"] = "stopped"
@@ -1106,7 +1322,11 @@ class BackendHealthMonitor:
                     "chain_height": 0,
                     "peers_count": 0,
                     "wallet_balance": "unavailable",
-                    "version": "unavailable"
+                    "version": "unavailable",
+                    "chain_size": "unavailable",
+                    "chain_blocks": 0,
+                    "total_in_gb": "unavailable",
+                    "total_out_gb": "unavailable"
                 })
                 
         except subprocess.TimeoutExpired:
@@ -1155,7 +1375,9 @@ class BackendHealthMonitor:
                 backend["metrics"] = {
                     "binary_available": True,
                     "version_check": "passed",
-                    "response_time": 0.1  # Quick binary check
+                    "response_time": 0.1,  # Quick binary check
+                    "total_retrieved_bytes": 0, # Placeholder: LassieClient needs to implement this
+                    "retrieval_rate_bytes_per_sec": 0 # Placeholder: LassieClient needs to implement this
                 }
             else:
                 backend["status"] = "unavailable"
@@ -1178,57 +1400,7 @@ class BackendHealthMonitor:
         backend["last_check"] = datetime.now().isoformat()
         return backend
     
-    async def _check_lassie_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Check Lassie Kit health using LassieClient."""
-        try:
-            from .backend_clients import LassieClient
-            
-            # Get configuration from backend details
-            config = backend.get("config", {})
-            binary_path = config.get("binary_path", "lassie")
-            
-            # Create LassieClient instance
-            client = LassieClient(binary_path=binary_path, config=config)
-            
-            # Perform health check
-            health_result = await client.health_check()
-            
-            # Update backend status based on health check result
-            if health_result["status"] == "healthy":
-                backend["status"] = "available"
-                backend["health"] = "healthy"
-                backend["detailed_info"].update({
-                    "binary_available": health_result.get("binary_available", False),
-                    "version": health_result.get("version", "unknown"),
-                    "binary_path": health_result.get("binary_path", binary_path)
-                })
-                backend["metrics"] = {
-                    "binary_available": True,
-                    "version_check": "passed",
-                    "response_time": 0.1  # Quick binary check
-                }
-            else:
-                backend["status"] = "unavailable"
-                backend["health"] = "unhealthy"
-                backend["detailed_info"]["binary_available"] = health_result.get("binary_available", False)
-                backend["errors"].append({
-                    "timestamp": datetime.now().isoformat(),
-                    "error": health_result.get("error", "Unknown error")
-                })
-                
-        except Exception as e:
-            backend["status"] = "error"
-            backend["health"] = "unhealthy"
-            backend["detailed_info"]["binary_available"] = False
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            })
-            
-        backend["last_check"] = datetime.now().isoformat()
-        return backend
-
-    async def _check_storacha_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
+    
         """Check Storacha/Web3.Storage health with real implementation."""
         try:
             try:
@@ -1265,7 +1437,9 @@ class BackendHealthMonitor:
                     backend["metrics"] = {
                         "healthy_endpoints": len(healthy_endpoints),
                         "unhealthy_endpoints": len(unhealthy_endpoints),
-                        "endpoints": healthy_endpoints
+                        "endpoints": healthy_endpoints,
+                        "total_data_stored_bytes": 0, # Placeholder: Needs API integration
+                        "total_data_transferred_bytes": 0 # Placeholder: Needs API integration
                     }
                 else:
                     backend["status"] = "unavailable"
@@ -1273,7 +1447,9 @@ class BackendHealthMonitor:
                     backend["metrics"] = {
                         "healthy_endpoints": 0,
                         "unhealthy_endpoints": len(unhealthy_endpoints),
-                        "errors": unhealthy_endpoints
+                        "errors": unhealthy_endpoints,
+                        "total_data_stored_bytes": 0, # Placeholder: Needs API integration
+                        "total_data_transferred_bytes": 0 # Placeholder: Needs API integration
                     }
             except ImportError:
                 backend["status"] = "dependency_missing"
@@ -1499,6 +1675,227 @@ class BackendHealthMonitor:
         self.monitoring_active = False
         logger.info("✓ Backend monitoring stopped")
     
+    async def start_background_services(self):
+        """Start background services for performance optimization."""
+        try:
+            # Start pin metadata index
+            await self.pin_metadata_index.start()
+            logger.info("✓ Pin metadata index started")
+            
+            # Start background health updates
+            self._health_update_task = asyncio.create_task(self._background_health_update_loop())
+            logger.info("✓ Background health update service started")
+            
+        except Exception as e:
+            logger.error(f"Failed to start background services: {e}")
+    
+    async def stop_background_services(self):
+        """Stop background services."""
+        try:
+            # Stop health update task
+            if self._health_update_task:
+                self._health_update_task.cancel()
+                try:
+                    await self._health_update_task
+                except asyncio.CancelledError:
+                    pass
+            
+            # Stop pin metadata index
+            await self.pin_metadata_index.stop()
+            logger.info("✓ Background services stopped")
+            
+        except Exception as e:
+            logger.error(f"Error stopping background services: {e}")
+    
+    async def _background_health_update_loop(self):
+        """Background task to periodically update cached health status."""
+        while True:
+            try:
+                # Update cached health for all backends
+                health_results = await self.check_all_backends_health()
+                
+                # Store results in cache
+                self._cached_backend_health = health_results.get("backends", {})
+                
+                logger.debug(f"Updated cached health for {len(self._cached_backend_health)} backends")
+                
+                # Wait for next update
+                await asyncio.sleep(self._health_update_interval)
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error in background health update: {e}")
+                await asyncio.sleep(self._health_update_interval)
+    
+    def get_cached_backend_health(self, backend_name: Optional[str] = None) -> Dict[str, Any]:
+        """Get cached backend health (non-blocking)."""
+        if backend_name:
+            return self._cached_backend_health.get(backend_name, {
+                "name": backend_name,
+                "status": "unknown",
+                "health": "unknown",
+                "error": "No cached data available"
+            })
+        else:
+            return self._cached_backend_health.copy()
+    
+    async def get_consolidated_storage_metrics(self) -> Dict[str, Any]:
+        """Get consolidated storage/bandwidth metrics from all backends with performance optimization."""
+        try:
+            # Use cached health data to avoid blocking calls
+            cached_health = self.get_cached_backend_health()
+            
+            total_storage_bytes = 0
+            total_bandwidth_in_bytes = 0
+            total_bandwidth_out_bytes = 0
+            total_objects = 0
+            backend_breakdown = {}
+            active_backends = 0
+            healthy_backends = 0
+            
+            # Get IPFS metrics from pin metadata index (fast, non-blocking)
+            try:
+                traffic_metrics = self.pin_metadata_index.get_traffic_metrics()
+                cache_stats = self.pin_metadata_index.get_cache_stats()
+                
+                # Add IPFS data from pin metadata
+                ipfs_storage = traffic_metrics.total_size_bytes
+                ipfs_objects = traffic_metrics.total_pins
+                ipfs_bandwidth = traffic_metrics.bandwidth_estimate_bytes
+                
+                total_storage_bytes += ipfs_storage
+                total_objects += ipfs_objects
+                total_bandwidth_in_bytes += ipfs_bandwidth
+                
+                backend_breakdown["ipfs"] = {
+                    "storage_bytes": ipfs_storage,
+                    "objects": ipfs_objects,
+                    "bandwidth_estimate_bytes": ipfs_bandwidth,
+                    "source": "pin_metadata_index",
+                    "cache_hit_rate": cache_stats.get("cache_hit_rate", 0),
+                    "pins_accessed_last_hour": traffic_metrics.pins_accessed_last_hour
+                }
+                
+                if ipfs_storage > 0 or ipfs_objects > 0:
+                    active_backends += 1
+                    healthy_backends += 1
+                    
+            except Exception as e:
+                logger.error(f"Error getting IPFS metrics from pin index: {e}")
+                backend_breakdown["ipfs"] = {"error": str(e)}
+            
+            # Process other backends from cached health data
+            for backend_name, health_data in cached_health.items():
+                if backend_name == "ipfs":
+                    continue  # Already processed above
+                
+                try:
+                    metrics = health_data.get("metrics", {})
+                    status = health_data.get("status", "unknown")
+                    health = health_data.get("health", "unknown")
+                    
+                    # Extract storage/bandwidth metrics based on backend type
+                    backend_storage = 0
+                    backend_objects = 0
+                    backend_bandwidth_in = 0
+                    backend_bandwidth_out = 0
+                    
+                    if backend_name == "s3":
+                        backend_storage = metrics.get("total_storage_bytes", 0)
+                        backend_objects = metrics.get("total_objects", 0)
+                        backend_bandwidth_in = metrics.get("total_transfer_in_bytes", 0)
+                        backend_bandwidth_out = metrics.get("total_transfer_out_bytes", 0)
+                    elif backend_name == "huggingface":
+                        backend_storage = metrics.get("total_storage_bytes", 0)
+                        backend_objects = metrics.get("total_models", 0) + metrics.get("total_datasets", 0)
+                    elif backend_name == "storacha":
+                        backend_storage = metrics.get("total_data_stored_bytes", 0)
+                        backend_objects = metrics.get("total_uploads", 0)
+                    elif backend_name == "gdrive":
+                        backend_storage = metrics.get("quota_used", 0)
+                        backend_objects = metrics.get("files_count", 0)
+                    
+                    # Add to totals
+                    total_storage_bytes += backend_storage
+                    total_objects += backend_objects
+                    total_bandwidth_in_bytes += backend_bandwidth_in
+                    total_bandwidth_out_bytes += backend_bandwidth_out
+                    
+                    # Track backend status
+                    if status in ["running", "authenticated", "configured"]:
+                        active_backends += 1
+                    if health == "healthy":
+                        healthy_backends += 1
+                    
+                    # Store backend breakdown
+                    backend_breakdown[backend_name] = {
+                        "storage_bytes": backend_storage,
+                        "objects": backend_objects,
+                        "bandwidth_in_bytes": backend_bandwidth_in,
+                        "bandwidth_out_bytes": backend_bandwidth_out,
+                        "status": status,
+                        "health": health,
+                        "source": "cached_health_data"
+                    }
+                    
+                except Exception as e:
+                    logger.error(f"Error processing {backend_name} metrics: {e}")
+                    backend_breakdown[backend_name] = {"error": str(e)}
+            
+            # Calculate percentages for breakdown
+            for backend_name, data in backend_breakdown.items():
+                if "error" not in data and total_storage_bytes > 0:
+                    data["storage_percentage"] = (data.get("storage_bytes", 0) / total_storage_bytes) * 100
+                if "error" not in data and total_objects > 0:
+                    data["objects_percentage"] = (data.get("objects", 0) / total_objects) * 100
+            
+            return {
+                "total_storage_bytes": total_storage_bytes,
+                "total_bandwidth_in_bytes": total_bandwidth_in_bytes,
+                "total_bandwidth_out_bytes": total_bandwidth_out_bytes,
+                "total_objects": total_objects,
+                "active_backends": active_backends,
+                "healthy_backends": healthy_backends,
+                "backend_breakdown": backend_breakdown,
+                "human_readable": {
+                    "total_storage": self._format_bytes(total_storage_bytes),
+                    "total_bandwidth_in": self._format_bytes(total_bandwidth_in_bytes),
+                    "total_bandwidth_out": self._format_bytes(total_bandwidth_out_bytes),
+                },
+                "updated_at": datetime.now().isoformat(),
+                "source": "optimized_with_pin_index"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting consolidated storage metrics: {e}")
+            return {
+                "total_storage_bytes": 0,
+                "total_bandwidth_in_bytes": 0,
+                "total_bandwidth_out_bytes": 0,
+                "total_objects": 0,
+                "active_backends": 0,
+                "healthy_backends": 0,
+                "backend_breakdown": {},
+                "error": str(e),
+                "updated_at": datetime.now().isoformat()
+            }
+    
+    def _format_bytes(self, bytes_value: int) -> str:
+        """Format bytes into human-readable format."""
+        if bytes_value == 0:
+            return "0 B"
+        
+        units = ["B", "KB", "MB", "GB", "TB", "PB"]
+        size = float(bytes_value)
+        unit_index = 0
+        
+        while size >= 1024 and unit_index < len(units) - 1:
+            size /= 1024
+            unit_index += 1
+        
+        return f"{size:.1f} {units[unit_index]}"
+    
     def get_package_config(self) -> Dict[str, Any]:
         """Get package configuration."""
         config_file = self.config_dir / "package_config.json"
@@ -1546,13 +1943,29 @@ class BackendHealthMonitor:
             }
         }
     
-    def set_package_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    async def set_package_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Set package configuration."""
         config_file = self.config_dir / "package_config.json"
         
         try:
+            # Read existing config
+            if config_file.exists():
+                with open(config_file, 'r') as f:
+                    existing_config = json.load(f)
+            else:
+                existing_config = {}
+
+            # Update with new config
+            for key, value in config.items():
+                if isinstance(value, dict):
+                    if key not in existing_config or not isinstance(existing_config[key], dict):
+                        existing_config[key] = {}
+                    existing_config[key].update(value)
+                else:
+                    existing_config[key] = value
+
             with open(config_file, 'w') as f:
-                json.dump(config, f, indent=2)
+                json.dump(existing_config, f, indent=2)
             logger.info(f"✓ Saved package config to {config_file}")
             return {"success": True, "message": "Package configuration saved"}
         except Exception as e:
@@ -1576,7 +1989,9 @@ class BackendHealthMonitor:
             if node_result.returncode == 0:
                 backend["metrics"] = {
                     "node_version": node_result.stdout.strip(),
-                    "node_available": True
+                    "node_available": True,
+                    "total_data_stored_bytes": 0, # Placeholder: Synapse SDK needs to implement this
+                    "total_data_transferred_bytes": 0 # Placeholder: Synapse SDK needs to implement this
                 }
                 
                 # Check if npm package is installed
@@ -1620,17 +2035,131 @@ class BackendHealthMonitor:
         backend["last_check"] = datetime.now().isoformat()
         return backend
     
+    async def _check_storacha_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
+        """Check Storacha/Web3.Storage health with comprehensive storage metrics."""
+        try:
+            try:
+                import aiohttp
+                
+                healthy_endpoints = []
+                unhealthy_endpoints = []
+                total_storage_bytes = 0
+                total_uploads = 0
+                account_info = {}
+                
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                    # Check basic endpoint health
+                    for endpoint in backend["api_endpoints"]:
+                        try:
+                            start_time = time.time()
+                            async with session.get(endpoint) as response:
+                                response_time = (time.time() - start_time) * 1000
+                                if response.status in [200, 404]:  # 404 is expected for some endpoints
+                                    healthy_endpoints.append({
+                                        "url": endpoint,
+                                        "status": response.status,
+                                        "response_time_ms": int(response_time)
+                                    })
+                                else:
+                                    unhealthy_endpoints.append({
+                                        "url": endpoint,
+                                        "status": response.status,
+                                        "error": f"HTTP {response.status}"
+                                    })
+                        except Exception as e:
+                            unhealthy_endpoints.append({
+                                "url": endpoint,
+                                "error": str(e)
+                            })
+                    
+                    # Try to get account/usage information if API key is available
+                    api_token = os.environ.get("WEB3_STORAGE_TOKEN") or os.environ.get("STORACHA_TOKEN")
+                    if api_token and healthy_endpoints:
+                        primary_endpoint = healthy_endpoints[0]["url"]
+                        headers = {"Authorization": f"Bearer {api_token}"}
+                        
+                        try:
+                            # Try to get account info
+                            async with session.get(f"{primary_endpoint}/user/account", headers=headers) as response:
+                                if response.status == 200:
+                                    account_data = await response.json()
+                                    account_info = {
+                                        "email": account_data.get("email"),
+                                        "plan": account_data.get("plan", "free"),
+                                        "storage_quota": account_data.get("storageQuota", 0),
+                                        "storage_used": account_data.get("storageUsed", 0)
+                                    }
+                                    total_storage_bytes = account_data.get("storageUsed", 0)
+                        except Exception:
+                            pass
+                        
+                        try:
+                            # Try to get upload stats
+                            async with session.get(f"{primary_endpoint}/user/uploads", headers=headers) as response:
+                                if response.status == 200:
+                                    uploads_data = await response.json()
+                                    if isinstance(uploads_data, list):
+                                        total_uploads = len(uploads_data)
+                                        # Sum up sizes of uploads
+                                        for upload in uploads_data:
+                                            if "size" in upload:
+                                                total_storage_bytes += upload["size"]
+                        except Exception:
+                            pass
+                
+                if healthy_endpoints:
+                    backend["status"] = "running"
+                    backend["health"] = "healthy"
+                    backend["metrics"] = {
+                        "healthy_endpoints": len(healthy_endpoints),
+                        "unhealthy_endpoints": len(unhealthy_endpoints),
+                        "endpoints": healthy_endpoints,
+                        "total_data_stored_bytes": total_storage_bytes,
+                        "total_uploads": total_uploads,
+                        "account_info": account_info,
+                        "authenticated": bool(api_token),
+                        "service_type": "web3_storage",
+                        "storage_network": "ipfs+filecoin"
+                    }
+                else:
+                    backend["status"] = "unavailable"
+                    backend["health"] = "unhealthy"
+                    backend["metrics"] = {
+                        "healthy_endpoints": 0,
+                        "unhealthy_endpoints": len(unhealthy_endpoints),
+                        "errors": unhealthy_endpoints,
+                        "total_data_stored_bytes": 0,
+                        "total_data_transferred_bytes": 0
+                    }
+            except ImportError:
+                backend["status"] = "dependency_missing"
+                backend["health"] = "unhealthy"
+                backend["metrics"] = {"error": "aiohttp not available"}
+                
+        except Exception as e:
+            backend["status"] = "error"
+            backend["health"] = "unhealthy"
+            backend["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            })
+            
+        backend["last_check"] = datetime.now().isoformat()
+        return backend
+    
     async def _check_s3_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Check S3 compatible storage health with real implementation."""
+        """Check S3 compatible storage health with comprehensive storage/bandwidth metrics."""
         try:
             # Check if boto3 is available
             try:
                 import boto3
+                from botocore.exceptions import NoCredentialsError, ClientError
                 backend["metrics"] = {"boto3_available": True}
                 
                 # Check for AWS credentials
                 aws_access_key = os.environ.get("AWS_ACCESS_KEY_ID")
                 aws_secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
+                region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
                 
                 if aws_access_key and aws_secret_key:
                     backend["status"] = "configured"
@@ -1638,10 +2167,106 @@ class BackendHealthMonitor:
                     backend["credentials"] = "configured"
                     backend["metrics"]["credentials_available"] = True
                     
-                    # Try to create a client (doesn't make actual request)
+                    # Try to create a client and get real metrics
                     try:
-                        s3_client = boto3.client('s3')
+                        s3_client = boto3.client('s3', region_name=region)
+                        cloudwatch = boto3.client('cloudwatch', region_name=region)
                         backend["metrics"]["client_creation"] = "success"
+
+                        # Get storage metrics from all buckets
+                        total_storage_bytes = 0
+                        total_objects = 0
+                        bucket_count = 0
+                        
+                        try:
+                            # List buckets
+                            buckets_response = s3_client.list_buckets()
+                            bucket_count = len(buckets_response.get('Buckets', []))
+                            
+                            # Get storage metrics for each bucket
+                            for bucket in buckets_response.get('Buckets', []):
+                                bucket_name = bucket['Name']
+                                try:
+                                    # Get bucket size from CloudWatch metrics
+                                    import datetime as dt
+                                    end_time = dt.datetime.utcnow()
+                                    start_time = end_time - dt.timedelta(days=2)
+                                    
+                                    # Get bucket size bytes
+                                    size_response = cloudwatch.get_metric_statistics(
+                                        Namespace='AWS/S3',
+                                        MetricName='BucketSizeBytes',
+                                        Dimensions=[
+                                            {'Name': 'BucketName', 'Value': bucket_name},
+                                            {'Name': 'StorageType', 'Value': 'StandardStorage'}
+                                        ],
+                                        StartTime=start_time,
+                                        EndTime=end_time,
+                                        Period=86400,  # 1 day
+                                        Statistics=['Average']
+                                    )
+                                    
+                                    if size_response['Datapoints']:
+                                        bucket_size = size_response['Datapoints'][-1]['Average']
+                                        total_storage_bytes += int(bucket_size)
+                                    
+                                    # Get object count
+                                    count_response = cloudwatch.get_metric_statistics(
+                                        Namespace='AWS/S3',
+                                        MetricName='NumberOfObjects',
+                                        Dimensions=[
+                                            {'Name': 'BucketName', 'Value': bucket_name},
+                                            {'Name': 'StorageType', 'Value': 'AllStorageTypes'}
+                                        ],
+                                        StartTime=start_time,
+                                        EndTime=end_time,
+                                        Period=86400,
+                                        Statistics=['Average']
+                                    )
+                                    
+                                    if count_response['Datapoints']:
+                                        bucket_objects = count_response['Datapoints'][-1]['Average']
+                                        total_objects += int(bucket_objects)
+                                        
+                                except Exception as bucket_error:
+                                    # Skip individual bucket if permissions issue
+                                    continue
+                                    
+                        except Exception as list_error:
+                            # Fall back to basic connection test
+                            pass
+                        
+                        # Get bandwidth metrics (requests/transfers)
+                        transfer_bytes_in = 0
+                        transfer_bytes_out = 0
+                        
+                        try:
+                            # Get data transfer metrics from CloudWatch
+                            import datetime as dt
+                            end_time = dt.datetime.utcnow()
+                            start_time = end_time - dt.timedelta(hours=24)
+                            
+                            # This would require detailed billing/usage APIs
+                            # For now, we'll track basic request metrics as proxy
+                            
+                        except Exception:
+                            pass
+
+                        backend["metrics"].update({
+                            "total_storage_bytes": total_storage_bytes,
+                            "total_objects": total_objects,
+                            "bucket_count": bucket_count,
+                            "total_transfer_in_bytes": transfer_bytes_in,
+                            "total_transfer_out_bytes": transfer_bytes_out,
+                            "region": region,
+                            "storage_class": "STANDARD",  # Could be expanded
+                            "response_time_ms": 0  # Would need to time actual requests
+                        })
+
+                    except (NoCredentialsError, ClientError) as e:
+                        backend["metrics"]["client_creation"] = f"auth_error: {str(e)}"
+                        backend["status"] = "auth_failed"
+                        backend["health"] = "unhealthy"
                     except Exception as e:
                         backend["metrics"]["client_creation"] = f"error: {str(e)}"
                         
@@ -1668,11 +2293,12 @@ class BackendHealthMonitor:
         return backend
     
     async def _check_huggingface_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
-        """Check HuggingFace Hub health with real implementation."""
+        """Check HuggingFace Hub health with comprehensive storage/bandwidth metrics."""
         try:
             # Check if huggingface_hub is available
             try:
                 import huggingface_hub
+                from huggingface_hub import HfApi, list_models, list_datasets
                 backend["metrics"] = {"huggingface_hub_available": True}
                 
                 # Check authentication
@@ -1684,18 +2310,100 @@ class BackendHealthMonitor:
                         backend["auth_token"] = "configured"
                         backend["metrics"]["authenticated"] = True
                         
-                        # Try to get user info
+                        # Initialize API client
+                        api = HfApi(token=token)
+                        
+                        # Try to get user info and storage metrics
                         try:
-                            user_info = huggingface_hub.whoami()
-                            backend["metrics"]["username"] = user_info.get("name", "unknown")
-                        except:
-                            backend["metrics"]["username"] = "unknown"
+                            user_info = huggingface_hub.whoami(token=token)
+                            username = user_info.get("name", "unknown")
+                            backend["metrics"]["username"] = username
+                            
+                            # Get user's repositories and calculate storage
+                            total_storage_bytes = 0
+                            total_models = 0
+                            total_datasets = 0
+                            total_uploads = 0
+                            total_downloads = 0
+                            
+                            try:
+                                # Get user's models
+                                user_models = list(api.list_models(author=username))
+                                total_models = len(user_models)
+                                
+                                # Estimate storage from model metadata (HF doesn't provide exact storage API)
+                                for model in user_models[:10]:  # Limit to avoid rate limiting
+                                    try:
+                                        model_info = api.model_info(model.modelId)
+                                        if hasattr(model_info, 'siblings') and model_info.siblings:
+                                            for sibling in model_info.siblings:
+                                                if hasattr(sibling, 'size') and sibling.size:
+                                                    total_storage_bytes += sibling.size
+                                        
+                                        # Track downloads if available
+                                        if hasattr(model_info, 'downloads'):
+                                            total_downloads += model_info.downloads or 0
+                                            
+                                    except Exception:
+                                        continue
+                                        
+                            except Exception as model_error:
+                                backend["metrics"]["model_enumeration_error"] = str(model_error)
+                            
+                            try:
+                                # Get user's datasets
+                                user_datasets = list(api.list_datasets(author=username))
+                                total_datasets = len(user_datasets)
+                                
+                                # Estimate dataset storage
+                                for dataset in user_datasets[:10]:  # Limit to avoid rate limiting
+                                    try:
+                                        dataset_info = api.dataset_info(dataset.id)
+                                        if hasattr(dataset_info, 'siblings') and dataset_info.siblings:
+                                            for sibling in dataset_info.siblings:
+                                                if hasattr(sibling, 'size') and sibling.size:
+                                                    total_storage_bytes += sibling.size
+                                                    
+                                        # Track downloads if available
+                                        if hasattr(dataset_info, 'downloads'):
+                                            total_downloads += dataset_info.downloads or 0
+                                            
+                                    except Exception:
+                                        continue
+                                        
+                            except Exception as dataset_error:
+                                backend["metrics"]["dataset_enumeration_error"] = str(dataset_error)
+                            
+                            # Update metrics with real data
+                            backend["metrics"].update({
+                                "total_data_stored_bytes": total_storage_bytes,
+                                "total_models": total_models,
+                                "total_datasets": total_datasets,
+                                "total_downloads": total_downloads,
+                                "total_uploads": total_uploads,  # HF doesn't provide upload stats easily
+                                "storage_type": "git_lfs_objects",
+                                "api_rate_limit_remaining": getattr(api.whoami(), "rate_limit_remaining", "unknown")
+                            })
+                            
+                        except Exception as api_error:
+                            backend["metrics"]["api_error"] = str(api_error)
+                            # Fall back to basic metrics
+                            backend["metrics"].update({
+                                "total_data_stored_bytes": 0,
+                                "total_data_transferred_bytes": 0,
+                                "username": "unknown"
+                            })
                             
                     else:
                         backend["status"] = "unauthenticated"
                         backend["health"] = "partial"
                         backend["auth_token"] = "missing"
                         backend["metrics"]["authenticated"] = False
+                        backend["metrics"].update({
+                            "total_data_stored_bytes": 0,
+                            "total_data_transferred_bytes": 0,
+                            "access_level": "public_only"
+                        })
                         
                 except Exception as e:
                     backend["status"] = "error"
@@ -1756,7 +2464,10 @@ class BackendHealthMonitor:
             except ImportError:
                 available_libs["polars"] = {"available": False}
                 
-            backend["metrics"] = {"libraries": available_libs}
+            backend["metrics"] = {"libraries": available_libs,
+                                     "total_data_processed_bytes": 0, # Placeholder: Needs VFS integration
+                                     "total_files_processed": 0 # Placeholder: Needs VFS integration
+                                    }
             
             # Determine overall status
             if available_libs["pyarrow"]["available"]:
@@ -1806,7 +2517,11 @@ class BackendHealthMonitor:
                             "connectivity": metrics.get("connectivity", False),
                             "authenticated": metrics.get("authenticated", False),
                             "api_responsive": metrics.get("api_responsive", False),
-                            "note": metrics.get("note", "")
+                            "note": metrics.get("note", ""),
+                            "quota_total_bytes": detailed.get("quota_total", 0),
+                            "quota_used_bytes": detailed.get("quota_used", 0),
+                            "quota_available_bytes": detailed.get("quota_available", 0),
+                            "files_count": detailed.get("files_count", 0)
                         }
                         
                     else:
@@ -1882,7 +2597,10 @@ class BackendHealthMonitor:
                 "files_accessible": stats.get("files_accessible", 0),
                 "pins_accessible": stats.get("pins_accessible", 0),
                 "listen_addresses": stats.get("listen_addresses", []),
-                "host_active": manager.host_active
+                "host_active": manager.host_active,
+                "total_bytes_sent": stats.get("total_bytes_sent", 0),
+                "total_bytes_received": stats.get("total_bytes_received", 0),
+                "total_storage_bytes": stats.get("total_storage_bytes", 0)
             }
             
             # Add content sharing information
@@ -2125,3 +2843,424 @@ class BackendHealthMonitor:
                 score -= 15
         
         return max(0, min(100, score))
+
+    async def get_consolidated_storage_metrics(self) -> Dict[str, Any]:
+        """Get consolidated storage and bandwidth statistics from all backends."""
+        try:
+            # Get current backend states
+            backend_states = {}
+            for backend_name in self.backends.keys():
+                backend_states[backend_name] = self.backends[backend_name]
+            
+            # Initialize consolidated metrics
+            consolidated = {
+                "total_storage_bytes": 0,
+                "total_bandwidth_in_bytes": 0,
+                "total_bandwidth_out_bytes": 0,
+                "total_objects": 0,
+                "backend_breakdown": {},
+                "active_backends": 0,
+                "healthy_backends": 0,
+                "last_updated": datetime.now().isoformat()
+            }
+            
+            # Process each backend
+            for backend_name, backend_data in backend_states.items():
+                if backend_data.get("status") == "unknown":
+                    continue
+                    
+                consolidated["active_backends"] += 1
+                if backend_data.get("health") == "healthy":
+                    consolidated["healthy_backends"] += 1
+                
+                metrics = backend_data.get("metrics", {})
+                detailed_info = backend_data.get("detailed_info", {})
+                
+                # Extract storage metrics based on backend type
+                backend_storage = 0
+                backend_bandwidth_in = 0
+                backend_bandwidth_out = 0
+                backend_objects = 0
+                
+                if backend_name == "ipfs":
+                    # IPFS metrics
+                    backend_storage = detailed_info.get("repo_size", 0)
+                    backend_bandwidth_in = detailed_info.get("bandwidth_in", 0)
+                    backend_bandwidth_out = detailed_info.get("bandwidth_out", 0)
+                    backend_objects = detailed_info.get("repo_objects", 0)
+                    
+                elif backend_name == "s3":
+                    # S3 metrics
+                    backend_storage = metrics.get("total_storage_bytes", 0)
+                    backend_bandwidth_in = metrics.get("total_transfer_in_bytes", 0)
+                    backend_bandwidth_out = metrics.get("total_transfer_out_bytes", 0)
+                    backend_objects = metrics.get("total_objects", 0)
+                    
+                elif backend_name == "huggingface":
+                    # HuggingFace metrics
+                    backend_storage = metrics.get("total_data_stored_bytes", 0)
+                    backend_objects = metrics.get("total_models", 0) + metrics.get("total_datasets", 0)
+                    
+                elif backend_name == "storacha":
+                    # Storacha/Web3.Storage metrics
+                    backend_storage = metrics.get("total_data_stored_bytes", 0)
+                    backend_objects = metrics.get("total_uploads", 0)
+                    
+                elif backend_name == "gdrive":
+                    # Google Drive metrics
+                    backend_storage = metrics.get("quota_used_bytes", 0)
+                    backend_objects = metrics.get("files_count", 0)
+                    
+                elif backend_name == "lotus":
+                    # Lotus metrics (Filecoin storage)
+                    detailed = backend_data.get("detailed_info", {})
+                    # Lotus doesn't directly report storage but has chain data
+                    
+                elif backend_name == "parquet":
+                    # Parquet/Arrow metrics
+                    backend_storage = metrics.get("total_data_processed_bytes", 0)
+                    backend_objects = metrics.get("total_files_processed", 0)
+                
+                # Add to totals
+                consolidated["total_storage_bytes"] += backend_storage
+                consolidated["total_bandwidth_in_bytes"] += backend_bandwidth_in
+                consolidated["total_bandwidth_out_bytes"] += backend_bandwidth_out
+                consolidated["total_objects"] += backend_objects
+                
+                # Store per-backend breakdown
+                consolidated["backend_breakdown"][backend_name] = {
+                    "status": backend_data.get("status"),
+                    "health": backend_data.get("health"),
+                    "storage_bytes": backend_storage,
+                    "bandwidth_in_bytes": backend_bandwidth_in,
+                    "bandwidth_out_bytes": backend_bandwidth_out,
+                    "objects_count": backend_objects,
+                    "last_check": backend_data.get("last_check"),
+                    "response_time_ms": metrics.get("response_time_ms", 0)
+                }
+            
+            # Calculate additional statistics
+            consolidated["average_response_time_ms"] = sum(
+                data.get("response_time_ms", 0) 
+                for data in consolidated["backend_breakdown"].values()
+            ) / max(1, len(consolidated["backend_breakdown"]))
+            
+            consolidated["storage_distribution"] = {
+                name: {
+                    "percentage": (data["storage_bytes"] / max(1, consolidated["total_storage_bytes"])) * 100,
+                    "size_human": self._format_bytes(data["storage_bytes"])
+                }
+                for name, data in consolidated["backend_breakdown"].items()
+                if data["storage_bytes"] > 0
+            }
+            
+            # Human readable totals
+            consolidated["total_storage_human"] = self._format_bytes(consolidated["total_storage_bytes"])
+            consolidated["total_bandwidth_in_human"] = self._format_bytes(consolidated["total_bandwidth_in_bytes"])
+            consolidated["total_bandwidth_out_human"] = self._format_bytes(consolidated["total_bandwidth_out_bytes"])
+            
+            return consolidated
+            
+        except Exception as e:
+            logger.error(f"Error consolidating storage metrics: {e}")
+            return {
+                "error": str(e),
+                "total_storage_bytes": 0,
+                "total_bandwidth_in_bytes": 0,
+                "total_bandwidth_out_bytes": 0,
+                "total_objects": 0,
+                "backend_breakdown": {},
+                "active_backends": 0,
+                "healthy_backends": 0,
+                "last_updated": datetime.now().isoformat()
+            }
+    
+    def _format_bytes(self, bytes_count: int) -> str:
+        """Format bytes into human readable format."""
+        if bytes_count == 0:
+            return "0 B"
+        
+        units = ["B", "KB", "MB", "GB", "TB", "PB"]
+        size = float(bytes_count)
+        unit_index = 0
+        
+        while size >= 1024 and unit_index < len(units) - 1:
+            size /= 1024
+            unit_index += 1
+            
+        return f"{size:.2f} {units[unit_index]}"
+
+    async def get_filesystem_status_from_parquet(self) -> Dict[str, Any]:
+        """Retrieve filesystem status from parquet files stored in ~/.ipfs_kit/"""
+        status = {
+            "timestamp": time.time(),
+            "filesystem_healthy": False,
+            "enhanced_pin_data": {},
+            "filesystem_metrics": {},
+            "errors": []
+        }
+        
+        try:
+            # Check enhanced pin index directory
+            ipfs_kit_dir = Path.home() / ".ipfs_kit"
+            enhanced_pin_dir = ipfs_kit_dir / "enhanced_pin_index"
+            
+            if not enhanced_pin_dir.exists():
+                status["errors"].append("Enhanced pin index directory not found")
+                return status
+            
+            # Try to read enhanced pin data from parquet files
+            pins_parquet = enhanced_pin_dir / "enhanced_pins.parquet"
+            analytics_parquet = enhanced_pin_dir / "pin_analytics.parquet"
+            duckdb_file = enhanced_pin_dir / "enhanced_pin_metadata.duckdb"
+            
+            try:
+                import pandas as pd
+                import pyarrow.parquet as pq
+                
+                # Read pins parquet if available
+                if pins_parquet.exists():
+                    pins_df = pd.read_parquet(pins_parquet)
+                    status["enhanced_pin_data"]["total_pins"] = len(pins_df)
+                    status["enhanced_pin_data"]["pins_size_bytes"] = pins_df.get("size_bytes", pd.Series()).sum()
+                    status["enhanced_pin_data"]["unique_cids"] = pins_df["cid"].nunique() if "cid" in pins_df.columns else 0
+                    
+                    # Get file stats
+                    file_stats = pins_parquet.stat()
+                    status["enhanced_pin_data"]["parquet_file_size"] = file_stats.st_size
+                    status["enhanced_pin_data"]["last_modified"] = file_stats.st_mtime
+                
+                # Read analytics parquet if available
+                if analytics_parquet.exists():
+                    analytics_df = pd.read_parquet(analytics_parquet)
+                    status["enhanced_pin_data"]["analytics_records"] = len(analytics_df)
+                    
+                    file_stats = analytics_parquet.stat()
+                    status["enhanced_pin_data"]["analytics_file_size"] = file_stats.st_size
+                
+                # Check DuckDB file
+                if duckdb_file.exists():
+                    file_stats = duckdb_file.stat()
+                    status["enhanced_pin_data"]["duckdb_file_size"] = file_stats.st_size
+                    status["enhanced_pin_data"]["duckdb_last_modified"] = file_stats.st_mtime
+                
+                status["filesystem_healthy"] = True
+                
+            except ImportError:
+                status["errors"].append("Pandas/PyArrow not available for reading parquet files")
+            except Exception as e:
+                status["errors"].append(f"Error reading parquet files: {e}")
+            
+            # Get enhanced index status if available
+            if ENHANCED_PIN_INDEX_AVAILABLE:
+                try:
+                    enhanced_index = get_global_enhanced_pin_index(
+                        enable_analytics=True,
+                        enable_predictions=True
+                    )
+                    
+                    # Get filesystem metrics from enhanced index
+                    comprehensive_metrics = enhanced_index.get_comprehensive_metrics()
+                    vfs_analytics = enhanced_index.get_vfs_analytics()
+                    performance_metrics = enhanced_index.get_performance_metrics()
+                    
+                    status["filesystem_metrics"] = {
+                        "comprehensive": comprehensive_metrics.to_dict() if hasattr(comprehensive_metrics, 'to_dict') else str(comprehensive_metrics),
+                        "vfs": vfs_analytics,
+                        "performance": performance_metrics
+                    }
+                    
+                except Exception as e:
+                    status["errors"].append(f"Error getting enhanced index metrics: {e}")
+            
+            # Check other filesystem components
+            status["filesystem_components"] = {}
+            
+            # Check IPFS config and data directories
+            ipfs_dir = Path.home() / ".ipfs"
+            if ipfs_dir.exists():
+                status["filesystem_components"]["ipfs_dir"] = {
+                    "exists": True,
+                    "config_exists": (ipfs_dir / "config").exists(),
+                    "datastore_exists": (ipfs_dir / "datastore").exists(),
+                    "blocks_exists": (ipfs_dir / "blocks").exists()
+                }
+            
+            # Check other kit directories
+            for dirname in ["gdrive", "mock_gdrive"]:
+                kit_subdir = ipfs_kit_dir / dirname
+                if kit_subdir.exists():
+                    status["filesystem_components"][dirname] = {
+                        "exists": True,
+                        "size": sum(f.stat().st_size for f in kit_subdir.rglob('*') if f.is_file())
+                    }
+                    
+        except Exception as e:
+            status["errors"].append(f"Filesystem status check failed: {e}")
+            logger.error(f"Error in get_filesystem_status_from_parquet: {e}")
+        
+        return status
+
+    def get_backend_health(self) -> Dict[str, Any]:
+        """Get backend health status (synchronous wrapper for async methods)."""
+        # Return cached health data for synchronous access
+        try:
+            cached_health = self.get_cached_backend_health()
+            return {
+                "backend_health": cached_health,
+                "timestamp": time.time(),
+                "cached": True
+            }
+        except Exception as e:
+            logger.error(f"Error getting cached backend health: {e}")
+            return {
+                "backend_health": {},
+                "timestamp": time.time(),
+                "error": str(e),
+                "cached": False
+            }
+
+    async def get_comprehensive_health_status(self) -> Dict[str, Any]:
+        """Get comprehensive health status including filesystem data from parquet files."""
+        status = {
+            "timestamp": time.time(),
+            "system_healthy": True,
+            "components": {}
+        }
+        
+        try:
+            # Get backend health
+            backend_health = await self.check_all_backends_health()
+            status["components"]["backends"] = backend_health
+            
+            # Get enhanced pin index status
+            enhanced_status = await get_health_status()
+            status["components"]["enhanced_pins"] = enhanced_status
+            
+            # Get filesystem status from parquet files
+            filesystem_status = await self.get_filesystem_status_from_parquet()
+            status["components"]["filesystem"] = filesystem_status
+            
+            # Get consolidated storage metrics
+            storage_metrics = await self.get_consolidated_storage_metrics()
+            status["components"]["storage"] = storage_metrics
+            
+            # Determine overall system health
+            backend_healthy = backend_health.get("status") == "healthy"
+            filesystem_healthy = filesystem_status.get("filesystem_healthy", False)
+            enhanced_healthy = enhanced_status.get("enhanced_pin_index", {}).get("status") == "healthy"
+            
+            status["system_healthy"] = backend_healthy and filesystem_healthy and enhanced_healthy
+            status["health_summary"] = {
+                "backends": "healthy" if backend_healthy else "unhealthy",
+                "filesystem": "healthy" if filesystem_healthy else "unhealthy",
+                "enhanced_pins": "healthy" if enhanced_healthy else "unhealthy"
+            }
+            
+        except Exception as e:
+            status["system_healthy"] = False
+            status["error"] = str(e)
+            logger.error(f"Error in get_comprehensive_health_status: {e}")
+        
+        return status
+
+
+# Export standalone health functions for MCP integration
+async def get_health_status() -> Dict[str, Any]:
+    """Get comprehensive health status with enhanced pin metrics."""
+    status = {
+        "timestamp": time.time(),
+        "system": "healthy",
+        "components": {},
+        "enhanced_pin_index": {
+            "available": ENHANCED_PIN_INDEX_AVAILABLE,
+            "status": "unknown"
+        }
+    }
+    
+    # Check enhanced pin index
+    if ENHANCED_PIN_INDEX_AVAILABLE:
+        try:
+            enhanced_index = get_global_enhanced_pin_index()
+            status["enhanced_pin_index"]["status"] = "healthy"
+            
+            # Get basic metrics
+            metrics = enhanced_index.get_comprehensive_metrics()
+            metrics_dict = metrics.to_dict() if hasattr(metrics, 'to_dict') else {
+                "total_pins": getattr(metrics, 'total_pins', 0),
+                "total_size": getattr(metrics, 'total_size_bytes', 0),
+                "index_size": getattr(metrics, 'index_size', 0)
+            }
+            status["enhanced_pin_index"]["metrics"] = metrics_dict
+            
+        except Exception as e:
+            status["enhanced_pin_index"]["status"] = "error"
+            status["enhanced_pin_index"]["error"] = str(e)
+    
+    # Fallback to basic index
+    try:
+        basic_index = get_global_pin_index()
+        pins = basic_index.get_all_pins()
+        status["basic_pin_index"] = {
+            "available": True,
+            "status": "healthy",
+            "total_pins": len(pins)
+        }
+    except Exception as e:
+        status["basic_pin_index"] = {
+            "available": True,
+            "status": "error",
+            "error": str(e)
+        }
+    
+    return status
+
+
+async def get_enhanced_metrics() -> Dict[str, Any]:
+    """Get enhanced metrics from the pin index."""
+    metrics = {
+        "timestamp": time.time(),
+        "enhanced_available": ENHANCED_PIN_INDEX_AVAILABLE,
+        "basic_available": True
+    }
+    
+    if ENHANCED_PIN_INDEX_AVAILABLE:
+        try:
+            enhanced_index = get_global_enhanced_pin_index()
+            
+            # Get comprehensive metrics
+            comp_metrics = enhanced_index.get_comprehensive_metrics()
+            metrics_dict = comp_metrics.to_dict() if hasattr(comp_metrics, 'to_dict') else {
+                "total_pins": getattr(comp_metrics, 'total_pins', 0),
+                "total_size": getattr(comp_metrics, 'total_size_bytes', 0),
+                "index_size": getattr(comp_metrics, 'index_size', 0),
+                "unique_cids": getattr(comp_metrics, 'unique_cids', 0)
+            }
+            metrics["comprehensive"] = metrics_dict
+            
+            # Get VFS analytics
+            vfs_analytics = enhanced_index.get_vfs_analytics()
+            metrics["vfs"] = vfs_analytics
+            
+            # Get performance metrics
+            perf_metrics = enhanced_index.get_performance_metrics()
+            metrics["performance"] = perf_metrics
+            
+        except Exception as e:
+            metrics["enhanced_error"] = str(e)
+    
+    # Fallback to basic metrics
+    try:
+        basic_index = get_global_pin_index()
+        pins = basic_index.get_all_pins()
+        metrics["basic"] = {
+            "total_pins": len(pins),
+            "pin_list": [pin.cid for pin in pins[:10]]  # First 10 CIDs
+        }
+    except Exception as e:
+        metrics["basic_error"] = str(e)
+    
+    return metrics
+
+
+# Add filesystem status retrieval method to BackendHealthMonitor class

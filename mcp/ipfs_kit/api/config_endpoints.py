@@ -78,11 +78,70 @@ class ConfigEndpoints:
             logger.error(f"Error getting config for {backend_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
     
-    async def set_backend_config(self, backend_name: str, config: Dict[str, Any]) -> Dict[str, Any]:
+    async def set_backend_config(self, backend_name: str, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Set backend configuration."""
         try:
-            # Validate configuration
-            validation_result = self._validate_backend_config(backend_name, config)
+            # Get current comprehensive backend config
+            current_config = await self.get_backend_config(backend_name)
+
+            # Update current_config with incoming flat config_data
+            # This logic needs to correctly map flat keys to nested structure
+            updated_config = current_config.copy()
+
+            # Handle top-level keys directly
+            if "enabled" in config_data: updated_config["enabled"] = self._to_bool(config_data["enabled"])
+
+            # Handle nested 'connection' section
+            if "connection.url" in config_data: updated_config["connection"]["url"] = config_data["connection.url"]
+            if "connection.timeout" in config_data: updated_config["connection"]["timeout"] = int(config_data["connection.timeout"])
+            if "connection.retry_attempts" in config_data: updated_config["connection"]["retry_attempts"] = int(config_data["connection.retry_attempts"])
+            if "connection.connection_pool_size" in config_data: updated_config["connection"]["connection_pool_size"] = int(config_data["connection.connection_pool_size"])
+            if "connection.keep_alive" in config_data: updated_config["connection"]["keep_alive"] = self._to_bool(config_data["connection.keep_alive"])
+
+            # Handle nested 'performance' section
+            if "performance.max_concurrent_requests" in config_data: updated_config["performance"]["max_concurrent_requests"] = int(config_data["performance.max_concurrent_requests"])
+            if "performance.request_timeout" in config_data: updated_config["performance"]["request_timeout"] = int(config_data["performance.request_timeout"])
+            if "performance.circuit_breaker_enabled" in config_data: updated_config["performance"]["circuit_breaker_enabled"] = self._to_bool(config_data["performance.circuit_breaker_enabled"])
+            if "performance.cache_enabled" in config_data: updated_config["performance"]["cache_enabled"] = self._to_bool(config_data["performance.cache_enabled"])
+            if "performance.compression_enabled" in config_data: updated_config["performance"]["compression_enabled"] = self._to_bool(config_data["performance.compression_enabled"])
+
+            # Handle nested 'monitoring' section
+            if "monitoring.health_check_enabled" in config_data: updated_config["monitoring"]["health_check_enabled"] = self._to_bool(config_data["monitoring.health_check_enabled"])
+            if "monitoring.health_check_interval" in config_data: updated_config["monitoring"]["health_check_interval"] = int(config_data["monitoring.health_check_interval"])
+            if "monitoring.metrics_collection_enabled" in config_data: updated_config["monitoring"]["metrics_collection_enabled"] = self._to_bool(config_data["monitoring.metrics_collection_enabled"])
+            if "monitoring.log_collection_enabled" in config_data: updated_config["monitoring"]["log_collection_enabled"] = self._to_bool(config_data["monitoring.log_collection_enabled"])
+            if "monitoring.alert_enabled" in config_data: updated_config["monitoring"]["alert_enabled"] = self._to_bool(config_data["monitoring.alert_enabled"])
+
+            # Handle nested 'authentication' section
+            if "authentication.auth_type" in config_data: updated_config["authentication"]["auth_type"] = config_data["authentication.auth_type"]
+            if "authentication.api_key" in config_data: updated_config["authentication"]["api_key"] = config_data["authentication.api_key"]
+            if "authentication.username" in config_data: updated_config["authentication"]["username"] = config_data["authentication.username"]
+            if "authentication.password" in config_data: updated_config["authentication"]["password"] = config_data["authentication.password"]
+            if "authentication.token" in config_data: updated_config["authentication"]["token"] = config_data["authentication.token"]
+
+            # Handle nested 'advanced' section
+            if "advanced.ssl_verify" in config_data: updated_config["advanced"]["ssl_verify"] = self._to_bool(config_data["advanced.ssl_verify"])
+            if "advanced.proxy_enabled" in config_data: updated_config["advanced"]["proxy_enabled"] = self._to_bool(config_data["advanced.proxy_enabled"])
+            if "advanced.proxy_url" in config_data: updated_config["advanced"]["proxy_url"] = config_data["advanced.proxy_url"]
+            
+            # Special handling for custom_headers (JSON string to dict)
+            if "advanced.custom_headers" in config_data:
+                try:
+                    updated_config["advanced"]["custom_headers"] = json.loads(config_data["advanced.custom_headers"])
+                except json.JSONDecodeError:
+                    logger.warning(f"Invalid JSON for custom_headers: {config_data["advanced.custom_headers"]}")
+                    # Optionally, add an error to validation_errors or return an error response
+
+            # Special handling for custom_options (JSON string to dict)
+            if "advanced.custom_options" in config_data:
+                try:
+                    updated_config["advanced"]["custom_options"] = json.loads(config_data["advanced.custom_options"])
+                except json.JSONDecodeError:
+                    logger.warning(f"Invalid JSON for custom_options: {config_data["advanced.custom_options"]}")
+                    # Optionally, add an error to validation_errors or return an error response
+
+            # Validate the fully formed updated_config
+            validation_result = self._validate_backend_config(backend_name, updated_config)
             if not validation_result["valid"]:
                 return {
                     "success": False,
@@ -91,21 +150,27 @@ class ConfigEndpoints:
                 }
             
             # Save to backend monitor
-            result = await self.backend_monitor.set_backend_config(backend_name, config)
+            result = await self.backend_monitor.set_backend_config(backend_name, updated_config)
             
-            # Save to file for persistence
+            # Save to file for persistence (using the updated_config)
             backend_config_file = self.config_dir / f"{backend_name}_config.yaml"
             with open(backend_config_file, 'w') as f:
-                yaml.dump(config, f, default_flow_style=False)
+                yaml.dump(updated_config, f, default_flow_style=False)
             
             return {
                 "success": True,
                 "message": f"Configuration for {backend_name} updated successfully",
-                "restart_required": self._config_requires_restart(config)
+                "restart_required": self._config_requires_restart(updated_config)
             }
         except Exception as e:
             logger.error(f"Error setting config for {backend_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    def _to_bool(self, value: Any) -> bool:
+        """Converts various input values to a boolean."""
+        if isinstance(value, str):
+            return value.lower() in ('true', '1', 't', 'y', 'yes', 'on')
+        return bool(value)
     
     def get_package_config(self) -> Dict[str, Any]:
         """Get comprehensive package configuration."""
@@ -134,7 +199,7 @@ class ConfigEndpoints:
             logger.error(f"Error getting package config: {e}")
             raise HTTPException(status_code=500, detail=str(e))
     
-    def set_package_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    async def set_package_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Set package configuration."""
         try:
             # Validate package configuration
@@ -147,7 +212,7 @@ class ConfigEndpoints:
                 }
             
             # Save to backend monitor
-            result = self.backend_monitor.set_package_config(config)
+            result = await self.backend_monitor.set_package_config(config)
             
             # Save to file for persistence
             with open(self.package_config_file, 'w') as f:

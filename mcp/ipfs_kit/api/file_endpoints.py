@@ -36,6 +36,40 @@ class FileEndpoints:
         self.storage_path.mkdir(parents=True, exist_ok=True)
         self.router = APIRouter(prefix="/api/files", tags=["files"])
         self._setup_routes()
+    
+    def _normalize_and_validate_path(self, path: str) -> Path:
+        """
+        Normalize a path and ensure it stays within the storage directory.
+        
+        Args:
+            path: The input path (can be absolute or relative)
+            
+        Returns:
+            Normalized Path object within storage_path
+            
+        Raises:
+            ValueError: If path tries to escape storage directory
+        """
+        # Normalize path - treat "/" as empty path, strip leading slashes
+        if path == "/" or not path:
+            normalized_path = ""
+        else:
+            normalized_path = path.strip("/")
+        
+        # Build target path
+        target_path = self.storage_path / normalized_path if normalized_path else self.storage_path
+        
+        # Resolve and validate the path stays within storage_path
+        try:
+            target_path = target_path.resolve()
+            storage_path_resolved = self.storage_path.resolve()
+            
+            if not str(target_path).startswith(str(storage_path_resolved)):
+                raise ValueError(f"Access denied: path '{path}' outside allowed directory")
+                
+            return target_path
+        except Exception as e:
+            raise ValueError(f"Invalid path '{path}': {e}")
         
     def _setup_routes(self):
         """Setup all file management routes."""
@@ -44,7 +78,7 @@ class FileEndpoints:
         async def list_files(path: str = "") -> Dict[str, Any]:
             """List files and directories in the specified path."""
             try:
-                target_path = self.storage_path / path if path else self.storage_path
+                target_path = self._normalize_and_validate_path(path)
                 
                 if not target_path.exists() or not target_path.is_dir():
                     return {"success": False, "error": "Path does not exist"}
@@ -74,6 +108,10 @@ class FileEndpoints:
                     "total_count": len(files)
                 }
                 
+            except ValueError as e:
+                # Path validation error
+                logger.warning(f"Path validation error for '{path}': {e}")
+                return {"success": False, "error": str(e)}
             except Exception as e:
                 logger.error(f"Error listing files: {e}")
                 return {"success": False, "error": str(e)}
@@ -234,7 +272,7 @@ class FileEndpoints:
     async def list_files_direct(self, path: str = "") -> Dict[str, Any]:
         """Direct method to list files."""
         try:
-            target_path = self.storage_path / path if path else self.storage_path
+            target_path = self._normalize_and_validate_path(path)
             
             if not target_path.exists() or not target_path.is_dir():
                 return {"success": False, "error": "Path does not exist"}
@@ -264,6 +302,10 @@ class FileEndpoints:
                 "total_count": len(files)
             }
             
+        except ValueError as e:
+            # Path validation error
+            logger.warning(f"Path validation error for '{path}': {e}")
+            return {"success": False, "error": str(e)}
         except Exception as e:
             logger.error(f"Error listing files: {e}")
             return {"success": False, "error": str(e)}
@@ -369,4 +411,38 @@ class FileEndpoints:
             
         except Exception as e:
             logger.error(f"Error downloading file: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def rename_file_direct(self, old_path: str, new_name: str) -> Dict[str, Any]:
+        """Direct method to rename a file or directory."""
+        try:
+            old_full_path = self.storage_path / old_path
+            if not old_full_path.exists():
+                return {"success": False, "error": "File or directory not found"}
+
+            new_full_path = old_full_path.parent / new_name
+            old_full_path.rename(new_full_path)
+
+            logger.info(f"Renamed: {old_full_path} to {new_full_path}")
+            return {"success": True, "message": "Renamed successfully"}
+        except Exception as e:
+            logger.error(f"Error renaming file: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def move_file_direct(self, source_path: str, target_path: str) -> Dict[str, Any]:
+        """Direct method to move a file or directory."""
+        try:
+            source_full_path = self.storage_path / source_path
+            if not source_full_path.exists():
+                return {"success": False, "error": "Source file or directory not found"}
+
+            target_full_path = self.storage_path / target_path
+            target_full_path.parent.mkdir(parents=True, exist_ok=True) # Ensure target directory exists
+
+            shutil.move(str(source_full_path), str(target_full_path))
+
+            logger.info(f"Moved: {source_full_path} to {target_full_path}")
+            return {"success": True, "message": "Moved successfully"}
+        except Exception as e:
+            logger.error(f"Error moving file: {e}")
             return {"success": False, "error": str(e)}

@@ -12,6 +12,7 @@ from typing import Dict, Any
 try:
     # Primary import path for when the package is installed
     from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+    from ipfs_kit_py.pins import get_global_enhanced_pin_index
 except ImportError:
     # Fallback for development environments
     import sys
@@ -20,6 +21,7 @@ except ImportError:
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
     from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+    from ipfs_kit_py.pins import get_global_enhanced_pin_index
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +36,12 @@ class VFSManager:
         logger.info("=== MCP VFSManager Wrapper initializing ===")
         try:
             self.api = IPFSSimpleAPI()
-            logger.info("✓ Centralized IPFSSimpleAPI initialized for VFS operations.")
+            self.pin_index = get_global_enhanced_pin_index(ipfs_filesystem=self.api.vfs)
+            logger.info("✓ Centralized IPFSSimpleAPI and Pin Index initialized for VFS operations.")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize IPFSSimpleAPI: {e}", exc_info=True)
+            logger.error(f"❌ Failed to initialize IPFSSimpleAPI or Pin Index: {e}", exc_info=True)
             self.api = None
+            self.pin_index = None
         logger.info("=== MCP VFSManager Wrapper initialization complete ===")
 
     async def execute_vfs_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
@@ -46,6 +50,9 @@ class VFSManager:
         """
         if not self.api:
             return {"success": False, "error": "IPFSSimpleAPI not initialized."}
+
+        if operation == 'cache_stats':
+            return self.pin_index.get_performance_metrics()
 
         # The operation name from MCP should directly map to a method
         # in IPFSSimpleAPI (e.g., 'vfs_ls', 'cache_stats').
@@ -81,4 +88,6 @@ class VFSManager:
             logger.info("Cleaning up MCP VFSManager wrapper...")
             if hasattr(self.api, 'cleanup'):
                 self.api.cleanup()
+            if self.pin_index:
+                asyncio.run(self.pin_index.stop_background_services())
             logger.info("✓ MCP VFSManager wrapper cleaned up.")

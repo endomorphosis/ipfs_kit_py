@@ -603,6 +603,71 @@ class IPFSDaemonManager:
         
         return port_usage
 
+    async def _get_ipfs_metrics(self) -> Dict[str, Any]:
+        """
+        Fetch various metrics from the IPFS daemon API.
+        
+        Returns:
+            A dictionary containing IPFS metrics.
+        """
+        metrics = {
+            "repo_size": 0,
+            "repo_objects": 0,
+            "pins_count": 0,
+            "peer_count": 0,
+            "bandwidth_in": 0,
+            "bandwidth_out": 0,
+            "datastore_type": "unknown"
+        }
+        
+        try:
+            async with httpx.AsyncClient(timeout=self.config.api_timeout) as client:
+                # Get repo stats
+                try:
+                    repo_stat_response = await client.post(f"{self.api_url}/api/v0/repo/stat")
+                    repo_stat_response.raise_for_status()
+                    repo_stat = repo_stat_response.json()
+                    metrics["repo_size"] = int(repo_stat.get("RepoSize", 0))
+                    metrics["repo_objects"] = int(repo_stat.get("NumObjects", 0))
+                    metrics["datastore_type"] = repo_stat.get("StorageMax", "unknown") # This is actually StorageMax, not datastore_type
+                except Exception as e:
+                    logger.warning(f"Could not get IPFS repo stats: {e}")
+
+                # Get pin count
+                try:
+                    # Using 'pin/ls' with stream=true might be too verbose for just a count
+                    # A simpler approach is to use 'pin/ls' without streaming and count
+                    pin_ls_response = await client.post(f"{self.api_url}/api/v0/pin/ls")
+                    pin_ls_response.raise_for_status()
+                    pins = pin_ls_response.json().get("Keys", {})
+                    metrics["pins_count"] = len(pins)
+                except Exception as e:
+                    logger.warning(f"Could not get IPFS pin count: {e}")
+
+                # Get peer count
+                try:
+                    swarm_peers_response = await client.post(f"{self.api_url}/api/v0/swarm/peers")
+                    swarm_peers_response.raise_for_status()
+                    peers = swarm_peers_response.json().get("Peers", [])
+                    metrics["peer_count"] = len(peers)
+                except Exception as e:
+                    logger.warning(f"Could not get IPFS peer count: {e}")
+
+                # Get bandwidth stats
+                try:
+                    stats_bw_response = await client.post(f"{self.api_url}/api/v0/stats/bw")
+                    stats_bw_response.raise_for_status()
+                    bw_stats = stats_bw_response.json()
+                    metrics["bandwidth_in"] = int(bw_stats.get("RateIn", 0))
+                    metrics["bandwidth_out"] = int(bw_stats.get("RateOut", 0))
+                except Exception as e:
+                    logger.warning(f"Could not get IPFS bandwidth stats: {e}")
+
+        except Exception as e:
+            logger.error(f"Error fetching IPFS metrics: {e}")
+            
+        return metrics
+
 
 def main():
     """CLI interface for IPFS daemon management."""

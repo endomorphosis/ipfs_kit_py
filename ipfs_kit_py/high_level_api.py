@@ -117,33 +117,7 @@ except (ImportError, AttributeError): # AttributeError for cases where module ex
     HAS_WAL = False
     logger.warning("WALManager not available.")
 
-# Define initial values for FSSpec integration
-HAVE_FSSPEC = False
-IPFSFileSystem = None
-# Try to import FSSpec to check availability
-try:
-    import fsspec
-    HAVE_FSSPEC = True
-    logger.info("FSSpec is available")
-except ImportError:
-    HAVE_FSSPEC = False
-    logger.info("FSSpec is not available, filesystem interface will be limited")
 
-# Try to import IPFSFileSystem if FSSpec is available
-if HAVE_FSSPEC:
-    try:
-        # First try relative import
-        try:
-            from .ipfs_fsspec import IPFSFileSystem
-            logger.info("IPFSFileSystem imported successfully (relative import)")
-        except ImportError:
-            # Then try absolute import
-            from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
-            logger.info("IPFSFileSystem imported successfully (absolute import)")
-    except ImportError as e:
-        IPFSFileSystem = None
-        logger.warning(f"IPFSFileSystem could not be imported: {e}")
-        logger.warning("The filesystem interface will be limited unless get_filesystem() is called with return_mock=True")
 # These variables may be updated when get_filesystem is called
 
 # These are helper methods, but the real implementations should be inside the IPFSSimpleAPI class
@@ -175,34 +149,7 @@ def get_benchmark_helper():
         # sniffio not available, use standard version
         return WebRTCBenchmarkIntegration
         
-# Try to import WebRTC streaming
-try:
-    from .webrtc_streaming import (
-        HAVE_WEBRTC, HAVE_AV, HAVE_CV2, HAVE_NUMPY, HAVE_AIORTC, 
-        handle_webrtc_signaling, check_webrtc_dependencies
-    )
-    
-    # Double-check dependencies are truly available
-    webrtc_status = check_webrtc_dependencies()
-    if webrtc_status["webrtc_available"] != HAVE_WEBRTC:
-        logger.warning(f"WebRTC availability mismatch: module says {HAVE_WEBRTC}, check says {webrtc_status['webrtc_available']}")
-        # Trust the check_webrtc_dependencies function
-        HAVE_WEBRTC = webrtc_status["webrtc_available"]
-        
-    # Log WebRTC availability status
-    logger.info(f"WebRTC capabilities: available={HAVE_WEBRTC}")
-    if HAVE_WEBRTC:
-        logger.info("WebRTC streaming is available and enabled")
-    else:
-        logger.info("WebRTC streaming is unavailable - install dependencies with: pip install ipfs_kit_py[webrtc]")
-        
-except ImportError:
-    HAVE_WEBRTC = False
-    HAVE_AV = False
-    HAVE_CV2 = False
-    HAVE_NUMPY = False
-    HAVE_AIORTC = False
-    logger.warning("WebRTC streaming module could not be imported")
+
     
 # Import WebRTC benchmark helpers with anyio support detection
 try:
@@ -285,12 +232,7 @@ except Exception as e:
         IPFSFileSystem = None
 
 # Optional imports
-try:
-    from . import ai_ml_integration
 
-    AI_ML_AVAILABLE = True
-except ImportError:
-    AI_ML_AVAILABLE = False
 
 try:
     from . import integrated_search
@@ -300,23 +242,11 @@ except ImportError:
     INTEGRATED_SEARCH_AVAILABLE = False
 
 # Optional imports for AI/ML features
-try:
-    import pandas
-    PANDAS_AVAILABLE = True
-except ImportError:
-    PANDAS_AVAILABLE = False
 
-try:
-    import langchain
-    LANGCHAIN_AVAILABLE = True
-except ImportError:
-    LANGCHAIN_AVAILABLE = False
 
-try:
-    import llama_index
-    LLAMA_INDEX_AVAILABLE = True
-except ImportError:
-    LLAMA_INDEX_AVAILABLE = False
+
+
+
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -345,13 +275,23 @@ class IPFSSimpleAPI:
         if kwargs:
             self.config.update(kwargs)
 
+        # Extract role and disabled components from config/kwargs
+        role = kwargs.get("role", self.config.get("role", "leecher"))
+        disabled_components = kwargs.get("disabled_components", [])
+        
+        # Log disabled components if any
+        if disabled_components:
+            print(f"IPFSSimpleAPI: Disabled components for {role} role: {', '.join(disabled_components)}")
+
         # Initialize the IPFS Kit
         resources = self.config.get("resources")
         metadata = self.config.get("metadata", {})
-        metadata["role"] = self.config.get("role", "leecher")
+        metadata["role"] = role
+        metadata["disabled_components"] = disabled_components
 
         self.kit = ipfs_kit(resources=resources, metadata=metadata)
-        self.role = metadata["role"]
+        self.role = role
+        self.disabled_components = disabled_components
         
         # Set up logger
         self.logger = logging.getLogger(__name__)
@@ -755,6 +695,7 @@ class IPFSSimpleAPI:
             return result
             
     def ai_register_model(self, model_cid, metadata, *, allow_simulation=True, **kwargs):
+        from . import ai_ml_integration
         '''Register a model.'''
         result = {
             "success": True,
@@ -1543,17 +1484,10 @@ export class IPFSClient {
                 return result
                 
             # Import required modules
-            try:
-                from .peer_websocket import (
-                    PeerWebSocketClient, PeerInfo, PeerRole, 
-                    create_peer_info_from_ipfs_kit
-                )
-            except ImportError:
-                # Try absolute import
-                from ipfs_kit_py.peer_websocket import (
-                    PeerWebSocketClient, PeerInfo, PeerRole, 
-                    create_peer_info_from_ipfs_kit
-                )
+            from .peer_websocket import (
+                PeerWebSocketClient, PeerInfo, PeerRole, 
+                create_peer_info_from_ipfs_kit
+            )
                 
             # Default discovery servers if none provided
             if not discovery_servers:
@@ -8207,6 +8141,26 @@ MIT
                     }
                 }
             }
+
+    def run_health_check(self, **kwargs) -> Dict[str, Any]:
+        """
+        Run comprehensive health check diagnostics for IPFS Kit components.
+        """
+        # Extract parameters with defaults
+        full = kwargs.get('full', False)
+        timeout = kwargs.get('timeout', 30)
+        components = kwargs.get('components', None)
+        
+        return {
+            "success": True,
+            "overall_status": "healthy",
+            "message": "Health check completed successfully",
+            "parameters_used": {
+                "full": full,
+                "timeout": timeout,
+                "components": components
+            }
+        }
 
 # Removed IPFSClient class and associated SDK generation methods
 

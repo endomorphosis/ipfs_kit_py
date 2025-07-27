@@ -21,6 +21,8 @@ from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
+from ipfs_kit_py.ipfs.ipfs_py import IPFSClient
+
 # Configure logger first
 logger = logging.getLogger(__name__)
 
@@ -626,8 +628,9 @@ class ReplicationManager:
 class DashboardController:
     """Enhanced dashboard controller with comprehensive daemon management."""
     
-    def __init__(self):
+    def __init__(self, ipfs_client):
         """Initialize the dashboard controller."""
+        self.ipfs_client = ipfs_client
         self.health_monitor = BackendHealthMonitor()
         self.cluster_manager = None
         self._initialize_cluster_manager()
@@ -668,7 +671,7 @@ class DashboardController:
             self.parquet_bridge = ParquetIPLDBridge()
             self.car_bridge = ParquetCARBridge()
             self.cache_manager = TieredCacheManager()
-            self.knowledge_graph = IPLDGraphDB()
+            self.knowledge_graph = IPLDGraphDB(ipfs_client=self.ipfs_client)
             
             # Initialize API components
             self.vfs_api = VFSMetadataAPI(

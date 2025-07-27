@@ -1657,6 +1657,62 @@ class IPFSClusterDaemonManager:
             
         return result
 
+    async def _get_cluster_metrics(self) -> Dict[str, Any]:
+        """
+        Fetch various metrics from the IPFS Cluster API.
+        
+        Returns:
+            A dictionary containing IPFS Cluster metrics.
+        """
+        metrics = {
+            "pin_count": 0,
+            "repo_size": 0,
+            "peer_count": 0,
+            "allocated_space": 0,
+            "free_space": 0
+        }
+
+        try:
+            api_client = self.get_api_client()
+            async with api_client:
+                # Get pin count
+                try:
+                    pins_response = await api_client.get_pins()
+                    if isinstance(pins_response, dict) and pins_response.get("success"):
+                        metrics["pin_count"] = len(pins_response.get("pins", []))
+                    else:
+                        logger.warning(f"Could not get IPFS Cluster pin count: {pins_response}")
+                except Exception as e:
+                    logger.warning(f"Could not get IPFS Cluster pin count: {e}")
+
+                # Get metrics (which includes repo size, allocated space, free space)
+                try:
+                    metrics_response = await api_client.get_metrics()
+                    if isinstance(metrics_response, dict) and metrics_response.get("success"):
+                        metrics_data = metrics_response.get("metrics", {})
+                        metrics["repo_size"] = metrics_data.get("repo_size", 0)
+                        metrics["allocated_space"] = metrics_data.get("allocated_space", 0)
+                        metrics["free_space"] = metrics_data.get("free_space", 0)
+                    else:
+                        logger.warning(f"Could not get IPFS Cluster general metrics: {metrics_response}")
+                except Exception as e:
+                    logger.warning(f"Could not get IPFS Cluster general metrics: {e}")
+
+                # Get peer count
+                try:
+                    peers_response = await api_client.get_peers()
+                    if isinstance(peers_response, dict) and peers_response.get("success"):
+                        metrics["peer_count"] = len(peers_response.get("peers", []))
+                    else:
+                        logger.warning(f"Could not get IPFS Cluster peer count: {peers_response}")
+                except Exception as e:
+                    logger.warning(f"Could not get IPFS Cluster peer count: {e}")
+
+        except Exception as e:
+            logger.error(f"Error fetching IPFS Cluster metrics: {e}")
+
+        return metrics
+
     async def config_create(self, **config_params) -> Dict[str, Any]:
         """Create cluster configuration.
         

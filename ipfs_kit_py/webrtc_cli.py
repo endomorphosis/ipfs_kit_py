@@ -27,14 +27,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-try:
-    from .webrtc_streaming import WebRTCStreamingManager, check_webrtc_dependencies, HAVE_WEBRTC
-    from .webrtc_benchmark import WebRTCBenchmark, WebRTCStreamingManagerBenchmarkIntegration
-except ImportError:
-    # Allow running as a standalone script
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from ipfs_kit_py.webrtc_streaming import WebRTCStreamingManager, check_webrtc_dependencies, HAVE_WEBRTC
-    from ipfs_kit_py.webrtc_benchmark import WebRTCBenchmark, WebRTCStreamingManagerBenchmarkIntegration
+
 
 # Terminal colors for better readability
 class Colors:
@@ -114,6 +107,7 @@ def create_table(headers: List[str], rows: List[List[Any]], title: Optional[str]
 
 def handle_stream_content_command(args, api):
     """Handle the 'stream' command to stream IPFS content over WebRTC."""
+    from .webrtc_streaming import WebRTCStreamingManager, check_webrtc_dependencies, HAVE_WEBRTC
     if not HAVE_WEBRTC:
         print(f"{Colors.RED}WebRTC dependencies are not available. Install them with: pip install ipfs_kit_py[webrtc]{Colors.ENDC}")
         print(f"\nRequired dependencies:")
@@ -193,6 +187,7 @@ def handle_stream_content_command(args, api):
 
 def handle_benchmark_command(args, api):
     """Handle the 'benchmark' command to run WebRTC performance benchmarks."""
+    from .webrtc_benchmark import WebRTCBenchmark, WebRTCStreamingManagerBenchmarkIntegration
     if not HAVE_WEBRTC:
         print(f"{Colors.RED}WebRTC dependencies are not available. Install them with: pip install ipfs_kit_py[webrtc]{Colors.ENDC}")
         return 1

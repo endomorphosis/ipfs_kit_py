@@ -7,6 +7,7 @@ import platform
 import shutil
 import subprocess
 import logging
+import sys
 
 # It's better to place imports at the top level
 try:
@@ -25,17 +26,27 @@ logger = logging.getLogger(__name__)
 class SetupManager:
     """Manages the setup of IPFS Kit binaries and configurations."""
 
-    def __init__(self, bin_dir="/usr/local/bin"):
+    def __init__(self, bin_dir="/usr/local/bin", disabled_components=None):
         self.bin_dir = bin_dir
         self.system = platform.system().lower()
+        self.disabled_components = disabled_components or []
 
     def run_setup(self):
         """Run the full setup process."""
         self.install_ipfs()
         self.install_lassie()
         self.configure_ipfs()
-        self.start_ipfs_cluster_service()
-        self.start_ipfs_cluster_follow()
+        
+        # Only start cluster services if not disabled
+        if "ipfs_cluster" not in self.disabled_components:
+            self.start_ipfs_cluster_service()
+        else:
+            logger.info("Skipping IPFS Cluster service - disabled for this role")
+            
+        if "ipfs_cluster_follow" not in self.disabled_components:
+            self.start_ipfs_cluster_follow()
+        else:
+            logger.info("Skipping IPFS Cluster Follow service - disabled for this role")
 
     def install_ipfs(self):
         """Install the IPFS binary if it's not already installed."""

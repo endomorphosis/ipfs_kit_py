@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 class APIRoutes:
     """Manages all API routes for the MCP server."""
     
-    def __init__(self, app: FastAPI, backend_monitor, vfs_observer, templates, websocket_manager):
+    def __init__(self, app: FastAPI, backend_monitor, vfs_observer, templates, websocket_manager, ipfs_client):
         self.app = app
         self.backend_monitor = backend_monitor
         self.vfs_observer = vfs_observer
@@ -65,6 +65,7 @@ class APIRoutes:
                 self.replication_manager = ReplicationManager()
                 self.replication_api = ReplicationAPI(self.replication_manager)
                 logger.info("✓ Replication management available")
+                self.app.include_router(self.replication_api.router)
             except Exception as e:
                 logger.warning(f"⚠ Failed to initialize replication manager: {e}")
                 self.replication_manager = None
@@ -77,7 +78,7 @@ class APIRoutes:
         # Initialize enhanced dashboard controller if available
         if ENHANCED_DASHBOARD_AVAILABLE:
             try:
-                self.dashboard_controller = DashboardController()
+                self.dashboard_controller = DashboardController(ipfs_client)
                 logger.info("✓ Enhanced dashboard controller available")
             except Exception as e:
                 logger.warning(f"⚠ Failed to initialize enhanced dashboard controller: {e}")
@@ -246,6 +247,14 @@ class APIRoutes:
                 self._get_all_backend_logs,
                 "all_logs"
             )
+
+        @self.app.get("/api/system/logs")
+        async def get_system_logs(minutes: int = 60):
+            """Get recent system logs from all backends."""
+            return await self._safe_endpoint_call(
+                lambda: self.backend_monitor.log_manager.get_recent_logs(minutes=minutes),
+                "system_logs"
+            )
         
         @self.app.get("/api/logs/all")
         async def get_all_logs():
@@ -393,8 +402,9 @@ class APIRoutes:
         async def set_package_config(request: Request):
             config_data = await request.json()
             return await self._safe_endpoint_call(
-                lambda: self.config_endpoints.set_package_config(config_data),
-                "set_package_config"
+                self.config_endpoints.set_package_config,
+                "set_package_config",
+                config_data
             )
         
         @self.app.get("/api/config/export")
@@ -509,20 +519,11 @@ class APIRoutes:
             )
         
         # File listing endpoint
-        @self.app.get("/api/files/")
-        async def simple_list_files(path: str = "/"):
-            """List files and directories in the specified path."""
-            return await self._safe_endpoint_call(
-                self.vfs_endpoints.list_files,
-                "list_files",
-                path=path
-            )
-        
         @self.app.get("/api/files/list", tags=["File Manager"])
         async def list_files_endpoint(path: str = "/"):
             """List files and directories in the specified path."""
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.list_files,
+                self.file_endpoints.list_files_direct,
                 "list_files",
                 path=path
             )
@@ -532,10 +533,10 @@ class APIRoutes:
             """Create a new folder."""
             data = await request.json()
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.create_folder,
+                self.file_endpoints.create_folder_direct,
                 "create_folder",
-                path=data.get("path", "/"),
-                name=data.get("name")
+                name=data.get("name"),
+                path=data.get("path", "/")
             )
 
         @self.app.post("/api/files/delete", tags=["File Manager"])
@@ -543,9 +544,9 @@ class APIRoutes:
             """Delete a file or directory."""
             data = await request.json()
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.delete_item,
+                self.file_endpoints.delete_file_direct,
                 "delete_file",
-                path=data.get("path")
+                file_path=data.get("path")
             )
 
         @self.app.post("/api/files/rename", tags=["File Manager"])
@@ -553,7 +554,7 @@ class APIRoutes:
             """Rename a file or directory."""
             data = await request.json()
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.rename_item,
+                self.file_endpoints.rename_file_direct,
                 "rename_file",
                 old_path=data.get("oldPath"),
                 new_name=data.get("newName")
@@ -564,7 +565,7 @@ class APIRoutes:
             """Move a file or directory to a new location."""
             data = await request.json()
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.move_item,
+                self.file_endpoints.move_file_direct,
                 "move_file",
                 source_path=data.get("sourcePath"),
                 target_path=data.get("targetPath")
@@ -574,7 +575,7 @@ class APIRoutes:
         async def upload_file_endpoint(file: UploadFile = File(...), path: str = Form("/")):
             """Upload a file to the specified path."""
             return await self._safe_endpoint_call(
-                self.vfs_endpoints.upload_file,
+                self.file_endpoints.upload_file_direct,
                 "upload_file",
                 path=path,
                 file=file
@@ -584,16 +585,16 @@ class APIRoutes:
         async def download_file_endpoint(path: str):
             """Download a file."""
             result = await self._safe_endpoint_call(
-                self.vfs_endpoints.download_file,
+                self.file_endpoints.download_file_direct,
                 "download_file",
-                path=path
+                file_path=path
             )
             
             if result.get("success"):
                 from fastapi.responses import FileResponse
                 # Assuming download_file returns the absolute path to the file
-                file_path = result["file_path"]
-                file_name = result["name"]
+                file_path = result["path"]
+                file_name = result["filename"]
                 return FileResponse(path=file_path, filename=file_name, media_type="application/octet-stream")
             else:
                 raise HTTPException(status_code=404, detail=result.get("error", "File not found"))
@@ -789,7 +790,7 @@ class APIRoutes:
             async def get_pin_replication_status(cid: str):
                 """Get replication status for a specific pin."""
                 return await self._safe_endpoint_call(
-                    lambda: self.replication_api.get_pin_replication_status(cid),
+                    lambda: self.replication_manager.get_pin_replication_status(cid),
                     "pin_replication_status"
                 )
             
@@ -798,7 +799,7 @@ class APIRoutes:
                 """Replicate a pin to specific backends."""
                 replication_data = await request.json()
                 return await self._safe_endpoint_call(
-                    lambda: self.replication_api.replicate_pin_to_backend(cid, replication_data),
+                    lambda: self.replication_manager.replicate_pin_to_backend(cid, replication_data),
                     "replicate_pin_to_backend"
                 )
             
@@ -807,7 +808,7 @@ class APIRoutes:
                 """Perform bulk replication operations."""
                 operation_data = await request.json()
                 return await self._safe_endpoint_call(
-                    lambda: self.replication_api.bulk_replication_operation(operation_data),
+                    lambda: self.replication_manager.bulk_replication_operation(operation_data),
                     "bulk_replication_operation"
                 )
             
@@ -816,7 +817,7 @@ class APIRoutes:
                 """Export pins from a storage backend."""
                 export_data = await request.json()
                 return await self._safe_endpoint_call(
-                    lambda: self.replication_api.export_backend_pins(backend_name, export_data),
+                    lambda: self.replication_manager.export_backend_pins(backend_name, export_data),
                     "export_backend_pins"
                 )
             
@@ -825,7 +826,7 @@ class APIRoutes:
                 """Import pins to a storage backend."""
                 import_data = await request.json()
                 return await self._safe_endpoint_call(
-                    lambda: self.replication_api.import_backend_pins(backend_name, import_data),
+                    lambda: self.replication_manager.import_backend_pins(backend_name, import_data),
                     "import_backend_pins"
                 )
             

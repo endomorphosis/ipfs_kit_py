@@ -41,6 +41,7 @@ import uvicorn
 # Modular components
 from .backends import BackendHealthMonitor, VFSObservabilityManager
 from .api.routes import APIRoutes
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI as IPFSClient
 from .dashboard.template_manager import DashboardTemplateManager
 from .dashboard.websocket_manager import WebSocketManager
 
@@ -91,28 +92,53 @@ class SimplifiedMCPTool:
 class ModularEnhancedMCPServer:
     """Modular Enhanced MCP Server with comprehensive backend monitoring, VFS, and dashboard."""
     
-    def __init__(self, host: str = "127.0.0.1", port: int = 8765):
+    def __init__(self, host: str = "127.0.0.1", port: int = 8765, role: str = "leecher", debug: bool = False, disabled_components: List[str] = None):
         self.host = host
         self.port = port
+        self.role = role
+        self.debug = debug
+        self.disabled_components = disabled_components or []
         self.start_time = time.time()
 
-        # Run setup
-        setup_manager = SetupManager()
+        # Set up logging level based on debug flag
+        if self.debug:
+            logging.getLogger().setLevel(logging.DEBUG)
+            logger.info(f"Debug mode enabled for MCP server in {role} role")
+        
+        logger.info(f"Initializing MCP server in {role} role on {host}:{port}")
+        
+        # Log disabled components
+        if self.disabled_components:
+            logger.info(f"Disabled components for {role} role: {', '.join(self.disabled_components)}")
+
+        # Run setup with disabled components awareness
+        setup_manager = SetupManager(disabled_components=self.disabled_components)
         setup_manager.run_setup()
         
-        # Initialize monitoring components with full feature set
+        # Initialize monitoring components with full feature set and role configuration
         self.backend_monitor = BackendHealthMonitor()
         self.vfs_observer = VFSObservabilityManager()
+        
+        # Initialize IPFS client with role configuration and disabled components
+        logger.info(f"Initializing IPFS client for {self.role} role")
+        self.ipfs_client = IPFSClient(role=self.role, disabled_components=self.disabled_components)
+        logger.info(f"IPFS client initialized successfully for {self.role} role")
         
         # Initialize VFS observer if available
         if hasattr(self.backend_monitor, 'initialize_vfs_observer'):
             self.backend_monitor.initialize_vfs_observer()
         
-        # Set component status
+        # Set component status - respect disabled components
         COMPONENTS["backend_monitor"] = True
         COMPONENTS["filesystem_backends"] = True
         COMPONENTS["metrics_collector"] = True
         COMPONENTS["observability"] = True
+        
+        # Disable specified components
+        for component in self.disabled_components:
+            if component in COMPONENTS:
+                COMPONENTS[component] = False
+                logger.info(f"Disabled component: {component}")
         
         # Initialize WebSocket manager
         self.websocket_manager = WebSocketManager()
@@ -120,9 +146,11 @@ class ModularEnhancedMCPServer:
         # Keep websocket connections for real-time updates
         self.websocket_connections: Set[WebSocket] = set()
         
-        # Enhanced server state with performance metrics
+        # Enhanced server state with performance metrics and role information
         self.server_state = {
             "status": "starting",
+            "role": self.role,
+            "debug": self.debug,
             "start_time": self.start_time,
             "backend_count": len(self.backend_monitor.backends) if hasattr(self.backend_monitor, 'backends') else 0,
             "websocket_connections": 0,
@@ -247,6 +275,30 @@ class ModularEnhancedMCPServer:
                         }
                     }
                 }
+            ),
+            SimplifiedMCPTool(
+                name="get_program_state",
+                description="Get program state information including system metrics, file counts, bandwidth, and storage status",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "type": "string",
+                            "description": "State category to retrieve",
+                            "enum": ["summary", "system", "files", "storage", "network", "all"],
+                            "default": "summary"
+                        },
+                        "key": {
+                            "type": "string",
+                            "description": "Specific state key to retrieve (optional)"
+                        },
+                        "update": {
+                            "type": "boolean",
+                            "description": "Force update program state before returning",
+                            "default": False
+                        }
+                    }
+                }
             )
         ]
     
@@ -279,7 +331,8 @@ class ModularEnhancedMCPServer:
             self.backend_monitor, 
             self.vfs_observer, 
             self.templates,
-            self.websocket_manager
+            self.websocket_manager,
+            self.ipfs_client
         )
         
         # Add enhanced endpoints
@@ -572,6 +625,63 @@ class ModularEnhancedMCPServer:
                 lines = arguments.get("lines", 100)
                 # This would be implemented by the logs endpoint
                 return {"message": f"System logs (last {lines} lines)", "status": "available"}
+            
+            elif tool_name == "get_program_state":
+                # Handle program state requests
+                category = arguments.get("category", "summary")
+                key = arguments.get("key")
+                update = arguments.get("update", False)
+                
+                try:
+                    # Force update if requested
+                    if update and hasattr(self.ipfs_client, 'ipfs_kit') and hasattr(self.ipfs_client.ipfs_kit, 'update_program_state'):
+                        self.ipfs_client.ipfs_kit.update_program_state()
+                    
+                    # Try to use the fast state reader first
+                    try:
+                        from ipfs_kit_py.program_state import FastStateReader
+                        reader = FastStateReader()
+                        
+                        if key:
+                            # Get specific key
+                            value = reader.get_value(key)
+                            return {"key": key, "value": value}
+                        elif category == "summary":
+                            return reader.get_summary()
+                        elif category == "system":
+                            return reader.get_value("system_state", {})
+                        elif category == "files":
+                            return reader.get_value("file_state", {})
+                        elif category == "storage":
+                            return reader.get_value("storage_state", {})
+                        elif category == "network":
+                            return reader.get_value("network_state", {})
+                        elif category == "all":
+                            return {
+                                "system": reader.get_value("system_state", {}),
+                                "files": reader.get_value("file_state", {}),
+                                "storage": reader.get_value("storage_state", {}),
+                                "network": reader.get_value("network_state", {}),
+                                "summary": reader.get_summary()
+                            }
+                        else:
+                            return {"error": f"Unknown category: {category}"}
+                            
+                    except FileNotFoundError:
+                        # If state database doesn't exist, try getting from API
+                        if hasattr(self.ipfs_client, 'ipfs_kit') and hasattr(self.ipfs_client.ipfs_kit, 'get_program_state_summary'):
+                            return self.ipfs_client.ipfs_kit.get_program_state_summary()
+                        else:
+                            return {
+                                "error": "Program state not available",
+                                "message": "Program state database not initialized"
+                            }
+                            
+                except Exception as e:
+                    return {
+                        "error": f"Failed to get program state: {e}",
+                        "category": category
+                    }
             
             # Handle cluster configuration tools
             elif hasattr(self, 'handle_cluster_config_tool') and self.handle_cluster_config_tool:

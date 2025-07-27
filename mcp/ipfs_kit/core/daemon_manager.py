@@ -711,7 +711,8 @@ class IPFSDaemonManager:
         metrics = {
             "api_response_time": None,
             "version_info": None,
-            "repo_stats": None
+            "repo_stats": None,
+            "bandwidth_stats": None
         }
         
         try:
@@ -719,7 +720,7 @@ class IPFSDaemonManager:
             api_check = await self._check_api_responsiveness()
             metrics["api_response_time"] = api_check.get("response_time")
             
-            # Get version info
+            # Get version info and repo stats via HTTP API if responsive
             if api_check.get("responsive") and api_check.get("method") == "http_api":
                 import httpx
                 async with httpx.AsyncClient(timeout=5) as client:
@@ -729,9 +730,45 @@ class IPFSDaemonManager:
                         metrics["version_info"] = version_response.json()
                     
                     # Repo stats
-                    stats_response = await client.post(f"http://127.0.0.1:{self.ipfs_ports['api']}/api/v0/repo/stat")
-                    if stats_response.status_code == 200:
-                        metrics["repo_stats"] = stats_response.json()
+                    repo_stat_response = await client.post(f"http://127.0.0.1:{self.ipfs_ports['api']}/api/v0/repo/stat")
+                    if repo_stat_response.status_code == 200:
+                        metrics["repo_stats"] = repo_stat_response.json()
+
+                    # Bandwidth stats
+                    bw_stat_response = await client.post(f"http://127.0.0.1:{self.ipfs_ports['api']}/api/v0/stats/bw")
+                    if bw_stat_response.status_code == 200:
+                        metrics["bandwidth_stats"] = bw_stat_response.json()
+            else:
+                # Fallback to CLI for repo and bandwidth stats if API is not responsive or not used
+                try:
+                    # Repo stats via CLI
+                    repo_stat_cli = await asyncio.create_subprocess_exec(
+                        "ipfs", "repo", "stat", "--json",
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                        env={**os.environ, "IPFS_PATH": self.ipfs_path}
+                    )
+                    stdout, stderr = await asyncio.wait_for(repo_stat_cli.communicate(), timeout=5)
+                    if repo_stat_cli.returncode == 0:
+                        metrics["repo_stats"] = json.loads(stdout.decode().strip())
+                    else:
+                        logger.debug(f"CLI repo stat failed: {stderr.decode().strip()}")
+
+                    # Bandwidth stats via CLI
+                    bw_stat_cli = await asyncio.create_subprocess_exec(
+                        "ipfs", "stats", "bw", "--json",
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                        env={**os.environ, "IPFS_PATH": self.ipfs_path}
+                    )
+                    stdout, stderr = await asyncio.wait_for(bw_stat_cli.communicate(), timeout=5)
+                    if bw_stat_cli.returncode == 0:
+                        metrics["bandwidth_stats"] = json.loads(stdout.decode().strip())
+                    else:
+                        logger.debug(f"CLI bandwidth stat failed: {stderr.decode().strip()}")
+
+                except Exception as cli_e:
+                    logger.debug(f"Error getting CLI performance metrics: {cli_e}")
         
         except Exception as e:
             logger.debug(f"Error getting performance metrics: {e}")

@@ -626,26 +626,11 @@ try:
 except ImportError:
     LLAMA_INDEX_AVAILABLE = False
 
-try:
-    import sklearn
 
-    SKLEARN_AVAILABLE = True
-except ImportError:
-    SKLEARN_AVAILABLE = False
 
-try:
-    import tensorflow
 
-    TF_AVAILABLE = True
-except ImportError:
-    TF_AVAILABLE = False
 
-try:
-    import torch
 
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
 
 
 class AIMLIntegration:
@@ -919,9 +904,8 @@ class ModelRegistry:
         }
 
         # PyTorch serializer
-        if framework == "pytorch" and TORCH_AVAILABLE:
+        if framework == "pytorch":
             import torch
-
             return {
                 "save": lambda model, path: torch.save(model, path),
                 "load": lambda path: torch.load(path),
@@ -929,9 +913,8 @@ class ModelRegistry:
             }
 
         # TensorFlow serializer
-        elif framework == "tensorflow" and TF_AVAILABLE:
+        elif framework == "tensorflow":
             import tensorflow as tf
-
             return {
                 "save": lambda model, path: model.save(path),
                 "load": lambda path: tf.keras.models.load_model(path),
@@ -939,7 +922,7 @@ class ModelRegistry:
             }
 
         # scikit-learn serializer
-        elif framework == "sklearn" and SKLEARN_AVAILABLE:
+        elif framework == "sklearn":
             return {
                 "save": safe_pickle_save,
                 "load": safe_pickle_load,
@@ -948,45 +931,30 @@ class ModelRegistry:
 
         # XGBoost serializer
         elif framework == "xgboost":
-            try:
-                import xgboost
-
-                return {
-                    "save": lambda model, path: model.save_model(path),
-                    "load": lambda path: xgboost.Booster(model_file=path),
-                    "file_ext": ".xgb",
-                }
-            except ImportError:
-                self.logger.warning("XGBoost not available, using pickle serialization")
-                return default_serializer
+            import xgboost
+            return {
+                "save": lambda model, path: model.save_model(path),
+                "load": lambda path: xgboost.Booster(model_file=path),
+                "file_ext": ".xgb",
+            }
 
         # LightGBM serializer
         elif framework == "lightgbm":
-            try:
-                import lightgbm
-
-                return {
-                    "save": lambda model, path: model.save_model(path),
-                    "load": lambda path: lightgbm.Booster(model_file=path),
-                    "file_ext": ".lgb",
-                }
-            except ImportError:
-                self.logger.warning("LightGBM not available, using pickle serialization")
-                return default_serializer
+            import lightgbm
+            return {
+                "save": lambda model, path: model.save_model(path),
+                "load": lambda path: lightgbm.Booster(model_file=path),
+                "file_ext": ".lgb",
+            }
 
         # Hugging Face serializer
         elif framework == "transformers":
-            try:
-                from transformers import AutoModel
-
-                return {
-                    "save": lambda model, path: model.save_pretrained(path),
-                    "load": lambda path: AutoModel.from_pretrained(path),
-                    "file_ext": "",  # HF save creates a directory
-                }
-            except ImportError:
-                self.logger.warning("Transformers not available, using pickle serialization")
-                return default_serializer
+            from transformers import AutoModel
+            return {
+                "save": lambda model, path: model.save_pretrained(path),
+                "load": lambda path: AutoModel.from_pretrained(path),
+                "file_ext": "",  # HF save creates a directory
+            }
         
         # JAX/Flax serializer
         elif framework == "flax" or framework == "jax":

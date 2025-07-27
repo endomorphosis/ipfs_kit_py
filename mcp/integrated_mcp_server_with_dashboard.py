@@ -66,6 +66,15 @@ except ImportError as e:
     logger.error(f"Failed to import dashboard: {e}")
     DASHBOARD_AVAILABLE = False
 
+# Import backend health monitor
+try:
+    from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+    BACKEND_HEALTH_AVAILABLE = True
+    logger.info("✓ Backend health monitor imported successfully")
+except ImportError as e:
+    logger.error(f"Failed to import backend health monitor: {e}")
+    BACKEND_HEALTH_AVAILABLE = False
+
 # Web framework imports
 try:
     from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
@@ -111,6 +120,19 @@ class IntegratedMCPDashboardServer:
         if MCP_SERVER_AVAILABLE:
             self.mcp_server = EnhancedMCPServerWithDaemonMgmt()
             logger.info("✓ MCP server initialized")
+        
+        # Initialize the enhanced backend health monitor for performance optimization
+        # This is separate from dashboard initialization to ensure it's always available
+        if BACKEND_HEALTH_AVAILABLE:
+            try:
+                self.backend_health_monitor = BackendHealthMonitor()
+                logger.info("✓ Backend health monitor initialized for performance optimization")
+            except Exception as health_e:
+                logger.warning(f"Backend health monitor initialization failed: {health_e}")
+                self.backend_health_monitor = None
+        else:
+            logger.warning("Backend health monitor not available - import failed")
+            self.backend_health_monitor = None
         
         # Initialize dashboard components (without FastAPI app)
         self.dashboard = None
@@ -451,6 +473,50 @@ websocket_connections_active {len(self.websocket_connections)}
                         self.dashboard_metrics_aggregator.update_aggregations()
                         summary = self.dashboard_metrics_aggregator.get_dashboard_summary()
                         
+                        # Add real backend health metrics if available
+                        if self.backend_health_monitor:
+                            try:
+                                # Get cached backend health metrics (non-blocking)
+                                cached_backends = self.backend_health_monitor.get_cached_backend_health()
+                                
+                                if cached_backends:
+                                    # Extract IPFS performance metrics
+                                    ipfs_backend = cached_backends.get("ipfs", {})
+                                    if ipfs_backend:
+                                        metrics = ipfs_backend.get("metrics", {})
+                                        detailed_info = ipfs_backend.get("detailed_info", {})
+                                        
+                                        # Map real IPFS metrics to dashboard format
+                                        summary['performance'] = {
+                                            'repo_size': metrics.get('repo_size_bytes_cached', metrics.get('repo_size_bytes', 0)),
+                                            'storage_max': detailed_info.get('storage_max_bytes', 0),  # May need to be calculated
+                                            'objects': metrics.get('pins_count_cached', metrics.get('repo_objects', 0)),
+                                            'peers': detailed_info.get('peer_count', 0),
+                                            'pins': metrics.get('pins_count_cached', detailed_info.get('pins_count', 0)),
+                                            'bandwidth_in': metrics.get('bandwidth_in_bytes', 0),
+                                            'bandwidth_out': metrics.get('bandwidth_out_bytes', 0),
+                                            'performance_optimized': detailed_info.get('performance_optimized', False)
+                                        }
+                                        
+                                        # Add other backend summaries
+                                        summary['backends'] = {}
+                                        for backend_name, backend_data in cached_backends.items():
+                                            summary['backends'][backend_name] = {
+                                                'status': backend_data.get('status', 'unknown'),
+                                                'health': backend_data.get('health', 'unknown'),
+                                                'last_check': backend_data.get('last_check'),
+                                                'metrics': backend_data.get('metrics', {})
+                                            }
+                                        
+                                        logger.debug(f"Enhanced summary with cached backend metrics: {len(cached_backends)} backends")
+                                    else:
+                                        logger.warning("No IPFS backend data available from cached health")
+                                else:
+                                    logger.warning("No cached backend health data available")
+                            except Exception as e:
+                                logger.error(f"Error getting cached backend health metrics: {e}")
+                                summary['performance_error'] = str(e)
+                        
                         # Add VFS deep insights if available
                         if hasattr(self.dashboard_data_collector, 'get_vfs_deep_insights'):
                             try:
@@ -472,11 +538,34 @@ websocket_connections_active {len(self.websocket_connections)}
                             name: metric.to_dict() 
                             for name, metric in self.dashboard_metrics_aggregator.get_aggregated_metrics().items()
                         }
+                        
+                        # Include real backend metrics if available
+                        backend_metrics = {}
+                        consolidated_storage = {}
+                        if self.backend_health_monitor:
+                            try:
+                                # Get cached backend health metrics (non-blocking)
+                                cached_backends = self.backend_health_monitor.get_cached_backend_health()
+                                
+                                for backend_name, backend_data in cached_backends.items():
+                                    backend_metrics[f"{backend_name}_metrics"] = backend_data.get("metrics", {})
+                                    backend_metrics[f"{backend_name}_status"] = backend_data.get("status", "unknown")
+                                    backend_metrics[f"{backend_name}_health"] = backend_data.get("health", "unknown")
+                                
+                                # Get consolidated storage and bandwidth statistics (optimized)
+                                consolidated_storage = await self.backend_health_monitor.get_consolidated_storage_metrics()
+                                
+                            except Exception as e:
+                                logger.error(f"Error getting cached backend metrics: {e}")
+                                backend_metrics["backend_error"] = str(e)
+                        
                         return {
                             "latest_values": metrics,
                             "aggregated_metrics": aggregated,
                             "collection_summary": self.dashboard_data_collector.get_metric_summary(),
-                            "mcp_metrics": self.metrics_data  # Include MCP-specific metrics
+                            "mcp_metrics": self.metrics_data,  # Include MCP-specific metrics
+                            "backend_metrics": backend_metrics,  # Include real backend metrics
+                            "consolidated_storage": consolidated_storage  # Include consolidated storage/bandwidth stats
                         }
                     else:
                         return {"error": "Dashboard not available"}
@@ -495,6 +584,46 @@ websocket_connections_active {len(self.websocket_connections)}
                         }
                     else:
                         return {"error": "Dashboard not available"}
+                
+                @self.app.get(f"{self.dashboard_config.api_path}/storage")
+                async def dashboard_api_storage():
+                    """Get consolidated storage and bandwidth statistics from all backends."""
+                    if self.backend_health_monitor:
+                        try:
+                            storage_metrics = await self.backend_health_monitor.get_consolidated_storage_metrics()
+                            return {
+                                "success": True,
+                                "storage_metrics": storage_metrics
+                            }
+                        except Exception as e:
+                            logger.error(f"Error getting storage metrics: {e}")
+                            return {
+                                "success": False,
+                                "error": str(e),
+                                "storage_metrics": {
+                                    "total_storage_bytes": 0,
+                                    "total_bandwidth_in_bytes": 0,
+                                    "total_bandwidth_out_bytes": 0,
+                                    "total_objects": 0,
+                                    "backend_breakdown": {},
+                                    "active_backends": 0,
+                                    "healthy_backends": 0
+                                }
+                            }
+                    else:
+                        return {
+                            "success": False,
+                            "error": "Backend health monitor not available",
+                            "storage_metrics": {
+                                "total_storage_bytes": 0,
+                                "total_bandwidth_in_bytes": 0,
+                                "total_bandwidth_out_bytes": 0,
+                                "total_objects": 0,
+                                "backend_breakdown": {},
+                                "active_backends": 0,
+                                "healthy_backends": 0
+                            }
+                        }
                 
                 @self.app.get(f"{self.dashboard_config.api_path}/analytics")
                 async def dashboard_api_analytics():
@@ -771,6 +900,10 @@ websocket_connections_active {len(self.websocket_connections)}
                 # Start dashboard background services
                 await self.dashboard_data_collector.start()
                 
+                # Start backend health monitor background services
+                if self.backend_health_monitor:
+                    await self.backend_health_monitor.start_background_services()
+                
                 # Start metrics update task
                 asyncio.create_task(self._metrics_update_loop())
                 
@@ -783,6 +916,11 @@ websocket_connections_active {len(self.websocket_connections)}
         if self.dashboard_enabled and self.dashboard_data_collector:
             try:
                 await self.dashboard_data_collector.stop()
+                
+                # Stop backend health monitor background services
+                if self.backend_health_monitor:
+                    await self.backend_health_monitor.stop_background_services()
+                
                 logger.info("✓ Background services stopped")
             except Exception as e:
                 logger.error(f"Error stopping background services: {e}")

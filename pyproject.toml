@@ -175,7 +175,7 @@ full = [
 ]
 
 [project.scripts]
-ipfs-kit = "ipfs_kit_py.cli:main"
+ipfs-kit = "ipfs_kit_py.cli:sync_main"
 
 [project.urls]
 Homepage = "https://github.com/endomorphosis/ipfs_kit_py/"

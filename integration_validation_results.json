@@ -1,0 +1,222 @@
+{
+  "components": {
+    "enhanced_pin_index": {
+      "component": "Enhanced Pin Index (enhanced_pin_index.py)",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "Import successful",
+          "status": "passed"
+        },
+        {
+          "name": "Global instance creation",
+          "status": "passed"
+        },
+        {
+          "name": "Method: get_comprehensive_metrics",
+          "status": "passed"
+        },
+        {
+          "name": "Method: get_vfs_analytics",
+          "status": "passed"
+        },
+        {
+          "name": "Method: get_performance_metrics",
+          "status": "passed"
+        },
+        {
+          "name": "Method: record_enhanced_access",
+          "status": "passed"
+        },
+        {
+          "name": "Method: get_pin_details",
+          "status": "passed"
+        },
+        {
+          "name": "CLI metrics function",
+          "status": "passed"
+        }
+      ],
+      "issues": [],
+      "recommendations": []
+    },
+    "cli": {
+      "component": "CLI (enhanced_pin_cli.py)",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "Enhanced index import",
+          "status": "passed"
+        },
+        {
+          "name": "Fallback import",
+          "status": "passed"
+        },
+        {
+          "name": "Availability flags",
+          "status": "passed"
+        },
+        {
+          "name": "CLI metrics function",
+          "status": "passed"
+        },
+        {
+          "name": "Error handling",
+          "status": "passed"
+        },
+        {
+          "name": "Help text",
+          "status": "passed"
+        },
+        {
+          "name": "Import successful",
+          "status": "passed"
+        },
+        {
+          "name": "print_metrics function",
+          "status": "passed"
+        }
+      ],
+      "issues": [],
+      "recommendations": []
+    },
+    "main_api": {
+      "component": "Main API (api.py)",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "Enhanced Pin API flag",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced Pin API import",
+          "status": "passed"
+        },
+        {
+          "name": "Router inclusion",
+          "status": "passed"
+        },
+        {
+          "name": "Logging messages",
+          "status": "passed"
+        },
+        {
+          "name": "Error handling",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced Pin API file exists",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced API: FastAPI router",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced API: Status endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced API: Metrics endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced API: VFS endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced API: Tracking endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced API: Analytics endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced API: Record endpoint",
+          "status": "passed"
+        }
+      ],
+      "issues": [],
+      "recommendations": []
+    },
+    "storage_api": {
+      "component": "Storage Backends API (storage_backends_api.py)",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "Enhanced pin import",
+          "status": "passed"
+        },
+        {
+          "name": "Availability flag",
+          "status": "passed"
+        },
+        {
+          "name": "Pin analytics endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "Record access endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "Tier recommendations endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "Error handling",
+          "status": "passed"
+        },
+        {
+          "name": "Backend tier mapping",
+          "status": "passed"
+        }
+      ],
+      "issues": [],
+      "recommendations": []
+    },
+    "mcp_monitor": {
+      "component": "MCP Health Monitor",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "Enhanced pin import",
+          "status": "passed"
+        },
+        {
+          "name": "Availability flag",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced index usage",
+          "status": "passed"
+        },
+        {
+          "name": "Fallback logic",
+          "status": "passed"
+        },
+        {
+          "name": "Enhanced metrics",
+          "status": "passed"
+        },
+        {
+          "name": "VFS analytics",
+          "status": "passed"
+        },
+        {
+          "name": "Performance metrics",
+          "status": "passed"
+        }
+      ],
+      "issues": [],
+      "recommendations": []
+    }
+  },
+  "summary": {
+    "total_components": 5,
+    "passed": 5,
+    "failed": 0,
+    "warnings": 0
+  }
+}

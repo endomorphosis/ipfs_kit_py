@@ -46,6 +46,22 @@ except ImportError as e:
     IPFS_KIT_AVAILABLE = False
     print(f"IPFS Kit components not available: {e}")
 
+# Bucket VFS MCP tools import
+try:
+    from bucket_vfs_mcp_tools import create_bucket_tools, handle_bucket_tool, BUCKET_VFS_AVAILABLE
+    BUCKET_MCP_AVAILABLE = True
+except ImportError as e:
+    BUCKET_MCP_AVAILABLE = False
+    print(f"Bucket VFS MCP tools not available: {e}")
+
+# VFS Version Tracking MCP tools import
+try:
+    from vfs_version_mcp_tools import get_vfs_version_tools, get_vfs_version_handlers, VFS_TRACKER_AVAILABLE
+    VFS_VERSION_MCP_AVAILABLE = True
+except ImportError as e:
+    VFS_VERSION_MCP_AVAILABLE = False
+    print(f"VFS Version Tracking MCP tools not available: {e}")
+
 try:
     import pyarrow as pa
     import pyarrow.parquet as pq
@@ -320,6 +336,16 @@ async def handle_list_tools() -> List[Tool]:
         )
     ]
     
+    # Add bucket VFS tools if available
+    if BUCKET_MCP_AVAILABLE:
+        bucket_tools = create_bucket_tools()
+        tools.extend(bucket_tools)
+    
+    # Add VFS version tracking tools if available
+    if VFS_VERSION_MCP_AVAILABLE:
+        vfs_version_tools = get_vfs_version_tools()
+        tools.extend(vfs_version_tools)
+    
     return tools
 
 
@@ -338,14 +364,37 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
             result = await handle_ipfs_tool(name, arguments)
         elif name.startswith("parquet_"):
             result = await handle_parquet_tool(name, arguments)
-        elif name.startswith("vfs_"):
+        elif name.startswith("vfs_") and not name.startswith("vfs_version"):
             result = await handle_vfs_tool(name, arguments)
+        elif name.startswith("bucket_") and BUCKET_MCP_AVAILABLE:
+            # Handle bucket VFS tools
+            tool_result = await handle_bucket_tool(name, arguments)
+            # Convert TextContent result to dict for consistency
+            if tool_result and len(tool_result) > 0:
+                return tool_result  # Return TextContent directly for bucket tools
+            else:
+                result = create_result_dict(False, error="Empty result from bucket tool")
+        elif name.startswith("vfs_") and VFS_VERSION_MCP_AVAILABLE:
+            # Handle VFS version tracking tools
+            vfs_handlers = get_vfs_version_handlers()
+            if name in vfs_handlers:
+                tool_result = await vfs_handlers[name](arguments)
+                if tool_result and len(tool_result) > 0:
+                    return tool_result  # Return TextContent directly for VFS tools
+                else:
+                    result = create_result_dict(False, error="Empty result from VFS tool")
+            else:
+                result = create_result_dict(False, error=f"Unknown VFS version tool: {name}")
         elif name in ["system_health", "cache_stats", "wal_status"]:
             result = await handle_diagnostic_tool(name, arguments)
         else:
             result = create_result_dict(False, error=f"Unknown tool: {name}")
         
-        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+        # For non-bucket/VFS tools, wrap result in TextContent
+        if name.startswith("bucket_") or (name.startswith("vfs_") and VFS_VERSION_MCP_AVAILABLE):
+            return tool_result if tool_result else [TextContent(type="text", text=json.dumps({"success": False, "error": "No result"}, indent=2))]
+        else:
+            return [TextContent(type="text", text=json.dumps(result, indent=2))]
         
     except Exception as e:
         error_result = handle_error(f"Tool call {name}", e)
