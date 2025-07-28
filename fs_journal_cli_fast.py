@@ -125,8 +125,94 @@ def register_fs_journal_commands(subparsers):
     health_parser.set_defaults(func=handle_fs_health)
 
 def handle_fs_status(api, args, kwargs=None):
-    """Handle FS Journal status command."""
+    """Handle FS Journal status command using Parquet data."""
     try:
+        # Try Parquet data access first
+        try:
+            import sys
+            from pathlib import Path
+            
+            # Add package to path for import
+            package_root = Path(__file__).parent / 'ipfs_kit_py'
+            if package_root.exists():
+                sys.path.insert(0, str(package_root.parent))
+                from ipfs_kit_py.parquet_data_reader import get_parquet_reader
+            else:
+                # We're probably already in the package
+                from parquet_data_reader import get_parquet_reader
+            
+            reader = get_parquet_reader()
+            fs_result = reader.read_fs_journal_operations()
+            
+            if fs_result['success']:
+                operations = fs_result['operations']
+                
+                # Calculate statistics
+                total_operations = len(operations)
+                successful_operations = len([op for op in operations if op.get('success', True)])
+                failed_operations = total_operations - successful_operations
+                
+                # Calculate breakdowns
+                operation_breakdown = {}
+                backend_breakdown = {}
+                
+                for op in operations:
+                    op_type = op.get('operation', op.get('operation_type', 'unknown'))
+                    backend = op.get('backend', op.get('backend_type', 'unknown'))
+                    
+                    operation_breakdown[op_type] = operation_breakdown.get(op_type, 0) + 1
+                    backend_breakdown[backend] = backend_breakdown.get(backend, 0) + 1
+                
+                # Format output
+                output = []
+                output.append("📁 FS Journal Status (from Parquet data)")
+                output.append("=" * 60)
+                output.append(f"Total Operations: {total_operations}")
+                output.append(f"Successful: {successful_operations}")
+                output.append(f"Failed: {failed_operations}")
+                
+                # Success rate
+                if total_operations > 0:
+                    success_rate = (successful_operations / total_operations) * 100
+                    output.append(f"Success Rate: {success_rate:.1f}%")
+                
+                # Operation breakdown
+                if operation_breakdown:
+                    output.append("\n📊 Operation Breakdown:")
+                    for op_type, count in operation_breakdown.items():
+                        output.append(f"  {op_type}: {count}")
+                
+                # Backend breakdown
+                if backend_breakdown:
+                    output.append("\n🔧 Backend Breakdown:")
+                    for backend, count in backend_breakdown.items():
+                        output.append(f"  {backend}: {count}")
+                
+                # Virtual filesystem stats (estimated from operations)
+                file_ops = [op for op in operations if op.get('operation') in ['write', 'read']]
+                if file_ops:
+                    output.append("\n💾 Virtual Filesystem (estimated from operations):")
+                    unique_files = len(set(op.get('path', '') for op in file_ops if op.get('path')))
+                    total_size = sum(op.get('size', 0) for op in file_ops if op.get('size'))
+                    output.append(f"  file: {unique_files} ({total_size:,} bytes)")
+                    output.append(f"  Total: {unique_files} files ({total_size:,} bytes)")
+                
+                output.append(f"\n📂 Data source: Parquet files ({len(fs_result.get('sources', []))} files)")
+                output.append(f"🕐 Generated: {fs_result.get('timestamp', 'unknown')}")
+                
+                return "\n".join(output)
+            else:
+                print(f"⚠️  Parquet FS Journal data failed: {fs_result.get('error', 'Unknown error')}")
+                print("🔄 Falling back to fast index...")
+                
+        except ImportError as e:
+            print(f"⚠️  Parquet reader not available: {e}")
+            print("🔄 Falling back to fast index...")
+        except Exception as e:
+            print(f"⚠️  Parquet FS Journal error: {e}")
+            print("🔄 Falling back to fast index...")
+        
+        # Fallback to original fast index
         # Import the fast reader locally to avoid heavy imports at module level  
         from fs_journal_fast_index import FastFSJournalReader
         
@@ -138,7 +224,7 @@ def handle_fs_status(api, args, kwargs=None):
         
         # Format output
         output = []
-        output.append("📁 FS Journal Status")
+        output.append("📁 FS Journal Status (from fast index)")
         output.append("=" * 50)
         output.append(f"Total Operations: {status['total_operations']}")
         output.append(f"Successful: {status['successful_operations']}")
@@ -186,22 +272,115 @@ def handle_fs_status(api, args, kwargs=None):
         return f"Error getting FS Journal status: {e}"
 
 def handle_fs_recent(api, args, kwargs=None):
-    """Handle FS Journal recent operations command."""
+    """Handle FS Journal recent operations command using Parquet data."""
     try:
+        # Try Parquet data access first
+        try:
+            import sys
+            from pathlib import Path
+            from datetime import datetime, timedelta
+            
+            # Add package to path for import
+            package_root = Path(__file__).parent / 'ipfs_kit_py'
+            if package_root.exists():
+                sys.path.insert(0, str(package_root.parent))
+                from ipfs_kit_py.parquet_data_reader import get_parquet_reader
+            else:
+                # We're probably already in the package
+                from parquet_data_reader import get_parquet_reader
+            
+            reader = get_parquet_reader()
+            fs_result = reader.read_fs_journal_operations()
+            
+            if fs_result['success']:
+                operations = fs_result['operations']
+                
+                # Filter by time window
+                hours = getattr(args, 'hours', 24)
+                cutoff_time = datetime.now() - timedelta(hours=hours)
+                
+                # Filter operations by time window
+                filtered_ops = []
+                for op in operations:
+                    timestamp_str = op.get('timestamp', op.get('datetime', ''))
+                    if timestamp_str:
+                        try:
+                            # Handle both string and float timestamps
+                            if isinstance(timestamp_str, (int, float)):
+                                # Unix timestamp
+                                timestamp = datetime.fromtimestamp(timestamp_str)
+                            else:
+                                # ISO string timestamp
+                                timestamp = datetime.fromisoformat(str(timestamp_str).replace('Z', '+00:00'))
+                            
+                            if timestamp >= cutoff_time:
+                                filtered_ops.append(op)
+                        except (ValueError, TypeError, OSError) as e:
+                            # If parsing fails, include the operation
+                            print(f"⚠️  Timestamp parsing error for {timestamp_str}: {e}")
+                            filtered_ops.append(op)
+                    else:
+                        # If no timestamp, include the operation
+                        filtered_ops.append(op)
+                
+                # Apply limit
+                limit = getattr(args, 'limit', 20)
+                filtered_ops = filtered_ops[:limit]
+                
+                if not filtered_ops:
+                    return f"No operations found in the last {hours} hours from Parquet data."
+                
+                # Format output
+                output = []
+                output.append(f"📋 Recent Operations (from Parquet, last {hours}h, showing {len(filtered_ops)} of {len(operations)})")
+                output.append("=" * 80)
+                
+                for i, op in enumerate(filtered_ops, 1):
+                    success = op.get('success', True)
+                    status_emoji = "✅" if success else "❌"
+                    operation_type = op.get('operation', op.get('operation_type', 'unknown')).upper()
+                    
+                    output.append(f"\n{status_emoji} Operation {i}: {operation_type}")
+                    output.append(f"  Path: {op.get('path', 'unknown')}")
+                    if op.get('backend', op.get('backend_name')):
+                        output.append(f"  Backend: {op.get('backend', op.get('backend_name'))}")
+                    if op.get('size'):
+                        output.append(f"  Size: {op['size']:,} bytes")
+                    output.append(f"  Time: {op.get('timestamp', op.get('datetime', 'unknown'))}")
+                    if op.get('duration_ms'):
+                        output.append(f"  Duration: {op['duration_ms']}ms")
+                    if not success and op.get('error_message', op.get('error')):
+                        output.append(f"  Error: {op.get('error_message', op.get('error'))}")
+                
+                output.append(f"\n📂 Data source: Parquet files ({len(fs_result.get('sources', []))} files)")
+                
+                return "\n".join(output)
+            else:
+                print(f"⚠️  Parquet FS Journal data failed: {fs_result.get('error', 'Unknown error')}")
+                print("🔄 Falling back to fast index...")
+                
+        except ImportError as e:
+            print(f"⚠️  Parquet reader not available: {e}")
+            print("🔄 Falling back to fast index...")
+        except Exception as e:
+            print(f"⚠️  Parquet FS Journal error: {e}")
+            print("🔄 Falling back to fast index...")
+        
+        # Fallback to original fast index
         from fs_journal_fast_index import FastFSJournalReader
         
         reader = FastFSJournalReader()
-        operations = reader.list_recent_operations(limit=args.limit, hours=args.hours)
+        operations = reader.list_recent_operations(limit=getattr(args, 'limit', 20), hours=getattr(args, 'hours', 24))
         
         if not operations:
-            return f"No operations found in the last {args.hours} hours."
+            return f"No operations found in the last {getattr(args, 'hours', 24)} hours."
         
         if isinstance(operations, list) and len(operations) == 1 and 'error' in operations[0]:
             return f"Error: {operations[0]['error']}"
         
         # Format output
         output = []
-        output.append(f"📋 Recent Operations (last {args.hours}h, showing up to {args.limit})")
+        output.append(f"📋 Recent Operations (from fast index, last {getattr(args, 'hours', 24)}h, showing up to {getattr(args, 'limit', 20)})")
         output.append("=" * 70)
         
         for op in operations:

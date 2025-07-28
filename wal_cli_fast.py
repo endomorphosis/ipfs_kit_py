@@ -93,8 +93,75 @@ def register_wal_commands(subparsers):
     get_parser.set_defaults(func=handle_wal_get)
 
 def handle_wal_status(api, args, kwargs=None):
-    """Handle WAL status command."""
+    """Handle WAL status command using Parquet data."""
     try:
+        # Try Parquet data access first
+        try:
+            import sys
+            from pathlib import Path
+            
+            # Add package to path for import
+            package_root = Path(__file__).parent / 'ipfs_kit_py'
+            if package_root.exists():
+                sys.path.insert(0, str(package_root.parent))
+                from ipfs_kit_py.parquet_data_reader import get_parquet_reader
+            else:
+                # We're probably already in the package
+                from parquet_data_reader import get_parquet_reader
+            
+            reader = get_parquet_reader()
+            wal_result = reader.read_wal_operations()
+            
+            if wal_result['success']:
+                operations = wal_result['operations']
+                
+                # Calculate status breakdown
+                status_counts = {}
+                backend_counts = {}
+                
+                for op in operations:
+                    status = op.get('status', 'unknown')
+                    backend = op.get('backend_type', 'unknown')
+                    
+                    status_counts[status] = status_counts.get(status, 0) + 1
+                    backend_counts[backend] = backend_counts.get(backend, 0) + 1
+                
+                # Format output
+                output = []
+                output.append("📊 WAL Status (from Parquet data)")
+                output.append("=" * 50)
+                output.append(f"Total Operations: {len(operations)}")
+                
+                for status, count in status_counts.items():
+                    if status == 'pending':
+                        output.append(f"Pending: {count}")
+                    elif status == 'failed':
+                        output.append(f"Failed: {count}")
+                    elif status == 'completed':
+                        output.append(f"Completed: {count}")
+                    else:
+                        output.append(f"{status.title()}: {count}")
+                
+                if backend_counts:
+                    output.append("\n🔧 Backend Breakdown:")
+                    for backend, count in backend_counts.items():
+                        output.append(f"  {backend}: {count}")
+                
+                output.append(f"\n📂 Data source: Parquet files ({len(wal_result.get('sources', []))} files)")
+                
+                return "\n".join(output)
+            else:
+                print(f"⚠️  Parquet WAL data failed: {wal_result.get('error', 'Unknown error')}")
+                print("🔄 Falling back to fast index...")
+                
+        except ImportError as e:
+            print(f"⚠️  Parquet reader not available: {e}")
+            print("🔄 Falling back to fast index...")
+        except Exception as e:
+            print(f"⚠️  Parquet WAL error: {e}")
+            print("🔄 Falling back to fast index...")
+        
+        # Fallback to original fast index
         # Import the fast reader locally to avoid heavy imports at module level  
         from wal_fast_index import FastWALReader
         
@@ -132,12 +199,74 @@ def handle_wal_status(api, args, kwargs=None):
         return f"Error getting WAL status: {e}"
 
 def handle_wal_pending(api, args, kwargs=None):
-    """Handle WAL pending operations command."""
+    """Handle WAL pending operations command using Parquet data."""
     try:
+        # Try Parquet data access first
+        try:
+            import sys
+            from pathlib import Path
+            
+            # Add package to path for import
+            package_root = Path(__file__).parent / 'ipfs_kit_py'
+            if package_root.exists():
+                sys.path.insert(0, str(package_root.parent))
+                from ipfs_kit_py.parquet_data_reader import get_parquet_reader
+            else:
+                # We're probably already in the package
+                from parquet_data_reader import get_parquet_reader
+            
+            reader = get_parquet_reader()
+            wal_result = reader.read_wal_operations()
+            
+            if wal_result['success']:
+                operations = wal_result['operations']
+                
+                # Filter for pending operations
+                pending_ops = [op for op in operations if op.get('status') == 'pending']
+                
+                # Apply limit
+                limit = getattr(args, 'limit', 50)
+                pending_ops = pending_ops[:limit]
+                
+                if not pending_ops:
+                    return "No pending operations found in Parquet data."
+                
+                # Format output
+                output = []
+                output.append(f"📋 Pending Operations (from Parquet, showing {len(pending_ops)} of {len([op for op in operations if op.get('status') == 'pending'])})")
+                output.append("=" * 70)
+                
+                for i, op in enumerate(pending_ops, 1):
+                    output.append(f"\n🔹 Operation {i}")
+                    output.append(f"  ID: {op.get('operation_id', op.get('id', 'unknown'))}")
+                    output.append(f"  Type: {op.get('operation_type', 'unknown')} on {op.get('backend_type', 'unknown')}")
+                    if op.get('path'):
+                        output.append(f"  Path: {op['path']}")
+                    if op.get('size'):
+                        output.append(f"  Size: {op['size']} bytes")
+                    output.append(f"  Created: {op.get('created_datetime', op.get('timestamp', 'unknown'))}")
+                    if op.get('retry_count', 0) > 0:
+                        output.append(f"  Retries: {op['retry_count']}")
+                
+                output.append(f"\n📂 Data source: Parquet files ({len(wal_result.get('sources', []))} files)")
+                
+                return "\n".join(output)
+            else:
+                print(f"⚠️  Parquet WAL data failed: {wal_result.get('error', 'Unknown error')}")
+                print("🔄 Falling back to fast index...")
+                
+        except ImportError as e:
+            print(f"⚠️  Parquet reader not available: {e}")
+            print("🔄 Falling back to fast index...")
+        except Exception as e:
+            print(f"⚠️  Parquet WAL error: {e}")
+            print("🔄 Falling back to fast index...")
+        
+        # Fallback to original fast index
         from wal_fast_index import FastWALReader
         
         reader = FastWALReader()
-        operations = reader.list_pending_operations(limit=args.limit)
+        operations = reader.list_pending_operations(limit=getattr(args, 'limit', 50))
         
         if not operations:
             return "No pending operations found."
@@ -147,7 +276,7 @@ def handle_wal_pending(api, args, kwargs=None):
         
         # Format output
         output = []
-        output.append(f"📋 Pending Operations (showing up to {args.limit})")
+        output.append(f"📋 Pending Operations (from fast index, showing up to {getattr(args, 'limit', 50)})")
         output.append("=" * 60)
         
         for op in operations:
@@ -169,12 +298,73 @@ def handle_wal_pending(api, args, kwargs=None):
         return f"Error getting pending operations: {e}"
 
 def handle_wal_failed(api, args, kwargs=None):
-    """Handle WAL failed operations command."""
+    """Handle WAL failed operations command using Parquet data."""
     try:
+        # Try Parquet data access first
+        try:
+            import sys
+            from pathlib import Path
+            
+            # Add package to path for import
+            package_root = Path(__file__).parent / 'ipfs_kit_py'
+            if package_root.exists():
+                sys.path.insert(0, str(package_root.parent))
+                from ipfs_kit_py.parquet_data_reader import get_parquet_reader
+            else:
+                # We're probably already in the package
+                from parquet_data_reader import get_parquet_reader
+            
+            reader = get_parquet_reader()
+            wal_result = reader.read_wal_operations()
+            
+            if wal_result['success']:
+                operations = wal_result['operations']
+                
+                # Filter for failed operations
+                failed_ops = [op for op in operations if op.get('status') == 'failed']
+                
+                # Apply limit
+                limit = getattr(args, 'limit', 50)
+                failed_ops = failed_ops[:limit]
+                
+                if not failed_ops:
+                    return "No failed operations found in Parquet data."
+                
+                # Format output
+                output = []
+                output.append(f"❌ Failed Operations (from Parquet, showing {len(failed_ops)} of {len([op for op in operations if op.get('status') == 'failed'])})")
+                output.append("=" * 70)
+                
+                for i, op in enumerate(failed_ops, 1):
+                    output.append(f"\n🔹 Operation {i}")
+                    output.append(f"  ID: {op.get('operation_id', op.get('id', 'unknown'))}")
+                    output.append(f"  Type: {op.get('operation_type', 'unknown')} on {op.get('backend_type', 'unknown')}")
+                    if op.get('path'):
+                        output.append(f"  Path: {op['path']}")
+                    if op.get('error_message'):
+                        output.append(f"  Error: {op['error_message']}")
+                    output.append(f"  Failed: {op.get('updated_datetime', op.get('timestamp', 'unknown'))}")
+                    output.append(f"  Retries: {op.get('retry_count', 0)}")
+                
+                output.append(f"\n📂 Data source: Parquet files ({len(wal_result.get('sources', []))} files)")
+                
+                return "\n".join(output)
+            else:
+                print(f"⚠️  Parquet WAL data failed: {wal_result.get('error', 'Unknown error')}")
+                print("🔄 Falling back to fast index...")
+                
+        except ImportError as e:
+            print(f"⚠️  Parquet reader not available: {e}")
+            print("🔄 Falling back to fast index...")
+        except Exception as e:
+            print(f"⚠️  Parquet WAL error: {e}")
+            print("🔄 Falling back to fast index...")
+        
+        # Fallback to original fast index
         from wal_fast_index import FastWALReader
         
         reader = FastWALReader()
-        operations = reader.list_failed_operations(limit=args.limit)
+        operations = reader.list_failed_operations(limit=getattr(args, 'limit', 50))
         
         if not operations:
             return "No failed operations found."
@@ -184,7 +374,7 @@ def handle_wal_failed(api, args, kwargs=None):
         
         # Format output
         output = []
-        output.append(f"❌ Failed Operations (showing up to {args.limit})")
+        output.append(f"❌ Failed Operations (from fast index, showing up to {getattr(args, 'limit', 50)})")
         output.append("=" * 60)
         
         for op in operations:
@@ -205,19 +395,120 @@ def handle_wal_failed(api, args, kwargs=None):
         return f"Error getting failed operations: {e}"
 
 def handle_wal_stats(api, args, kwargs=None):
-    """Handle WAL statistics command."""
+    """Handle WAL statistics command using Parquet data."""
     try:
+        # Try Parquet data access first
+        try:
+            import sys
+            from pathlib import Path
+            from datetime import datetime, timedelta
+            
+            # Add package to path for import
+            package_root = Path(__file__).parent / 'ipfs_kit_py'
+            if package_root.exists():
+                sys.path.insert(0, str(package_root.parent))
+                from ipfs_kit_py.parquet_data_reader import get_parquet_reader
+            else:
+                # We're probably already in the package
+                from parquet_data_reader import get_parquet_reader
+            
+            reader = get_parquet_reader()
+            wal_result = reader.read_wal_operations()
+            
+            if wal_result['success']:
+                operations = wal_result['operations']
+                
+                # Filter by time window if specified
+                hours = getattr(args, 'hours', 24)
+                cutoff_time = datetime.now() - timedelta(hours=hours)
+                
+                # Filter operations by time window
+                filtered_ops = []
+                for op in operations:
+                    timestamp_str = op.get('timestamp', op.get('created_datetime', ''))
+                    if timestamp_str:
+                        try:
+                            # Try parsing the timestamp
+                            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                            if timestamp >= cutoff_time:
+                                filtered_ops.append(op)
+                        except ValueError:
+                            # If parsing fails, include the operation
+                            filtered_ops.append(op)
+                    else:
+                        # If no timestamp, include the operation
+                        filtered_ops.append(op)
+                
+                # Calculate statistics
+                total = len(filtered_ops)
+                completed = len([op for op in filtered_ops if op.get('status') == 'completed'])
+                failed = len([op for op in filtered_ops if op.get('status') == 'failed'])
+                pending = len([op for op in filtered_ops if op.get('status') == 'pending'])
+                
+                # Calculate breakdown
+                breakdown = {}
+                for op in filtered_ops:
+                    op_type = op.get('operation_type', 'unknown')
+                    backend = op.get('backend_type', 'unknown')
+                    status = op.get('status', 'unknown')
+                    
+                    if op_type not in breakdown:
+                        breakdown[op_type] = {}
+                    if backend not in breakdown[op_type]:
+                        breakdown[op_type][backend] = {}
+                    breakdown[op_type][backend][status] = breakdown[op_type][backend].get(status, 0) + 1
+                
+                # Format output
+                output = []
+                output.append(f"📈 WAL Statistics (from Parquet, last {hours} hours)")
+                output.append("=" * 70)
+                
+                output.append(f"Total Operations: {total}")
+                output.append(f"Completed: {completed}")
+                output.append(f"Failed: {failed}")
+                output.append(f"Pending: {pending}")
+                
+                # Success rate
+                if total > 0:
+                    success_rate = (completed / total) * 100
+                    output.append(f"Success Rate: {success_rate:.1f}%")
+                
+                # Breakdown by operation type and backend
+                if breakdown:
+                    output.append("\n🔧 Operation Breakdown:")
+                    for op_type, backends in breakdown.items():
+                        output.append(f"\n  {op_type}:")
+                        for backend, statuses in backends.items():
+                            for status, count in statuses.items():
+                                output.append(f"    {backend} ({status}): {count}")
+                
+                output.append(f"\n📂 Data source: Parquet files ({len(wal_result.get('sources', []))} files)")
+                output.append(f"🕐 Generated: {datetime.now().isoformat()}")
+                
+                return "\n".join(output)
+            else:
+                print(f"⚠️  Parquet WAL data failed: {wal_result.get('error', 'Unknown error')}")
+                print("🔄 Falling back to fast index...")
+                
+        except ImportError as e:
+            print(f"⚠️  Parquet reader not available: {e}")
+            print("🔄 Falling back to fast index...")
+        except Exception as e:
+            print(f"⚠️  Parquet WAL error: {e}")
+            print("🔄 Falling back to fast index...")
+        
+        # Fallback to original fast index
         from wal_fast_index import FastWALReader
         
         reader = FastWALReader()
-        stats = reader.get_statistics(hours=args.hours)
+        stats = reader.get_statistics(hours=getattr(args, 'hours', 24))
         
         if 'error' in stats:
             return f"Error: {stats['error']}"
         
         # Format output
         output = []
-        output.append(f"📈 WAL Statistics (last {args.hours} hours)")
+        output.append(f"📈 WAL Statistics (from fast index, last {getattr(args, 'hours', 24)} hours)")
         output.append("=" * 60)
         
         totals = stats.get('totals', {})

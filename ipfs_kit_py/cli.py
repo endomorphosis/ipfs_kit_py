@@ -435,7 +435,15 @@ examples:
     
     # WAL (Write-Ahead Log) commands - using fast index for minimal overhead
     try:
-        from .wal_cli_fast import register_wal_commands
+        # Try package import first
+        try:
+            from .wal_cli_fast import register_wal_commands
+        except ImportError:
+            # Try root level import
+            import sys
+            import os
+            sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+            from wal_cli_fast import register_wal_commands
         register_wal_commands(subparsers)
     except ImportError:
         # If fast WAL CLI not available, create basic stub
@@ -444,7 +452,15 @@ examples:
         
     # Filesystem Journal commands - using fast index for minimal overhead  
     try:
-        from .fs_journal_cli_fast import register_fs_journal_commands
+        # Try package import first
+        try:
+            from .fs_journal_cli_fast import register_fs_journal_commands
+        except ImportError:
+            # Try root level import
+            import sys
+            import os
+            sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+            from fs_journal_cli_fast import register_fs_journal_commands
         register_fs_journal_commands(subparsers)
     except ImportError:
         # If fast FS Journal CLI not available, create basic stub
@@ -941,10 +957,75 @@ class FastCLI:
             return 1
 
     async def cmd_daemon_status(self):
-        """Check IPFS-Kit daemon and service status."""
+        """Check IPFS-Kit daemon and service status using program state data."""
         try:
             print("📊 Checking IPFS-Kit daemon status...")
             
+            # First try to get status from program state (lock-free)
+            try:
+                import sys
+                from pathlib import Path
+                
+                # Add package to path for import
+                package_root = Path(__file__).parent
+                sys.path.insert(0, str(package_root.parent))
+                from ipfs_kit_py.parquet_data_reader import get_parquet_reader
+                
+                reader = get_parquet_reader()
+                daemon_status = reader.get_current_daemon_status()
+                
+                if daemon_status['running'] and daemon_status['source'] == 'parquet_state':
+                    print("✅ Main IPFS-Kit daemon: Running (from program state)")
+                    print(f"📂 Data source: Program state Parquet files")
+                    
+                    # Show performance metrics
+                    if daemon_status.get('performance'):
+                        perf = daemon_status['performance']
+                        print("🔍 Performance Metrics:")
+                        print(f"   📊 Bandwidth In: {perf.get('bandwidth_in', 'Unknown')}")
+                        print(f"   📈 Bandwidth Out: {perf.get('bandwidth_out', 'Unknown')}")
+                        print(f"   💾 Repository Size: {perf.get('repo_size', 'Unknown')}")
+                        print(f"   🏷️  IPFS Version: {perf.get('ipfs_version', 'Unknown')}")
+                        
+                        # Convert timestamp if available
+                        last_updated = perf.get('last_updated', 'Unknown')
+                        if isinstance(last_updated, (int, float)):
+                            from datetime import datetime
+                            last_updated = datetime.fromtimestamp(last_updated).strftime('%Y-%m-%d %H:%M:%S')
+                        print(f"   ⏱️  Last Updated: {last_updated}")
+                    
+                    # Show network status
+                    if daemon_status.get('network'):
+                        network = daemon_status['network']
+                        print("🌐 Network Status:")
+                        print(f"   👥 Connected Peers: {network.get('connected_peers', 0)}")
+                        if network.get('bandwidth_in') or network.get('bandwidth_out'):
+                            print(f"   📊 Network I/O: {network.get('bandwidth_in', 0)}/{network.get('bandwidth_out', 0)} bps")
+                    
+                    # Show storage status
+                    if daemon_status.get('storage'):
+                        storage = daemon_status['storage']
+                        print("💾 Storage Status:")
+                        print(f"   📦 Total Size: {storage.get('total_size', 'Unknown')}")
+                        print(f"   📌 Pin Count: {storage.get('pin_count', 0)}")
+                        if storage.get('repo_version') != 'Unknown':
+                            print(f"   🏷️  Repo Version: {storage.get('repo_version')}")
+                    
+                    print(f"📋 Overall Status: HEALTHY (from program state)")
+                    return 0
+                    
+                else:
+                    print(f"⚠️  Program state access failed: {daemon_status.get('error', 'No recent state data')}")
+                    print("🔄 Falling back to API status check...")
+                    
+            except ImportError as e:
+                print(f"⚠️  Program state reader not available: {e}")
+                print("🔄 Falling back to API status check...")
+            except Exception as e:
+                print(f"⚠️  Program state error: {e}")
+                print("🔄 Falling back to API status check...")
+            
+            # Fallback to original API-based status check
             # First check if main daemon is running
             daemon_running = await self._is_daemon_running()
             if daemon_running:
@@ -953,40 +1034,48 @@ class FastCLI:
                 # If daemon is running, get service status from API
                 try:
                     import requests
-                    response = requests.get('http://localhost:9999/services/status', timeout=5)
+                    # Use the correct endpoint - /status instead of /services/status
+                    response = requests.get('http://localhost:9999/status', timeout=5)
                     if response.status_code == 200:
-                        service_status = response.json()
+                        daemon_status = response.json()
                         
-                        print("🔍 Service Status (via daemon API):")
-                        running_services = 0
-                        total_services = len(service_status)
+                        print("🔍 Daemon Status (via API):")
+                        print(f"   📍 Host: {daemon_status.get('host', 'unknown')}")
+                        print(f"   🔌 Port: {daemon_status.get('port', 'unknown')}")
+                        print(f"   ⏱️  Uptime: {daemon_status.get('uptime_seconds', 0):.1f}s")
                         
-                        for service, status in service_status.items():
-                            if status.get('running', False):
-                                print(f"   ✅ {service}: Running")
-                                running_services += 1
+                        # Try to get backend health status
+                        try:
+                            health_response = requests.get('http://localhost:9999/health/backends', timeout=3)
+                            if health_response.status_code == 200:
+                                backends = health_response.json()
+                                print("🔍 Backend Health:")
+                                healthy_backends = 0
+                                for backend, status in backends.items():
+                                    if status.get('health') == 'healthy':
+                                        print(f"   ✅ {backend}: {status.get('status', 'unknown')}")
+                                        healthy_backends += 1
+                                    else:
+                                        print(f"   ⚠️  {backend}: {status.get('status', 'unknown')}")
+                                
+                                print(f"� Overall Status: HEALTHY ({healthy_backends} backends healthy)")
+                                return 0
                             else:
-                                print(f"   ❌ {service}: Stopped")
-                    
-                        if running_services == total_services:
-                            print("📋 Overall Status: HEALTHY")
-                            print("🎉 All services are running!")
-                            return 0
-                        elif running_services > 0:
-                            print("📋 Overall Status: PARTIAL")
-                            print(f"📊 Summary: {running_services}/{total_services} services running")
-                            return 1
-                        else:
-                            print("📋 Overall Status: DEGRADED")
-                            print("⚠️  No services are running")
-                            return 1
+                                print("⚠️  Could not get backend health status")
+                        except Exception:
+                            print("⚠️  Backend health check unavailable")
+                        
+                        print("📋 Overall Status: RUNNING (limited status available)")
+                        return 0
                             
                     else:
-                        print("⚠️  Could not get service status from daemon API")
+                        print("⚠️  Daemon is running but API not responding properly")
+                        print("💡 Try restarting the daemon: ipfs-kit daemon restart")
                         return 1
                         
                 except Exception as e:
-                    print(f"⚠️  Error communicating with daemon: {e}")
+                    print(f"⚠️  Error communicating with daemon API: {e}")
+                    print("💡 Daemon process may be starting up or stuck")
                     return 1
                     
             else:
@@ -1367,10 +1456,33 @@ class FastCLI:
     async def _is_daemon_running(self, port: int = 9999) -> bool:
         """Check if the IPFS-Kit daemon is running."""
         try:
-            import requests
-            response = requests.get(f'http://localhost:{port}/health', timeout=2)
-            return response.status_code == 200
-        except:
+            import socket
+            
+            # Quick socket check first
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex(('localhost', port))
+            sock.close()
+            
+            if result != 0:
+                return False
+            
+            # If socket is open, try HTTP request with very short timeout
+            try:
+                import requests
+                response = requests.get(f'http://localhost:{port}/health', timeout=2)
+                return response.status_code == 200
+            except requests.exceptions.Timeout:
+                # Socket is open but HTTP not responding - daemon may be stuck
+                return False
+            except requests.exceptions.ConnectionError:
+                # Connection refused or reset
+                return False
+            except Exception:
+                # Any other error - assume not running properly
+                return False
+                
+        except Exception:
             return False
     
     async def _send_service_command(self, service: str, action: str, port: int = 9999) -> int:
@@ -1486,7 +1598,74 @@ class FastCLI:
             print(f"   Limit: {limit}")
         print(f"   Show metadata: {show_metadata}")
         
-        # Step 1: Try Apache Arrow IPC zero-copy access first
+        # Step 1: Try Parquet direct access (primary method)
+        try:
+            print("📊 Reading from Parquet files (lock-free)...")
+            from .parquet_data_reader import get_parquet_reader
+            
+            reader = get_parquet_reader()
+            result = reader.read_pins(limit=limit)
+            
+            if result['success'] and result['pins']:
+                pins = result['pins']
+                print(f"✅ Found {len(pins)} pins from Parquet data")
+                print(f"   📂 Source: {result.get('source', 'multiple files')}")
+                
+                for pin in pins:
+                    cid = pin.get('cid', '')
+                    name = pin.get('name', '')
+                    pin_type = pin.get('pin_type', 'recursive')
+                    size_bytes = pin.get('size_bytes', 0)
+                    timestamp = pin.get('timestamp', '')
+                    vfs_path = pin.get('vfs_path', '')
+                    access_count = pin.get('access_count', 0)
+                    
+                    print(f"\n🔹 {cid[:15]}...")
+                    if name:
+                        print(f"   Name: {name}")
+                    print(f"   Type: {pin_type}")
+                    if size_bytes and size_bytes > 0:
+                        print(f"   Size: {self._format_size(size_bytes)}")
+                    
+                    if show_metadata:
+                        if timestamp:
+                            print(f"   Created: {timestamp}")
+                        if vfs_path:
+                            print(f"   VFS Path: {vfs_path}")
+                        if access_count > 0:
+                            print(f"   Access Count: {access_count}")
+                        
+                        # Show additional metadata if available
+                        storage_tiers = pin.get('storage_tiers', [])
+                        if storage_tiers:
+                            print(f"   Storage Tiers: {storage_tiers}")
+                        
+                        primary_tier = pin.get('primary_tier', '')
+                        if primary_tier:
+                            print(f"   Primary Tier: {primary_tier}")
+                        
+                        integrity_status = pin.get('integrity_status', '')
+                        if integrity_status and integrity_status != 'unknown':
+                            print(f"   Integrity: {integrity_status}")
+                
+                print(f"\n🎯 Total: {len(pins)} pins (Parquet direct access)")
+                return 0
+                
+            elif result['success'] and not result['pins']:
+                print("📭 No pins found in Parquet data")
+                return 0
+            else:
+                print(f"⚠️  Parquet access failed: {result.get('error', 'Unknown error')}")
+                print("🔄 Trying zero-copy daemon access...")
+                
+        except ImportError as e:
+            print(f"⚠️  Parquet reader not available: {e}")
+            print("🔄 Falling back to daemon access...")
+        except Exception as e:
+            print(f"⚠️  Parquet access error: {e}")
+            print("🔄 Falling back to daemon access...")
+        
+        # Step 2: Try Apache Arrow IPC zero-copy access as fallback
         try:
             print("🚀 Attempting Apache Arrow IPC zero-copy access...")
             result = await self._try_zero_copy_access(limit)
@@ -1736,10 +1915,86 @@ class FastCLI:
         print("🚀 Zero-copy access enabled")
     
     async def cmd_metrics(self, detailed: bool = False):
-        """Show metrics using indices only - no heavy imports."""
-        print("📊 Performance Metrics (from ~/.ipfs_kit/ indices)")
+        """Show metrics using Parquet data - lock-free access."""
+        print("📊 Performance Metrics (from ~/.ipfs_kit/ Parquet data)")
         print("=" * 50)
         
+        try:
+            # Step 1: Try Parquet-based metrics (primary method)
+            from .parquet_data_reader import get_parquet_reader
+            
+            reader = get_parquet_reader()
+            metrics_result = reader.get_metrics()
+            
+            if metrics_result['success']:
+                metrics = metrics_result['metrics']
+                
+                # Pin metrics from Parquet
+                pin_metrics = metrics.get('pins', {})
+                print(f"📌 Pin Index Metrics:")
+                print(f"   Total pins: {pin_metrics.get('total_pins', 0)}")
+                print(f"   Total size: {pin_metrics.get('total_size_formatted', '0 B')}")
+                
+                if pin_metrics.get('sources'):
+                    print(f"   Parquet sources: {len(pin_metrics['sources'])}")
+                    if detailed:
+                        for source in pin_metrics['sources']:
+                            print(f"     • {source}")
+                
+                # WAL metrics from Parquet
+                wal_metrics = metrics.get('wal', {})
+                print(f"\n📝 WAL Metrics:")
+                print(f"   Total operations: {wal_metrics.get('total_operations', 0)}")
+                
+                if wal_metrics.get('status_breakdown'):
+                    for status, count in wal_metrics['status_breakdown'].items():
+                        print(f"   {status}: {count}")
+                
+                if detailed and wal_metrics.get('sources'):
+                    print(f"   Parquet files: {len(wal_metrics['sources'])}")
+                    for source in wal_metrics['sources'][:3]:  # Show first 3
+                        print(f"     • {source}")
+                    if len(wal_metrics['sources']) > 3:
+                        print(f"     • ... and {len(wal_metrics['sources']) - 3} more")
+                
+                # FS Journal metrics from Parquet
+                fs_metrics = metrics.get('fs_journal', {})
+                print(f"\n📁 FS Journal Metrics:")
+                print(f"   Total operations: {fs_metrics.get('total_operations', 0)}")
+                print(f"   Successful: {fs_metrics.get('successful_operations', 0)}")
+                print(f"   Failed: {fs_metrics.get('failed_operations', 0)}")
+                
+                if fs_metrics.get('total_operations', 0) > 0:
+                    print(f"   Success rate: {fs_metrics.get('success_rate', 0):.1f}%")
+                
+                # Storage metrics
+                storage_metrics = metrics.get('storage', {})
+                print(f"\n� Storage Metrics:")
+                print(f"   Parquet files: {storage_metrics.get('parquet_files', 0)}")
+                print(f"   DuckDB files: {storage_metrics.get('duckdb_files', 0)}")
+                print(f"   Total size: {storage_metrics.get('total_size_formatted', '0 B')}")
+                
+                if detailed:
+                    print(f"   Parquet size: {reader._format_size(storage_metrics.get('total_parquet_size_bytes', 0))}")
+                    print(f"   DuckDB size: {reader._format_size(storage_metrics.get('total_duckdb_size_bytes', 0))}")
+                    print(f"   Base path: {storage_metrics.get('base_path', '~/.ipfs_kit')}")
+                
+                print(f"\n✨ All metrics retrieved from Parquet files (lock-free)")
+                print(f"   📊 Timestamp: {metrics_result.get('timestamp', 'unknown')}")
+                return 0
+                
+            else:
+                print(f"⚠️  Parquet metrics failed: {metrics_result.get('error', 'Unknown error')}")
+                print("🔄 Falling back to database-based metrics...")
+                
+        except ImportError as e:
+            print(f"⚠️  Parquet reader not available: {e}")
+            print("🔄 Falling back to database-based metrics...")
+        except Exception as e:
+            print(f"⚠️  Parquet metrics error: {e}")
+            print("🔄 Falling back to database-based metrics...")
+        
+        # Fallback to original database-based metrics
         try:
             from pathlib import Path
             
@@ -1768,13 +2023,17 @@ class FastCLI:
                     except Exception:
                         pass  # Skip corrupted files
                 
-                print(f"\n🪣 Bucket Index Metrics:")
+                print(f"🪣 Bucket Index Metrics:")
                 print(f"   Total buckets: {total_buckets}")
                 print(f"   Total size: {total_size / (1024**3):.2f} GB")
                 print(f"   Index files: {len(bucket_files)}")
                 print(f"   Index source: ~/.ipfs_kit/bucket_index/")
             else:
-                print(f"\n🪣 Bucket Index: Not yet created")
+                print(f"🪣 Bucket Index Metrics:")
+                print(f"   Total buckets: 0")
+                print(f"   Total size: 0.00 GB")
+                print(f"   Index files: 0")
+                print(f"   Index source: ~/.ipfs_kit/bucket_index/")
             
             # Pin index metrics (lightweight database check)
             pin_db_dir = ipfs_kit_dir / 'pin_metadata'
@@ -3356,12 +3615,91 @@ async def main():
                 print("✅ Health status functionality would be implemented here")
                 return 0
         
-        # Config commands - leveraging cached config from ~/.ipfs_kit/
+        # Config commands - leveraging real config from ~/.ipfs_kit/
         elif args.command == 'config':
             if args.config_action == 'show':
-                print("⚙️  Current configuration (from ~/.ipfs_kit/ indices)...")
+                print("⚙️  Current configuration (from ~/.ipfs_kit/ files)...")
                 
-                # Show daemon configuration
+                # Try Parquet data reader for configuration access
+                try:
+                    import sys
+                    from pathlib import Path
+                    
+                    # Add package to path for import
+                    package_root = Path(__file__).parent
+                    sys.path.insert(0, str(package_root.parent))
+                    from ipfs_kit_py.parquet_data_reader import get_parquet_reader
+                    
+                    reader = get_parquet_reader()
+                    config_result = reader.read_configuration()
+                    
+                    if config_result['success']:
+                        config = config_result['config']
+                        
+                        # Show daemon configuration
+                        daemon_config = config.get('package', {})
+                        daemon_port = daemon_config.get('daemon', {}).get('port', reader.get_config_value('daemon.port', 9999))
+                        daemon_auto_start = daemon_config.get('daemon', {}).get('auto_start', reader.get_config_value('daemon.auto_start', True))
+                        
+                        print(f"📡 Daemon:")
+                        print(f"   Port: {daemon_port}")
+                        print(f"   Auto-start: {daemon_auto_start}")
+                        
+                        # Show S3 configuration (if available)
+                        s3_config = config.get('s3', {})
+                        if s3_config:
+                            print(f"☁️  S3:")
+                            print(f"   Region: {s3_config.get('region', 'us-east-1')}")
+                            print(f"   Endpoint: {s3_config.get('endpoint_url', 'Default AWS')}")
+                            if s3_config.get('bucket_name'):
+                                print(f"   Default Bucket: {s3_config['bucket_name']}")
+                        
+                        # Show Lotus configuration
+                        lotus_config = config.get('lotus', {})
+                        if lotus_config:
+                            print(f"🪷 Lotus:")
+                            print(f"   Node URL: {lotus_config.get('node_url', 'Not configured')}")
+                            print(f"   Token: {'*' * 8 if lotus_config.get('token') else 'Not set'}")
+                        
+                        # Show package configuration
+                        package_config = config.get('package', {})
+                        if package_config:
+                            print(f"📦 Package:")
+                            print(f"   Version: {package_config.get('version', 'Unknown')}")
+                            if package_config.get('ipfs_path'):
+                                print(f"   IPFS Path: {package_config['ipfs_path']}")
+                        
+                        # Show WAL configuration
+                        wal_config = config.get('wal', {})
+                        if wal_config:
+                            print(f"📝 WAL:")
+                            print(f"   Enabled: {wal_config.get('enabled', False)}")
+                            print(f"   Batch Size: {wal_config.get('batch_size', 100)}")
+                        
+                        # Show FS Journal configuration
+                        fs_config = config.get('fs_journal', {})
+                        if fs_config:
+                            print(f"📁 FS Journal:")
+                            print(f"   Enabled: {fs_config.get('enabled', False)}")
+                            print(f"   Monitor Path: {fs_config.get('monitor_path', 'Not set')}")
+                        
+                        print(f"\n📂 Configuration sources: {len(config_result['sources'])} files")
+                        for source in config_result['sources']:
+                            print(f"   • {source}")
+                        
+                        return 0
+                    else:
+                        print(f"⚠️  Config data access failed: {config_result.get('error', 'Unknown error')}")
+                        print("🔄 Falling back to default values...")
+                        
+                except ImportError as e:
+                    print(f"⚠️  Config reader not available: {e}")
+                    print("🔄 Using default configuration...")
+                except Exception as e:
+                    print(f"⚠️  Config access error: {e}")
+                    print("🔄 Using default configuration...")
+                
+                # Fallback to default values if Parquet reader fails
                 daemon_port = cli.get_config_value('daemon.port', 9999)
                 daemon_auto_start = cli.get_config_value('daemon.auto_start', True)
                 
@@ -3384,9 +3722,58 @@ async def main():
                 
                 return 0
             elif args.config_action == 'validate':
-                print("✅ Configuration validation (checking ~/.ipfs_kit/ indices)...")
+                print("✅ Configuration validation (using real ~/.ipfs_kit/ files)...")
                 
-                # Validate config files exist and are readable
+                # Try Parquet data reader for configuration validation
+                try:
+                    import sys
+                    from pathlib import Path
+                    
+                    # Add package to path for import
+                    package_root = Path(__file__).parent
+                    sys.path.insert(0, str(package_root.parent))
+                    from ipfs_kit_py.parquet_data_reader import get_parquet_reader
+                    
+                    reader = get_parquet_reader()
+                    config_result = reader.read_configuration()
+                    
+                    if config_result['success']:
+                        config = config_result['config']
+                        sources = config_result['sources']
+                        
+                        print(f"📁 Configuration directory: {reader.base_path}")
+                        print(f"✅ Found {len(sources)} configuration files:")
+                        
+                        for source in sources:
+                            print(f"   ✅ {Path(source).name}: Valid")
+                        
+                        # Show configuration summary
+                        if 'package' in config:
+                            print(f"📦 Package config: ✅")
+                        if 's3' in config:
+                            print(f"☁️  S3 config: ✅")
+                        if 'lotus' in config:
+                            print(f"🪷 Lotus config: ✅")
+                        if 'wal' in config:
+                            print(f"📝 WAL config: ✅")
+                        if 'fs_journal' in config:
+                            print(f"📁 FS Journal config: ✅")
+                        
+                        print(f"\n📊 Summary: {len(config) - 1} valid configuration sections")  # -1 for _meta
+                        return 0
+                    else:
+                        print(f"❌ Configuration validation failed: {config_result.get('error', 'Unknown error')}")
+                        print("🔄 Falling back to basic validation...")
+                        
+                except ImportError as e:
+                    print(f"⚠️  Config reader not available: {e}")
+                    print("🔄 Using basic validation...")
+                except Exception as e:
+                    print(f"⚠️  Config validation error: {e}")
+                    print("🔄 Using basic validation...")
+                
+                # Fallback validation
+                from pathlib import Path
                 config_dir = Path.home() / '.ipfs_kit'
                 if not config_dir.exists():
                     print("❌ Configuration directory ~/.ipfs_kit/ does not exist")
@@ -3593,7 +3980,39 @@ async def main():
 def sync_main():
     """Synchronous entry point for setuptools console scripts."""
     import asyncio
-    exit_code = asyncio.run(main())
+    import sys
+    import platform
+    
+    try:
+        # Check if we're already in an event loop
+        try:
+            loop = asyncio.get_running_loop()
+            # We're in an event loop, this shouldn't happen for CLI scripts
+            # but let's handle it gracefully
+            print("Warning: Already in event loop, using thread executor", file=sys.stderr)
+            import concurrent.futures
+            import threading
+            
+            def run_main():
+                return asyncio.run(main())
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(run_main)
+                exit_code = future.result(timeout=30)
+                
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run()
+            exit_code = asyncio.run(main())
+            
+    except KeyboardInterrupt:
+        print("\n❌ Interrupted by user", file=sys.stderr)
+        exit_code = 130
+    except Exception as e:
+        print(f"❌ Fatal error in CLI: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        exit_code = 1
+    
     sys.exit(exit_code)
 
 if __name__ == "__main__":

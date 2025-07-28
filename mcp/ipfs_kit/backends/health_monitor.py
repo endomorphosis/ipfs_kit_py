@@ -503,7 +503,7 @@ class BackendHealthMonitor:
 
                 # Get comprehensive IPFS metrics using pin metadata index
                 try:
-                    if self.enhanced_pin_index:
+                    if self.enhanced_pin_index and self.pin_metadata_index:
                         # Use enhanced metrics with VFS and analytics
                         traffic_metrics = self.pin_metadata_index.get_comprehensive_metrics()
                         cache_stats = self.pin_metadata_index.get_performance_metrics()
@@ -533,7 +533,7 @@ class BackendHealthMonitor:
                             "vfs_operations_today": vfs_analytics.get("operations_summary", {}),
                             "mount_points_active": len(vfs_analytics.get("mount_points", {}))
                         })
-                    else:
+                    elif self.pin_metadata_index:
                         # Use basic metrics
                         traffic_metrics = self.pin_metadata_index.get_traffic_metrics()
                         cache_stats = self.pin_metadata_index.get_cache_stats()
@@ -548,15 +548,16 @@ class BackendHealthMonitor:
                             "pin_cache_age_seconds": cache_stats.get("last_update_age", 0)
                         })
                     
-                    # Update detailed info with cached pin data
-                    backend["detailed_info"].update({
-                        "pins_count": traffic_metrics.total_pins,
-                        "repo_size_gb": round(traffic_metrics.total_size_bytes / (1024**3), 2),
-                        "bandwidth_estimate_gb": round(traffic_metrics.bandwidth_estimate_bytes / (1024**3), 2),
-                        "hot_pins": traffic_metrics.hot_pins[:5],  # Top 5 most accessed
-                        "performance_optimized": True,
-                        "using_pin_metadata_cache": True
-                    })
+                    # Update detailed info with cached pin data if pin_metadata_index is available
+                    if self.pin_metadata_index:
+                        backend["detailed_info"].update({
+                            "pins_count": traffic_metrics.total_pins,
+                            "repo_size_gb": round(traffic_metrics.total_size_bytes / (1024**3), 2),
+                            "bandwidth_estimate_gb": round(traffic_metrics.bandwidth_estimate_bytes / (1024**3), 2),
+                            "hot_pins": traffic_metrics.hot_pins[:5],  # Top 5 most accessed
+                            "performance_optimized": True,
+                            "using_pin_metadata_cache": True
+                        })
                     
                 except Exception as pin_index_e:
                     logger.warning(f"Could not get IPFS metrics from pin index: {pin_index_e}")
@@ -1761,17 +1762,23 @@ class BackendHealthMonitor:
             
             # Get IPFS metrics from pin metadata index (fast, non-blocking)
             try:
-                traffic_metrics = self.pin_metadata_index.get_traffic_metrics()
-                cache_stats = self.pin_metadata_index.get_cache_stats()
-                
-                # Add IPFS data from pin metadata
-                ipfs_storage = traffic_metrics.total_size_bytes
-                ipfs_objects = traffic_metrics.total_pins
-                ipfs_bandwidth = traffic_metrics.bandwidth_estimate_bytes
-                
-                total_storage_bytes += ipfs_storage
-                total_objects += ipfs_objects
-                total_bandwidth_in_bytes += ipfs_bandwidth
+                if self.pin_metadata_index:
+                    traffic_metrics = self.pin_metadata_index.get_traffic_metrics()
+                    cache_stats = self.pin_metadata_index.get_cache_stats()
+                    
+                    # Add IPFS data from pin metadata
+                    ipfs_storage = traffic_metrics.total_size_bytes
+                    ipfs_objects = traffic_metrics.total_pins
+                    ipfs_bandwidth = traffic_metrics.bandwidth_estimate_bytes
+                    
+                    total_storage_bytes += ipfs_storage
+                    total_objects += ipfs_objects
+                    total_bandwidth_in_bytes += ipfs_bandwidth
+                else:
+                    # No pin metadata index available - use defaults
+                    ipfs_storage = 0
+                    ipfs_objects = 0
+                    ipfs_bandwidth = 0
                 
                 backend_breakdown["ipfs"] = {
                     "storage_bytes": ipfs_storage,

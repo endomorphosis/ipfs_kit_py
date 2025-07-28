@@ -367,7 +367,9 @@ class BackendLogManager:
         
         with self.log_lock:
             for backend_name, logs in self.memory_logs.items():
-                for log_entry in logs:
+                # Create a safe copy of the deque to avoid iteration issues
+                logs_copy = list(logs)
+                for log_entry in logs_copy:
                     try:
                         log_time = datetime.fromisoformat(log_entry['timestamp'])
                         if log_time > cutoff_time:
@@ -385,7 +387,9 @@ class BackendLogManager:
         
         with self.log_lock:
             for backend_name, logs in self.memory_logs.items():
-                for log_entry in logs:
+                # Create a safe copy of the deque to avoid iteration issues
+                logs_copy = list(logs)
+                for log_entry in logs_copy:
                     if log_entry['level'] in ['ERROR', 'WARNING', 'CRITICAL']:
                         error_logs.append(log_entry)
         
@@ -411,7 +415,9 @@ class BackendLogManager:
                     "last_entry": None
                 }
                 
-                for log_entry in logs:
+                # Create a safe copy of the deque to avoid iteration issues
+                logs_copy = list(logs)
+                for log_entry in logs_copy:
                     backend_stats["levels"][log_entry['level']] += 1
                     if not backend_stats["last_entry"] or log_entry['timestamp'] > backend_stats["last_entry"]:
                         backend_stats["last_entry"] = log_entry['timestamp']
@@ -436,7 +442,9 @@ class BackendLogManager:
         
         with self.log_lock:
             for logs in self.memory_logs.values():
-                for log_entry in logs:
+                # Create a safe copy of the deque to avoid iteration issues
+                logs_copy = list(logs)
+                for log_entry in logs_copy:
                     log_time = datetime.fromisoformat(log_entry['timestamp'])
                     time_diff = now - log_time
                     
@@ -455,7 +463,9 @@ class BackendLogManager:
         
         with self.log_lock:
             for logs in self.memory_logs.values():
-                for log_entry in logs:
+                # Create a safe copy of the deque to avoid iteration issues
+                logs_copy = list(logs)
+                for log_entry in logs_copy:
                     if log_entry['level'] in ['ERROR', 'WARNING', 'CRITICAL']:
                         summary[log_entry['level']] += 1
         
@@ -505,3 +515,27 @@ class BackendLogManager:
         except Exception as e:
             logger.error(f"Failed to export logs: {e}")
             raise
+
+    async def collect_all_backend_logs(self):
+        """Async method to collect logs from all backends.
+        
+        This method leverages the background log collector that runs every 5 seconds,
+        so it's lightweight and fast. If you need fresh data, the background collector
+        will have the latest logs within 5 seconds.
+        """
+        try:
+            # Instead of re-running expensive system calls, just ensure the background
+            # collector is working and return the current state
+            with self.log_lock:
+                total_logs = sum(len(logs) for logs in self.memory_logs.values())
+                
+            logger.debug(f"Backend logs collected: {len(self.memory_logs)} backends, {total_logs} total entries")
+            
+            # If memory_logs is empty, do a one-time collection
+            # (this handles the case where the background collector hasn't run yet)
+            if total_logs == 0:
+                logger.info("No logs in memory, running one-time collection...")
+                self._collect_system_logs()
+            
+        except Exception as e:
+            logger.error(f"Error collecting backend logs: {e}")

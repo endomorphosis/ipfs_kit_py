@@ -351,6 +351,7 @@ class IPFSKitDaemon:
             try:
                 # Collect logs every 60 seconds
                 if self.log_manager:
+                    # Use the async log collection method
                     await self.log_manager.collect_all_backend_logs()
                 
                 await asyncio.sleep(60)
