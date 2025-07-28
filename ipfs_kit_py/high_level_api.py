@@ -884,6 +884,311 @@ class IPFSSimpleAPI:
             correlation_id=correlation_id
         )
 
+    # Fast Index Integration Methods
+    def wal_get_status(self):
+        """Get WAL status using fast index for instant response."""
+        try:
+            from wal_fast_index import FastWALReader
+            reader = FastWALReader()
+            return reader.get_status()
+        except ImportError:
+            return {"error": "WAL fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def wal_list_pending_operations(self, limit=20):
+        """List pending WAL operations using fast index."""
+        try:
+            from wal_fast_index import FastWALReader
+            reader = FastWALReader()
+            return reader.list_pending_operations(limit=limit)
+        except ImportError:
+            return {"error": "WAL fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def wal_list_failed_operations(self, limit=20):
+        """List failed WAL operations using fast index."""
+        try:
+            from wal_fast_index import FastWALReader
+            reader = FastWALReader()
+            return reader.list_failed_operations(limit=limit)
+        except ImportError:
+            return {"error": "WAL fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def wal_get_statistics(self, hours=24):
+        """Get WAL statistics using fast index."""
+        try:
+            from wal_fast_index import FastWALReader
+            reader = FastWALReader()
+            return reader.get_statistics(hours=hours)
+        except ImportError:
+            return {"error": "WAL fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def wal_health_check(self):
+        """Check WAL health using fast index."""
+        try:
+            from wal_fast_index import FastWALReader
+            reader = FastWALReader()
+            return reader.health_check()
+        except ImportError:
+            return {"error": "WAL fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def wal_get_operation(self, operation_id):
+        """Get specific WAL operation details using fast index."""
+        try:
+            from wal_fast_index import FastWALReader
+            reader = FastWALReader()
+            return reader.get_operation(operation_id)
+        except ImportError:
+            return {"error": "WAL fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def fs_journal_get_status(self):
+        """Get FS Journal status using fast index for instant response."""
+        try:
+            from fs_journal_fast_index import FastFSJournalReader
+            reader = FastFSJournalReader()
+            return reader.get_status()
+        except ImportError:
+            return {"error": "FS Journal fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def fs_journal_list_recent_operations(self, limit=20, hours=24):
+        """List recent FS Journal operations using fast index."""
+        try:
+            from fs_journal_fast_index import FastFSJournalReader
+            reader = FastFSJournalReader()
+            return reader.list_recent_operations(limit=limit, hours=hours)
+        except ImportError:
+            return {"error": "FS Journal fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def fs_journal_list_failed_operations(self, limit=20, hours=24):
+        """List failed FS Journal operations using fast index."""
+        try:
+            from fs_journal_fast_index import FastFSJournalReader
+            reader = FastFSJournalReader()
+            return reader.list_failed_operations(limit=limit, hours=hours)
+        except ImportError:
+            return {"error": "FS Journal fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def fs_journal_list_virtual_files(self, path_prefix="", limit=50):
+        """List virtual filesystem files using fast index."""
+        try:
+            from fs_journal_fast_index import FastFSJournalReader
+            reader = FastFSJournalReader()
+            return reader.list_virtual_files(path_prefix=path_prefix, limit=limit)
+        except ImportError:
+            return {"error": "FS Journal fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def fs_journal_get_file_info(self, path):
+        """Get specific file information using fast index."""
+        try:
+            from fs_journal_fast_index import FastFSJournalReader
+            reader = FastFSJournalReader()
+            return reader.get_file_info(path)
+        except ImportError:
+            return {"error": "FS Journal fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def fs_journal_get_statistics(self, hours=24):
+        """Get FS Journal statistics using fast index."""
+        try:
+            from fs_journal_fast_index import FastFSJournalReader
+            reader = FastFSJournalReader()
+            return reader.get_statistics(hours=hours)
+        except ImportError:
+            return {"error": "FS Journal fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+    
+    def fs_journal_health_check(self):
+        """Check FS Journal health using fast index."""
+        try:
+            from fs_journal_fast_index import FastFSJournalReader
+            reader = FastFSJournalReader()
+            return reader.health_check()
+        except ImportError:
+            return {"error": "FS Journal fast index not available", "success": False}
+        except Exception as e:
+            return {"error": str(e), "success": False}
+
+    # Resource Tracking Integration Methods - Fast Index for Bandwidth and Storage Monitoring
+    
+    def resource_get_usage_summary(self, backend_name: str = None, backend_type: str = None, period: str = 'day'):
+        """Get resource usage summary using fast index."""
+        try:
+            from .resource_tracker import get_resource_tracker, BackendType
+            tracker = get_resource_tracker()
+            
+            backend_type_enum = BackendType(backend_type) if backend_type else None
+            summary = tracker.get_resource_summary(
+                backend_name=backend_name,
+                backend_type=backend_type_enum,
+                period=period
+            )
+            summary['fast_index'] = True
+            return summary
+        except ImportError:
+            return {"error": "Resource tracking not available", "fast_index": False}
+        except Exception as e:
+            return {"error": str(e), "fast_index": False}
+    
+    def resource_get_usage_details(self, backend_name: str = None, backend_type: str = None, 
+                                  resource_type: str = None, hours_back: int = 24, limit: int = 1000):
+        """Get detailed resource usage using fast index."""
+        try:
+            from .resource_tracker import get_resource_tracker, BackendType, ResourceType
+            tracker = get_resource_tracker()
+            
+            backend_type_enum = BackendType(backend_type) if backend_type else None
+            resource_type_enum = ResourceType(resource_type) if resource_type else None
+            
+            details = tracker.get_resource_usage(
+                backend_name=backend_name,
+                backend_type=backend_type_enum,
+                resource_type=resource_type_enum,
+                hours_back=hours_back,
+                limit=limit
+            )
+            return {"usage_details": details, "fast_index": True}
+        except ImportError:
+            return {"error": "Resource tracking not available", "fast_index": False}
+        except Exception as e:
+            return {"error": str(e), "fast_index": False}
+    
+    def resource_get_backend_status(self, backend_name: str = None):
+        """Get backend status using fast index."""
+        try:
+            from .resource_tracker import get_resource_tracker
+            tracker = get_resource_tracker()
+            
+            status = tracker.get_backend_status(backend_name=backend_name)
+            return {"backend_status": status, "fast_index": True}
+        except ImportError:
+            return {"error": "Resource tracking not available", "fast_index": False}
+        except Exception as e:
+            return {"error": str(e), "fast_index": False}
+    
+    def resource_track_bandwidth_upload(self, backend_name: str, backend_type: str, 
+                                       bytes_uploaded: int, operation_id: str = None, file_path: str = None):
+        """Track bandwidth upload using fast index."""
+        try:
+            from .resource_tracker import track_bandwidth_upload, BackendType
+            backend_type_enum = BackendType(backend_type)
+            
+            success = track_bandwidth_upload(
+                backend_name=backend_name,
+                backend_type=backend_type_enum,
+                bytes_uploaded=bytes_uploaded,
+                operation_id=operation_id,
+                file_path=file_path
+            )
+            return {"success": success, "fast_index": True}
+        except ImportError:
+            return {"error": "Resource tracking not available", "fast_index": False}
+        except Exception as e:
+            return {"error": str(e), "fast_index": False}
+    
+    def resource_track_bandwidth_download(self, backend_name: str, backend_type: str, 
+                                         bytes_downloaded: int, operation_id: str = None, file_path: str = None):
+        """Track bandwidth download using fast index."""
+        try:
+            from .resource_tracker import track_bandwidth_download, BackendType
+            backend_type_enum = BackendType(backend_type)
+            
+            success = track_bandwidth_download(
+                backend_name=backend_name,
+                backend_type=backend_type_enum,
+                bytes_downloaded=bytes_downloaded,
+                operation_id=operation_id,
+                file_path=file_path
+            )
+            return {"success": success, "fast_index": True}
+        except ImportError:
+            return {"error": "Resource tracking not available", "fast_index": False}
+        except Exception as e:
+            return {"error": str(e), "fast_index": False}
+    
+    def resource_track_storage_usage(self, backend_name: str, backend_type: str, 
+                                    bytes_stored: int, operation_id: str = None, file_path: str = None):
+        """Track storage usage using fast index."""
+        try:
+            from .resource_tracker import track_storage_usage, BackendType
+            backend_type_enum = BackendType(backend_type)
+            
+            success = track_storage_usage(
+                backend_name=backend_name,
+                backend_type=backend_type_enum,
+                bytes_stored=bytes_stored,
+                operation_id=operation_id,
+                file_path=file_path
+            )
+            return {"success": success, "fast_index": True}
+        except ImportError:
+            return {"error": "Resource tracking not available", "fast_index": False}
+        except Exception as e:
+            return {"error": str(e), "fast_index": False}
+    
+    def resource_track_api_call(self, backend_name: str, backend_type: str, 
+                               operation_id: str = None, metadata: dict = None):
+        """Track API call using fast index."""
+        try:
+            from .resource_tracker import track_api_call, BackendType
+            backend_type_enum = BackendType(backend_type)
+            
+            success = track_api_call(
+                backend_name=backend_name,
+                backend_type=backend_type_enum,
+                operation_id=operation_id,
+                metadata=metadata
+            )
+            return {"success": success, "fast_index": True}
+        except ImportError:
+            return {"error": "Resource tracking not available", "fast_index": False}
+        except Exception as e:
+            return {"error": str(e), "fast_index": False}
+    
+    def resource_update_backend_status(self, backend_name: str, backend_type: str, 
+                                      is_active: bool = True, bandwidth_usage_mbps: float = None,
+                                      storage_usage_gb: float = None, health_status: str = 'healthy',
+                                      metadata: dict = None):
+        """Update backend status using fast index."""
+        try:
+            from .resource_tracker import get_resource_tracker, BackendType
+            tracker = get_resource_tracker()
+            backend_type_enum = BackendType(backend_type)
+            
+            success = tracker.update_backend_status(
+                backend_name=backend_name,
+                backend_type=backend_type_enum,
+                is_active=is_active,
+                bandwidth_usage_mbps=bandwidth_usage_mbps,
+                storage_usage_gb=storage_usage_gb,
+                health_status=health_status,
+                metadata=metadata
+            )
+            return {"success": success, "fast_index": True}
+        except ImportError:
+            return {"error": "Resource tracking not available", "fast_index": False}
+        except Exception as e:
+            return {"error": str(e), "fast_index": False}
+
         
     def save_config(self, config_path: str) -> Dict[str, Any]:
         """

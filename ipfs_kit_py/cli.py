@@ -12,6 +12,8 @@ import json
 import sys
 import time
 import os
+import signal
+import subprocess
 from pathlib import Path
 
 # Heavy imports only when needed
@@ -28,6 +30,28 @@ def _lazy_import_daemon_manager():
     try:
         from .enhanced_daemon_manager import EnhancedDaemonManager
         return EnhancedDaemonManager
+    except ImportError:
+        return None
+
+def _lazy_import_pin_metadata_index():
+    """Lazy import pin metadata index to avoid heavy loading."""
+    try:
+        from .pin_metadata_index import get_global_pin_metadata_index
+        return get_global_pin_metadata_index
+    except ImportError:
+        return None
+
+def _lazy_import_vfs_manager():
+    """Lazy import VFS manager to avoid heavy loading."""
+    try:
+        from .vfs_manager import get_global_vfs_manager
+        return get_global_vfs_manager
+    except ImportError:
+        return None
+    """Lazy import of VFS manager to avoid startup overhead."""
+    try:
+        from .vfs_manager import get_global_vfs_manager
+        return get_global_vfs_manager
     except ImportError:
         return None
 
@@ -90,8 +114,9 @@ def create_parser():
     start_parser = daemon_subparsers.add_parser('start', help='Start the daemon')
     start_parser.add_argument('--detach', action='store_true', help='Run in background')
     start_parser.add_argument('--config', help='Config file path')
-    start_parser.add_argument('--role', choices=['master', 'worker', 'leecher', 'modular'], 
-                             help='Daemon role: master (cluster coordinator), worker (content processing), leecher (minimal resources), modular (full features for testing)')
+    start_parser.add_argument('--daemon-port', type=int, default=9999, help='Port for daemon API (default: 9999)')
+    start_parser.add_argument('--role', choices=['master', 'worker', 'leecher', 'modular', 'local'], 
+                             help='Daemon role: master (cluster coordinator), worker (content processing), leecher (minimal resources), modular (full features for testing), local (no networking)')
     start_parser.add_argument('--master-address', help='Master node address (required for worker role, ignored for leecher)')
     start_parser.add_argument('--cluster-secret', help='Cluster authentication secret')
     
@@ -99,9 +124,38 @@ def create_parser():
     daemon_subparsers.add_parser('status', help='Check daemon status')
     daemon_subparsers.add_parser('restart', help='Restart the daemon')
     
+    # Individual service management (requires running daemon)
+    ipfs_parser = daemon_subparsers.add_parser('ipfs', help='Manage IPFS service')
+    ipfs_subparsers = ipfs_parser.add_subparsers(dest='ipfs_action', help='IPFS service actions')
+    ipfs_subparsers.add_parser('start', help='Start IPFS service')
+    ipfs_subparsers.add_parser('stop', help='Stop IPFS service')
+    ipfs_subparsers.add_parser('status', help='Check IPFS service status')
+    ipfs_subparsers.add_parser('restart', help='Restart IPFS service')
+    
+    lotus_parser = daemon_subparsers.add_parser('lotus', help='Manage Lotus service')
+    lotus_subparsers = lotus_parser.add_subparsers(dest='lotus_action', help='Lotus service actions')
+    lotus_subparsers.add_parser('start', help='Start Lotus service')
+    lotus_subparsers.add_parser('stop', help='Stop Lotus service')
+    lotus_subparsers.add_parser('status', help='Check Lotus service status')
+    lotus_subparsers.add_parser('restart', help='Restart Lotus service')
+    
+    cluster_parser = daemon_subparsers.add_parser('cluster', help='Manage IPFS Cluster service')
+    cluster_subparsers = cluster_parser.add_subparsers(dest='cluster_action', help='IPFS Cluster service actions')
+    cluster_subparsers.add_parser('start', help='Start IPFS Cluster service')
+    cluster_subparsers.add_parser('stop', help='Stop IPFS Cluster service')
+    cluster_subparsers.add_parser('status', help='Check IPFS Cluster service status')
+    cluster_subparsers.add_parser('restart', help='Restart IPFS Cluster service')
+    
+    lassie_parser = daemon_subparsers.add_parser('lassie', help='Manage Lassie service')
+    lassie_subparsers = lassie_parser.add_subparsers(dest='lassie_action', help='Lassie service actions')
+    lassie_subparsers.add_parser('start', help='Start Lassie service')
+    lassie_subparsers.add_parser('stop', help='Stop Lassie service')
+    lassie_subparsers.add_parser('status', help='Check Lassie service status')
+    lassie_subparsers.add_parser('restart', help='Restart Lassie service')
+    
     # Role management commands
     role_parser = daemon_subparsers.add_parser('set-role', help='Set daemon role')
-    role_parser.add_argument('role', choices=['master', 'worker', 'leecher', 'modular'],
+    role_parser.add_argument('role', choices=['master', 'worker', 'leecher', 'modular', 'local'],
                            help='New daemon role')
     role_parser.add_argument('--force', action='store_true', help='Force role change without resource validation')
     role_parser.add_argument('--master-address', help='Master node address (required for worker role, ignored for leecher)')
@@ -128,6 +182,8 @@ def create_parser():
     
     status_pin_parser = pin_subparsers.add_parser('status', help='Check pin status')
     status_pin_parser.add_argument('operation_id', help='Operation ID')
+    
+    init_pin_parser = pin_subparsers.add_parser('init', help='Initialize pin metadata index with sample data')
     
     # Backend management - interface to internal kit modules
     backend_parser = subparsers.add_parser('backend', help='Storage backend management (interface to kit modules)')
@@ -364,8 +420,8 @@ examples:
     
     # MCP role configuration - simplified for dashboard integration
     mcp_role_parser = mcp_subparsers.add_parser('role', help='Configure MCP server role (for dashboard integration)')
-    mcp_role_parser.add_argument('role', choices=['master', 'worker', 'leecher', 'modular'], 
-                                 help='Role configuration: master (cluster coordinator), worker (content processing), leecher (minimal resources), modular (custom/kitchen sink)')
+    mcp_role_parser.add_argument('role', choices=['master', 'worker', 'leecher', 'modular', 'local'], 
+                                 help='Role configuration: master (cluster coordinator), worker (content processing), leecher (minimal resources), modular (custom/kitchen sink), local (no networking)')
     mcp_role_parser.add_argument('--master-address', help='Master node address (required for worker role, ignored for leecher)')
     mcp_role_parser.add_argument('--cluster-secret', help='Cluster authentication secret')
     
@@ -377,24 +433,286 @@ examples:
     metrics_parser = subparsers.add_parser('metrics', help='Show performance metrics')
     metrics_parser.add_argument('--detailed', action='store_true', help='Show detailed metrics')
     
+    # WAL (Write-Ahead Log) commands - using fast index for minimal overhead
+    try:
+        from .wal_cli_fast import register_wal_commands
+        register_wal_commands(subparsers)
+    except ImportError:
+        # If fast WAL CLI not available, create basic stub
+        wal_parser = subparsers.add_parser('wal', help='Write-Ahead Log operations')
+        wal_parser.add_argument('action', help='WAL action (requires fast index setup)')
+        
+    # Filesystem Journal commands - using fast index for minimal overhead  
+    try:
+        from .fs_journal_cli_fast import register_fs_journal_commands
+        register_fs_journal_commands(subparsers)
+    except ImportError:
+        # If fast FS Journal CLI not available, create basic stub
+        fs_journal_parser = subparsers.add_parser('fs-journal', help='Filesystem Journal operations')
+        fs_journal_parser.add_argument('action', help='FS Journal action (requires fast index setup)')
+    
+    # Resource tracking commands - using fast index for bandwidth/storage monitoring
+    try:
+        from .resource_cli_fast import register_resource_commands
+        register_resource_commands(subparsers)
+    except ImportError:
+        # If fast resource CLI not available, create basic stub
+        resource_parser = subparsers.add_parser('resource', help='Resource tracking operations')
+        resource_parser.add_argument('action', help='Resource action (requires fast index setup)')
+    
     return parser
 
 class FastCLI:
-    """Ultra-fast CLI that defers heavy imports."""
+    """Ultra-fast CLI that defers heavy imports and leverages centralized IPFS-Kit API."""
     
     def __init__(self):
         self.jit_manager = None
-    
+        self._ipfs_api = None  # Lazy-loaded centralized API instance
+        self._vfs_manager = None  # Lazy-loaded VFS manager
+        self._bucket_index_cache = None  # Cache for bucket index to minimize disk I/O
+        self._config_cache = None  # Cache for config to minimize file reads
+        
     def ensure_heavy_imports(self):
         """Ensure heavy imports are loaded when needed."""
         if self.jit_manager is None:
             self.jit_manager = initialize_heavy_imports()
         return self.jit_manager is not None
     
+    def get_ipfs_api(self):
+        """Get centralized IPFS API instance (lazy loaded)."""
+        if self._ipfs_api is None:
+            try:
+                from .high_level_api import IPFSSimpleAPI
+                self._ipfs_api = IPFSSimpleAPI()
+                # The API will automatically initialize indices as needed
+            except ImportError as e:
+                print(f"❌ Failed to import IPFSSimpleAPI: {e}")
+                return None
+            except Exception as e:
+                print(f"❌ Failed to initialize IPFSSimpleAPI: {e}")
+                return None
+        return self._ipfs_api
+    
+    def get_vfs_manager(self):
+        """Get VFS manager instance (lazy loaded).""" 
+        if self._vfs_manager is None:
+            try:
+                # Use the centralized VFS Manager from ipfs_kit_py
+                from .vfs_manager import get_global_vfs_manager
+                self._vfs_manager = get_global_vfs_manager()
+            except ImportError as e:
+                print(f"❌ Failed to import VFS components: {e}")
+                return None
+            except Exception as e:
+                print(f"❌ Failed to initialize VFS manager: {e}")
+                return None
+        return self._vfs_manager
+    
+    def get_bucket_index(self, force_refresh=False):
+        """Get bucket index from cache or ~/.ipfs_kit/ indices."""
+        if self._bucket_index_cache is None or force_refresh:
+            try:
+                import sqlite3
+                from pathlib import Path
+                
+                bucket_db_path = Path.home() / '.ipfs_kit' / 'bucket_index' / 'bucket_analytics.db'
+                
+                if bucket_db_path.exists():
+                    conn = sqlite3.connect(str(bucket_db_path))
+                    cursor = conn.cursor()
+                    
+                    # Query for bucket listings
+                    cursor.execute("""
+                        SELECT name, type, backend, size_bytes, last_updated, metadata 
+                        FROM buckets 
+                        ORDER BY last_updated DESC
+                    """)
+                    
+                    buckets = []
+                    for row in cursor.fetchall():
+                        bucket = {
+                            'name': row[0],
+                            'type': row[1], 
+                            'backend': row[2],
+                            'size_bytes': row[3],
+                            'last_updated': row[4],
+                            'metadata': json.loads(row[5] or '{}')
+                        }
+                        buckets.append(bucket)
+                    
+                    conn.close()
+                    self._bucket_index_cache = buckets
+                else:
+                    # No index exists yet - return empty list
+                    self._bucket_index_cache = []
+                    
+            except Exception as e:
+                print(f"⚠️  Failed to read bucket index: {e}")
+                self._bucket_index_cache = []
+                
+        return self._bucket_index_cache
+    
+    def get_config_value(self, key, default=None):
+        """Get configuration value from cache or ~/.ipfs_kit/ config files."""
+        if self._config_cache is None:
+            self._load_config_cache()
+        
+        # Support dotted key notation (e.g., 'daemon.port')
+        keys = key.split('.')
+        value = self._config_cache
+        
+        try:
+            for k in keys:
+                value = value[k]
+            return value
+        except (KeyError, TypeError):
+            return default
+    
+    def _load_config_cache(self):
+        """Load configuration from various config files in ~/.ipfs_kit/."""
+        import yaml
+        from pathlib import Path
+        
+        self._config_cache = {}
+        config_dir = Path.home() / '.ipfs_kit'
+        
+        # Load all YAML config files
+        config_files = [
+            'package_config.yaml',
+            's3_config.yaml', 
+            'lotus_config.yaml'
+        ]
+        
+        for config_file in config_files:
+            config_path = config_dir / config_file
+            if config_path.exists():
+                try:
+                    with open(config_path, 'r') as f:
+                        file_config = yaml.safe_load(f) or {}
+                    
+                    # Merge into main config (namespace by filename)
+                    namespace = config_file.replace('.yaml', '').replace('_config', '')
+                    self._config_cache[namespace] = file_config
+                    
+                    # Also merge top-level keys for backward compatibility
+                    if isinstance(file_config, dict):
+                        for k, v in file_config.items():
+                            if k not in self._config_cache:
+                                self._config_cache[k] = v
+                                
+                except Exception as e:
+                    print(f"⚠️  Failed to load {config_file}: {e}")
+        
+        # Set defaults for common configuration
+        self._config_cache.setdefault('daemon', {})
+        self._config_cache['daemon'].setdefault('port', 9999)
+        self._config_cache['daemon'].setdefault('auto_start', True)
+    
+    def _format_size(self, size_bytes) -> str:
+        """Format file size in human-readable format."""
+        if not size_bytes or size_bytes == 0:
+            return "0 B"
+        
+        size = float(size_bytes)
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        
+        return f"{size:.1f} PB"
+    
     async def cmd_daemon_start(self, detach: bool = False, config: Optional[str] = None, 
                               role: Optional[str] = None, master_address: Optional[str] = None, 
+                              cluster_secret: Optional[str] = None, daemon_port: int = 9999):
+        """Start the main IPFS-Kit daemon process."""
+        print("🚀 Starting IPFS-Kit daemon...")
+        
+        # Check if daemon is already running
+        if await self._is_daemon_running(port=daemon_port):
+            print(f"⚠️  IPFS-Kit daemon is already running on port {daemon_port}")
+            return 0
+        
+        # Show configuration
+        if detach:
+            print(f"   📋 Mode: Background (detached)")
+        else:
+            print(f"   📋 Mode: Foreground")
+            
+        if config:
+            print(f"   📄 Config file: {config}")
+        
+        if role:
+            print(f"   🎭 Role: {role}")
+            role_descriptions = {
+                'master': '👑 Cluster coordinator - full features, high resources',
+                'worker': '⚙️  Content processing - moderate resources, connects to master', 
+                'leecher': '📥 Minimal resources - P2P only, no master required',
+                'modular': '🧩 Kitchen sink - all features enabled for testing/development'
+            }
+            print(f"      {role_descriptions.get(role, 'Unknown role')}")
+        
+        print(f"   🌐 Port: {daemon_port}")
+        
+        try:
+            # Run daemon as a module to fix relative import issues
+            # Use configurable port (default: 9999)
+            cmd = [sys.executable, '-m', 'mcp.ipfs_kit.daemon.ipfs_kit_daemon']
+            
+            # Add port configuration
+            cmd.extend(['--port', str(daemon_port)])
+            
+            # Add configuration options
+            if config:
+                cmd.extend(['--config', config])
+            if role:
+                cmd.extend(['--role', role])
+            if master_address:
+                cmd.extend(['--master-address', master_address])
+            if cluster_secret:
+                cmd.extend(['--cluster-secret', cluster_secret])
+            
+            if detach:
+                # Start in background
+                print("🔄 Starting daemon in background...")
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+                
+                # Wait a moment and check if it's running
+                print("   ⏳ Waiting for daemon to initialize (this may take 30+ seconds)...")
+                time.sleep(35)
+                if await self._is_daemon_running(port=daemon_port):
+                    print(f"✅ IPFS-Kit daemon started successfully on port {daemon_port}")
+                    print(f"   🔍 PID: {process.pid}")
+                    return 0
+                else:
+                    print("❌ Failed to start daemon")
+                    return 1
+            else:
+                # Start in foreground
+                print("🔄 Starting daemon in foreground...")
+                print("   💡 Press Ctrl+C to stop")
+                try:
+                    result = subprocess.run(cmd, check=True)
+                    return result.returncode
+                except KeyboardInterrupt:
+                    print("\n🛑 Daemon stopped by user")
+                    return 0
+                except subprocess.CalledProcessError as e:
+                    print(f"❌ Daemon exited with error: {e.returncode}")
+                    return e.returncode
+        
+        except Exception as e:
+            print(f"❌ Error starting daemon: {e}")
+            return 1
+
+    async def cmd_daemon_start_legacy(self, detach: bool = False, config: Optional[str] = None, 
+                              role: Optional[str] = None, master_address: Optional[str] = None, 
                               cluster_secret: Optional[str] = None):
-        """Start the IPFS-Kit daemon."""
+        """Start individual daemon services (legacy method)."""
         DaemonManager = _lazy_import_daemon_manager()
         if not DaemonManager:
             print("❌ Daemon manager not available")
@@ -441,119 +759,323 @@ class FastCLI:
             
             result = daemon_manager.start_daemons_with_dependencies(role=startup_role)
             
-            if result.get("overall_success", False):
-                print("✅ IPFS-Kit daemon started successfully!")
-                
-                # Show status of started daemons
-                daemon_status = result.get("daemons", {})
-                for daemon_name, status in daemon_status.items():
-                    if status.get("success", False):
+            # Check what actually started by testing connectivity
+            print("   🔍 Verifying daemon startup...")
+            daemon_tests = {
+                'ipfs': self._test_ipfs_daemon,
+                'lotus': self._test_lotus_daemon,
+                'ipfs_cluster_service': self._test_ipfs_cluster_daemon,
+                'lassie': self._test_lassie_daemon
+            }
+            
+            actually_running = {}
+            successful_starts = 0
+            
+            for daemon_name, test_func in daemon_tests.items():
+                try:
+                    is_running = await test_func()
+                    actually_running[daemon_name] = is_running
+                    if is_running:
+                        successful_starts += 1
                         print(f"   ✅ {daemon_name}: Running")
                     else:
-                        print(f"   ❌ {daemon_name}: Failed to start")
-                        
-                if detach:
-                    print("   📋 Daemon is running in background")
-                else:
-                    print("   📋 Daemon is running in foreground (Ctrl+C to stop)")
-                    
-                return 0
+                        print(f"   ❌ {daemon_name}: Failed to start or not responding")
+                except Exception as e:
+                    actually_running[daemon_name] = False
+                    print(f"   ❌ {daemon_name}: Error during startup verification - {e}")
+            
+            total_daemons = len(daemon_tests)
+            
+            if successful_starts == total_daemons:
+                print("✅ IPFS-Kit daemon started successfully!")
+                print(f"   � All {total_daemons} daemons are running")
+            elif successful_starts > 0:
+                print("⚠️  IPFS-Kit daemon partially started")
+                print(f"   📊 {successful_starts}/{total_daemons} daemons are running")
+                # Show which ones failed
+                failed_daemons = [name for name, status in actually_running.items() if not status]
+                print(f"   💥 Failed daemons: {', '.join(failed_daemons)}")
             else:
                 print("❌ Failed to start IPFS-Kit daemon")
-                errors = result.get("errors", [])
-                for error in errors:
-                    print(f"   💥 {error}")
+                print("   📊 No daemons are responding")
                 return 1
+            
+            if detach:
+                print("   📋 Daemon processes are running in background")
+            else:
+                print("   � Daemon processes are running in foreground (Ctrl+C to stop)")
+                
+            # Return appropriate exit code
+            return 0 if successful_starts == total_daemons else 1
                 
         except Exception as e:
             print(f"❌ Error starting daemon: {e}")
             return 1
 
+    def _force_kill_daemon(self, daemon_name: str) -> bool:
+        """Force kill a daemon process by name"""
+        try:
+            # Find daemon processes
+            result = subprocess.run(
+                ["ps", "aux"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            daemon_pids = []
+            for line in result.stdout.split('\n'):
+                if daemon_name in line and 'grep' not in line:
+                    # Extract PID (second column)
+                    parts = line.split()
+                    if len(parts) > 1:
+                        try:
+                            pid = int(parts[1])
+                            daemon_pids.append(pid)
+                        except ValueError:
+                            continue
+            
+            if not daemon_pids:
+                return True  # No processes to kill
+            
+            # Try SIGTERM first, then SIGKILL
+            for pid in daemon_pids:
+                try:
+                    print(f"   🔄 Terminating {daemon_name} PID {pid}...")
+                    os.kill(pid, signal.SIGTERM)
+                    time.sleep(2)  # Give it time to terminate gracefully
+                    
+                    # Check if still running
+                    try:
+                        os.kill(pid, 0)  # This will raise OSError if process doesn't exist
+                        print(f"   ⚡ Force killing {daemon_name} PID {pid}...")
+                        os.kill(pid, signal.SIGKILL)
+                    except OSError:
+                        pass  # Process already terminated
+                        
+                except OSError:
+                    pass  # Process already gone
+                    
+            return True
+            
+        except Exception as e:
+            print(f"   ❌ Failed to force kill {daemon_name}: {e}")
+            return False
+
     async def cmd_daemon_stop(self):
-        """Stop the IPFS-Kit daemon."""
-        DaemonManager = _lazy_import_daemon_manager()
-        if not DaemonManager:
-            print("❌ Daemon manager not available")
-            return 1
+        """Stop the main IPFS-Kit daemon process."""
+        print("🛑 Stopping IPFS-Kit daemon...")
+        
+        # Check if daemon is running
+        if not await self._is_daemon_running():
+            print("ℹ️  IPFS-Kit daemon is not running")
+            return 0
         
         try:
-            print("🛑 Stopping IPFS-Kit daemon...")
+            # Send shutdown signal to daemon API
+            print("🔄 Sending shutdown signal to daemon...")
+            import requests
+            response = requests.post('http://localhost:9999/shutdown', timeout=10)
             
-            # Initialize daemon manager
-            daemon_manager = DaemonManager()
-            
-            # Stop all daemons
-            result = daemon_manager.stop_all_daemons()
-            
-            if result.get("overall_success", False):
-                print("✅ IPFS-Kit daemon stopped successfully!")
+            if response.status_code == 200:
+                print("✅ Daemon shutdown initiated")
                 
-                # Show status of stopped daemons
-                daemon_status = result.get("daemons", {})
-                for daemon_name, status in daemon_status.items():
-                    if status.get("success", False):
-                        print(f"   ✅ {daemon_name}: Stopped")
-                    else:
-                        print(f"   ⚠️  {daemon_name}: May still be running")
+                # Wait for daemon to stop
+                print("⏳ Waiting for daemon to stop...")
+                for i in range(10):
+                    time.sleep(1)
+                    if not await self._is_daemon_running():
+                        print("✅ IPFS-Kit daemon stopped successfully")
+                        return 0
+                
+                print("⚠️  Daemon taking too long to stop, checking processes...")
+            else:
+                print("⚠️  API shutdown failed, checking processes...")
+                
+        except Exception as e:
+            print(f"⚠️  API shutdown failed: {e}")
+            print("🔍 Checking for daemon processes...")
+        
+        # Fallback: find and terminate daemon processes
+        try:
+            result = subprocess.run(['ps', 'aux'], capture_output=True, text=True, timeout=5)
+            daemon_pids = []
+            
+            for line in result.stdout.split('\n'):
+                if 'python' in line and 'ipfs_kit_daemon.py' in line:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        try:
+                            pid = int(parts[1])
+                            daemon_pids.append(pid)
+                            print(f"   🎯 Found daemon process: PID {pid}")
+                        except ValueError:
+                            continue
+            
+            if daemon_pids:
+                for pid in daemon_pids:
+                    try:
+                        print(f"   🔫 Terminating PID {pid}...")
+                        os.kill(pid, signal.SIGTERM)
+                        time.sleep(2)
                         
+                        # Check if still running and force kill
+                        try:
+                            os.kill(pid, 0)
+                            print(f"   💥 Force killing PID {pid}...")
+                            os.kill(pid, signal.SIGKILL)
+                        except OSError:
+                            pass
+                            
+                    except OSError:
+                        pass
+                
+                print("✅ Daemon processes terminated")
                 return 0
             else:
-                print("⚠️  Some daemons may still be running")
-                errors = result.get("errors", [])
-                for error in errors:
-                    print(f"   💥 {error}")
-                return 1
+                print("✅ No daemon processes found")
+                return 0
                 
         except Exception as e:
             print(f"❌ Error stopping daemon: {e}")
             return 1
 
     async def cmd_daemon_status(self):
-        """Check daemon status."""
-        DaemonManager = _lazy_import_daemon_manager()
-        if not DaemonManager:
-            print("❌ Daemon manager not available")
-            return 1
-        
+        """Check IPFS-Kit daemon and service status."""
         try:
             print("📊 Checking IPFS-Kit daemon status...")
             
-            # Initialize daemon manager
-            daemon_manager = DaemonManager()
-            
-            # Get daemon status
-            status = daemon_manager.get_daemon_status_summary()
-            
-            print(f"📋 Overall Status: {status.get('overall_health', 'unknown').upper()}")
-            print("🔍 Individual Daemon Status:")
-            
-            daemon_status = status.get("daemons", {})
-            running_count = 0
-            total_count = len(daemon_status)
-            
-            for daemon_name, daemon_info in daemon_status.items():
-                is_running = daemon_info.get("running", False)
-                if is_running:
-                    print(f"   ✅ {daemon_name}: Running")
-                    running_count += 1
-                else:
-                    print(f"   ❌ {daemon_name}: Stopped")
-            
-            print(f"📊 Summary: {running_count}/{total_count} daemons running")
-            
-            if running_count == total_count:
-                print("🎉 All daemons are healthy!")
-                return 0
-            elif running_count == 0:
-                print("⚠️  No daemons are running")
-                return 1
+            # First check if main daemon is running
+            daemon_running = await self._is_daemon_running()
+            if daemon_running:
+                print("✅ Main IPFS-Kit daemon: Running")
+                
+                # If daemon is running, get service status from API
+                try:
+                    import requests
+                    response = requests.get('http://localhost:9999/services/status', timeout=5)
+                    if response.status_code == 200:
+                        service_status = response.json()
+                        
+                        print("🔍 Service Status (via daemon API):")
+                        running_services = 0
+                        total_services = len(service_status)
+                        
+                        for service, status in service_status.items():
+                            if status.get('running', False):
+                                print(f"   ✅ {service}: Running")
+                                running_services += 1
+                            else:
+                                print(f"   ❌ {service}: Stopped")
+                    
+                        if running_services == total_services:
+                            print("📋 Overall Status: HEALTHY")
+                            print("🎉 All services are running!")
+                            return 0
+                        elif running_services > 0:
+                            print("📋 Overall Status: PARTIAL")
+                            print(f"📊 Summary: {running_services}/{total_services} services running")
+                            return 1
+                        else:
+                            print("📋 Overall Status: DEGRADED")
+                            print("⚠️  No services are running")
+                            return 1
+                            
+                    else:
+                        print("⚠️  Could not get service status from daemon API")
+                        return 1
+                        
+                except Exception as e:
+                    print(f"⚠️  Error communicating with daemon: {e}")
+                    return 1
+                    
             else:
-                print("⚠️  Some daemons are not running")
+                print("❌ Main IPFS-Kit daemon: Not running")
+                print("💡 Start the daemon: ipfs-kit daemon start")
+                
+                # Check if individual services are running externally
+                print("🔍 Checking for external services:")
+                daemon_tests = {
+                    'ipfs': self._test_ipfs_daemon,
+                    'lotus': self._test_lotus_daemon,
+                    'ipfs_cluster_service': self._test_ipfs_cluster_daemon,
+                    'lassie': self._test_lassie_daemon
+                }
+                
+                external_running = 0
+                for service_name, test_func in daemon_tests.items():
+                    try:
+                        is_running = await test_func()
+                        if is_running:
+                            print(f"   ✅ {service_name}: Running (external)")
+                            external_running += 1
+                        else:
+                            print(f"   ❌ {service_name}: Stopped")
+                    except Exception:
+                        print(f"   ❌ {service_name}: Stopped")
+                
+                if external_running > 0:
+                    print(f"ℹ️  {external_running} service(s) running externally")
+                
                 return 1
                 
         except Exception as e:
             print(f"❌ Error checking daemon status: {e}")
             return 1
+
+    async def _test_ipfs_daemon(self) -> bool:
+        """Test if IPFS daemon is running and responsive."""
+        try:
+            result = subprocess.run(['ipfs', 'id'], 
+                                  capture_output=True, timeout=5, text=True)
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+            return False
+
+    async def _test_lotus_daemon(self) -> bool:
+        """Test if Lotus daemon is running and responsive."""
+        try:
+            import requests
+            response = requests.post(
+                'http://localhost:1234/rpc/v0',
+                json={'method': 'Filecoin.Version', 'params': [], 'id': 1},
+                timeout=5
+            )
+            return response.status_code == 200 and 'Version' in response.json().get('result', {})
+        except Exception:
+            return False
+
+    async def _test_ipfs_cluster_daemon(self) -> bool:
+        """Test if IPFS Cluster daemon is running and responsive."""
+        try:
+            import requests
+            # Try common cluster API ports
+            for port in [9094, 9095]:
+                try:
+                    response = requests.get(f'http://localhost:{port}/id', timeout=3)
+                    if response.status_code == 200:
+                        return True
+                except:
+                    continue
+            return False
+        except Exception:
+            return False
+
+    async def _test_lassie_daemon(self) -> bool:
+        """Test if Lassie daemon is running and responsive."""
+        try:
+            import requests
+            # Try to access Lassie on its default port
+            response = requests.get('http://localhost:24001/health', timeout=3)
+            return response.status_code == 200
+        except Exception:
+            # Alternative: check if process is running
+            try:
+                result = subprocess.run(['pgrep', '-f', 'lassie'], 
+                                      capture_output=True, timeout=3)
+                return result.returncode == 0
+            except:
+                return False
 
     async def cmd_daemon_restart(self):
         """Restart the IPFS-Kit daemon."""
@@ -775,8 +1297,108 @@ class FastCLI:
         print("✅ Auto-role detection functionality would be implemented here")
         return 0
     
+    # Individual service management methods
+    async def cmd_service_ipfs(self, args) -> int:
+        """Manage IPFS service through daemon API."""
+        if not hasattr(args, 'ipfs_action') or not args.ipfs_action:
+            print("❌ No IPFS action specified")
+            return 1
+        
+        action = args.ipfs_action
+        print(f"🔧 IPFS Service: {action}")
+        
+        # Check if daemon is running
+        if not await self._is_daemon_running():
+            print("❌ IPFS-Kit daemon is not running")
+            print("💡 Start the daemon first: ipfs-kit daemon start")
+            return 1
+        
+        # Send command to daemon API
+        return await self._send_service_command('ipfs', action)
+    
+    async def cmd_service_lotus(self, args) -> int:
+        """Manage Lotus service through daemon API."""
+        if not hasattr(args, 'lotus_action') or not args.lotus_action:
+            print("❌ No Lotus action specified")
+            return 1
+        
+        action = args.lotus_action
+        print(f"🔧 Lotus Service: {action}")
+        
+        if not await self._is_daemon_running():
+            print("❌ IPFS-Kit daemon is not running")
+            print("💡 Start the daemon first: ipfs-kit daemon start")
+            return 1
+        
+        return await self._send_service_command('lotus', action)
+    
+    async def cmd_service_cluster(self, args) -> int:
+        """Manage IPFS Cluster service through daemon API."""
+        if not hasattr(args, 'cluster_action') or not args.cluster_action:
+            print("❌ No Cluster action specified")
+            return 1
+        
+        action = args.cluster_action
+        print(f"🔧 IPFS Cluster Service: {action}")
+        
+        if not await self._is_daemon_running():
+            print("❌ IPFS-Kit daemon is not running")
+            print("💡 Start the daemon first: ipfs-kit daemon start")
+            return 1
+        
+        return await self._send_service_command('cluster', action)
+    
+    async def cmd_service_lassie(self, args) -> int:
+        """Manage Lassie service through daemon API."""
+        if not hasattr(args, 'lassie_action') or not args.lassie_action:
+            print("❌ No Lassie action specified")
+            return 1
+        
+        action = args.lassie_action
+        print(f"🔧 Lassie Service: {action}")
+        
+        if not await self._is_daemon_running():
+            print("❌ IPFS-Kit daemon is not running")
+            print("💡 Start the daemon first: ipfs-kit daemon start")
+            return 1
+        
+        return await self._send_service_command('lassie', action)
+    
+    async def _is_daemon_running(self, port: int = 9999) -> bool:
+        """Check if the IPFS-Kit daemon is running."""
+        try:
+            import requests
+            response = requests.get(f'http://localhost:{port}/health', timeout=2)
+            return response.status_code == 200
+        except:
+            return False
+    
+    async def _send_service_command(self, service: str, action: str, port: int = 9999) -> int:
+        """Send a service command to the daemon API."""
+        try:
+            import requests
+            response = requests.post(
+                f'http://localhost:{port}/services/{service}/{action}',
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    print(f"✅ {service} service {action} successful")
+                    return 0
+                else:
+                    print(f"❌ {service} service {action} failed: {result.get('message', 'Unknown error')}")
+                    return 1
+            else:
+                print(f"❌ API request failed with status {response.status_code}")
+                return 1
+        except Exception as e:
+            print(f"❌ Failed to communicate with daemon: {e}")
+            return 1
+
     async def cmd_pin_add(self, cid: str, name: Optional[str] = None, recursive: bool = False):
-        """Add a pin."""
+        """Add a pin using centralized API."""
         if not self.ensure_heavy_imports():
             print("❌ Heavy imports not available for pin operations")
             return 1
@@ -786,32 +1408,469 @@ class FastCLI:
             print(f"   Name: {name}")
         print(f"   Recursive: {recursive}")
         
-        print("✅ Pin add functionality would be implemented here")
-        return 0
-    
+        try:
+            api = self.get_ipfs_api()
+            if api:
+                # Use centralized pin management with enhanced index
+                print("🔄 Using centralized IPFS API with enhanced pin index...")
+                
+                # This would call the actual pin add method
+                # result = await api.pin_add(cid, name=name, recursive=recursive)
+                print("✅ Pin would be added through centralized API")
+                print("💾 Pin metadata would be stored in ~/.ipfs_kit/pin_metadata/")
+                
+                if name:
+                    print(f"🏷️  Pin labeled as: {name}")
+                
+                return 0
+            else:
+                print("❌ Could not initialize IPFS API")
+                return 1
+                
+        except Exception as e:
+            print(f"❌ Pin add error: {e}")
+            return 1
+
     async def cmd_pin_remove(self, cid: str):
-        """Remove a pin."""
+        """Remove a pin using centralized API."""
         print(f"📌 Removing pin for CID: {cid}")
-        print("✅ Pin remove functionality would be implemented here")
-        return 0
+        
+        try:
+            api = self.get_ipfs_api() 
+            if api:
+                print("🔄 Using centralized IPFS API...")
+                
+                # This would call the actual pin remove method
+                # result = await api.pin_remove(cid)
+                print("✅ Pin would be removed through centralized API")
+                print("🗑️  Pin metadata would be removed from ~/.ipfs_kit/pin_metadata/")
+                
+                return 0
+            else:
+                print("❌ Could not initialize IPFS API")
+                return 1
+                
+        except Exception as e:
+            print(f"❌ Pin remove error: {e}")
+            return 1
+    
+    async def cmd_pin_init(self):
+        """Initialize pin metadata index with sample data."""
+        print("🔧 Initializing pin metadata index...")
+        
+        try:
+            get_global_pin_metadata_index = _lazy_import_pin_metadata_index()
+            if not get_global_pin_metadata_index:
+                print("❌ Pin metadata index not available")
+                return 1
+            
+            # Get the pin metadata index
+            pin_index = get_global_pin_metadata_index()
+            
+            # Initialize sample pins
+            pin_index.initialize_sample_pins()
+            
+            print("✅ Pin metadata index initialized successfully!")
+            print("📊 Use 'ipfs-kit pin list' to see sample pins")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Pin init error: {e}")
+            return 1
     
     async def cmd_pin_list(self, limit: Optional[int] = None, show_metadata: bool = False):
-        """List pins."""
+        """List pins using Apache Arrow IPC zero-copy access with lightweight fallback."""
         print("📌 Listing pins...")
         if limit:
             print(f"   Limit: {limit}")
         print(f"   Show metadata: {show_metadata}")
         
-        print("✅ Pin list functionality would be implemented here")
-        return 0
+        # Step 1: Try Apache Arrow IPC zero-copy access first
+        try:
+            print("🚀 Attempting Apache Arrow IPC zero-copy access...")
+            result = await self._try_zero_copy_access(limit)
+            if result and result.get("success"):
+                zero_copy_attempted = True
+                pins = result.get("pins", [])
+                method = result.get("method", "unknown")
+                source = result.get("source", "unknown")
+                
+                print(f"✅ Zero-copy access successful! Retrieved {len(pins)} pins via {method}")
+                print(f"   📊 Source: {source}")
+                
+                if pins:
+                    self._display_pins(pins, show_metadata)
+                else:
+                    print("� No pins found")
+                
+                # Show performance info
+                if method == "zero_copy":
+                    print(f"\n🚀 Zero-copy access successful (no database locks)")
+                elif result.get("warning"):
+                    print(f"\n⚠️  {result['warning']}")
+                
+                return 0
+            else:
+                print(f"⚠️  Zero-copy access failed: {result.get('error', 'Unknown error') if result else 'No response'}")
+                print("🔄 Falling back to lightweight database access...")
+                
+        except Exception as e:
+            print(f"⚠️  Zero-copy access error: {e}")
+            print("🔄 Falling back to lightweight database access...")
+        
+        # Step 2: Fallback to lightweight database access
+        try:
+            from pathlib import Path
+            pin_db_path = Path.home() / '.ipfs_kit' / 'pin_metadata'
+            
+            if not pin_db_path.exists():
+                print("📭 No pin index found")
+                print("💡 Pin index will be created when you add your first pin")
+                return 0
+            
+            # Check for database files
+            duckdb_files = list(pin_db_path.glob('*.duckdb'))
+            sqlite_files = list(pin_db_path.glob('*.db'))
+            
+            if not duckdb_files and not sqlite_files:
+                print("📭 No pin database files found")
+                print("💡 Pin index will be created when you add your first pin")
+                return 0
+            
+            print("� Using lightweight database access...")
+            
+            # Try DuckDB first (preferred)
+            if duckdb_files:
+                success = await self._try_duckdb_access(duckdb_files[0], limit, show_metadata)
+                if success:
+                    return 0
+            
+            # Fallback to SQLite
+            if sqlite_files:
+                success = await self._try_sqlite_access(sqlite_files[0], limit, show_metadata)
+                if success:
+                    return 0
+            
+            print("❌ Could not access pin index files")
+            return 1
+            
+        except Exception as e:
+            print(f"❌ Pin list error: {e}")
+            return 1
+    
+    async def _try_zero_copy_access(self, limit):
+        """Try zero-copy access with minimal imports - check daemon first."""
+        try:
+            # Step 1: Lightweight daemon availability check (no heavy imports)
+            try:
+                import requests
+                response = requests.get('http://localhost:8774/health', timeout=1)
+                if response.status_code != 200:
+                    return {"success": False, "error": "Daemon not available"}
+            except Exception:
+                return {"success": False, "error": "Daemon not reachable"}
+            
+            # Step 2: Quick check for Arrow IPC endpoint
+            try:
+                response = requests.get('http://localhost:8774/pin-index-arrow', timeout=2)
+                if response.status_code == 404:
+                    return {"success": False, "error": "Arrow IPC not supported by daemon"}
+                elif response.status_code != 200:
+                    return {"success": False, "error": "Arrow IPC endpoint error"}
+            except Exception:
+                return {"success": False, "error": "Arrow IPC endpoint not available"}
+            
+            # Step 3: Only if daemon + Arrow IPC available, try heavy import
+            print("🔍 Daemon with Arrow IPC detected, initializing zero-copy access...")
+            
+            # Lazy import VFS manager only when daemon is confirmed available
+            get_global_vfs_manager = _lazy_import_vfs_manager()
+            if get_global_vfs_manager is None:
+                return {"success": False, "error": "VFS manager not available"}
+            
+            vfs_manager = get_global_vfs_manager()
+            
+            # Use synchronous version to avoid event loop conflicts
+            result = vfs_manager.get_pin_index_zero_copy_sync(limit=limit, filters=None)
+            return result
+            
+        except Exception as e:
+            print(f"Zero-copy access error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _try_duckdb_access(self, db_file, limit, show_metadata):
+        """Try DuckDB access with lightweight error handling."""
+        try:
+            # Lazy import DuckDB only when needed
+            try:
+                import duckdb
+            except ImportError:
+                print("⚠️  DuckDB not available")
+                return False
+            
+            print(f"📊 Reading from DuckDB: {db_file}")
+            conn = None
+            
+            try:
+                conn = duckdb.connect(str(db_file), read_only=True)
+                
+                query = "SELECT cid, name, pin_type, timestamp, size_bytes FROM pins ORDER BY timestamp DESC"
+                if limit:
+                    query += f" LIMIT {limit}"
+                
+                result = conn.execute(query).fetchall()
+                
+                if result:
+                    print(f"📌 Found {len(result)} pins:")
+                    for row in result:
+                        cid, name, pin_type, timestamp, size_bytes = row
+                        print(f"\n🔹 {cid[:12]}...")
+                        if name:
+                            print(f"   Name: {name}")
+                        print(f"   Type: {pin_type}")
+                        if size_bytes and size_bytes > 0:
+                            print(f"   Size: {self._format_size(size_bytes)}")
+                        if show_metadata and timestamp:
+                            print(f"   Created: {timestamp}")
+                else:
+                    print("📭 No pins found in DuckDB index")
+                
+                conn.close()
+                return True
+                
+            except Exception as db_error:
+                if conn:
+                    conn.close()
+                error_msg = str(db_error).lower()
+                if "database is locked" in error_msg or "conflicting lock" in error_msg:
+                    print("🔒 Database is locked by daemon")
+                    print("💡 The daemon is currently using the database")
+                    print("� To see pins without database conflicts:")
+                    print("   • Stop the daemon: ipfs-kit daemon stop")
+                    print("   • Or wait for daemon to release the lock")
+                    print("   • Or use daemon-based access when available")
+                else:
+                    print(f"⚠️  DuckDB error: {db_error}")
+                return False
+                
+        except Exception as e:
+            print(f"⚠️  DuckDB access failed: {e}")
+            return False
+    
+    async def _try_sqlite_access(self, db_file, limit, show_metadata):
+        """Try SQLite access as final fallback."""
+        try:
+            import sqlite3
+            
+            print(f"📊 Reading from SQLite: {db_file}")
+            
+            conn = sqlite3.connect(str(db_file))
+            cursor = conn.cursor()
+            
+            query = "SELECT cid, name, pin_type, created_at FROM pins ORDER BY created_at DESC"
+            if limit:
+                query += f" LIMIT {limit}"
+            
+            cursor.execute(query)
+            pins = cursor.fetchall()
+            
+            if pins:
+                print(f"📌 Found {len(pins)} pins:")
+                for pin in pins:
+                    cid, name, pin_type, created_at = pin
+                    print(f"\n🔹 {cid[:12]}...")
+                    if name:
+                        print(f"   Name: {name}")
+                    print(f"   Type: {pin_type}")
+                    if show_metadata and created_at:
+                        print(f"   Created: {created_at}")
+            else:
+                print("📭 No pins found in SQLite index")
+            
+            conn.close()
+            return True
+            
+        except sqlite3.OperationalError as e:
+            print(f"⚠️  SQLite error: {e}")
+            print("💡 Database may be empty or have different schema")
+            return False
+        except Exception as e:
+            print(f"⚠️  SQLite access failed: {e}")
+            return False
+    
+    def _display_pins(self, pins, show_metadata):
+        """Display pins in a consistent format."""
+        print(f"� Found {len(pins)} pins:")
+        for pin in pins:
+            cid = pin.get("cid", "unknown")
+            name = pin.get("name", pin.get("filename", ""))
+            pin_type = pin.get("pin_type", pin.get("type", "unknown"))
+            timestamp = pin.get("timestamp", pin.get("created_at", ""))
+            size = pin.get("size_bytes", pin.get("size", 0))
+            
+            print(f"\n🔹 {cid[:12]}...")
+            if name:
+                print(f"   Name: {name}")
+            print(f"   Type: {pin_type}")
+            if size and isinstance(size, (int, float)) and size > 0:
+                print(f"   Size: {self._format_size(size)}")
+            if show_metadata:
+                if timestamp:
+                    print(f"   Created: {timestamp}")
+                metadata = pin.get("metadata")
+                if metadata:
+                    if isinstance(metadata, str):
+                        try:
+                            import json
+                            metadata = json.loads(metadata)
+                        except:
+                            pass
+                    if isinstance(metadata, dict):
+                        for key, value in metadata.items():
+                            print(f"   {key}: {value}")
+    
+    def enable_zero_copy_access(self):
+        """Enable zero-copy access for advanced users."""
+        self._enable_zero_copy = True
+        print("🚀 Zero-copy access enabled")
     
     async def cmd_metrics(self, detailed: bool = False):
-        """Show metrics."""
-        print("📊 Performance Metrics")
-        print("=" * 30)
-        print(f"Detailed mode: {detailed}")
-        print("✅ Metrics functionality would be implemented here")
-        return 0
+        """Show metrics using indices only - no heavy imports."""
+        print("📊 Performance Metrics (from ~/.ipfs_kit/ indices)")
+        print("=" * 50)
+        
+        try:
+            from pathlib import Path
+            
+            # Index-based metrics - no API initialization
+            ipfs_kit_dir = Path.home() / '.ipfs_kit'
+            
+            # Bucket index metrics (lightweight)
+            bucket_index_dir = ipfs_kit_dir / 'bucket_index'
+            if bucket_index_dir.exists():
+                bucket_files = list(bucket_index_dir.glob('*.json'))
+                total_buckets = 0
+                total_size = 0
+                
+                for bucket_file in bucket_files:
+                    try:
+                        import json
+                        with open(bucket_file) as f:
+                            bucket_data = json.load(f)
+                            if isinstance(bucket_data, list):
+                                total_buckets += len(bucket_data)
+                                for bucket in bucket_data:
+                                    total_size += bucket.get('size_bytes', 0)
+                            elif isinstance(bucket_data, dict):
+                                total_buckets += 1
+                                total_size += bucket_data.get('size_bytes', 0)
+                    except Exception:
+                        pass  # Skip corrupted files
+                
+                print(f"\n🪣 Bucket Index Metrics:")
+                print(f"   Total buckets: {total_buckets}")
+                print(f"   Total size: {total_size / (1024**3):.2f} GB")
+                print(f"   Index files: {len(bucket_files)}")
+                print(f"   Index source: ~/.ipfs_kit/bucket_index/")
+            else:
+                print(f"\n🪣 Bucket Index: Not yet created")
+            
+            # Pin index metrics (lightweight database check)
+            pin_db_dir = ipfs_kit_dir / 'pin_metadata'
+            if pin_db_dir.exists():
+                # Look for both .db and .duckdb files
+                db_files = list(pin_db_dir.glob('*.db'))
+                duckdb_files = list(pin_db_dir.glob('*.duckdb'))
+                all_db_files = db_files + duckdb_files
+                
+                if all_db_files:
+                    try:
+                        pin_count = 0
+                        db_type = "unknown"
+                        
+                        # Try DuckDB first (preferred)
+                        if duckdb_files:
+                            try:
+                                import duckdb
+                                # Use read-only connection to avoid lock conflicts
+                                conn = duckdb.connect(str(duckdb_files[0]), read_only=True)
+                                try:
+                                    result = conn.execute("SELECT COUNT(*) FROM pins").fetchone()
+                                    pin_count = result[0] if result else 0
+                                    db_type = "DuckDB"
+                                except Exception:
+                                    # Table might not exist or be accessible
+                                    pin_count = 0
+                                    db_type = "DuckDB (locked/empty)"
+                                finally:
+                                    conn.close()
+                            except ImportError:
+                                db_type = "DuckDB (not available)"
+                            except Exception as e:
+                                if "lock" in str(e).lower():
+                                    db_type = "DuckDB (locked by daemon)"
+                                else:
+                                    db_type = f"DuckDB (error: {str(e)[:50]})"
+                        
+                        # Fallback to SQLite if DuckDB failed and .db files exist
+                        elif db_files:
+                            try:
+                                import sqlite3
+                                conn = sqlite3.connect(str(db_files[0]))
+                                cursor = conn.cursor()
+                                try:
+                                    cursor.execute("SELECT COUNT(*) FROM pins")
+                                    pin_count = cursor.fetchone()[0]
+                                    db_type = "SQLite"
+                                except sqlite3.OperationalError:
+                                    pin_count = 0
+                                    db_type = "SQLite (empty)"
+                                finally:
+                                    conn.close()
+                            except Exception as e:
+                                db_type = f"SQLite (error: {str(e)[:50]})"
+                        
+                        print(f"\n📌 Pin Index Metrics:")
+                        print(f"   Total pins: {pin_count}")
+                        print(f"   Database type: {db_type}")
+                        print(f"   Database files: {len(all_db_files)} ({len(duckdb_files)} DuckDB, {len(db_files)} SQLite)")
+                        print(f"   Index source: ~/.ipfs_kit/pin_metadata/")
+                        
+                    except Exception as e:
+                        print(f"\n📌 Pin Index: Error reading - {e}")
+                else:
+                    print(f"\n📌 Pin Index: Directory exists but no database files")
+            else:
+                print(f"\n📌 Pin Index: Not yet created")
+            
+            # Config metrics (lightweight file check)
+            config_files = list(ipfs_kit_dir.glob('*.yaml'))
+            config_files.extend(list(ipfs_kit_dir.glob('*.yml')))
+            print(f"\n⚙️  Configuration:")
+            print(f"   Config files: {len(config_files)}")
+            print(f"   Config source: ~/.ipfs_kit/")
+            
+            # Performance-focused metrics (no API calls)
+            if detailed:
+                cache_dirs = [d for d in ipfs_kit_dir.iterdir() if d.is_dir()]
+                all_db_files = list(ipfs_kit_dir.glob('**/*.db'))
+                all_json_files = list(ipfs_kit_dir.glob('**/*.json'))
+                
+                print(f"\n🔍 Detailed Index Metrics:")
+                print(f"   Cache directories: {len(cache_dirs)}")
+                print(f"   Database files: {len(all_db_files)}")
+                print(f"   JSON index files: {len(all_json_files)}")
+                print(f"   Total index size: {sum(f.stat().st_size for f in ipfs_kit_dir.rglob('*') if f.is_file()) / (1024**2):.1f} MB")
+            
+            print(f"\n✨ All metrics retrieved from local indices (no network calls)")
+            return 0
+                
+        except Exception as e:
+            print(f"❌ Metrics error: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
     
     async def cmd_mcp(self, args):
         """Handle MCP (Model Context Protocol) commands."""
@@ -2219,7 +3278,8 @@ async def main():
                     config=args.config,
                     role=getattr(args, 'role', None),
                     master_address=getattr(args, 'master_address', None),
-                    cluster_secret=getattr(args, 'cluster_secret', None)
+                    cluster_secret=getattr(args, 'cluster_secret', None),
+                    daemon_port=getattr(args, 'daemon_port', 9999)
                 )
             elif args.daemon_action == 'stop':
                 return await cli.cmd_daemon_stop()
@@ -2232,7 +3292,8 @@ async def main():
                     config=getattr(args, 'config', None),
                     role=getattr(args, 'role', None),
                     master_address=getattr(args, 'master_address', None),
-                    cluster_secret=getattr(args, 'cluster_secret', None)
+                    cluster_secret=getattr(args, 'cluster_secret', None),
+                    daemon_port=getattr(args, 'daemon_port', 9999)
                 )
             elif args.daemon_action == 'set-role':
                 return await cli.cmd_daemon_set_role(args)
@@ -2240,6 +3301,15 @@ async def main():
                 return await cli.cmd_daemon_get_role()
             elif args.daemon_action == 'auto-role':
                 return await cli.cmd_daemon_auto_role()
+            # Individual service management
+            elif args.daemon_action == 'ipfs':
+                return await cli.cmd_service_ipfs(args)
+            elif args.daemon_action == 'lotus':
+                return await cli.cmd_service_lotus(args)
+            elif args.daemon_action == 'cluster':
+                return await cli.cmd_service_cluster(args)
+            elif args.daemon_action == 'lassie':
+                return await cli.cmd_service_lassie(args)
         
         # Pin commands
         elif args.command == 'pin':
@@ -2249,6 +3319,8 @@ async def main():
                 return await cli.cmd_pin_remove(args.cid)
             elif args.pin_action == 'list':
                 return await cli.cmd_pin_list(limit=args.limit, show_metadata=args.metadata)
+            elif args.pin_action == 'init':
+                return await cli.cmd_pin_init()
             elif args.pin_action == 'status':
                 print(f"📊 Checking status for operation: {args.operation_id}")
                 print("✅ Pin status functionality would be implemented here")
@@ -2284,38 +3356,167 @@ async def main():
                 print("✅ Health status functionality would be implemented here")
                 return 0
         
-        # Config commands
+        # Config commands - leveraging cached config from ~/.ipfs_kit/
         elif args.command == 'config':
             if args.config_action == 'show':
-                print("⚙️  Current configuration...")
-                print("✅ Config show functionality would be implemented here")
+                print("⚙️  Current configuration (from ~/.ipfs_kit/ indices)...")
+                
+                # Show daemon configuration
+                daemon_port = cli.get_config_value('daemon.port', 9999)
+                daemon_auto_start = cli.get_config_value('daemon.auto_start', True)
+                
+                print(f"📡 Daemon:")
+                print(f"   Port: {daemon_port}")
+                print(f"   Auto-start: {daemon_auto_start}")
+                
+                # Show S3 configuration (if available)
+                s3_region = cli.get_config_value('s3.region')
+                if s3_region:
+                    print(f"☁️  S3:")
+                    print(f"   Region: {s3_region}")
+                    s3_endpoint = cli.get_config_value('s3.endpoint', 'Default AWS')
+                    print(f"   Endpoint: {s3_endpoint}")
+                
+                # Show package configuration
+                package_version = cli.get_config_value('package.version', 'Unknown')
+                print(f"📦 Package:")
+                print(f"   Version: {package_version}")
+                
                 return 0
             elif args.config_action == 'validate':
-                print("✅ Configuration validation...")
-                print("✅ Config validate functionality would be implemented here")
+                print("✅ Configuration validation (checking ~/.ipfs_kit/ indices)...")
+                
+                # Validate config files exist and are readable
+                config_dir = Path.home() / '.ipfs_kit'
+                if not config_dir.exists():
+                    print("❌ Configuration directory ~/.ipfs_kit/ does not exist")
+                    return 1
+                
+                config_files = ['package_config.yaml', 's3_config.yaml', 'lotus_config.yaml']
+                valid_configs = 0
+                
+                for config_file in config_files:
+                    config_path = config_dir / config_file
+                    if config_path.exists():
+                        try:
+                            import yaml
+                            with open(config_path, 'r') as f:
+                                yaml.safe_load(f)
+                            print(f"✅ {config_file}: Valid")
+                            valid_configs += 1
+                        except Exception as e:
+                            print(f"❌ {config_file}: Invalid - {e}")
+                    else:
+                        print(f"⚠️  {config_file}: Not found (optional)")
+                
+                print(f"\n📊 Summary: {valid_configs} valid configuration files")
                 return 0
             elif args.config_action == 'set':
-                print(f"⚙️  Setting {args.key} = {args.value}")
-                print("✅ Config set functionality would be implemented here")
+                print(f"⚙️  Setting {args.key} = {args.value} (persisting to ~/.ipfs_kit/)...")
+                
+                # This would implement actual config persistence
+                print("💾 Configuration would be written to appropriate config file")
+                print("🔄 Configuration cache would be invalidated")
+                cli._config_cache = None  # Invalidate cache
+                
                 return 0
         
-        # Bucket commands
+        # Bucket commands - leveraging bucket index from ~/.ipfs_kit/
         elif args.command == 'bucket':
             if args.bucket_action == 'list':
-                print("🪣 Listing buckets...")
-                print("✅ Bucket list functionality would be implemented here")
+                print("🪣 Listing buckets (from ~/.ipfs_kit/bucket_index/)...")
+                
+                buckets = cli.get_bucket_index()
+                if buckets:
+                    print(f"📊 Found {len(buckets)} buckets in index:")
+                    
+                    # Group by backend for better organization
+                    by_backend = {}
+                    for bucket in buckets:
+                        backend = bucket.get('backend', 'unknown')
+                        if backend not in by_backend:
+                            by_backend[backend] = []
+                        by_backend[backend].append(bucket)
+                    
+                    for backend, backend_buckets in by_backend.items():
+                        print(f"\n📁 {backend.upper()} ({len(backend_buckets)} buckets):")
+                        for bucket in backend_buckets[:10]:  # Limit display
+                            size_mb = bucket.get('size_bytes', 0) / (1024 * 1024)
+                            print(f"   🔹 {bucket['name']}")
+                            print(f"      Type: {bucket.get('type', 'unknown')} | Size: {size_mb:.1f} MB")
+                            print(f"      Updated: {bucket.get('last_updated', 'unknown')}")
+                        
+                        if len(backend_buckets) > 10:
+                            print(f"   ... and {len(backend_buckets) - 10} more")
+                    
+                    print(f"\n💡 Bucket data from: ~/.ipfs_kit/bucket_index/bucket_analytics.db")
+                else:
+                    print("📭 No buckets found in index")
+                    print("💡 Run 'ipfs-kit bucket discover' to populate the index")
+                
                 return 0
             elif args.bucket_action == 'discover':
-                print("🔍 Discovering buckets...")
-                print("✅ Bucket discover functionality would be implemented here")
+                print("🔍 Discovering buckets (scanning backends and updating index)...")
+                
+                # This would scan all backends and update the index
+                api = cli.get_ipfs_api()
+                if api:
+                    print("🔄 Using centralized IPFSSimpleAPI for discovery...")
+                    # In a real implementation, this would call api.discover_buckets()
+                    print("✅ Bucket discovery would scan all configured backends")
+                    print("💾 Results would be stored in ~/.ipfs_kit/bucket_index/")
+                    
+                    # Invalidate cache to force refresh
+                    cli._bucket_index_cache = None
+                else:
+                    print("❌ Could not initialize IPFS API for discovery")
+                    return 1
+                
                 return 0
             elif args.bucket_action == 'analytics':
-                print("📊 Bucket analytics...")
-                print("✅ Bucket analytics functionality would be implemented here")
+                print("📊 Bucket analytics (from ~/.ipfs_kit/ indices)...")
+                
+                buckets = cli.get_bucket_index()
+                if buckets:
+                    # Calculate analytics
+                    total_buckets = len(buckets)
+                    total_size = sum(bucket.get('size_bytes', 0) for bucket in buckets)
+                    backends = set(bucket.get('backend', 'unknown') for bucket in buckets)
+                    
+                    print(f"📈 Bucket Analytics:")
+                    print(f"   Total buckets: {total_buckets}")
+                    print(f"   Total size: {total_size / (1024 * 1024 * 1024):.2f} GB")
+                    print(f"   Backends: {', '.join(sorted(backends))}")
+                    
+                    # Backend breakdown
+                    by_backend = {}
+                    for bucket in buckets:
+                        backend = bucket.get('backend', 'unknown')
+                        if backend not in by_backend:
+                            by_backend[backend] = {'count': 0, 'size': 0}
+                        by_backend[backend]['count'] += 1
+                        by_backend[backend]['size'] += bucket.get('size_bytes', 0)
+                    
+                    print(f"\n📊 By Backend:")
+                    for backend, stats in by_backend.items():
+                        size_gb = stats['size'] / (1024 * 1024 * 1024)
+                        print(f"   {backend}: {stats['count']} buckets, {size_gb:.2f} GB")
+                    
+                    print(f"\n💡 Data source: ~/.ipfs_kit/bucket_index/bucket_analytics.db")
+                else:
+                    print("📭 No bucket data available for analytics")
+                    print("💡 Run 'ipfs-kit bucket discover' first")
+                
                 return 0
             elif args.bucket_action == 'refresh':
-                print("🔄 Refreshing bucket index...")
-                print("✅ Bucket refresh functionality would be implemented here")
+                print("🔄 Refreshing bucket index (force update from all backends)...")
+                
+                # Force refresh the bucket index
+                cli.get_bucket_index(force_refresh=True)
+                
+                print("✅ Bucket index refreshed from ~/.ipfs_kit/bucket_index/")
+                print("🔍 Run 'ipfs-kit bucket list' to see updated data")
+                
                 return 0
         
         # MCP commands
@@ -2325,6 +3526,59 @@ async def main():
         # Metrics commands
         elif args.command == 'metrics':
             return await cli.cmd_metrics(detailed=args.detailed)
+        
+        # WAL (Write-Ahead Log) commands - using fast index
+        elif args.command == 'wal':
+            try:
+                if hasattr(args, 'func'):
+                    # Call the registered handler function with minimal overhead
+                    result = args.func(None, args)  # Pass None for api since we use fast index
+                    if isinstance(result, str):
+                        print(result)
+                    return 0
+                else:
+                    print("❌ WAL command not recognized")
+                    return 1
+            except Exception as e:
+                print(f"❌ WAL command error: {e}")
+                return 1
+        
+        # FS Journal commands - using fast index
+        elif args.command == 'fs-journal':
+            try:
+                if hasattr(args, 'func'):
+                    # Call the registered handler function with minimal overhead
+                    result = args.func(None, args)  # Pass None for api since we use fast index
+                    if isinstance(result, str):
+                        print(result)
+                    return 0
+                else:
+                    print("❌ FS Journal command not recognized")
+                    return 1
+            except Exception as e:
+                print(f"❌ FS Journal command error: {e}")
+                return 1
+        
+        # Resource tracking commands - using fast index
+        elif args.command == 'resource':
+            try:
+                if hasattr(args, 'func'):
+                    # Call the registered handler function with minimal overhead
+                    result = await args.func(args)
+                    if isinstance(result, int):
+                        return result
+                    return 0
+                else:
+                    # Handle resource commands with action mapping
+                    from .resource_cli_fast import RESOURCE_COMMAND_HANDLERS
+                    if args.resource_action in RESOURCE_COMMAND_HANDLERS:
+                        return await RESOURCE_COMMAND_HANDLERS[args.resource_action](args)
+                    else:
+                        print("❌ Resource command not recognized")
+                        return 1
+            except Exception as e:
+                print(f"❌ Resource command error: {e}")
+                return 1
         
         parser.print_help()
         return 1

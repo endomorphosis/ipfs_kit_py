@@ -20,15 +20,15 @@ from fastapi.responses import FileResponse
 
 logger = logging.getLogger(__name__)
 
-# Import the IPFS Kit integration
+# Import the centralized VFS Manager
 try:
-    from .vfs_ipfs_kit_integration import get_global_vfs_integration
-    VFS_INTEGRATION_AVAILABLE = True
-    logger.info("✓ VFS IPFS Kit integration available")
+    from ipfs_kit_py.vfs_manager import get_global_vfs_manager
+    VFS_MANAGER_AVAILABLE = True
+    logger.info("✓ Centralized VFS Manager available")
 except ImportError as e:
-    logger.warning(f"VFS IPFS Kit integration not available: {e}")
-    VFS_INTEGRATION_AVAILABLE = False
-    get_global_vfs_integration = None
+    logger.warning(f"Centralized VFS Manager not available: {e}")
+    VFS_MANAGER_AVAILABLE = False
+    get_global_vfs_manager = None
 
 # Import daemon client for management operations
 try:
@@ -77,17 +77,17 @@ class VFSEndpoints:
             self.daemon_client = None
             self.route_reader = None
         
-        # Initialize IPFS Kit integration
-        if VFS_INTEGRATION_AVAILABLE and get_global_vfs_integration:
+        # Initialize centralized VFS Manager
+        if VFS_MANAGER_AVAILABLE and get_global_vfs_manager:
             try:
-                self.vfs_integration = get_global_vfs_integration()
-                logger.info("✓ VFS endpoints initialized with IPFS Kit integration")
+                self.vfs_manager = get_global_vfs_manager()
+                logger.info("✓ VFS endpoints initialized with centralized VFS Manager")
             except Exception as e:
-                logger.warning(f"Failed to initialize VFS integration: {e}")
-                self.vfs_integration = None
+                logger.warning(f"Failed to initialize VFS Manager: {e}")
+                self.vfs_manager = None
         else:
-            self.vfs_integration = None
-            logger.warning("VFS endpoints using fallback mode - IPFS Kit integration not available")
+            self.vfs_manager = None
+            logger.warning("VFS endpoints using fallback mode - centralized VFS Manager not available")
     
     async def get_cached_daemon_status(self) -> Dict[str, Any]:
         """Get daemon status with caching."""
@@ -138,9 +138,9 @@ class VFSEndpoints:
         """Get the VFS journal using IPFS Kit integration and daemon health data."""
         try:
             async with asyncio.timeout(2):
-                if self.vfs_integration:
-                    # Use IPFS Kit integration for journal data
-                    journal_entries = await self.vfs_integration.get_vfs_journal(backend_filter, search_query)
+                if self.vfs_manager:
+                    # Get from centralized VFS Manager
+                    journal_entries = await self.vfs_manager.get_vfs_journal(backend_filter, search_query)
                     
                     # Enhance with daemon health data if available
                     if self.daemon_client:
@@ -171,9 +171,9 @@ class VFSEndpoints:
         """Get comprehensive VFS analytics using IPFS Kit integration and daemon data."""
         try:
             async with asyncio.timeout(3):
-                if self.vfs_integration:
-                    # Use IPFS Kit integration for enhanced analytics
-                    vfs_stats = await self.vfs_integration.get_vfs_statistics()
+                if self.vfs_manager:
+                    # Use centralized VFS Manager for enhanced analytics
+                    vfs_stats = await self.vfs_manager.get_vfs_statistics()
                     
                     # Enhance with daemon backend statistics if available
                     if self.route_reader:
@@ -210,8 +210,8 @@ class VFSEndpoints:
                 health_data = {}
                 
                 # Get VFS statistics from integration
-                if self.vfs_integration:
-                    vfs_stats = await self.vfs_integration.get_vfs_statistics()
+                if self.vfs_manager:
+                    vfs_stats = await self.vfs_manager.get_vfs_statistics()
                     health_data.update({
                         "status": "healthy",
                         "filesystem_status": vfs_stats.get("filesystem_status", {}),

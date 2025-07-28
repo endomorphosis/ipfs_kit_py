@@ -179,6 +179,186 @@ class DaemonClient:
                 
         except Exception as e:
             return {"success": False, "error": f"Failed to stop daemon: {e}"}
+    
+    async def get_capabilities(self) -> Dict[str, Any]:
+        """Get daemon capabilities including Arrow IPC support."""
+        if not await self.is_daemon_running():
+            return {"error": "Daemon not running"}
+        
+        # Check for capability file or status
+        try:
+            status = await self.get_daemon_status()
+            capabilities = status.get("capabilities", {})
+            
+            # Check if Arrow IPC is supported
+            capabilities["arrow_ipc"] = capabilities.get("arrow_ipc", False)
+            capabilities["zero_copy"] = capabilities.get("zero_copy", False)
+            
+            return capabilities
+        except Exception as e:
+            logger.error(f"Error getting daemon capabilities: {e}")
+            return {"error": str(e)}
+    
+    async def request_arrow_ipc_data(self, data_type: str, request_data: Dict[str, Any], 
+                                     output_file: str) -> Dict[str, Any]:
+        """
+        Request daemon to write Arrow IPC data to a file.
+        
+        Args:
+            data_type: Type of data (pin_index, metrics, vfs_stats, backend_health)
+            request_data: Request parameters
+            output_file: Path to write Arrow IPC data
+            
+        Returns:
+            Response dictionary with success status
+        """
+        if not await self.is_daemon_running():
+            return {"success": False, "error": "Daemon not running"}
+        
+        try:
+            # For now, simulate Arrow IPC request by writing to command file
+            # In a full implementation, this would use HTTP API or Unix socket
+            
+            command_file = "/tmp/ipfs_kit_daemon_commands.json"
+            command = {
+                "type": "arrow_ipc_request",
+                "data_type": data_type,
+                "request_data": request_data,
+                "output_file": output_file,
+                "timestamp": time.time()
+            }
+            
+            # Write command to file for daemon to process
+            try:
+                commands = []
+                if os.path.exists(command_file):
+                    with open(command_file, 'r') as f:
+                        commands = json.load(f)
+                
+                commands.append(command)
+                
+                with open(command_file, 'w') as f:
+                    json.dump(commands, f)
+                
+                logger.info(f"Requested Arrow IPC data: {data_type} -> {output_file}")
+                
+                # Wait for daemon to process and create output file
+                for i in range(self.timeout):
+                    await asyncio.sleep(1)
+                    if os.path.exists(output_file):
+                        return {"success": True, "message": "Arrow IPC data written"}
+                    
+                return {"success": False, "error": f"Timeout waiting for Arrow IPC data after {self.timeout}s"}
+                
+            except Exception as e:
+                return {"success": False, "error": f"Failed to write command: {e}"}
+                
+        except Exception as e:
+            logger.error(f"Error requesting Arrow IPC data: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_pin_index(self, limit: Optional[int] = None, 
+                            filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Get pin index data as JSON (fallback method)."""
+        if not await self.is_daemon_running():
+            return {"success": False, "error": "Daemon not running"}
+        
+        try:
+            # Request pin index data from daemon
+            # This would normally be an HTTP API call
+            
+            # For now, read from a shared file that daemon maintains
+            pin_index_file = "/tmp/ipfs_kit_pin_index.json"
+            if os.path.exists(pin_index_file):
+                with open(pin_index_file, 'r') as f:
+                    pin_data = json.load(f)
+                
+                pins = pin_data.get("pins", [])
+                
+                # Apply filters if provided
+                if filters:
+                    filtered_pins = []
+                    for pin in pins:
+                        include = True
+                        for key, value in filters.items():
+                            if key in pin and pin[key] != value:
+                                include = False
+                                break
+                        if include:
+                            filtered_pins.append(pin)
+                    pins = filtered_pins
+                
+                # Apply limit if provided
+                if limit and len(pins) > limit:
+                    pins = pins[:limit]
+                
+                return {"success": True, "pins": pins}
+            else:
+                return {"success": False, "error": "Pin index file not found"}
+                
+        except Exception as e:
+            logger.error(f"Error getting pin index: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_metrics(self, metric_types: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get metrics data as JSON (fallback method)."""
+        if not await self.is_daemon_running():
+            return {"success": False, "error": "Daemon not running"}
+        
+        try:
+            # Read metrics from shared file
+            metrics_file = "/tmp/ipfs_kit_metrics.json"
+            if os.path.exists(metrics_file):
+                with open(metrics_file, 'r') as f:
+                    metrics_data = json.load(f)
+                
+                metrics = metrics_data.get("metrics", [])
+                
+                # Filter by metric types if provided
+                if metric_types:
+                    filtered_metrics = []
+                    for metric in metrics:
+                        if metric.get("metric_type") in metric_types:
+                            filtered_metrics.append(metric)
+                    metrics = filtered_metrics
+                
+                return {"success": True, "metrics": metrics}
+            else:
+                return {"success": False, "error": "Metrics file not found"}
+                
+        except Exception as e:
+            logger.error(f"Error getting metrics: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_vfs_statistics(self, paths: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get VFS statistics as JSON (fallback method)."""
+        if not await self.is_daemon_running():
+            return {"success": False, "error": "Daemon not running"}
+        
+        try:
+            # Read VFS stats from shared file
+            vfs_stats_file = "/tmp/ipfs_kit_vfs_stats.json"
+            if os.path.exists(vfs_stats_file):
+                with open(vfs_stats_file, 'r') as f:
+                    vfs_data = json.load(f)
+                
+                vfs_stats = vfs_data.get("vfs_stats", [])
+                
+                # Filter by paths if provided
+                if paths:
+                    filtered_stats = []
+                    for stat in vfs_stats:
+                        if stat.get("path") in paths:
+                            filtered_stats.append(stat)
+                    vfs_stats = filtered_stats
+                
+                return {"success": True, "vfs_stats": vfs_stats}
+            else:
+                return {"success": False, "error": "VFS stats file not found"}
+                
+        except Exception as e:
+            logger.error(f"Error getting VFS statistics: {e}")
+            return {"success": False, "error": str(e)}
 
 
 class IPFSKitClientMixin:

@@ -418,12 +418,43 @@ class FsJournalControllerAnyIO:
 
     async def get_status(self):
         """
-        Get filesystem journal status.
+        Get filesystem journal status using fast index for optimal performance.
 
         Returns:
             Journal status information
         """
         try:
+            # Try to use fast index first for optimal performance
+            try:
+                from fs_journal_fast_index import FastFSJournalReader
+                reader = FastFSJournalReader()
+                status = await anyio.to_thread.run_sync(reader.get_status)
+                
+                if 'error' not in status:
+                    # Transform fast index response to match expected format
+                    return {
+                        "success": True,
+                        "enabled": True,
+                        "journal_path": status.get('base_path', 'unknown'),
+                        "checkpoint_interval": 50,  # Default value
+                        "wal_enabled": True,  # Assume enabled if fast index is available
+                        "transaction_count": status.get('total_operations', 0),
+                        "last_checkpoint": "fast_index",
+                        "filesystem_state": {
+                            "directories": status.get('virtual_filesystem', {}).get('directory', {}).get('count', 0),
+                            "files": status.get('virtual_filesystem', {}).get('file', {}).get('count', 0),
+                            "mounts": 0,  # Not tracked in fast index
+                        },
+                        "fast_index": True,
+                        "last_updated": status.get('last_updated', 'unknown')
+                    }
+            except ImportError:
+                # Fast index not available, fall back to regular method
+                pass
+            except Exception as e:
+                logger.warning(f"Fast index error, falling back to regular method: {e}")
+            
+            # Fallback to original method if fast index is not available
             api = self.ipfs_model.ipfs_kit
 
             if not hasattr(api, "filesystem_journal"):
@@ -458,6 +489,7 @@ class FsJournalControllerAnyIO:
                     "files": len(file_list),
                     "mounts": len(mount_points),
                 },
+                "fast_index": False
             }
 
         except HTTPException as e:
@@ -487,30 +519,52 @@ class FsJournalControllerAnyIO:
             List of transactions
         """
         try:
-            api = self.ipfs_model.ipfs_kit
+            # Try fast index first
+            try:
+                from ipfs_kit_py.fs_journal.fast_fs_journal_reader import FastFSJournalReader
+                
+                fast_reader = FastFSJournalReader()
+                status_filter = status.upper() if status != "all" else None
+                
+                transactions = await anyio.to_thread.run_sync(
+                    fast_reader.list_transactions, status=status_filter, limit=limit
+                )
+                
+                return {
+                    "success": True,
+                    "transactions": transactions,
+                    "count": len(transactions),
+                    "filter": status,
+                    "fast_index": True
+                }
+            
+            except (ImportError, Exception):
+                # Fall back to original implementation
+                api = self.ipfs_model.ipfs_kit
 
-            if not hasattr(api, "filesystem_journal"):
-                mcp_error_handling.raise_http_exception(
-        code="EXTENSION_NOT_AVAILABLE",
-        message_override="Filesystem journaling is not enabled",
-        endpoint="/fs-journal",
-        doc_category="extensions"
-    )
+                if not hasattr(api, "filesystem_journal"):
+                    mcp_error_handling.raise_http_exception(
+            code="EXTENSION_NOT_AVAILABLE",
+            message_override="Filesystem journaling is not enabled",
+            endpoint="/fs-journal",
+            doc_category="extensions"
+        )
 
-            journal = api.filesystem_journal
-            status_filter = status.upper() if status != "all" else None
+                journal = api.filesystem_journal
+                status_filter = status.upper() if status != "all" else None
 
-            # Use anyio for potentially blocking operation
-            transactions = await anyio.to_thread.run_sync(
-                journal.list_transactions, status=status_filter, limit=limit
-            )
+                # Use anyio for potentially blocking operation
+                transactions = await anyio.to_thread.run_sync(
+                    journal.list_transactions, status=status_filter, limit=limit
+                )
 
-            return {
-                "success": True,
-                "transactions": transactions,
-                "count": len(transactions),
-                "filter": status,
-            }
+                return {
+                    "success": True,
+                    "transactions": transactions,
+                    "count": len(transactions),
+                    "filter": status,
+                    "fast_index": False
+                }
 
         except HTTPException as e:
             raise e

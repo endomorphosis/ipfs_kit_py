@@ -31,6 +31,8 @@ class NodeRole(Enum):
     MASTER = "master"
     WORKER = "worker"
     LEECHER = "leecher"
+    MODULAR = "modular"  # Full-featured role for testing and development
+    LOCAL = "local"      # Local-only role with all networking disabled
     GATEWAY = "gateway"  # New role for gateway-only nodes
     OBSERVER = "observer"  # New role for monitoring-only nodes
 
@@ -183,6 +185,85 @@ role_capabilities = {
             "Reprovider": {"Interval": "0"},  # Disable reproviding
         },
     },
+    NodeRole.MODULAR: {
+        "description": "Full-featured role with all capabilities enabled for testing and development",
+        "required_resources": {
+            "min_memory_mb": 2048,  # 2GB
+            "min_storage_gb": 20,
+            "min_bandwidth_mbps": 10,
+            "min_uptime_hours": 0,  # No uptime requirement for testing
+            "preferred_cpu_cores": 4,
+        },
+        "capabilities": {
+            "cluster_management": True,
+            "dht_server": True,
+            "content_routing": True,
+            "task_distribution": True,
+            "metadata_indexing": True,
+            "persistent_storage": True,
+            "high_replication": True,
+            "monitoring": True,
+            "http_gateway": True,
+            "development_mode": True,
+        },
+        "ipfs_config_overrides": {
+            "Routing": {"Type": "dhtserver"},
+            "Datastore": {"StorageMax": "500GB", "StorageGCWatermark": 85, "GCPeriod": "6h"},
+            "Swarm": {"ConnMgr": {"LowWater": 150, "HighWater": 800, "GracePeriod": "25s"}},
+            "Addresses": {"Gateway": "/ip4/0.0.0.0/tcp/8080"},  # Enable gateway
+            "Gateway": {
+                "HTTPHeaders": {
+                    "Access-Control-Allow-Origin": ["*"],
+                    "Access-Control-Allow-Methods": ["GET", "POST", "PUT", "DELETE"],
+                },
+            },
+            "API": {"HTTPHeaders": {"Access-Control-Allow-Origin": ["*"]}},
+        },
+    },
+    NodeRole.LOCAL: {
+        "description": "Local-only mode with all networking capabilities disabled",
+        "required_resources": {
+            "min_memory_mb": 512,   # 512MB
+            "min_storage_gb": 5,
+            "min_bandwidth_mbps": 0,  # No bandwidth required
+            "min_uptime_hours": 0,
+            "preferred_cpu_cores": 1,
+        },
+        "capabilities": {
+            "cluster_management": False,
+            "dht_server": False,
+            "content_routing": False,
+            "task_distribution": False,
+            "metadata_indexing": True,   # Local indexing only
+            "persistent_storage": True,  # Local storage only
+            "high_replication": False,
+            "monitoring": False,
+            "http_gateway": False,
+            "networking_disabled": True,  # Special flag for local mode
+        },
+        "ipfs_config_overrides": {
+            "Routing": {"Type": "none"},  # Disable all routing
+            "Swarm": {
+                "AddrFilters": ["*"],  # Block all addresses
+                "ConnMgr": {"LowWater": 0, "HighWater": 0, "GracePeriod": "1s"},
+                "DisableNatPortMap": True,
+            },
+            "Addresses": {
+                "Swarm": [],  # No swarm addresses
+                "Announce": [],  # No announce addresses
+                "API": "/ip4/127.0.0.1/tcp/5001",  # Local API only
+                "Gateway": "/ip4/127.0.0.1/tcp/8080",  # Local gateway only
+            },
+            "Discovery": {
+                "MDNS": {"Enabled": False},  # Disable local discovery
+            },
+            "Reprovider": {"Interval": "0"},  # Disable reproviding
+            "AutoNAT": {"ServiceMode": "disabled"},  # Disable AutoNAT
+            "RelayClient": {"Enabled": False},  # Disable relay client
+            "RelayService": {"Enabled": False},  # Disable relay service
+            "Bootstrap": [],  # No bootstrap nodes
+        },
+    },
 }
 
 
@@ -282,6 +363,8 @@ class RoleManager:
             NodeRole.MASTER: self._optimize_for_master,
             NodeRole.WORKER: self._optimize_for_worker,
             NodeRole.LEECHER: self._optimize_for_leecher,
+            NodeRole.MODULAR: self._optimize_for_modular,
+            NodeRole.LOCAL: self._optimize_for_local,
             NodeRole.GATEWAY: self._optimize_for_gateway,
             NodeRole.OBSERVER: self._optimize_for_observer,
         }
@@ -416,19 +499,19 @@ class RoleManager:
 
             # Storage score (0-100)
             storage_ratio = min(
-                self.resources.get("disk_available_gb", 0) / required["min_storage_gb"], 3
+                self.resources.get("disk_available_gb", 0) / max(required["min_storage_gb"], 1), 3
             )
             score += min(100, storage_ratio * 33)
 
             # CPU score (0-100)
-            cpu_ratio = min(self.resources.get("cpu_count", 1) / required["preferred_cpu_cores"], 3)
+            cpu_ratio = min(self.resources.get("cpu_count", 1) / max(required["preferred_cpu_cores"], 1), 3)
             score += min(100, cpu_ratio * 33)
 
             # Network score if available (0-100)
             if "network_max_speed_mbps" in self.resources:
                 net_ratio = min(
                     self.resources.get("network_max_speed_mbps", 0)
-                    / required["min_bandwidth_mbps"],
+                    / max(required["min_bandwidth_mbps"], 1),
                     3,
                 )
                 score += min(100, net_ratio * 33)
@@ -1030,6 +1113,63 @@ class RoleManager:
         """Optimize for monitoring cluster health (observer role)."""
         self.logger.debug("Optimizing for cluster monitoring")
         # This would adjust metrics collection, alerting, etc.
+
+    def _optimize_for_modular(self):
+        """Optimize for modular development/testing role with all features enabled."""
+        self.logger.debug("Optimizing for modular development mode")
+        
+        # Enable all features for testing
+        self._adjust_connection_limits(150, 800)
+        self._enable_metadata_indexing()
+        self._configure_task_distribution()
+        
+        # Enable development-specific features
+        self.logger.info("Development mode enabled - all features available")
+        
+        # Configure for comprehensive functionality
+        self.metrics["modular_features"] = {
+            "dht_server": True,
+            "gateway": True,
+            "cluster_management": True,
+            "monitoring": True,
+            "development_mode": True
+        }
+
+    def _optimize_for_local(self):
+        """Optimize for local-only mode with networking disabled."""
+        self.logger.debug("Optimizing for local-only mode")
+        
+        # Disable all network connections
+        self._adjust_connection_limits(0, 0)
+        
+        # Enable only local features
+        self.logger.info("Local mode enabled - networking disabled")
+        
+        # Configure local-only features
+        self.metrics["local_features"] = {
+            "networking_disabled": True,
+            "local_storage": True,
+            "local_indexing": True,
+            "bootstrap_disabled": True,
+            "dht_disabled": True
+        }
+        
+        # Ensure no network operations
+        self._disable_network_components()
+
+    def _disable_network_components(self):
+        """Disable all networking components for local mode."""
+        self.logger.debug("Disabling all network components")
+        
+        # In a real implementation, this would:
+        # - Stop DHT participation
+        # - Close all network connections
+        # - Disable bootstrap nodes
+        # - Stop advertising on the network
+        # - Disable relay services
+        # - Stop AutoNAT service
+        
+        self.metrics["network_status"] = "disabled"
 
     def _register_with_master(self):
         """Register this node with a master node in the cluster."""

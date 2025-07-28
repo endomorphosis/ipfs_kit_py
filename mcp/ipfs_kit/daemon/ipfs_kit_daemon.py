@@ -22,7 +22,7 @@ import signal
 import sys
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 # FastAPI for daemon API
@@ -34,6 +34,7 @@ import uvicorn
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from ipfs_kit_py.ipfs_kit import IPFSKit
 from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
+from ipfs_kit_py.bucket_vfs_manager import BucketVFSManager
 
 # MCP backend components
 from ..backends.health_monitor import BackendHealthMonitor
@@ -43,6 +44,14 @@ from ..core.config_manager import SecureConfigManager
 # Pin index management
 import pandas as pd
 import sqlite3
+
+# Check for Arrow availability
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    ARROW_AVAILABLE = True
+except ImportError:
+    ARROW_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +82,7 @@ class IPFSKitDaemon:
         self.health_monitor = None
         self.log_manager = None
         self.config_manager = None
+        self.bucket_vfs_manager = None
         
         # Daemon state
         self.running = False
@@ -252,6 +262,20 @@ class IPFSKitDaemon:
             self.ipfs_kit = IPFSKit()
             logger.info("✓ IPFS Kit initialized")
             
+            # Initialize Bucket VFS Manager
+            try:
+                bucket_dir = self.data_dir / "buckets"
+                bucket_dir.mkdir(exist_ok=True)
+                self.bucket_vfs_manager = BucketVFSManager(
+                    storage_path=str(bucket_dir),
+                    enable_duckdb_integration=True,
+                    enable_parquet_export=True
+                )
+                logger.info("✓ Bucket VFS Manager initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Bucket VFS Manager initialization failed: {e}")
+                self.bucket_vfs_manager = None
+            
             # Initialize health monitor
             self.health_monitor = BackendHealthMonitor(str(self.config_dir))
             logger.info("✓ Health monitor initialized")
@@ -281,6 +305,11 @@ class IPFSKitDaemon:
         # Log collection task
         task3 = asyncio.create_task(self._log_collection_loop())
         self.background_tasks.add(task3)
+        
+        # Bucket maintenance task
+        if self.bucket_vfs_manager:
+            task4 = asyncio.create_task(self._bucket_maintenance_loop())
+            self.background_tasks.add(task4)
         
         logger.info(f"✓ Started {len(self.background_tasks)} background tasks")
     
@@ -329,17 +358,34 @@ class IPFSKitDaemon:
             except Exception as e:
                 logger.error(f"Error in log collection loop: {e}")
                 await asyncio.sleep(120)  # Wait longer if there's an error
+
+    async def _bucket_maintenance_loop(self):
+        """Background bucket maintenance loop."""
+        logger.info("🪣 Starting bucket maintenance loop...")
+        
+        while self.running:
+            try:
+                # Update bucket indexes and parquet exports every 5 minutes
+                if self.bucket_vfs_manager:
+                    await self._update_bucket_indexes()
+                    await self._export_buckets_to_parquet()
+                
+                await asyncio.sleep(300)  # 5 minutes
+                
+            except Exception as e:
+                logger.error(f"Error in bucket maintenance loop: {e}")
+                await asyncio.sleep(600)  # Wait longer if there's an error
     
     async def _get_pin_index_data(self) -> Dict[str, Any]:
         """Get pin index data from parquet files."""
         try:
-            pin_index_dir = self.data_dir / "enhanced_pin_index"
+            pin_index_dir = self.data_dir / "pin_metadata"
             
             if not pin_index_dir.exists():
                 return {"pins": [], "total": 0, "error": "Pin index not found"}
             
-            # Read enhanced pins parquet
-            pins_file = pin_index_dir / "enhanced_pins.parquet"
+            # Read pins parquet from new structure
+            pins_file = pin_index_dir / "parquet_storage" / "pins.parquet"
             if pins_file.exists():
                 df = pd.read_parquet(pins_file)
                 pins_data = df.to_dict('records')
@@ -350,7 +396,7 @@ class IPFSKitDaemon:
                     "last_updated": pins_file.stat().st_mtime
                 }
             else:
-                return {"pins": [], "total": 0, "error": "Enhanced pins file not found"}
+                return {"pins": [], "total": 0, "error": "Pins file not found"}
                 
         except Exception as e:
             logger.error(f"Error reading pin index: {e}")
@@ -405,10 +451,34 @@ class IPFSKitDaemon:
         try:
             logger.debug("Updating pin index...")
             
-            # TODO: Implement pin index update logic
-            # This would scan all backends and update the parquet files
+            # Use the new pin metadata index
+            import sys
+            sys.path.append('/home/devel/ipfs_kit_py/ipfs_kit_py')
+            from pin_metadata_index import PinMetadataIndex
             
-            logger.debug("✓ Pin index updated")
+            pin_index = PinMetadataIndex()
+            
+            # If IPFSKit is available, get current pins and update index
+            if self.ipfs_kit:
+                try:
+                    # TODO: Get pins from IPFS daemon once pin_ls is available
+                    # For now, just export existing metadata to parquet
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, pin_index.export_to_parquet
+                    )
+                    logger.debug("✓ Pin index exported to parquet")
+                except Exception as e:
+                    logger.warning(f"Could not update pins from IPFS: {e}")
+                    # Still export existing metadata
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, pin_index.export_to_parquet
+                    )
+            else:
+                # Just export existing metadata to parquet
+                await asyncio.get_event_loop().run_in_executor(
+                    None, pin_index.export_to_parquet
+                )
+                logger.debug("✓ Pin index metadata exported to parquet")
             
         except Exception as e:
             logger.error(f"Error updating pin index: {e}")
@@ -573,6 +643,155 @@ class IPFSKitDaemon:
             pass
         
         logger.info("✓ IPFS Kit Daemon stopped")
+
+    async def _update_bucket_indexes(self):
+        """Update bucket indexes and metadata."""
+        try:
+            if not self.bucket_vfs_manager:
+                return
+            
+            # Get list of all buckets
+            buckets_result = await self.bucket_vfs_manager.list_buckets()
+            if not buckets_result.get("success", False):
+                return
+            
+            buckets = buckets_result.get("data", {}).get("buckets", [])
+            
+            for bucket_info in buckets:
+                bucket_name = bucket_info["name"]
+                bucket = await self.bucket_vfs_manager.get_bucket(bucket_name)
+                
+                if bucket:
+                    # Update bucket metadata
+                    await bucket._save_metadata()
+                    logger.debug(f"Updated metadata for bucket '{bucket_name}'")
+            
+        except Exception as e:
+            logger.error(f"Error updating bucket indexes: {e}")
+    
+    async def _export_buckets_to_parquet(self):
+        """Export bucket data to parquet files."""
+        try:
+            if not self.bucket_vfs_manager or not ARROW_AVAILABLE:
+                return
+            
+            # Get list of all buckets
+            buckets_result = await self.bucket_vfs_manager.list_buckets()
+            if not buckets_result.get("success", False):
+                return
+            
+            buckets = buckets_result.get("data", {}).get("buckets", [])
+            
+            # Export bucket index metadata
+            bucket_index_dir = self.data_dir / "bucket_index"
+            bucket_index_dir.mkdir(exist_ok=True)
+            
+            # Create bucket index parquet
+            if buckets:
+                bucket_metadata = []
+                
+                for bucket_info in buckets:
+                    bucket_name = bucket_info["name"]
+                    bucket = await self.bucket_vfs_manager.get_bucket(bucket_name)
+                    
+                    if bucket:
+                        metadata = {
+                            "bucket_name": bucket.name,
+                            "bucket_type": bucket.bucket_type.value if hasattr(bucket, 'bucket_type') else "standard",
+                            "vfs_structure": bucket.vfs_structure.value if hasattr(bucket, 'vfs_structure') else "flat",
+                            "file_count": await self._get_bucket_file_count(bucket),
+                            "total_size": await self._get_bucket_total_size(bucket),
+                            "last_modified": bucket_info.get("modified", datetime.now().isoformat()),
+                            "root_cid": bucket_info.get("root_cid", ""),
+                            "created_at": bucket_info.get("created", datetime.now().isoformat()),
+                            "updated_at": datetime.now().isoformat()
+                        }
+                        bucket_metadata.append(metadata)
+                        
+                        # Export individual bucket VFS index
+                        await self._export_bucket_vfs_index(bucket)
+                
+                # Write bucket index parquet
+                if bucket_metadata:
+                    import pyarrow as pa
+                    import pyarrow.parquet as pq
+                    
+                    df = pd.DataFrame(bucket_metadata)
+                    bucket_index_parquet = bucket_index_dir / "bucket_index.parquet"
+                    df.to_parquet(bucket_index_parquet)
+                    
+                    logger.debug(f"Exported {len(bucket_metadata)} buckets to parquet")
+            
+        except Exception as e:
+            logger.error(f"Error exporting buckets to parquet: {e}")
+    
+    async def _export_bucket_vfs_index(self, bucket):
+        """Export individual bucket VFS index to parquet."""
+        try:
+            if not ARROW_AVAILABLE:
+                return
+            
+            # Create bucket-specific directory
+            bucket_vfs_dir = self.data_dir / "bucket_vfs_indexes" / bucket.name
+            bucket_vfs_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Get bucket file listings
+            files_result = await bucket.list_files()
+            if files_result.get("success", False):
+                files = files_result.get("data", {}).get("files", [])
+                
+                if files:
+                    import pyarrow as pa
+                    import pyarrow.parquet as pq
+                    
+                    # Create file metadata records
+                    file_records = []
+                    for file_info in files:
+                        record = {
+                            "bucket_name": bucket.name,
+                            "file_path": file_info.get("path", ""),
+                            "file_name": file_info.get("name", ""),
+                            "file_size": file_info.get("size", 0),
+                            "file_type": file_info.get("type", ""),
+                            "content_hash": file_info.get("hash", ""),
+                            "last_modified": file_info.get("modified", datetime.now().isoformat()),
+                            "metadata": json.dumps(file_info.get("metadata", {})),
+                            "updated_at": datetime.now().isoformat()
+                        }
+                        file_records.append(record)
+                    
+                    # Write VFS index parquet
+                    df = pd.DataFrame(file_records)
+                    vfs_index_parquet = bucket_vfs_dir / "vfs_index.parquet"
+                    df.to_parquet(vfs_index_parquet)
+                    
+                    logger.debug(f"Exported VFS index for bucket '{bucket.name}' with {len(file_records)} files")
+            
+        except Exception as e:
+            logger.error(f"Error exporting VFS index for bucket '{bucket.name}': {e}")
+    
+    async def _get_bucket_file_count(self, bucket) -> int:
+        """Get file count for a bucket."""
+        try:
+            files_result = await bucket.list_files()
+            if files_result.get("success", False):
+                return len(files_result.get("data", {}).get("files", []))
+            return 0
+        except:
+            return 0
+    
+    async def _get_bucket_total_size(self, bucket) -> int:
+        """Get total size for a bucket."""
+        try:
+            files_result = await bucket.list_files()
+            if files_result.get("success", False):
+                total_size = 0
+                for file_info in files_result.get("data", {}).get("files", []):
+                    total_size += file_info.get("size", 0)
+                return total_size
+            return 0
+        except:
+            return 0
 
 
 async def main():

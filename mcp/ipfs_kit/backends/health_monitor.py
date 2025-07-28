@@ -35,7 +35,12 @@ from .vfs_observer import VFSObservabilityManager
 from .log_manager import BackendLogManager
 
 # Try to import pin metadata index - create fallback if not available
-
+try:
+    from ipfs_kit_py.pins import get_global_pin_index
+except ImportError:
+    # Create a fallback function if pins module not available
+    def get_global_pin_index(*args, **kwargs):
+        return None
 
 # Import enhanced pin index if available
 try:
