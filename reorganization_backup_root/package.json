@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@filoz/synapse-sdk": "^0.19.4"
+  }
+}

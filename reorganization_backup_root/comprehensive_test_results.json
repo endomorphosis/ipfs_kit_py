@@ -1,0 +1,405 @@
+{
+  "cluster_daemon_tests": {
+    "tests": [
+      {
+        "name": "cluster_manager_import",
+        "passed": true,
+        "details": {
+          "config_created": true,
+          "manager_initialized": true
+        }
+      },
+      {
+        "name": "cluster_config_validation",
+        "passed": true,
+        "details": {
+          "valid": true,
+          "issues": [],
+          "warnings": []
+        }
+      },
+      {
+        "name": "cluster_status_check",
+        "passed": true,
+        "details": {
+          "running": false,
+          "api_responsive": false,
+          "pid": null,
+          "version": null,
+          "peer_count": 0,
+          "port_status": {
+            "api": {
+              "port": 9094,
+              "in_use": false,
+              "processes": []
+            },
+            "proxy": {
+              "port": 9095,
+              "in_use": false,
+              "processes": []
+            },
+            "cluster": {
+              "port": 9096,
+              "in_use": false,
+              "processes": []
+            }
+          },
+          "config_valid": false,
+          "last_check": "2025-07-22T16:12:11.610481",
+          "errors": []
+        }
+      },
+      {
+        "name": "cluster_port_check",
+        "passed": true,
+        "details": {
+          "api_port_available": true,
+          "api_port": 9094,
+          "conflicts": []
+        }
+      }
+    ]
+  },
+  "health_monitor_tests": {
+    "tests": [
+      {
+        "name": "health_monitor_init",
+        "passed": true,
+        "details": {
+          "monitor_created": true,
+          "backends_count": 12
+        }
+      },
+      {
+        "name": "all_backends_health_check",
+        "passed": true,
+        "details": {
+          "backends_checked": [
+            "ipfs",
+            "ipfs_cluster",
+            "ipfs_cluster_follow",
+            "lotus",
+            "lassie",
+            "storacha",
+            "synapse",
+            "s3",
+            "huggingface",
+            "parquet",
+            "gdrive",
+            "libp2p"
+          ],
+          "health_summary": {
+            "ipfs": "healthy",
+            "ipfs_cluster": "unhealthy",
+            "ipfs_cluster_follow": "unhealthy",
+            "lotus": "unhealthy",
+            "lassie": "healthy",
+            "storacha": "healthy",
+            "synapse": "healthy",
+            "s3": "unhealthy",
+            "huggingface": "healthy",
+            "parquet": "healthy",
+            "gdrive": "degraded",
+            "libp2p": "unhealthy"
+          }
+        }
+      },
+      {
+        "name": "cluster_health_enhanced",
+        "passed": true,
+        "details": {
+          "name": "IPFS Cluster",
+          "status": "stopped",
+          "health": "unhealthy",
+          "last_check": "2025-07-22T16:12:17.219612",
+          "metrics": {},
+          "errors": [
+            {
+              "timestamp": "2025-07-22T16:12:14.605324",
+              "error": "Failed to start cluster daemon: ['Configuration validation failed']"
+            },
+            {
+              "timestamp": "2025-07-22T16:12:17.219576",
+              "error": "Failed to start cluster daemon: ['Configuration validation failed']"
+            },
+            {
+              "timestamp": "2025-07-22T16:12:38.142103",
+              "error": "Failed to start cluster daemon: ['Configuration validation failed']"
+            },
+            {
+              "timestamp": "2025-07-22T16:12:41.725546",
+              "error": "Failed to start cluster daemon: ['Configuration validation failed']"
+            }
+          ],
+          "daemon_pid": null,
+          "port": 9094,
+          "detailed_info": {
+            "cluster_id": "unknown",
+            "peer_id": "unknown",
+            "cluster_peers": 0,
+            "pins_count": 0,
+            "allocations": {},
+            "consensus": "raft",
+            "api_address": "/ip4/127.0.0.1/tcp/9094",
+            "proxy_address": "/ip4/127.0.0.1/tcp/9095"
+          }
+        }
+      },
+      {
+        "name": "libp2p_health_enhanced",
+        "passed": true,
+        "details": {
+          "name": "LibP2P Peer Network",
+          "status": "stopped",
+          "health": "unhealthy",
+          "last_check": "2025-07-22T16:12:17.220877",
+          "metrics": {
+            "peer_discovery": {
+              "total_peers": 0,
+              "connected_peers": 0,
+              "bootstrap_peers": 0,
+              "discovery_active": false,
+              "connectivity_ratio": 0.0
+            },
+            "network_data": {
+              "files_accessible": 0,
+              "pins_accessible": 0,
+              "protocols_count": 5,
+              "data_availability": false
+            },
+            "connectivity": {
+              "host_active": false,
+              "protocols_supported": [
+                "/ipfs-kit/metadata/1.0.0",
+                "/ipfs-kit/vectordb/1.0.0",
+                "/ipfs-kit/kb/1.0.0",
+                "/ipfs-kit/filesystem/1.0.0",
+                "/ipfs-kit/pinset/1.0.0"
+              ],
+              "discovery_working": false,
+              "network_health_score": 0
+            }
+          },
+          "errors": [],
+          "peer_manager": "<ipfs_kit_py.libp2p.peer_manager.Libp2pPeerManager object at 0x7487a3fcc230>",
+          "detailed_info": {
+            "peer_id": "unknown",
+            "total_peers": 0,
+            "connected_peers": 0,
+            "bootstrap_peers": 0,
+            "protocols": [
+              "/ipfs-kit/metadata/1.0.0",
+              "/ipfs-kit/vectordb/1.0.0",
+              "/ipfs-kit/kb/1.0.0",
+              "/ipfs-kit/filesystem/1.0.0",
+              "/ipfs-kit/pinset/1.0.0"
+            ],
+            "discovery_active": false,
+            "files_accessible": 0,
+            "pins_accessible": 0,
+            "listen_addresses": [],
+            "auto_started": true,
+            "start_timestamp": "2025-07-22T16:12:15.813550",
+            "connectivity_issues": [
+              "host_inactive"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "libp2p_tests": {
+    "tests": [
+      {
+        "name": "libp2p_peer_manager_import",
+        "passed": true,
+        "details": {
+          "manager_created": true
+        }
+      },
+      {
+        "name": "peer_statistics",
+        "passed": true,
+        "details": {
+          "total_peers": 0,
+          "connected_peers": 0,
+          "bootstrap_peers": 0,
+          "discovery_active": false,
+          "protocols_supported": [
+            "/ipfs-kit/metadata/1.0.0",
+            "/ipfs-kit/vectordb/1.0.0",
+            "/ipfs-kit/kb/1.0.0",
+            "/ipfs-kit/filesystem/1.0.0",
+            "/ipfs-kit/pinset/1.0.0"
+          ],
+          "total_files": 0,
+          "total_pins": 0,
+          "last_discovery": null
+        }
+      },
+      {
+        "name": "libp2p_health_score",
+        "passed": true,
+        "details": {
+          "score": 100,
+          "test_stats": {
+            "discovery_active": true,
+            "total_peers": 5,
+            "connected_peers": 4,
+            "total_files": 10,
+            "total_pins": 5
+          }
+        }
+      }
+    ]
+  },
+  "dashboard_api_tests": {
+    "tests": [
+      {
+        "name": "dashboard_controller_init",
+        "passed": true,
+        "details": {
+          "controller_created": true,
+          "cluster_manager_available": true
+        }
+      },
+      {
+        "name": "comprehensive_status",
+        "passed": true,
+        "details": {
+          "overall_health": "unhealthy",
+          "backends_count": 12,
+          "alerts_count": 5,
+          "metrics": {
+            "health_percentage": 58.333333333333336,
+            "healthy_backends": 7,
+            "total_backends": 12,
+            "cluster_peers": 0,
+            "libp2p_peers": 0,
+            "alerts_count": 5
+          }
+        }
+      },
+      {
+        "name": "realtime_metrics",
+        "passed": true,
+        "details": {
+          "system_metrics": true,
+          "backend_metrics": true,
+          "network_metrics": true,
+          "performance_metrics": false
+        }
+      },
+      {
+        "name": "health_check_api",
+        "passed": true,
+        "details": {
+          "results_count": 12,
+          "metrics_included": true
+        }
+      }
+    ]
+  },
+  "integration_tests": {
+    "tests": [
+      {
+        "name": "end_to_end_status",
+        "passed": true,
+        "details": {
+          "dashboard_backends": [
+            "ipfs",
+            "ipfs_cluster",
+            "ipfs_cluster_follow",
+            "lotus",
+            "lassie",
+            "storacha",
+            "synapse",
+            "s3",
+            "huggingface",
+            "parquet",
+            "gdrive",
+            "libp2p"
+          ],
+          "monitor_backends": [
+            "ipfs",
+            "ipfs_cluster",
+            "ipfs_cluster_follow",
+            "lotus",
+            "lassie",
+            "storacha",
+            "synapse",
+            "s3",
+            "huggingface",
+            "parquet",
+            "gdrive",
+            "libp2p"
+          ],
+          "integration_overlap": [
+            "ipfs_cluster_follow",
+            "parquet",
+            "ipfs_cluster",
+            "synapse",
+            "storacha",
+            "ipfs",
+            "huggingface",
+            "s3",
+            "libp2p",
+            "lassie",
+            "gdrive",
+            "lotus"
+          ]
+        }
+      },
+      {
+        "name": "cluster_integration",
+        "passed": true,
+        "details": {
+          "success": false,
+          "action": "status",
+          "timestamp": "2025-07-22T16:12:39.771109",
+          "details": {
+            "running": false,
+            "api_responsive": false,
+            "pid": null,
+            "version": null,
+            "peer_count": 0,
+            "port_status": {
+              "api": {
+                "port": 9094,
+                "in_use": false,
+                "processes": []
+              },
+              "proxy": {
+                "port": 9095,
+                "in_use": false,
+                "processes": []
+              },
+              "cluster": {
+                "port": 9096,
+                "in_use": false,
+                "processes": []
+              }
+            },
+            "config_valid": false,
+            "last_check": "2025-07-22T16:12:39.771130",
+            "errors": []
+          }
+        }
+      },
+      {
+        "name": "auto_healing_integration",
+        "passed": true,
+        "details": {
+          "auto_heal_structure": true,
+          "cluster_manager_integration": false
+        }
+      }
+    ]
+  },
+  "summary": {
+    "total_tests": 18,
+    "passed_tests": 18,
+    "failed_tests": 0,
+    "success_rate": 100.0
+  }
+}
