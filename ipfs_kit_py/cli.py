@@ -400,14 +400,12 @@ examples:
     
     # Health check with optional backend filter
     health_check_parser = health_subparsers.add_parser('check', help='Run health check [backend]')
-    health_check_parser.add_argument('backend', nargs='?', 
-                                    choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'package', 'wal', 'fs_journal', 'all'],
-                                    help='Check health of specific backend (optional)')
-    
-    # Health status with optional backend filter  
+    health_check_parser.add_argument('backend', nargs='?',
+                                    choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'wal', 'fs_journal', 'all'],
+                                    help='Check health of specific backend (optional)')    # Health status with optional backend filter  
     health_status_parser = health_subparsers.add_parser('status', help='Show health status [backend]')
     health_status_parser.add_argument('backend', nargs='?',
-                                     choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'package', 'wal', 'fs_journal', 'all'],
+                                     choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'wal', 'fs_journal', 'all'],
                                      help='Show status of specific backend (optional)')
     
     # Configuration
@@ -417,12 +415,12 @@ examples:
 
     # Config show command  
     show_config_parser = config_subparsers.add_parser('show', help='Show current configuration from ~/.ipfs_kit/')
-    show_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'package', 'wal', 'fs_journal', 'all'],
+    show_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'wal', 'fs_journal', 'all'],
                                    help='Show configuration for specific backend')
     
     # Config validate command
     validate_config_parser = config_subparsers.add_parser('validate', help='Validate all configuration files')
-    validate_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'package', 'wal', 'fs_journal', 'all'],
+    validate_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'wal', 'fs_journal', 'all'],
                                       help='Validate specific backend configuration')
     
     # Config set command
@@ -432,7 +430,7 @@ examples:
     
     # Config init command - interactive setup
     init_config_parser = config_subparsers.add_parser('init', help='Interactive configuration setup for all backends')
-    init_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'cache', 'semantic_cache', 'replication', 'vector_db', 'knowledge_graph', 'all'], 
+    init_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'package', 'wal', 'fs_journal', 'all'], 
                                    help='Configure specific backend or all backends')
     init_config_parser.add_argument('--non-interactive', action='store_true', help='Use defaults without prompts')
     
@@ -443,7 +441,7 @@ examples:
     
     # Config reset command
     reset_config_parser = config_subparsers.add_parser('reset', help='Reset configuration to defaults')
-    reset_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'cache', 'semantic_cache', 'replication', 'vector_db', 'knowledge_graph', 'all'],
+    reset_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'package', 'wal', 'fs_journal', 'all'],
                                     help='Reset specific backend or all backends')
     reset_config_parser.add_argument('--confirm', action='store_true', help='Skip confirmation prompt')    # Bucket management
     bucket_parser = subparsers.add_parser('bucket', help='Virtual filesystem (bucket) discovery and management')

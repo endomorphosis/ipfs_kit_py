@@ -8,16 +8,16 @@ from typing import Dict, Any, Optional, List, Union
 
 
 class StorageBackendType(str, Enum):
-    """Enumeration of supported storage backend types."""
+    """Storage backend type enumeration"""
     IPFS = "ipfs"
-    FILECOIN = "filecoin"
     S3 = "s3"
     HUGGINGFACE = "huggingface"
     STORACHA = "storacha"
-    LASSIE = "lassie"
-    LOCAL = "local"
-    MEM = "memory"
-    CUSTOM = "custom"
+    GDRIVE = "gdrive"
+    LOTUS = "lotus"
+    SYNAPSE = "synapse"
+    SSHFS = "sshfs"
+    FTP = "ftp"
 
 
 class StorageOperation(str, Enum):

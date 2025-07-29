@@ -534,6 +534,8 @@ async def record_storage_access(
             "huggingface": "huggingface",
             "filecoin": "filecoin",
             "lassie": "ipfs",
+            "sshfs": "sshfs",
+            "ftp": "ftp",
             "gdrive": "gdrive"
         }
         tier = tier_mapping.get(backend.lower(), backend.lower())

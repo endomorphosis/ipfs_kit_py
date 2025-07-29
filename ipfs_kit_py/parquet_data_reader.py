@@ -60,7 +60,26 @@ class ParquetDataReader:
                                         'primary_tier': row.get('primary_tier', ''),
                                         'replication_factor': row.get('replication_factor', 1),
                                         'content_hash': row.get('content_hash', ''),
-                                        'integrity_status': row.get('integrity_status', 'unknown')
+                                        'integrity_status': row.get('integrity_status', 'unknown'),
+                                        # Git VFS translation metadata
+                                        'git_vfs_enabled': row.get('git_vfs_enabled', False),
+                                        'git_repository_url': row.get('git_repository_url', ''),
+                                        'git_commit_hash': row.get('git_commit_hash', ''),
+                                        'git_branch': row.get('git_branch', ''),
+                                        'vfs_snapshot_id': row.get('vfs_snapshot_id', ''),
+                                        'vfs_snapshot_timestamp': row.get('vfs_snapshot_timestamp', ''),
+                                        'git_vfs_translation_status': row.get('git_vfs_translation_status', 'none'),
+                                        'content_addressing_type': row.get('content_addressing_type', 'blake3'),
+                                        # New backend support
+                                        'backend_types': row.get('backend_types', []),
+                                        'sshfs_backend_active': row.get('sshfs_backend_active', False),
+                                        'ftp_backend_active': row.get('ftp_backend_active', False),
+                                        'backend_health_status': row.get('backend_health_status', {}),
+                                        'backend_last_sync': row.get('backend_last_sync', {}),
+                                        # Enhanced metadata for new backends
+                                        'remote_file_path': row.get('remote_file_path', ''),
+                                        'sync_metadata': row.get('sync_metadata', {}),
+                                        'translation_metadata': row.get('translation_metadata', {})
                                     }
                                     pins.append(pin_data)
                                 
@@ -232,7 +251,19 @@ class ParquetDataReader:
                             'retry_count': row.get('retry_count', 0),
                             'error_message': row.get('error_message', ''),
                             'duration_ms': row.get('duration_ms', 0),
-                            'metadata': self._parse_json_field(row.get('metadata_json', '{}'))
+                            'metadata': self._parse_json_field(row.get('metadata_json', '{}')),
+                            # Git VFS integration fields
+                            'git_vfs_operation': row.get('git_vfs_operation', False),
+                            'git_commit_hash': row.get('git_commit_hash', ''),
+                            'vfs_snapshot_id': row.get('vfs_snapshot_id', ''),
+                            'translation_type': row.get('translation_type', ''),
+                            # New backend fields
+                            'backend_tier': row.get('backend_tier', ''),
+                            'remote_backend_host': row.get('remote_backend_host', ''),
+                            'connection_pool_id': row.get('connection_pool_id', ''),
+                            'sync_operation': row.get('sync_operation', False),
+                            'content_addressing_hash': row.get('content_addressing_hash', ''),
+                            'vfs_mount_point': row.get('vfs_mount_point', '')
                         }
                         all_operations.append(operation)
                         
@@ -297,7 +328,24 @@ class ParquetDataReader:
                             'size': row.get('size', 0),
                             'error_message': row.get('error_message', ''),
                             'duration_ms': row.get('duration_ms', 0),
-                            'metadata': self._parse_json_field(row.get('metadata_json', '{}'))
+                            'metadata': self._parse_json_field(row.get('metadata_json', '{}')),
+                            # Git VFS integration fields
+                            'git_vfs_enabled': row.get('git_vfs_enabled', False),
+                            'git_repository_path': row.get('git_repository_path', ''),
+                            'vfs_translation_active': row.get('vfs_translation_active', False),
+                            'git_operation_type': row.get('git_operation_type', ''),
+                            # Enhanced backend tracking
+                            'backend_tier': row.get('backend_tier', ''),
+                            'backend_connection_type': row.get('backend_connection_type', ''),
+                            'is_remote_backend': row.get('is_remote_backend', False),
+                            'remote_host': row.get('remote_host', ''),
+                            'connection_status': row.get('connection_status', ''),
+                            'transfer_mode': row.get('transfer_mode', ''),
+                            # Content addressing and VFS
+                            'content_hash': row.get('content_hash', ''),
+                            'vfs_bucket_id': row.get('vfs_bucket_id', ''),
+                            'vfs_snapshot_ref': row.get('vfs_snapshot_ref', ''),
+                            'sync_status': row.get('sync_status', '')
                         }
                         all_operations.append(operation)
                         
@@ -1242,3 +1290,214 @@ def get_parquet_reader() -> ParquetDataReader:
     if _parquet_reader is None:
         _parquet_reader = ParquetDataReader()
     return _parquet_reader
+
+    def read_git_vfs_metadata(self, repository_path: Optional[str] = None, 
+                             limit: Optional[int] = None) -> Dict[str, Any]:
+        """Read Git VFS translation metadata from Parquet files."""
+        try:
+            git_vfs_pattern = str(self.base_path / 'git_vfs' / 'metadata' / '**' / '*.parquet')
+            git_vfs_files = glob.glob(git_vfs_pattern, recursive=True)
+            
+            if not git_vfs_files:
+                return {
+                    'success': False,
+                    'error': 'No Git VFS metadata Parquet files found',
+                    'repositories': []
+                }
+            
+            all_repositories = []
+            for file_path in git_vfs_files:
+                try:
+                    df = pd.read_parquet(file_path)
+                    
+                    # Apply repository filter if specified
+                    if repository_path:
+                        df = df[df['repository_path'].str.contains(repository_path, na=False)]
+                    
+                    for _, row in df.iterrows():
+                        repo_data = {
+                            'repository_path': row.get('repository_path', ''),
+                            'repository_url': row.get('repository_url', ''),
+                            'vfs_bucket_id': row.get('vfs_bucket_id', ''),
+                            'translation_status': row.get('translation_status', 'none'),
+                            'last_sync_timestamp': row.get('last_sync_timestamp', ''),
+                            'commit_count': row.get('commit_count', 0),
+                            'vfs_snapshots_count': row.get('vfs_snapshots_count', 0),
+                            'content_addressing_type': row.get('content_addressing_type', 'blake3'),
+                            'git_branch': row.get('git_branch', 'main'),
+                            'latest_commit_hash': row.get('latest_commit_hash', ''),
+                            'vfs_metadata_hash': row.get('vfs_metadata_hash', ''),
+                            'translation_errors': self._parse_json_field(row.get('translation_errors_json', '[]')),
+                            'supported_operations': self._parse_json_field(row.get('supported_operations_json', '[]')),
+                            'backend_integrations': self._parse_json_field(row.get('backend_integrations_json', '{}'))
+                        }
+                        all_repositories.append(repo_data)
+                        
+                except Exception as e:
+                    print(f"⚠️  Error reading Git VFS file {file_path}: {e}")
+                    continue
+            
+            # Sort by last sync timestamp (most recent first)
+            all_repositories.sort(key=lambda x: x.get('last_sync_timestamp', ''), reverse=True)
+            
+            # Apply limit if specified
+            if limit:
+                all_repositories = all_repositories[:limit]
+            
+            return {
+                'success': True,
+                'repositories': all_repositories,
+                'sources': git_vfs_files,
+                'total_count': len(all_repositories),
+                'method': 'parquet_direct'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Git VFS metadata read error: {e}',
+                'repositories': []
+            }
+
+    def read_backend_health_metadata(self, backend_type: Optional[str] = None) -> Dict[str, Any]:
+        """Read backend health and status metadata from Parquet files."""
+        try:
+            health_pattern = str(self.base_path / 'backend_health' / 'metadata' / '**' / '*.parquet')
+            health_files = glob.glob(health_pattern, recursive=True)
+            
+            if not health_files:
+                return {
+                    'success': False,
+                    'error': 'No backend health metadata Parquet files found',
+                    'backends': []
+                }
+            
+            all_backends = []
+            for file_path in health_files:
+                try:
+                    df = pd.read_parquet(file_path)
+                    
+                    # Apply backend type filter if specified
+                    if backend_type:
+                        df = df[df['backend_type'] == backend_type]
+                    
+                    for _, row in df.iterrows():
+                        backend_data = {
+                            'backend_type': row.get('backend_type', ''),
+                            'backend_id': row.get('backend_id', ''),
+                            'is_healthy': row.get('is_healthy', False),
+                            'last_health_check': row.get('last_health_check', ''),
+                            'connection_status': row.get('connection_status', 'unknown'),
+                            'connection_latency_ms': row.get('connection_latency_ms', 0),
+                            'active_connections': row.get('active_connections', 0),
+                            'total_operations': row.get('total_operations', 0),
+                            'successful_operations': row.get('successful_operations', 0),
+                            'failed_operations': row.get('failed_operations', 0),
+                            'error_rate_24h': row.get('error_rate_24h', 0.0),
+                            'avg_response_time_ms': row.get('avg_response_time_ms', 0),
+                            'storage_used_bytes': row.get('storage_used_bytes', 0),
+                            'storage_available_bytes': row.get('storage_available_bytes', 0),
+                            # Remote backend specific fields
+                            'remote_host': row.get('remote_host', ''),
+                            'remote_port': row.get('remote_port', 0),
+                            'connection_pool_size': row.get('connection_pool_size', 0),
+                            'transfer_speed_mbps': row.get('transfer_speed_mbps', 0.0),
+                            # Git VFS integration status
+                            'git_vfs_enabled': row.get('git_vfs_enabled', False),
+                            'git_repositories_count': row.get('git_repositories_count', 0),
+                            'vfs_snapshots_count': row.get('vfs_snapshots_count', 0),
+                            'recent_errors': self._parse_json_field(row.get('recent_errors_json', '[]')),
+                            'configuration_status': self._parse_json_field(row.get('configuration_status_json', '{}'))
+                        }
+                        all_backends.append(backend_data)
+                        
+                except Exception as e:
+                    print(f"⚠️  Error reading backend health file {file_path}: {e}")
+                    continue
+            
+            # Sort by last health check (most recent first)
+            all_backends.sort(key=lambda x: x.get('last_health_check', ''), reverse=True)
+            
+            return {
+                'success': True,
+                'backends': all_backends,
+                'sources': health_files,
+                'total_count': len(all_backends),
+                'method': 'parquet_direct'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Backend health metadata read error: {e}',
+                'backends': []
+            }
+
+    def read_vfs_snapshots(self, bucket_id: Optional[str] = None, 
+                          limit: Optional[int] = None) -> Dict[str, Any]:
+        """Read VFS snapshot metadata from Parquet files."""
+        try:
+            snapshots_pattern = str(self.base_path / 'vfs_snapshots' / 'metadata' / '**' / '*.parquet')
+            snapshot_files = glob.glob(snapshots_pattern, recursive=True)
+            
+            if not snapshot_files:
+                return {
+                    'success': False,
+                    'error': 'No VFS snapshot metadata Parquet files found',
+                    'snapshots': []
+                }
+            
+            all_snapshots = []
+            for file_path in snapshot_files:
+                try:
+                    df = pd.read_parquet(file_path)
+                    
+                    # Apply bucket filter if specified
+                    if bucket_id:
+                        df = df[df['bucket_id'] == bucket_id]
+                    
+                    for _, row in df.iterrows():
+                        snapshot_data = {
+                            'snapshot_id': row.get('snapshot_id', ''),
+                            'bucket_id': row.get('bucket_id', ''),
+                            'created_timestamp': row.get('created_timestamp', ''),
+                            'git_commit_hash': row.get('git_commit_hash', ''),
+                            'git_branch': row.get('git_branch', ''),
+                            'content_hash': row.get('content_hash', ''),
+                            'file_count': row.get('file_count', 0),
+                            'total_size_bytes': row.get('total_size_bytes', 0),
+                            'snapshot_type': row.get('snapshot_type', 'manual'),
+                            'parent_snapshot_id': row.get('parent_snapshot_id', ''),
+                            'backend_storage': self._parse_json_field(row.get('backend_storage_json', '{}')),
+                            'metadata_changes': self._parse_json_field(row.get('metadata_changes_json', '{}')),
+                            'translation_status': row.get('translation_status', 'complete'),
+                            'vfs_mount_points': self._parse_json_field(row.get('vfs_mount_points_json', '[]')),
+                            'content_addressing_hashes': self._parse_json_field(row.get('content_addressing_hashes_json', '{}'))
+                        }
+                        all_snapshots.append(snapshot_data)
+                        
+                except Exception as e:
+                    print(f"⚠️  Error reading VFS snapshot file {file_path}: {e}")
+                    continue
+            
+            # Sort by creation timestamp (most recent first)
+            all_snapshots.sort(key=lambda x: x.get('created_timestamp', ''), reverse=True)
+            
+            # Apply limit if specified
+            if limit:
+                all_snapshots = all_snapshots[:limit]
+            
+            return {
+                'success': True,
+                'snapshots': all_snapshots,
+                'sources': snapshot_files,
+                'total_count': len(all_snapshots),
+                'method': 'parquet_direct'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'VFS snapshots read error: {e}',
+                'snapshots': []
+            }

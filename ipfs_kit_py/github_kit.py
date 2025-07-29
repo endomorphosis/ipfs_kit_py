@@ -11,6 +11,7 @@ Key Concepts:
 - Username = peerID for local content forks  
 - Dataset/ML model repos labeled appropriately in VFS
 - Seamless transition between GitHub and local IPFS storage
+- Git VFS translation layer for metadata mapping
 """
 
 import os
@@ -41,6 +42,14 @@ except ImportError:
     GIT_AVAILABLE = False
     logger.warning("GitPython not available - clone operations will use subprocess")
 
+# Import Git VFS translator
+try:
+    from .git_vfs_translator import GitVFSTranslator, VFSSnapshot
+    GIT_VFS_AVAILABLE = True
+except ImportError:
+    GIT_VFS_AVAILABLE = False
+    logger.warning("Git VFS translator not available - advanced Git integration disabled")
+
 class GitHubKit:
     """
     GitHub repository interface for IPFS-Kit virtual filesystem.
@@ -49,6 +58,7 @@ class GitHubKit:
     - Repository -> VFS Bucket
     - Username -> PeerID for local forks
     - Dataset/Model repos -> Labeled in VFS accordingly
+    - Git metadata -> VFS snapshots and content addressing
     """
     
     def __init__(self, token: Optional[str] = None, cache_dir: Optional[str] = None):
@@ -591,6 +601,208 @@ class GitHubKit:
         except Exception as e:
             logger.error(f"❌ Failed to sync {repo} to IPFS: {e}")
             raise
+    
+    async def create_git_vfs_translator(self, local_repo_path: Union[str, Path]) -> Optional['GitVFSTranslator']:
+        """
+        Create a Git VFS translator for a local repository.
+        
+        Args:
+            local_repo_path: Path to local Git repository
+            
+        Returns:
+            GitVFSTranslator instance or None if not available
+        """
+        if not GIT_VFS_AVAILABLE:
+            logger.error("Git VFS translator not available")
+            return None
+        
+        try:
+            translator = GitVFSTranslator(local_repo_path, vfs_manager=None)
+            return translator
+        except Exception as e:
+            logger.error(f"Failed to create Git VFS translator: {e}")
+            return None
+    
+    async def analyze_repository_git_metadata(self, repo_info: Dict[str, Any], local_path: Optional[Path] = None) -> Dict[str, Any]:
+        """
+        Analyze Git metadata for a GitHub repository and create VFS mapping.
+        
+        Args:
+            repo_info: Repository information from GitHub API
+            local_path: Optional local repository path
+            
+        Returns:
+            Analysis results with VFS translation information
+        """
+        analysis = {
+            'repository': repo_info['full_name'],
+            'vfs_bucket': repo_info['name'],
+            'peer_id': repo_info['owner']['login'],
+            'git_analysis': {},
+            'vfs_translation': {},
+            'content_addressing': {}
+        }
+        
+        try:
+            # If we have a local copy, analyze Git metadata
+            if local_path and local_path.exists():
+                translator = await self.create_git_vfs_translator(local_path)
+                if translator:
+                    # Analyze Git metadata
+                    analysis['git_analysis'] = translator.analyze_git_metadata()
+                    
+                    # Sync Git to VFS
+                    sync_result = translator.sync_git_to_vfs()
+                    analysis['vfs_translation']['sync_result'] = sync_result
+                    
+                    # Get VFS snapshots count
+                    if translator.index_file.exists():
+                        with open(translator.index_file, 'r') as f:
+                            index_data = json.load(f)
+                            analysis['vfs_translation']['snapshots_count'] = len(index_data.get('snapshots', {}))
+                            analysis['vfs_translation']['content_map_size'] = len(index_data.get('content_map', {}))
+                    
+                    # Export VFS metadata for analysis
+                    export_result = translator.export_vfs_metadata()
+                    if export_result['success']:
+                        analysis['vfs_translation']['export_path'] = export_result['export_path']
+                        analysis['vfs_translation']['export_size'] = export_result['file_size']
+            
+            # Add GitHub-specific VFS metadata
+            analysis['content_addressing'] = {
+                'github_repo_hash': self._calculate_repo_hash(repo_info),
+                'default_branch': repo_info.get('default_branch', 'main'),
+                'clone_url': repo_info['clone_url'],
+                'vfs_mount_point': f"/vfs/github/{repo_info['owner']['login']}/{repo_info['name']}",
+                'content_type': self._detect_repo_content_type(repo_info),
+                'estimated_vfs_blocks': self._estimate_vfs_blocks(repo_info)
+            }
+            
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"Error analyzing repository Git metadata: {e}")
+            analysis['error'] = str(e)
+            return analysis
+    
+    def _calculate_repo_hash(self, repo_info: Dict[str, Any]) -> str:
+        """Calculate a content-addressable hash for the repository."""
+        import hashlib
+        
+        # Create reproducible hash from key repository attributes
+        repo_data = {
+            'full_name': repo_info['full_name'],
+            'created_at': repo_info['created_at'],
+            'updated_at': repo_info['updated_at'],
+            'default_branch': repo_info.get('default_branch', 'main'),
+            'language': repo_info.get('language'),
+            'size': repo_info.get('size', 0)
+        }
+        
+        repo_string = json.dumps(repo_data, sort_keys=True)
+        return hashlib.sha256(repo_string.encode()).hexdigest()[:16]
+    
+    def _detect_repo_content_type(self, repo_info: Dict[str, Any]) -> str:
+        """Detect the type of content in the repository for VFS labeling."""
+        name = repo_info['name'].lower()
+        description = (repo_info.get('description') or '').lower()
+        topics = [topic.lower() for topic in repo_info.get('topics', [])]
+        language = (repo_info.get('language') or '').lower()
+        
+        # Check for ML/AI content
+        ml_indicators = ['model', 'dataset', 'ml', 'ai', 'neural', 'deep-learning', 'machine-learning', 'tensorflow', 'pytorch', 'huggingface']
+        if any(indicator in name or indicator in description for indicator in ml_indicators) or any(indicator in topics for indicator in ml_indicators):
+            return 'ml_content'
+        
+        # Check for data content
+        data_indicators = ['data', 'dataset', 'csv', 'json', 'parquet', 'analytics']
+        if any(indicator in name or indicator in description for indicator in data_indicators) or any(indicator in topics for indicator in data_indicators):
+            return 'data_content'
+        
+        # Check for documentation
+        doc_indicators = ['docs', 'documentation', 'wiki', 'guide', 'tutorial']
+        if any(indicator in name or indicator in description for indicator in doc_indicators) or any(indicator in topics for indicator in doc_indicators):
+            return 'documentation'
+        
+        # Check for configuration
+        config_indicators = ['config', 'dotfiles', 'settings', 'template']
+        if any(indicator in name or indicator in description for indicator in config_indicators) or any(indicator in topics for indicator in config_indicators):
+            return 'configuration'
+        
+        # Default to source code
+        return 'source_code'
+    
+    def _estimate_vfs_blocks(self, repo_info: Dict[str, Any]) -> int:
+        """Estimate number of VFS blocks based on repository size."""
+        size_kb = repo_info.get('size', 0)  # GitHub reports size in KB
+        
+        # Rough estimation: assume average block size of 256KB
+        # This is very approximate and would need refinement
+        estimated_blocks = max(1, size_kb // 256)
+        
+        return estimated_blocks
+    
+    async def setup_vfs_translation_for_repo(self, repo_name: str, local_path: Optional[Path] = None) -> Dict[str, Any]:
+        """
+        Set up VFS translation layer for a GitHub repository.
+        
+        Args:
+            repo_name: Repository name (owner/repo format)
+            local_path: Optional local repository path
+            
+        Returns:
+            Setup result information
+        """
+        result = {
+            'repository': repo_name,
+            'vfs_setup': False,
+            'translation_active': False,
+            'setup_details': {}
+        }
+        
+        try:
+            # Get repository information
+            repo_info = self._make_request(f'/repos/{repo_name}')
+            
+            # Determine local path
+            if not local_path:
+                local_path = self.cache_dir / repo_info['owner']['login'] / repo_info['name']
+            
+            # Clone or update repository if needed
+            if not local_path.exists():
+                clone_result = await self.clone_repository(repo_name, str(local_path))
+                if not clone_result['success']:
+                    result['error'] = f"Failed to clone repository: {clone_result.get('error')}"
+                    return result
+            
+            # Create Git VFS translator
+            translator = await self.create_git_vfs_translator(local_path)
+            if not translator:
+                result['error'] = "Failed to create Git VFS translator"
+                return result
+            
+            # Analyze and set up VFS translation
+            analysis = await self.analyze_repository_git_metadata(repo_info, local_path)
+            result['setup_details']['analysis'] = analysis
+            
+            # Sync Git metadata to VFS
+            if 'git_analysis' in analysis and not analysis['git_analysis'].get('error'):
+                sync_result = translator.sync_git_to_vfs()
+                result['setup_details']['sync_result'] = sync_result
+                result['translation_active'] = sync_result.get('snapshots_created', 0) > 0 or sync_result.get('snapshots_updated', 0) > 0
+            
+            # Mark VFS setup as complete
+            result['vfs_setup'] = True
+            result['local_path'] = str(local_path)
+            result['vfs_metadata_path'] = str(translator.vfs_metadata_dir)
+            
+            logger.info(f"✅ VFS translation set up for {repo_name}")
+            
+        except Exception as e:
+            logger.error(f"Error setting up VFS translation for {repo_name}: {e}")
+            result['error'] = str(e)
+        
+        return result
 
 # Convenience functions for CLI integration
 async def github_login(token: str) -> GitHubKit:

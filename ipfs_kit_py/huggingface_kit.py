@@ -3,6 +3,9 @@
 This module provides integration with the Hugging Face Hub for model and dataset access,
 extending the ipfs_kit_py ecosystem with a new storage backend. It allows for seamless
 authentication, content retrieval, and caching across Hugging Face repositories.
+
+Enhanced with Git VFS translation layer for metadata mapping between HuggingFace's
+Git-based repository structure and IPFS-Kit's content-addressed virtual filesystem.
 """
 
 import json
@@ -12,6 +15,7 @@ import tempfile
 import time
 import uuid
 from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
 
 try:
     from huggingface_hub import (
@@ -39,6 +43,14 @@ except ImportError:
 
 # Configure logger
 logger = logging.getLogger(__name__)
+
+# Import Git VFS translator
+try:
+    from .git_vfs_translator import GitVFSTranslator, VFSSnapshot
+    GIT_VFS_AVAILABLE = True
+except ImportError:
+    GIT_VFS_AVAILABLE = False
+    logger.warning("Git VFS translator not available - advanced Git integration disabled")
 
 
 def create_result_dict(operation, correlation_id=None):
@@ -772,4 +784,285 @@ class huggingface_kit:
             
         except Exception as e:
             logger.exception(f"Error in repo_info: {str(e)}")
+            return handle_error(result, e)
+    
+    def create_git_vfs_translator(self, local_repo_path: Union[str, Path]) -> Optional['GitVFSTranslator']:
+        """
+        Create a Git VFS translator for a local HuggingFace repository.
+        
+        Args:
+            local_repo_path: Path to local Git repository
+            
+        Returns:
+            GitVFSTranslator instance or None if not available
+        """
+        if not GIT_VFS_AVAILABLE:
+            logger.error("Git VFS translator not available")
+            return None
+        
+        try:
+            translator = GitVFSTranslator(local_repo_path, vfs_manager=None)
+            return translator
+        except Exception as e:
+            logger.error(f"Failed to create Git VFS translator: {e}")
+            return None
+    
+    def analyze_huggingface_repo_metadata(self, repo_id: str, repo_type: str = "model", local_path: Optional[Path] = None, **kwargs) -> Dict[str, Any]:
+        """
+        Analyze Git metadata for a HuggingFace repository and create VFS mapping.
+        
+        Args:
+            repo_id: Repository ID (e.g., 'username/repo-name')
+            repo_type: Repository type ('model' or 'dataset')
+            local_path: Optional local repository path
+            
+        Returns:
+            Analysis results with VFS translation information
+        """
+        result = create_result_dict("analyze_huggingface_repo_metadata", kwargs.get('correlation_id'))
+        
+        try:
+            # Get repository information
+            repo_info_result = self.repo_info(repo_id, repo_type=repo_type, **kwargs)
+            if not repo_info_result['success']:
+                return handle_error(result, Exception("Failed to get repo info"), "Could not retrieve repository information")
+            
+            repo_info = repo_info_result['info']
+            
+            analysis = {
+                'repository': repo_id,
+                'repo_type': repo_type,
+                'vfs_bucket': repo_info['name'],
+                'peer_id': repo_info['owner'],
+                'git_analysis': {},
+                'vfs_translation': {},
+                'content_addressing': {},
+                'huggingface_metadata': {}
+            }
+            
+            # If we have a local copy, analyze Git metadata
+            if local_path and local_path.exists():
+                translator = self.create_git_vfs_translator(local_path)
+                if translator:
+                    # Analyze Git metadata
+                    analysis['git_analysis'] = translator.analyze_git_metadata()
+                    
+                    # Sync Git to VFS
+                    sync_result = translator.sync_git_to_vfs()
+                    analysis['vfs_translation']['sync_result'] = sync_result
+                    
+                    # Get VFS snapshots count
+                    if translator.index_file.exists():
+                        with open(translator.index_file, 'r') as f:
+                            index_data = json.load(f)
+                            analysis['vfs_translation']['snapshots_count'] = len(index_data.get('snapshots', {}))
+                            analysis['vfs_translation']['content_map_size'] = len(index_data.get('content_map', {}))
+                    
+                    # Export VFS metadata for analysis
+                    export_result = translator.export_vfs_metadata()
+                    if export_result['success']:
+                        analysis['vfs_translation']['export_path'] = export_result['export_path']
+                        analysis['vfs_translation']['export_size'] = export_result['file_size']
+            
+            # Add HuggingFace-specific VFS metadata
+            analysis['content_addressing'] = {
+                'huggingface_repo_hash': self._calculate_hf_repo_hash(repo_info),
+                'default_branch': repo_info.get('default_branch', 'main'),
+                'repo_url': repo_info['url'],
+                'vfs_mount_point': f"/vfs/huggingface/{repo_info['owner']}/{repo_info['name']}",
+                'content_type': self._detect_hf_content_type(repo_info, repo_type),
+                'estimated_vfs_blocks': self._estimate_hf_vfs_blocks(repo_info)
+            }
+            
+            # Extract HuggingFace-specific metadata
+            analysis['huggingface_metadata'] = {
+                'repo_type': repo_type,
+                'tags': repo_info.get('tags', []),
+                'card_data': repo_info.get('card_data', {}),
+                'siblings': [s.rfilename for s in (repo_info.get('siblings', []) or [])],
+                'last_modified': repo_info.get('last_modified'),
+                'private': repo_info.get('private', False),
+                'model_index': self._extract_model_index(repo_info) if repo_type == 'model' else None,
+                'dataset_info': self._extract_dataset_info(repo_info) if repo_type == 'dataset' else None
+            }
+            
+            result['success'] = True
+            result['analysis'] = analysis
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error analyzing HuggingFace repository metadata: {e}")
+            return handle_error(result, e)
+    
+    def _calculate_hf_repo_hash(self, repo_info: Dict[str, Any]) -> str:
+        """Calculate a content-addressable hash for the HuggingFace repository."""
+        import hashlib
+        
+        # Create reproducible hash from key repository attributes
+        repo_data = {
+            'id': repo_info.get('id'),
+            'name': repo_info['name'],
+            'owner': repo_info['owner'],
+            'type': repo_info.get('type'),
+            'last_modified': str(repo_info.get('last_modified')) if repo_info.get('last_modified') else None,
+            'default_branch': repo_info.get('default_branch', 'main'),
+            'private': repo_info.get('private', False)
+        }
+        
+        repo_string = json.dumps(repo_data, sort_keys=True)
+        return hashlib.sha256(repo_string.encode()).hexdigest()[:16]
+    
+    def _detect_hf_content_type(self, repo_info: Dict[str, Any], repo_type: str) -> str:
+        """Detect the type of content in the HuggingFace repository for VFS labeling."""
+        name = repo_info['name'].lower()
+        tags = [tag.lower() for tag in repo_info.get('tags', [])]
+        
+        # Repository type is the primary indicator
+        if repo_type == 'model':
+            # Check for specific model types
+            model_types = ['transformers', 'diffusers', 'timm', 'sentence-transformers', 'pytorch', 'tensorflow']
+            for model_type in model_types:
+                if any(model_type in tag for tag in tags):
+                    return f'ml_model_{model_type}'
+            return 'ml_model_generic'
+        
+        elif repo_type == 'dataset':
+            # Check for specific dataset types
+            if any('text' in tag for tag in tags):
+                return 'dataset_text'
+            elif any('image' in tag for tag in tags):
+                return 'dataset_image'
+            elif any('audio' in tag for tag in tags):
+                return 'dataset_audio'
+            elif any('video' in tag for tag in tags):
+                return 'dataset_video'
+            elif any('tabular' in tag for tag in tags):
+                return 'dataset_tabular'
+            return 'dataset_generic'
+        
+        return 'huggingface_content'
+    
+    def _estimate_hf_vfs_blocks(self, repo_info: Dict[str, Any]) -> int:
+        """Estimate number of VFS blocks based on HuggingFace repository."""
+        # Count files from siblings info
+        siblings = repo_info.get('siblings', []) or []
+        file_count = len(siblings)
+        
+        # Rough estimation: assume average block size of 1MB for ML models/datasets
+        # Large files like model weights will be chunked
+        estimated_blocks = max(1, file_count * 2)  # Multiply by 2 for chunking
+        
+        return estimated_blocks
+    
+    def _extract_model_index(self, repo_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Extract model index information if available."""
+        card_data = repo_info.get('card_data', {}) or {}
+        
+        # Look for common model metadata
+        model_info = {}
+        
+        if 'library_name' in card_data:
+            model_info['library'] = card_data['library_name']
+        
+        if 'pipeline_tag' in card_data:
+            model_info['pipeline'] = card_data['pipeline_tag']
+        
+        if 'language' in card_data:
+            model_info['language'] = card_data['language']
+        
+        if 'license' in card_data:
+            model_info['license'] = card_data['license']
+        
+        return model_info if model_info else None
+    
+    def _extract_dataset_info(self, repo_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Extract dataset information if available."""
+        card_data = repo_info.get('card_data', {}) or {}
+        
+        # Look for common dataset metadata
+        dataset_info = {}
+        
+        if 'task_categories' in card_data:
+            dataset_info['tasks'] = card_data['task_categories']
+        
+        if 'language' in card_data:
+            dataset_info['language'] = card_data['language']
+        
+        if 'multilinguality' in card_data:
+            dataset_info['multilinguality'] = card_data['multilinguality']
+        
+        if 'size_categories' in card_data:
+            dataset_info['size'] = card_data['size_categories']
+        
+        return dataset_info if dataset_info else None
+    
+    def setup_vfs_translation_for_hf_repo(self, repo_id: str, repo_type: str = "model", local_path: Optional[Path] = None, **kwargs) -> Dict[str, Any]:
+        """
+        Set up VFS translation layer for a HuggingFace repository.
+        
+        Args:
+            repo_id: Repository ID (e.g., 'username/repo-name')
+            repo_type: Repository type ('model' or 'dataset')
+            local_path: Optional local repository path
+            
+        Returns:
+            Setup result information
+        """
+        result = create_result_dict("setup_vfs_translation_for_hf_repo", kwargs.get('correlation_id'))
+        
+        try:
+            # Determine local path
+            if not local_path:
+                # Create a cache directory for the repository
+                cache_dir = Path.home() / '.cache' / 'ipfs_kit' / 'huggingface'
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                local_path = cache_dir / repo_id.replace('/', '_')
+            
+            setup_info = {
+                'repository': repo_id,
+                'repo_type': repo_type,
+                'vfs_setup': False,
+                'translation_active': False,
+                'setup_details': {}
+            }
+            
+            # Try to download/clone repository if it doesn't exist locally
+            if not local_path.exists():
+                # For now, we note that the repository would need to be cloned
+                # In a full implementation, this would use HuggingFace Hub's git clone
+                logger.info(f"Repository {repo_id} not found locally at {local_path}")
+                setup_info['note'] = "Repository needs to be cloned locally for VFS translation"
+                setup_info['suggested_clone_command'] = f"git clone https://huggingface.co/{repo_id} {local_path}"
+            else:
+                # Create Git VFS translator
+                translator = self.create_git_vfs_translator(local_path)
+                if translator:
+                    # Analyze and set up VFS translation
+                    analysis_result = self.analyze_huggingface_repo_metadata(repo_id, repo_type, local_path, **kwargs)
+                    if analysis_result['success']:
+                        setup_info['setup_details']['analysis'] = analysis_result['analysis']
+                        
+                        # Sync Git metadata to VFS
+                        if 'git_analysis' in analysis_result['analysis'] and not analysis_result['analysis']['git_analysis'].get('error'):
+                            sync_result = translator.sync_git_to_vfs()
+                            setup_info['setup_details']['sync_result'] = sync_result
+                            setup_info['translation_active'] = sync_result.get('snapshots_created', 0) > 0 or sync_result.get('snapshots_updated', 0) > 0
+                        
+                        # Mark VFS setup as complete
+                        setup_info['vfs_setup'] = True
+                        setup_info['local_path'] = str(local_path)
+                        setup_info['vfs_metadata_path'] = str(translator.vfs_metadata_dir)
+                        
+                        logger.info(f"✅ VFS translation set up for {repo_id}")
+                    else:
+                        setup_info['error'] = f"Failed to analyze repository: {analysis_result.get('error', 'Unknown error')}"
+                else:
+                    setup_info['error'] = "Failed to create Git VFS translator"
+            
+            result['success'] = True
+            result['setup_info'] = setup_info
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error setting up VFS translation for {repo_id}: {e}")
             return handle_error(result, e)

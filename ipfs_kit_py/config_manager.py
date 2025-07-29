@@ -36,6 +36,8 @@ class ConfigManager:
             'cluster_follow': 'cluster_follow_config.yaml',
             'parquet': 'parquet_config.yaml',
             'arrow': 'arrow_config.yaml',
+            'sshfs': 'sshfs_config.yaml',
+            'ftp': 'ftp_config.yaml',
             'package': 'package_config.yaml',
             'wal': 'wal_config.yaml',
             'fs_journal': 'fs_journal_config.yaml'
@@ -214,6 +216,31 @@ class ConfigManager:
                 'enable_null_optimization': True,
                 'pre_buffer': True
             },
+            'sshfs': {
+                'host': None,
+                'username': None,
+                'port': 22,
+                'key_path': None,
+                'password': None,
+                'remote_base_path': '/tmp/ipfs_kit_sshfs',
+                'connection_timeout': 30,
+                'keepalive_interval': 60,
+                'max_connections': 5,
+                'retry_attempts': 3,
+                'compression': True
+            },
+            'ftp': {
+                'host': None,
+                'username': None,
+                'password': None,
+                'port': 21,
+                'use_tls': False,
+                'passive_mode': True,
+                'remote_base_path': '/ipfs_kit_ftp',
+                'connection_timeout': 30,
+                'retry_attempts': 3,
+                'verify_ssl': True
+            },
             'package': {
                 'version': '0.2.8',
                 'ipfs_path': None,
@@ -334,7 +361,7 @@ class ConfigManager:
     def interactive_setup(self, backend: Optional[str] = None, non_interactive: bool = False) -> bool:
         """Interactive configuration setup for backends."""
         if backend == 'all' or backend is None:
-            backends = ['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow']
+            backends = ['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp']
         else:
             backends = [backend]
         
@@ -381,6 +408,10 @@ class ConfigManager:
                     success = self._configure_parquet(non_interactive)
                 elif backend_name == 'arrow':
                     success = self._configure_arrow(non_interactive)
+                elif backend_name == 'sshfs':
+                    success = self._configure_sshfs(non_interactive)
+                elif backend_name == 'ftp':
+                    success = self._configure_ftp(non_interactive)
                 else:
                     print(f"⚠️  Configuration for {backend_name} not yet implemented")
                     success = False
@@ -877,6 +908,108 @@ class ConfigManager:
                 config['pre_buffer'] = pre_buffer.lower() == 'true'
         
         return self.save_config('arrow', config)
+    
+    def _configure_sshfs(self, non_interactive: bool = False) -> bool:
+        """Configure SSHFS settings."""
+        config = self.load_config('sshfs')
+        
+        if not non_interactive:
+            print("📡 SSHFS Configuration")
+            print("Configure SSH/SCP remote storage backend.")
+            
+            host = input(f"SSH Host [{config['host'] or 'localhost'}]: ").strip()
+            if host:
+                config['host'] = host
+            
+            username = input(f"SSH Username [{config['username'] or 'user'}]: ").strip()
+            if username:
+                config['username'] = username
+            
+            port = input(f"SSH Port [{config['port']}]: ").strip()
+            if port:
+                try:
+                    config['port'] = int(port)
+                except ValueError:
+                    print("❌ Invalid port number, using default")
+            
+            key_path = input(f"SSH Key Path [{config['key_path'] or '~/.ssh/id_rsa'}]: ").strip()
+            if key_path:
+                # Expand user path
+                import os
+                config['key_path'] = os.path.expanduser(key_path)
+            
+            remote_path = input(f"Remote Base Path [{config['remote_base_path']}]: ").strip()
+            if remote_path:
+                config['remote_base_path'] = remote_path
+            
+            timeout = input(f"Connection Timeout (seconds) [{config['connection_timeout']}]: ").strip()
+            if timeout:
+                try:
+                    config['connection_timeout'] = int(timeout)
+                except ValueError:
+                    print("❌ Invalid timeout, using default")
+            
+            compression = input(f"Enable compression [{config['compression']}]: ").strip()
+            if compression.lower() in ['true', 'false']:
+                config['compression'] = compression.lower() == 'true'
+            
+            print("✅ SSHFS configuration updated")
+        
+        return self.save_config('sshfs', config)
+    
+    def _configure_ftp(self, non_interactive: bool = False) -> bool:
+        """Configure FTP settings."""
+        config = self.load_config('ftp')
+        
+        if not non_interactive:
+            print("📁 FTP Configuration")
+            print("=" * 50)
+            
+            host = input(f"FTP Host [{config['host'] or 'ftp.example.com'}]: ").strip()
+            if host:
+                config['host'] = host
+            
+            username = input(f"FTP Username [{config['username'] or 'user'}]: ").strip()
+            if username:
+                config['username'] = username
+            
+            password = input(f"FTP Password [{config['password'] or '(not set)'}]: ").strip()
+            if password:
+                config['password'] = password
+            
+            port = input(f"FTP Port [{config['port']}]: ").strip()
+            if port:
+                try:
+                    config['port'] = int(port)
+                except ValueError:
+                    print("❌ Invalid port, using default")
+            
+            use_tls = input(f"Use FTPS (FTP over TLS) [{config['use_tls']}]: ").strip()
+            if use_tls.lower() in ['true', 'false']:
+                config['use_tls'] = use_tls.lower() == 'true'
+            
+            passive_mode = input(f"Use Passive Mode [{config['passive_mode']}]: ").strip()
+            if passive_mode.lower() in ['true', 'false']:
+                config['passive_mode'] = passive_mode.lower() == 'true'
+            
+            remote_path = input(f"Remote Base Path [{config['remote_base_path']}]: ").strip()
+            if remote_path:
+                config['remote_base_path'] = remote_path
+            
+            timeout = input(f"Connection Timeout (seconds) [{config['connection_timeout']}]: ").strip()
+            if timeout:
+                try:
+                    config['connection_timeout'] = int(timeout)
+                except ValueError:
+                    print("❌ Invalid timeout, using default")
+            
+            verify_ssl = input(f"Verify SSL certificates (FTPS only) [{config['verify_ssl']}]: ").strip()
+            if verify_ssl.lower() in ['true', 'false']:
+                config['verify_ssl'] = verify_ssl.lower() == 'true'
+            
+            print("✅ FTP configuration updated")
+        
+        return self.save_config('ftp', config)
     
     def backup_configs(self, backup_file: Optional[str] = None) -> bool:
         """Backup all configurations to a file."""

@@ -22,6 +22,8 @@ from ipfs_kit_py.mcp.models.storage.ipfs_model import IPFSModel
 from ipfs_kit_py.mcp.models.storage.lassie_model import LassieModel
 from ipfs_kit_py.mcp.models.storage.s3_model import S3Model
 from ipfs_kit_py.mcp.models.storage.storacha_model import StorachaModel
+from ipfs_kit_py.mcp.models.storage.sshfs_model import SSHFSModel
+from ipfs_kit_py.mcp.models.storage.ftp_model import FTPModel
 from ipfs_kit_py.mcp.storage_manager.storage_types import StorageBackendType
 
 # Configure logger
@@ -126,6 +128,56 @@ class StorageManager:
         except Exception as e:
             logger.warning(f"Failed to initialize Lassie Model: {e}")
 
+        # Initialize SSHFS model
+        try:
+            # Get SSHFS configuration from environment
+            sshfs_config = {
+                "hostname": os.environ.get("SSHFS_HOSTNAME", ""),
+                "username": os.environ.get("SSHFS_USERNAME", ""),
+                "port": int(os.environ.get("SSHFS_PORT", "22")),
+                "password": os.environ.get("SSHFS_PASSWORD"),
+                "private_key_path": os.environ.get("SSHFS_PRIVATE_KEY_PATH"),
+                "remote_base_path": os.environ.get("SSHFS_REMOTE_BASE_PATH", "/tmp/ipfs_kit"),
+                "connection_timeout": int(os.environ.get("SSHFS_CONNECTION_TIMEOUT", "30")),
+                "max_connections": int(os.environ.get("SSHFS_MAX_CONNECTIONS", "5"))
+            }
+            
+            # Only initialize if hostname and username are provided
+            if sshfs_config["hostname"] and sshfs_config["username"]:
+                # Remove empty values to avoid validation errors
+                sshfs_config = {k: v for k, v in sshfs_config.items() if v != ""}
+                self.storage_models['sshfs'] = SSHFSModel(config=sshfs_config)
+                logger.info("SSHFS Model initialized")
+            else:
+                logger.info("SSHFS Model not initialized - missing hostname or username configuration")
+        except Exception as e:
+            logger.warning(f"Failed to initialize SSHFS Model: {e}")
+
+        # Initialize FTP model
+        try:
+            # Get FTP configuration from environment
+            ftp_config = {
+                "host": os.environ.get("FTP_HOST", ""),
+                "port": int(os.environ.get("FTP_PORT", "21")),
+                "username": os.environ.get("FTP_USERNAME", ""),
+                "password": os.environ.get("FTP_PASSWORD", ""),
+                "use_tls": os.environ.get("FTP_USE_TLS", "false").lower() == "true",
+                "passive_mode": os.environ.get("FTP_PASSIVE_MODE", "true").lower() == "true",
+                "timeout": int(os.environ.get("FTP_TIMEOUT", "30")),
+                "remote_base_path": os.environ.get("FTP_REMOTE_BASE_PATH", "/"),
+            }
+            
+            # Only initialize if host and username are provided
+            if ftp_config["host"] and ftp_config["username"]:
+                # Remove empty values to avoid validation errors
+                ftp_config = {k: v for k, v in ftp_config.items() if v != ""}
+                self.storage_models['ftp'] = FTPModel(config=ftp_config)
+                logger.info("FTP Model initialized")
+            else:
+                logger.info("FTP Model not initialized - missing host or username configuration")
+        except Exception as e:
+            logger.warning(f"Failed to initialize FTP Model: {e}")
+
         logger.info(f"Storage Manager initialized with backends: {', '.join(self.storage_models.keys())}")
 
     def get_model(self, backend_name: str) -> Optional[BaseStorageModel]:
@@ -160,6 +212,8 @@ class StorageManager:
             "storacha": "storacha" in self.storage_models,
             "filecoin": "filecoin" in self.storage_models,
             "lassie": "lassie" in self.storage_models,
+            "sshfs": "sshfs" in self.storage_models,
+            "ftp": "ftp" in self.storage_models,
         }
         return backends
 
