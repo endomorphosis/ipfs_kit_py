@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "bucket_name": "documents-bucket",
+    "created_at": "2025-07-28T14:30:00",
+    "file_count": 3,
+    "size_mb": 3.45367431640625
+  },
+  "files": [
+    {
+      "name": "project-proposal.pdf",
+      "cid": "QmY4Q2YxKXR9Zz8qM4c8N5k2z8v3u1L4t6h9q3w2e5r1a",
+      "size_bytes": 2048576,
+      "mime_type": "application/pdf",
+      "uploaded_at": "2025-07-28T10:15:00",
+      "tags": [
+        "proposal",
+        "project",
+        "2025"
+      ],
+      "path": "/documents/proposals/project-proposal.pdf"
+    },
+    {
+      "name": "meeting-notes.docx",
+      "cid": "QmB5R3TxKXR9Zz8qM4c8N5k2z8v3u1L4t6h9q3w2e5r2b",
+      "size_bytes": 524288,
+      "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "uploaded_at": "2025-07-28T11:30:00",
+      "tags": [
+        "notes",
+        "meeting",
+        "team"
+      ],
+      "path": "/documents/notes/meeting-notes.docx"
+    },
+    {
+      "name": "budget-2025.xlsx",
+      "cid": "QmC6S4UyLXR9Zz8qM4c8N5k2z8v3u1L4t6h9q3w2e5r3c",
+      "size_bytes": 1048576,
+      "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "uploaded_at": "2025-07-28T12:00:00",
+      "tags": [
+        "budget",
+        "finance",
+        "2025"
+      ],
+      "path": "/documents/finance/budget-2025.xlsx"
+    }
+  ]
+}

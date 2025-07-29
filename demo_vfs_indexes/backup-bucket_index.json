@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "bucket_name": "backup-bucket",
+    "created_at": "2025-07-28T14:30:00",
+    "file_count": 2,
+    "size_mb": 60.0
+  },
+  "files": [
+    {
+      "name": "database-backup.sql",
+      "cid": "QmG0W8YzPXR9Zz8qM4c8N5k2z8v3u1L4t6h9q3w2e5r7g",
+      "size_bytes": 52428800,
+      "mime_type": "application/sql",
+      "uploaded_at": "2025-07-28T11:45:00",
+      "tags": [
+        "backup",
+        "database",
+        "critical"
+      ],
+      "path": "/backup/database/database-backup.sql"
+    },
+    {
+      "name": "config-archive.tar.gz",
+      "cid": "QmH1X9ZzQXR9Zz8qM4c8N5k2z8v3u1L4t6h9q3w2e5r8h",
+      "size_bytes": 10485760,
+      "mime_type": "application/gzip",
+      "uploaded_at": "2025-07-28T12:30:00",
+      "tags": [
+        "config",
+        "archive",
+        "system"
+      ],
+      "path": "/backup/configs/config-archive.tar.gz"
+    }
+  ]
+}

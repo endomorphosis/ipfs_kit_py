@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "bucket_name": "media-bucket",
+    "created_at": "2025-07-28T14:30:00",
+    "file_count": 3,
+    "size_mb": 105.25
+  },
+  "files": [
+    {
+      "name": "presentation-slides.pptx",
+      "cid": "QmD7T5VzMXR9Zz8qM4c8N5k2z8v3u1L4t6h9q3w2e5r4d",
+      "size_bytes": 5242880,
+      "mime_type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "uploaded_at": "2025-07-28T09:30:00",
+      "tags": [
+        "presentation",
+        "slides",
+        "team"
+      ],
+      "path": "/media/presentations/presentation-slides.pptx"
+    },
+    {
+      "name": "demo-video.mp4",
+      "cid": "QmE8U6WzNXR9Zz8qM4c8N5k2z8v3u1L4t6h9q3w2e5r5e",
+      "size_bytes": 104857600,
+      "mime_type": "video/mp4",
+      "uploaded_at": "2025-07-28T10:45:00",
+      "tags": [
+        "video",
+        "demo",
+        "tutorial"
+      ],
+      "path": "/media/videos/demo-video.mp4"
+    },
+    {
+      "name": "logo.png",
+      "cid": "QmF9V7XzOXR9Zz8qM4c8N5k2z8v3u1L4t6h9q3w2e5r6f",
+      "size_bytes": 262144,
+      "mime_type": "image/png",
+      "uploaded_at": "2025-07-28T11:15:00",
+      "tags": [
+        "logo",
+        "branding",
+        "image"
+      ],
+      "path": "/media/images/logo.png"
+    }
+  ]
+}
