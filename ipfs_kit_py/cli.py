@@ -219,6 +219,21 @@ def create_parser():
     hf_login_parser = hf_subparsers.add_parser('login', help='Login to HuggingFace Hub')
     hf_login_parser.add_argument('--token', help='HuggingFace authentication token')
     
+    # HuggingFace configure
+    hf_configure_parser = hf_subparsers.add_parser('configure', help='Configure HuggingFace Hub integration and quotas')
+    hf_configure_parser.add_argument('--token', help='HuggingFace authentication token')
+    hf_configure_parser.add_argument('--default-org', help='Default organization for uploads')
+    hf_configure_parser.add_argument('--cache-dir', help='Local cache directory for downloaded models')
+    
+    # HuggingFace backend characteristics: AI/ML FOCUSED, VERSION CONTROLLED, COMMUNITY-DRIVEN
+    hf_configure_parser.add_argument('--storage-quota', help='Hub storage quota (e.g., 1GB free, unlimited pro)')
+    hf_configure_parser.add_argument('--lfs-quota', help='Git LFS quota for large model files (e.g., 10GB, 1TB)')
+    hf_configure_parser.add_argument('--quota-action', choices=['warn', 'block', 'upgrade-prompt'], default='warn', help='Action when quota is exceeded')
+    hf_configure_parser.add_argument('--model-versioning', choices=['commit-based', 'tag-based', 'branch-based'], default='commit-based', help='Model versioning strategy')
+    hf_configure_parser.add_argument('--cache-retention', type=int, default=30, help='Local cache retention days')
+    hf_configure_parser.add_argument('--auto-update', action='store_true', help='Automatically update cached models')
+    hf_configure_parser.add_argument('--collaboration-level', choices=['private', 'public'], default='private', help='Default repository visibility')
+    
     # HuggingFace list repositories  
     hf_list_parser = hf_subparsers.add_parser('list', help='List repositories')
     hf_list_parser.add_argument('--type', choices=['model', 'dataset', 'space'], default='model', help='Repository type')
@@ -254,6 +269,21 @@ def create_parser():
     # GitHub login
     gh_login_parser = gh_subparsers.add_parser('login', help='Login to GitHub')
     gh_login_parser.add_argument('--token', help='GitHub personal access token')
+    
+    # GitHub configure
+    gh_configure_parser = gh_subparsers.add_parser('configure', help='Configure GitHub integration and storage policies')
+    gh_configure_parser.add_argument('--token', help='GitHub personal access token')
+    gh_configure_parser.add_argument('--default-org', help='Default GitHub organization')
+    gh_configure_parser.add_argument('--default-repo', help='Default repository for uploads')
+    
+    # GitHub backend characteristics: HIGH AVAILABILITY, VERSION CONTROL, COLLABORATION-FOCUSED
+    gh_configure_parser.add_argument('--storage-quota', help='Repository storage limit (e.g., 1GB, 100GB, enterprise unlimited)')
+    gh_configure_parser.add_argument('--lfs-quota', help='Git LFS storage quota (e.g., 1GB, 10GB for large files)')
+    gh_configure_parser.add_argument('--quota-action', choices=['warn', 'block', 'lfs-migrate'], default='lfs-migrate', help='Action when quota is exceeded')
+    gh_configure_parser.add_argument('--retention-policy', choices=['indefinite', 'branch-based', 'tag-based'], default='indefinite', help='Version retention policy')
+    gh_configure_parser.add_argument('--auto-lfs', action='store_true', default=True, help='Automatically use Git LFS for large files')
+    gh_configure_parser.add_argument('--collaboration-level', choices=['private', 'internal', 'public'], default='private', help='Default repository visibility')
+    gh_configure_parser.add_argument('--branch-protection', action='store_true', help='Enable branch protection rules')
     
     # GitHub list repositories
     gh_list_parser = gh_subparsers.add_parser('list', help='List repositories')
@@ -311,6 +341,15 @@ def create_parser():
     s3_config_parser.add_argument('--backup-bucket', help='Backup bucket for disaster recovery')
     s3_config_parser.add_argument('--dr-sync-interval', type=int, default=3600, help='Disaster recovery sync interval in seconds')
     
+    # S3 backend characteristics: MODERATE SPEED, HIGH PERSISTENCE, SCALABLE
+    s3_config_parser.add_argument('--account-quota', help='Account-wide quota for S3 usage (e.g., 10TB, 50TB)')
+    s3_config_parser.add_argument('--quota-action', choices=['warn', 'block', 'auto-tier', 'auto-delete'], default='auto-tier', help='Action when quota is exceeded')
+    s3_config_parser.add_argument('--cost-optimization', action='store_true', help='Enable automatic cost optimization')
+    s3_config_parser.add_argument('--retention-policy', choices=['indefinite', 'compliance', 'lifecycle'], default='lifecycle', help='Data retention policy')
+    s3_config_parser.add_argument('--auto-delete-after', type=int, help='Auto-delete objects after N days')
+    s3_config_parser.add_argument('--monitoring-enabled', action='store_true', default=True, help='Enable CloudWatch monitoring')
+    s3_config_parser.add_argument('--transfer-acceleration', action='store_true', help='Enable transfer acceleration for faster uploads')
+    
     # S3 list buckets
     s3_list_parser = s3_subparsers.add_parser('list', help='List S3 buckets')
     s3_list_parser.add_argument('bucket', nargs='?', help='Specific bucket to list objects')
@@ -347,6 +386,15 @@ def create_parser():
     storacha_config_parser = storacha_subparsers.add_parser('configure', help='Configure Storacha API')
     storacha_config_parser.add_argument('--api-key', help='Storacha API key')
     storacha_config_parser.add_argument('--endpoint', help='Storacha endpoint URL')
+    
+    # Storacha backend characteristics: WEB3 STORAGE, DECENTRALIZED, FILECOIN-BACKED
+    storacha_config_parser.add_argument('--storage-quota', help='Storacha storage quota (varies by plan)')
+    storacha_config_parser.add_argument('--quota-action', choices=['warn', 'block', 'upgrade-prompt'], default='warn', help='Action when quota is exceeded')
+    storacha_config_parser.add_argument('--retention-policy', choices=['permanent', 'deal-based', 'renewal'], default='deal-based', help='Data retention policy on Filecoin network')
+    storacha_config_parser.add_argument('--deal-duration', type=int, default=180, help='Filecoin deal duration in days')
+    storacha_config_parser.add_argument('--auto-renew', action='store_true', default=True, help='Automatically renew expiring deals')
+    storacha_config_parser.add_argument('--redundancy-level', type=int, default=3, help='Number of storage providers for redundancy')
+    storacha_config_parser.add_argument('--ipfs-gateway', help='Preferred IPFS gateway for retrievals')
     
     # Storacha upload
     storacha_upload_parser = storacha_subparsers.add_parser('upload', help='Upload content to Storacha')
@@ -399,6 +447,21 @@ def create_parser():
     gdrive_auth_parser = gdrive_subparsers.add_parser('auth', help='Authenticate with Google Drive')
     gdrive_auth_parser.add_argument('--credentials', help='Path to credentials JSON file')
     
+    # Google Drive configure
+    gdrive_configure_parser = gdrive_subparsers.add_parser('configure', help='Configure Google Drive storage and quotas')
+    gdrive_configure_parser.add_argument('--credentials', help='Path to credentials JSON file')
+    gdrive_configure_parser.add_argument('--default-folder', help='Default folder ID for uploads')
+    gdrive_configure_parser.add_argument('--shared-drive', help='Shared drive ID for team storage')
+    
+    # Google Drive backend characteristics: CLOUD STORAGE, PERSONAL/BUSINESS, COLLABORATION-FRIENDLY  
+    gdrive_configure_parser.add_argument('--storage-quota', help='Google Drive storage quota (15GB free, unlimited business)')
+    gdrive_configure_parser.add_argument('--quota-action', choices=['warn', 'block', 'upgrade-prompt'], default='warn', help='Action when quota is exceeded')
+    gdrive_configure_parser.add_argument('--retention-policy', choices=['indefinite', 'auto-trash', 'version-limit'], default='indefinite', help='File retention policy')
+    gdrive_configure_parser.add_argument('--version-retention', type=int, default=100, help='Number of versions to retain per file')
+    gdrive_configure_parser.add_argument('--auto-trash-days', type=int, default=30, help='Days before auto-trashing unused files')
+    gdrive_configure_parser.add_argument('--sharing-level', choices=['private', 'link-share', 'organization', 'public'], default='private', help='Default sharing level')
+    gdrive_configure_parser.add_argument('--sync-offline', action='store_true', help='Enable offline sync for important files')
+    
     # Google Drive list
     gdrive_list_parser = gdrive_subparsers.add_parser('list', help='List Google Drive files')
     gdrive_list_parser.add_argument('--folder', help='Folder ID to list')
@@ -424,6 +487,16 @@ def create_parser():
     lotus_configure_parser.add_argument('--endpoint', help='Lotus RPC endpoint URL')
     lotus_configure_parser.add_argument('--token', help='Lotus authentication token')
     
+    # Filecoin backend characteristics: HIGH PERSISTENCE, LOW SPEED
+    lotus_configure_parser.add_argument('--quota-size', help='Storage quota for Filecoin backend (e.g., 1TB, 500GB)')
+    lotus_configure_parser.add_argument('--quota-action', choices=['warn', 'block', 'auto-cleanup'], default='warn', help='Action when quota is exceeded')
+    lotus_configure_parser.add_argument('--retention-policy', choices=['permanent', 'deal-duration', 'custom'], default='permanent', help='Data retention policy')
+    lotus_configure_parser.add_argument('--min-deal-duration', type=int, default=525600, help='Minimum deal duration in epochs (default: 1 year)')
+    lotus_configure_parser.add_argument('--auto-renew', action='store_true', help='Automatically renew expiring deals')
+    lotus_configure_parser.add_argument('--priority-fee', help='Priority fee for deal operations (FIL)')
+    lotus_configure_parser.add_argument('--redundancy-level', type=int, default=1, help='Number of storage providers to use')
+    lotus_configure_parser.add_argument('--cleanup-expired', action='store_true', help='Automatically clean up expired deals')
+    
     # Lotus status
     lotus_subparsers.add_parser('status', help='Show Lotus node status')
     
@@ -445,6 +518,15 @@ def create_parser():
     synapse_configure_parser = synapse_subparsers.add_parser('configure', help='Configure Synapse connection')
     synapse_configure_parser.add_argument('--endpoint', help='Synapse endpoint URL')
     synapse_configure_parser.add_argument('--api-key', help='Synapse API key')
+    
+    # Synapse backend characteristics: RESEARCH-FOCUSED, BIOMEDICAL DATA, COLLABORATIVE SCIENCE
+    synapse_configure_parser.add_argument('--storage-quota', help='Synapse project storage quota (varies by account type)')
+    synapse_configure_parser.add_argument('--quota-action', choices=['warn', 'block', 'archive'], default='archive', help='Action when quota is exceeded')
+    synapse_configure_parser.add_argument('--retention-policy', choices=['indefinite', 'project-based', 'compliance'], default='project-based', help='Data retention policy')
+    synapse_configure_parser.add_argument('--version-limit', type=int, default=10, help='Maximum versions to retain per file')
+    synapse_configure_parser.add_argument('--sharing-level', choices=['private', 'team', 'public'], default='team', help='Default sharing level for uploads')
+    synapse_configure_parser.add_argument('--provenance-tracking', action='store_true', default=True, help='Enable provenance tracking for reproducibility')
+    synapse_configure_parser.add_argument('--doi-minting', action='store_true', help='Enable DOI minting for datasets')
     
     # Synapse status
     synapse_subparsers.add_parser('status', help='Show Synapse status')
@@ -471,6 +553,15 @@ def create_parser():
     sshfs_configure_parser.add_argument('--password', help='SSH password (not recommended, use key auth)')
     sshfs_configure_parser.add_argument('--private-key', help='Path to SSH private key file')
     sshfs_configure_parser.add_argument('--remote-path', default='/tmp/ipfs_kit', help='Remote base path')
+    
+    # SSHFS backend characteristics: MODERATE SPEED, VARIABLE PERSISTENCE, NETWORK-DEPENDENT
+    sshfs_configure_parser.add_argument('--storage-quota', help='Storage quota on remote filesystem (e.g., 100GB, 1TB)')
+    sshfs_configure_parser.add_argument('--quota-action', choices=['warn', 'block', 'cleanup'], default='cleanup', help='Action when quota is exceeded')
+    sshfs_configure_parser.add_argument('--cleanup-policy', choices=['lru', 'oldest', 'largest'], default='lru', help='Cleanup policy for quota enforcement')
+    sshfs_configure_parser.add_argument('--retention-days', type=int, default=90, help='Retain files for N days before cleanup')
+    sshfs_configure_parser.add_argument('--network-resilience', action='store_true', default=True, help='Enable network disconnection resilience')
+    sshfs_configure_parser.add_argument('--auto-reconnect', action='store_true', default=True, help='Automatically reconnect on connection loss')
+    sshfs_configure_parser.add_argument('--connection-timeout', type=int, default=30, help='Connection timeout in seconds')
     
     # SSHFS status
     sshfs_subparsers.add_parser('status', help='Show SSHFS connection status')
@@ -505,6 +596,15 @@ def create_parser():
     ftp_configure_parser.add_argument('--use-tls', action='store_true', help='Use FTP over TLS (FTPS)')
     ftp_configure_parser.add_argument('--passive', action='store_true', default=True, help='Use passive mode')
     ftp_configure_parser.add_argument('--remote-path', default='/', help='Remote base path')
+    
+    # FTP backend characteristics: LOW-MODERATE SPEED, VARIABLE PERSISTENCE, LEGACY PROTOCOL
+    ftp_configure_parser.add_argument('--storage-quota', help='Storage quota on FTP server (e.g., 50GB, 500GB)')
+    ftp_configure_parser.add_argument('--quota-action', choices=['warn', 'block', 'cleanup'], default='block', help='Action when quota is exceeded')
+    ftp_configure_parser.add_argument('--retention-policy', choices=['manual', 'time-based', 'space-based'], default='time-based', help='Retention policy for files')
+    ftp_configure_parser.add_argument('--retention-days', type=int, default=30, help='Retain files for N days (time-based policy)')
+    ftp_configure_parser.add_argument('--max-file-age', type=int, default=180, help='Maximum file age before warning (days)')
+    ftp_configure_parser.add_argument('--bandwidth-limit', help='Bandwidth limit for transfers (e.g., 1MB/s, 10MB/s)')
+    ftp_configure_parser.add_argument('--legacy-compatibility', action='store_true', default=True, help='Enable legacy FTP compatibility mode')
     
     # FTP status
     ftp_subparsers.add_parser('status', help='Show FTP connection status')
@@ -700,6 +800,17 @@ def create_parser():
     parquet_configure_parser.add_argument('--compression', choices=['snappy', 'gzip', 'brotli', 'lz4'], default='snappy', help='Compression algorithm')
     parquet_configure_parser.add_argument('--batch-size', type=int, default=10000, help='Batch size for writing')
     
+    # Parquet backend characteristics: BALANCED SPEED/PERSISTENCE (columnar storage)
+    parquet_configure_parser.add_argument('--storage-quota', help='Storage quota for Parquet files (e.g., 500GB, 1TB)')
+    parquet_configure_parser.add_argument('--quota-action', choices=['warn', 'block', 'auto-archive', 'auto-compress'], default='auto-compress', help='Action when quota is exceeded')
+    parquet_configure_parser.add_argument('--retention-policy', choices=['size-based', 'time-based', 'access-based', 'manual'], default='access-based', help='Data retention policy')
+    parquet_configure_parser.add_argument('--max-file-age', type=int, default=2592000, help='Maximum file age in seconds (default: 30 days)')
+    parquet_configure_parser.add_argument('--auto-compact', action='store_true', help='Automatically compact small files')
+    parquet_configure_parser.add_argument('--compact-threshold', type=int, default=100, help='Number of small files to trigger compaction')
+    parquet_configure_parser.add_argument('--archive-older-than', type=int, default=7776000, help='Archive files older than N seconds (default: 90 days)')
+    parquet_configure_parser.add_argument('--cleanup-temp-files', action='store_true', default=True, help='Automatically cleanup temporary files')
+    parquet_configure_parser.add_argument('--enable-versioning', action='store_true', help='Enable file versioning')
+    
     # Parquet status
     parquet_subparsers.add_parser('status', help='Show Parquet storage status')
     
@@ -729,6 +840,16 @@ def create_parser():
     arrow_configure_parser = arrow_subparsers.add_parser('configure', help='Configure Arrow settings')
     arrow_configure_parser.add_argument('--memory-pool', choices=['system', 'jemalloc'], default='system', help='Memory pool type')
     arrow_configure_parser.add_argument('--thread-count', type=int, help='Number of threads for parallel operations')
+    
+    # Arrow backend characteristics: HIGH SPEED, LOW PERSISTENCE (in-memory/temporary)
+    arrow_configure_parser.add_argument('--memory-quota', help='Memory quota for Arrow operations (e.g., 8GB, 16GB)')
+    arrow_configure_parser.add_argument('--memory-quota-action', choices=['warn', 'block', 'spill-to-disk', 'auto-cleanup'], default='spill-to-disk', help='Action when memory quota is exceeded')
+    arrow_configure_parser.add_argument('--disk-cache-size', help='Disk cache size for spilled data (e.g., 100GB)')
+    arrow_configure_parser.add_argument('--retention-policy', choices=['session', 'daily', 'weekly', 'manual'], default='daily', help='Data retention policy')
+    arrow_configure_parser.add_argument('--auto-cleanup-age', type=int, default=86400, help='Auto cleanup age in seconds (default: 24 hours)')
+    arrow_configure_parser.add_argument('--cleanup-threshold', type=float, default=0.8, help='Memory usage threshold to trigger cleanup (0.0-1.0)')
+    arrow_configure_parser.add_argument('--compression', choices=['none', 'lz4', 'zstd', 'snappy'], default='lz4', help='Compression for cached data')
+    arrow_configure_parser.add_argument('--enable-metrics', action='store_true', help='Enable performance metrics collection')
     
     # Arrow status
     arrow_subparsers.add_parser('status', help='Show Arrow configuration status')
@@ -879,6 +1000,42 @@ examples:
     set_config_parser.add_argument('key', help='Configuration key (e.g., s3.region, daemon.port)')
     set_config_parser.add_argument('value', help='Configuration value')
     
+    # Global pinset policy configuration
+    pinset_policy_parser = config_subparsers.add_parser('pinset-policy', help='Configure global pinset replication and cache policies')
+    pinset_policy_subparsers = pinset_policy_parser.add_subparsers(dest='pinset_policy_action', help='Pinset policy actions')
+    
+    # Show pinset policies
+    pinset_policy_show_parser = pinset_policy_subparsers.add_parser('show', help='Show current global pinset policies')
+    
+    # Set pinset policies
+    pinset_policy_set_parser = pinset_policy_subparsers.add_parser('set', help='Set global pinset policies')
+    pinset_policy_set_parser.add_argument('--replication-strategy', choices=['single', 'multi-backend', 'tiered', 'adaptive'], default='adaptive', help='Global replication strategy across backends')
+    pinset_policy_set_parser.add_argument('--min-replicas', type=int, default=2, help='Minimum replicas across all backends')
+    pinset_policy_set_parser.add_argument('--max-replicas', type=int, default=5, help='Maximum replicas across all backends')
+    pinset_policy_set_parser.add_argument('--cache-policy', choices=['lru', 'lfu', 'fifo', 'mru', 'adaptive', 'tiered'], default='adaptive', help='Global cache eviction policy')
+    pinset_policy_set_parser.add_argument('--cache-size', type=int, default=10000, help='Global cache size (number of objects)')
+    pinset_policy_set_parser.add_argument('--cache-memory-limit', help='Cache memory limit (e.g., 1GB, 500MB)')
+    
+    # Performance and distribution policies
+    pinset_policy_set_parser.add_argument('--performance-tier', choices=['speed-optimized', 'balanced', 'persistence-optimized'], default='balanced', help='Global performance optimization strategy')
+    pinset_policy_set_parser.add_argument('--geographic-distribution', choices=['local', 'regional', 'global'], default='regional', help='Geographic distribution preference')
+    pinset_policy_set_parser.add_argument('--failover-strategy', choices=['immediate', 'delayed', 'manual'], default='immediate', help='Backend failover strategy')
+    
+    # Auto-tiering policies
+    pinset_policy_set_parser.add_argument('--auto-tier', action='store_true', help='Enable automatic tiering based on access patterns')
+    pinset_policy_set_parser.add_argument('--hot-tier-duration', type=int, default=86400, help='Time in seconds before moving to warm tier')
+    pinset_policy_set_parser.add_argument('--warm-tier-duration', type=int, default=2592000, help='Time in seconds before moving to cold tier')
+    pinset_policy_set_parser.add_argument('--auto-gc', action='store_true', help='Enable automatic garbage collection')
+    pinset_policy_set_parser.add_argument('--gc-threshold', type=float, default=0.8, help='Storage threshold to trigger garbage collection (0.0-1.0)')
+    
+    # Backend selection preferences
+    pinset_policy_set_parser.add_argument('--preferred-backends', help='Comma-separated list of preferred backends in order')
+    pinset_policy_set_parser.add_argument('--exclude-backends', help='Comma-separated list of backends to exclude')
+    pinset_policy_set_parser.add_argument('--backend-weights', help='Backend weighting (e.g., "arrow:0.3,s3:0.4,filecoin:0.3")')
+    
+    # Reset pinset policies to defaults
+    pinset_policy_subparsers.add_parser('reset', help='Reset all pinset policies to defaults')
+    
     # Config init command - interactive setup
     init_config_parser = config_subparsers.add_parser('init', help='Interactive configuration setup for all backends')
     init_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'all'], 
@@ -925,6 +1082,60 @@ examples:
     
     # List generated CAR files
     bucket_list_cars_parser = bucket_subparsers.add_parser('list-cars', help='List generated CAR files')
+    
+    # Bucket policy management commands
+    bucket_policy_parser = bucket_subparsers.add_parser('policy', help='Manage bucket-level replication and cache policies')
+    bucket_policy_subparsers = bucket_policy_parser.add_subparsers(dest='bucket_policy_action', help='Bucket policy actions')
+    
+    # Show bucket policies
+    bucket_policy_show_parser = bucket_policy_subparsers.add_parser('show', help='Show policies for a bucket or all buckets')
+    bucket_policy_show_parser.add_argument('bucket_name', nargs='?', help='Bucket name (optional, shows all if not provided)')
+    
+    # Set bucket policy
+    bucket_policy_set_parser = bucket_policy_subparsers.add_parser('set', help='Set replication and cache policy for a bucket')
+    bucket_policy_set_parser.add_argument('bucket_name', help='Name of the bucket to configure')
+    
+    # Replication policies for bucket
+    bucket_policy_set_parser.add_argument('--replication-backends', help='Comma-separated list of backends for replication (e.g., "s3,filecoin,arrow")')
+    bucket_policy_set_parser.add_argument('--min-replicas', type=int, help='Minimum replicas for this bucket (overrides global)')
+    bucket_policy_set_parser.add_argument('--max-replicas', type=int, help='Maximum replicas for this bucket (overrides global)')
+    bucket_policy_set_parser.add_argument('--primary-backend', choices=['s3', 'filecoin', 'arrow', 'parquet', 'ipfs', 'storacha', 'sshfs', 'ftp'], help='Primary backend for this bucket')
+    
+    # Cache policies for bucket
+    bucket_policy_set_parser.add_argument('--cache-policy', choices=['lru', 'lfu', 'fifo', 'mru', 'adaptive', 'inherit'], default='inherit', help='Cache eviction policy for this bucket')
+    bucket_policy_set_parser.add_argument('--cache-size', type=int, help='Cache size for this bucket (overrides global)')
+    bucket_policy_set_parser.add_argument('--cache-priority', choices=['low', 'normal', 'high', 'critical'], default='normal', help='Cache priority for this bucket')
+    bucket_policy_set_parser.add_argument('--cache-ttl', type=int, help='Cache TTL in seconds (0 = permanent)')
+    
+    # Performance characteristics
+    bucket_policy_set_parser.add_argument('--performance-tier', choices=['speed-optimized', 'balanced', 'persistence-optimized', 'inherit'], default='inherit', help='Performance optimization for this bucket')
+    bucket_policy_set_parser.add_argument('--access-pattern', choices=['random', 'sequential', 'write-heavy', 'read-heavy', 'mixed'], default='mixed', help='Expected access pattern for optimization')
+    
+    # Tiering and lifecycle
+    bucket_policy_set_parser.add_argument('--auto-tier', action='store_true', help='Enable auto-tiering for this bucket')
+    bucket_policy_set_parser.add_argument('--hot-backend', help='Backend for hot/frequently accessed data')
+    bucket_policy_set_parser.add_argument('--warm-backend', help='Backend for warm/occasionally accessed data')  
+    bucket_policy_set_parser.add_argument('--cold-backend', help='Backend for cold/rarely accessed data')
+    bucket_policy_set_parser.add_argument('--archive-backend', help='Backend for archived data')
+    
+    # Retention and quota policies
+    bucket_policy_set_parser.add_argument('--retention-days', type=int, help='Data retention period in days')
+    bucket_policy_set_parser.add_argument('--max-size', help='Maximum bucket size (e.g., 100GB, 1TB)')
+    bucket_policy_set_parser.add_argument('--quota-action', choices=['warn', 'block', 'auto-archive', 'auto-delete'], default='warn', help='Action when quota is exceeded')
+    
+    # Copy policy from another bucket
+    bucket_policy_copy_parser = bucket_policy_subparsers.add_parser('copy', help='Copy policy from one bucket to another')
+    bucket_policy_copy_parser.add_argument('source_bucket', help='Source bucket to copy policy from')
+    bucket_policy_copy_parser.add_argument('target_bucket', help='Target bucket to copy policy to')
+    
+    # Apply policy template to bucket
+    bucket_policy_template_parser = bucket_policy_subparsers.add_parser('template', help='Apply a predefined policy template to bucket')
+    bucket_policy_template_parser.add_argument('bucket_name', help='Bucket to apply template to')
+    bucket_policy_template_parser.add_argument('template', choices=['high-speed', 'high-persistence', 'balanced', 'cost-optimized', 'archive'], help='Policy template to apply')
+    
+    # Reset bucket policy to defaults
+    bucket_policy_reset_parser = bucket_policy_subparsers.add_parser('reset', help='Reset bucket policy to global defaults')
+    bucket_policy_reset_parser.add_argument('bucket_name', help='Bucket to reset policy for')
     
     # IPFS upload commands
     bucket_upload_ipfs_parser = bucket_subparsers.add_parser('upload-ipfs', help='Upload CAR files to IPFS')

@@ -5,6 +5,100 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2025-07-29 - Three-Tier Policy System Release
+
+### 🎯 Major Feature: Comprehensive Three-Tier Policy System
+
+This release introduces a complete **three-tier policy management system** providing fine-grained control over data replication, caching, and storage quotas across all backends.
+
+### ✨ Added
+
+#### **Three-Tier Policy Architecture**
+- **[Policy System Documentation](./POLICY_SYSTEM_DOCUMENTATION.md)**: Complete system documentation with examples
+- **[CLI Policy Usage Guide](./CLI_POLICY_USAGE_GUIDE.md)**: Comprehensive CLI command reference
+- **Global Pinset Policies**: System-wide defaults via `ipfs-kit config pinset-policy`
+- **Bucket-Level Policies**: Per-bucket overrides via `ipfs-kit bucket policy`
+- **Backend-Specific Quotas**: Hard limits and retention via `ipfs-kit backend <name> configure`
+
+#### **Policy Management Features**
+- **Replication Strategies**: Single, multi-backend, tiered, and adaptive replication
+- **Cache Policies**: LRU, LFU, FIFO, MRU, adaptive, and tiered caching with memory limits
+- **Performance Tiers**: Speed-optimized, balanced, and persistence-optimized configurations
+- **Auto-Tiering**: Hot/warm/cold data movement based on access patterns
+- **Geographic Distribution**: Local, regional, and global distribution strategies
+- **Failover Management**: Immediate, delayed, and manual failover strategies
+- **Backend Weighting**: Load balancing across preferred backends
+
+#### **Backend Quota & Retention System**
+- **Filecoin/Lotus**: Deal-based retention, auto-renewal, redundancy levels (high persistence, low speed)
+- **Arrow**: Memory quotas, spill-to-disk, session-based retention (high speed, low persistence)
+- **Parquet**: Storage quotas, auto-compaction, access-based retention (balanced characteristics)
+- **S3**: Account quotas, lifecycle policies, cost optimization (moderate speed, high persistence)
+- **GitHub**: Repository/LFS quotas, branch protection, collaboration controls
+- **HuggingFace**: Hub storage quotas, model versioning, cache retention policies
+- **Google Drive**: Storage quotas, version limits, auto-trash, sharing controls
+- **Storacha**: Filecoin-backed quotas, deal duration, Web3 storage economics
+- **Synapse**: Research data quotas, provenance tracking, DOI minting
+- **SSHFS**: Remote filesystem quotas, network resilience, auto-reconnection
+- **FTP**: Server quotas, bandwidth limits, legacy protocol compatibility
+
+#### **Policy Inheritance & Validation**
+- **Hierarchical Inheritance**: Global → Bucket → Backend policy flow
+- **Conflict Resolution**: Automatic resolution with clear precedence rules
+- **Policy Validation**: Comprehensive validation with detailed error reporting
+- **Configuration Simulation**: Test policy changes before applying
+- **Template System**: Pre-defined templates for common use cases
+- **Policy Analytics**: Usage statistics and effectiveness monitoring
+
+### 🛠️ Enhanced
+
+#### **CLI Command Extensions**
+- **Global Policy Commands**: Complete `config pinset-policy` command suite
+- **Bucket Policy Commands**: Full `bucket policy` management with templates
+- **Backend Configuration**: Enhanced `backend <name> configure` for all backends
+- **Status and Monitoring**: Comprehensive status, validation, and analytics commands
+- **Export/Import**: Configuration backup, export, and import functionality
+
+#### **Backend Configurations**
+- **All 11 backends** now have comprehensive quota and retention settings
+- **Performance characteristics** matched to appropriate default policies
+- **Backend-specific features** like Git LFS, Filecoin deals, S3 lifecycle policies
+- **Network resilience** for remote backends (SSHFS, FTP)
+- **Collaboration controls** for social backends (GitHub, HuggingFace, Drive)
+
+### 📚 Documentation Updates
+
+#### **New Documentation Files**
+- **[POLICY_SYSTEM_DOCUMENTATION.md](./POLICY_SYSTEM_DOCUMENTATION.md)**: Complete policy system guide
+- **[CLI_POLICY_USAGE_GUIDE.md](./CLI_POLICY_USAGE_GUIDE.md)**: Comprehensive CLI reference
+- **Updated README.md**: Added policy system overview and configuration examples
+
+#### **Enhanced Existing Documentation**
+- **README.md**: Updated with three-tier policy system overview
+- **Configuration examples**: Updated with policy system integration
+- **API Reference**: Added policy management CLI commands
+- **Quick Start**: Enhanced with policy configuration examples
+
+### 🎯 System Benefits
+
+#### **Data Management**
+- **Prevent Storage Overflow**: Backend quotas prevent unexpected storage limits
+- **Preserve Data**: Intelligent retention policies prevent accidental data loss
+- **Optimize Performance**: Backend characteristics drive optimal data placement
+- **Cost Control**: Automatic tiering and lifecycle management reduce storage costs
+
+#### **Operational Excellence**
+- **Policy Inheritance**: Hierarchical policies reduce configuration complexity
+- **Automated Management**: Auto-tiering and cleanup reduce manual intervention
+- **Comprehensive Monitoring**: Policy effectiveness and quota usage analytics
+- **Easy Migration**: Template system and policy copying simplify deployment
+
+#### **Multi-Backend Intelligence**
+- **Backend Characteristics**: Speed vs persistence matching for optimal placement
+- **Automatic Failover**: Geographic distribution and failover strategies
+- **Load Balancing**: Backend weighting for optimal resource utilization
+- **Unified Interface**: Single CLI for managing all backend policies
+
 ## [3.0.0] - 2025-07-10 - Production Ready MCP Release
 
 ### 🎉 Major Release: Production Ready MCP Server Integration

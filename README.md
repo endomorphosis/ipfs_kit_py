@@ -46,6 +46,13 @@
 - **Embeddings Management**: Efficient storage and retrieval of ML embeddings
 - **Data Processing**: Comprehensive dataset operations and transformations
 
+### 🎯 **Three-Tier Policy System**
+- **Global Pinset Policies**: Comprehensive replication and cache policies via `ipfs-kit config pinset-policy`
+- **Bucket-Level Policies**: Per-bucket replication backends and cache settings via `ipfs-kit bucket policy`
+- **Backend-Specific Quotas**: Quota and retention policies for all backends to prevent overflow while preserving data
+- **Performance-Based Tiers**: Automatic tiering based on backend characteristics (speed vs persistence)
+- **Intelligent Failover**: Geographic distribution and failover strategies across backends
+
 ## 🚀 Quick Start
 
 ### 1. Single Node Deployment
@@ -76,7 +83,38 @@ cd docker && docker-compose up -d
 kubectl apply -f k8s/
 ```
 
-### 3. Quick Health Check
+### 3. Policy System Configuration
+
+```bash
+# Configure global pinset policies
+ipfs-kit config pinset-policy set \
+  --replication-strategy tiered \
+  --cache-policy adaptive \
+  --performance-tier balanced \
+  --auto-tier
+
+# Configure bucket-level policies
+ipfs-kit bucket policy set my-bucket \
+  --primary-backend filecoin \
+  --replication-backends "s3,arrow,parquet" \
+  --cache-policy lru \
+  --retention-days 365
+
+# Configure backend quotas (example: Filecoin)
+ipfs-kit backend lotus configure \
+  --quota-size 10TB \
+  --retention-policy permanent \
+  --auto-renew \
+  --redundancy-level 3
+
+# Configure backend quotas (example: Arrow) 
+ipfs-kit backend arrow configure \
+  --memory-quota 8GB \
+  --retention-policy temporary \
+  --session-retention 24
+```
+
+### 4. Quick Health Check
 
 ```bash
 # Check cluster status
@@ -87,6 +125,10 @@ curl http://localhost:9000/health          # Worker 2
 # Cluster management
 curl http://localhost:8998/cluster/status  # Cluster overview
 curl http://localhost:8998/cluster/leader  # Current leader
+
+# Policy status
+ipfs-kit config pinset-policy show        # Global policies
+ipfs-kit bucket policy show              # All bucket policies
 ```
 
 ## 🏗️ Architecture Overview
@@ -124,6 +166,115 @@ curl http://localhost:8998/cluster/leader  # Current leader
 | `ENABLE_REPLICATION` | `true` | Enable replication features |
 | `ENABLE_INDEXING` | `true` | Enable indexing features |
 | `ENABLE_VFS` | `true` | Enable VFS integration |
+
+### Three-Tier Policy System Configuration
+
+#### 1. Global Pinset Policies (`ipfs-kit config pinset-policy`)
+
+Configure system-wide defaults for all pinsets:
+
+```bash
+# Set global replication strategy
+ipfs-kit config pinset-policy set \
+  --replication-strategy adaptive \
+  --min-replicas 2 \
+  --max-replicas 5 \
+  --geographic-distribution regional
+
+# Configure global cache policies
+ipfs-kit config pinset-policy set \
+  --cache-policy tiered \
+  --cache-size 10000 \
+  --cache-memory-limit 4GB \
+  --auto-gc
+
+# Set performance optimization
+ipfs-kit config pinset-policy set \
+  --performance-tier balanced \
+  --auto-tier \
+  --hot-tier-duration 86400 \
+  --warm-tier-duration 604800
+
+# Configure backend preferences
+ipfs-kit config pinset-policy set \
+  --preferred-backends "filecoin,s3,arrow" \
+  --backend-weights "filecoin:0.4,s3:0.3,arrow:0.3"
+```
+
+#### 2. Bucket-Level Policies (`ipfs-kit bucket policy`)
+
+Override global settings per bucket:
+
+```bash
+# Configure bucket for high-performance workloads
+ipfs-kit bucket policy set fast-bucket \
+  --primary-backend arrow \
+  --replication-backends "arrow,parquet,s3" \
+  --performance-tier speed-optimized \
+  --cache-policy lru \
+  --cache-priority high
+
+# Configure bucket for long-term storage
+ipfs-kit bucket policy set archive-bucket \
+  --primary-backend filecoin \
+  --replication-backends "filecoin,s3" \
+  --performance-tier persistence-optimized \
+  --retention-days 2555 \
+  --auto-tier
+
+# Configure bucket with tiered backends
+ipfs-kit bucket policy set balanced-bucket \
+  --hot-backend arrow \
+  --warm-backend parquet \
+  --cold-backend s3 \
+  --archive-backend filecoin \
+  --max-size 1TB
+```
+
+#### 3. Backend-Specific Quotas & Retention
+
+Each backend has characteristics-based quota management:
+
+**Filecoin/Lotus (High Persistence, Low Speed)**:
+```bash
+ipfs-kit backend lotus configure \
+  --quota-size 50TB \
+  --retention-policy permanent \
+  --min-deal-duration 518400 \
+  --auto-renew \
+  --redundancy-level 3 \
+  --cleanup-expired
+```
+
+**Arrow (High Speed, Low Persistence)**:
+```bash
+ipfs-kit backend arrow configure \
+  --memory-quota 16GB \
+  --retention-policy temporary \
+  --session-retention 48 \
+  --spill-to-disk \
+  --compression-level 3
+```
+
+**S3 (Moderate Speed, High Persistence)**:
+```bash
+ipfs-kit backend s3 configure \
+  --account-quota 10TB \
+  --retention-policy lifecycle \
+  --auto-delete-after 365 \
+  --cost-optimization \
+  --transfer-acceleration
+```
+
+**Parquet (Balanced Characteristics)**:
+```bash
+ipfs-kit backend parquet configure \
+  --storage-quota 5TB \
+  --retention-policy access-based \
+  --compression-algorithm snappy \
+  --auto-compaction \
+  --metadata-caching
+```
 
 ### Example Configuration
 
@@ -494,6 +645,108 @@ GET /ipfs/cat/{cid}          # Retrieve content (✅ Validated)
 POST /ipfs/pin/add/{cid}     # Pin content (✅ Validated)
 DELETE /ipfs/pin/rm/{cid}    # Unpin content (✅ Validated)
 GET /ipfs/version            # Version info (✅ Validated)
+```
+
+### Policy System CLI Commands
+
+#### Global Pinset Policies
+```bash
+# View current policies
+ipfs-kit config pinset-policy show
+
+# Set replication policies
+ipfs-kit config pinset-policy set \
+  --replication-strategy {single,multi-backend,tiered,adaptive} \
+  --min-replicas N \
+  --max-replicas N \
+  --geographic-distribution {local,regional,global}
+
+# Set cache policies  
+ipfs-kit config pinset-policy set \
+  --cache-policy {lru,lfu,fifo,mru,adaptive,tiered} \
+  --cache-size N \
+  --cache-memory-limit SIZE \
+  --auto-gc
+
+# Set performance and tiering
+ipfs-kit config pinset-policy set \
+  --performance-tier {speed-optimized,balanced,persistence-optimized} \
+  --auto-tier \
+  --hot-tier-duration SECONDS \
+  --warm-tier-duration SECONDS
+
+# Reset to defaults
+ipfs-kit config pinset-policy reset
+```
+
+#### Bucket-Level Policies
+```bash
+# View bucket policies
+ipfs-kit bucket policy show [BUCKET_NAME]
+
+# Set bucket-specific policies
+ipfs-kit bucket policy set BUCKET_NAME \
+  --replication-backends "backend1,backend2,backend3" \
+  --primary-backend {s3,filecoin,arrow,parquet,ipfs,storacha,sshfs,ftp} \
+  --cache-policy {lru,lfu,fifo,mru,adaptive,inherit} \
+  --performance-tier {speed-optimized,balanced,persistence-optimized,inherit}
+
+# Set bucket lifecycle management
+ipfs-kit bucket policy set BUCKET_NAME \
+  --retention-days N \
+  --max-size SIZE \
+  --quota-action {warn,block,auto-archive,auto-delete}
+
+# Set bucket tiering
+ipfs-kit bucket policy set BUCKET_NAME \
+  --auto-tier \
+  --hot-backend BACKEND \
+  --warm-backend BACKEND \
+  --cold-backend BACKEND \
+  --archive-backend BACKEND
+
+# Copy policies between buckets
+ipfs-kit bucket policy copy SOURCE_BUCKET DEST_BUCKET
+
+# Apply predefined templates
+ipfs-kit bucket policy template BUCKET_NAME TEMPLATE_NAME
+
+# Reset bucket to global defaults
+ipfs-kit bucket policy reset BUCKET_NAME
+```
+
+#### Backend-Specific Configuration
+```bash
+# Filecoin/Lotus (High Persistence, Low Speed)
+ipfs-kit backend lotus configure \
+  --quota-size SIZE \
+  --retention-policy {permanent,deal-duration,custom} \
+  --auto-renew \
+  --redundancy-level N
+
+# Arrow (High Speed, Low Persistence)  
+ipfs-kit backend arrow configure \
+  --memory-quota SIZE \
+  --retention-policy {temporary,session-based,memory-based} \
+  --session-retention HOURS \
+  --spill-to-disk
+
+# S3 (Moderate Speed, High Persistence)
+ipfs-kit backend s3 configure \
+  --account-quota SIZE \
+  --retention-policy {indefinite,compliance,lifecycle} \
+  --cost-optimization \
+  --transfer-acceleration
+
+# Parquet (Balanced)
+ipfs-kit backend parquet configure \
+  --storage-quota SIZE \
+  --retention-policy {indefinite,access-based,size-based} \
+  --compression-algorithm {snappy,gzip,lz4,zstd} \
+  --auto-compaction
+
+# All other backends have similar configure commands with
+# backend-appropriate quota and retention options
 ```
 
 ## 🧪 Testing & Validation
