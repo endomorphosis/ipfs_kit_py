@@ -189,6 +189,15 @@ def create_parser():
     status_pin_parser = pin_subparsers.add_parser('status', help='Check pin status')
     status_pin_parser.add_argument('operation_id', help='Operation ID')
     
+    get_pin_parser = pin_subparsers.add_parser('get', help='Download pinned content to file')
+    get_pin_parser.add_argument('cid', help='CID to download')
+    get_pin_parser.add_argument('--output', '-o', help='Output file path (default: uses CID as filename)')
+    get_pin_parser.add_argument('--recursive', action='store_true', help='Download recursively for directories')
+    
+    cat_pin_parser = pin_subparsers.add_parser('cat', help='Stream pinned content to stdout')
+    cat_pin_parser.add_argument('cid', help='CID to stream')
+    cat_pin_parser.add_argument('--limit', type=int, help='Limit output size in bytes')
+    
     init_pin_parser = pin_subparsers.add_parser('init', help='Initialize pin metadata index with sample data')
     
     # Backend management - interface to internal kit modules
@@ -277,11 +286,30 @@ def create_parser():
     s3_subparsers = s3_parser.add_subparsers(dest='s3_action', help='S3 actions')
     
     # S3 configure
-    s3_config_parser = s3_subparsers.add_parser('configure', help='Configure S3 credentials')
+    s3_config_parser = s3_subparsers.add_parser('configure', help='Configure S3 credentials and policies')
     s3_config_parser.add_argument('--access-key', help='AWS access key ID')
     s3_config_parser.add_argument('--secret-key', help='AWS secret access key')
     s3_config_parser.add_argument('--region', default='us-east-1', help='AWS region')
     s3_config_parser.add_argument('--endpoint', help='S3-compatible endpoint URL')
+    
+    # S3 Replication Policies
+    s3_config_parser.add_argument('--cross-region-replication', action='store_true', help='Enable cross-region replication')
+    s3_config_parser.add_argument('--replication-regions', help='Comma-separated list of replication regions')
+    s3_config_parser.add_argument('--versioning', action='store_true', help='Enable object versioning')
+    
+    # S3 Cache and Performance Policies
+    s3_config_parser.add_argument('--cache-policy', choices=['lru', 'lfu', 'fifo', 'none'], default='lru', help='Local cache policy for S3 objects')
+    s3_config_parser.add_argument('--cache-size', type=int, default=1000, help='Maximum cached objects')
+    s3_config_parser.add_argument('--multipart-threshold', type=int, default=64, help='Multipart upload threshold in MB')
+    s3_config_parser.add_argument('--concurrent-uploads', type=int, default=5, help='Maximum concurrent uploads')
+    
+    # S3 Storage Classes and Lifecycle
+    s3_config_parser.add_argument('--default-storage-class', choices=['STANDARD', 'REDUCED_REDUNDANCY', 'STANDARD_IA', 'ONEZONE_IA', 'INTELLIGENT_TIERING', 'GLACIER', 'DEEP_ARCHIVE'], default='STANDARD', help='Default storage class')
+    s3_config_parser.add_argument('--lifecycle-policy', choices=['none', 'auto-tier', 'auto-archive'], default='none', help='Automatic lifecycle management')
+    
+    # S3 Disaster Recovery
+    s3_config_parser.add_argument('--backup-bucket', help='Backup bucket for disaster recovery')
+    s3_config_parser.add_argument('--dr-sync-interval', type=int, default=3600, help='Disaster recovery sync interval in seconds')
     
     # S3 list buckets
     s3_list_parser = s3_subparsers.add_parser('list', help='List S3 buckets')
@@ -290,10 +318,20 @@ def create_parser():
     s3_list_parser.add_argument('--limit', type=int, default=100, help='Maximum number of objects to list')
     
     # S3 upload
-    s3_upload_parser = s3_subparsers.add_parser('upload', help='Upload file to S3')
+    s3_upload_parser = s3_subparsers.add_parser('upload', help='Upload file to S3 with policies')
     s3_upload_parser.add_argument('local_file', help='Local file to upload')
     s3_upload_parser.add_argument('bucket', help='S3 bucket name')
     s3_upload_parser.add_argument('key', help='S3 object key')
+    
+    # S3 Upload Policies
+    s3_upload_parser.add_argument('--storage-class', choices=['STANDARD', 'REDUCED_REDUNDANCY', 'STANDARD_IA', 'ONEZONE_IA', 'INTELLIGENT_TIERING', 'GLACIER', 'DEEP_ARCHIVE'], help='Storage class for this upload')
+    s3_upload_parser.add_argument('--cache-control', help='Cache-Control header value')
+    s3_upload_parser.add_argument('--expires', type=int, help='Object expiration in days')
+    s3_upload_parser.add_argument('--replicate-to', help='Comma-separated list of regions to replicate to')
+    s3_upload_parser.add_argument('--encryption', choices=['none', 'aes256', 'kms'], default='none', help='Server-side encryption')
+    s3_upload_parser.add_argument('--backup', action='store_true', help='Also upload to backup bucket')
+    s3_upload_parser.add_argument('--tags', help='Comma-separated tags (key=value pairs)')
+    s3_upload_parser.add_argument('--priority', choices=['low', 'normal', 'high'], default='normal', help='Upload priority')
     
     # S3 download
     s3_download_parser = s3_subparsers.add_parser('download', help='Download file from S3')
@@ -339,6 +377,20 @@ def create_parser():
     ipfs_pin_parser.add_argument('cid', help='IPFS Content ID')
     ipfs_pin_parser.add_argument('--name', help='Pin name')
     
+    # Single-node replication settings (for local IPFS)
+    ipfs_pin_parser.add_argument('--recursive', action='store_true', help='Pin recursively (default for directories)')
+    ipfs_pin_parser.add_argument('--cache-policy', choices=['lru', 'lfu', 'fifo', 'mru', 'none'], default='lru', help='Local cache eviction policy')
+    ipfs_pin_parser.add_argument('--cache-priority', choices=['low', 'normal', 'high'], default='normal', help='Cache priority level')
+    ipfs_pin_parser.add_argument('--bucket', help='Assign pin to a bucket for organization')
+    
+    # Performance settings
+    ipfs_pin_parser.add_argument('--timeout', type=int, default=60, help='Pin operation timeout in seconds')
+    ipfs_pin_parser.add_argument('--priority', choices=['low', 'normal', 'high'], default='normal', help='Pin operation priority')
+    
+    # Metadata and organization
+    ipfs_pin_parser.add_argument('--tags', help='Comma-separated tags for pin organization')
+    ipfs_pin_parser.add_argument('--description', help='Description for this pin')
+    
     # Google Drive backend
     gdrive_parser = backend_subparsers.add_parser('gdrive', help='Google Drive operations')
     gdrive_subparsers = gdrive_parser.add_subparsers(dest='gdrive_action', help='Google Drive actions')
@@ -363,6 +415,342 @@ def create_parser():
     gdrive_download_parser.add_argument('file_id', help='Google Drive file ID')
     gdrive_download_parser.add_argument('local_path', help='Local path to save file')
     
+    # Lotus backend
+    lotus_parser = backend_subparsers.add_parser('lotus', help='Lotus/Filecoin operations')
+    lotus_subparsers = lotus_parser.add_subparsers(dest='lotus_action', help='Lotus actions')
+    
+    # Lotus configure
+    lotus_configure_parser = lotus_subparsers.add_parser('configure', help='Configure Lotus connection')
+    lotus_configure_parser.add_argument('--endpoint', help='Lotus RPC endpoint URL')
+    lotus_configure_parser.add_argument('--token', help='Lotus authentication token')
+    
+    # Lotus status
+    lotus_subparsers.add_parser('status', help='Show Lotus node status')
+    
+    # Lotus store
+    lotus_store_parser = lotus_subparsers.add_parser('store', help='Store data on Filecoin')
+    lotus_store_parser.add_argument('local_file', help='Local file to store')
+    lotus_store_parser.add_argument('--duration', type=int, default=525600, help='Storage duration in epochs')
+    
+    # Lotus retrieve
+    lotus_retrieve_parser = lotus_subparsers.add_parser('retrieve', help='Retrieve data from Filecoin')
+    lotus_retrieve_parser.add_argument('cid', help='Content identifier')
+    lotus_retrieve_parser.add_argument('local_path', help='Local path to save retrieved data')
+    
+    # Synapse backend
+    synapse_parser = backend_subparsers.add_parser('synapse', help='Synapse operations')
+    synapse_subparsers = synapse_parser.add_subparsers(dest='synapse_action', help='Synapse actions')
+    
+    # Synapse configure
+    synapse_configure_parser = synapse_subparsers.add_parser('configure', help='Configure Synapse connection')
+    synapse_configure_parser.add_argument('--endpoint', help='Synapse endpoint URL')
+    synapse_configure_parser.add_argument('--api-key', help='Synapse API key')
+    
+    # Synapse status
+    synapse_subparsers.add_parser('status', help='Show Synapse status')
+    
+    # Synapse upload
+    synapse_upload_parser = synapse_subparsers.add_parser('upload', help='Upload to Synapse')
+    synapse_upload_parser.add_argument('local_file', help='Local file to upload')
+    synapse_upload_parser.add_argument('--project', help='Synapse project ID')
+    
+    # Synapse download
+    synapse_download_parser = synapse_subparsers.add_parser('download', help='Download from Synapse')
+    synapse_download_parser.add_argument('synapse_id', help='Synapse entity ID')
+    synapse_download_parser.add_argument('local_path', help='Local path to save file')
+    
+    # SSHFS backend
+    sshfs_parser = backend_subparsers.add_parser('sshfs', help='SSHFS remote storage operations')
+    sshfs_subparsers = sshfs_parser.add_subparsers(dest='sshfs_action', help='SSHFS actions')
+    
+    # SSHFS configure
+    sshfs_configure_parser = sshfs_subparsers.add_parser('configure', help='Configure SSHFS connection')
+    sshfs_configure_parser.add_argument('--hostname', required=True, help='SSH hostname or IP address')
+    sshfs_configure_parser.add_argument('--username', required=True, help='SSH username')
+    sshfs_configure_parser.add_argument('--port', type=int, default=22, help='SSH port (default: 22)')
+    sshfs_configure_parser.add_argument('--password', help='SSH password (not recommended, use key auth)')
+    sshfs_configure_parser.add_argument('--private-key', help='Path to SSH private key file')
+    sshfs_configure_parser.add_argument('--remote-path', default='/tmp/ipfs_kit', help='Remote base path')
+    
+    # SSHFS status
+    sshfs_subparsers.add_parser('status', help='Show SSHFS connection status')
+    
+    # SSHFS test
+    sshfs_subparsers.add_parser('test', help='Test SSHFS connection')
+    
+    # SSHFS upload
+    sshfs_upload_parser = sshfs_subparsers.add_parser('upload', help='Upload file via SSHFS')
+    sshfs_upload_parser.add_argument('local_file', help='Local file to upload')
+    sshfs_upload_parser.add_argument('remote_path', help='Remote path destination')
+    
+    # SSHFS download
+    sshfs_download_parser = sshfs_subparsers.add_parser('download', help='Download file via SSHFS')
+    sshfs_download_parser.add_argument('remote_path', help='Remote file path')
+    sshfs_download_parser.add_argument('local_path', help='Local path to save file')
+    
+    # SSHFS list
+    sshfs_list_parser = sshfs_subparsers.add_parser('list', help='List remote files via SSHFS')
+    sshfs_list_parser.add_argument('remote_path', nargs='?', default='/', help='Remote path to list')
+    
+    # FTP backend
+    ftp_parser = backend_subparsers.add_parser('ftp', help='FTP storage operations')
+    ftp_subparsers = ftp_parser.add_subparsers(dest='ftp_action', help='FTP actions')
+    
+    # FTP configure
+    ftp_configure_parser = ftp_subparsers.add_parser('configure', help='Configure FTP connection')
+    ftp_configure_parser.add_argument('--host', required=True, help='FTP hostname or IP address')
+    ftp_configure_parser.add_argument('--username', required=True, help='FTP username')
+    ftp_configure_parser.add_argument('--password', required=True, help='FTP password')
+    ftp_configure_parser.add_argument('--port', type=int, default=21, help='FTP port (default: 21)')
+    ftp_configure_parser.add_argument('--use-tls', action='store_true', help='Use FTP over TLS (FTPS)')
+    ftp_configure_parser.add_argument('--passive', action='store_true', default=True, help='Use passive mode')
+    ftp_configure_parser.add_argument('--remote-path', default='/', help='Remote base path')
+    
+    # FTP status
+    ftp_subparsers.add_parser('status', help='Show FTP connection status')
+    
+    # FTP test
+    ftp_subparsers.add_parser('test', help='Test FTP connection')
+    
+    # FTP upload
+    ftp_upload_parser = ftp_subparsers.add_parser('upload', help='Upload file via FTP')
+    ftp_upload_parser.add_argument('local_file', help='Local file to upload')
+    ftp_upload_parser.add_argument('remote_path', help='Remote path destination')
+    
+    # FTP download
+    ftp_download_parser = ftp_subparsers.add_parser('download', help='Download file via FTP')
+    ftp_download_parser.add_argument('remote_path', help='Remote file path')
+    ftp_download_parser.add_argument('local_path', help='Local path to save file')
+    
+    # FTP list
+    ftp_list_parser = ftp_subparsers.add_parser('list', help='List remote files via FTP')
+    ftp_list_parser.add_argument('remote_path', nargs='?', default='/', help='Remote path to list')
+    
+    # IPFS Cluster backend
+    ipfs_cluster_parser = backend_subparsers.add_parser('ipfs-cluster', help='IPFS Cluster operations')
+    ipfs_cluster_subparsers = ipfs_cluster_parser.add_subparsers(dest='ipfs_cluster_action', help='IPFS Cluster actions')
+    
+    # IPFS Cluster configure
+    ipfs_cluster_configure_parser = ipfs_cluster_subparsers.add_parser('configure', help='Configure IPFS Cluster connection')
+    ipfs_cluster_configure_parser.add_argument('--endpoint', required=True, help='IPFS Cluster API endpoint')
+    ipfs_cluster_configure_parser.add_argument('--username', help='Basic auth username')
+    ipfs_cluster_configure_parser.add_argument('--password', help='Basic auth password')
+    ipfs_cluster_configure_parser.add_argument('--ssl-cert', help='Path to SSL certificate file')
+    
+    # Global Pinset Policies
+    ipfs_cluster_configure_parser.add_argument('--global-replication-min', type=int, default=2, help='Global minimum replication factor for all pins')
+    ipfs_cluster_configure_parser.add_argument('--global-replication-max', type=int, default=-1, help='Global maximum replication factor (-1 = cluster size)')
+    ipfs_cluster_configure_parser.add_argument('--global-cache-policy', choices=['lru', 'lfu', 'fifo', 'mru', 'adaptive'], default='adaptive', help='Global cache eviction policy')
+    ipfs_cluster_configure_parser.add_argument('--global-cache-size', type=int, default=10000, help='Global maximum cache entries')
+    ipfs_cluster_configure_parser.add_argument('--global-pin-timeout', type=int, default=300, help='Global pin operation timeout in seconds')
+    
+    # Disaster Recovery Settings
+    ipfs_cluster_configure_parser.add_argument('--dr-geo-distribution', choices=['none', 'region', 'continent', 'global'], default='region', help='Geographic distribution strategy for disaster recovery')
+    ipfs_cluster_configure_parser.add_argument('--dr-backup-interval', type=int, default=3600, help='Disaster recovery backup interval in seconds')
+    ipfs_cluster_configure_parser.add_argument('--dr-min-replicas-per-zone', type=int, default=1, help='Minimum replicas per availability zone')
+    
+    # Throughput Optimization
+    ipfs_cluster_configure_parser.add_argument('--throughput-mode', choices=['balanced', 'high-throughput', 'low-latency', 'bandwidth-optimized'], default='balanced', help='Throughput optimization mode')
+    ipfs_cluster_configure_parser.add_argument('--concurrent-pins', type=int, default=10, help='Maximum concurrent pin operations')
+    ipfs_cluster_configure_parser.add_argument('--batch-size', type=int, default=100, help='Batch size for bulk operations')
+    
+    # IPFS Cluster status
+    ipfs_cluster_subparsers.add_parser('status', help='Show IPFS Cluster status')
+    
+    # IPFS Cluster pin
+    ipfs_cluster_pin_parser = ipfs_cluster_subparsers.add_parser('pin', help='Pin content to IPFS Cluster')
+    ipfs_cluster_pin_parser.add_argument('cid', help='Content identifier to pin')
+    ipfs_cluster_pin_parser.add_argument('--name', help='Pin name')
+    
+    # Per-Pin Replication Settings
+    ipfs_cluster_pin_parser.add_argument('--replication-min', type=int, help='Minimum replication factor (overrides global)')
+    ipfs_cluster_pin_parser.add_argument('--replication-max', type=int, help='Maximum replication factor (overrides global)')
+    
+    # Per-Pin Cache Settings
+    ipfs_cluster_pin_parser.add_argument('--cache-policy', choices=['lru', 'lfu', 'fifo', 'mru', 'adaptive', 'inherit'], default='inherit', help='Cache eviction policy for this pin')
+    ipfs_cluster_pin_parser.add_argument('--cache-priority', choices=['low', 'normal', 'high', 'critical'], default='normal', help='Cache priority level')
+    ipfs_cluster_pin_parser.add_argument('--cache-ttl', type=int, help='Cache time-to-live in seconds (0 = permanent)')
+    
+    # Bucket-Level Settings
+    ipfs_cluster_pin_parser.add_argument('--bucket', help='Assign pin to a specific bucket for policy inheritance')
+    ipfs_cluster_pin_parser.add_argument('--bucket-policy', choices=['high-availability', 'balanced', 'performance', 'cost-optimized'], help='Bucket-level policy preset')
+    
+    # Disaster Recovery Per-Pin
+    ipfs_cluster_pin_parser.add_argument('--dr-tier', choices=['critical', 'important', 'standard', 'archive'], default='standard', help='Disaster recovery tier')
+    ipfs_cluster_pin_parser.add_argument('--dr-zones', help='Comma-separated list of required availability zones')
+    
+    # Performance Settings
+    ipfs_cluster_pin_parser.add_argument('--pin-timeout', type=int, help='Pin operation timeout in seconds (overrides global)')
+    ipfs_cluster_pin_parser.add_argument('--priority', choices=['low', 'normal', 'high', 'urgent'], default='normal', help='Pin operation priority')
+    
+    # IPFS Cluster unpin
+    ipfs_cluster_unpin_parser = ipfs_cluster_subparsers.add_parser('unpin', help='Unpin content from IPFS Cluster')
+    ipfs_cluster_unpin_parser.add_argument('cid', help='Content identifier to unpin')
+    
+    # IPFS Cluster list
+    ipfs_cluster_subparsers.add_parser('list', help='List pinned content in IPFS Cluster')
+    
+    # IPFS Cluster bucket management
+    ipfs_cluster_bucket_parser = ipfs_cluster_subparsers.add_parser('bucket', help='Manage cluster buckets and policies')
+    ipfs_cluster_bucket_subparsers = ipfs_cluster_bucket_parser.add_subparsers(dest='bucket_action', help='Bucket actions')
+    
+    # Create bucket with policies
+    ipfs_cluster_bucket_create_parser = ipfs_cluster_bucket_subparsers.add_parser('create', help='Create a new bucket with policies')
+    ipfs_cluster_bucket_create_parser.add_argument('bucket_name', help='Name of the bucket to create')
+    ipfs_cluster_bucket_create_parser.add_argument('--description', help='Bucket description')
+    
+    # Bucket Replication Policies
+    ipfs_cluster_bucket_create_parser.add_argument('--replication-min', type=int, default=2, help='Minimum replication factor for bucket')
+    ipfs_cluster_bucket_create_parser.add_argument('--replication-max', type=int, default=-1, help='Maximum replication factor for bucket')
+    
+    # Bucket Cache Policies
+    ipfs_cluster_bucket_create_parser.add_argument('--cache-policy', choices=['lru', 'lfu', 'fifo', 'mru', 'adaptive'], default='lru', help='Cache eviction policy for bucket')
+    ipfs_cluster_bucket_create_parser.add_argument('--cache-size', type=int, default=1000, help='Maximum cache entries for bucket')
+    ipfs_cluster_bucket_create_parser.add_argument('--cache-ttl', type=int, default=86400, help='Default cache TTL in seconds')
+    
+    # Bucket Performance Policies
+    ipfs_cluster_bucket_create_parser.add_argument('--throughput-mode', choices=['balanced', 'high-throughput', 'low-latency', 'bandwidth-optimized'], default='balanced', help='Throughput optimization for bucket')
+    ipfs_cluster_bucket_create_parser.add_argument('--concurrent-ops', type=int, default=5, help='Maximum concurrent operations for bucket')
+    
+    # Bucket Disaster Recovery Policies
+    ipfs_cluster_bucket_create_parser.add_argument('--dr-tier', choices=['critical', 'important', 'standard', 'archive'], default='standard', help='Disaster recovery tier for bucket')
+    ipfs_cluster_bucket_create_parser.add_argument('--dr-zones', help='Required availability zones (comma-separated)')
+    ipfs_cluster_bucket_create_parser.add_argument('--dr-backup-frequency', choices=['continuous', 'hourly', 'daily', 'weekly'], default='daily', help='Backup frequency for bucket')
+    
+    # Bucket Lifecycle Policies
+    ipfs_cluster_bucket_create_parser.add_argument('--lifecycle-policy', choices=['none', 'auto-archive', 'auto-delete', 'custom'], default='none', help='Lifecycle management policy')
+    ipfs_cluster_bucket_create_parser.add_argument('--archive-after-days', type=int, help='Archive content after N days')
+    ipfs_cluster_bucket_create_parser.add_argument('--delete-after-days', type=int, help='Delete content after N days')
+    
+    # Update bucket policies
+    ipfs_cluster_bucket_update_parser = ipfs_cluster_bucket_subparsers.add_parser('update', help='Update bucket policies')
+    ipfs_cluster_bucket_update_parser.add_argument('bucket_name', help='Name of the bucket to update')
+    ipfs_cluster_bucket_update_parser.add_argument('--replication-min', type=int, help='Update minimum replication factor')
+    ipfs_cluster_bucket_update_parser.add_argument('--replication-max', type=int, help='Update maximum replication factor')
+    ipfs_cluster_bucket_update_parser.add_argument('--cache-policy', choices=['lru', 'lfu', 'fifo', 'mru', 'adaptive'], help='Update cache policy')
+    ipfs_cluster_bucket_update_parser.add_argument('--cache-size', type=int, help='Update cache size')
+    ipfs_cluster_bucket_update_parser.add_argument('--throughput-mode', choices=['balanced', 'high-throughput', 'low-latency', 'bandwidth-optimized'], help='Update throughput mode')
+    ipfs_cluster_bucket_update_parser.add_argument('--dr-tier', choices=['critical', 'important', 'standard', 'archive'], help='Update disaster recovery tier')
+    
+    # List buckets
+    ipfs_cluster_bucket_list_parser = ipfs_cluster_bucket_subparsers.add_parser('list', help='List all buckets and their policies')
+    ipfs_cluster_bucket_list_parser.add_argument('--detailed', action='store_true', help='Show detailed policy information')
+    
+    # Show bucket details
+    ipfs_cluster_bucket_show_parser = ipfs_cluster_bucket_subparsers.add_parser('show', help='Show detailed bucket information')
+    ipfs_cluster_bucket_show_parser.add_argument('bucket_name', help='Name of the bucket to show')
+    
+    # Delete bucket
+    ipfs_cluster_bucket_delete_parser = ipfs_cluster_bucket_subparsers.add_parser('delete', help='Delete a bucket')
+    ipfs_cluster_bucket_delete_parser.add_argument('bucket_name', help='Name of the bucket to delete')
+    ipfs_cluster_bucket_delete_parser.add_argument('--force', action='store_true', help='Force deletion without confirmation')
+    
+    # Global pinset policy management
+    ipfs_cluster_policy_parser = ipfs_cluster_subparsers.add_parser('policy', help='Manage global pinset policies')
+    ipfs_cluster_policy_subparsers = ipfs_cluster_policy_parser.add_subparsers(dest='policy_action', help='Policy actions')
+    
+    # Show global policies
+    ipfs_cluster_policy_show_parser = ipfs_cluster_policy_subparsers.add_parser('show', help='Show current global pinset policies')
+    
+    # Update global policies
+    ipfs_cluster_policy_update_parser = ipfs_cluster_policy_subparsers.add_parser('update', help='Update global pinset policies')
+    ipfs_cluster_policy_update_parser.add_argument('--global-replication-min', type=int, help='Update global minimum replication')
+    ipfs_cluster_policy_update_parser.add_argument('--global-replication-max', type=int, help='Update global maximum replication')
+    ipfs_cluster_policy_update_parser.add_argument('--global-cache-policy', choices=['lru', 'lfu', 'fifo', 'mru', 'adaptive'], help='Update global cache policy')
+    ipfs_cluster_policy_update_parser.add_argument('--global-cache-size', type=int, help='Update global cache size')
+    ipfs_cluster_policy_update_parser.add_argument('--throughput-mode', choices=['balanced', 'high-throughput', 'low-latency', 'bandwidth-optimized'], help='Update global throughput mode')
+    ipfs_cluster_policy_update_parser.add_argument('--dr-geo-distribution', choices=['none', 'region', 'continent', 'global'], help='Update geographic distribution strategy')
+    
+    # Policy templates
+    ipfs_cluster_policy_template_parser = ipfs_cluster_policy_subparsers.add_parser('template', help='Apply predefined policy templates')
+    ipfs_cluster_policy_template_parser.add_argument('template', choices=['high-availability', 'performance', 'cost-optimized', 'disaster-recovery', 'balanced'], help='Policy template to apply')
+    ipfs_cluster_policy_template_parser.add_argument('--scope', choices=['global', 'bucket'], default='global', help='Apply template globally or to bucket')
+    ipfs_cluster_policy_template_parser.add_argument('--bucket', help='Bucket name when scope is bucket')
+    
+    # IPFS Cluster Follow backend
+    ipfs_cluster_follow_parser = backend_subparsers.add_parser('ipfs-cluster-follow', help='IPFS Cluster Follow operations')
+    ipfs_cluster_follow_subparsers = ipfs_cluster_follow_parser.add_subparsers(dest='ipfs_cluster_follow_action', help='IPFS Cluster Follow actions')
+    
+    # IPFS Cluster Follow configure
+    ipfs_cluster_follow_configure_parser = ipfs_cluster_follow_subparsers.add_parser('configure', help='Configure IPFS Cluster Follow')
+    ipfs_cluster_follow_configure_parser.add_argument('--name', required=True, help='Cluster name to follow')
+    ipfs_cluster_follow_configure_parser.add_argument('--template', help='Cluster configuration template')
+    ipfs_cluster_follow_configure_parser.add_argument('--trusted-peers', help='Trusted peer multiaddresses (comma-separated)')
+    
+    # IPFS Cluster Follow status
+    ipfs_cluster_follow_subparsers.add_parser('status', help='Show IPFS Cluster Follow status')
+    
+    # IPFS Cluster Follow run
+    ipfs_cluster_follow_run_parser = ipfs_cluster_follow_subparsers.add_parser('run', help='Run IPFS Cluster Follow')
+    ipfs_cluster_follow_run_parser.add_argument('cluster_name', help='Name of cluster to follow')
+    
+    # IPFS Cluster Follow stop
+    ipfs_cluster_follow_subparsers.add_parser('stop', help='Stop IPFS Cluster Follow')
+    
+    # IPFS Cluster Follow list
+    ipfs_cluster_follow_subparsers.add_parser('list', help='List followed clusters')
+    
+    # Parquet backend
+    parquet_parser = backend_subparsers.add_parser('parquet', help='Parquet data operations')
+    parquet_subparsers = parquet_parser.add_subparsers(dest='parquet_action', help='Parquet actions')
+    
+    # Parquet configure
+    parquet_configure_parser = parquet_subparsers.add_parser('configure', help='Configure Parquet storage settings')
+    parquet_configure_parser.add_argument('--storage-path', help='Local storage path for parquet files')
+    parquet_configure_parser.add_argument('--compression', choices=['snappy', 'gzip', 'brotli', 'lz4'], default='snappy', help='Compression algorithm')
+    parquet_configure_parser.add_argument('--batch-size', type=int, default=10000, help='Batch size for writing')
+    
+    # Parquet status
+    parquet_subparsers.add_parser('status', help='Show Parquet storage status')
+    
+    # Parquet read
+    parquet_read_parser = parquet_subparsers.add_parser('read', help='Read Parquet data')
+    parquet_read_parser.add_argument('file_path', help='Path to Parquet file')
+    parquet_read_parser.add_argument('--limit', type=int, help='Limit number of rows to read')
+    parquet_read_parser.add_argument('--columns', help='Comma-separated list of columns to read')
+    
+    # Parquet write
+    parquet_write_parser = parquet_subparsers.add_parser('write', help='Write data to Parquet')
+    parquet_write_parser.add_argument('input_file', help='Input data file (CSV, JSON)')
+    parquet_write_parser.add_argument('output_file', help='Output Parquet file path')
+    parquet_write_parser.add_argument('--format', choices=['csv', 'json'], default='csv', help='Input file format')
+    
+    # Parquet query
+    parquet_query_parser = parquet_subparsers.add_parser('query', help='Query Parquet data')
+    parquet_query_parser.add_argument('file_path', help='Path to Parquet file')
+    parquet_query_parser.add_argument('--filter', help='Filter expression')
+    parquet_query_parser.add_argument('--sql', help='SQL query string')
+    
+    # Arrow backend
+    arrow_parser = backend_subparsers.add_parser('arrow', help='Apache Arrow operations')
+    arrow_subparsers = arrow_parser.add_subparsers(dest='arrow_action', help='Arrow actions')
+    
+    # Arrow configure
+    arrow_configure_parser = arrow_subparsers.add_parser('configure', help='Configure Arrow settings')
+    arrow_configure_parser.add_argument('--memory-pool', choices=['system', 'jemalloc'], default='system', help='Memory pool type')
+    arrow_configure_parser.add_argument('--thread-count', type=int, help='Number of threads for parallel operations')
+    
+    # Arrow status
+    arrow_subparsers.add_parser('status', help='Show Arrow configuration status')
+    
+    # Arrow convert
+    arrow_convert_parser = arrow_subparsers.add_parser('convert', help='Convert data using Arrow')
+    arrow_convert_parser.add_argument('input_file', help='Input file path')
+    arrow_convert_parser.add_argument('output_file', help='Output file path')
+    arrow_convert_parser.add_argument('--input-format', choices=['csv', 'json', 'parquet', 'feather'], required=True, help='Input format')
+    arrow_convert_parser.add_argument('--output-format', choices=['csv', 'json', 'parquet', 'feather'], required=True, help='Output format')
+    
+    # Arrow schema
+    arrow_schema_parser = arrow_subparsers.add_parser('schema', help='Analyze data schema')
+    arrow_schema_parser.add_argument('file_path', help='Path to data file')
+    arrow_schema_parser.add_argument('--format', choices=['csv', 'json', 'parquet', 'feather'], help='File format (auto-detected if not specified)')
+    
+    # Arrow compute
+    arrow_compute_parser = arrow_subparsers.add_parser('compute', help='Perform compute operations')
+    arrow_compute_parser.add_argument('file_path', help='Path to data file')
+    arrow_compute_parser.add_argument('--operation', choices=['sum', 'mean', 'count', 'min', 'max'], required=True, help='Compute operation')
+    arrow_compute_parser.add_argument('--column', help='Column name for operation')
+    
     # Add examples in epilog
     backend_parser.epilog = """
 examples:
@@ -376,22 +764,85 @@ examples:
   ipfs-kit backend github list --user endomorphosis
   ipfs-kit backend github clone endomorphosis/ipfs_kit_py
   
-  # S3 operations
-  ipfs-kit backend s3 configure --access-key <key> --secret-key <secret>
+  # S3 operations with replication and cache policies
+  ipfs-kit backend s3 configure --access-key <key> --secret-key <secret> --cross-region-replication --replication-regions us-west-2,eu-west-1 --cache-policy lru --cache-size 5000
   ipfs-kit backend s3 list my-bucket
-  ipfs-kit backend s3 upload file.txt my-bucket file.txt
+  ipfs-kit backend s3 upload file.txt my-bucket file.txt --storage-class STANDARD_IA --replicate-to us-west-2 --backup --priority high
   
   # Storacha operations
   ipfs-kit backend storacha configure --api-key <key>
   ipfs-kit backend storacha upload ./dataset --name "my-dataset"
   
-  # IPFS operations
+  # IPFS operations with local caching
   ipfs-kit backend ipfs add ./model --recursive --pin
+  ipfs-kit backend ipfs pin QmHash --cache-policy lru --cache-priority high --bucket critical-data --timeout 120
   ipfs-kit backend ipfs get QmHash --output ./downloaded
   
   # Google Drive operations  
   ipfs-kit backend gdrive auth --credentials creds.json
   ipfs-kit backend gdrive list --folder <folder_id>
+  
+  # Lotus/Filecoin operations
+  ipfs-kit backend lotus configure --endpoint <rpc_url> --token <token>
+  ipfs-kit backend lotus status
+  ipfs-kit backend lotus store ./data.txt --duration 525600
+  
+  # Synapse operations
+  ipfs-kit backend synapse configure --endpoint <url> --api-key <key>
+  ipfs-kit backend synapse upload ./data.txt --project <project_id>
+  ipfs-kit backend synapse download <synapse_id> ./local_file.txt
+  
+  # SSHFS operations
+  ipfs-kit backend sshfs configure --hostname server.com --username user --private-key ~/.ssh/id_rsa
+  ipfs-kit backend sshfs status
+  ipfs-kit backend sshfs upload ./local_file.txt /remote/path/file.txt
+  
+  # FTP operations
+  ipfs-kit backend ftp configure --host ftp.example.com --username user --password pass
+  ipfs-kit backend ftp test
+  ipfs-kit backend ftp upload ./local_file.txt /remote/file.txt
+  
+  # IPFS Cluster operations with global and bucket policies
+  ipfs-kit backend ipfs-cluster configure --endpoint http://127.0.0.1:9094 --global-replication-min 3 --global-cache-policy adaptive --throughput-mode high-throughput --dr-geo-distribution region
+  ipfs-kit backend ipfs-cluster status
+  
+  # Bucket management with disaster recovery policies
+  ipfs-kit backend ipfs-cluster bucket create critical-data --replication-min 5 --cache-policy lru --throughput-mode low-latency --dr-tier critical --dr-zones us-east-1a,us-east-1b,us-west-2a
+  ipfs-kit backend ipfs-cluster bucket create archive-data --replication-min 2 --cache-policy fifo --throughput-mode bandwidth-optimized --dr-tier archive --lifecycle-policy auto-archive --archive-after-days 90
+  
+  # Pin with bucket policies and per-pin overrides
+  ipfs-kit backend ipfs-cluster pin QmHash --bucket critical-data --cache-priority critical --dr-tier critical --priority urgent
+  ipfs-kit backend ipfs-cluster pin QmHash2 --bucket archive-data --replication-min 3 --cache-ttl 0 --dr-zones us-east-1a,eu-west-1a
+  
+  # Global policy management
+  ipfs-kit backend ipfs-cluster policy show
+  ipfs-kit backend ipfs-cluster policy update --global-replication-min 2 --throughput-mode balanced
+  ipfs-kit backend ipfs-cluster policy template high-availability --scope global
+  ipfs-kit backend ipfs-cluster policy template performance --scope bucket --bucket critical-data
+  
+  # IPFS Cluster Follow operations
+  ipfs-kit backend ipfs-cluster-follow configure --name my-cluster --template default
+  ipfs-kit backend ipfs-cluster-follow run my-cluster
+  ipfs-kit backend ipfs-cluster-follow list
+  
+  # Parquet operations
+  ipfs-kit backend parquet configure --storage-path ./parquet_data --compression snappy
+  ipfs-kit backend parquet read ./data.parquet --limit 100 --columns id,name
+  ipfs-kit backend parquet write ./data.csv ./output.parquet --format csv
+  
+  # Arrow operations
+  ipfs-kit backend arrow configure --memory-pool jemalloc --thread-count 4
+  ipfs-kit backend arrow convert ./data.csv ./data.parquet --input-format csv --output-format parquet
+  ipfs-kit backend arrow compute ./data.parquet --operation mean --column price
+  ipfs-kit backend sshfs download /remote/path/file.txt ./downloaded_file.txt
+  ipfs-kit backend sshfs list /remote/directory
+  
+  # FTP operations
+  ipfs-kit backend ftp configure --host ftp.server.com --username user --password pass --use-tls
+  ipfs-kit backend ftp status
+  ipfs-kit backend ftp upload ./local_file.txt /remote/path/file.txt
+  ipfs-kit backend ftp download /remote/path/file.txt ./downloaded_file.txt
+  ipfs-kit backend ftp list /remote/directory
 """
     
     # Health monitoring
@@ -401,11 +852,11 @@ examples:
     # Health check with optional backend filter
     health_check_parser = health_subparsers.add_parser('check', help='Run health check [backend]')
     health_check_parser.add_argument('backend', nargs='?',
-                                    choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'wal', 'fs_journal', 'all'],
+                                    choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'all'],
                                     help='Check health of specific backend (optional)')    # Health status with optional backend filter  
     health_status_parser = health_subparsers.add_parser('status', help='Show health status [backend]')
     health_status_parser.add_argument('backend', nargs='?',
-                                     choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'wal', 'fs_journal', 'all'],
+                                     choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'all'],
                                      help='Show status of specific backend (optional)')
     
     # Configuration
@@ -415,12 +866,12 @@ examples:
 
     # Config show command  
     show_config_parser = config_subparsers.add_parser('show', help='Show current configuration from ~/.ipfs_kit/')
-    show_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'wal', 'fs_journal', 'all'],
+    show_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'all'],
                                    help='Show configuration for specific backend')
     
     # Config validate command
     validate_config_parser = config_subparsers.add_parser('validate', help='Validate all configuration files')
-    validate_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'wal', 'fs_journal', 'all'],
+    validate_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'all'],
                                       help='Validate specific backend configuration')
     
     # Config set command
@@ -430,7 +881,7 @@ examples:
     
     # Config init command - interactive setup
     init_config_parser = config_subparsers.add_parser('init', help='Interactive configuration setup for all backends')
-    init_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'package', 'wal', 'fs_journal', 'all'], 
+    init_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'all'], 
                                    help='Configure specific backend or all backends')
     init_config_parser.add_argument('--non-interactive', action='store_true', help='Use defaults without prompts')
     
@@ -441,7 +892,7 @@ examples:
     
     # Config reset command
     reset_config_parser = config_subparsers.add_parser('reset', help='Reset configuration to defaults')
-    reset_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'package', 'wal', 'fs_journal', 'all'],
+    reset_config_parser.add_argument('--backend', choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 'huggingface', 'github', 'ipfs_cluster', 'cluster_follow', 'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'all'],
                                     help='Reset specific backend or all backends')
     reset_config_parser.add_argument('--confirm', action='store_true', help='Skip confirmation prompt')    # Bucket management
     bucket_parser = subparsers.add_parser('bucket', help='Virtual filesystem (bucket) discovery and management')
@@ -526,40 +977,6 @@ examples:
     metrics_parser = subparsers.add_parser('metrics', help='Show performance metrics')
     metrics_parser.add_argument('--detailed', action='store_true', help='Show detailed metrics')
     
-    # WAL (Write-Ahead Log) commands - using fast index for minimal overhead
-    try:
-        # Try package import first
-        try:
-            from .wal_cli_fast import register_wal_commands
-        except ImportError:
-            # Try root level import
-            import sys
-            import os
-            sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-            from wal_cli_fast import register_wal_commands
-        register_wal_commands(subparsers)
-    except ImportError:
-        # If fast WAL CLI not available, create basic stub
-        wal_parser = subparsers.add_parser('wal', help='Write-Ahead Log operations')
-        wal_parser.add_argument('action', help='WAL action (requires fast index setup)')
-        
-    # Filesystem Journal commands - using fast index for minimal overhead  
-    try:
-        # Try package import first
-        try:
-            from .fs_journal_cli_fast import register_fs_journal_commands
-        except ImportError:
-            # Try root level import
-            import sys
-            import os
-            sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-            from fs_journal_cli_fast import register_fs_journal_commands
-        register_fs_journal_commands(subparsers)
-    except ImportError:
-        # If fast FS Journal CLI not available, create basic stub
-        fs_journal_parser = subparsers.add_parser('fs-journal', help='Filesystem Journal operations')
-        fs_journal_parser.add_argument('action', help='FS Journal action (requires fast index setup)')
-    
     # Resource tracking commands - using fast index for bandwidth/storage monitoring
     try:
         from .resource_cli_fast import register_resource_commands
@@ -568,6 +985,54 @@ examples:
         # If fast resource CLI not available, create basic stub
         resource_parser = subparsers.add_parser('resource', help='Resource tracking operations')
         resource_parser.add_argument('action', help='Resource action (requires fast index setup)')
+    
+    # Log aggregation commands - unified log viewing across all components
+    log_parser = subparsers.add_parser('log', help='Unified log aggregation and viewing')
+    log_subparsers = log_parser.add_subparsers(dest='log_action', help='Log actions')
+    
+    # Log show command
+    show_log_parser = log_subparsers.add_parser('show', help='Show logs from various components')
+    show_log_parser.add_argument('--component', 
+                                choices=['all', 'daemon', 'wal', 'fs_journal', 'bucket', 'health', 'replication', 'backends', 'pin', 'config'],
+                                default='all',
+                                help='Component to show logs for')
+    show_log_parser.add_argument('--level', 
+                                choices=['debug', 'info', 'warning', 'error', 'critical'],
+                                help='Filter by log level')
+    show_log_parser.add_argument('--limit', type=int, default=50, help='Number of log entries to show')
+    show_log_parser.add_argument('--since', help='Show logs since timestamp (ISO format) or relative time (1h, 30m, 1d)')
+    show_log_parser.add_argument('--tail', action='store_true', help='Follow log output (like tail -f)')
+    show_log_parser.add_argument('--grep', help='Filter log entries containing this text')
+    
+    # Log stats command
+    stats_log_parser = log_subparsers.add_parser('stats', help='Show log statistics and summaries')
+    stats_log_parser.add_argument('--component', 
+                                 choices=['all', 'daemon', 'wal', 'fs_journal', 'bucket', 'health', 'replication', 'backends', 'pin', 'config'],
+                                 default='all',
+                                 help='Component to show stats for')
+    stats_log_parser.add_argument('--hours', type=int, default=24, help='Hours of history to analyze')
+    
+    # Log clear command
+    clear_log_parser = log_subparsers.add_parser('clear', help='Clear logs for specified components')
+    clear_log_parser.add_argument('--component', 
+                                 choices=['all', 'daemon', 'wal', 'fs_journal', 'bucket', 'health', 'replication', 'backends', 'pin', 'config'],
+                                 default='all',
+                                 help='Component to clear logs for')
+    clear_log_parser.add_argument('--older-than', help='Clear logs older than specified time (e.g., 7d, 30d)')
+    clear_log_parser.add_argument('--confirm', action='store_true', help='Skip confirmation prompt')
+    
+    # Log export command
+    export_log_parser = log_subparsers.add_parser('export', help='Export logs to file')
+    export_log_parser.add_argument('--component', 
+                                  choices=['all', 'daemon', 'wal', 'fs_journal', 'bucket', 'health', 'replication', 'backends', 'pin', 'config'],
+                                  default='all',
+                                  help='Component to export logs for')
+    export_log_parser.add_argument('--format', 
+                                  choices=['json', 'csv', 'text'],
+                                  default='json',
+                                  help='Export format')
+    export_log_parser.add_argument('--output', '-o', required=True, help='Output file path')
+    export_log_parser.add_argument('--since', help='Export logs since timestamp or relative time')
     
     return parser
 
@@ -2716,32 +3181,6 @@ class FastCLI:
                         for source in pin_metrics['sources']:
                             print(f"     • {source}")
                 
-                # WAL metrics from Parquet
-                wal_metrics = metrics.get('wal', {})
-                print(f"\n📝 WAL Metrics:")
-                print(f"   Total operations: {wal_metrics.get('total_operations', 0)}")
-                
-                if wal_metrics.get('status_breakdown'):
-                    for status, count in wal_metrics['status_breakdown'].items():
-                        print(f"   {status}: {count}")
-                
-                if detailed and wal_metrics.get('sources'):
-                    print(f"   Parquet files: {len(wal_metrics['sources'])}")
-                    for source in wal_metrics['sources'][:3]:  # Show first 3
-                        print(f"     • {source}")
-                    if len(wal_metrics['sources']) > 3:
-                        print(f"     • ... and {len(wal_metrics['sources']) - 3} more")
-                
-                # FS Journal metrics from Parquet
-                fs_metrics = metrics.get('fs_journal', {})
-                print(f"\n📁 FS Journal Metrics:")
-                print(f"   Total operations: {fs_metrics.get('total_operations', 0)}")
-                print(f"   Successful: {fs_metrics.get('successful_operations', 0)}")
-                print(f"   Failed: {fs_metrics.get('failed_operations', 0)}")
-                
-                if fs_metrics.get('total_operations', 0) > 0:
-                    print(f"   Success rate: {fs_metrics.get('success_rate', 0):.1f}%")
-                
                 # Storage metrics
                 storage_metrics = metrics.get('storage', {})
                 print(f"\n� Storage Metrics:")
@@ -2904,6 +3343,133 @@ class FastCLI:
             print(f"❌ Metrics error: {e}")
             import traceback
             traceback.print_exc()
+            return 1
+
+    async def cmd_pin_get(self, cid: str, output: Optional[str] = None, recursive: bool = False):
+        """Download pinned content to a file."""
+        try:
+            # Validate CID format
+            if not cid or not cid.startswith('Qm'):
+                print(f"❌ Invalid CID format: {cid}")
+                return 1
+            
+            print(f"📥 Downloading content for CID: {cid}")
+            
+            # Determine output path
+            if output:
+                output_path = Path(output)
+            else:
+                # Use CID as filename by default
+                output_path = Path(f"{cid}")
+            
+            # Try IPFS API to get content
+            try:
+                from .ipfs_kit.high_level_api import IPFSSimpleAPI
+                api = IPFSSimpleAPI()
+                
+                # Download content
+                if recursive:
+                    print("🔄 Downloading recursively...")
+                    content = await api.get_recursive(cid)
+                else:
+                    content = await api.get(cid)
+                
+                # Write to file
+                if isinstance(content, bytes):
+                    output_path.write_bytes(content)
+                else:
+                    output_path.write_text(str(content))
+                
+                print(f"✅ Content downloaded to: {output_path}")
+                print(f"📏 Size: {output_path.stat().st_size} bytes")
+                return 0
+                
+            except ImportError:
+                print("⚠️  IPFS API not available, trying subprocess...")
+                
+                # Fallback to ipfs command line
+                import subprocess
+                
+                cmd = ['ipfs', 'get', cid]
+                if output:
+                    cmd.extend(['-o', str(output)])
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if result.returncode == 0:
+                    print(f"✅ Content downloaded successfully")
+                    if result.stdout:
+                        print(result.stdout)
+                    return 0
+                else:
+                    print(f"❌ Download failed: {result.stderr}")
+                    return 1
+                    
+        except Exception as e:
+            print(f"❌ Error downloading content: {e}")
+            return 1
+
+    async def cmd_pin_cat(self, cid: str, limit: Optional[int] = None):
+        """Stream pinned content to stdout."""
+        try:
+            # Validate CID format
+            if not cid or not cid.startswith('Qm'):
+                print(f"❌ Invalid CID format: {cid}", file=sys.stderr)
+                return 1
+            
+            print(f"🔍 Streaming content for CID: {cid}", file=sys.stderr)
+            
+            # Try IPFS API to get content
+            try:
+                from .ipfs_kit.high_level_api import IPFSSimpleAPI
+                api = IPFSSimpleAPI()
+                
+                # Get content
+                content = await api.cat(cid)
+                
+                # Apply size limit if specified
+                if limit and isinstance(content, bytes) and len(content) > limit:
+                    content = content[:limit]
+                    print(f"⚠️  Output truncated to {limit} bytes", file=sys.stderr)
+                elif limit and isinstance(content, str) and len(content.encode()) > limit:
+                    content = content.encode()[:limit].decode('utf-8', errors='ignore')
+                    print(f"⚠️  Output truncated to {limit} bytes", file=sys.stderr)
+                
+                # Stream to stdout
+                if isinstance(content, bytes):
+                    sys.stdout.buffer.write(content)
+                else:
+                    print(content, end='')
+                
+                return 0
+                
+            except ImportError:
+                print("⚠️  IPFS API not available, trying subprocess...", file=sys.stderr)
+                
+                # Fallback to ipfs command line
+                import subprocess
+                
+                cmd = ['ipfs', 'cat', cid]
+                
+                # Use subprocess to stream directly to stdout
+                if limit:
+                    # Use head to limit output
+                    process1 = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                    process2 = subprocess.Popen(['head', '-c', str(limit)], 
+                                              stdin=process1.stdout, stdout=subprocess.PIPE)
+                    process1.stdout.close()
+                    output, _ = process2.communicate()
+                    sys.stdout.buffer.write(output)
+                    return process2.returncode
+                else:
+                    # Stream directly
+                    result = subprocess.run(cmd, stdout=sys.stdout.buffer, stderr=subprocess.PIPE)
+                    if result.returncode != 0 and result.stderr:
+                        print(f"❌ Cat failed: {result.stderr.decode()}", file=sys.stderr)
+                    return result.returncode
+                    
+        except Exception as e:
+            print(f"❌ Error streaming content: {e}", file=sys.stderr)
             return 1
     
     async def cmd_mcp(self, args):
@@ -4837,6 +5403,736 @@ class FastCLI:
             print("💡 Check file ID and local path permissions")
             return 1
 
+    async def cmd_backend_lotus(self, args):
+        """Handle Lotus/Filecoin backend operations."""
+        try:
+            from .lotus_kit import lotus_kit
+            
+            lotus_instance = lotus_kit()
+            
+            if args.lotus_action == 'configure':
+                # Configure Lotus connection
+                config = {}
+                if args.endpoint:
+                    config['endpoint'] = args.endpoint
+                if args.token:
+                    config['token'] = args.token
+                
+                result = await lotus_instance.configure(config)
+                if result.get('success'):
+                    print("✅ Lotus configured successfully")
+                    print(f"📡 Endpoint: {config.get('endpoint', 'Not set')}")
+                    return 0
+                else:
+                    print(f"❌ Configuration failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.lotus_action == 'status':
+                # Show Lotus node status
+                result = await lotus_instance.get_status()
+                if result.get('success'):
+                    status = result.get('status', {})
+                    print("📊 Lotus Node Status:")
+                    print(f"   Sync State: {status.get('sync_state', 'Unknown')}")
+                    print(f"   Chain Height: {status.get('chain_height', 'Unknown')}")
+                    print(f"   Peer Count: {status.get('peer_count', 'Unknown')}")
+                    return 0
+                else:
+                    print(f"❌ Status check failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.lotus_action == 'store':
+                # Store data on Filecoin
+                result = await lotus_instance.store_data(args.local_file, args.duration)
+                if result.get('success'):
+                    print(f"✅ Data stored successfully")
+                    print(f"📝 Deal CID: {result.get('deal_cid')}")
+                    print(f"⏱️  Duration: {args.duration} epochs")
+                    return 0
+                else:
+                    print(f"❌ Storage failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.lotus_action == 'retrieve':
+                # Retrieve data from Filecoin
+                result = await lotus_instance.retrieve_data(args.cid, args.local_path)
+                if result.get('success'):
+                    print(f"✅ Data retrieved successfully to {args.local_path}")
+                    print(f"📁 Size: {result.get('size', 'Unknown')} bytes")
+                    return 0
+                else:
+                    print(f"❌ Retrieval failed: {result.get('error')}")
+                    return 1
+                    
+        except ImportError:
+            print("❌ LotusKit not available")
+            print("💡 Ensure Lotus is properly installed and configured")
+            return 1
+        except Exception as e:
+            print(f"❌ Lotus operation error: {e}")
+            return 1
+
+    async def cmd_backend_synapse(self, args):
+        """Handle Synapse backend operations."""
+        try:
+            from .synapse_kit import synapse_kit
+            
+            synapse_instance = synapse_kit()
+            
+            if args.synapse_action == 'configure':
+                # Configure Synapse connection
+                config = {}
+                if args.endpoint:
+                    config['endpoint'] = args.endpoint
+                if args.api_key:
+                    config['api_key'] = args.api_key
+                
+                result = await synapse_instance.configure(config)
+                if result.get('success'):
+                    print("✅ Synapse configured successfully")
+                    print(f"📡 Endpoint: {config.get('endpoint', 'Not set')}")
+                    return 0
+                else:
+                    print(f"❌ Configuration failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.synapse_action == 'status':
+                # Show Synapse status
+                result = await synapse_instance.get_status()
+                if result.get('success'):
+                    status = result.get('status', {})
+                    print("📊 Synapse Status:")
+                    print(f"   Connection: {status.get('connection', 'Unknown')}")
+                    print(f"   User: {status.get('user', 'Unknown')}")
+                    print(f"   Projects: {status.get('project_count', 'Unknown')}")
+                    return 0
+                else:
+                    print(f"❌ Status check failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.synapse_action == 'upload':
+                # Upload to Synapse
+                result = await synapse_instance.upload(args.local_file, args.project)
+                if result.get('success'):
+                    print(f"✅ File uploaded successfully")
+                    print(f"🆔 Synapse ID: {result.get('synapse_id')}")
+                    print(f"📁 Project: {args.project}")
+                    return 0
+                else:
+                    print(f"❌ Upload failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.synapse_action == 'download':
+                # Download from Synapse
+                result = await synapse_instance.download(args.synapse_id, args.local_path)
+                if result.get('success'):
+                    print(f"✅ File downloaded successfully to {args.local_path}")
+                    print(f"📁 Size: {result.get('size', 'Unknown')} bytes")
+                    return 0
+                else:
+                    print(f"❌ Download failed: {result.get('error')}")
+                    return 1
+                    
+        except ImportError:
+            print("❌ SynapseKit not available")
+            print("💡 Install synapseclient and configure credentials")
+            return 1
+        except Exception as e:
+            print(f"❌ Synapse operation error: {e}")
+            return 1
+
+    async def cmd_backend_sshfs(self, args):
+        """Handle SSHFS backend operations."""
+        try:
+            from .sshfs_backend import SSHFSBackend
+            
+            if args.sshfs_action == 'configure':
+                # Configure SSHFS connection
+                config = {
+                    'hostname': args.hostname,
+                    'username': args.username,
+                    'port': args.port,
+                    'remote_base_path': args.remote_path
+                }
+                
+                if args.password:
+                    config['password'] = args.password
+                if args.private_key:
+                    config['private_key_path'] = args.private_key
+                
+                # Save configuration
+                from .config_manager import save_backend_config
+                result = save_backend_config('sshfs', config)
+                if result:
+                    print("✅ SSHFS configured successfully")
+                    print(f"🖥️  Host: {args.hostname}:{args.port}")
+                    print(f"👤 User: {args.username}")
+                    print(f"📁 Remote Path: {args.remote_path}")
+                    return 0
+                else:
+                    print("❌ Configuration failed")
+                    return 1
+                    
+            elif args.sshfs_action == 'status':
+                # Show SSHFS connection status
+                sshfs_backend = SSHFSBackend()
+                result = await sshfs_backend.health_check()
+                if result.get('healthy'):
+                    print("📊 SSHFS Status:")
+                    print(f"   Connection: ✅ Healthy")
+                    print(f"   Latency: {result.get('latency_ms', 'Unknown')}ms")
+                    print(f"   Active Connections: {result.get('active_connections', 0)}")
+                    return 0
+                else:
+                    print("📊 SSHFS Status:")
+                    print(f"   Connection: ❌ Unhealthy")
+                    print(f"   Error: {result.get('error', 'Unknown')}")
+                    return 1
+                    
+            elif args.sshfs_action == 'test':
+                # Test SSHFS connection
+                sshfs_backend = SSHFSBackend()
+                result = await sshfs_backend.test_connection()
+                if result.get('success'):
+                    print("✅ SSHFS connection test successful")
+                    print(f"📊 Response time: {result.get('response_time_ms')}ms")
+                    return 0
+                else:
+                    print(f"❌ SSHFS connection test failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.sshfs_action == 'upload':
+                # Upload file via SSHFS
+                sshfs_backend = SSHFSBackend()
+                result = await sshfs_backend.store(args.local_file, args.remote_path)
+                if result.get('success'):
+                    print(f"✅ File uploaded successfully")
+                    print(f"📁 Remote Path: {args.remote_path}")
+                    print(f"📊 Size: {result.get('size', 'Unknown')} bytes")
+                    return 0
+                else:
+                    print(f"❌ Upload failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.sshfs_action == 'download':
+                # Download file via SSHFS
+                sshfs_backend = SSHFSBackend()
+                result = await sshfs_backend.retrieve(args.remote_path, args.local_path)
+                if result.get('success'):
+                    print(f"✅ File downloaded successfully to {args.local_path}")
+                    print(f"📊 Size: {result.get('size', 'Unknown')} bytes")
+                    return 0
+                else:
+                    print(f"❌ Download failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.sshfs_action == 'list':
+                # List remote files via SSHFS
+                sshfs_backend = SSHFSBackend()
+                result = await sshfs_backend.list_files(args.remote_path)
+                if result.get('success'):
+                    files = result.get('files', [])
+                    print(f"📁 Remote directory: {args.remote_path}")
+                    print(f"📊 Found {len(files)} items:")
+                    for file_info in files:
+                        file_type = "📁" if file_info.get('is_dir') else "📄"
+                        size = f" ({file_info.get('size', 'Unknown')} bytes)" if not file_info.get('is_dir') else ""
+                        print(f"   {file_type} {file_info.get('name')}{size}")
+                    return 0
+                else:
+                    print(f"❌ List failed: {result.get('error')}")
+                    return 1
+                    
+        except ImportError:
+            print("❌ SSHFS backend not available")
+            print("💡 Ensure SSH configuration is properly set up")
+            return 1
+        except Exception as e:
+            print(f"❌ SSHFS operation error: {e}")
+            return 1
+
+    async def cmd_backend_ftp(self, args):
+        """Handle FTP backend operations."""
+        try:
+            from .ftp_backend import FTPBackend
+            
+            if args.ftp_action == 'configure':
+                # Configure FTP connection
+                config = {
+                    'host': args.host,
+                    'username': args.username,
+                    'password': args.password,
+                    'port': args.port,
+                    'use_tls': args.use_tls,
+                    'passive_mode': args.passive,
+                    'remote_base_path': args.remote_path
+                }
+                
+                # Save configuration
+                from .config_manager import save_backend_config
+                result = save_backend_config('ftp', config)
+                if result:
+                    print("✅ FTP configured successfully")
+                    print(f"🖥️  Host: {args.host}:{args.port}")
+                    print(f"👤 User: {args.username}")
+                    print(f"🔒 TLS: {'Enabled' if args.use_tls else 'Disabled'}")
+                    print(f"📁 Remote Path: {args.remote_path}")
+                    return 0
+                else:
+                    print("❌ Configuration failed")
+                    return 1
+                    
+            elif args.ftp_action == 'status':
+                # Show FTP connection status
+                ftp_backend = FTPBackend()
+                result = await ftp_backend.health_check()
+                if result.get('healthy'):
+                    print("📊 FTP Status:")
+                    print(f"   Connection: ✅ Healthy")
+                    print(f"   Latency: {result.get('latency_ms', 'Unknown')}ms")
+                    print(f"   Active Connections: {result.get('active_connections', 0)}")
+                    return 0
+                else:
+                    print("📊 FTP Status:")
+                    print(f"   Connection: ❌ Unhealthy")
+                    print(f"   Error: {result.get('error', 'Unknown')}")
+                    return 1
+                    
+            elif args.ftp_action == 'test':
+                # Test FTP connection
+                ftp_backend = FTPBackend()
+                result = await ftp_backend.test_connection()
+                if result.get('success'):
+                    print("✅ FTP connection test successful")
+                    print(f"📊 Response time: {result.get('response_time_ms')}ms")
+                    return 0
+                else:
+                    print(f"❌ FTP connection test failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.ftp_action == 'upload':
+                # Upload file via FTP
+                ftp_backend = FTPBackend()
+                result = await ftp_backend.store(args.local_file, args.remote_path)
+                if result.get('success'):
+                    print(f"✅ File uploaded successfully")
+                    print(f"📁 Remote Path: {args.remote_path}")
+                    print(f"📊 Size: {result.get('size', 'Unknown')} bytes")
+                    return 0
+                else:
+                    print(f"❌ Upload failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.ftp_action == 'download':
+                # Download file via FTP
+                ftp_backend = FTPBackend()
+                result = await ftp_backend.retrieve(args.remote_path, args.local_path)
+                if result.get('success'):
+                    print(f"✅ File downloaded successfully to {args.local_path}")
+                    print(f"📊 Size: {result.get('size', 'Unknown')} bytes")
+                    return 0
+                else:
+                    print(f"❌ Download failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.ftp_action == 'list':
+                # List remote files via FTP
+                ftp_backend = FTPBackend()
+                result = await ftp_backend.list_files(args.remote_path)
+                if result.get('success'):
+                    files = result.get('files', [])
+                    print(f"📁 Remote directory: {args.remote_path}")
+                    print(f"📊 Found {len(files)} items:")
+                    for file_info in files:
+                        file_type = "📁" if file_info.get('is_dir') else "📄"
+                        size = f" ({file_info.get('size', 'Unknown')} bytes)" if not file_info.get('is_dir') else ""
+                        print(f"   {file_type} {file_info.get('name')}{size}")
+                    return 0
+                else:
+                    print(f"❌ List failed: {result.get('error')}")
+                    return 1
+                    
+        except ImportError:
+            print("❌ FTP backend not available")
+            print("💡 Ensure FTP configuration is properly set up")
+            return 1
+        except Exception as e:
+            print(f"❌ FTP operation error: {e}")
+            return 1
+
+    async def cmd_backend_ipfs_cluster(self, args):
+        """Handle IPFS Cluster backend operations."""
+        try:
+            from .ipfs_cluster_backend import IPFSClusterBackend
+            
+            if args.ipfs_cluster_action == 'configure':
+                # Configure IPFS Cluster connection
+                config = {
+                    'endpoint': args.endpoint,
+                    'username': args.username,
+                    'password': args.password,
+                    'ssl_cert': args.ssl_cert
+                }
+                
+                # Save configuration
+                from .config_manager import save_backend_config
+                result = save_backend_config('ipfs_cluster', config)
+                if result:
+                    print("✅ IPFS Cluster configured successfully")
+                    print(f"🔗 Endpoint: {args.endpoint}")
+                    print(f"👤 Auth: {'Enabled' if args.username else 'None'}")
+                    return 0
+                else:
+                    print("❌ Configuration failed")
+                    return 1
+                    
+            elif args.ipfs_cluster_action == 'status':
+                # Show IPFS Cluster status
+                cluster_backend = IPFSClusterBackend()
+                result = await cluster_backend.health_check()
+                if result.get('healthy'):
+                    print("📊 IPFS Cluster Status:")
+                    print(f"   Connection: ✅ Healthy")
+                    print(f"   Peers: {result.get('peer_count', 'Unknown')}")
+                    print(f"   Pins: {result.get('pin_count', 'Unknown')}")
+                    return 0
+                else:
+                    print("📊 IPFS Cluster Status:")
+                    print(f"   Connection: ❌ Unhealthy")
+                    print(f"   Error: {result.get('error', 'Unknown')}")
+                    return 1
+                    
+            elif args.ipfs_cluster_action == 'pin':
+                # Pin content to IPFS Cluster
+                cluster_backend = IPFSClusterBackend()
+                result = await cluster_backend.pin(args.cid, 
+                                                 name=args.name,
+                                                 replication_min=args.replication_min,
+                                                 replication_max=args.replication_max)
+                if result.get('success'):
+                    print(f"✅ Content pinned successfully")
+                    print(f"📎 CID: {args.cid}")
+                    print(f"🏷️  Name: {args.name or 'Unnamed'}")
+                    return 0
+                else:
+                    print(f"❌ Pin failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.ipfs_cluster_action == 'unpin':
+                # Unpin content from IPFS Cluster
+                cluster_backend = IPFSClusterBackend()
+                result = await cluster_backend.unpin(args.cid)
+                if result.get('success'):
+                    print(f"✅ Content unpinned successfully")
+                    print(f"📎 CID: {args.cid}")
+                    return 0
+                else:
+                    print(f"❌ Unpin failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.ipfs_cluster_action == 'list':
+                # List pinned content in IPFS Cluster
+                cluster_backend = IPFSClusterBackend()
+                result = await cluster_backend.list_pins()
+                if result.get('success'):
+                    pins = result.get('pins', [])
+                    print(f"📌 Cluster Pins: {len(pins)} items")
+                    for pin in pins:
+                        status = "✅" if pin.get('status') == 'pinned' else "⏳"
+                        print(f"   {status} {pin.get('cid')} - {pin.get('name', 'Unnamed')}")
+                    return 0
+                else:
+                    print(f"❌ List failed: {result.get('error')}")
+                    return 1
+                    
+        except ImportError:
+            print("❌ IPFS Cluster backend not available")
+            print("💡 Ensure IPFS Cluster is properly configured")
+            return 1
+        except Exception as e:
+            print(f"❌ IPFS Cluster operation error: {e}")
+            return 1
+
+    async def cmd_backend_ipfs_cluster_follow(self, args):
+        """Handle IPFS Cluster Follow backend operations."""
+        try:
+            from .ipfs_cluster_follow_backend import IPFSClusterFollowBackend
+            
+            if args.ipfs_cluster_follow_action == 'configure':
+                # Configure IPFS Cluster Follow
+                config = {
+                    'cluster_name': args.name,
+                    'template': args.template,
+                    'trusted_peers': args.trusted_peers.split(',') if args.trusted_peers else []
+                }
+                
+                # Save configuration
+                from .config_manager import save_backend_config
+                result = save_backend_config('ipfs_cluster_follow', config)
+                if result:
+                    print("✅ IPFS Cluster Follow configured successfully")
+                    print(f"🏷️  Cluster: {args.name}")
+                    print(f"📋 Template: {args.template or 'default'}")
+                    return 0
+                else:
+                    print("❌ Configuration failed")
+                    return 1
+                    
+            elif args.ipfs_cluster_follow_action == 'status':
+                # Show IPFS Cluster Follow status
+                follow_backend = IPFSClusterFollowBackend()
+                result = await follow_backend.health_check()
+                if result.get('healthy'):
+                    print("📊 IPFS Cluster Follow Status:")
+                    print(f"   Service: ✅ Running")
+                    print(f"   Followed Clusters: {result.get('cluster_count', 'Unknown')}")
+                    return 0
+                else:
+                    print("📊 IPFS Cluster Follow Status:")
+                    print(f"   Service: ❌ Not Running")
+                    print(f"   Error: {result.get('error', 'Unknown')}")
+                    return 1
+                    
+            elif args.ipfs_cluster_follow_action == 'run':
+                # Run IPFS Cluster Follow
+                follow_backend = IPFSClusterFollowBackend()
+                result = await follow_backend.follow_cluster(args.cluster_name)
+                if result.get('success'):
+                    print(f"✅ Following cluster: {args.cluster_name}")
+                    return 0
+                else:
+                    print(f"❌ Failed to follow cluster: {result.get('error')}")
+                    return 1
+                    
+            elif args.ipfs_cluster_follow_action == 'stop':
+                # Stop IPFS Cluster Follow
+                follow_backend = IPFSClusterFollowBackend()
+                result = await follow_backend.stop_following()
+                if result.get('success'):
+                    print("✅ Stopped following clusters")
+                    return 0
+                else:
+                    print(f"❌ Failed to stop: {result.get('error')}")
+                    return 1
+                    
+            elif args.ipfs_cluster_follow_action == 'list':
+                # List followed clusters
+                follow_backend = IPFSClusterFollowBackend()
+                result = await follow_backend.list_clusters()
+                if result.get('success'):
+                    clusters = result.get('clusters', [])
+                    print(f"🔗 Followed Clusters: {len(clusters)}")
+                    for cluster in clusters:
+                        status = "✅" if cluster.get('active') else "⏸️"
+                        print(f"   {status} {cluster.get('name')} - {cluster.get('peer_count', 0)} peers")
+                    return 0
+                else:
+                    print(f"❌ List failed: {result.get('error')}")
+                    return 1
+                    
+        except ImportError:
+            print("❌ IPFS Cluster Follow backend not available")
+            print("💡 Ensure IPFS Cluster Follow is properly configured")
+            return 1
+        except Exception as e:
+            print(f"❌ IPFS Cluster Follow operation error: {e}")
+            return 1
+
+    async def cmd_backend_parquet(self, args):
+        """Handle Parquet backend operations."""
+        try:
+            from .parquet_backend import ParquetBackend
+            
+            if args.parquet_action == 'configure':
+                # Configure Parquet storage settings
+                config = {
+                    'storage_path': args.storage_path,
+                    'compression': args.compression,
+                    'batch_size': args.batch_size
+                }
+                
+                # Save configuration
+                from .config_manager import save_backend_config
+                result = save_backend_config('parquet', config)
+                if result:
+                    print("✅ Parquet storage configured successfully")
+                    print(f"📁 Storage Path: {args.storage_path}")
+                    print(f"🗜️  Compression: {args.compression}")
+                    print(f"📊 Batch Size: {args.batch_size}")
+                    return 0
+                else:
+                    print("❌ Configuration failed")
+                    return 1
+                    
+            elif args.parquet_action == 'status':
+                # Show Parquet storage status
+                parquet_backend = ParquetBackend()
+                result = await parquet_backend.health_check()
+                if result.get('healthy'):
+                    print("📊 Parquet Storage Status:")
+                    print(f"   Storage: ✅ Available")
+                    print(f"   Files: {result.get('file_count', 'Unknown')}")
+                    print(f"   Total Size: {result.get('total_size', 'Unknown')}")
+                    return 0
+                else:
+                    print("📊 Parquet Storage Status:")
+                    print(f"   Storage: ❌ Unavailable")
+                    print(f"   Error: {result.get('error', 'Unknown')}")
+                    return 1
+                    
+            elif args.parquet_action == 'read':
+                # Read Parquet data
+                parquet_backend = ParquetBackend()
+                result = await parquet_backend.read_file(args.file_path, 
+                                                       limit=args.limit,
+                                                       columns=args.columns.split(',') if args.columns else None)
+                if result.get('success'):
+                    data = result.get('data')
+                    print(f"✅ Successfully read {len(data)} rows")
+                    print(f"📊 Columns: {result.get('column_count', 'Unknown')}")
+                    # Show first few rows
+                    for i, row in enumerate(data[:5]):
+                        print(f"   Row {i+1}: {row}")
+                    return 0
+                else:
+                    print(f"❌ Read failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.parquet_action == 'write':
+                # Write data to Parquet
+                parquet_backend = ParquetBackend()
+                result = await parquet_backend.write_file(args.input_file, 
+                                                        args.output_file, 
+                                                        format=args.format)
+                if result.get('success'):
+                    print(f"✅ Data written to {args.output_file}")
+                    print(f"📊 Rows: {result.get('row_count', 'Unknown')}")
+                    print(f"📊 Size: {result.get('file_size', 'Unknown')} bytes")
+                    return 0
+                else:
+                    print(f"❌ Write failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.parquet_action == 'query':
+                # Query Parquet data
+                parquet_backend = ParquetBackend()
+                result = await parquet_backend.query_file(args.file_path, 
+                                                        filter_expr=args.filter,
+                                                        sql_query=args.sql)
+                if result.get('success'):
+                    data = result.get('data')
+                    print(f"✅ Query returned {len(data)} rows")
+                    for i, row in enumerate(data[:10]):
+                        print(f"   Row {i+1}: {row}")
+                    return 0
+                else:
+                    print(f"❌ Query failed: {result.get('error')}")
+                    return 1
+                    
+        except ImportError:
+            print("❌ Parquet backend not available")
+            print("💡 Install with: pip install pyarrow")
+            return 1
+        except Exception as e:
+            print(f"❌ Parquet operation error: {e}")
+            return 1
+
+    async def cmd_backend_arrow(self, args):
+        """Handle Apache Arrow backend operations."""
+        try:
+            from .arrow_backend import ArrowBackend
+            
+            if args.arrow_action == 'configure':
+                # Configure Arrow settings
+                config = {
+                    'memory_pool': args.memory_pool,
+                    'thread_count': args.thread_count
+                }
+                
+                # Save configuration
+                from .config_manager import save_backend_config
+                result = save_backend_config('arrow', config)
+                if result:
+                    print("✅ Arrow configured successfully")
+                    print(f"🧠 Memory Pool: {args.memory_pool}")
+                    print(f"🧵 Threads: {args.thread_count or 'Auto'}")
+                    return 0
+                else:
+                    print("❌ Configuration failed")
+                    return 1
+                    
+            elif args.arrow_action == 'status':
+                # Show Arrow configuration status
+                arrow_backend = ArrowBackend()
+                result = await arrow_backend.health_check()
+                if result.get('healthy'):
+                    print("📊 Arrow Status:")
+                    print(f"   Backend: ✅ Available")
+                    print(f"   Memory Pool: {result.get('memory_pool', 'Unknown')}")
+                    print(f"   Thread Count: {result.get('thread_count', 'Unknown')}")
+                    return 0
+                else:
+                    print("📊 Arrow Status:")
+                    print(f"   Backend: ❌ Unavailable")
+                    print(f"   Error: {result.get('error', 'Unknown')}")
+                    return 1
+                    
+            elif args.arrow_action == 'convert':
+                # Convert data using Arrow
+                arrow_backend = ArrowBackend()
+                result = await arrow_backend.convert_file(args.input_file, 
+                                                        args.output_file,
+                                                        input_format=args.input_format,
+                                                        output_format=args.output_format)
+                if result.get('success'):
+                    print(f"✅ File converted successfully")
+                    print(f"📁 Input: {args.input_file} ({args.input_format})")
+                    print(f"📁 Output: {args.output_file} ({args.output_format})")
+                    print(f"📊 Rows: {result.get('row_count', 'Unknown')}")
+                    return 0
+                else:
+                    print(f"❌ Conversion failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.arrow_action == 'schema':
+                # Analyze data schema
+                arrow_backend = ArrowBackend()
+                result = await arrow_backend.analyze_schema(args.file_path, 
+                                                          format=args.format)
+                if result.get('success'):
+                    schema = result.get('schema')
+                    print(f"📋 Schema for {args.file_path}:")
+                    print(f"   Columns: {len(schema.get('fields', []))}")
+                    for field in schema.get('fields', []):
+                        print(f"   - {field.get('name')}: {field.get('type')}")
+                    return 0
+                else:
+                    print(f"❌ Schema analysis failed: {result.get('error')}")
+                    return 1
+                    
+            elif args.arrow_action == 'compute':
+                # Perform compute operations
+                arrow_backend = ArrowBackend()
+                result = await arrow_backend.compute_operation(args.file_path,
+                                                             operation=args.operation,
+                                                             column=args.column)
+                if result.get('success'):
+                    print(f"✅ Compute operation completed")
+                    print(f"📊 Operation: {args.operation} on column '{args.column}'")
+                    print(f"📊 Result: {result.get('result')}")
+                    return 0
+                else:
+                    print(f"❌ Compute failed: {result.get('error')}")
+                    return 1
+                    
+        except ImportError:
+            print("❌ Arrow backend not available")
+            print("💡 Install with: pip install pyarrow")
+            return 1
+        except Exception as e:
+            print(f"❌ Arrow operation error: {e}")
+            return 1
+
     # Backend Management Commands
     async def cmd_backend_auth(self, args):
         """Handle backend authentication commands - proxy to official CLI tools."""
@@ -5225,11 +6521,65 @@ class FastCLI:
                 'auth_required': 'None',
                 'capabilities': ['content addressing', 'p2p', 'immutable']
             },
+            'gdrive': {
+                'name': 'Google Drive',
+                'description': 'Cloud file storage and collaboration',
+                'auth_required': 'OAuth2 or Service Account',
+                'capabilities': ['files', 'folders', 'sharing', 'sync']
+            },
+            'lotus': {
+                'name': 'Lotus/Filecoin',
+                'description': 'Filecoin node and storage deals',
+                'auth_required': 'RPC Token',
+                'capabilities': ['storage deals', 'retrieval', 'chain access']
+            },
+            'synapse': {
+                'name': 'Synapse',
+                'description': 'Collaborative research platform',
+                'auth_required': 'API Key',
+                'capabilities': ['datasets', 'projects', 'collaboration']
+            },
+            'sshfs': {
+                'name': 'SSHFS Remote Storage',
+                'description': 'SSH-based remote file system access',
+                'auth_required': 'SSH Key or Password',
+                'capabilities': ['remote files', 'secure transfer', 'mounting']
+            },
+            'ftp': {
+                'name': 'FTP Storage',
+                'description': 'File Transfer Protocol storage',
+                'auth_required': 'Username/Password',
+                'capabilities': ['file transfer', 'directory access', 'passive/active modes']
+            },
             'lassie': {
                 'name': 'Lassie',
                 'description': 'Filecoin retrieval client',
                 'auth_required': 'None',
                 'capabilities': ['retrieval', 'caching', 'verification']
+            },
+            'ipfs_cluster': {
+                'name': 'IPFS Cluster',
+                'description': 'Distributed IPFS pinning service',
+                'auth_required': 'Optional (Basic Auth)',
+                'capabilities': ['distributed pinning', 'replication', 'cluster management']
+            },
+            'cluster_follow': {
+                'name': 'IPFS Cluster Follow',
+                'description': 'Follow and replicate IPFS clusters',
+                'auth_required': 'Trusted Peers',
+                'capabilities': ['cluster following', 'automatic replication', 'peer discovery']
+            },
+            'parquet': {
+                'name': 'Apache Parquet',
+                'description': 'Columnar data storage format',
+                'auth_required': 'None',
+                'capabilities': ['columnar storage', 'compression', 'analytics']
+            },
+            'arrow': {
+                'name': 'Apache Arrow',
+                'description': 'In-memory columnar analytics',
+                'auth_required': 'None',
+                'capabilities': ['data conversion', 'schema analysis', 'compute operations']
             }
         }
         
@@ -5379,6 +6729,429 @@ class FastCLI:
         else:
             return 1
 
+    async def cmd_log_show(self, component='all', level='info', limit=100, since=None, tail=False, grep=None):
+        """Show aggregated logs from various IPFS-Kit components"""
+        try:
+            from .enhanced_daemon_manager import EnhancedDaemonManager
+            from datetime import datetime, timedelta
+            import json
+            
+            daemon_mgr = EnhancedDaemonManager()
+            
+            print(f"📋 IPFS-Kit Logs - {component.upper()} ({level}+)")
+            print("=" * 60)
+            
+            # Parse time filter
+            since_dt = None
+            if since:
+                if since.endswith('h'):
+                    hours = int(since[:-1])
+                    since_dt = datetime.now() - timedelta(hours=hours)
+                elif since.endswith('d'):
+                    days = int(since[:-1])
+                    since_dt = datetime.now() - timedelta(days=days)
+                elif since.endswith('m'):
+                    minutes = int(since[:-1])
+                    since_dt = datetime.now() - timedelta(minutes=minutes)
+            
+            # Get logs from different components
+            logs = []
+            
+            if component in ['all', 'daemon']:
+                daemon_logs = await daemon_mgr.get_daemon_logs(limit=limit//4, since=since_dt)
+                for log in daemon_logs:
+                    logs.append({
+                        'timestamp': log.get('timestamp', datetime.now()),
+                        'component': 'daemon',
+                        'level': log.get('level', 'info'),
+                        'message': log.get('message', ''),
+                        'data': log.get('data', {})
+                    })
+            
+            if component in ['all', 'wal']:
+                wal_logs = await daemon_mgr.get_wal_logs(limit=limit//4, since=since_dt)
+                for log in wal_logs:
+                    logs.append({
+                        'timestamp': log.get('timestamp', datetime.now()),
+                        'component': 'wal',
+                        'level': log.get('level', 'info'),
+                        'message': log.get('message', ''),
+                        'data': log.get('data', {})
+                    })
+            
+            if component in ['all', 'fs_journal']:
+                fs_logs = await daemon_mgr.get_fs_journal_logs(limit=limit//4, since=since_dt)
+                for log in fs_logs:
+                    logs.append({
+                        'timestamp': log.get('timestamp', datetime.now()),
+                        'component': 'fs_journal',
+                        'level': log.get('level', 'info'),
+                        'message': log.get('message', ''),
+                        'data': log.get('data', {})
+                    })
+            
+            if component in ['all', 'health']:
+                health_logs = await daemon_mgr.get_health_logs(limit=limit//4, since=since_dt)
+                for log in health_logs:
+                    logs.append({
+                        'timestamp': log.get('timestamp', datetime.now()),
+                        'component': 'health',
+                        'level': log.get('level', 'info'),
+                        'message': log.get('message', ''),
+                        'data': log.get('data', {})
+                    })
+            
+            if component in ['all', 'replication']:
+                repl_logs = await daemon_mgr.get_replication_logs(limit=limit//4, since=since_dt)
+                for log in repl_logs:
+                    logs.append({
+                        'timestamp': log.get('timestamp', datetime.now()),
+                        'component': 'replication',
+                        'level': log.get('level', 'info'),
+                        'message': log.get('message', ''),
+                        'data': log.get('data', {})
+                    })
+            
+            # Filter by log level
+            level_priority = {'debug': 0, 'info': 1, 'warning': 2, 'error': 3, 'critical': 4}
+            min_level = level_priority.get(level.lower(), 1)
+            
+            filtered_logs = [
+                log for log in logs 
+                if level_priority.get(log['level'].lower(), 1) >= min_level
+            ]
+            
+            # Apply grep filter
+            if grep:
+                filtered_logs = [
+                    log for log in filtered_logs
+                    if grep.lower() in log['message'].lower()
+                ]
+            
+            # Sort by timestamp
+            filtered_logs.sort(key=lambda x: x['timestamp'], reverse=True)
+            
+            # Limit results
+            if limit:
+                filtered_logs = filtered_logs[:limit]
+            
+            # Display logs
+            for log in filtered_logs:
+                timestamp = log['timestamp']
+                if isinstance(timestamp, str):
+                    display_time = timestamp
+                else:
+                    display_time = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                
+                level_icon = {
+                    'debug': '🐛',
+                    'info': 'ℹ️ ',
+                    'warning': '⚠️ ',
+                    'error': '❌',
+                    'critical': '🚨'
+                }.get(log['level'].lower(), 'ℹ️ ')
+                
+                print(f"[{display_time}] {level_icon} {log['component']}: {log['message']}")
+                
+                if log['data'] and log['level'].lower() in ['error', 'critical']:
+                    print(f"    Data: {json.dumps(log['data'], indent=2)}")
+            
+            print(f"\n📊 Showing {len(filtered_logs)} log entries")
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Failed to show logs: {e}")
+            return 1
+    
+    async def cmd_log_stats(self, component='all', hours=24):
+        """Show log statistics and summaries"""
+        try:
+            from .enhanced_daemon_manager import EnhancedDaemonManager
+            from datetime import datetime, timedelta
+            from collections import Counter
+            
+            daemon_mgr = EnhancedDaemonManager()
+            since_dt = datetime.now() - timedelta(hours=hours)
+            
+            print(f"📊 IPFS-Kit Log Statistics - Last {hours}h")
+            print("=" * 50)
+            
+            # Get all logs
+            all_logs = []
+            
+            if component in ['all', 'daemon']:
+                daemon_logs = await daemon_mgr.get_daemon_logs(since=since_dt)
+                all_logs.extend([(log, 'daemon') for log in daemon_logs])
+            
+            if component in ['all', 'wal']:
+                wal_logs = await daemon_mgr.get_wal_logs(since=since_dt)
+                all_logs.extend([(log, 'wal') for log in wal_logs])
+            
+            if component in ['all', 'fs_journal']:
+                fs_logs = await daemon_mgr.get_fs_journal_logs(since=since_dt)
+                all_logs.extend([(log, 'fs_journal') for log in fs_logs])
+            
+            if component in ['all', 'health']:
+                health_logs = await daemon_mgr.get_health_logs(since=since_dt)
+                all_logs.extend([(log, 'health') for log in health_logs])
+            
+            if component in ['all', 'replication']:
+                repl_logs = await daemon_mgr.get_replication_logs(since=since_dt)
+                all_logs.extend([(log, 'replication') for log in repl_logs])
+            
+            # Calculate statistics
+            total_logs = len(all_logs)
+            
+            # Count by component
+            component_counts = Counter([comp for _, comp in all_logs])
+            
+            # Count by level
+            level_counts = Counter([log.get('level', 'info') for log, _ in all_logs])
+            
+            # Display statistics
+            print(f"📋 Total Log Entries: {total_logs}")
+            print("\n🔧 By Component:")
+            for comp, count in component_counts.most_common():
+                percentage = (count / total_logs * 100) if total_logs > 0 else 0
+                print(f"  {comp}: {count} ({percentage:.1f}%)")
+            
+            print("\n📈 By Level:")
+            for level, count in level_counts.most_common():
+                percentage = (count / total_logs * 100) if total_logs > 0 else 0
+                level_icon = {
+                    'debug': '🐛',
+                    'info': 'ℹ️ ',
+                    'warning': '⚠️ ',
+                    'error': '❌',
+                    'critical': '🚨'
+                }.get(level.lower(), 'ℹ️ ')
+                print(f"  {level_icon} {level}: {count} ({percentage:.1f}%)")
+            
+            # Show error summary if any
+            error_logs = [log for log, _ in all_logs if log.get('level', '').lower() in ['error', 'critical']]
+            if error_logs:
+                print(f"\n🚨 Recent Errors ({len(error_logs)}):")
+                for log in error_logs[-5:]:  # Show last 5 errors
+                    timestamp = log.get('timestamp', 'Unknown')
+                    message = log.get('message', 'No message')
+                    print(f"  • {timestamp}: {message}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Failed to get log statistics: {e}")
+            return 1
+    
+    async def cmd_log_clear(self, component='all', older_than='7d', confirm=False):
+        """Clear old logs with confirmation"""
+        try:
+            from .enhanced_daemon_manager import EnhancedDaemonManager
+            from datetime import datetime, timedelta
+            
+            daemon_mgr = EnhancedDaemonManager()
+            
+            # Parse age filter
+            if older_than.endswith('d'):
+                days = int(older_than[:-1])
+                cutoff_dt = datetime.now() - timedelta(days=days)
+            elif older_than.endswith('h'):
+                hours = int(older_than[:-1])
+                cutoff_dt = datetime.now() - timedelta(hours=hours)
+            else:
+                print(f"❌ Invalid time format: {older_than}. Use format like '7d' or '24h'")
+                return 1
+            
+            print(f"🗑️  IPFS-Kit Log Cleanup - {component.upper()}")
+            print(f"📅 Clearing logs older than: {cutoff_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+            print("=" * 60)
+            
+            # Count logs to be deleted
+            total_to_delete = 0
+            
+            if component in ['all', 'daemon']:
+                daemon_count = await daemon_mgr.count_old_daemon_logs(cutoff_dt)
+                total_to_delete += daemon_count
+                print(f"🔧 Daemon logs to delete: {daemon_count}")
+            
+            if component in ['all', 'wal']:
+                wal_count = await daemon_mgr.count_old_wal_logs(cutoff_dt)
+                total_to_delete += wal_count
+                print(f"📝 WAL logs to delete: {wal_count}")
+            
+            if component in ['all', 'fs_journal']:
+                fs_count = await daemon_mgr.count_old_fs_journal_logs(cutoff_dt)
+                total_to_delete += fs_count
+                print(f"📂 FS Journal logs to delete: {fs_count}")
+            
+            if component in ['all', 'health']:
+                health_count = await daemon_mgr.count_old_health_logs(cutoff_dt)
+                total_to_delete += health_count
+                print(f"🏥 Health logs to delete: {health_count}")
+            
+            if component in ['all', 'replication']:
+                repl_count = await daemon_mgr.count_old_replication_logs(cutoff_dt)
+                total_to_delete += repl_count
+                print(f"🔄 Replication logs to delete: {repl_count}")
+            
+            if total_to_delete == 0:
+                print("✅ No old logs found to delete")
+                return 0
+            
+            # Confirmation
+            if not confirm:
+                response = input(f"\n⚠️  Delete {total_to_delete} log entries? [y/N]: ")
+                if response.lower() != 'y':
+                    print("❌ Cleanup cancelled")
+                    return 0
+            
+            # Perform cleanup
+            deleted_count = 0
+            
+            if component in ['all', 'daemon']:
+                deleted = await daemon_mgr.delete_old_daemon_logs(cutoff_dt)
+                deleted_count += deleted
+                print(f"✅ Deleted {deleted} daemon logs")
+            
+            if component in ['all', 'wal']:
+                deleted = await daemon_mgr.delete_old_wal_logs(cutoff_dt)
+                deleted_count += deleted
+                print(f"✅ Deleted {deleted} WAL logs")
+            
+            if component in ['all', 'fs_journal']:
+                deleted = await daemon_mgr.delete_old_fs_journal_logs(cutoff_dt)
+                deleted_count += deleted
+                print(f"✅ Deleted {deleted} FS journal logs")
+            
+            if component in ['all', 'health']:
+                deleted = await daemon_mgr.delete_old_health_logs(cutoff_dt)
+                deleted_count += deleted
+                print(f"✅ Deleted {deleted} health logs")
+            
+            if component in ['all', 'replication']:
+                deleted = await daemon_mgr.delete_old_replication_logs(cutoff_dt)
+                deleted_count += deleted
+                print(f"✅ Deleted {deleted} replication logs")
+            
+            print(f"\n🎉 Cleanup complete! Deleted {deleted_count} total log entries")
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Failed to clear logs: {e}")
+            return 1
+    
+    async def cmd_log_export(self, component='all', format='json', output=None, since=None):
+        """Export logs to different formats"""
+        try:
+            from .enhanced_daemon_manager import EnhancedDaemonManager
+            from datetime import datetime, timedelta
+            import json
+            import csv
+            import os
+            
+            daemon_mgr = EnhancedDaemonManager()
+            
+            # Parse time filter
+            since_dt = None
+            if since:
+                if since.endswith('h'):
+                    hours = int(since[:-1])
+                    since_dt = datetime.now() - timedelta(hours=hours)
+                elif since.endswith('d'):
+                    days = int(since[:-1])
+                    since_dt = datetime.now() - timedelta(days=days)
+            
+            print(f"📤 IPFS-Kit Log Export - {component.upper()} ({format})")
+            print("=" * 50)
+            
+            # Collect logs
+            all_logs = []
+            
+            if component in ['all', 'daemon']:
+                daemon_logs = await daemon_mgr.get_daemon_logs(since=since_dt)
+                for log in daemon_logs:
+                    log['component'] = 'daemon'
+                    all_logs.append(log)
+            
+            if component in ['all', 'wal']:
+                wal_logs = await daemon_mgr.get_wal_logs(since=since_dt)
+                for log in wal_logs:
+                    log['component'] = 'wal'
+                    all_logs.append(log)
+            
+            if component in ['all', 'fs_journal']:
+                fs_logs = await daemon_mgr.get_fs_journal_logs(since=since_dt)
+                for log in fs_logs:
+                    log['component'] = 'fs_journal'
+                    all_logs.append(log)
+            
+            if component in ['all', 'health']:
+                health_logs = await daemon_mgr.get_health_logs(since=since_dt)
+                for log in health_logs:
+                    log['component'] = 'health'
+                    all_logs.append(log)
+            
+            if component in ['all', 'replication']:
+                repl_logs = await daemon_mgr.get_replication_logs(since=since_dt)
+                for log in repl_logs:
+                    log['component'] = 'replication'
+                    all_logs.append(log)
+            
+            # Sort by timestamp
+            all_logs.sort(key=lambda x: x.get('timestamp', datetime.now()))
+            
+            # Generate output filename if not provided
+            if not output:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                output = f"ipfs_kit_logs_{component}_{timestamp}.{format}"
+            
+            # Export in requested format
+            if format == 'json':
+                with open(output, 'w') as f:
+                    # Convert datetime objects to strings for JSON serialization
+                    export_logs = []
+                    for log in all_logs:
+                        export_log = log.copy()
+                        if 'timestamp' in export_log:
+                            export_log['timestamp'] = str(export_log['timestamp'])
+                        export_logs.append(export_log)
+                    
+                    json.dump(export_logs, f, indent=2, default=str)
+                
+            elif format == 'csv':
+                with open(output, 'w', newline='') as f:
+                    if all_logs:
+                        fieldnames = ['timestamp', 'component', 'level', 'message']
+                        writer = csv.DictWriter(f, fieldnames=fieldnames)
+                        writer.writeheader()
+                        
+                        for log in all_logs:
+                            row = {
+                                'timestamp': str(log.get('timestamp', '')),
+                                'component': log.get('component', ''),
+                                'level': log.get('level', ''),
+                                'message': log.get('message', '')
+                            }
+                            writer.writerow(row)
+                            
+            elif format == 'text':
+                with open(output, 'w') as f:
+                    for log in all_logs:
+                        timestamp = str(log.get('timestamp', ''))
+                        component = log.get('component', '')
+                        level = log.get('level', '')
+                        message = log.get('message', '')
+                        f.write(f"[{timestamp}] {level.upper()} {component}: {message}\n")
+            
+            file_size = os.path.getsize(output)
+            print(f"✅ Exported {len(all_logs)} log entries to: {output}")
+            print(f"📊 File size: {file_size:,} bytes")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Failed to export logs: {e}")
+            return 1
+
 
 async def main():
     """Main entry point - ultra-fast for help commands."""
@@ -5457,6 +7230,10 @@ async def main():
             elif args.pin_action == 'status':
                 print(f"📊 Checking status for operation: {args.operation_id}")
                 return await self._pin_status(args.operation_id)
+            elif args.pin_action == 'get':
+                return await cli.cmd_pin_get(args.cid, output=args.output, recursive=args.recursive)
+            elif args.pin_action == 'cat':
+                return await cli.cmd_pin_cat(args.cid, limit=args.limit)
         
         # Backend commands - interface to kit modules
         elif args.command == 'backend':
@@ -5477,9 +7254,25 @@ async def main():
                 return await cli.cmd_backend_ipfs(args)
             elif args.backend_action == 'gdrive':
                 return await cli.cmd_backend_gdrive(args)
+            elif args.backend_action == 'lotus':
+                return await cli.cmd_backend_lotus(args)
+            elif args.backend_action == 'synapse':
+                return await cli.cmd_backend_synapse(args)
+            elif args.backend_action == 'sshfs':
+                return await cli.cmd_backend_sshfs(args)
+            elif args.backend_action == 'ftp':
+                return await cli.cmd_backend_ftp(args)
+            elif args.backend_action == 'ipfs-cluster':
+                return await cli.cmd_backend_ipfs_cluster(args)
+            elif args.backend_action == 'ipfs-cluster-follow':
+                return await cli.cmd_backend_ipfs_cluster_follow(args)
+            elif args.backend_action == 'parquet':
+                return await cli.cmd_backend_parquet(args)
+            elif args.backend_action == 'arrow':
+                return await cli.cmd_backend_arrow(args)
             else:
                 print(f"❌ Unknown backend: {args.backend_action}")
-                print("📋 Available backends: list, test, huggingface, github, s3, storacha, ipfs, gdrive")
+                print("📋 Available backends: list, test, huggingface, github, s3, storacha, ipfs, gdrive, lotus, synapse, sshfs, ftp, ipfs-cluster, ipfs-cluster-follow, parquet, arrow")
                 return 1
         
         # Health commands - using Parquet data for fast health checks
@@ -5588,22 +7381,6 @@ async def main():
                             print(f"   Peer ID: {cluster_health.get('peer_id', 'Unknown')[:12]}...")
                             print(f"   Connected Peers: {cluster_health.get('connected_peers', 0)}")
                             print(f"   Pinned Items: {cluster_health.get('pinned_items', 0)}")
-                        
-                        if not backend_filter or backend_filter in ['wal', 'all']:
-                            wal_health = health.get('wal', {})
-                            print(f"\n📝 WAL System:")
-                            print(f"   Status: {wal_health.get('status', 'UNKNOWN')}")
-                            print(f"   Pending Operations: {wal_health.get('pending_operations', 0)}")
-                            print(f"   Failed Operations: {wal_health.get('failed_operations', 0)}")
-                            print(f"   WAL Size: {wal_health.get('wal_size', 'Unknown')}")
-                        
-                        if not backend_filter or backend_filter in ['fs_journal', 'all']:
-                            fs_health = health.get('fs_journal', {})
-                            print(f"\n📁 FS Journal:")
-                            print(f"   Status: {fs_health.get('status', 'UNKNOWN')}")
-                            print(f"   Watched Directories: {fs_health.get('watched_dirs', 0)}")
-                            print(f"   Pending Events: {fs_health.get('pending_events', 0)}")
-                            print(f"   Last Event: {fs_health.get('last_event', 'Unknown')}")
                         
                         if not backend_filter or backend_filter in ['parquet', 'all']:
                             parquet_health = health.get('parquet', {})
@@ -6951,38 +8728,6 @@ async def main():
         elif args.command == 'metrics':
             return await cli.cmd_metrics(detailed=args.detailed)
         
-        # WAL (Write-Ahead Log) commands - using fast index
-        elif args.command == 'wal':
-            try:
-                if hasattr(args, 'func'):
-                    # Call the registered handler function with minimal overhead
-                    result = args.func(None, args)  # Pass None for api since we use fast index
-                    if isinstance(result, str):
-                        print(result)
-                    return 0
-                else:
-                    print("❌ WAL command not recognized")
-                    return 1
-            except Exception as e:
-                print(f"❌ WAL command error: {e}")
-                return 1
-        
-        # FS Journal commands - using fast index
-        elif args.command == 'fs-journal':
-            try:
-                if hasattr(args, 'func'):
-                    # Call the registered handler function with minimal overhead
-                    result = args.func(None, args)  # Pass None for api since we use fast index
-                    if isinstance(result, str):
-                        print(result)
-                    return 0
-                else:
-                    print("❌ FS Journal command not recognized")
-                    return 1
-            except Exception as e:
-                print(f"❌ FS Journal command error: {e}")
-                return 1
-        
         # Resource tracking commands - using fast index
         elif args.command == 'resource':
             try:
@@ -7008,6 +8753,36 @@ async def main():
             except Exception as e:
                 print(f"❌ Resource command error: {e}")
                 return 1
+        
+        # Log aggregation commands
+        elif args.command == 'log':
+            if args.log_action == 'show':
+                return await cli.cmd_log_show(
+                    component=args.component,
+                    level=args.level,
+                    limit=args.limit,
+                    since=args.since,
+                    tail=args.tail,
+                    grep=args.grep
+                )
+            elif args.log_action == 'stats':
+                return await cli.cmd_log_stats(
+                    component=args.component,
+                    hours=args.hours
+                )
+            elif args.log_action == 'clear':
+                return await cli.cmd_log_clear(
+                    component=args.component,
+                    older_than=args.older_than,
+                    confirm=args.confirm
+                )
+            elif args.log_action == 'export':
+                return await cli.cmd_log_export(
+                    component=args.component,
+                    format=args.format,
+                    output=args.output,
+                    since=args.since
+                )
         
         parser.print_help()
         return 1

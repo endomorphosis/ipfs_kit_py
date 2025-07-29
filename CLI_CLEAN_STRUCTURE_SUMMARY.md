@@ -167,14 +167,10 @@ ipfs-kit pin pending                  # ✅ WAL data: View pending operations
 ipfs-kit pin add /path/to/file.txt    # ✅ Calculate CID from file content
 ipfs-kit metrics --detailed           # ✅ Parquet data: Real aggregated metrics
 
-# WAL operations with real operational data
-ipfs-kit wal status                   # ✅ Parquet data: 1 failed operation
-ipfs-kit wal failed --limit 10        # ✅ Parquet data: Detailed failure info
-ipfs-kit wal stats --hours 24         # ✅ Parquet data: Time-based statistics
-
-# FS Journal with real filesystem operations  
-ipfs-kit fs-journal status            # ✅ Parquet data: 2 operations (50% success)
-ipfs-kit fs-journal recent --hours 48 # ✅ Parquet data: Recent filesystem activity
+# Configuration and health checks
+ipfs-kit config show                  # ✅ Real YAML/JSON config files (5 sources)
+ipfs-kit config validate             # ✅ Real configuration file validation
+ipfs-kit health check                 # ✅ Comprehensive backend health monitoring
 ```
 
 #### Fallback Strategy
@@ -198,9 +194,7 @@ The CLI now implements a comprehensive **read-only data access** system with the
 | **CLI Commands** | Read-only access to data | Parquet files → IPFS API (fallback) | Lock-free, sub-second |
 | **Pin Management** | `~/.ipfs_kit/pin_metadata/parquet_storage/` | Real pins (4,154 detected) | Lock-free |
 | **WAL Pin Operations** | `~/.ipfs_kit/wal/pins/pending/` | File-based pin operations with CID calculation | JSON-based queuing |
-| **WAL Operations** | `~/.ipfs_kit/wal/data/` | 1 failed IPFS operation | Lock-free |
-| **FS Journal** | `~/.ipfs_kit/fs_journal/data/` | 2 operations (50% success) | Lock-free |
-| **Configuration** | `~/.ipfs_kit/*.yaml`, `~/.ipfs_kit/*/config.json` | 5 config files (S3, Lotus, Package, WAL, FS Journal) | Direct file access |
+| **Configuration** | `~/.ipfs_kit/*.yaml`, `~/.ipfs_kit/*/config.json` | 5 config files (S3, Lotus, Package configs) | Direct file access |
 | **Program State** | `~/.ipfs_kit/program_state/parquet/` | Real-time daemon metrics | Lock-free |
 
 ### 🔧 Enhanced Commands Testing Results
@@ -210,11 +204,8 @@ ipfs-kit config show                  # Real YAML/JSON config files (5 sources)
 ipfs-kit config validate             # Real configuration file validation
 ipfs-kit pin list                    # Real pins: daemon updates Parquet → CLI reads
 ipfs-kit daemon status               # Real program state from Parquet files  
-ipfs-kit wal status                  # Shows 1 failed operation from Parquet
-ipfs-kit wal failed --limit 10       # Detailed failure analysis from Parquet
-ipfs-kit wal stats --hours 24        # Time-based statistics from Parquet
-ipfs-kit fs-journal status           # Real filesystem status from Parquet
-ipfs-kit fs-journal recent --hours 48 # Recent operations from Parquet
+ipfs-kit health check                # Comprehensive backend health monitoring
+ipfs-kit metrics --detailed          # Real aggregated metrics from Parquet
 ```
 
 ### 🏗️ Daemon-Managed Data Architecture
@@ -250,9 +241,9 @@ CLI Pin Add → CID Calculation → WAL Storage → Daemon Processing → Virtua
 - **Fallback Strategy**: When mock data detected, CLI falls back to read-only IPFS API
 - **No Data Corruption**: CLI never overwrites real data with mock data
 
-## Enhanced Pin Management with CID Calculation ✅
+### ✅ Enhanced Pin Management with CID Calculation ✅
 
-### 🧮 **File-to-CID Conversion**
+#### 🧮 **File-to-CID Conversion**
 The CLI now supports automatic CID calculation from files using the `ipfs_multiformats_py` submodule:
 
 ```bash
@@ -269,16 +260,33 @@ ipfs-kit pin pending                   # List all queued operations
 ipfs-kit pin pending --metadata       # Include source file information
 ```
 
-### 🎯 **Enhanced Pin Command Features**
+#### 📥 **Pin Content Download and Streaming**
+New commands for retrieving pinned content:
 
-| Feature | Description | Example |
+```bash
+# Download pinned content to file
+ipfs-kit pin get QmHashExample123 --output my_file.txt
+ipfs-kit pin get QmHashExample123                    # Uses CID as filename
+ipfs-kit pin get QmDirHash --recursive --output ./   # Download directory recursively
+
+# Stream pinned content to stdout  
+ipfs-kit pin cat QmHashExample123                    # Stream entire content
+ipfs-kit pin cat QmHashExample123 --limit 1024       # Limit output to 1KB
+ipfs-kit pin cat QmHashExample123 | head -n 10       # Pipe to other commands
+```
+
+#### 🎯 **Complete Pin Command Features**
+
+| Command | Description | Example |
 |---------|-------------|---------|
-| **File Path Input** | Automatically detects and calculates CID from files | `ipfs-kit pin add file.txt` |
-| **Auto-Naming** | Uses filename as pin name when not specified | `pin add doc.pdf` → name: "doc.pdf" |
-| **Force File Mode** | `--file` flag to explicitly treat input as file path | `pin add data --file` |
-| **Source Tracking** | WAL stores original file path for reference | Stored in `file_path` field |
-| **WAL Integration** | All operations queue for daemon processing | Enables backend replication |
-| **Dual Mode** | Supports both file paths and direct CIDs | Backwards compatible |
+| **pin add** | Add/pin content with CID calculation | `pin add file.txt --name "doc"` |
+| **pin remove** | Remove/unpin content | `pin remove QmHash123` |
+| **pin list** | List all pinned content | `pin list --metadata --limit 10` |
+| **pin pending** | View WAL pending operations | `pin pending --metadata` |
+| **pin status** | Check operation status | `pin status operation-id` |
+| **pin get** | Download pinned content to file | `pin get QmHash --output file.txt` |
+| **pin cat** | Stream pinned content to stdout | `pin cat QmHash --limit 1024` |
+| **pin init** | Initialize pin metadata index | `pin init` |
 
 ### 📁 **WAL Pin Operation Flow**
 
@@ -390,11 +398,10 @@ python -m ipfs_kit_py.cli --help   # ✅ Module invocation
 - ✅ Pin management commands **with real Parquet data access**
 - ✅ **File-to-CID pin operations with automatic CID calculation**
 - ✅ **WAL-based pin operations with pending operation tracking**
+- ✅ **Pin get/cat commands for downloading and streaming content**
 - ✅ **Source file path tracking in WAL metadata**
 - ✅ Backend management  
 - ✅ MCP integration
-- ✅ WAL (Write-Ahead Log) operations **with real Parquet data access**
-- ✅ FS Journal operations **with real Parquet data access**
 - ✅ Metrics and monitoring **with real Parquet data integration**
 - ✅ All CLI parsing and argument handling
 - ✅ Proper error handling and timeouts
@@ -409,9 +416,7 @@ The CLI now implements a **content-addressed data flow** with Parquet files as t
 
 #### Real Parquet Data Integration ✅
 - **Pin Commands**: Read-only access to real pins (4,154 pins detected) from daemon-managed Parquet files
-- **WAL Operations**: Read-only access to write-ahead log data from `~/.ipfs_kit/wal/data/` (1 failed IPFS operation)
-- **FS Journal**: Read-only access to filesystem journal from `~/.ipfs_kit/fs_journal/data/` (2 operations: 1 write success, 1 delete failure)
-- **Configuration**: Direct file access to real config files from `~/.ipfs_kit/` (5 sources: S3, Lotus, Package, WAL, FS Journal configs)
+- **Configuration**: Direct file access to real config files from `~/.ipfs_kit/` (5 sources: S3, Lotus, Package configs)
 - **Program State**: Real-time daemon metrics from program state Parquet files (system, network, storage, files)
 - **Lock-Free Access**: No database locks, CLI provides read-only access while daemon handles all updates
 - **Mock Data Detection**: CLI automatically detects and rejects mock data, falls back to real IPFS API
@@ -433,26 +438,38 @@ ipfs-kit pin add ambiguous_input --file --recursive
 # Direct CID pinning (backward compatibility)
 ipfs-kit pin add QmExampleCID123456789 --name "direct-cid"
 
+# Download pinned content
+ipfs-kit pin get QmHash123 --output my_file.txt       # Download to specific file
+ipfs-kit pin get QmHash123                            # Download using CID as filename
+ipfs-kit pin get QmDirHash --recursive --output ./    # Download directory recursively
+
+# Stream pinned content  
+ipfs-kit pin cat QmHash123                            # Stream to stdout
+ipfs-kit pin cat QmHash123 --limit 1024               # Limit output size
+ipfs-kit pin cat QmHash123 | grep "search"            # Pipe to other commands
+
 # Monitor pin operations
 ipfs-kit pin pending                    # View queued operations
 ipfs-kit pin pending --metadata        # Include source file info
 ipfs-kit pin list --limit 10           # List existing pins
 ipfs-kit pin list --metadata           # Full pin metadata
 
-# WAL system monitoring
-ipfs-kit wal status                     # Overall WAL status
-ipfs-kit wal failed                     # View failed operations
+# Health and configuration monitoring
+ipfs-kit health check                   # Overall system health
+ipfs-kit config show                    # Configuration management
 ```
 
 ### 🔧 **Pin Command Options**
-| Option | Description | Example |
-|--------|-------------|---------|
-| `cid_or_file` | CID string or file path | `QmHash...` or `/path/file.txt` |
-| `--name` | Custom name for pin | `--name "my-document"` |
-| `--recursive` | Recursive pinning | `--recursive` |
-| `--file` | Force file path mode | `--file` |
-| `--limit` | Limit results (list/pending) | `--limit 10` |
-| `--metadata` | Show full metadata | `--metadata` |
+| Command | Options | Description | Example |
+|---------|---------|-------------|---------|
+| `pin add` | `cid_or_file`, `--name`, `--recursive`, `--file` | Add/pin content | `pin add file.txt --name "doc"` |
+| `pin remove` | `cid` | Remove/unpin content | `pin remove QmHash123` |
+| `pin list` | `--limit`, `--metadata` | List pinned content | `pin list --limit 10` |
+| `pin pending` | `--limit`, `--metadata` | View WAL operations | `pin pending --metadata` |
+| `pin status` | `operation_id` | Check operation status | `pin status uuid-123` |
+| `pin get` | `cid`, `--output`, `--recursive` | Download to file | `pin get QmHash --output file.txt` |
+| `pin cat` | `cid`, `--limit` | Stream to stdout | `pin cat QmHash --limit 1024` |
+| `pin init` | (none) | Initialize metadata | `pin init` |
 
 ### 📊 **Pin Operation States**
 - **PENDING**: Queued in WAL, awaiting daemon processing
