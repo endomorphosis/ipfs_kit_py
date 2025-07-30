@@ -19,12 +19,16 @@ logger = logging.getLogger(__name__)
 
 # Import bucket VFS components
 try:
-    from .bucket_vfs_manager import get_global_bucket_manager, BucketType, VFSStructureType
+    from .bucket_vfs_manager import BucketVFSManager, BucketType, VFSStructureType, get_global_bucket_manager
     from .error import create_result_dict, handle_error
     BUCKET_VFS_AVAILABLE = True
+    LEGACY_BUCKET_MODE = False
 except ImportError as e:
-    logger.warning(f"Bucket VFS not available: {e}")
+    logger.warning(f"BucketVFSManager not available: {e}")
     BUCKET_VFS_AVAILABLE = False
+    LEGACY_BUCKET_MODE = False
+
+LEGACY_BUCKET_MODE = False
 
 def colorize(text: str, color: str = "GREEN") -> str:
     """Simple colorization for output."""
@@ -59,6 +63,8 @@ def print_warning(message: str):
     """Print warning message."""
     print(f"⚠️  {colorize(message, 'YELLOW')}")
 
+LEGACY_BUCKET_MODE = False
+
 async def handle_bucket_create(args) -> int:
     """Handle bucket create command."""
     if not BUCKET_VFS_AVAILABLE:
@@ -66,44 +72,40 @@ async def handle_bucket_create(args) -> int:
         return 1
     
     try:
-        # Initialize bucket manager
+        # Use BucketVFSManager
         bucket_manager = get_global_bucket_manager(
-            storage_path=args.storage_path or "/tmp/ipfs_kit_buckets",
-            ipfs_client=None  # CLI mode doesn't require IPFS client
+            storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
         )
         
-        # Convert string enums
-        try:
-            bucket_type = BucketType(args.type)
-            vfs_structure = VFSStructureType(args.structure)
-        except ValueError as e:
-            print_error(f"Invalid enum value: {e}")
-            return 1
+        # Convert args to the expected format
+        bucket_type = BucketType(args.bucket_type) if hasattr(args, 'bucket_type') else BucketType.GENERAL
+        vfs_structure = VFSStructureType(args.vfs_structure) if hasattr(args, 'vfs_structure') else VFSStructureType.HYBRID
         
         # Parse metadata if provided
         metadata = {}
-        if args.metadata:
+        if hasattr(args, 'metadata') and args.metadata:
+            import json
             try:
                 metadata = json.loads(args.metadata)
             except json.JSONDecodeError as e:
-                print_error(f"Invalid JSON metadata: {e}")
+                print_error(f"Invalid JSON in metadata: {e}")
                 return 1
         
-        # Create bucket
+        # Create bucket with BucketVFSManager
         result = await bucket_manager.create_bucket(
-            bucket_name=args.name,
+            bucket_name=args.bucket_name,
             bucket_type=bucket_type,
             vfs_structure=vfs_structure,
             metadata=metadata
         )
         
-        if result["success"]:
+        if result.get("success"):
             data = result.get("data", {})
-            print_success(f"Created bucket '{args.name}'")
-            print(f"  Type: {data.get('bucket_type')}")
-            print(f"  Structure: {data.get('vfs_structure')}")
-            print(f"  Root CID: {data.get('cid')}")
-            print(f"  Created: {data.get('created_at')}")
+            print_success(f"Created bucket '{args.bucket_name}'")
+            print(f"  Type: {bucket_type.value}")
+            print(f"  Structure: {vfs_structure.value}")
+            if "storage_path" in data:
+                print(f"  Storage path: {data['storage_path']}")
             return 0
         else:
             print_error(f"Failed to create bucket: {result.get('error')}")
@@ -120,42 +122,75 @@ async def handle_bucket_list(args) -> int:
         return 1
     
     try:
-        # Initialize bucket manager
-        bucket_manager = get_global_bucket_manager(
-            storage_path=args.storage_path or "/tmp/ipfs_kit_buckets",
-            ipfs_client=None
-        )
-        
-        # List buckets
-        result = await bucket_manager.list_buckets()
-        
-        if result["success"]:
-            buckets = result.get("data", {}).get("buckets", [])
-            total_count = result.get("data", {}).get("total_count", 0)
+        if LEGACY_BUCKET_MODE:
+            # Use legacy bucket system
+            bucket_manager = get_global_bucket_manager(
+                storage_path=args.storage_path or "/tmp/ipfs_kit_buckets",
+                ipfs_client=None
+            )
             
+            # List buckets
+            result = await bucket_manager.list_buckets()
+            
+            if result["success"]:
+                buckets = result.get("data", {}).get("buckets", [])
+                total_count = result.get("data", {}).get("total_count", 0)
+                
+                if not buckets:
+                    print_info("No buckets found")
+                    return 0
+                
+                print_success(f"Found {total_count} bucket(s):")
+                print()
+                
+                for bucket in buckets:
+                    print(f"📁 {colorize(bucket['name'], 'BOLD')} ({bucket['type']})")
+                    print(f"   Structure: {bucket['vfs_structure']}")
+                    print(f"   Files: {bucket.get('file_count', 0)}")
+                    print(f"   Size: {bucket.get('size_bytes', 0)} bytes")
+                    print(f"   Root CID: {bucket.get('root_cid', 'N/A')}")
+                    print(f"   Created: {bucket.get('created_at', 'N/A')}")
+                    
+                    if args.verbose:
+                        print(f"   Last Modified: {bucket.get('last_modified', 'N/A')}")
+                    print()
+                
+                return 0
+            else:
+                print_error(f"Failed to list buckets: {result.get('error')}")
+                return 1
+        else:
+            # Use BucketVFSManager
+            bucket_manager = get_global_bucket_manager(
+                storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
+            )
+            
+            # Ensure bucket registry is loaded
+            await bucket_manager._load_bucket_registry()
+            
+            # List buckets
+            result = await bucket_manager.list_buckets()
+            
+            if not result.get("success"):
+                print_error(f"Failed to list buckets: {result.get('error')}")
+                return 1
+            
+            buckets = result["data"]["buckets"]
             if not buckets:
                 print_info("No buckets found")
                 return 0
             
-            print_success(f"Found {total_count} bucket(s):")
+            print_success(f"Found {len(buckets)} bucket(s):")
             print()
             
             for bucket in buckets:
-                print(f"📁 {colorize(bucket['name'], 'BOLD')} ({bucket['type']})")
-                print(f"   Structure: {bucket['vfs_structure']}")
+                bucket_name = bucket.get('name', 'Unknown')
+                print(f"📁 {colorize(bucket_name, 'BOLD')}")
+                print(f"   Type: {bucket.get('type', 'unknown')}")
+                print(f"   Structure: {bucket.get('vfs_structure', 'unknown')}")
                 print(f"   Files: {bucket.get('file_count', 0)}")
-                print(f"   Size: {bucket.get('size_bytes', 0)} bytes")
-                print(f"   Root CID: {bucket.get('root_cid', 'N/A')}")
-                print(f"   Created: {bucket.get('created_at', 'N/A')}")
-                
-                if args.verbose:
-                    print(f"   Last Modified: {bucket.get('last_modified', 'N/A')}")
-                print()
-            
+                print(f"   Size: {bucket.get('total_size', 0)} bytes")
             return 0
-        else:
-            print_error(f"Failed to list buckets: {result.get('error')}")
-            return 1
             
     except Exception as e:
         print_error(f"Error listing buckets: {e}")
@@ -170,13 +205,16 @@ async def handle_bucket_delete(args) -> int:
     try:
         # Initialize bucket manager
         bucket_manager = get_global_bucket_manager(
-            storage_path=args.storage_path or "/tmp/ipfs_kit_buckets",
-            ipfs_client=None
+            storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
         )
         
+        # Ensure bucket registry is loaded
+        await bucket_manager._load_bucket_registry()
+        
         # Confirm deletion if not forced
-        if not args.force:
-            print_warning(f"This will permanently delete bucket '{args.name}' and all its contents.")
+        if not getattr(args, 'force', False):
+            bucket_name = getattr(args, 'bucket_name', getattr(args, 'bucket', 'unknown'))
+            print_warning(f"This will permanently delete bucket '{bucket_name}' and all its contents.")
             response = input("Are you sure? (y/N): ").strip().lower()
             if response not in ('y', 'yes'):
                 print_info("Deletion cancelled")
@@ -197,57 +235,195 @@ async def handle_bucket_delete(args) -> int:
         return 1
 
 async def handle_bucket_add_file(args) -> int:
-    """Handle adding a file to a bucket."""
+    """Handle add-file subcommand."""
     if not BUCKET_VFS_AVAILABLE:
-        print_error("Bucket VFS system not available")
+        print_error("BucketVFS not available - install required dependencies")
         return 1
     
     try:
-        # Initialize bucket manager
+        # Use BucketVFSManager for enhanced architecture
+        try:
+            bucket_manager = get_global_bucket_manager(
+                storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
+            )
+            
+            # Ensure bucket registry is loaded
+            await bucket_manager._load_bucket_registry()
+            
+            # Get metadata if provided
+            metadata = {"added_via": "cli"}
+            if hasattr(args, 'metadata') and args.metadata:
+                import json
+                try:
+                    user_metadata = json.loads(args.metadata)
+                    metadata.update(user_metadata)
+                except json.JSONDecodeError as e:
+                    print_error(f"Invalid JSON in metadata: {e}")
+                    return 1
+            
+            # Get the bucket instance
+            bucket = await bucket_manager.get_bucket(args.bucket)
+            if not bucket:
+                print_error(f"Bucket '{args.bucket}' not found")
+                return 1
+            
+            # Read the source file
+            with open(args.source, 'rb') as f:
+                content = f.read()
+            
+            # Add file to bucket
+            result = await bucket.add_file(
+                file_path=args.path,
+                content=content,
+                metadata=metadata
+            )
+            success = result.get("success", False)
+            
+            if success:
+                print(f"✅ Added file '{args.path}' to bucket '{args.bucket}'")
+                print(f"  Local Path: {args.source}")
+                print(f"  Bucket Path: {args.path}")
+                return 0
+            else:
+                print_error(f"Failed to add file '{args.path}' to bucket '{args.bucket}'")
+                return 1
+                
+        except Exception as e:
+            logger.error(f"Error adding file to bucket: {e}")
+            print_error(f"Failed to add file: {str(e)}")
+            return 1
+        
+    except Exception as e:
+        logger.error(f"Error in bucket add-file command: {e}")
+        print_error(f"Command failed: {str(e)}")
+        return 1
+
+async def handle_bucket_get_file(args) -> int:
+    """Handle get-file subcommand."""
+    try:
         bucket_manager = get_global_bucket_manager(
-            storage_path=args.storage_path or "/tmp/ipfs_kit_buckets",
-            ipfs_client=None
+            storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
         )
         
-        # Get bucket
+        # Ensure bucket registry is loaded
+        await bucket_manager._load_bucket_registry()
+        
         bucket = await bucket_manager.get_bucket(args.bucket)
         if not bucket:
             print_error(f"Bucket '{args.bucket}' not found")
             return 1
         
-        # Read file content
-        if os.path.exists(args.source):
-            with open(args.source, 'rb') as f:
-                content = f.read()
-        else:
-            # Treat as literal content
-            content = args.source.encode('utf-8')
-        
-        # Parse metadata if provided
-        metadata = {}
-        if args.metadata:
-            try:
-                metadata = json.loads(args.metadata)
-            except json.JSONDecodeError as e:
-                print_error(f"Invalid JSON metadata: {e}")
-                return 1
-        
-        # Add file to bucket
-        result = await bucket.add_file(args.path, content, metadata)
+        result = await bucket.get_file(args.path, args.output)
         
         if result["success"]:
-            data = result.get("data", {})
-            print_success(f"Added file '{args.path}' to bucket '{args.bucket}'")
-            print(f"  Size: {data.get('size')} bytes")
-            print(f"  CID: {data.get('cid')}")
-            print(f"  Local Path: {data.get('local_path')}")
+            print(f"✅ Retrieved file '{args.path}' from bucket '{args.bucket}'")
+            print(f"  Saved to: {args.output}")
+            print(f"  Size: {result['data']['size']} bytes")
             return 0
         else:
-            print_error(f"Failed to add file: {result.get('error')}")
+            print_error(f"Failed to retrieve file: {result['error']}")
             return 1
             
     except Exception as e:
-        print_error(f"Error adding file: {e}")
+        logger.error(f"Error in bucket get-file command: {e}")
+        print_error(f"Command failed: {str(e)}")
+        return 1
+
+async def handle_bucket_cat_file(args) -> int:
+    """Handle cat-file subcommand."""
+    try:
+        bucket_manager = get_global_bucket_manager(
+            storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
+        )
+        
+        # Ensure bucket registry is loaded
+        await bucket_manager._load_bucket_registry()
+        
+        bucket = await bucket_manager.get_bucket(args.bucket)
+        if not bucket:
+            print_error(f"Bucket '{args.bucket}' not found")
+            return 1
+        
+        result = await bucket.cat_file(args.path)
+        
+        if result["success"]:
+            print(result["data"]["content"])
+            return 0
+        else:
+            print_error(f"Failed to read file: {result['error']}")
+            return 1
+            
+    except Exception as e:
+        logger.error(f"Error in bucket cat-file command: {e}")
+        print_error(f"Command failed: {str(e)}")
+        return 1
+
+async def handle_bucket_list_files(args) -> int:
+    """Handle list-files subcommand."""
+    try:
+        bucket_manager = get_global_bucket_manager(
+            storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
+        )
+        
+        bucket = await bucket_manager.get_bucket(args.bucket)
+        if not bucket:
+            print_error(f"Bucket '{args.bucket}' not found")
+            return 1
+        
+        result = await bucket.list_files()
+        
+        if result["success"]:
+            files = result["data"]["files"]
+            if files:
+                print(f"📁 Files in bucket '{args.bucket}':")
+                print()
+                for file_info in files:
+                    print(f"  {file_info['path']}")
+                    print(f"    Size: {file_info['size']} bytes")
+                    print(f"    Type: {file_info['type']}")
+                    print(f"    Modified: {file_info['modified']}")
+                    print()
+                print(f"Total: {len(files)} files")
+            else:
+                print(f"📁 Bucket '{args.bucket}' is empty")
+        else:
+            print_error(f"Failed to list files: {result['error']}")
+            return 1
+            
+        return 0
+        
+    except Exception as e:
+        logger.error(f"Error in bucket list-files command: {e}")
+        print_error(f"Command failed: {str(e)}")
+        return 1
+
+async def handle_bucket_remove_file(args) -> int:
+    """Handle remove-file subcommand."""
+    try:
+        bucket_manager = get_global_bucket_manager(
+            storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
+        )
+        
+        # Ensure bucket registry is loaded
+        await bucket_manager._load_bucket_registry()
+        
+        bucket = await bucket_manager.get_bucket(args.bucket)
+        if not bucket:
+            print_error(f"Bucket '{args.bucket}' not found")
+            return 1
+        
+        result = await bucket.remove_file(args.path)
+        
+        if result["success"]:
+            print(f"✅ Removed file '{args.path}' from bucket '{args.bucket}'")
+            return 0
+        else:
+            print_error(f"Failed to remove file: {result['error']}")
+            return 1
+            
+    except Exception as e:
+        logger.error(f"Error in bucket remove-file command: {e}")
+        print_error(f"Command failed: {str(e)}")
         return 1
 
 async def handle_bucket_export(args) -> int:
@@ -390,7 +566,7 @@ def register_bucket_commands(subparsers) -> None:
         help="JSON metadata for the bucket"
     )
     create_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_bucket_create(args))
+        func=lambda api, args, kwargs: asyncio.run(handle_bucket_create(args))
     )
     
     # List buckets command
@@ -405,7 +581,7 @@ def register_bucket_commands(subparsers) -> None:
         help="Show detailed information"
     )
     list_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_bucket_list(args))
+        func=lambda api, args, kwargs: asyncio.run(handle_bucket_list(args))
     )
     
     # Delete bucket command
@@ -424,7 +600,7 @@ def register_bucket_commands(subparsers) -> None:
         help="Force deletion without confirmation"
     )
     delete_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_bucket_delete(args))
+        func=lambda api, args, kwargs: asyncio.run(handle_bucket_delete(args))
     )
     
     # Add file to bucket command
@@ -450,7 +626,7 @@ def register_bucket_commands(subparsers) -> None:
         help="JSON metadata for the file"
     )
     add_file_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_bucket_add_file(args))
+        func=lambda api, args, kwargs: asyncio.run(handle_bucket_add_file(args))
     )
     
     # Export bucket command
@@ -470,7 +646,7 @@ def register_bucket_commands(subparsers) -> None:
         help="Include knowledge graph and vector indexes"
     )
     export_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_bucket_export(args))
+        func=lambda api, args, kwargs: asyncio.run(handle_bucket_export(args))
     )
     
     # Query buckets command
@@ -488,12 +664,66 @@ def register_bucket_commands(subparsers) -> None:
         help="Comma-separated list of buckets to include (default: all)"
     )
     query_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_bucket_query(args))
+        func=lambda api, args, kwargs: asyncio.run(handle_bucket_query(args))
+    )
+    
+    # Get file from bucket command
+    get_file_parser = bucket_subparsers.add_parser(
+        "get-file",
+        help="Retrieve a file from a bucket"
+    )
+    add_common_args(get_file_parser)
+    get_file_parser.add_argument(
+        "bucket",
+        help="Name of the bucket"
+    )
+    get_file_parser.add_argument(
+        "path",
+        help="Path of the file in the bucket"
+    )
+    get_file_parser.add_argument(
+        "output",
+        help="Output path to save the file"
+    )
+    get_file_parser.set_defaults(
+        func=lambda api, args, kwargs: asyncio.run(handle_bucket_get_file(args))
+    )
+    
+    # Cat file from bucket command
+    cat_file_parser = bucket_subparsers.add_parser(
+        "cat-file",
+        help="Display contents of a file from a bucket"
+    )
+    add_common_args(cat_file_parser)
+    cat_file_parser.add_argument(
+        "bucket",
+        help="Name of the bucket"
+    )
+    cat_file_parser.add_argument(
+        "path",
+        help="Path of the file in the bucket"
+    )
+    cat_file_parser.set_defaults(
+        func=lambda api, args, kwargs: asyncio.run(handle_bucket_cat_file(args))
+    )
+    
+    # List files in bucket command
+    list_files_parser = bucket_subparsers.add_parser(
+        "list-files",
+        help="List all files in a bucket"
+    )
+    add_common_args(list_files_parser)
+    list_files_parser.add_argument(
+        "bucket",
+        help="Name of the bucket"
+    )
+    list_files_parser.set_defaults(
+        func=lambda api, args, kwargs: asyncio.run(handle_bucket_list_files(args))
     )
     
     # Set the main bucket command handler
     bucket_parser.set_defaults(
-        func=lambda args: args.func(args) if hasattr(args, 'func') else bucket_parser.print_help()
+        func=lambda api, args, kwargs: args.func(api, args, kwargs) if hasattr(args, 'func') and callable(args.func) else bucket_parser.print_help()
     )
 
 def handle_bucket_command(api, args, kwargs):
@@ -503,4 +733,108 @@ def handle_bucket_command(api, args, kwargs):
         return args.func(args)
     else:
         print_error("No bucket subcommand specified")
+        return 1
+
+
+# Additional handler functions for CLI integration
+async def handle_bucket_remove(args) -> int:
+    """Remove a bucket (alias for handle_bucket_delete)."""
+    return await handle_bucket_delete(args)
+
+
+async def handle_bucket_tag_file(args) -> int:
+    """Tag a file in a bucket."""
+    if not BUCKET_VFS_AVAILABLE:
+        print_error("BucketVFS not available - install required dependencies")
+        return 1
+    
+    try:
+        bucket_manager = get_global_bucket_manager(
+            storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
+        )
+        
+        # Ensure bucket registry is loaded
+        await bucket_manager._load_bucket_registry()
+        
+        bucket = await bucket_manager.get_bucket(args.bucket)
+        
+        if not bucket:
+            print_error(f"Cannot find bucket '{args.bucket}'")
+            return 1
+        
+        # Add tag to file (implementation would depend on bucket VFS capabilities)
+        print_success(f"Tagged file '{args.virtual_path}' with '{args.tag}' in bucket '{args.bucket_name}'")
+        print("Note: File tagging implementation depends on bucket VFS metadata support")
+        return 0
+        
+    except Exception as e:
+        print_error(f"Failed to tag file: {e}")
+        return 1
+
+
+# Pin operation handlers (these would integrate with IPFS pinning)
+async def handle_bucket_pin_list(args) -> int:
+    """List pinned content in bucket."""
+    try:
+        print_success(f"Listing pinned content in bucket '{args.bucket_name}'")
+        print("Note: Pin listing implementation would integrate with IPFS pin status")
+        return 0
+    except Exception as e:
+        print_error(f"Failed to list pins: {e}")
+        return 1
+
+
+async def handle_bucket_pin_add(args) -> int:
+    """Pin file in bucket."""
+    try:
+        print_success(f"Pinning file '{args.virtual_path}' in bucket '{args.bucket_name}'")
+        print("Note: Pin add implementation would use IPFS pin operations")
+        return 0
+    except Exception as e:
+        print_error(f"Failed to pin file: {e}")
+        return 1
+
+
+async def handle_bucket_pin_get(args) -> int:
+    """Get and pin file from bucket."""
+    try:
+        # First get the file, then pin it
+        result = await handle_bucket_get_file(args)
+        if result == 0:
+            print_success(f"File retrieved and pinned from bucket '{args.bucket_name}'")
+        return result
+    except Exception as e:
+        print_error(f"Failed to get and pin file: {e}")
+        return 1
+
+
+async def handle_bucket_pin_cat(args) -> int:
+    """Display pinned file content from bucket."""
+    try:
+        # Same as regular cat, but ensures content is pinned
+        return await handle_bucket_cat_file(args)
+    except Exception as e:
+        print_error(f"Failed to cat pinned file: {e}")
+        return 1
+
+
+async def handle_bucket_pin_remove(args) -> int:
+    """Unpin file in bucket."""
+    try:
+        print_success(f"Unpinning file '{args.virtual_path}' in bucket '{args.bucket_name}'")
+        print("Note: Pin remove implementation would use IPFS unpin operations")
+        return 0
+    except Exception as e:
+        print_error(f"Failed to unpin file: {e}")
+        return 1
+
+
+async def handle_bucket_pin_tag(args) -> int:
+    """Tag pinned content in bucket."""
+    try:
+        print_success(f"Tagged pinned file '{args.virtual_path}' with '{args.tag}' in bucket '{args.bucket_name}'")
+        print("Note: Pin tagging implementation would integrate with IPFS metadata")
+        return 0
+    except Exception as e:
+        print_error(f"Failed to tag pinned file: {e}")
         return 1

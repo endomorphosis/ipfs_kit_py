@@ -46,6 +46,14 @@ try:
 except ImportError:
     ARROW_AVAILABLE = False
 
+
+# Import CAR WAL manager
+try:
+    from ipfs_kit_py.car_wal_manager import get_car_wal_manager
+    CAR_WAL_AVAILABLE = True
+except ImportError:
+    CAR_WAL_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class WALOperationType(Enum):

@@ -1,334 +1,644 @@
-# IPFS-Kit CLI Comprehensive Usage Guide
+# IPFS-Kit CLI: Bucket Virtual Filesystems & Pin Management Guide
 
 ## Executive Summary
 
-The IPFS-Kit CLI has been comprehensively enhanced with **real data integration**, **three-tier policy management**, and **multi-backend storage operations**. The CLI now provides lock-free daemon status monitoring, comprehensive configuration management, and fine-grained control over replication, caching, and storage quotas across all backends.
+The IPFS-Kit CLI provides a **unified bucket-based virtual filesystem interface** that abstracts multiple storage backends (Parquet, Arrow, S3, SSHFS, FTP, Google Drive, GitHub, HuggingFace, etc.) into content-addressed pin storage systems. Each bucket acts as a virtual filesystem where files are stored as content-addressed pins with IPFS hashes, creating a distributed, verifiable storage layer across remote services.
 
-## Latest CLI Architecture
+## Core Concepts
+
+### 1. Bucket Virtual Filesystems
+- **Buckets**: Logical containers that act as virtual filesystems
+- **Pins**: Content-addressed data stored with IPFS hashes (CIDs)
+- **Virtual Paths**: Filesystem-like organization within buckets
+- **Backend Abstraction**: Storage backend selection is transparent to users
+- **Metadata Indices**: Parquet-based indices for fast querying and composition
+
+### 2. Content Addressing & IPFS Integration
+- All content is stored with **SHA-256 content hashes** as IPFS CIDs
+- Content is **immutable** and **verifiable** across all backends
+- **Deduplication** happens automatically via content addressing
+- **Cross-backend queries** enable unified data access
+
+### 3. Remote Service Mapping
+```
+User Files → Content Hash (CID) → Bucket Pin → Backend Storage
+    ↓              ↓                  ↓              ↓
+Virtual Path → IPFS Hash → Metadata Index → S3/SSHFS/etc
+```
+
+## CLI Architecture
 
 ### Enhanced Command Structure
 ```
 ipfs-kit-cli
+├── bucket           # Bucket virtual filesystem operations
+│   ├── create       # Create new buckets
+│   ├── list         # List buckets and their pins
+│   ├── add-pin      # Add content-addressed pins
+│   ├── get-pin      # Retrieve pin content by CID
+│   ├── vfs-composition  # Show virtual filesystem structure
+│   └── query        # Cross-backend SQL queries
 ├── daemon           # Daemon and service management
-├── pin              # IPFS pin operations with policy support
+├── pin              # Direct IPFS pin operations
 ├── backend          # Multi-backend storage operations (15 backends)
-├── health           # System health and monitoring
-├── config           # Configuration and global policy management  
-├── bucket           # Virtual filesystem and bucket-level policies
-├── mcp              # Model Context Protocol server management
-├── metrics          # Performance metrics and analytics
-├── resource         # Resource tracking and monitoring
-└── log              # Unified log aggregation and viewing
+├── config           # Configuration and global policy management
+└── [other commands] # Health, metrics, logs, etc.
 ```
 
-### Three-Tier Policy System Integration
-- **Global Policies**: `config pinset-policy` - System-wide defaults
-- **Bucket Policies**: `bucket policy` - Per-bucket overrides
-- **Backend Quotas**: `backend <name> configure` - Hard limits and retention
+## Bucket Virtual Filesystem Operations
 
-## Core Command Categories
+### 1. Creating and Managing Buckets
 
-### 1. Daemon Management (`daemon`)
-
-**Purpose**: Manage IPFS-Kit daemon and related services
-
+#### Simple Bucket Creation (Abstracted Interface)
 ```bash
-# Basic daemon operations
-ipfs-kit daemon start          # Start the daemon with auto-discovery
-ipfs-kit daemon stop           # Stop daemon gracefully  
-ipfs-kit daemon status         # Enhanced status with program state data
-ipfs-kit daemon restart        # Restart daemon
+# Using the improved CLI - daemon chooses optimal backend
+python improved_bucket_cli.py create my-documents media \
+  --description "Personal documents storage"
 
-# Service-specific management
-ipfs-kit daemon ipfs {start,stop,status}        # IPFS node management
-ipfs-kit daemon lotus {start,stop,status}       # Lotus/Filecoin node
-ipfs-kit daemon cluster {start,stop,status}     # IPFS Cluster service
-ipfs-kit daemon lassie {start,stop,status}      # Lassie retrieval service
-
-# Role management for cluster operations
-ipfs-kit daemon set-role {master,worker,leecher}  # Set node role
-ipfs-kit daemon get-role                           # Get current role
-ipfs-kit daemon auto-role                          # Auto-detect optimal role
+# Creates bucket with:
+# - Automatic backend selection (S3 for media type)
+# - VFS index initialization
+# - Pin metadata directory structure
 ```
 
-**Enhanced Features**:
-- **Lock-free status**: Read daemon status without API locks
-- **Program state data**: Performance metrics from Parquet files
-- **Service orchestration**: Manage multiple related services
-- **Role-based clustering**: Hierarchical node roles
-
-### 2. Configuration Management (`config`)
-
-**Purpose**: Manage system configuration and global policies
-
+#### Advanced Bucket Creation (Backend-Specific)
 ```bash
-# Basic configuration
-ipfs-kit config show                    # Display all configuration
-ipfs-kit config validate               # Validate all config files
-ipfs-kit config set <key> <value>      # Set configuration value
-ipfs-kit config init                   # Interactive setup wizard
-ipfs-kit config backup                 # Backup configuration
-ipfs-kit config restore <file>         # Restore from backup
-ipfs-kit config reset                  # Reset to defaults
+# Create dataset bucket on Parquet backend
+ipfs-kit bucket create parquet ml-models dataset \
+  --bucket-type dataset \
+  --vfs-structure hybrid \
+  --metadata '{"project": "ML Training", "retention": "1-year"}'
 
-# Global Pinset Policy Management (NEW)
-ipfs-kit config pinset-policy show     # Show current global policies
-ipfs-kit config pinset-policy set [OPTIONS]  # Set global policies
-ipfs-kit config pinset-policy reset    # Reset to defaults
+# Create media bucket on S3 backend  
+ipfs-kit bucket create s3 media-files media \
+  --bucket-type media \
+  --vfs-structure unixfs \
+  --metadata '{"public": false, "compression": "auto"}'
+
+# Create archive bucket on SSHFS backend
+ipfs-kit bucket create sshfs backup-archive archive \
+  --bucket-type archive \
+  --vfs-structure graph \
+  --metadata '{"encryption": true, "remote_host": "backup.example.com"}'
 ```
 
-**Global Policy Options**:
+### 2. Writing Files to Bucket Virtual Filesystems
+
+#### Simple File Addition (Abstracted)
 ```bash
-# Replication strategies
---replication-strategy {single,multi-backend,tiered,adaptive}
---min-replicas N --max-replicas N
---geographic-distribution {local,regional,global}
+# Add file with automatic content addressing
+python improved_bucket_cli.py add my-documents /path/to/report.pdf \
+  --virtual-path "reports/2025/annual-report.pdf" \
+  --metadata '{"year": 2025, "type": "annual"}'
 
-# Cache policies  
---cache-policy {lru,lfu,fifo,mru,adaptive,tiered}
---cache-size N --cache-memory-limit SIZE --auto-gc
-
-# Performance and tiering
---performance-tier {speed-optimized,balanced,persistence-optimized}
---auto-tier --hot-tier-duration SECONDS --warm-tier-duration SECONDS
-
-# Backend management
---preferred-backends "backend1,backend2,backend3"
---backend-weights "arrow:0.3,s3:0.4,filecoin:0.3"
+# Process:
+# 1. Read file content
+# 2. Generate SHA-256 hash (IPFS CID)
+# 3. Store as pin in bucket's VFS
+# 4. Update Parquet indices
+# 5. Map virtual path to content hash
 ```
 
-### 3. Pin Management (`pin`)
-
-**Purpose**: IPFS content pinning with policy support
-
+#### Advanced Pin Addition (Backend-Specific)
 ```bash
-ipfs-kit pin add <hash>                 # Pin content with policy application
-ipfs-kit pin remove <hash>              # Unpin content
-ipfs-kit pin list                       # List all pins from Parquet data
-ipfs-kit pin pending                    # List pending operations in WAL
-ipfs-kit pin status <hash>              # Check specific pin status
-ipfs-kit pin get <hash>                 # Download pinned content to file
-ipfs-kit pin cat <hash>                 # Stream pinned content to stdout
-ipfs-kit pin init                       # Initialize pin metadata with samples
+# Add dataset to Parquet bucket with specific CID
+ipfs-kit bucket add-pin parquet ml-models \
+  QmX7M9CiYXjVQy8h4SomeContentHashHere12345 \
+  "datasets/training/model_v2.parquet" \
+  /local/path/model_v2.parquet \
+  --metadata '{
+    "model_version": "2.1",
+    "training_date": "2025-07-29",
+    "accuracy": 0.95,
+    "size_bytes": 1048576
+  }'
+
+# Add media file to S3 bucket
+ipfs-kit bucket add-pin s3 media-files \
+  QmY8N0DjWRkZp9h5SomeImageHashHere67890 \
+  "photos/2025/vacation/beach.jpg" \
+  /local/photos/beach.jpg \
+  --metadata '{
+    "location": "Malibu",
+    "date": "2025-07-15",
+    "camera": "Canon EOS R5",
+    "tags": ["vacation", "beach", "sunset"]
+  }'
+
+# Add code repository to GitHub bucket
+ipfs-kit bucket add-pin github code-repos \
+  QmZ9O1EkXSl0q0i6SomeCodeHashHere11111 \
+  "projects/ipfs-kit/src/main.py" \
+  /local/code/main.py \
+  --metadata '{
+    "language": "python",
+    "commit": "abc123def456",
+    "author": "developer@example.com",
+    "license": "MIT"
+  }'
 ```
 
-### 4. Backend Operations (`backend`)
+### 3. Reading Files from Bucket Virtual Filesystems
 
-**Purpose**: Multi-backend storage operations with 15 supported backends
-
+#### List Bucket Contents
 ```bash
-# Backend management
-ipfs-kit backend list                   # List all available backends
-ipfs-kit backend test                   # Test all backend connections
+# Simple listing (abstracted)
+python improved_bucket_cli.py files my-documents
 
-# Individual backend operations (15 backends supported)
-ipfs-kit backend {huggingface,github,s3,storacha,ipfs,gdrive,lotus,
-                  synapse,sshfs,ftp,ipfs-cluster,ipfs-cluster-follow,
-                  parquet,arrow} <action>
+# Detailed listing (backend-specific)
+ipfs-kit bucket files ml-models --limit 10
+
+# Output shows:
+# - Virtual filesystem paths
+# - Content hashes (CIDs)
+# - File sizes and metadata
+# - Storage backend information
 ```
 
-**Supported Backends with Configuration**:
-
-#### HuggingFace Hub Operations
+#### Retrieve Individual Pins by IPFS Hash
 ```bash
-ipfs-kit backend huggingface configure --token <token> --storage-quota 1GB
-ipfs-kit backend huggingface login --token <token>
-ipfs-kit backend huggingface list --type model --limit 5
-ipfs-kit backend huggingface download microsoft/DialoGPT-medium model.bin
-ipfs-kit backend huggingface files microsoft/DialoGPT-medium
+# Get pin content by CID (abstracted)
+python improved_bucket_cli.py get my-documents \
+  QmX7M9CiYXjVQy8h4SomeContentHashHere12345 \
+  --output-path ./downloaded-file.pdf
+
+# Get pin content by CID (backend-specific)
+ipfs-kit pin get QmX7M9CiYXjVQy8h4SomeContentHashHere12345 \
+  --output ./restored-file.parquet
+
+# Stream pin content to stdout
+ipfs-kit pin cat QmY8N0DjWRkZp9h5SomeImageHashHere67890 | display
+
+# Find which bucket contains a specific CID
+ipfs-kit bucket find-cid QmZ9O1EkXSl0q0i6SomeCodeHashHere11111
+# Output: Found in bucket 'code-repos' (github backend)
 ```
 
-#### GitHub Repository Operations  
+### 4. Virtual Filesystem Composition and Structure
+
+#### View VFS Composition
 ```bash
-ipfs-kit backend github configure --token <token> --storage-quota 1GB --lfs-quota 100GB
-ipfs-kit backend github login --token <token>
-ipfs-kit backend github list --user endomorphosis
-ipfs-kit backend github clone endomorphosis/ipfs_kit_py
-ipfs-kit backend github upload repo file.txt path/file.txt --message "Update"
+# Show complete virtual filesystem structure
+ipfs-kit bucket vfs-composition
+
+# Output example:
+# 🗂️ Global VFS Statistics:
+#    Total Pins: 156
+#    Total Size: 2.3 GB
+#    Backends: 5
+# 
+# 🏗️ Backend Composition:
+#    🔧 PARQUET:
+#       Pins: 45
+#       Size: 890.2 MB
+#       Buckets: 3
+#         📁 ml-models: 23 pins (650 MB)
+#           └── datasets/training/model_v2.parquet (QmX7M9...)
+#           └── datasets/validation/test_set.parquet (QmY8N0...)
+#         📁 analytics: 12 pins (240.2 MB)
+#         📁 research: 10 pins (45.8 MB)
+#    
+#    🔧 S3:
+#       Pins: 67
+#       Size: 1.1 GB  
+#       Buckets: 2
+#         📁 media-files: 45 pins (900 MB)
+#           └── photos/2025/vacation/beach.jpg (QmZ9O1...)
+#           └── videos/project/demo.mp4 (QmA1B2...)
+#         📁 backups: 22 pins (200 MB)
 ```
 
-#### Amazon S3 Operations
+#### Filter VFS by Backend or Bucket
 ```bash
-ipfs-kit backend s3 configure --access-key <key> --secret-key <secret> \
-  --account-quota 10TB --retention-policy lifecycle --cost-optimization
-ipfs-kit backend s3 list                        # List buckets
-ipfs-kit backend s3 create my-bucket             # Create bucket
-ipfs-kit backend s3 upload file.txt my-bucket   # Upload file
-ipfs-kit backend s3 download my-bucket file.txt # Download file
+# Show specific backend composition
+ipfs-kit bucket vfs-composition --backend parquet
+
+# Show specific bucket composition  
+ipfs-kit bucket vfs-composition --bucket ml-models
+
+# Show cross-backend composition for multiple backends
+ipfs-kit bucket vfs-composition --backend s3,sshfs,gdrive
 ```
 
-#### Filecoin/Lotus Operations
+### 5. Cross-Backend Querying with SQL
+
+#### Query Pins Across All Backends
 ```bash
-ipfs-kit backend lotus configure --endpoint <rpc_url> --token <token> \
-  --quota-size 50TB --retention-policy permanent --auto-renew
-ipfs-kit backend lotus status                   # Node status
-ipfs-kit backend lotus store ./data.txt --duration 525600  # Store for 1 year
+# Find all pins larger than 100MB
+ipfs-kit bucket query "
+  SELECT backend, bucket, file_path, size, content_hash 
+  FROM unified_vfs 
+  WHERE size > 104857600 
+  ORDER BY size DESC
+"
+
+# Find all pins by file type
+ipfs-kit bucket query "
+  SELECT backend, COUNT(*) as pin_count, SUM(size) as total_size
+  FROM unified_vfs 
+  WHERE file_path LIKE '%.parquet'
+  GROUP BY backend
+"
+
+# Find pins with specific metadata
+ipfs-kit bucket query "
+  SELECT file_path, content_hash, metadata_json
+  FROM unified_vfs 
+  WHERE JSON_EXTRACT(metadata_json, '$.model_version') = '2.1'
+"
+
+# Cross-backend deduplication analysis
+ipfs-kit bucket query "
+  SELECT content_hash, COUNT(*) as replica_count, 
+         GROUP_CONCAT(backend) as backends
+  FROM unified_vfs 
+  GROUP BY content_hash 
+  HAVING replica_count > 1
+"
 ```
 
-#### Google Drive Operations
+#### Backend-Specific Queries
 ```bash
-ipfs-kit backend gdrive configure --credentials creds.json \
-  --storage-quota 15GB --version-retention 100
-ipfs-kit backend gdrive auth --credentials creds.json
-ipfs-kit backend gdrive list --folder <folder_id>
-ipfs-kit backend gdrive upload file.txt --folder <folder_id>
+# Query only Parquet backend
+ipfs-kit bucket query "
+  SELECT * FROM vfs_parquet_ml_models 
+  WHERE created_at > '2025-07-01'
+" --backends parquet
+
+# Query across S3 and SSHFS backends
+ipfs-kit bucket query "
+  SELECT backend, bucket, AVG(size) as avg_size
+  FROM unified_vfs 
+  WHERE backend IN ('s3', 'sshfs')
+  GROUP BY backend, bucket
+" --backends s3,sshfs
 ```
 
-#### Web3/Storacha Operations
-```bash
-ipfs-kit backend storacha configure --api-key <key> \
-  --storage-quota 1TB --deal-duration 180 --auto-renew
-ipfs-kit backend storacha upload ./dataset --name "my-dataset"
-ipfs-kit backend storacha list
+## Remote Service Mapping & Backend Architecture
+
+### 1. Bucket-to-Backend Mapping
+
+Each bucket is mapped to a specific storage backend, but the mapping is transparent:
+
+```
+Bucket Name     Backend      Remote Service           Directory Structure
+-----------     -------      --------------           -------------------
+ml-models    → parquet   → ~/.ipfs_kit/buckets/    → /parquet/ml-models/
+media-files  → s3        → Amazon S3 bucket        → s3://my-ipfs-bucket/
+code-repos   → github    → GitHub repository       → github.com/user/repo
+backup-arch  → sshfs     → Remote SSH server       → /mnt/backup/archives/
+documents    → gdrive    → Google Drive folder     → /drive/ipfs-documents/
 ```
 
-#### IPFS Cluster Operations
-```bash
-ipfs-kit backend ipfs-cluster configure --endpoint http://127.0.0.1:9094 \
-  --global-replication-min 3 --global-cache-policy adaptive
-ipfs-kit backend ipfs-cluster status
-ipfs-kit backend ipfs-cluster pin <hash> --replication-min 3
-ipfs-kit backend ipfs-cluster unpin <hash>
+### 2. Pin Metadata Indices Structure
+
+The system maintains Parquet-based indices for fast querying:
+
+```
+~/.ipfs_kit/
+├── bucket_registry.parquet          # Global bucket registry
+├── buckets/                          # Per-backend bucket storage
+│   ├── parquet/ml-models/
+│   │   ├── metadata/bucket_metadata.json
+│   │   └── parquet/file_metadata.parquet
+│   ├── s3/media-files/
+│   │   ├── metadata/bucket_metadata.json  
+│   │   └── parquet/file_metadata.parquet
+│   └── github/code-repos/
+│       ├── metadata/bucket_metadata.json
+│       └── parquet/file_metadata.parquet
+├── pin_metadata/                     # Content-addressed pin storage
+│   ├── parquet/ml-models/
+│   │   ├── QmX7M9...123.parquet     # Pin metadata as Parquet
+│   │   └── QmY8N0...456.parquet
+│   ├── s3/media-files/
+│   │   ├── QmZ9O1...789.parquet
+│   │   └── QmA1B2...000.parquet
+│   └── [backend]/[bucket]/
+│       └── [content-hash].parquet
+└── vfs_indices/                      # Virtual filesystem indices
+    ├── parquet/ml-models/
+    │   └── vfs_index.parquet        # VFS structure as Parquet
+    ├── s3/media-files/
+    │   └── vfs_index.parquet
+    └── [backend]/[bucket]/
+        └── vfs_index.parquet
 ```
 
-#### Remote Storage (SSHFS/FTP)
-```bash
-# SSHFS operations
-ipfs-kit backend sshfs configure --hostname server.com --username user \
-  --storage-quota 1TB --retention-days 90 --auto-reconnect
-ipfs-kit backend sshfs upload ./file.txt /remote/path/
-ipfs-kit backend sshfs download /remote/file.txt ./local/
+### 3. Content Hash to Remote Service Mapping
 
-# FTP operations  
-ipfs-kit backend ftp configure --host ftp.example.com --username user \
-  --storage-quota 500GB --bandwidth-limit 10MB/s
-ipfs-kit backend ftp upload ./file.txt /remote/file.txt
-ipfs-kit backend ftp list /remote/directory
+#### Parquet Backend Mapping
+```bash
+# Content stored locally in structured format
+Pin CID: QmX7M9CiYXjVQy8h4SomeContentHashHere12345
+Remote Path: ~/.ipfs_kit/buckets/parquet/ml-models/data/model_v2.parquet
+Metadata: ~/.ipfs_kit/pin_metadata/parquet/ml-models/QmX7M9...123.parquet
+VFS Index: ~/.ipfs_kit/vfs_indices/parquet/ml-models/vfs_index.parquet
 ```
 
-#### Data Processing (Arrow/Parquet)
+#### S3 Backend Mapping  
 ```bash
-# Apache Arrow operations
-ipfs-kit backend arrow configure --memory-quota 16GB --session-retention 48
-ipfs-kit backend arrow convert ./data.csv ./data.parquet
-ipfs-kit backend arrow compute ./data.parquet --operation mean --column price
-
-# Parquet operations
-ipfs-kit backend parquet configure --storage-quota 5TB --auto-compaction
-ipfs-kit backend parquet read ./data.parquet --limit 100 --columns id,name
-ipfs-kit backend parquet write ./data.csv ./output.parquet
+# Content stored in Amazon S3
+Pin CID: QmY8N0DjWRkZp9h5SomeImageHashHere67890
+Remote Path: s3://my-ipfs-bucket/media-files/QmY8N0DjWRkZp9h5/beach.jpg
+Metadata: ~/.ipfs_kit/pin_metadata/s3/media-files/QmY8N0...456.parquet
+VFS Index: ~/.ipfs_kit/vfs_indices/s3/media-files/vfs_index.parquet
 ```
 
-### 5. Bucket Management (`bucket`)
-
-**Purpose**: Virtual filesystem and bucket-level policy management
-
+#### GitHub Backend Mapping
 ```bash
-# Basic bucket operations
-ipfs-kit bucket list                    # List available buckets
-ipfs-kit bucket discover                # Discover new buckets
-ipfs-kit bucket analytics               # Show bucket analytics
-ipfs-kit bucket refresh                 # Refresh bucket index
-ipfs-kit bucket files <bucket>          # List files in bucket
-ipfs-kit bucket find-cid <cid>          # Find bucket for CID
-ipfs-kit bucket snapshots <bucket>      # Show bucket snapshots
-
-# Bucket Policy Management (NEW)
-ipfs-kit bucket policy show [bucket]    # Show policies for bucket(s) 
-ipfs-kit bucket policy set <bucket> [OPTIONS]  # Set bucket policy
-ipfs-kit bucket policy copy <src> <dest>        # Copy policy between buckets
-ipfs-kit bucket policy template <bucket> <template>  # Apply policy template
-ipfs-kit bucket policy reset <bucket>           # Reset to global defaults
-
-# CAR file operations
-ipfs-kit bucket prepare-car <bucket>    # Prepare bucket for CAR generation
-ipfs-kit bucket generate-index-car <bucket>  # Generate CAR files
-ipfs-kit bucket list-cars               # List generated CAR files
-ipfs-kit bucket upload-ipfs <bucket>    # Upload CAR files to IPFS
-
-# VFS operations
-ipfs-kit bucket upload-index <bucket>   # Upload VFS index to IPFS
-ipfs-kit bucket download-vfs <bucket>   # Download VFS indexes
-ipfs-kit bucket verify-ipfs <bucket>    # Verify content in IPFS
-ipfs-kit bucket ipfs-history <bucket>   # Show IPFS upload history
+# Content stored in GitHub repository
+Pin CID: QmZ9O1EkXSl0q0i6SomeCodeHashHere11111  
+Remote Path: github.com/user/ipfs-content/QmZ9O1EkXSl0q0i6/main.py
+Metadata: ~/.ipfs_kit/pin_metadata/github/code-repos/QmZ9O1...789.parquet
+VFS Index: ~/.ipfs_kit/vfs_indices/github/code-repos/vfs_index.parquet
 ```
 
-**Bucket Policy Options**:
+#### SSHFS Backend Mapping
 ```bash
-# Backend selection
---primary-backend {s3,filecoin,arrow,parquet,ipfs,storacha,sshfs,ftp}
---replication-backends "backend1,backend2,backend3"
-
-# Cache configuration
---cache-policy {lru,lfu,fifo,mru,adaptive,inherit}
---cache-size N --cache-priority {low,normal,high,critical}
-
-# Performance and lifecycle
---performance-tier {speed-optimized,balanced,persistence-optimized}
---retention-days N --max-size SIZE
---quota-action {warn,block,auto-archive,auto-delete}
-
-# Auto-tiering
---auto-tier --hot-backend BACKEND --warm-backend BACKEND
---cold-backend BACKEND --archive-backend BACKEND
+# Content stored on remote SSH server
+Pin CID: QmA1B2C3D4E5F6SomeArchiveHashHere2222
+Remote Path: user@backup.example.com:/storage/ipfs/QmA1B2C3D4E5F6/archive.tar.gz
+Metadata: ~/.ipfs_kit/pin_metadata/sshfs/backup-arch/QmA1B2...000.parquet  
+VFS Index: ~/.ipfs_kit/vfs_indices/sshfs/backup-arch/vfs_index.parquet
 ```
 
-### 6. Health Monitoring (`health`)
+### 4. Pin Metadata Structure
 
-**Purpose**: System health and performance monitoring
+Each pin's metadata is stored as a Parquet record:
 
-```bash
-ipfs-kit health                         # Comprehensive system health check
-ipfs-kit health --backend <name>        # Backend-specific health check
-ipfs-kit health --detailed              # Detailed health metrics
-ipfs-kit health --format json           # JSON output format
+```python
+# Pin metadata schema
+{
+    "content_hash": "QmX7M9CiYXjVQy8h4SomeContentHashHere12345",
+    "cid": "QmX7M9CiYXjVQy8h4SomeContentHashHere12345", 
+    "backend": "parquet",
+    "bucket": "ml-models",
+    "file_path": "datasets/training/model_v2.parquet",
+    "size": 1048576,
+    "status": "active",
+    "created_at": "2025-07-29T14:30:00Z",
+    "metadata_json": '{"model_version": "2.1", "accuracy": 0.95}'
+}
 ```
 
-### 7. MCP Server Management (`mcp`)
+### 5. VFS Index Structure
 
-**Purpose**: Model Context Protocol server operations
+Virtual filesystem indices enable fast queries:
 
-```bash
-ipfs-kit mcp start                      # Start MCP server
-ipfs-kit mcp stop                       # Stop MCP server  
-ipfs-kit mcp status                     # Check MCP server status
-ipfs-kit mcp restart                    # Restart MCP server
-ipfs-kit mcp role                       # Configure server role
-ipfs-kit mcp cli                        # Use MCP CLI tool
+```python
+# VFS index schema  
+{
+    "files": {
+        "datasets/training/model_v2.parquet": {
+            "cid": "QmX7M9CiYXjVQy8h4SomeContentHashHere12345",
+            "size": 1048576,
+            "backend": "parquet", 
+            "bucket": "ml-models",
+            "status": "active",
+            "created_at": "2025-07-29T14:30:00Z",
+            "metadata": {"model_version": "2.1", "accuracy": 0.95}
+        }
+    },
+    "metadata": {
+        "backend": "parquet",
+        "bucket_name": "ml-models", 
+        "pin_count": 23,
+        "total_size": 681574400,
+        "last_updated": "2025-07-29T15:45:00Z"
+    }
+}
 ```
 
-### 8. Metrics and Analytics (`metrics`)
+## Advanced Bucket Operations
 
-**Purpose**: Performance metrics and system analytics
-
+### 1. Bucket Synchronization and Index Management
 ```bash
-ipfs-kit metrics                        # Show performance metrics
-ipfs-kit metrics --backend <name>       # Backend-specific metrics
-ipfs-kit metrics --timeframe 24h        # Metrics for specific timeframe
-ipfs-kit metrics --export csv           # Export metrics to CSV
+# Synchronize all bucket indices
+ipfs-kit bucket sync-indices
+
+# Synchronize specific backend
+ipfs-kit bucket sync-indices --backend parquet
+
+# Synchronize specific bucket
+ipfs-kit bucket sync-indices --backend s3 --bucket media-files
+
+# Show directory structure in ~/.ipfs_kit/
+ipfs-kit bucket directory-structure
 ```
 
-### 9. Resource Management (`resource`)
-
-**Purpose**: Resource tracking and monitoring
-
+### 2. Content Verification and Integrity
 ```bash
-ipfs-kit resource                       # Show resource usage
-ipfs-kit resource --backend <name>      # Backend-specific resources
-ipfs-kit resource --limits              # Show resource limits
-ipfs-kit resource --alerts              # Show resource alerts
+# Verify content integrity by re-hashing
+ipfs-kit pin status QmX7M9CiYXjVQy8h4SomeContentHashHere12345
+
+# Verify all pins in a bucket
+ipfs-kit bucket verify ml-models
+
+# Find orphaned pins (metadata without content)
+ipfs-kit bucket find-orphans
+
+# Find missing metadata (content without proper indices)
+ipfs-kit bucket find-missing-metadata
 ```
 
-### 10. Log Management (`log`)
-
-**Purpose**: Unified log aggregation and viewing
-
+### 3. Cross-Backend Migration and Replication
 ```bash
-ipfs-kit log                            # Show recent logs
-ipfs-kit log --follow                   # Follow logs in real-time
-ipfs-kit log --level error              # Filter by log level
-ipfs-kit log --backend <name>           # Backend-specific logs
-ipfs-kit log --export                   # Export logs to file
+# Replicate bucket across multiple backends
+ipfs-kit bucket replicate ml-models --from parquet --to s3,sshfs
+
+# Migrate bucket to different backend
+ipfs-kit bucket migrate media-files --from s3 --to gdrive
+
+# Show replication status
+ipfs-kit bucket replication-status ml-models
+```
+
+### 4. Bucket Analytics and Monitoring
+```bash
+# Show detailed bucket analytics
+ipfs-kit bucket analytics ml-models
+
+# Show pin distribution across backends
+ipfs-kit bucket pin-distribution
+
+# Show storage usage by backend
+ipfs-kit bucket storage-usage
+
+# Export bucket metadata to CSV
+ipfs-kit bucket export ml-models --format csv --output ./ml-models-export.csv
+```
+
+## CLI Usage Patterns
+
+### 1. Data Science Workflow
+```bash
+# Create dataset bucket
+ipfs-kit bucket create parquet research-data dataset \
+  --metadata '{"project": "ML Research", "access": "team"}'
+
+# Add training datasets
+ipfs-kit bucket add-pin parquet research-data \
+  $(sha256sum train.parquet | cut -d' ' -f1) \
+  "datasets/training/v1.parquet" train.parquet \
+  --metadata '{"split": "train", "samples": 100000}'
+
+# Query dataset inventory
+ipfs-kit bucket query "
+  SELECT file_path, size, JSON_EXTRACT(metadata_json, '$.samples') as samples
+  FROM vfs_parquet_research_data
+  WHERE file_path LIKE '%training%'
+"
+
+# Retrieve dataset by content hash
+ipfs-kit pin get QmDatasetHashHere123 --output ./restored-dataset.parquet
+```
+
+### 2. Media Archive Workflow
+```bash
+# Create media archive across multiple backends
+ipfs-kit bucket create s3 media-primary media
+ipfs-kit bucket create sshfs media-backup archive
+
+# Add photos with metadata
+for photo in *.jpg; do
+  cid=$(ipfs add --only-hash "$photo" | cut -d' ' -f2)
+  ipfs-kit bucket add-pin s3 media-primary "$cid" "photos/2025/$photo" "$photo" \
+    --metadata "{\"date\": \"$(date -I)\", \"camera\": \"Canon\", \"location\": \"Beach\"}"
+done
+
+# Replicate to backup
+ipfs-kit bucket replicate media-primary --to sshfs media-backup
+
+# Find photos by location
+ipfs-kit bucket query "
+  SELECT file_path, content_hash 
+  FROM vfs_s3_media_primary 
+  WHERE JSON_EXTRACT(metadata_json, '$.location') = 'Beach'
+"
+```
+
+### 3. Code Repository Workflow
+```bash
+# Create code archive on GitHub
+ipfs-kit bucket create github code-archive archive
+
+# Add source files with git metadata
+git log --oneline | head -5 | while read commit message; do
+  for file in src/*.py; do
+    cid=$(ipfs add --only-hash "$file" | cut -d' ' -f2)
+    ipfs-kit bucket add-pin github code-archive "$cid" \
+      "commits/$commit/$(basename $file)" "$file" \
+      --metadata "{\"commit\": \"$commit\", \"message\": \"$message\"}"
+  done
+done
+
+# Query code history
+ipfs-kit bucket query "
+  SELECT JSON_EXTRACT(metadata_json, '$.commit') as commit,
+         COUNT(*) as files
+  FROM vfs_github_code_archive
+  GROUP BY commit
+"
+```
+
+## Benefits of Bucket Virtual Filesystems
+
+### 1. **Content Addressing & Deduplication**
+- Automatic deduplication across all backends via IPFS hashes
+- Verifiable content integrity with cryptographic hashes
+- Immutable content references that work across time and systems
+
+### 2. **Backend Abstraction**
+- Users work with logical buckets, not storage implementation details
+- Transparent backend selection based on content type and policies
+- Easy migration between backends without changing content addresses
+
+### 3. **Unified Querying**
+- SQL queries across multiple storage backends
+- Fast analytics via Parquet-based indices
+- Cross-backend correlation and analysis
+
+### 4. **Scalable Architecture**
+- Distributed storage across 15+ different backend types
+- Policy-driven placement and replication
+- Automatic tiering and lifecycle management
+
+### 5. **Developer Experience**
+- Simple, intuitive CLI for complex distributed storage
+- Filesystem-like operations with content addressing benefits
+- Rich metadata support for application-specific use cases
+
+This architecture enables treating diverse storage backends (S3, GitHub, SSH servers, Google Drive, etc.) as a unified, content-addressed virtual filesystem where every piece of content is verifiable, deduplicatable, and queryable across the entire distributed system.
+
+## Policy System Examples
+
+### Complete Multi-Tier Configuration
+
+#### 1. Set Global Policies
+```bash
+# Configure system-wide defaults
+ipfs-kit config pinset-policy set \
+  --replication-strategy adaptive \
+  --min-replicas 2 \
+  --max-replicas 5 \
+  --cache-policy lru \
+  --cache-size 10000 \
+  --cache-memory-limit 4GB \
+  --performance-tier balanced \
+  --auto-tier \
+  --preferred-backends "filecoin,s3,arrow"
+```
+
+#### 2. Configure Backend Quotas
+```bash
+# High-persistence, low-speed backend (Filecoin)
+ipfs-kit backend lotus configure \
+  --quota-size 50TB \
+  --retention-policy permanent \
+  --auto-renew \
+  --redundancy-level 3
+
+# High-speed, low-persistence backend (Arrow)  
+ipfs-kit backend arrow configure \
+  --memory-quota 16GB \
+  --retention-policy temporary \
+  --session-retention 48 \
+  --spill-to-disk
+
+# Balanced backend (S3)
+ipfs-kit backend s3 configure \
+  --account-quota 10TB \
+  --retention-policy lifecycle \
+  --cost-optimization \
+  --auto-delete-after 365
+```
+
+#### 3. Set Bucket-Level Policies
+```bash
+# High-performance ML training bucket
+ipfs-kit bucket policy set ml-training \
+  --primary-backend arrow \
+  --replication-backends "arrow,parquet" \
+  --performance-tier speed-optimized \
+  --cache-priority high \
+  --retention-days 30
+
+# Long-term archive bucket
+ipfs-kit bucket policy set archive \
+  --primary-backend filecoin \
+  --replication-backends "filecoin,s3,storacha" \
+  --performance-tier persistence-optimized \
+  --retention-days 2555 \
+  --quota-action auto-archive
+
+# Multi-tier production bucket
+ipfs-kit bucket policy set production \
+  --auto-tier \
+  --hot-backend arrow \
+  --warm-backend parquet \
+  --cold-backend s3 \
+  --archive-backend filecoin
 ```
 
 ## Policy System Examples
@@ -404,20 +714,57 @@ ipfs-kit bucket policy set production \
 ## Data Sources and Architecture
 
 ### Real Data Integration
-- **Configuration Files**: 5 config files from ~/.ipfs_kit/
-- **Program State**: 4 Parquet files for lock-free daemon status
+- **Bucket Registry**: Global bucket registry stored as Parquet with JSON backup
+- **Pin Metadata**: Content-addressed pins stored in Parquet format with metadata
+- **VFS Indices**: Virtual filesystem structure stored as Parquet for fast querying
+- **Program State**: 4 Parquet files for lock-free daemon status monitoring
+- **Configuration Files**: 5 config files from ~/.ipfs_kit/ for system settings
 - **Operational Data**: Pins, WAL operations, FS journal from Parquet
-- **Policy Data**: Global, bucket, and backend policies
+
+### Parquet-First Storage Architecture
+The system now prioritizes Parquet storage over JSON for all metadata:
+
+```
+Data Type           Primary Format    Backup Format    Benefits
+---------           --------------    -------------    --------
+Bucket Registry  →  .parquet         .json            Fast queries, analytics
+Pin Metadata     →  .parquet         .json            Structured storage, dedup
+VFS Indices      →  .parquet         .json            SQL queries, composition
+Program State    →  .parquet         none             Lock-free daemon status
+Analytics Data   →  .parquet         none             Performance metrics
+```
 
 ### Lock-Free Architecture
 ```
 CLI Commands → Program State Parquet → Lock-free status
             ↓
-         Config Files → Persistent settings
+       VFS Indices → Fast bucket queries  
             ↓
-         Policy System → Multi-tier control
+     Pin Metadata → Content addressing
             ↓
-         Backend APIs → Storage operations
+     Backend APIs → Storage operations
+```
+
+### Directory Structure Overview
+```
+~/.ipfs_kit/
+├── bucket_registry.parquet          # Global bucket registry (PRIMARY)
+├── bucket_registry.json             # Backup compatibility format
+├── buckets/                          # Per-backend bucket storage
+│   └── [backend]/[bucket]/
+│       ├── metadata/bucket_metadata.json
+│       └── parquet/file_metadata.parquet
+├── pin_metadata/                     # Content-addressed pin storage
+│   └── [backend]/[bucket]/
+│       └── [content-hash].parquet   # Pin metadata as Parquet
+├── vfs_indices/                      # Virtual filesystem indices
+│   └── [backend]/[bucket]/
+│       └── vfs_index.parquet        # VFS structure as Parquet
+└── program_state/parquet/           # Lock-free daemon status
+    ├── system_state.parquet
+    ├── network_state.parquet
+    ├── storage_state.parquet
+    └── files_state.parquet
 ```
 
 ## Advanced Usage Patterns

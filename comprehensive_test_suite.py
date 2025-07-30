@@ -254,7 +254,7 @@ class ComprehensiveTestSuite:
                 self.add_result("CLI Help", False, f"Help command failed: {stderr}")
                 return False
             
-            if "IPFS-Kit CLI" not in stdout:
+            if "IPFS-Kit Enhanced CLI Tool" not in stdout:
                 self.add_result("CLI Help", False, "Help output doesn't contain expected content")
                 return False
             

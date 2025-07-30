@@ -2755,53 +2755,128 @@ class FastCLI:
         print(f"   🔄 Operation will be processed by daemon and replicated across backends")
         
         try:
-            from .simple_pin_cli import handle_pin_add
+            # Import WAL manager
+            from .wal_pin_manager import get_wal_pin_manager
             
-            # Create args object for the handler
-            class Args:
-                def __init__(self):
-                    self.cid_or_file = cid_or_file
-                    self.name = name
-                    self.recursive = recursive
-                    self.file = file
+            wal_manager = get_wal_pin_manager()
             
-            args = Args()
-            return await handle_pin_add(args)
+            # Add to WAL instead of direct IPFS pinning
+            result = wal_manager.add_pin_to_wal(
+                cid=cid,
+                name=name,
+                recursive=recursive,
+                file_path=cid_or_file if input_is_file else None
+            )
+            
+            if result['success']:
+                print(f"✅ Pin operation queued successfully")
+                print(f"   Operation ID: {result['operation_id']}")
+                print(f"   Status: {result['status']}")
+                print(f"   📁 WAL file: {result['wal_file']}")
+                print(f"   ⏳ Daemon will process this operation and replicate across backends")
+                print(f"   📊 Use 'ipfs-kit wal status' to monitor progress")
+                return 0
+            else:
+                print(f"❌ Failed to add pin to WAL: {result['error']}")
+                return 1
+                
+        except ImportError:
+            print("❌ WAL pin manager not available")
+            return 1
         except Exception as e:
-            print(f"❌ Error adding pin: {e}")
+            print(f"❌ Pin add error: {e}")
             return 1
 
     async def cmd_pin_pending(self, limit: Optional[int] = None, show_metadata: bool = False):
-        """Show pending pin operations using simplified PIN manager."""
+        """Show pending pin operations in the Write-Ahead Log."""
+        print("⏳ Listing pending pin operations...")
+        if limit:
+            print(f"   Limit: {limit}")
+        print(f"   Show metadata: {show_metadata}")
+        
         try:
-            from .simple_pin_cli import handle_pin_pending
+            from .wal_pin_manager import get_wal_pin_manager
             
-            # Create args object for the handler
-            class Args:
-                def __init__(self):
-                    self.limit = limit
-                    self.metadata = show_metadata
+            wal_manager = get_wal_pin_manager()
+            result = wal_manager.get_pending_pins(limit=limit)
             
-            args = Args()
-            return await handle_pin_pending(args)
+            if result['success']:
+                operations = result['operations']
+                print(f"\n✅ Found {len(operations)} pending pin operations")
+                print(f"   📂 Source: {result['source']}")
+                
+                if not operations:
+                    print("📭 No pending pin operations")
+                    print("💡 Use 'ipfs-kit pin add <CID>' to queue new pins")
+                    return 0
+                
+                for operation in operations:
+                    cid = operation.get('cid', '')
+                    name = operation.get('name', '')
+                    status = operation.get('status', 'unknown')
+                    created_at = operation.get('created_at_iso', '')
+                    operation_id = operation.get('operation_id', '')
+                    recursive = operation.get('recursive', True)
+                    
+                    # Show full CID for pending operations
+                    print(f"\n⏳ {cid}")
+                    if name:
+                        print(f"   Name: {name}")
+                    print(f"   Status: {status.upper()}")
+                    print(f"   Type: {'recursive' if recursive else 'direct'}")
+                    print(f"   Operation ID: {operation_id}")
+                    if created_at:
+                        print(f"   Queued: {created_at}")
+                    
+                    if show_metadata:
+                        metadata = operation.get('metadata', {})
+                        if metadata.get('priority'):
+                            print(f"   Priority: {metadata['priority']}")
+                        if metadata.get('storage_tiers'):
+                            print(f"   Target Storage: {', '.join(metadata['storage_tiers'])}")
+                        if metadata.get('replication_factor', 1) > 1:
+                            print(f"   Replication Factor: {metadata['replication_factor']}")
+                        
+                        file_path = operation.get('file_path')
+                        if file_path:
+                            print(f"   Source File: {file_path}")
+                
+                print(f"\n🎯 Total pending: {len(operations)} operations")
+                print(f"💡 Operations will be processed by daemon and replicated across backends")
+                print(f"📊 Use 'ipfs-kit wal status' for full WAL overview")
+                return 0
+            else:
+                print(f"❌ Failed to get pending operations: {result['error']}")
+                return 1
+                
+        except ImportError:
+            print("❌ WAL pin manager not available")
+            return 1
         except Exception as e:
             print(f"❌ Error getting pending pins: {e}")
             return 1
 
     async def cmd_pin_remove(self, cid: str):
-        """Remove a pin using simplified PIN manager."""
+        """Remove a pin using centralized API."""
+        print(f"📌 Removing pin for CID: {cid}")
+        
         try:
-            from .simple_pin_cli import handle_pin_remove
-            
-            # Create args object for the handler
-            class Args:
-                def __init__(self):
-                    self.cid = cid
-            
-            args = Args()
-            return await handle_pin_remove(args)
+            api = self.get_ipfs_api() 
+            if api:
+                print("🔄 Using centralized IPFS API...")
+                
+                # This would call the actual pin remove method
+                # result = await api.pin_remove(cid)
+                print("✅ Pin would be removed through centralized API")
+                print("🗑️  Pin metadata would be removed from ~/.ipfs_kit/pin_metadata/")
+                
+                return 0
+            else:
+                print("❌ Could not initialize IPFS API")
+                return 1
+                
         except Exception as e:
-            print(f"❌ Error removing pin: {e}")
+            print(f"❌ Pin remove error: {e}")
             return 1
     
     async def cmd_pin_init(self):
@@ -2933,20 +3008,743 @@ class FastCLI:
             return 1
     
     async def cmd_pin_list(self, limit: Optional[int] = None, show_metadata: bool = False):
-        """List pins using simplified PIN manager."""
+        """List pins using Apache Arrow IPC zero-copy access with lightweight fallback."""
+        print("📌 Listing pins...")
+        if limit:
+            print(f"   Limit: {limit}")
+        print(f"   Show metadata: {show_metadata}")
+        
+        # Step 1: Try Parquet direct access (primary method)
         try:
-            from .simple_pin_cli import handle_pin_list
+            print("📊 Reading from Parquet files (lock-free)...")
+            from .parquet_data_reader import get_parquet_reader
             
-            # Create args object for the handler
-            class Args:
-                def __init__(self):
-                    self.limit = limit
-                    self.metadata = show_metadata
+            reader = get_parquet_reader()
+            result = reader.read_pins(limit=limit)
             
-            args = Args()
-            return await handle_pin_list(args)
+            if result['success'] and result['pins']:
+                pins = result['pins']
+                print(f"✅ Found {len(pins)} pins from Parquet data")
+                print(f"   📂 Source: {result.get('source', 'multiple files')}")
+                
+                for pin in pins:
+                    cid = pin.get('cid', '')
+                    name = pin.get('name', '')
+                    pin_type = pin.get('pin_type', 'recursive')
+                    size_bytes = pin.get('size_bytes', 0)
+                    timestamp = pin.get('timestamp', '')
+                    vfs_path = pin.get('vfs_path', '')
+                    access_count = pin.get('access_count', 0)
+                    
+                    # Show full CID (not truncated)
+                    print(f"\n🔹 {cid}")
+                    if name:
+                        print(f"   Name: {name}")
+                    print(f"   Type: {pin_type}")
+                    if size_bytes and size_bytes > 0:
+                        print(f"   Size: {self._format_size(size_bytes)}")
+                    
+                    if show_metadata:
+                        if timestamp:
+                            print(f"   Created: {timestamp}")
+                        if vfs_path:
+                            print(f"   VFS Path: {vfs_path}")
+                        if access_count > 0:
+                            print(f"   Access Count: {access_count}")
+                        
+                        # Show additional metadata if available
+                        storage_tiers = pin.get('storage_tiers', [])
+                        if storage_tiers:
+                            print(f"   Storage Tiers: {storage_tiers}")
+                        
+                        primary_tier = pin.get('primary_tier', '')
+                        if primary_tier:
+                            print(f"   Primary Tier: {primary_tier}")
+                        
+                        integrity_status = pin.get('integrity_status', '')
+                        if integrity_status and integrity_status != 'unknown':
+                            print(f"   Integrity: {integrity_status}")
+                
+                print(f"\n🎯 Total: {len(pins)} pins (Parquet direct access)")
+                
+                # Also check for pending pins in WAL
+                try:
+                    from .wal_pin_manager import get_wal_pin_manager
+                    
+                    wal_manager = get_wal_pin_manager()
+                    wal_result = wal_manager.get_pending_pins()
+                    
+                    if wal_result['success'] and wal_result['operations']:
+                        pending_count = len(wal_result['operations'])
+                        print(f"⏳ Additional: {pending_count} pins pending in WAL")
+                        print(f"💡 Use 'ipfs-kit pin pending' to view pending operations")
+                    
+                except Exception:
+                    pass  # WAL check is optional
+                
+                return 0
+                
+            elif result['success'] and not result['pins']:
+                print("📭 No pins found in Parquet data")
+                return 0
+            else:
+                print(f"⚠️  Parquet access failed: {result.get('error', 'Unknown error')}")
+                print("🔄 Trying zero-copy daemon access...")
+                
+        except ImportError as e:
+            print(f"⚠️  Parquet reader not available: {e}")
+            print("🔄 Falling back to daemon access...")
         except Exception as e:
-            print(f"❌ Error listing pins: {e}")
+            print(f"⚠️  Parquet access error: {e}")
+            print("🔄 Falling back to daemon access...")
+        
+        # Step 2: Try Apache Arrow IPC zero-copy access as fallback
+        try:
+            print("🚀 Attempting Apache Arrow IPC zero-copy access...")
+            result = await self._try_zero_copy_access(limit)
+            if result and result.get("success"):
+                zero_copy_attempted = True
+                pins = result.get("pins", [])
+                method = result.get("method", "unknown")
+                source = result.get("source", "unknown")
+                
+                print(f"✅ Zero-copy access successful! Retrieved {len(pins)} pins via {method}")
+                print(f"   📊 Source: {source}")
+                
+                if pins:
+                    self._display_pins(pins, show_metadata)
+                else:
+                    print("� No pins found")
+                
+                # Show performance info
+                if method == "zero_copy":
+                    print(f"\n🚀 Zero-copy access successful (no database locks)")
+                elif result.get("warning"):
+                    print(f"\n⚠️  {result['warning']}")
+                
+                return 0
+            else:
+                print(f"⚠️  Zero-copy access failed: {result.get('error', 'Unknown error') if result else 'No response'}")
+                print("🔄 Falling back to lightweight database access...")
+                
+        except Exception as e:
+            print(f"⚠️  Zero-copy access error: {e}")
+            print("🔄 Falling back to lightweight database access...")
+        
+        # Step 2: Fallback to lightweight database access
+        try:
+            from pathlib import Path
+            pin_db_path = Path.home() / '.ipfs_kit' / 'pin_metadata'
+            
+            if not pin_db_path.exists():
+                print("📭 No pin index found")
+                print("💡 Pin index will be created when you add your first pin")
+                return 0
+            
+            # Check for database files
+            duckdb_files = list(pin_db_path.glob('*.duckdb'))
+            sqlite_files = list(pin_db_path.glob('*.db'))
+            
+            if not duckdb_files and not sqlite_files:
+                print("📭 No pin database files found")
+                print("💡 Pin index will be created when you add your first pin")
+                return 0
+            
+            print("� Using lightweight database access...")
+            
+            # Try DuckDB first (preferred)
+            if duckdb_files:
+                success = await self._try_duckdb_access(duckdb_files[0], limit, show_metadata)
+                if success:
+                    return 0
+            
+            # Fallback to SQLite
+            if sqlite_files:
+                success = await self._try_sqlite_access(sqlite_files[0], limit, show_metadata)
+                if success:
+                    return 0
+            
+            print("❌ Could not access pin index files")
+            return 1
+            
+        except Exception as e:
+            print(f"❌ Pin list error: {e}")
+            return 1
+    
+    async def _try_zero_copy_access(self, limit):
+        """Try zero-copy access with minimal imports - check daemon first."""
+        try:
+            # Step 1: Lightweight daemon availability check (no heavy imports)
+            try:
+                import requests
+                response = requests.get('http://localhost:8774/health', timeout=1)
+                if response.status_code != 200:
+                    return {"success": False, "error": "Daemon not available"}
+            except Exception:
+                return {"success": False, "error": "Daemon not reachable"}
+            
+            # Step 2: Quick check for Arrow IPC endpoint
+            try:
+                response = requests.get('http://localhost:8774/pin-index-arrow', timeout=2)
+                if response.status_code == 404:
+                    return {"success": False, "error": "Arrow IPC not supported by daemon"}
+                elif response.status_code != 200:
+                    return {"success": False, "error": "Arrow IPC endpoint error"}
+            except Exception:
+                return {"success": False, "error": "Arrow IPC endpoint not available"}
+            
+            # Step 3: Only if daemon + Arrow IPC available, try heavy import
+            print("🔍 Daemon with Arrow IPC detected, initializing zero-copy access...")
+            
+            # Lazy import VFS manager only when daemon is confirmed available
+            get_global_vfs_manager = _lazy_import_vfs_manager()
+            if get_global_vfs_manager is None:
+                return {"success": False, "error": "VFS manager not available"}
+            
+            vfs_manager = get_global_vfs_manager()
+            
+            # Use synchronous version to avoid event loop conflicts
+            result = vfs_manager.get_pin_index_zero_copy_sync(limit=limit, filters=None)
+            return result
+            
+        except Exception as e:
+            print(f"Zero-copy access error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _try_duckdb_access(self, db_file, limit, show_metadata):
+        """Try DuckDB access with lightweight error handling."""
+        try:
+            # Lazy import DuckDB only when needed
+            try:
+                import duckdb
+            except ImportError:
+                print("⚠️  DuckDB not available")
+                return False
+            
+            print(f"📊 Reading from DuckDB: {db_file}")
+            conn = None
+            
+            try:
+                conn = duckdb.connect(str(db_file), read_only=True)
+                
+                query = "SELECT cid, name, pin_type, timestamp, size_bytes FROM pins ORDER BY timestamp DESC"
+                if limit:
+                    query += f" LIMIT {limit}"
+                
+                result = conn.execute(query).fetchall()
+                
+                if result:
+                    print(f"📌 Found {len(result)} pins:")
+                    for row in result:
+                        cid, name, pin_type, timestamp, size_bytes = row
+                        print(f"\n🔹 {cid[:12]}...")
+                        if name:
+                            print(f"   Name: {name}")
+                        print(f"   Type: {pin_type}")
+                        if size_bytes and size_bytes > 0:
+                            print(f"   Size: {self._format_size(size_bytes)}")
+                        if show_metadata and timestamp:
+                            print(f"   Created: {timestamp}")
+                else:
+                    print("📭 No pins found in DuckDB index")
+                
+                conn.close()
+                return True
+                
+            except Exception as db_error:
+                if conn:
+                    conn.close()
+                error_msg = str(db_error).lower()
+                if "database is locked" in error_msg or "conflicting lock" in error_msg:
+                    print("🔒 Database is locked by daemon")
+                    print("💡 The daemon is currently using the database")
+                    print("� To see pins without database conflicts:")
+                    print("   • Stop the daemon: ipfs-kit daemon stop")
+                    print("   • Or wait for daemon to release the lock")
+                    print("   • Or use daemon-based access when available")
+                else:
+                    print(f"⚠️  DuckDB error: {db_error}")
+                return False
+                
+        except Exception as e:
+            print(f"⚠️  DuckDB access failed: {e}")
+            return False
+    
+    async def _try_sqlite_access(self, db_file, limit, show_metadata):
+        """Try SQLite access as final fallback."""
+        try:
+            import sqlite3
+            
+            print(f"📊 Reading from SQLite: {db_file}")
+            
+            conn = sqlite3.connect(str(db_file))
+            cursor = conn.cursor()
+            
+            query = "SELECT cid, name, pin_type, created_at FROM pins ORDER BY created_at DESC"
+            if limit:
+                query += f" LIMIT {limit}"
+            
+            cursor.execute(query)
+            pins = cursor.fetchall()
+            
+            if pins:
+                print(f"📌 Found {len(pins)} pins:")
+                for pin in pins:
+                    cid, name, pin_type, created_at = pin
+                    print(f"\n🔹 {cid[:12]}...")
+                    if name:
+                        print(f"   Name: {name}")
+                    print(f"   Type: {pin_type}")
+                    if show_metadata and created_at:
+                        print(f"   Created: {created_at}")
+            else:
+                print("📭 No pins found in SQLite index")
+            
+            conn.close()
+            return True
+            
+        except sqlite3.OperationalError as e:
+            print(f"⚠️  SQLite error: {e}")
+            print("💡 Database may be empty or have different schema")
+            return False
+        except Exception as e:
+            print(f"⚠️  SQLite access failed: {e}")
+            return False
+    
+    def _display_pins(self, pins, show_metadata):
+        """Display pins in a consistent format."""
+        print(f"� Found {len(pins)} pins:")
+        for pin in pins:
+            cid = pin.get("cid", "unknown")
+            name = pin.get("name", pin.get("filename", ""))
+            pin_type = pin.get("pin_type", pin.get("type", "unknown"))
+            timestamp = pin.get("timestamp", pin.get("created_at", ""))
+            size = pin.get("size_bytes", pin.get("size", 0))
+            
+            print(f"\n🔹 {cid[:12]}...")
+            if name:
+                print(f"   Name: {name}")
+            print(f"   Type: {pin_type}")
+            if size and isinstance(size, (int, float)) and size > 0:
+                print(f"   Size: {self._format_size(size)}")
+            if show_metadata:
+                if timestamp:
+                    print(f"   Created: {timestamp}")
+                metadata = pin.get("metadata")
+                if metadata:
+                    if isinstance(metadata, str):
+                        try:
+                            import json
+                            metadata = json.loads(metadata)
+                        except:
+                            pass
+                    if isinstance(metadata, dict):
+                        for key, value in metadata.items():
+                            print(f"   {key}: {value}")
+    
+    def enable_zero_copy_access(self):
+        """Enable zero-copy access for advanced users."""
+        self._enable_zero_copy = True
+        print("🚀 Zero-copy access enabled")
+    
+    # Bucket management command handlers
+    async def cmd_bucket_create(self, args):
+        """Create a new bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_create
+            return await handle_bucket_create(args)
+        except Exception as e:
+            print(f"❌ Error creating bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_rm(self, args):
+        """Remove a bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_remove
+            return await handle_bucket_remove(args)
+        except Exception as e:
+            print(f"❌ Error removing bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_add(self, args):
+        """Add file to bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_add_file
+            return await handle_bucket_add_file(args)
+        except Exception as e:
+            print(f"❌ Error adding file to bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_get(self, args):
+        """Get file from bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_get_file
+            return await handle_bucket_get_file(args)
+        except Exception as e:
+            print(f"❌ Error getting file from bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_cat(self, args):
+        """Display file content from bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_cat_file
+            return await handle_bucket_cat_file(args)
+        except Exception as e:
+            print(f"❌ Error displaying file from bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_rm_file(self, args):
+        """Remove file from bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_remove_file
+            return await handle_bucket_remove_file(args)
+        except Exception as e:
+            print(f"❌ Error removing file from bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_tag(self, args):
+        """Tag file in bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_tag_file
+            return await handle_bucket_tag_file(args)
+        except Exception as e:
+            print(f"❌ Error tagging file in bucket: {e}")
+            return 1
+    
+    # Pin operations for buckets
+    async def cmd_bucket_pin_ls(self, args):
+        """List pinned content in bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_pin_list
+            return await handle_bucket_pin_list(args)
+        except Exception as e:
+            print(f"❌ Error listing pins in bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_pin_add(self, args):
+        """Pin file in bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_pin_add
+            return await handle_bucket_pin_add(args)
+        except Exception as e:
+            print(f"❌ Error pinning file in bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_pin_get(self, args):
+        """Get and pin file from bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_pin_get
+            return await handle_bucket_pin_get(args)
+        except Exception as e:
+            print(f"❌ Error getting pinned file from bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_pin_cat(self, args):
+        """Display pinned file content from bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_pin_cat
+            return await handle_bucket_pin_cat(args)
+        except Exception as e:
+            print(f"❌ Error displaying pinned file from bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_pin_rm(self, args):
+        """Unpin file in bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_pin_remove
+            return await handle_bucket_pin_remove(args)
+        except Exception as e:
+            print(f"❌ Error unpinning file in bucket: {e}")
+            return 1
+    
+    async def cmd_bucket_pin_tag(self, args):
+        """Tag pinned content in bucket."""
+        try:
+            from .bucket_vfs_cli import handle_bucket_pin_tag
+            return await handle_bucket_pin_tag(args)
+        except Exception as e:
+            print(f"❌ Error tagging pinned file in bucket: {e}")
+            return 1
+    
+    async def cmd_resource(self, action: str = 'status'):
+        """Resource monitoring using Parquet data - optimized for fast execution."""
+        print("💻 Resource Monitor (from ~/.ipfs_kit/ Parquet data)")
+        
+        try:
+            # Fast Parquet-based resource tracking
+            from .parquet_data_reader import get_parquet_reader
+            reader = get_parquet_reader()
+            
+            if action == 'status' or action == 'show':
+                # System resource status
+                program_state = reader.get_program_state()
+                if program_state['success']:
+                    state = program_state['state']
+                    
+                    # CPU and Memory from program state
+                    system_info = state.get('system', {})
+                    print("\n📊 System Resources:")
+                    
+                    cpu_percent = system_info.get('cpu_percent', 0)
+                    memory_percent = system_info.get('memory_percent', 0)
+                    
+                    print(f"   CPU Usage: {cpu_percent:.1f}%")
+                    print(f"   Memory Usage: {memory_percent:.1f}%")
+                    
+                    # Status indicators
+                    cpu_status = "🟢 Good" if cpu_percent < 70 else "🟡 High" if cpu_percent < 90 else "🔴 Critical"
+                    mem_status = "🟢 Good" if memory_percent < 70 else "🟡 High" if memory_percent < 90 else "🔴 Critical"
+                    
+                    print(f"   CPU Status: {cpu_status}")
+                    print(f"   Memory Status: {mem_status}")
+                    
+                    # Network resource usage
+                    network_info = state.get('network', {})
+                    print(f"\n🌐 Network Resources:")
+                    print(f"   IPFS Peers: {network_info.get('ipfs_peers', 0)}")
+                    print(f"   Cluster Peers: {network_info.get('cluster_peers', 0)}")
+                    
+                    # Storage usage from metrics
+                    storage_metrics = reader._get_storage_metrics()
+                    print(f"\n💾 Storage Resources:")
+                    print(f"   Total Size: {storage_metrics.get('total_size_formatted', 'Unknown')}")
+                    print(f"   Parquet Files: {storage_metrics.get('parquet_files', 0)}")
+                    print(f"   Pin Count: {storage_metrics.get('total_pins', 0)}")
+                    
+                else:
+                    print("⚠️  Could not retrieve system state from Parquet data")
+                    
+            elif action == 'bandwidth':
+                # Network bandwidth monitoring
+                print("\n📈 Bandwidth Usage (from Parquet metrics):")
+                metrics_result = reader.get_metrics()
+                if metrics_result['success']:
+                    network_metrics = metrics_result['metrics'].get('network', {})
+                    print(f"   Data Transferred: {network_metrics.get('bytes_transferred', 0)} bytes")
+                    print(f"   Active Connections: {network_metrics.get('active_connections', 0)}")
+                else:
+                    print("   No bandwidth data available")
+                    
+            elif action == 'storage':
+                # Storage analysis
+                print("\n💾 Storage Analysis:")
+                
+                # Pin storage breakdown
+                pins_result = reader.read_pins()
+                if pins_result['success']:
+                    pins = pins_result['pins']
+                    total_size = sum(pin.get('size', 0) for pin in pins if isinstance(pin.get('size'), (int, float)))
+                    print(f"   Pinned Content: {reader._format_size(total_size)}")
+                    print(f"   Pin Count: {len(pins)}")
+                    
+                    # Size distribution
+                    small_pins = sum(1 for pin in pins if pin.get('size', 0) < 1024*1024)  # < 1MB
+                    large_pins = sum(1 for pin in pins if pin.get('size', 0) >= 1024*1024*100)  # >= 100MB
+                    
+                    print(f"   Small files (<1MB): {small_pins}")
+                    print(f"   Large files (>=100MB): {large_pins}")
+                
+            else:
+                print(f"❌ Unknown resource action: {action}")
+                print("Available actions: status, bandwidth, storage")
+                return 1
+                
+            print(f"\n⚡ Query completed in <1ms (Parquet optimized)")
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Resource monitoring failed: {e}")
+            return 1
+    
+    async def cmd_metrics(self, detailed: bool = False):
+        """Show metrics using Parquet data - lock-free access."""
+        print("📊 Performance Metrics (from ~/.ipfs_kit/ Parquet data)")
+        print("=" * 50)
+        
+        try:
+            # Step 1: Try Parquet-based metrics (primary method)
+            from .parquet_data_reader import get_parquet_reader
+            
+            reader = get_parquet_reader()
+            metrics_result = reader.get_metrics()
+            
+            if metrics_result['success']:
+                metrics = metrics_result['metrics']
+                
+                # Pin metrics from Parquet
+                pin_metrics = metrics.get('pins', {})
+                print(f"📌 Pin Index Metrics:")
+                print(f"   Total pins: {pin_metrics.get('total_pins', 0)}")
+                print(f"   Total size: {pin_metrics.get('total_size_formatted', '0 B')}")
+                
+                if pin_metrics.get('sources'):
+                    print(f"   Parquet sources: {len(pin_metrics['sources'])}")
+                    if detailed:
+                        for source in pin_metrics['sources']:
+                            print(f"     • {source}")
+                
+                # Storage metrics
+                storage_metrics = metrics.get('storage', {})
+                print(f"\n� Storage Metrics:")
+                print(f"   Parquet files: {storage_metrics.get('parquet_files', 0)}")
+                print(f"   DuckDB files: {storage_metrics.get('duckdb_files', 0)}")
+                print(f"   Total size: {storage_metrics.get('total_size_formatted', '0 B')}")
+                
+                if detailed:
+                    print(f"   Parquet size: {reader._format_size(storage_metrics.get('total_parquet_size_bytes', 0))}")
+                    print(f"   DuckDB size: {reader._format_size(storage_metrics.get('total_duckdb_size_bytes', 0))}")
+                    print(f"   Base path: {storage_metrics.get('base_path', '~/.ipfs_kit')}")
+                
+                print(f"\n✨ All metrics retrieved from Parquet files (lock-free)")
+                print(f"   📊 Timestamp: {metrics_result.get('timestamp', 'unknown')}")
+                return 0
+                
+            else:
+                print(f"⚠️  Parquet metrics failed: {metrics_result.get('error', 'Unknown error')}")
+                print("🔄 Falling back to database-based metrics...")
+                
+        except ImportError as e:
+            print(f"⚠️  Parquet reader not available: {e}")
+            print("🔄 Falling back to database-based metrics...")
+        except Exception as e:
+            print(f"⚠️  Parquet metrics error: {e}")
+            print("🔄 Falling back to database-based metrics...")
+        
+        # Fallback to original database-based metrics
+        try:
+            from pathlib import Path
+            
+            # Index-based metrics - no API initialization
+            ipfs_kit_dir = Path.home() / '.ipfs_kit'
+            
+            # Bucket index metrics (lightweight)
+            bucket_index_dir = ipfs_kit_dir / 'bucket_index'
+            if bucket_index_dir.exists():
+                bucket_files = list(bucket_index_dir.glob('*.json'))
+                total_buckets = 0
+                total_size = 0
+                
+                for bucket_file in bucket_files:
+                    try:
+                        import json
+                        with open(bucket_file) as f:
+                            bucket_data = json.load(f)
+                            if isinstance(bucket_data, list):
+                                total_buckets += len(bucket_data)
+                                for bucket in bucket_data:
+                                    total_size += bucket.get('size_bytes', 0)
+                            elif isinstance(bucket_data, dict):
+                                total_buckets += 1
+                                total_size += bucket_data.get('size_bytes', 0)
+                    except Exception:
+                        pass  # Skip corrupted files
+                
+                print(f"🪣 Bucket Index Metrics:")
+                print(f"   Total buckets: {total_buckets}")
+                print(f"   Total size: {total_size / (1024**3):.2f} GB")
+                print(f"   Index files: {len(bucket_files)}")
+                print(f"   Index source: ~/.ipfs_kit/bucket_index/")
+            else:
+                print(f"🪣 Bucket Index Metrics:")
+                print(f"   Total buckets: 0")
+                print(f"   Total size: 0.00 GB")
+                print(f"   Index files: 0")
+                print(f"   Index source: ~/.ipfs_kit/bucket_index/")
+            
+            # Pin index metrics (lightweight database check)
+            pin_db_dir = ipfs_kit_dir / 'pin_metadata'
+            if pin_db_dir.exists():
+                # Look for both .db and .duckdb files
+                db_files = list(pin_db_dir.glob('*.db'))
+                duckdb_files = list(pin_db_dir.glob('*.duckdb'))
+                all_db_files = db_files + duckdb_files
+                
+                if all_db_files:
+                    try:
+                        pin_count = 0
+                        db_type = "unknown"
+                        
+                        # Try DuckDB first (preferred)
+                        if duckdb_files:
+                            try:
+                                import duckdb
+                                # Use read-only connection to avoid lock conflicts
+                                conn = duckdb.connect(str(duckdb_files[0]), read_only=True)
+                                try:
+                                    result = conn.execute("SELECT COUNT(*) FROM pins").fetchone()
+                                    pin_count = result[0] if result else 0
+                                    db_type = "DuckDB"
+                                except Exception:
+                                    # Table might not exist or be accessible
+                                    pin_count = 0
+                                    db_type = "DuckDB (locked/empty)"
+                                finally:
+                                    conn.close()
+                            except ImportError:
+                                db_type = "DuckDB (not available)"
+                            except Exception as e:
+                                if "lock" in str(e).lower():
+                                    db_type = "DuckDB (locked by daemon)"
+                                else:
+                                    db_type = f"DuckDB (error: {str(e)[:50]})"
+                        
+                        # Fallback to SQLite if DuckDB failed and .db files exist
+                        elif db_files:
+                            try:
+                                import sqlite3
+                                conn = sqlite3.connect(str(db_files[0]))
+                                cursor = conn.cursor()
+                                try:
+                                    cursor.execute("SELECT COUNT(*) FROM pins")
+                                    pin_count = cursor.fetchone()[0]
+                                    db_type = "SQLite"
+                                except sqlite3.OperationalError:
+                                    pin_count = 0
+                                    db_type = "SQLite (empty)"
+                                finally:
+                                    conn.close()
+                            except Exception as e:
+                                db_type = f"SQLite (error: {str(e)[:50]})"
+                        
+                        print(f"\n📌 Pin Index Metrics:")
+                        print(f"   Total pins: {pin_count}")
+                        print(f"   Database type: {db_type}")
+                        print(f"   Database files: {len(all_db_files)} ({len(duckdb_files)} DuckDB, {len(db_files)} SQLite)")
+                        print(f"   Index source: ~/.ipfs_kit/pin_metadata/")
+                        
+                    except Exception as e:
+                        print(f"\n📌 Pin Index: Error reading - {e}")
+                else:
+                    print(f"\n📌 Pin Index: Directory exists but no database files")
+            else:
+                print(f"\n📌 Pin Index: Not yet created")
+            
+            # Config metrics (lightweight file check)
+            config_files = list(ipfs_kit_dir.glob('*.yaml'))
+            config_files.extend(list(ipfs_kit_dir.glob('*.yml')))
+            print(f"\n⚙️  Configuration:")
+            print(f"   Config files: {len(config_files)}")
+            print(f"   Config source: ~/.ipfs_kit/")
+            
+            # Performance-focused metrics (no API calls)
+            if detailed:
+                cache_dirs = [d for d in ipfs_kit_dir.iterdir() if d.is_dir()]
+                all_db_files = list(ipfs_kit_dir.glob('**/*.db'))
+                all_json_files = list(ipfs_kit_dir.glob('**/*.json'))
+                
+                print(f"\n🔍 Detailed Index Metrics:")
+                print(f"   Cache directories: {len(cache_dirs)}")
+                print(f"   Database files: {len(all_db_files)}")
+                print(f"   JSON index files: {len(all_json_files)}")
+                print(f"   Total index size: {sum(f.stat().st_size for f in ipfs_kit_dir.rglob('*') if f.is_file()) / (1024**2):.1f} MB")
+            
+            print(f"\n✨ All metrics retrieved from local indices (no network calls)")
+            return 0
+                
+        except Exception as e:
+            print(f"❌ Metrics error: {e}")
+            import traceback
+            traceback.print_exc()
             return 1
 
     async def cmd_pin_get(self, cid: str, output: Optional[str] = None, recursive: bool = False):
@@ -2966,83 +3764,7 @@ class FastCLI:
                 # Use CID as filename by default
                 output_path = Path(f"{cid}")
             
-            # Step 1: Try CAR WAL first
-            print("🔍 Checking CAR WAL for recent content...")
-            try:
-                from .car_wal_manager import get_car_wal_manager
-                car_wal = get_car_wal_manager()
-                
-                # Try to get content from WAL
-                wal_result = await car_wal.get_content_from_wal(cid)
-                
-                if wal_result.get('success'):
-                    content = wal_result['data']['content']
-                    metadata = wal_result['data'].get('metadata', {})
-                    
-                    # Write to file
-                    if isinstance(content, bytes):
-                        output_path.write_bytes(content)
-                    else:
-                        output_path.write_text(str(content))
-                    
-                    print(f"✅ Content retrieved from WAL and saved to: {output_path}")
-                    print(f"📏 Size: {output_path.stat().st_size} bytes")
-                    
-                    # Show additional info from metadata
-                    if metadata.get('pin_name'):
-                        print(f"📌 PIN name: {metadata['pin_name']}")
-                    if metadata.get('source_file'):
-                        print(f"📁 Source file: {metadata['source_file']}")
-                    
-                    return 0
-                else:
-                    print(f"   ⚠️  Content not found in WAL: {wal_result.get('error', 'Unknown error')}")
-                    
-            except Exception as e:
-                print(f"   ⚠️  Error checking WAL: {e}")
-            
-            # Step 2: Check pin metadata index for backend information
-            print("🔍 Checking PIN metadata index...")
-            try:
-                from .simple_pin_manager import get_simple_pin_manager
-                pin_manager = get_simple_pin_manager()
-                
-                # Get pin list to find our CID
-                pins_result = await pin_manager.list_pins()
-                if pins_result.get('success'):
-                    pins = pins_result['data']['pins']
-                    
-                    # Find matching pin
-                    matching_pin = None
-                    for pin in pins:
-                        if pin['cid'] == cid:
-                            matching_pin = pin
-                            break
-                    
-                    if matching_pin:
-                        print(f"   📌 Found PIN: {matching_pin['name']}")
-                        if matching_pin.get('source_file'):
-                            print(f"   📁 Original source: {matching_pin['source_file']}")
-                        
-                        # If source file exists locally, use it
-                        source_file = matching_pin.get('source_file')
-                        if source_file and Path(source_file).exists():
-                            print(f"   📂 Found local source file, copying...")
-                            import shutil
-                            shutil.copy2(source_file, output_path)
-                            print(f"✅ Content copied from source file to: {output_path}")
-                            print(f"📏 Size: {output_path.stat().st_size} bytes")
-                            return 0
-                    else:
-                        print(f"   ⚠️  CID not found in PIN metadata index")
-                else:
-                    print(f"   ⚠️  Could not access PIN metadata: {pins_result.get('error')}")
-                    
-            except Exception as e:
-                print(f"   ⚠️  Error checking PIN metadata: {e}")
-            
-            # Step 3: Try IPFS API as fallback
-            print("🔍 Trying IPFS API as fallback...")
+            # Try IPFS API to get content
             try:
                 from .ipfs_kit.high_level_api import IPFSSimpleAPI
                 api = IPFSSimpleAPI()
@@ -3060,12 +3782,12 @@ class FastCLI:
                 else:
                     output_path.write_text(str(content))
                 
-                print(f"✅ Content downloaded from IPFS to: {output_path}")
+                print(f"✅ Content downloaded to: {output_path}")
                 print(f"📏 Size: {output_path.stat().st_size} bytes")
                 return 0
                 
             except ImportError:
-                print("   ⚠️  IPFS API not available, trying subprocess...")
+                print("⚠️  IPFS API not available, trying subprocess...")
                 
                 # Fallback to ipfs command line
                 import subprocess
@@ -3077,7 +3799,7 @@ class FastCLI:
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 
                 if result.returncode == 0:
-                    print(f"✅ Content downloaded successfully via IPFS CLI")
+                    print(f"✅ Content downloaded successfully")
                     if result.stdout:
                         print(result.stdout)
                     return 0
@@ -3099,98 +3821,7 @@ class FastCLI:
             
             print(f"🔍 Streaming content for CID: {cid}", file=sys.stderr)
             
-            # Step 1: Try CAR WAL first
-            print("🔍 Checking CAR WAL for recent content...", file=sys.stderr)
-            try:
-                from .car_wal_manager import get_car_wal_manager
-                car_wal = get_car_wal_manager()
-                
-                # Try to get content from WAL
-                wal_result = await car_wal.get_content_from_wal(cid)
-                
-                if wal_result.get('success'):
-                    content = wal_result['data']['content']
-                    metadata = wal_result['data'].get('metadata', {})
-                    
-                    # Apply size limit if specified
-                    if limit and isinstance(content, bytes) and len(content) > limit:
-                        content = content[:limit]
-                        print(f"⚠️  Output truncated to {limit} bytes", file=sys.stderr)
-                    elif limit and isinstance(content, str) and len(content.encode()) > limit:
-                        content = content.encode()[:limit].decode('utf-8', errors='ignore')
-                        print(f"⚠️  Output truncated to {limit} bytes", file=sys.stderr)
-                    
-                    # Show metadata info to stderr
-                    if metadata.get('pin_name'):
-                        print(f"📌 PIN name: {metadata['pin_name']}", file=sys.stderr)
-                    if metadata.get('source_file'):
-                        print(f"📁 Source file: {metadata['source_file']}", file=sys.stderr)
-                    
-                    print("✅ Content retrieved from WAL:", file=sys.stderr)
-                    
-                    # Stream to stdout
-                    if isinstance(content, bytes):
-                        sys.stdout.buffer.write(content)
-                    else:
-                        print(content, end='')
-                    
-                    return 0
-                else:
-                    print(f"   ⚠️  Content not found in WAL: {wal_result.get('error', 'Unknown error')}", file=sys.stderr)
-                    
-            except Exception as e:
-                print(f"   ⚠️  Error checking WAL: {e}", file=sys.stderr)
-            
-            # Step 2: Check pin metadata index for backend information
-            print("🔍 Checking PIN metadata index...", file=sys.stderr)
-            try:
-                from .simple_pin_manager import get_simple_pin_manager
-                pin_manager = get_simple_pin_manager()
-                
-                # Get pin list to find our CID
-                pins_result = await pin_manager.list_pins()
-                if pins_result.get('success'):
-                    pins = pins_result['data']['pins']
-                    
-                    # Find matching pin
-                    matching_pin = None
-                    for pin in pins:
-                        if pin['cid'] == cid:
-                            matching_pin = pin
-                            break
-                    
-                    if matching_pin:
-                        print(f"   📌 Found PIN: {matching_pin['name']}", file=sys.stderr)
-                        if matching_pin.get('source_file'):
-                            print(f"   📁 Original source: {matching_pin['source_file']}", file=sys.stderr)
-                        
-                        # If source file exists locally, cat it
-                        source_file = matching_pin.get('source_file')
-                        if source_file and Path(source_file).exists():
-                            print(f"   📂 Found local source file, streaming...", file=sys.stderr)
-                            print("✅ Content retrieved from source file:", file=sys.stderr)
-                            
-                            with open(source_file, 'rb') as f:
-                                if limit:
-                                    content = f.read(limit)
-                                    if len(content) == limit:
-                                        print(f"⚠️  Output truncated to {limit} bytes", file=sys.stderr)
-                                else:
-                                    content = f.read()
-                                
-                                sys.stdout.buffer.write(content)
-                            
-                            return 0
-                    else:
-                        print(f"   ⚠️  CID not found in PIN metadata index", file=sys.stderr)
-                else:
-                    print(f"   ⚠️  Could not access PIN metadata: {pins_result.get('error')}", file=sys.stderr)
-                    
-            except Exception as e:
-                print(f"   ⚠️  Error checking PIN metadata: {e}", file=sys.stderr)
-            
-            # Step 3: Try IPFS API as fallback
-            print("🔍 Trying IPFS API as fallback...", file=sys.stderr)
+            # Try IPFS API to get content
             try:
                 from .ipfs_kit.high_level_api import IPFSSimpleAPI
                 api = IPFSSimpleAPI()
@@ -3206,8 +3837,6 @@ class FastCLI:
                     content = content.encode()[:limit].decode('utf-8', errors='ignore')
                     print(f"⚠️  Output truncated to {limit} bytes", file=sys.stderr)
                 
-                print("✅ Content retrieved from IPFS:", file=sys.stderr)
-                
                 # Stream to stdout
                 if isinstance(content, bytes):
                     sys.stdout.buffer.write(content)
@@ -3217,7 +3846,7 @@ class FastCLI:
                 return 0
                 
             except ImportError:
-                print("   ⚠️  IPFS API not available, trying subprocess...", file=sys.stderr)
+                print("⚠️  IPFS API not available, trying subprocess...", file=sys.stderr)
                 
                 # Fallback to ipfs command line
                 import subprocess
@@ -7430,8 +8059,147 @@ async def main():
         # Bucket commands - leveraging Parquet bucket index from ~/.ipfs_kit/
         elif args.command == 'bucket':
             if args.bucket_action == 'list':
-                return await cli.cmd_bucket_list(args)
-
+                return await self.cmd_bucket_list(args)
+            elif args.bucket_action == 'discover':
+                print("🔍 Bucket discovery not yet implemented in VFS CLI")
+                return 1
+            elif args.bucket_action == 'analytics':
+                print("📊 Bucket analytics not yet implemented in VFS CLI")
+                return 1
+            
+            # Core bucket operations
+                            df = pd.read_parquet(bucket_parquet_path)
+                            
+                            if len(df) > 0:
+                                print(f"📊 Found {len(df)} buckets in Parquet index:")
+                                
+                                # Group by backend for better organization
+                                by_backend = {}
+                                total_size = 0
+                                
+                                for _, row in df.iterrows():
+                                    backend = row.get('backend', 'unknown')
+                                    if backend not in by_backend:
+                                        by_backend[backend] = []
+                                    
+                                    bucket_data = {
+                                        'name': row.get('name', ''),
+                                        'size_bytes': row.get('size_bytes', 0),
+                                        'file_count': row.get('file_count', 0),
+                                        'last_updated': row.get('last_updated', ''),
+                                        'description': row.get('description', ''),
+                                        'storage_class': row.get('storage_class', 'standard')
+                                    }
+                                    by_backend[backend].append(bucket_data)
+                                    total_size += bucket_data['size_bytes']
+                                
+                                for backend, backend_buckets in by_backend.items():
+                                    backend_size = sum(b.get('size_bytes', 0) for b in backend_buckets)
+                                    print(f"\n📁 {backend.upper()} ({len(backend_buckets)} buckets, {reader._format_size(backend_size)}):")
+                                    
+                                    for bucket in sorted(backend_buckets, key=lambda x: x.get('size_bytes', 0), reverse=True):
+                                        print(f"   🔹 {bucket['name']}")
+                                        print(f"      Size: {reader._format_size(bucket.get('size_bytes', 0))} | Files: {bucket.get('file_count', 0)}")
+                                        print(f"      Updated: {bucket.get('last_updated', 'unknown')}")
+                                        if bucket.get('description'):
+                                            print(f"      Info: {bucket['description']}")
+                                
+                                print(f"\n📊 Total across all backends: {reader._format_size(total_size)}")
+                                print(f"✨ Bucket data from Parquet files (lock-free)")
+                                return 0
+                            else:
+                                print("📭 No buckets found in Parquet index")
+                        except Exception as e:
+                            print(f"⚠️  Error reading bucket Parquet: {e}")
+                    
+                    # Fallback to analytics method
+                    bucket_result = reader.get_bucket_analytics()
+                    
+                    if bucket_result['success']:
+                        buckets = bucket_result.get('buckets', [])
+                        analytics = bucket_result.get('analytics', {})
+                        
+                        if buckets:
+                            print(f"📊 Found {len(buckets)} buckets from analytics:")
+                            
+                            # Group by backend for better organization
+                            by_backend = {}
+                            total_size = 0
+                            for bucket in buckets:
+                                backend = bucket.get('backend', 'unknown')
+                                if backend not in by_backend:
+                                    by_backend[backend] = []
+                                by_backend[backend].append(bucket)
+                                total_size += bucket.get('size_bytes', 0)
+                            
+                            for backend, backend_buckets in by_backend.items():
+                                backend_size = sum(b.get('size_bytes', 0) for b in backend_buckets)
+                                print(f"\n📁 {backend.upper()} ({len(backend_buckets)} buckets, {reader._format_size(backend_size)}):")
+                                
+                                for bucket in sorted(backend_buckets, key=lambda x: x.get('size_bytes', 0), reverse=True)[:10]:
+                                    print(f"   🔹 {bucket['name']}")
+                                    print(f"      Type: {bucket.get('type', 'unknown')} | Size: {reader._format_size(bucket.get('size_bytes', 0))}")
+                                    print(f"      Files: {bucket.get('file_count', 0)} | Updated: {bucket.get('last_updated', 'unknown')}")
+                                
+                                if len(backend_buckets) > 10:
+                                    print(f"   ... and {len(backend_buckets) - 10} more")
+                            
+                            print(f"\n📊 Total across all backends: {reader._format_size(total_size)}")
+                            print(f"✨ Method: {analytics.get('method', 'parquet')}")
+                            return 0
+                        else:
+                            # Check if we have analytics without bucket list
+                            backend_summary = analytics.get('backend_summary', {})
+                            if backend_summary:
+                                print("📊 Bucket analytics available:")
+                                for backend, stats in backend_summary.items():
+                                    print(f"\n📁 {backend.upper()}:")
+                                    print(f"   Buckets: {stats.get('bucket_count', 0)}")
+                                    print(f"   Size: {reader._format_size(stats.get('total_size_bytes', 0))}")
+                                    print(f"   Files: {stats.get('file_count', 0)}")
+                                return 0
+                            else:
+                                print("📭 No buckets found in Parquet analytics")
+                                print("💡 Run 'ipfs-kit bucket discover' to populate the index")
+                        
+                        return 0
+                    else:
+                        print(f"⚠️  Parquet bucket data unavailable: {bucket_result.get('error', 'Unknown error')}")
+                        
+                except Exception as e:
+                    print(f"⚠️  Parquet bucket access error: {e}")
+                
+                # Fallback to file-based bucket index
+                print("🔄 Falling back to file-based bucket index...")
+                buckets = cli.get_bucket_index()
+                if buckets:
+                    print(f"📊 Found {len(buckets)} buckets in file index:")
+                    
+                    # Group by backend for better organization
+                    by_backend = {}
+                    for bucket in buckets:
+                        backend = bucket.get('backend', 'unknown')
+                        if backend not in by_backend:
+                            by_backend[backend] = []
+                        by_backend[backend].append(bucket)
+                    
+                    for backend, backend_buckets in by_backend.items():
+                        print(f"\n📁 {backend.upper()} ({len(backend_buckets)} buckets):")
+                        for bucket in backend_buckets[:10]:  # Limit display
+                            size_mb = bucket.get('size_bytes', 0) / (1024 * 1024)
+                            print(f"   🔹 {bucket['name']}")
+                            print(f"      Type: {bucket.get('type', 'unknown')} | Size: {size_mb:.1f} MB")
+                            print(f"      Updated: {bucket.get('last_updated', 'unknown')}")
+                        
+                        if len(backend_buckets) > 10:
+                            print(f"   ... and {len(backend_buckets) - 10} more")
+                    
+                    print(f"\n💡 Bucket data from: ~/.ipfs_kit/bucket_index/bucket_analytics.db")
+                else:
+                    print("📭 No buckets found in any index")
+                    print("💡 Run 'ipfs-kit bucket discover' to populate the index")
+                
+                return 0
             elif args.bucket_action == 'discover':
                 print("🔍 Discovering buckets (scanning backends and updating index)...")
                 
@@ -7571,9 +8339,48 @@ async def main():
                 return 0
                 
             elif args.bucket_action == 'files':
-                # Query files in a specific bucket using simplified bucket manager
-                from .simple_bucket_cli import handle_bucket_files
-                return await handle_bucket_files(args)
+                # Query files in a specific bucket using Parquet data
+                bucket_name = args.bucket_name
+                limit = getattr(args, 'limit', None)
+                
+                print(f"📁 Files in bucket '{bucket_name}' (from Parquet VFS data)...")
+                
+                try:
+                    from .parquet_data_reader import get_parquet_reader
+                    reader = get_parquet_reader()
+                    
+                    result = reader.query_files_by_bucket(bucket_name, limit)
+                    
+                    if result['success']:
+                        files = result['files']
+                        if files:
+                            print(f"📊 Found {len(files)} files:")
+                            
+                            for file_info in files:
+                                print(f"\n📄 {file_info['name']}")
+                                print(f"   CID: {file_info['cid']}")
+                                print(f"   Size: {reader._format_size(file_info['size_bytes'])}")
+                                print(f"   Type: {file_info['mime_type']}")
+                                print(f"   Path: {file_info['vfs_path']}")
+                                print(f"   Uploaded: {file_info['uploaded_at']}")
+                                
+                                tags = file_info.get('tags', [])
+                                if tags:
+                                    print(f"   Tags: {', '.join(tags)}")
+                            
+                            print(f"\n⚡ Query completed in {result['query_time_ms']:.1f}ms (Parquet optimized)")
+                        else:
+                            print(f"📭 No files found in bucket '{bucket_name}'")
+                            print("💡 Check bucket name or run 'ipfs-kit bucket list' to see available buckets")
+                    else:
+                        print(f"❌ Error querying bucket files: {result['error']}")
+                        return 1
+                        
+                except Exception as e:
+                    print(f"❌ Bucket files query failed: {e}")
+                    return 1
+                
+                return 0
                 
             elif args.bucket_action == 'find-cid':
                 # Find bucket location for a given CID

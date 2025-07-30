@@ -1,0 +1,21 @@
+{
+  "operation_id": "041e8fc2-e235-40f9-8d4e-3d72f29cb414",
+  "operation_type": "pin_add",
+  "cid": "Qmefh95xQEV1bUfp8VmgzuZrcaXfAbDB7rfkTbHtR7PVFs",
+  "name": "dummy_file.txt",
+  "recursive": false,
+  "file_path": "/home/devel/ipfs_kit_py/dummy_file.txt",
+  "created_at": 1753828320.218759,
+  "created_at_iso": "2025-07-29T15:32:00.218759",
+  "status": "pending",
+  "backends": [],
+  "metadata": {
+    "size_bytes": 0,
+    "content_type": null,
+    "priority": "normal",
+    "replication_factor": 1,
+    "storage_tiers": [
+      "local"
+    ]
+  }
+}

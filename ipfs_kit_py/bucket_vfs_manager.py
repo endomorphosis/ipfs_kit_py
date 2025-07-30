@@ -47,6 +47,14 @@ from .ipld_knowledge_graph import IPLDGraphDB, GraphRAG
 from .tiered_cache_manager import TieredCacheManager
 from .error import create_result_dict, handle_error
 
+# Import CAR WAL Manager
+try:
+    from .car_wal_manager import get_car_wal_manager
+    CAR_WAL_AVAILABLE = True
+except ImportError:
+    CAR_WAL_AVAILABLE = False
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -707,6 +715,191 @@ class BucketVFS:
                 "add_file",
                 success=False,
                 error=f"Failed to add file: {str(e)}"
+            )
+
+    async def get_file(self, file_path: str, local_path: str) -> Dict[str, Any]:
+        """
+        Get a file from the bucket and save to local path.
+        
+        Args:
+            file_path: Virtual path within bucket
+            local_path: Local destination path
+        """
+        try:
+            # Determine source path
+            source_path = self.dirs["files"] / file_path.lstrip("/")
+            
+            if not source_path.exists():
+                return create_result_dict(
+                    "get_file",
+                    success=False,
+                    error=f"File '{file_path}' not found in bucket '{self.name}'"
+                )
+            
+            # Create parent directory if needed
+            Path(local_path).parent.mkdir(parents=True, exist_ok=True)
+            
+            # Copy file
+            async with aiofiles.open(source_path, 'rb') as src:
+                content = await src.read()
+                async with aiofiles.open(local_path, 'wb') as dst:
+                    await dst.write(content)
+            
+            return create_result_dict(
+                "get_file",
+                success=True,
+                data={
+                    "file_path": file_path,
+                    "local_path": local_path,
+                    "size": len(content)
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in get_file: {e}")
+            return create_result_dict(
+                "get_file",
+                success=False,
+                error=f"Failed to get file: {str(e)}"
+            )
+
+    async def cat_file(self, file_path: str) -> Dict[str, Any]:
+        """
+        Get file content as string.
+        
+        Args:
+            file_path: Virtual path within bucket
+        """
+        try:
+            # Determine source path
+            source_path = self.dirs["files"] / file_path.lstrip("/")
+            
+            if not source_path.exists():
+                return create_result_dict(
+                    "cat_file",
+                    success=False,
+                    error=f"File '{file_path}' not found in bucket '{self.name}'"
+                )
+            
+            # Read file content
+            async with aiofiles.open(source_path, 'r', encoding='utf-8') as f:
+                content = await f.read()
+            
+            return create_result_dict(
+                "cat_file",
+                success=True,
+                data={
+                    "file_path": file_path,
+                    "content": content,
+                    "size": len(content.encode('utf-8'))
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in cat_file: {e}")
+            return create_result_dict(
+                "cat_file",
+                success=False,
+                error=f"Failed to cat file: {str(e)}"
+            )
+
+    async def remove_file(self, file_path: str) -> Dict[str, Any]:
+        """
+        Remove a file from the bucket.
+        
+        Args:
+            file_path: Virtual path within bucket
+        """
+        try:
+            # Determine source path
+            source_path = self.dirs["files"] / file_path.lstrip("/")
+            
+            if not source_path.exists():
+                return create_result_dict(
+                    "remove_file",
+                    success=False,
+                    error=f"File '{file_path}' not found in bucket '{self.name}'"
+                )
+            
+            # Remove file
+            source_path.unlink()
+            
+            # Update knowledge graph if available
+            if self.knowledge_graph:
+                file_entity_id = f"file_{self.name}_{file_path.replace('/', '_')}"
+                try:
+                    await asyncio.to_thread(
+                        self.knowledge_graph.remove_entity,
+                        file_entity_id
+                    )
+                except Exception as kg_e:
+                    logger.warning(f"Failed to update knowledge graph: {kg_e}")
+            
+            return create_result_dict(
+                "remove_file",
+                success=True,
+                data={
+                    "file_path": file_path,
+                    "removed": True
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in remove_file: {e}")
+            return create_result_dict(
+                "remove_file",
+                success=False,
+                error=f"Failed to remove file: {str(e)}"
+            )
+
+    async def list_files(self, prefix: str = "") -> Dict[str, Any]:
+        """
+        List files in the bucket.
+        
+        Args:
+            prefix: Optional path prefix to filter files
+        """
+        try:
+            files_dir = self.dirs["files"]
+            files = []
+            
+            # Walk through files directory
+            if files_dir.exists():
+                for file_path in files_dir.rglob("*"):
+                    if file_path.is_file():
+                        # Get relative path from files directory
+                        rel_path = file_path.relative_to(files_dir)
+                        rel_path_str = str(rel_path).replace("\\", "/")  # Normalize path separators
+                        
+                        # Apply prefix filter
+                        if prefix and not rel_path_str.startswith(prefix):
+                            continue
+                        
+                        # Get file stats
+                        stat = file_path.stat()
+                        files.append({
+                            "path": "/" + rel_path_str,
+                            "size": stat.st_size,
+                            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            "type": "file"
+                        })
+            
+            return create_result_dict(
+                "list_files",
+                success=True,
+                data={
+                    "bucket": self.name,
+                    "files": files,
+                    "count": len(files)
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in list_files: {e}")
+            return create_result_dict(
+                "list_files",
+                success=False,
+                error=f"Failed to list files: {str(e)}"
             )
     
     async def _export_file_metadata_to_parquet(

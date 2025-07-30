@@ -1,0 +1,1 @@
+This is test content to verify Parquet storage works instead of JSON
