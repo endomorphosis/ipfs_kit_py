@@ -169,6 +169,32 @@ def create_parser():
     lassie_subparsers.add_parser('status', help='Check Lassie service status')
     lassie_subparsers.add_parser('restart', help='Restart Lassie service')
     
+    # Enhanced intelligent daemon commands
+    intelligent_parser = daemon_subparsers.add_parser('intelligent', help='Enhanced intelligent daemon with metadata-driven operations')
+    intelligent_subparsers = intelligent_parser.add_subparsers(dest='intelligent_action', help='Intelligent daemon actions')
+    
+    # Intelligent daemon start
+    intelligent_start_parser = intelligent_subparsers.add_parser('start', help='Start enhanced intelligent daemon')
+    intelligent_start_parser.add_argument('--detach', '-d', action='store_true', help='Run daemon in background')
+    intelligent_start_parser.add_argument('--verbose', '-v', action='store_true', help='Verbose logging')
+    
+    # Intelligent daemon control
+    intelligent_subparsers.add_parser('stop', help='Stop intelligent daemon')
+    
+    # Status and insights
+    status_parser = intelligent_subparsers.add_parser('status', help='Show daemon status and metadata insights')
+    status_parser.add_argument('--json-output', '-j', action='store_true', help='Output as JSON')
+    status_parser.add_argument('--detailed', '-d', action='store_true', help='Show detailed status')
+    
+    insights_parser = intelligent_subparsers.add_parser('insights', help='Show metadata insights and operational intelligence')
+    insights_parser.add_argument('--json-output', '-j', action='store_true', help='Output as JSON')
+    
+    intelligent_subparsers.add_parser('health', help='Check overall system health based on metadata')
+    
+    # Sync control
+    sync_parser = intelligent_subparsers.add_parser('sync', help='Force synchronization of dirty backends')
+    sync_parser.add_argument('--backend', help='Force sync for specific backend')
+    
     # Role management commands
     role_parser = daemon_subparsers.add_parser('set-role', help='Set daemon role')
     role_parser.add_argument('role', choices=['master', 'worker', 'leecher', 'modular', 'local'],
@@ -274,6 +300,13 @@ def create_parser():
     # Backend test command  
     backend_test_parser = backend_subparsers.add_parser('test', help='Test backend connections')
     backend_test_parser.add_argument('--backend', help='Test specific backend')
+    
+    # Backend migration command
+    backend_migrate_parser = backend_subparsers.add_parser('migrate-pin-mappings', help='Migrate backend pin storage to standardized format')
+    backend_migrate_parser.add_argument('--dry-run', action='store_true', help='Show what would be migrated without making changes')
+    backend_migrate_parser.add_argument('--backend-filter', help='Only migrate backends whose names contain this string')
+    backend_migrate_parser.add_argument('--ipfs-kit-path', help='Path to IPFS Kit data directory (default: ~/.ipfs_kit)')
+    backend_migrate_parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose logging')
     
     # HuggingFace backend
     hf_parser = backend_subparsers.add_parser('huggingface', help='HuggingFace Hub operations')
@@ -3840,6 +3873,322 @@ class FastCLI:
         
         return await self._send_service_command('lassie', action)
     
+    async def cmd_intelligent_daemon(self, args) -> int:
+        """Manage the enhanced intelligent daemon with metadata-driven operations."""
+        if not hasattr(args, 'intelligent_action') or not args.intelligent_action:
+            print("❌ No intelligent daemon action specified")
+            return 1
+        
+        action = args.intelligent_action
+        
+        try:
+            from .intelligent_daemon_manager import get_daemon_manager
+            
+            daemon_manager = get_daemon_manager()
+            
+            if action == 'start':
+                print("🚀 Starting enhanced intelligent daemon...")
+                
+                if daemon_manager.get_status()['running']:
+                    print("✅ Intelligent daemon is already running")
+                    return 0
+                
+                if hasattr(args, 'verbose') and args.verbose:
+                    import logging
+                    logging.basicConfig(level=logging.DEBUG)
+                
+                daemon_manager.start()
+                
+                if hasattr(args, 'detach') and args.detach:
+                    print("✅ Intelligent daemon started in background")
+                    print("💡 Use 'ipfs-kit daemon intelligent status' to check status")
+                    print("💡 Use 'ipfs-kit daemon intelligent stop' to stop the daemon")
+                else:
+                    print("✅ Intelligent daemon started successfully")
+                    print("📊 Metadata-driven operations are now active")
+                    print("🧵 Running 4 specialized worker threads:")
+                    print("   • Metadata Reader - monitors bucket indices")
+                    print("   • Dirty Monitor - immediate response to changes")
+                    print("   • Health Monitor - prioritized backend checking")
+                    print("   • Task Executor - intelligent task processing")
+                    print("Press Ctrl+C to stop the daemon...")
+                    
+                    try:
+                        while daemon_manager.get_status()['running']:
+                            import time
+                            time.sleep(1)
+                    except KeyboardInterrupt:
+                        print("\n🛑 Stopping intelligent daemon...")
+                        daemon_manager.stop()
+                        print("✅ Intelligent daemon stopped")
+                
+                return 0
+            
+            elif action == 'stop':
+                print("🛑 Stopping intelligent daemon...")
+                
+                if not daemon_manager.get_status()['running']:
+                    print("ℹ️  Intelligent daemon is not running")
+                    return 0
+                
+                daemon_manager.stop()
+                print("✅ Intelligent daemon stopped successfully")
+                return 0
+            
+            elif action == 'status':
+                status_info = daemon_manager.get_status()
+                json_output = hasattr(args, 'json_output') and args.json_output
+                detailed = hasattr(args, 'detailed') and args.detailed
+                
+                if json_output:
+                    import json
+                    print(json.dumps(status_info, indent=2, default=str))
+                    return 0
+                
+                # Pretty print status
+                running = status_info['running']
+                print(f"Enhanced Intelligent Daemon: {'🟢 Running' if running else '🔴 Stopped'}")
+                
+                if running:
+                    # Thread status
+                    thread_status = status_info['thread_status']
+                    active_threads = sum(thread_status.values())
+                    print(f"Active Threads: {active_threads}/4")
+                    
+                    for thread_name, is_active in thread_status.items():
+                        status_icon = "✅" if is_active else "❌"
+                        print(f"  {status_icon} {thread_name}")
+                    
+                    # Metadata stats
+                    metadata_stats = status_info['metadata_driven_stats']
+                    print("\n📊 Metadata-Driven Statistics:")
+                    print(f"  📁 Total Buckets: {metadata_stats['total_buckets']}")
+                    print(f"  🔧 Total Backends: {metadata_stats['total_backends']}")
+                    print(f"  🔄 Dirty Backends: {metadata_stats['dirty_count']}")
+                    print(f"  ❌ Unhealthy Backends: {metadata_stats['unhealthy_count']}")
+                    print(f"  💾 Filesystem Backends: {len(metadata_stats['filesystem_backends'])}")
+                    
+                    # Task management
+                    task_info = status_info['task_management']
+                    print("\n⚡ Task Management:")
+                    print(f"  🔄 Active Tasks: {task_info['active_tasks']}")
+                    print(f"  📋 Queued Tasks: {task_info['queued_tasks']}")
+                    print(f"  ✅ Completed Tasks: {task_info['completed_tasks']}")
+                    
+                    # Backend health summary
+                    health_summary = status_info['backend_health_summary']
+                    health_pct = health_summary['health_percentage']
+                    print(f"\n💚 Backend Health: {health_pct:.1f}% ({health_summary['healthy_backends']}/{health_summary['total_monitored']})")
+                    
+                    if detailed:
+                        # Show detailed backend status
+                        backend_details = status_info['backend_status_details']
+                        if backend_details:
+                            print("\n🔍 Detailed Backend Status:")
+                            for backend_name, details in backend_details.items():
+                                health_icon = "🟢" if details['healthy'] else "🔴"
+                                sync_needed = "🔄" if details['needs_sync'] else ""
+                                backup_needed = "💾" if details['needs_backup'] else ""
+                                
+                                print(f"  {health_icon} {backend_name} {sync_needed}{backup_needed}")
+                                if details['error']:
+                                    print(f"    ❌ Error: {details['error']}")
+                                if details['response_time_ms']:
+                                    print(f"    ⏱️  Response: {details['response_time_ms']:.1f}ms")
+                
+                # Show intervals
+                intervals = status_info['intervals']
+                print(f"\n⏱️  Monitoring Intervals:")
+                print(f"  Metadata Scan: {intervals['bucket_scan_seconds']}s")
+                print(f"  Dirty Check: {intervals['dirty_check_seconds']}s")
+                print(f"  Health Check: {intervals['health_check_seconds']}s")
+                
+                return 0
+            
+            elif action == 'insights':
+                insights_data = daemon_manager.get_metadata_insights()
+                json_output = hasattr(args, 'json_output') and args.json_output
+                
+                if json_output:
+                    import json
+                    print(json.dumps(insights_data, indent=2, default=str))
+                    return 0
+                
+                print("📊 Metadata Insights & Operational Intelligence")
+                print("=" * 50)
+                
+                # Bucket analysis
+                bucket_analysis = insights_data['bucket_analysis']
+                print(f"\n📁 Bucket Analysis:")
+                print(f"  Total Buckets: {bucket_analysis['total_buckets']}")
+                print(f"  Need Backup: {bucket_analysis['buckets_needing_backup']}")
+                print(f"  Avg Pins per Bucket: {bucket_analysis['average_pins_per_bucket']:.1f}")
+                
+                # Backend analysis
+                backend_analysis = insights_data['backend_analysis']
+                print(f"\n🔧 Backend Analysis:")
+                print(f"  Total Backends: {backend_analysis['total_backends']}")
+                
+                backend_types = backend_analysis.get('backend_types', {})
+                if backend_types:
+                    print("  Backend Types:")
+                    for backend_type, count in backend_types.items():
+                        print(f"    {backend_type}: {count}")
+                
+                response_stats = backend_analysis.get('response_time_stats', {})
+                if response_stats:
+                    print(f"  Response Times (avg): {response_stats.get('average_ms', 0):.1f}ms")
+                
+                # Sync requirements
+                sync_reqs = insights_data['sync_requirements']
+                print(f"\n🔄 Sync Requirements:")
+                print(f"  Backends Needing Pin Sync: {len(sync_reqs['backends_needing_pin_sync'])}")
+                print(f"  Metadata Backup Targets: {len(sync_reqs['metadata_backup_targets'])}")
+                
+                dirty_actions = sync_reqs.get('dirty_backend_actions', {})
+                if dirty_actions:
+                    print("  Dirty Backend Actions:")
+                    for backend_name, action_info in dirty_actions.items():
+                        unsynced = action_info['unsynced_actions']
+                        total = action_info['total_actions']
+                        is_dirty = action_info['is_dirty']
+                        dirty_icon = "🔄" if is_dirty else "✅"
+                        print(f"    {dirty_icon} {backend_name}: {unsynced}/{total} unsynced")
+                
+                # Operational metrics
+                ops_metrics = insights_data['operational_metrics']
+                print(f"\n⚡ Operational Metrics:")
+                print(f"  Metadata Freshness: {ops_metrics['metadata_freshness_seconds']:.1f}s")
+                print(f"  Avg Health Check Age: {ops_metrics['avg_backend_health_check_age']:.1f}s")
+                print(f"  Total Pending Actions: {ops_metrics['total_pending_actions']}")
+                
+                return 0
+            
+            elif action == 'health':
+                status_info = daemon_manager.get_status()
+                insights_data = daemon_manager.get_metadata_insights()
+                
+                print("🏥 System Health Check")
+                print("=" * 25)
+                
+                # Overall health score
+                health_issues = []
+                
+                # Check daemon status
+                if not status_info['running']:
+                    health_issues.append("❌ Daemon is not running")
+                else:
+                    thread_status = status_info['thread_status']
+                    inactive_threads = [name for name, active in thread_status.items() if not active]
+                    if inactive_threads:
+                        health_issues.append(f"⚠️  Inactive threads: {', '.join(inactive_threads)}")
+                
+                # Check dirty backends
+                dirty_count = status_info['metadata_driven_stats']['dirty_count']
+                if dirty_count > 0:
+                    health_issues.append(f"⚠️  {dirty_count} backends need synchronization")
+                
+                # Check unhealthy backends
+                unhealthy_count = status_info['metadata_driven_stats']['unhealthy_count']
+                if unhealthy_count > 0:
+                    health_issues.append(f"❌ {unhealthy_count} backends are unhealthy")
+                
+                # Check backup needs
+                buckets_needing_backup = insights_data['bucket_analysis']['buckets_needing_backup']
+                if buckets_needing_backup > 0:
+                    health_issues.append(f"⚠️  {buckets_needing_backup} buckets need backup")
+                
+                # Check pending actions
+                pending_actions = insights_data['operational_metrics']['total_pending_actions']
+                if pending_actions > 10:
+                    health_issues.append(f"⚠️  {pending_actions} pending actions (high load)")
+                
+                # Overall health
+                if not health_issues:
+                    print("🟢 System is healthy!")
+                    print("All components are functioning normally.")
+                else:
+                    print(f"🟡 Found {len(health_issues)} health issues:")
+                    for issue in health_issues:
+                        print(f"  {issue}")
+                
+                # Recommendations
+                if health_issues:
+                    print("\n💡 Recommendations:")
+                    if not status_info['running']:
+                        print("  • Start the daemon: ipfs-kit daemon intelligent start")
+                    if dirty_count > 0:
+                        print("  • Wait for automatic sync or use: ipfs-kit daemon intelligent sync")
+                    if unhealthy_count > 0:
+                        print("  • Check backend connectivity and configurations")
+                    if buckets_needing_backup > 0:
+                        print("  • Ensure filesystem backends are configured for backups")
+                
+                return 0
+            
+            elif action == 'sync':
+                if not daemon_manager.get_status()['running']:
+                    print("❌ Intelligent daemon is not running")
+                    print("💡 Start it first: ipfs-kit daemon intelligent start")
+                    return 1
+                
+                backend = getattr(args, 'backend', None)
+                
+                if backend:
+                    print(f"🔄 Forcing sync for backend: {backend}")
+                    # Schedule immediate sync task
+                    from .intelligent_daemon_manager import DaemonTask
+                    from datetime import datetime
+                    
+                    task = DaemonTask(
+                        task_id=f"manual_sync_{backend}_{int(datetime.now().timestamp())}",
+                        backend_name=backend,
+                        task_type='pin_sync',
+                        priority=1,  # Highest priority
+                        created_at=datetime.now(),
+                        scheduled_for=datetime.now()
+                    )
+                    daemon_manager.schedule_task(task)
+                    print("✅ Sync task scheduled with highest priority")
+                else:
+                    # Get dirty backends and schedule sync for all
+                    status_info = daemon_manager.get_status()
+                    dirty_backends = status_info['metadata_driven_stats']['dirty_backends']
+                    
+                    if not dirty_backends:
+                        print("ℹ️  No dirty backends found")
+                        print("💡 Use 'ipfs-kit daemon intelligent status' to see current state")
+                        return 0
+                    
+                    print(f"🔄 Scheduling sync for {len(dirty_backends)} dirty backends...")
+                    for backend_name in dirty_backends:
+                        from .intelligent_daemon_manager import DaemonTask
+                        from datetime import datetime
+                        
+                        task = DaemonTask(
+                            task_id=f"manual_sync_{backend_name}_{int(datetime.now().timestamp())}",
+                            backend_name=backend_name,
+                            task_type='pin_sync',
+                            priority=1,
+                            created_at=datetime.now(),
+                            scheduled_for=datetime.now()
+                        )
+                        daemon_manager.schedule_task(task)
+                    
+                    print("✅ Sync tasks scheduled for all dirty backends")
+                
+                return 0
+            
+            else:
+                print(f"❌ Unknown intelligent daemon action: {action}")
+                return 1
+        
+        except Exception as e:
+            print(f"❌ Error managing intelligent daemon: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
+    
     async def _is_daemon_running(self, port: int = 9999) -> bool:
         """Check if the IPFS-Kit daemon is running."""
         try:
@@ -4875,6 +5224,56 @@ class FastCLI:
             pass
         
         return backends
+
+    async def cmd_backend_migrate_pin_mappings(self, args) -> int:
+        """Migrate backend pin storage to standardized pin_mappings format."""
+        print("🔧 Backend Pin Mappings Migration")
+        print("=" * 40)
+        
+        try:
+            # Import the migration tool
+            import sys
+            sys.path.insert(0, '/home/devel/ipfs_kit_py')
+            from migrate_backend_pin_mappings import PinMappingsMigrator
+            
+            # Configure logging
+            if args.verbose:
+                import logging
+                logging.getLogger().setLevel(logging.DEBUG)
+            
+            # Create migrator
+            migrator = PinMappingsMigrator(args.ipfs_kit_path)
+            
+            # Run migration
+            results = migrator.run_migration(
+                dry_run=args.dry_run,
+                backend_filter=args.backend_filter
+            )
+            
+            if results['success']:
+                print(f"\n✅ Migration completed successfully!")
+                if not args.dry_run:
+                    print(f"📊 Results:")
+                    print(f"  • {results['total_backends']} backends processed")
+                    print(f"  • {results['migrated']} backends migrated") 
+                    print(f"  • {results['up_to_date']} already up-to-date")
+                    print(f"  • {results['errors']} errors")
+                    print(f"\n🎯 All backends now have standardized pin_mappings.parquet and pin_mappings.car files!")
+                return 0
+            else:
+                print(f"\n❌ Migration failed with {results['errors']} errors")
+                return 1
+                
+        except ImportError as e:
+            print(f"❌ Migration tool not available: {e}")
+            print("💡 Make sure migrate_backend_pin_mappings.py is in the project directory")
+            return 1
+        except Exception as e:
+            print(f"❌ Migration error: {e}")
+            import traceback
+            if args.verbose:
+                traceback.print_exc()
+            return 1
 
     # Backend Management Commands - Interface to internal kit modules
     async def cmd_backend_huggingface(self, args):
@@ -9479,6 +9878,8 @@ async def main():
                 return await cli.cmd_service_cluster(args)
             elif args.daemon_action == 'lassie':
                 return await cli.cmd_service_lassie(args)
+            elif args.daemon_action == 'intelligent':
+                return await cli.cmd_intelligent_daemon(args)
         
         # Pin commands
         elif args.command == 'pin':
@@ -9547,6 +9948,8 @@ async def main():
             elif args.backend_action == 'test':
                 backend_type = getattr(args, 'backend', None)
                 return await cli.cmd_backend_test(type('Args', (), {'backend_type': backend_type}))
+            elif args.backend_action == 'migrate-pin-mappings':
+                return await cli.cmd_backend_migrate_pin_mappings(args)
             elif args.backend_action == 'huggingface':
                 return await cli.cmd_backend_huggingface(args)
             elif args.backend_action == 'github':

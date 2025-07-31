@@ -1,0 +1,230 @@
+# Enhanced Backend Manager Configuration Examples
+# 
+# This file shows how to configure various backend types for pin synchronization
+# with the enhanced backend manager that supports dirty state tracking.
+
+# =============================================================================
+# S3 Backend Configuration
+# =============================================================================
+s3_primary:
+  type: s3
+  config:
+    bucket_name: "ipfs-primary-backup"
+    region: "us-east-1"
+    access_key_id: "${AWS_ACCESS_KEY_ID}"
+    secret_access_key: "${AWS_SECRET_ACCESS_KEY}"
+    endpoint_url: null  # Optional: for S3-compatible services
+    storage_class: "STANDARD"  # STANDARD, STANDARD_IA, GLACIER, etc.
+  
+  # Backend-specific settings
+  sync_policy:
+    auto_sync_on_dirty: true
+    max_retry_attempts: 3
+    retry_backoff_seconds: 5
+  
+  health_check:
+    timeout_seconds: 30
+    check_interval_minutes: 15
+
+# =============================================================================
+# GitHub Backend Configuration
+# =============================================================================
+github_backup:
+  type: github
+  config:
+    token: "${GITHUB_TOKEN}"
+    repo: "username/ipfs-backup-repo"
+    branch: "main"  # Optional: defaults to main
+    base_path: "pins/"  # Optional: subdirectory for pins
+  
+  sync_policy:
+    auto_sync_on_dirty: true
+    max_retry_attempts: 2
+    commit_batch_size: 100  # Max pins per commit
+
+# =============================================================================
+# HuggingFace Backend Configuration
+# =============================================================================
+huggingface_archive:
+  type: huggingface
+  config:
+    token: "${HF_TOKEN}"
+    repo: "username/ipfs-dataset"
+    repo_type: "dataset"  # dataset, model, or space
+    private: true
+    base_path: "ipfs_pins/"
+  
+  sync_policy:
+    auto_sync_on_dirty: false  # Manual sync only
+    max_file_size_mb: 100
+
+# =============================================================================
+# FTP Backend Configuration
+# =============================================================================
+ftp_archive:
+  type: ftp
+  config:
+    host: "ftp.archive.example.com"
+    port: 21
+    username: "${FTP_USERNAME}"
+    password: "${FTP_PASSWORD}"
+    passive_mode: true
+    base_path: "/ipfs_backup/"
+    use_tls: false  # Set to true for FTPS
+  
+  sync_policy:
+    auto_sync_on_dirty: true
+    connection_timeout_seconds: 30
+    max_retry_attempts: 3
+
+# =============================================================================
+# SSHFS Backend Configuration
+# =============================================================================
+sshfs_remote:
+  type: sshfs
+  config:
+    hostname: "backup.example.com"
+    username: "${SSH_USERNAME}"
+    private_key_path: "~/.ssh/id_rsa"
+    password: null  # Use key-based auth
+    port: 22
+    remote_base_path: "/home/backup/ipfs_pins"
+    mount_options:
+      - "allow_other"
+      - "reconnect"
+      - "ServerAliveInterval=15"
+  
+  sync_policy:
+    auto_sync_on_dirty: true
+    mount_timeout_seconds: 60
+
+# =============================================================================
+# Storacha (Web3.Storage) Backend Configuration
+# =============================================================================
+storacha_web3:
+  type: storacha
+  config:
+    api_key: "${STORACHA_API_KEY}"
+    api_url: "https://api.web3.storage"  # Optional: custom endpoint
+    upload_name_prefix: "ipfs_kit_"
+  
+  sync_policy:
+    auto_sync_on_dirty: true
+    max_upload_size_mb: 32  # Storacha limits
+
+# =============================================================================
+# IPFS Cluster Backend Configuration
+# =============================================================================
+ipfs_cluster_backup:
+  type: ipfs_cluster
+  config:
+    api_endpoint: "http://cluster.example.com:9094"
+    auth_token: "${CLUSTER_AUTH_TOKEN}"  # Optional
+    cluster_id: "backup-cluster"
+    replication_factor: 3
+  
+  sync_policy:
+    auto_sync_on_dirty: true
+    pin_timeout_seconds: 300
+    verify_pins: true
+
+# =============================================================================
+# Global Backend Manager Settings
+# =============================================================================
+backend_manager:
+  # Global sync settings
+  global_sync_policy:
+    max_concurrent_syncs: 3
+    sync_timeout_minutes: 30
+    retry_failed_syncs: true
+    retry_interval_minutes: 60
+  
+  # Health monitoring
+  health_monitoring:
+    enabled: true
+    check_interval_minutes: 15
+    unhealthy_threshold_checks: 3
+    alert_on_unhealthy: true
+  
+  # Dirty state management
+  dirty_state:
+    auto_mark_dirty_on_pin_add: true
+    auto_mark_dirty_on_pin_remove: true
+    auto_mark_dirty_on_metadata_change: true
+    clean_state_after_successful_sync: true
+    persist_dirty_state: true
+    dirty_state_file: ".backend_dirty_state.json"
+  
+  # Logging and monitoring
+  logging:
+    level: "INFO"
+    log_sync_operations: true
+    log_health_checks: false
+    performance_metrics: true
+  
+  # Backup and recovery
+  backup:
+    backup_state_files: true
+    backup_retention_days: 30
+    backup_directory: "./backend_backups/"
+
+# =============================================================================
+# Environment Variables Template
+# =============================================================================
+# Create a .env file with these variables:
+#
+# # AWS S3
+# AWS_ACCESS_KEY_ID=your_access_key_here
+# AWS_SECRET_ACCESS_KEY=your_secret_key_here
+#
+# # GitHub
+# GITHUB_TOKEN=ghp_your_github_token_here
+#
+# # HuggingFace
+# HF_TOKEN=hf_your_huggingface_token_here
+#
+# # FTP
+# FTP_USERNAME=your_ftp_username
+# FTP_PASSWORD=your_ftp_password
+#
+# # SSH
+# SSH_USERNAME=your_ssh_username
+#
+# # Storacha
+# STORACHA_API_KEY=your_storacha_api_key
+#
+# # IPFS Cluster
+# CLUSTER_AUTH_TOKEN=your_cluster_auth_token
+
+# =============================================================================
+# Usage Examples
+# =============================================================================
+
+# Example usage patterns are provided in the demo files:
+# - demo_enhanced_backend_sync.py
+# - test_enhanced_backend_manager.py
+
+usage_examples:
+  python_api:
+    description: "Load configuration and setup backends programmatically"
+    steps:
+      - "Load YAML configuration file"
+      - "Create BackendManager instance"
+      - "Setup backends from configuration"
+      - "Use dirty state tracking and sync features"
+  
+  cli_patterns:
+    description: "Command-line usage for backend operations"
+    commands:
+      mark_dirty: "ipfs-kit backend mark-dirty BACKEND_NAME 'reason'"
+      sync_dirty: "ipfs-kit backend sync-dirty"
+      sync_all: "ipfs-kit backend sync-all --force"
+      health_check: "ipfs-kit backend health-check"
+      status: "ipfs-kit backend status --detailed"
+  
+  programmatic_management:
+    description: "Programmatic dirty state management patterns"
+    patterns:
+      - "Mark backends dirty on content changes"
+      - "Priority-based selective synchronization"
+      - "Automatic health monitoring integration"
