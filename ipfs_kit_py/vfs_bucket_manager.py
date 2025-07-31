@@ -104,32 +104,173 @@ class VFSBucketManager:
             # Create initial VFS index files
             self._create_vfs_index_files(vfs_path)
             
-            # Create bucket configuration
+            # Create bucket configuration with all required fields for daemon and replication management
             config = {
+                # Basic bucket metadata
                 'bucket_name': bucket_name,
                 'type': bucket_type,
+                'description': kwargs.get('description', f'{bucket_type.title()} bucket for {bucket_name}'),
                 'created_at': datetime.now().isoformat(),
+                'version': '2.0',
+                'schema_version': '1.0',
+                
+                # VFS Structure
+                'vfs': {
+                    'structure': kwargs.get('vfs_structure', 'hybrid'),
+                    'index_path': str(self.vfs_indices_path / bucket_name),
+                    'encoding': 'parquet',
+                    'compression': 'snappy'
+                },
+                
+                # Daemon Management Fields
+                'daemon': {
+                    'managed': True,
+                    'auto_start': True,
+                    'health_check_interval': 30,
+                    'restart_policy': 'always',
+                    'log_level': 'INFO',
+                    'monitoring_enabled': True
+                },
+                
+                # Backend Bindings and Storage
+                'backend_bindings': backend_bindings or [],
+                'storage': {
+                    'wal_enabled': True,
+                    'wal_format': 'car',
+                    'compression_enabled': True,
+                    'deduplication_enabled': True,
+                    'encryption_enabled': False
+                },
+                
+                # Comprehensive Replication Configuration
+                'replication': {
+                    'enabled': True,
+                    'min_replicas': max(2, kwargs.get('replication_min', 2)),
+                    'target_replicas': kwargs.get('replication_target', 3),
+                    'max_replicas': kwargs.get('replication_max', 5),
+                    'policy': kwargs.get('replication_policy', 'balanced'),
+                    'geographic_distribution': kwargs.get('geographic_distribution', True),
+                    'priority': kwargs.get('replication_priority', 'normal'),
+                    'auto_replication': True,
+                    'emergency_backup_enabled': True,
+                    'consistency_model': 'eventual',
+                    'conflict_resolution': 'timestamp',
+                    'preferred_regions': kwargs.get('preferred_regions', []),
+                    'avoid_regions': kwargs.get('avoid_regions', [])
+                },
+                
+                # Backup and Disaster Recovery
                 'backup': {
                     'enabled': True,
-                    'frequency': 'daily',
-                    'retention_days': 365,
-                    'destinations': backend_bindings or []
+                    'frequency': kwargs.get('backup_frequency', 'daily'),
+                    'retention_days': kwargs.get('retention_days', 365),
+                    'destinations': backend_bindings or [],
+                    'incremental_enabled': True,
+                    'compression_enabled': True,
+                    'encryption_enabled': False,
+                    'verification_enabled': True
                 },
-                'replication': {
-                    'min_replicas': 2,
-                    'max_replicas': 5,
-                    'geographic_distribution': True
+                
+                # Disaster Recovery
+                'disaster_recovery': {
+                    'tier': kwargs.get('dr_tier', 'standard'),
+                    'rpo_minutes': kwargs.get('rpo_minutes', 60),  # Recovery Point Objective
+                    'rto_minutes': kwargs.get('rto_minutes', 30),  # Recovery Time Objective
+                    'zones': kwargs.get('dr_zones', []),
+                    'backup_frequency': kwargs.get('dr_backup_frequency', 'daily'),
+                    'cross_region_backup': True,
+                    'automated_failover': False
                 },
+                
+                # Cache Configuration
                 'cache': {
                     'enabled': True,
-                    'policy': 'lru',
-                    'size_mb': 512,
-                    'ttl_seconds': 3600
+                    'policy': kwargs.get('cache_policy', 'lru'),
+                    'size_mb': kwargs.get('cache_size_mb', 512),
+                    'max_entries': kwargs.get('cache_max_entries', 10000),
+                    'ttl_seconds': kwargs.get('cache_ttl', 3600),
+                    'priority': kwargs.get('cache_priority', 'normal'),
+                    'write_through': False,
+                    'compression_enabled': True
                 },
+                
+                # Performance and Throughput
+                'performance': {
+                    'throughput_mode': kwargs.get('throughput_mode', 'balanced'),
+                    'concurrent_ops': kwargs.get('concurrent_ops', 5),
+                    'max_connection_pool': kwargs.get('max_connections', 20),
+                    'timeout_seconds': kwargs.get('timeout_seconds', 30),
+                    'retry_attempts': kwargs.get('retry_attempts', 3),
+                    'batch_size': kwargs.get('batch_size', 100),
+                    'optimization_tier': kwargs.get('performance_tier', 'balanced')
+                },
+                
+                # Lifecycle Management
+                'lifecycle': {
+                    'policy': kwargs.get('lifecycle_policy', 'none'),
+                    'archive_after_days': kwargs.get('archive_after_days'),
+                    'delete_after_days': kwargs.get('delete_after_days'),
+                    'auto_cleanup_enabled': False,
+                    'version_retention': kwargs.get('version_retention', 10)
+                },
+                
+                # Access Control and Security
                 'access': {
-                    'public_read': False,
-                    'api_access': True,
-                    'web_interface': True
+                    'public_read': kwargs.get('public_read', False),
+                    'api_access': kwargs.get('api_access', True),
+                    'web_interface': kwargs.get('web_interface', True),
+                    'authentication_required': kwargs.get('auth_required', False),
+                    'encryption_at_rest': kwargs.get('encryption_at_rest', False),
+                    'encryption_in_transit': kwargs.get('encryption_in_transit', True)
+                },
+                
+                # Monitoring and Observability
+                'monitoring': {
+                    'metrics_enabled': True,
+                    'logging_enabled': True,
+                    'tracing_enabled': False,
+                    'alert_on_failures': True,
+                    'health_check_enabled': True,
+                    'performance_monitoring': True,
+                    'retention_days': 30
+                },
+                
+                # Resource Limits
+                'limits': {
+                    'max_file_size_gb': kwargs.get('max_file_size_gb', 10),
+                    'max_total_size_gb': kwargs.get('max_total_size_gb', 1000),
+                    'max_files': kwargs.get('max_files', 100000),
+                    'rate_limit_rps': kwargs.get('rate_limit_rps', 100),
+                    'bandwidth_limit_mbps': kwargs.get('bandwidth_limit_mbps')
+                },
+                
+                # Quality of Service
+                'qos': {
+                    'priority_class': kwargs.get('priority_class', 'normal'),
+                    'guaranteed_bandwidth': kwargs.get('guaranteed_bandwidth'),
+                    'burst_bandwidth': kwargs.get('burst_bandwidth'),
+                    'latency_requirements': kwargs.get('latency_requirements', 'standard')
+                },
+                
+                # Integration Settings
+                'integrations': {
+                    'mcp_enabled': True,
+                    'api_gateway_enabled': True,
+                    'webhook_notifications': kwargs.get('webhook_enabled', False),
+                    'external_indexing': kwargs.get('external_indexing', False)
+                },
+                
+                # Custom metadata and tags
+                'metadata': kwargs.get('metadata', {}),
+                'tags': kwargs.get('tags', []),
+                'labels': kwargs.get('labels', {}),
+                
+                # Operational metadata
+                'operational': {
+                    'last_modified': datetime.now().isoformat(),
+                    'modified_by': kwargs.get('created_by', 'system'),
+                    'version_history': [],
+                    'maintenance_windows': kwargs.get('maintenance_windows', [])
                 }
             }
             

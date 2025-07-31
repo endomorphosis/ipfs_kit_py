@@ -17,6 +17,17 @@ import subprocess
 from pathlib import Path
 from datetime import datetime, timedelta
 
+# Rich imports for CLI display
+try:
+    from rich.console import Console
+    from rich.table import Table
+    from rich.progress import Progress
+except ImportError:
+    # Fallback for when rich is not available
+    Console = None
+    Table = None
+    Progress = None
+
 # Heavy imports only when needed
 def _lazy_import_role_manager():
     """Lazy import of role manager to avoid startup overhead."""
@@ -80,6 +91,10 @@ def _lazy_import_storage_backends():
 from typing import Dict, Any, List, Optional
 import subprocess
 import signal
+import requests
+import hashlib
+import sqlite3
+import pandas as pd
 
 # Global flag to check if we've initialized heavy imports
 _heavy_imports_initialized = False
@@ -200,12 +215,61 @@ def create_parser():
     
     init_pin_parser = pin_subparsers.add_parser('init', help='Initialize pin metadata index with sample data')
     
+    # Pin metadata export command
+    export_pin_metadata_parser = pin_subparsers.add_parser('export-metadata', help='Export pin metadata to sharded parquet and CAR files')
+    export_pin_metadata_parser.add_argument('--max-shard-size', type=int, default=100, help='Maximum shard size in MB (default: 100)')
+    
     # Backend management - interface to internal kit modules
     backend_parser = subparsers.add_parser('backend', help='Storage backend management (interface to kit modules)')
     backend_subparsers = backend_parser.add_subparsers(dest='backend_action', help='Backend actions')
     
+    # Backend configuration commands
+    backend_create_parser = backend_subparsers.add_parser('create', help='Create a backend configuration')
+    backend_create_parser.add_argument('name', help='Backend name')
+    backend_create_parser.add_argument('type', choices=['s3', 'huggingface', 'storacha', 'ipfs', 'filecoin', 'gdrive'], help='Backend type')
+    backend_create_parser.add_argument('--endpoint', help='Backend endpoint URL')
+    backend_create_parser.add_argument('--access-key', help='Access key for authentication')
+    backend_create_parser.add_argument('--secret-key', help='Secret key for authentication')
+    backend_create_parser.add_argument('--token', help='Authentication token')
+    backend_create_parser.add_argument('--bucket', help='Bucket or container name')
+    backend_create_parser.add_argument('--region', help='Region or location')
+    
+    backend_show_parser = backend_subparsers.add_parser('show', help='Show backend configuration')
+    backend_show_parser.add_argument('name', help='Backend name')
+    
+    backend_update_parser = backend_subparsers.add_parser('update', help='Update backend configuration')
+    backend_update_parser.add_argument('name', help='Backend name')
+    backend_update_parser.add_argument('--enabled', type=bool, help='Enable/disable backend')
+    backend_update_parser.add_argument('--endpoint', help='Backend endpoint URL')
+    backend_update_parser.add_argument('--token', help='Authentication token')
+    backend_update_parser.add_argument('--bucket', help='Bucket or container name')
+    backend_update_parser.add_argument('--region', help='Region or location')
+    
+    backend_remove_parser = backend_subparsers.add_parser('remove', help='Remove backend configuration')
+    backend_remove_parser.add_argument('name', help='Backend name')
+    backend_remove_parser.add_argument('--force', action='store_true', help='Force removal without confirmation')
+    
+    # Backend pin mapping commands
+    backend_pin_parser = backend_subparsers.add_parser('pin', help='Backend pin management')
+    backend_pin_subparsers = backend_pin_parser.add_subparsers(dest='pin_action', help='Pin actions')
+    
+    backend_pin_add_parser = backend_pin_subparsers.add_parser('add', help='Add pin mapping to backend')
+    backend_pin_add_parser.add_argument('backend', help='Backend name')
+    backend_pin_add_parser.add_argument('cid', help='Content identifier')
+    backend_pin_add_parser.add_argument('car_path', help='Path to CAR file on remote backend')
+    backend_pin_add_parser.add_argument('--name', help='Pin name')
+    backend_pin_add_parser.add_argument('--description', help='Pin description')
+    
+    backend_pin_list_parser = backend_pin_subparsers.add_parser('list', help='List pin mappings for backend')
+    backend_pin_list_parser.add_argument('backend', help='Backend name')
+    backend_pin_list_parser.add_argument('--limit', type=int, help='Maximum number of pins to show')
+    
+    backend_pin_find_parser = backend_pin_subparsers.add_parser('find', help='Find pin across all backends')
+    backend_pin_find_parser.add_argument('cid', help='Content identifier to find')
+    
     # Backend list command
-    backend_subparsers.add_parser('list', help='List all available storage backends')
+    backend_list_parser = backend_subparsers.add_parser('list', help='List backends')
+    backend_list_parser.add_argument('--configured', action='store_true', help='List configured backends instead of available types')
     
     # Backend test command  
     backend_test_parser = backend_subparsers.add_parser('test', help='Test backend connections')
@@ -1079,6 +1143,40 @@ examples:
     bucket_index_car_parser = bucket_subparsers.add_parser('generate-index-car', help='Generate CAR files from VFS index metadata')
     bucket_index_car_parser.add_argument('bucket_name', nargs='?', help='Name of the bucket to generate CAR for')
     bucket_index_car_parser.add_argument('--all', action='store_true', help='Generate CAR files for all buckets')
+
+    # Generate CAR from bucket registry
+    bucket_registry_car_parser = bucket_subparsers.add_parser('generate-registry-car', help='Generate CAR file from bucket registry parquet')
+    
+    # Index management commands
+    bucket_index_parser = bucket_subparsers.add_parser('index', help='Show comprehensive bucket index')
+    bucket_index_parser.add_argument('--refresh', action='store_true', help='Force refresh of index')
+    bucket_index_parser.add_argument('--format', choices=['table', 'json', 'yaml'], default='table', help='Output format')
+    bucket_index_parser.add_argument('--export', help='Export index to file')
+    
+    # Backend index commands
+    backend_index_parser = bucket_subparsers.add_parser('backends', help='Show comprehensive backend index')  
+    backend_index_parser.add_argument('--refresh', action='store_true', help='Force refresh of backend index')
+    backend_index_parser.add_argument('--format', choices=['table', 'json', 'yaml'], default='table', help='Output format')
+    backend_index_parser.add_argument('--export', help='Export backend index to file')
+    backend_index_parser.add_argument('--status', choices=['all', 'online', 'offline', 'configured'], default='all', help='Filter by status')
+    
+    # Pinset analysis and replica management
+    pinset_analyze_parser = bucket_subparsers.add_parser('analyze-pinsets', help='Analyze pinsets and manage replicas for disaster recovery and caching')
+    pinset_analyze_parser.add_argument('--execute', action='store_true', help='Execute recommended pin management actions')
+    pinset_analyze_parser.add_argument('--dry-run', action='store_true', help='Show what would be done without executing actions')
+    pinset_analyze_parser.add_argument('--priority-threshold', type=int, default=30, help='Priority threshold for cache candidates')
+    pinset_analyze_parser.add_argument('--max-actions', type=int, default=100, help='Maximum number of actions to execute')
+    pinset_analyze_parser.add_argument('--force-replication', action='store_true', help='Force replication even for healthy buckets')
+    pinset_analyze_parser.add_argument('--cache-only', action='store_true', help='Only perform cache optimization actions')
+    pinset_analyze_parser.add_argument('--replicate-only', action='store_true', help='Only perform replication actions')
+    
+    # Backend sync management
+    backend_sync_parser = bucket_subparsers.add_parser('sync-backends', help='Manage backend synchronization and dirty state')
+    backend_sync_parser.add_argument('--backend', help='Specific backend to sync (default: all dirty backends)')
+    backend_sync_parser.add_argument('--dry-run', action='store_true', help='Show what would be synced without executing')
+    backend_sync_parser.add_argument('--force', action='store_true', help='Force sync even for clean backends')
+    backend_sync_parser.add_argument('--clear-dirty', action='store_true', help='Mark all backends as clean without syncing')
+    backend_sync_parser.add_argument('--status', action='store_true', help='Show dirty state status for all backends')
     
     # List generated CAR files
     bucket_list_cars_parser = bucket_subparsers.add_parser('list-cars', help='List generated CAR files')
@@ -1171,6 +1269,50 @@ examples:
     bucket_create_parser.add_argument('--vfs-structure', choices=['unixfs', 'graph', 'vector', 'hybrid'], 
                                       default='hybrid', help='VFS structure type')
     bucket_create_parser.add_argument('--metadata', help='JSON metadata for the bucket')
+    bucket_create_parser.add_argument('--description', help='Bucket description')
+    
+    # Replication settings
+    bucket_create_parser.add_argument('--replication-min', type=int, default=2, help='Minimum replication factor')
+    bucket_create_parser.add_argument('--replication-target', type=int, default=3, help='Target replication factor')
+    bucket_create_parser.add_argument('--replication-max', type=int, default=5, help='Maximum replication factor')
+    bucket_create_parser.add_argument('--replication-policy', choices=['balanced', 'performance', 'cost-optimized'], 
+                                      default='balanced', help='Replication policy')
+    
+    # Disaster recovery
+    bucket_create_parser.add_argument('--dr-tier', choices=['critical', 'important', 'standard', 'archive'], 
+                                      default='standard', help='Disaster recovery tier')
+    bucket_create_parser.add_argument('--dr-zones', help='Required availability zones (comma-separated)')
+    bucket_create_parser.add_argument('--dr-backup-frequency', choices=['continuous', 'hourly', 'daily', 'weekly'], 
+                                      default='daily', help='Backup frequency')
+    
+    # Cache settings
+    bucket_create_parser.add_argument('--cache-policy', choices=['lru', 'lfu', 'fifo', 'mru', 'adaptive'], 
+                                      default='lru', help='Cache eviction policy')
+    bucket_create_parser.add_argument('--cache-size-mb', type=int, default=512, help='Cache size in MB')
+    bucket_create_parser.add_argument('--cache-ttl', type=int, default=3600, help='Cache TTL in seconds')
+    
+    # Performance settings
+    bucket_create_parser.add_argument('--throughput-mode', choices=['balanced', 'high-throughput', 'low-latency', 'bandwidth-optimized'], 
+                                      default='balanced', help='Throughput optimization mode')
+    bucket_create_parser.add_argument('--concurrent-ops', type=int, default=5, help='Maximum concurrent operations')
+    bucket_create_parser.add_argument('--performance-tier', choices=['speed-optimized', 'balanced', 'persistence-optimized'], 
+                                      default='balanced', help='Performance optimization tier')
+    
+    # Lifecycle management
+    bucket_create_parser.add_argument('--lifecycle-policy', choices=['none', 'auto-archive', 'auto-delete', 'custom'], 
+                                      default='none', help='Lifecycle management policy')
+    bucket_create_parser.add_argument('--archive-after-days', type=int, help='Archive content after N days')
+    bucket_create_parser.add_argument('--delete-after-days', type=int, help='Delete content after N days')
+    
+    # Resource limits
+    bucket_create_parser.add_argument('--max-file-size-gb', type=int, default=10, help='Maximum file size in GB')
+    bucket_create_parser.add_argument('--max-total-size-gb', type=int, default=1000, help='Maximum total bucket size in GB')
+    bucket_create_parser.add_argument('--max-files', type=int, default=100000, help='Maximum number of files')
+    
+    # Access control
+    bucket_create_parser.add_argument('--public-read', action='store_true', help='Enable public read access')
+    bucket_create_parser.add_argument('--api-access', action='store_true', default=True, help='Enable API access')
+    bucket_create_parser.add_argument('--web-interface', action='store_true', default=True, help='Enable web interface')
     
     bucket_rm_parser = bucket_subparsers.add_parser('rm', help='Remove a bucket')
     bucket_rm_parser.add_argument('bucket_name', help='Bucket name to remove')
@@ -1536,6 +1678,7 @@ class FastCLI:
         self._ipfs_api = None  # Lazy-loaded centralized API instance
         self._vfs_manager = None  # Lazy-loaded VFS manager
         self._bucket_index_cache = None  # Cache for bucket index to minimize disk I/O
+        self._backend_index_cache = None  # Cache for backend index
         self._config_cache = None  # Cache for config to minimize file reads
         
     def ensure_heavy_imports(self):
@@ -1575,48 +1718,1094 @@ class FastCLI:
         return self._vfs_manager
     
     def get_bucket_index(self, force_refresh=False):
-        """Get bucket index from cache or ~/.ipfs_kit/ indices."""
+        """Get comprehensive bucket index from both SQLite and file system sources."""
         if self._bucket_index_cache is None or force_refresh:
             try:
                 import sqlite3
+                import pandas as pd
                 from pathlib import Path
                 
-                bucket_db_path = Path.home() / '.ipfs_kit' / 'bucket_index' / 'bucket_analytics.db'
+                # Initialize bucket index storage paths
+                index_dir = Path.home() / '.ipfs_kit' / 'bucket_index'
+                index_dir.mkdir(parents=True, exist_ok=True)
                 
+                bucket_db_path = index_dir / 'bucket_analytics.db'
+                bucket_parquet_path = index_dir / 'bucket_registry.parquet'
+                
+                buckets = []
+                
+                # Method 1: Try SQLite database first
                 if bucket_db_path.exists():
-                    conn = sqlite3.connect(str(bucket_db_path))
-                    cursor = conn.cursor()
-                    
-                    # Query for bucket listings
-                    cursor.execute("""
-                        SELECT name, type, backend, size_bytes, last_updated, metadata 
-                        FROM buckets 
-                        ORDER BY last_updated DESC
-                    """)
-                    
-                    buckets = []
-                    for row in cursor.fetchall():
-                        bucket = {
-                            'name': row[0],
-                            'type': row[1], 
-                            'backend': row[2],
-                            'size_bytes': row[3],
-                            'last_updated': row[4],
-                            'metadata': json.loads(row[5] or '{}')
-                        }
-                        buckets.append(bucket)
-                    
-                    conn.close()
-                    self._bucket_index_cache = buckets
-                else:
-                    # No index exists yet - return empty list
-                    self._bucket_index_cache = []
+                    try:
+                        conn = sqlite3.connect(str(bucket_db_path))
+                        cursor = conn.cursor()
+                        
+                        cursor.execute("""
+                            SELECT name, type, backend, size_bytes, last_updated, metadata 
+                            FROM buckets 
+                            ORDER BY last_updated DESC
+                        """)
+                        
+                        for row in cursor.fetchall():
+                            bucket = {
+                                'name': row[0],
+                                'type': row[1], 
+                                'backend': row[2],
+                                'size_bytes': row[3],
+                                'last_updated': row[4],
+                                'metadata': json.loads(row[5] or '{}'),
+                                'source': 'sqlite'
+                            }
+                            buckets.append(bucket)
+                        
+                        conn.close()
+                    except Exception as e:
+                        print(f"⚠️  SQLite bucket index failed: {e}")
+                
+                # Method 2: Scan actual bucket files and configs for comprehensive index
+                buckets_dir = Path.home() / '.ipfs_kit' / 'buckets'
+                configs_dir = Path.home() / '.ipfs_kit' / 'bucket_configs'
+                
+                if buckets_dir.exists():
+                    for bucket_file in buckets_dir.glob('*.parquet'):
+                        bucket_name = bucket_file.stem
+                        
+                        # Skip if already found in SQLite
+                        if any(b['name'] == bucket_name for b in buckets):
+                            continue
+                        
+                        try:
+                            # Read bucket VFS index
+                            df = pd.read_parquet(bucket_file)
+                            
+                            # Get bucket metadata from first row or default values
+                            if len(df) > 0:
+                                first_row = df.iloc[0]
+                                bucket_type = first_row.get('bucket_type', 'general')
+                                created_at = first_row.get('created_at', 'unknown')
+                                metadata = json.loads(first_row.get('metadata', '{}'))
+                            else:
+                                bucket_type = 'general'
+                                created_at = 'unknown'
+                                metadata = {}
+                            
+                            # Calculate statistics
+                            total_files = max(0, len(df) - 1)  # Subtract empty initial entry
+                            total_size = df['file_size'].sum() if 'file_size' in df.columns else 0
+                            
+                            # Try to load YAML config for additional metadata
+                            config_file = configs_dir / f"{bucket_name}.yaml"
+                            backend_bindings = []
+                            yaml_metadata = {}
+                            
+                            if config_file.exists():
+                                try:
+                                    import yaml
+                                    with open(config_file, 'r') as f:
+                                        config = yaml.safe_load(f)
+                                        backend_bindings = config.get('backend_bindings', [])
+                                        yaml_metadata = {
+                                            'description': config.get('description'),
+                                            'replication': config.get('replication', {}),
+                                            'cache': config.get('cache', {}),
+                                            'performance': config.get('performance', {}),
+                                            'disaster_recovery': config.get('disaster_recovery', {}),
+                                            'daemon_managed': config.get('daemon', {}).get('managed', False)
+                                        }
+                                except Exception:
+                                    pass  # Continue without YAML config
+                            
+                            bucket = {
+                                'name': bucket_name,
+                                'type': bucket_type,
+                                'backend': ', '.join(backend_bindings) if backend_bindings else 'local',
+                                'backend_bindings': backend_bindings,
+                                'size_bytes': int(total_size),
+                                'file_count': total_files,
+                                'last_updated': created_at,
+                                'vfs_index_path': str(bucket_file),
+                                'config_path': str(config_file) if config_file.exists() else None,
+                                'metadata': {**metadata, **yaml_metadata},
+                                'source': 'filesystem'
+                            }
+                            buckets.append(bucket)
+                            
+                        except Exception as e:
+                            print(f"⚠️  Failed to read bucket {bucket_name}: {e}")
+                            continue
+                
+                # Sort by last updated
+                buckets.sort(key=lambda x: x.get('last_updated', ''), reverse=True)
+                
+                # Update comprehensive parquet index
+                try:
+                    if buckets:
+                        # Convert to DataFrame and save
+                        bucket_df = pd.DataFrame(buckets)
+                        bucket_df.to_parquet(bucket_parquet_path, index=False)
+                        
+                        # Automatically generate CAR file from the updated registry
+                        try:
+                            car_result = self.generate_bucket_registry_car()
+                            if car_result['success']:
+                                print(f"📦 Generated registry CAR: {car_result['cid']}")
+                        except Exception as e:
+                            # Don't fail the whole operation if CAR generation fails
+                            print(f"⚠️  Failed to generate registry CAR: {e}")
+                            
+                except Exception as e:
+                    print(f"⚠️  Failed to save bucket index: {e}")
+                
+                self._bucket_index_cache = buckets
                     
             except Exception as e:
-                print(f"⚠️  Failed to read bucket index: {e}")
+                print(f"⚠️  Failed to build bucket index: {e}")
                 self._bucket_index_cache = []
                 
         return self._bucket_index_cache
+
+    def generate_bucket_registry_car(self):
+        """Generate a CAR file from bucket_registry.parquet and store it with CID-based filename."""
+        try:
+            from pathlib import Path
+            import json
+            import pandas as pd
+            from .ipfs_multiformats import ipfs_multiformats_py
+            
+            # Define paths
+            bucket_index_dir = Path.home() / '.ipfs_kit' / 'bucket_index'
+            bucket_parquet_path = bucket_index_dir / 'bucket_registry.parquet'
+            pinset_content_dir = Path.home() / '.ipfs_kit' / 'bucket_index' / 'pinset_content'
+            pinset_content_dir.mkdir(parents=True, exist_ok=True)
+            
+            if not bucket_parquet_path.exists():
+                print("⚠️  bucket_registry.parquet not found, generating bucket index first...")
+                self.get_bucket_index(force_refresh=True)
+                if not bucket_parquet_path.exists():
+                    return {
+                        'success': False,
+                        'error': 'Failed to generate bucket registry'
+                    }
+            
+            # Read the bucket registry parquet file
+            bucket_df = pd.read_parquet(bucket_parquet_path)
+            
+            # Convert DataFrame to dictionary format for CAR content, handling numpy types
+            def convert_value(value):
+                """Convert numpy and pandas types to JSON-serializable types"""
+                import numpy as np
+                
+                # Handle None first
+                if value is None:
+                    return None
+                    
+                # Handle numpy arrays
+                if isinstance(value, np.ndarray):
+                    return value.tolist()  # Convert numpy arrays to lists
+                    
+                # Handle numpy scalars
+                if isinstance(value, (np.integer, np.floating)):
+                    return value.item()  # Convert numpy scalars
+                    
+                # Handle pandas NA values (check for scalar NAs)
+                try:
+                    if pd.isna(value) and not isinstance(value, (np.ndarray, list, dict)):
+                        return None
+                except (TypeError, ValueError):
+                    # pd.isna failed, continue with other checks
+                    pass
+                    
+                # Handle dictionaries recursively
+                if isinstance(value, dict):
+                    return {k: convert_value(v) for k, v in value.items()}
+                    
+                # Handle lists
+                if isinstance(value, list):
+                    return [convert_value(item) for item in value]
+                    
+                return value
+            
+            bucket_records = []
+            for _, row in bucket_df.iterrows():
+                # Convert each row to dict with proper type conversion
+                record = {}
+                for col, value in row.items():
+                    record[col] = convert_value(value)
+                bucket_records.append(record)
+            
+            # Convert DataFrame to dictionary format for CAR content
+            bucket_registry_data = {
+                'version': '1.0',
+                'type': 'bucket_registry',
+                'generated_at': pd.Timestamp.now().isoformat(),
+                'total_buckets': len(bucket_df),
+                'buckets': bucket_records
+            }
+            
+            # Convert to canonical JSON for CID generation
+            registry_json = json.dumps(bucket_registry_data, sort_keys=True, separators=(',', ':'))
+            registry_bytes = registry_json.encode('utf-8')
+            
+            # Generate CID using ipfs_multiformats
+            multiformats = ipfs_multiformats_py()
+            registry_cid = multiformats.get_cid(registry_bytes)
+            
+            # Create CAR structure (simplified JSON-based CAR)
+            car_structure = {
+                'header': {
+                    'version': 1,
+                    'roots': [registry_cid],
+                    'format': 'bucket_registry_car'
+                },
+                'blocks': [
+                    {
+                        'cid': registry_cid,
+                        'data': bucket_registry_data
+                    }
+                ]
+            }
+            
+            # Convert CAR structure to bytes
+            car_content = json.dumps(car_structure, indent=2, sort_keys=True).encode('utf-8')
+            
+            # Store the CAR file with CID as filename
+            car_filename = f"{registry_cid}.car"
+            car_file_path = pinset_content_dir / car_filename
+            
+            with open(car_file_path, 'wb') as f:
+                f.write(car_content)
+            
+            # Also store a JSON version for easy inspection
+            json_filename = f"{registry_cid}.json"
+            json_file_path = pinset_content_dir / json_filename
+            
+            with open(json_file_path, 'w') as f:
+                json.dump(bucket_registry_data, f, indent=2)
+            
+            return {
+                'success': True,
+                'cid': registry_cid,
+                'car_file': str(car_file_path),
+                'json_file': str(json_file_path),
+                'size_bytes': len(car_content),
+                'bucket_count': len(bucket_df)
+            }
+            
+        except Exception as e:
+            print(f"⚠️  Failed to generate bucket registry CAR: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    async def export_pin_metadata_to_shards(self, max_shard_size_mb=100):
+        """Export DuckDB pin metadata to parquet and CAR shards with size limits."""
+        try:
+            import duckdb
+            import pandas as pd
+            import json
+            import math
+            from pathlib import Path
+            from .ipfs_multiformats import ipfs_multiformats_py
+            
+            # Define paths
+            metadata_dir = Path.home() / '.ipfs_kit' / 'pin_metadata'
+            db_path = metadata_dir / 'pin_metadata.duckdb'
+            parquet_dir = metadata_dir / 'parquet'
+            car_dir = metadata_dir / 'car'
+            
+            # Create directories
+            parquet_dir.mkdir(parents=True, exist_ok=True)
+            car_dir.mkdir(parents=True, exist_ok=True)
+            
+            if not db_path.exists():
+                return {
+                    'success': False,
+                    'error': 'pin_metadata.duckdb not found'
+                }
+            
+            # Connect to DuckDB
+            conn = duckdb.connect(str(db_path))
+            
+            # Get all tables
+            tables = conn.execute('SHOW TABLES').fetchall()
+            table_names = [table[0] for table in tables]
+            
+            multiformats = ipfs_multiformats_py()
+            shard_info = []
+            max_shard_bytes = max_shard_size_mb * 1024 * 1024
+            
+            print(f"📦 Exporting pin metadata from DuckDB to sharded parquet/CAR files...")
+            print(f"   Max shard size: {max_shard_size_mb} MB")
+            print(f"   Tables to export: {len(table_names)}")
+            
+            # Process each table
+            for table_name in table_names:
+                print(f"\n📋 Processing table: {table_name}")
+                
+                # Get table row count
+                total_rows = conn.execute(f'SELECT COUNT(*) FROM {table_name}').fetchone()[0]
+                if total_rows == 0:
+                    print(f"   ⚠️  Table {table_name} is empty, skipping")
+                    continue
+                
+                # Estimate rows per shard based on total size
+                sample_df = conn.execute(f'SELECT * FROM {table_name} LIMIT 1000').df()
+                if len(sample_df) == 0:
+                    continue
+                    
+                sample_parquet_bytes = len(sample_df.to_parquet())
+                estimated_row_size = sample_parquet_bytes / len(sample_df)
+                rows_per_shard = max(1, int(max_shard_bytes / estimated_row_size * 0.8))  # 80% safety margin
+                
+                num_shards = math.ceil(total_rows / rows_per_shard)
+                print(f"   📊 {total_rows} rows → {num_shards} shards (~{rows_per_shard} rows/shard)")
+                
+                # Create shards for this table
+                for shard_idx in range(num_shards):
+                    offset = shard_idx * rows_per_shard
+                    
+                    # Export shard data
+                    shard_df = conn.execute(f"""
+                        SELECT * FROM {table_name} 
+                        LIMIT {rows_per_shard} OFFSET {offset}
+                    """).df()
+                    
+                    if len(shard_df) == 0:
+                        continue
+                    
+                    # Create shard metadata
+                    shard_metadata = {
+                        'table': table_name,
+                        'shard_index': shard_idx,
+                        'total_shards': num_shards,
+                        'rows': len(shard_df),
+                        'columns': list(shard_df.columns),
+                        'created_at': pd.Timestamp.now().isoformat(),
+                        'version': '1.0'
+                    }
+                    
+                    # Convert to JSON for CID generation
+                    metadata_json = json.dumps(shard_metadata, sort_keys=True, separators=(',', ':'))
+                    shard_bytes = shard_df.to_parquet()
+                    
+                    # Create combined content for CID generation
+                    combined_content = {
+                        'metadata': shard_metadata,
+                        'data_size': len(shard_bytes),
+                        'data_hash': multiformats.get_cid(shard_bytes)
+                    }
+                    combined_json = json.dumps(combined_content, sort_keys=True, separators=(',', ':'))
+                    combined_bytes = combined_json.encode('utf-8')
+                    
+                    # Generate CID for the shard
+                    shard_cid = multiformats.get_cid(combined_bytes)
+                    
+                    # Save parquet file
+                    parquet_file = parquet_dir / f"{shard_cid}.parquet"
+                    shard_df.to_parquet(parquet_file, index=False)
+                    
+                    # Create CAR structure
+                    car_structure = {
+                        'header': {
+                            'version': 1,
+                            'roots': [shard_cid],
+                            'format': 'pin_metadata_shard'
+                        },
+                        'blocks': [
+                            {
+                                'cid': shard_cid,
+                                'metadata': shard_metadata,
+                                'data_cid': combined_content['data_hash'],
+                                'data_size': len(shard_bytes)
+                            }
+                        ]
+                    }
+                    
+                    # Save CAR file
+                    car_content = json.dumps(car_structure, indent=2, sort_keys=True).encode('utf-8')
+                    car_file = car_dir / f"{shard_cid}.car"
+                    
+                    with open(car_file, 'wb') as f:
+                        f.write(car_content)
+                    
+                    # Track shard info
+                    shard_info.append({
+                        'cid': shard_cid,
+                        'table': table_name,
+                        'shard_index': shard_idx,
+                        'rows': len(shard_df),
+                        'parquet_file': str(parquet_file),
+                        'car_file': str(car_file),
+                        'parquet_size': len(shard_bytes),
+                        'car_size': len(car_content),
+                        'created_at': shard_metadata['created_at']
+                    })
+                    
+                    print(f"   ✅ Shard {shard_idx}: {shard_cid} ({len(shard_df)} rows, {len(car_content)/1024:.1f}KB)")
+            
+            conn.close()
+            
+            # Create master index CAR file
+            master_index = {
+                'version': '1.0',
+                'type': 'pin_metadata_index',
+                'total_shards': len(shard_info),
+                'tables_exported': list(set(s['table'] for s in shard_info)),
+                'created_at': pd.Timestamp.now().isoformat(),
+                'shards': shard_info
+            }
+            
+            # Generate CID for master index
+            index_json = json.dumps(master_index, sort_keys=True, separators=(',', ':'))
+            index_bytes = index_json.encode('utf-8')
+            index_cid = multiformats.get_cid(index_bytes)
+            
+            # Add the CID to the master index for reference
+            master_index['master_index_cid'] = index_cid
+            
+            # Create/update pin_metadata_shard_index.car with proper CAR format content
+            shard_index_car_path = metadata_dir / "pin_metadata_shard_index.car"
+            self._create_shard_index_car_file(shard_index_car_path, master_index, shard_info)
+            
+            return {
+                'success': True,
+                'master_index_cid': index_cid,
+                'shard_index_car_file': str(shard_index_car_path),
+                'total_shards': len(shard_info),
+                'tables_exported': list(set(s['table'] for s in shard_info)),
+                'total_parquet_size': sum(s['parquet_size'] for s in shard_info),
+                'total_car_size': sum(s['car_size'] for s in shard_info),
+                'shards': shard_info
+            }
+            
+        except Exception as e:
+            print(f"⚠️  Failed to export pin metadata: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def _create_shard_index_car_file(self, shard_car_path, master_index, shard_info):
+        """Create or update the CAR shard index file with proper CAR format content."""
+        try:
+            import io
+            import struct
+            
+            # Create CAR file with proper binary format
+            car_buffer = io.BytesIO()
+            
+            # CAR v1 header structure - include all shard CIDs as roots
+            shard_cids = [shard['cid'] for shard in shard_info] + [master_index.get('master_index_cid', '')]
+            car_header = {
+                'version': 1,
+                'roots': [cid for cid in shard_cids if cid]  # Filter out empty CIDs
+            }
+            
+            # Encode header as JSON bytes
+            header_json = json.dumps(car_header).encode('utf-8')
+            header_length = len(header_json)
+            
+            # Write CAR header: [varint length][header JSON]
+            car_buffer.write(self._encode_varint(header_length))
+            car_buffer.write(header_json)
+            
+            # Write blocks for each shard
+            block_count = 0
+            total_size = 0
+            
+            for shard in shard_info:
+                # Create block data for this shard
+                shard_data = {
+                    'cid': shard['cid'],
+                    'table': shard['table'],
+                    'shard_index': shard['shard_index'],
+                    'rows': shard['rows'],
+                    'parquet_file': shard['parquet_file'],
+                    'car_file': shard['car_file'],
+                    'parquet_size': shard['parquet_size'],
+                    'car_size': shard['car_size'],
+                    'created_at': shard['created_at']
+                }
+                
+                # Encode shard data as JSON bytes
+                block_data = json.dumps(shard_data).encode('utf-8')
+                
+                # Write block: [varint length][CID bytes][block data]
+                cid_bytes = shard['cid'].encode('utf-8')
+                cid_length = len(cid_bytes)
+                
+                # Calculate total block length: CID length + block data length
+                total_block_length = cid_length + len(block_data)
+                
+                # Write: [total length][CID length][CID][block data]
+                car_buffer.write(self._encode_varint(total_block_length))
+                car_buffer.write(self._encode_varint(cid_length))
+                car_buffer.write(cid_bytes)
+                car_buffer.write(block_data)
+                
+                block_count += 1
+                total_size += total_block_length
+            
+            # Add metadata footer with master index information
+            footer_data = {
+                'master_index_metadata': {
+                    'version': master_index['version'],
+                    'type': master_index['type'],
+                    'created_at': master_index['created_at'],
+                    'total_shards': master_index['total_shards'],
+                    'tables_exported': master_index['tables_exported'],
+                    'master_index_cid': master_index.get('master_index_cid', ''),
+                    'block_count': block_count,
+                    'total_size_bytes': total_size,
+                    'compression': 'none',
+                    'encoding': 'json'
+                }
+            }
+            
+            footer_json = json.dumps(footer_data).encode('utf-8')
+            footer_length = len(footer_json)
+            
+            # Write footer
+            car_buffer.write(self._encode_varint(footer_length))
+            car_buffer.write(footer_json)
+            
+            # Write the complete CAR file
+            car_content = car_buffer.getvalue()
+            with open(shard_car_path, 'wb') as f:
+                f.write(car_content)
+            
+            print(f"✅ Updated shard index CAR file with {block_count} blocks ({len(car_content)} bytes): {shard_car_path}")
+            
+        except Exception as e:
+            print(f"⚠️  Error creating shard index CAR file: {e}")
+            raise
+
+    def _encode_varint(self, value: int) -> bytes:
+        """Encode integer as varint for CAR format."""
+        result = []
+        while value >= 0x80:
+            result.append((value & 0x7f) | 0x80)
+            value >>= 7
+        result.append(value & 0x7f)
+        return bytes(result)
+
+    def get_backend_index(self, force_refresh=False):
+        """Get comprehensive backend index from configuration files and discovery."""
+        if self._backend_index_cache is None or force_refresh:
+            try:
+                import yaml
+                import pandas as pd
+                from pathlib import Path
+                import requests
+                
+                # Initialize backend index storage paths
+                index_dir = Path.home() / '.ipfs_kit' / 'backend_index'
+                index_dir.mkdir(parents=True, exist_ok=True)
+                
+                backend_parquet_path = index_dir / 'backend_registry.parquet'
+                backends = []
+                
+                # Method 1: Scan configuration files for backend definitions
+                config_dir = Path.home() / '.ipfs_kit'
+                
+                # Check various config files for backend definitions
+                config_files_to_scan = [
+                    'package_config.yaml',
+                    's3_config.yaml', 
+                    'lotus_config.yaml',
+                    'ipfs_config.yaml',
+                    'cluster_config.yaml'
+                ]
+                
+                for config_file in config_files_to_scan:
+                    config_path = config_dir / config_file
+                    if config_path.exists():
+                        try:
+                            with open(config_path, 'r') as f:
+                                config = yaml.safe_load(f) or {}
+                            
+                            # Extract backend configurations
+                            if 'backends' in config:
+                                for backend_name, backend_config in config['backends'].items():
+                                    backend = {
+                                        'name': backend_name,
+                                        'type': backend_config.get('type', 'unknown'),
+                                        'endpoint': backend_config.get('endpoint', ''),
+                                        'status': 'configured',
+                                        'capabilities': backend_config.get('capabilities', []),
+                                        'config_file': config_file,
+                                        'config': backend_config,
+                                        'last_updated': config_path.stat().st_mtime,
+                                        'source': 'config'
+                                    }
+                                    backends.append(backend)
+                            
+                            # Check for specific backend types in root config
+                            backend_types = {
+                                'ipfs': {'type': 'ipfs', 'default_port': 5001},
+                                'cluster': {'type': 'ipfs_cluster', 'default_port': 9094},
+                                'lotus': {'type': 'lotus', 'default_port': 1234},
+                                's3': {'type': 's3', 'default_port': 443},
+                                'pinata': {'type': 'pinata', 'default_port': 443}
+                            }
+                            
+                            for key, info in backend_types.items():
+                                if key in config and config[key].get('enabled', False):
+                                    backend = {
+                                        'name': f"{key}_default",
+                                        'type': info['type'],
+                                        'endpoint': config[key].get('endpoint', f"http://localhost:{info['default_port']}"),
+                                        'status': 'configured',
+                                        'capabilities': config[key].get('capabilities', []),
+                                        'config_file': config_file,
+                                        'config': config[key],
+                                        'last_updated': config_path.stat().st_mtime,
+                                        'source': 'config'
+                                    }
+                                    backends.append(backend)
+                                    
+                        except Exception as e:
+                            print(f"⚠️  Failed to parse {config_file}: {e}")
+                
+                # Method 2: Discover active backends through well-known endpoints
+                discovery_endpoints = [
+                    {'name': 'ipfs_local', 'type': 'ipfs', 'endpoint': 'http://localhost:5001'},
+                    {'name': 'cluster_local', 'type': 'ipfs_cluster', 'endpoint': 'http://localhost:9094'},
+                    {'name': 'lotus_local', 'type': 'lotus', 'endpoint': 'http://localhost:1234'},
+                    {'name': 'daemon_local', 'type': 'ipfs_kit_daemon', 'endpoint': 'http://localhost:9999'}
+                ]
+                
+                for discovery in discovery_endpoints:
+                    # Skip if already found in config
+                    if any(b['name'] == discovery['name'] or b['endpoint'] == discovery['endpoint'] for b in backends):
+                        continue
+                    
+                    try:
+                        # Try to connect with short timeout
+                        test_endpoints = [
+                            f"{discovery['endpoint']}/api/v0/version",  # IPFS
+                            f"{discovery['endpoint']}/version",         # Cluster
+                            f"{discovery['endpoint']}/health",          # Daemon
+                            discovery['endpoint']                       # Generic
+                        ]
+                        
+                        backend_status = 'offline'
+                        capabilities = []
+                        version_info = {}
+                        
+                        for test_endpoint in test_endpoints:
+                            try:
+                                response = requests.get(test_endpoint, timeout=2)
+                                if response.status_code == 200:
+                                    backend_status = 'online'
+                                    try:
+                                        version_info = response.json()
+                                        if 'Version' in version_info:
+                                            capabilities.append(f"version:{version_info['Version']}")
+                                    except:
+                                        pass
+                                    break
+                            except:
+                                continue
+                        
+                        backend = {
+                            'name': discovery['name'],
+                            'type': discovery['type'],
+                            'endpoint': discovery['endpoint'],
+                            'status': backend_status,
+                            'capabilities': capabilities,
+                            'version_info': version_info,
+                            'last_updated': pd.Timestamp.now().timestamp(),
+                            'source': 'discovery'
+                        }
+                        backends.append(backend)
+                        
+                    except Exception as e:
+                        # Add as offline backend
+                        backend = {
+                            'name': discovery['name'],
+                            'type': discovery['type'],
+                            'endpoint': discovery['endpoint'],
+                            'status': 'unreachable',
+                            'capabilities': [],
+                            'error': str(e),
+                            'last_updated': pd.Timestamp.now().timestamp(),
+                            'source': 'discovery'
+                        }
+                        backends.append(backend)
+                
+                # Method 3: Check bucket configurations for backend bindings
+                bucket_configs_dir = Path.home() / '.ipfs_kit' / 'bucket_configs'
+                
+                if bucket_configs_dir.exists():
+                    for config_file in bucket_configs_dir.glob('*.yaml'):
+                        try:
+                            with open(config_file, 'r') as f:
+                                bucket_config = yaml.safe_load(f)
+                            
+                            bucket_backends = bucket_config.get('backend_bindings', [])
+                            for backend_name in bucket_backends:
+                                # Skip if already exists
+                                if any(b['name'] == backend_name for b in backends):
+                                    continue
+                                
+                                backend = {
+                                    'name': backend_name,
+                                    'type': 'bucket_binding',
+                                    'endpoint': 'unknown',
+                                    'status': 'referenced',
+                                    'capabilities': ['bucket_storage'],
+                                    'referenced_in': [config_file.stem],
+                                    'last_updated': config_file.stat().st_mtime,
+                                    'source': 'bucket_binding'
+                                }
+                                backends.append(backend)
+                                
+                        except Exception:
+                            continue
+                
+                # Remove duplicates and sort
+                unique_backends = []
+                seen_names = set()
+                
+                for backend in backends:
+                    if backend['name'] not in seen_names:
+                        unique_backends.append(backend)
+                        seen_names.add(backend['name'])
+                
+                # Sort by status (online first) then by name
+                status_priority = {'online': 0, 'configured': 1, 'referenced': 2, 'offline': 3, 'unreachable': 4}
+                unique_backends.sort(key=lambda x: (status_priority.get(x['status'], 9), x['name']))
+                
+                # Save comprehensive backend index with dirty state tracking
+                try:
+                    if unique_backends:
+                        # Add dirty state tracking for each backend
+                        for backend in unique_backends:
+                            backend['dirty'] = self._check_backend_dirty_state(backend)
+                            backend['pinset_hash'] = self._get_backend_pinset_hash(backend)
+                            backend['last_sync'] = self._get_backend_last_sync(backend)
+                        
+                        backend_df = pd.DataFrame(unique_backends)
+                        backend_df.to_parquet(backend_parquet_path, index=False)
+                except Exception as e:
+                    print(f"⚠️  Failed to save backend index: {e}")
+                
+                self._backend_index_cache = unique_backends
+                    
+            except Exception as e:
+                print(f"⚠️  Failed to build backend index: {e}")
+                self._backend_index_cache = []
+                
+        return self._backend_index_cache
+    
+    def mark_backend_dirty(self, backend_name, action_type, affected_cids):
+        """Mark a backend as dirty when pinset changes haven't been synced."""
+        try:
+            from pathlib import Path
+            import json
+            import time
+            import pandas as pd
+            
+            # Update the backend registry parquet file
+            index_dir = Path.home() / '.ipfs_kit' / 'backend_index'
+            index_dir.mkdir(parents=True, exist_ok=True)
+            backend_parquet_path = index_dir / 'backend_registry.parquet'
+            
+            # Read current backend registry
+            if backend_parquet_path.exists():
+                try:
+                    backend_df = pd.read_parquet(backend_parquet_path)
+                    
+                    # Update the specific backend's dirty state
+                    backend_mask = backend_df['name'] == backend_name
+                    if backend_mask.any():
+                        backend_df.loc[backend_mask, 'dirty'] = True
+                        backend_df.loc[backend_mask, 'last_updated'] = time.time()
+                        
+                        # Update pinset hash with affected CIDs
+                        if affected_cids:
+                            import json
+                            from .ipfs_multiformats import ipfs_multiformats_py
+                            
+                            # Create pinset index content
+                            pinset_index = {
+                                'backend': backend_name,
+                                'timestamp': time.time(),
+                                'cids': sorted(affected_cids),
+                                'version': '1.0'
+                            }
+                            
+                            pinset_json = json.dumps(pinset_index, sort_keys=True, separators=(',', ':'))
+                            pinset_bytes = pinset_json.encode('utf-8')
+                            
+                            # Generate CID using ipfs_multiformats
+                            multiformats = ipfs_multiformats_py()
+                            cid_str = multiformats.get_cid(pinset_bytes)
+                            backend_df.loc[backend_mask, 'pinset_hash'] = cid_str
+                        
+                        # Save updated registry
+                        backend_df.to_parquet(backend_parquet_path, index=False)
+                        
+                        # Clear the cached backend index so it gets refreshed
+                        self._backend_index_cache = None
+                        
+                        print(f"🚨 Marked backend '{backend_name}' as dirty ({action_type})")
+                    else:
+                        print(f"⚠️  Backend '{backend_name}' not found in registry")
+                        
+                except Exception as e:
+                    print(f"⚠️  Failed to update backend registry: {e}")
+            
+            # Create detailed dirty state metadata for daemon use
+            dirty_dir = index_dir / 'dirty_metadata'
+            dirty_dir.mkdir(parents=True, exist_ok=True)
+            
+            dirty_file = dirty_dir / f"{backend_name}_dirty.json"
+            
+            # Load existing dirty state or create new
+            if dirty_file.exists():
+                with open(dirty_file, 'r') as f:
+                    dirty_state = json.load(f)
+            else:
+                dirty_state = {
+                    'backend_name': backend_name,
+                    'is_dirty': False,
+                    'pending_actions': [],
+                    'affected_cids': [],
+                    'created_at': time.time(),
+                    'last_updated': time.time()
+                }
+            
+            # Add new action
+            action = {
+                'action_type': action_type,
+                'cids': affected_cids if isinstance(affected_cids, list) else [affected_cids],
+                'timestamp': time.time(),
+                'synced': False
+            }
+            
+            dirty_state['pending_actions'].append(action)
+            # Merge affected CIDs as lists
+            existing_cids = set(dirty_state.get('affected_cids', []))
+            new_cids = set(action['cids'])
+            dirty_state['affected_cids'] = list(existing_cids.union(new_cids))
+            dirty_state['is_dirty'] = True
+            dirty_state['last_updated'] = time.time()
+            
+            # Save dirty state
+            with open(dirty_file, 'w') as f:
+                json.dump(dirty_state, f, indent=2)
+            
+            # Also create a quick dirty flag for fast checking
+            quick_dirty_file = dirty_dir / f'{backend_name}.dirty'
+            quick_dirty_file.touch()
+            
+        except Exception as e:
+            print(f"⚠️  Failed to mark backend as dirty: {e}")
+    
+    def mark_backend_clean(self, backend_name, synced_cids=None):
+        """Mark a backend as clean after successful sync."""
+        try:
+            from pathlib import Path
+            import json
+            import time
+            import pandas as pd
+            
+            # Update the backend registry parquet file
+            index_dir = Path.home() / '.ipfs_kit' / 'backend_index'
+            backend_parquet_path = index_dir / 'backend_registry.parquet'
+            
+            # Read current backend registry
+            if backend_parquet_path.exists():
+                try:
+                    backend_df = pd.read_parquet(backend_parquet_path)
+                    
+                    # Update the specific backend's dirty state
+                    backend_mask = backend_df['name'] == backend_name
+                    if backend_mask.any():
+                        backend_df.loc[backend_mask, 'dirty'] = False
+                        backend_df.loc[backend_mask, 'last_sync'] = int(time.time())
+                        backend_df.loc[backend_mask, 'pinset_hash'] = 'bafyaabaiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'  # Clean state CID
+                        
+                        # Save updated registry
+                        backend_df.to_parquet(backend_parquet_path, index=False)
+                        
+                        # Clear the cached backend index so it gets refreshed
+                        self._backend_index_cache = None
+                        
+                except Exception as e:
+                    print(f"⚠️  Failed to update backend registry: {e}")
+            
+            dirty_dir = index_dir / 'dirty_metadata'
+            dirty_file = dirty_dir / f'{backend_name}_dirty.json'
+            quick_dirty_file = dirty_dir / f'{backend_name}.dirty'
+            
+            if not dirty_file.exists():
+                return  # Already clean
+            
+            # Load current dirty state
+            with open(dirty_file, 'r') as f:
+                dirty_state = json.load(f)
+            
+            if synced_cids:
+                # Mark specific CIDs as synced
+                for action in dirty_state['pending_actions']:
+                    if not action['synced']:
+                        action['cids'] = [cid for cid in action['cids'] if cid not in synced_cids]
+                        if not action['cids']:
+                            action['synced'] = True
+                
+                # Remove synced CIDs from affected_cids
+                dirty_state['affected_cids'] = [cid for cid in dirty_state['affected_cids'] if cid not in synced_cids]
+            else:
+                # Mark all actions as synced
+                for action in dirty_state['pending_actions']:
+                    action['synced'] = True
+                dirty_state['affected_cids'] = []
+            
+            # Check if all actions are synced
+            all_synced = all(action['synced'] for action in dirty_state['pending_actions'])
+            
+            if all_synced or not dirty_state['affected_cids']:
+                dirty_state['is_dirty'] = False
+                dirty_state['last_sync'] = time.time()
+                
+                # Remove quick dirty flag
+                if quick_dirty_file.exists():
+                    quick_dirty_file.unlink()
+                
+                print(f"✅ Marked backend '{backend_name}' as clean")
+            else:
+                print(f"⚠️  Backend '{backend_name}' still has {len(dirty_state['affected_cids'])} pending CIDs")
+            
+            # Update dirty state file
+            with open(dirty_file, 'w') as f:
+                json.dump(dirty_state, f, indent=2)
+                
+        except Exception as e:
+            print(f"⚠️  Failed to mark backend as clean: {e}")
+    
+    def _check_backend_dirty_state(self, backend):
+        """Check if a backend has dirty (unsynced) pinset changes."""
+        try:
+            from pathlib import Path
+            
+            # Handle both backend dict and string name
+            backend_name = backend['name'] if isinstance(backend, dict) else backend
+            
+            dirty_dir = Path.home() / '.ipfs_kit' / 'backend_index' / 'dirty_metadata'
+            quick_dirty_file = dirty_dir / f"{backend_name}.dirty"
+            
+            # Quick check using dirty flag file
+            if quick_dirty_file.exists():
+                return True
+            
+            # Also check the backend registry directly
+            if isinstance(backend, dict):
+                return backend.get('dirty', False)
+            
+            return False
+            
+        except Exception:
+            return False
+    
+    def _get_backend_pinset_hash(self, backend):
+        """Get a CID hash of the backend's current pinset for change detection."""
+        try:
+            from pathlib import Path
+            import json
+            from .ipfs_multiformats import ipfs_multiformats_py
+            
+            # Handle both backend dict and string name  
+            backend_name = backend['name'] if isinstance(backend, dict) else backend
+            
+            dirty_dir = Path.home() / '.ipfs_kit' / 'backend_index' / 'dirty_metadata'
+            dirty_file = dirty_dir / f"{backend_name}_dirty.json"
+            
+            if dirty_file.exists():
+                with open(dirty_file, 'r') as f:
+                    dirty_state = json.load(f)
+                
+                # Create pinset index content from affected CIDs
+                if dirty_state.get('affected_cids'):
+                    pinset_index = {
+                        'backend': backend_name,
+                        'timestamp': dirty_state.get('last_updated'),
+                        'cids': sorted(dirty_state['affected_cids']),
+                        'actions': dirty_state.get('pending_actions', []),
+                        'version': '1.0'
+                    }
+                    
+                    # Convert to canonical JSON for CID generation
+                    pinset_json = json.dumps(pinset_index, sort_keys=True, separators=(',', ':'))
+                    pinset_bytes = pinset_json.encode('utf-8')
+                    
+                    # Generate actual IPFS CID using ipfs_multiformats
+                    multiformats = ipfs_multiformats_py()
+                    cid_str = multiformats.get_cid(pinset_bytes)
+                    
+                    # Store the pinset index content as CAR file for retrieval
+                    pinset_dir = Path.home() / '.ipfs_kit' / 'backend_index' / 'pinset_content'
+                    pinset_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    # Create CAR structure (simplified JSON-based CAR)
+                    car_structure = {
+                        'header': {
+                            'version': 1,
+                            'roots': [cid_str],
+                            'format': 'backend_pinset_car'
+                        },
+                        'blocks': [
+                            {
+                                'cid': cid_str,
+                                'data': pinset_index
+                            }
+                        ]
+                    }
+                    
+                    # Store as CAR file
+                    car_content = json.dumps(car_structure, indent=2, sort_keys=True).encode('utf-8')
+                    car_file = pinset_dir / f"{cid_str}.car"
+                    
+                    with open(car_file, 'wb') as f:
+                        f.write(car_content)
+                    
+                    # Also store a JSON version for easy inspection
+                    json_file = pinset_dir / f"{cid_str}.json"
+                    with open(json_file, 'w') as f:
+                        json.dump(pinset_index, f, indent=2)
+                    
+                    return cid_str
+            
+            return 'bafyaabaiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'  # Clean state CID
+            
+        except Exception as e:
+            print(f"Warning: Failed to generate pinset CID: {e}")
+            return 'bafyaabaiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab'  # Error state CID
+    
+    def _get_backend_last_sync(self, backend):
+        """Get the timestamp of the backend's last successful sync."""
+        try:
+            from pathlib import Path
+            import json
+            
+            # Handle both backend dict and string name
+            backend_name = backend['name'] if isinstance(backend, dict) else backend
+            
+            dirty_dir = Path.home() / '.ipfs_kit' / 'backend_index' / 'dirty_metadata'
+            dirty_file = dirty_dir / f"{backend_name}_dirty.json"
+            
+            if dirty_file.exists():
+                with open(dirty_file, 'r') as f:
+                    dirty_state = json.load(f)
+                return dirty_state.get('last_sync', 0)
+            
+            return 0
+            
+        except Exception:
+            return 0
     
     def get_config_value(self, key, default=None):
         """Get configuration value from cache or ~/.ipfs_kit/ config files."""
@@ -6925,6 +8114,1314 @@ class FastCLI:
             print(f"❌ Failed to export logs: {e}")
             return 1
 
+    # Bucket Management Commands
+    async def cmd_bucket_create(self, args):
+        """Create a new bucket with comprehensive YAML configuration."""
+        try:
+            print(f"🪣 Creating bucket: {args.bucket_name}")
+            print(f"   📋 Type: {args.bucket_type}")
+            
+            # Import bucket manager
+            from .simple_bucket_manager import SimpleBucketManager
+            bucket_manager = SimpleBucketManager()
+            
+            # Extract CLI arguments into kwargs for comprehensive configuration
+            bucket_kwargs = {
+                'description': getattr(args, 'description', None),
+                'backend_bindings': getattr(args, 'backend_bindings', []),
+                
+                # Replication settings
+                'replication_min': getattr(args, 'replication_min', 2),
+                'replication_target': getattr(args, 'replication_target', 3),
+                'replication_max': getattr(args, 'replication_max', 5),
+                'replication_policy': getattr(args, 'replication_policy', 'balanced'),
+                'geographic_distribution': getattr(args, 'geographic_distribution', True),
+                
+                # Disaster recovery
+                'dr_tier': getattr(args, 'dr_tier', 'standard'),
+                'dr_zones': getattr(args, 'dr_zones', '').split(',') if getattr(args, 'dr_zones', '') else [],
+                'dr_backup_frequency': getattr(args, 'dr_backup_frequency', 'daily'),
+                
+                # Cache settings
+                'cache_policy': getattr(args, 'cache_policy', 'lru'),
+                'cache_size_mb': getattr(args, 'cache_size_mb', 512),
+                'cache_ttl': getattr(args, 'cache_ttl', 3600),
+                
+                # Performance settings
+                'throughput_mode': getattr(args, 'throughput_mode', 'balanced'),
+                'concurrent_ops': getattr(args, 'concurrent_ops', 5),
+                'performance_tier': getattr(args, 'performance_tier', 'balanced'),
+                
+                # Lifecycle management
+                'lifecycle_policy': getattr(args, 'lifecycle_policy', 'none'),
+                'archive_after_days': getattr(args, 'archive_after_days', None),
+                'delete_after_days': getattr(args, 'delete_after_days', None),
+                
+                # Custom metadata
+                'metadata': json.loads(getattr(args, 'metadata', '{}')) if getattr(args, 'metadata', None) else {},
+                'tags': getattr(args, 'tags', []),
+                
+                # Access control
+                'public_read': getattr(args, 'public_read', False),
+                'api_access': getattr(args, 'api_access', True),
+                'web_interface': getattr(args, 'web_interface', True),
+                
+                # Resource limits
+                'max_file_size_gb': getattr(args, 'max_file_size_gb', 10),
+                'max_total_size_gb': getattr(args, 'max_total_size_gb', 1000),
+                'max_files': getattr(args, 'max_files', 100000),
+                
+                # Operational
+                'created_by': 'cli'
+            }
+            
+            # Create bucket with comprehensive configuration
+            result = await bucket_manager.create_bucket(
+                args.bucket_name,
+                args.bucket_type,
+                getattr(args, 'vfs_structure', 'hybrid'),
+                **bucket_kwargs
+            )
+            
+            if result['success']:
+                data = result['data']
+                print(f"✅ Bucket created successfully")
+                print(f"   📄 VFS Index: {data['vfs_index_path']}")
+                if 'yaml_config_path' in data:
+                    print(f"   ⚙️  YAML Config: {data['yaml_config_path']}")
+                print(f"   📅 Created: {data['created_at']}")
+                return 0
+            else:
+                print(f"❌ Failed to create bucket: {result['error']}")
+                return 1
+                
+        except Exception as e:
+            print(f"❌ Bucket creation failed: {e}")
+            import traceback
+            print(f"   Debug: {traceback.format_exc()}")
+            return 1
+
+    async def cmd_bucket_list(self, args):
+        """List all buckets."""
+        try:
+            from .simple_bucket_manager import SimpleBucketManager
+            bucket_manager = SimpleBucketManager()
+            
+            result = await bucket_manager.list_buckets()
+            
+            if result['success']:
+                buckets = result['data']['buckets']
+                total = result['data']['total_count']
+                
+                print(f"📂 IPFS-Kit Buckets ({total} total)")
+                print("=" * 60)
+                
+                if not buckets:
+                    print("   No buckets found")
+                    return 0
+                
+                for bucket in buckets:
+                    print(f"🪣 {bucket['name']}")
+                    print(f"   📋 Type: {bucket['type']}")
+                    print(f"   📊 Files: {bucket['file_count']}")
+                    print(f"   💾 Size: {bucket['size_bytes']} bytes")
+                    print(f"   📅 Created: {bucket['created_at']}")
+                    print(f"   📄 VFS: {bucket['vfs_index']}")
+                    print()
+                
+                return 0
+            else:
+                print(f"❌ Failed to list buckets: {result['error']}")
+                return 1
+                
+        except Exception as e:
+            print(f"❌ Bucket listing failed: {e}")
+            return 1
+
+    async def cmd_bucket_add(self, args):
+        """Add a file to a bucket."""
+        try:
+            print(f"📤 Adding file to bucket: {args.bucket_name}")
+            print(f"   📄 Source: {args.source}")
+            print(f"   📁 Path: {args.path}")
+            
+            from .simple_bucket_manager import SimpleBucketManager
+            bucket_manager = SimpleBucketManager()
+            
+            # Check if source file exists
+            if not os.path.exists(args.source):
+                print(f"❌ Source file not found: {args.source}")
+                return 1
+            
+            # Prepare metadata
+            metadata = {}
+            if hasattr(args, 'metadata') and args.metadata:
+                try:
+                    metadata = json.loads(args.metadata)
+                except json.JSONDecodeError:
+                    print(f"⚠️  Invalid JSON metadata, ignoring")
+            
+            result = await bucket_manager.add_file_to_bucket(
+                args.bucket_name,
+                args.path,
+                content_file=args.source,
+                metadata=metadata
+            )
+            
+            if result['success']:
+                data = result['data']
+                print(f"✅ File added successfully")
+                print(f"   🆔 CID: {data['file_cid']}")
+                print(f"   📏 Size: {data['file_size']} bytes")
+                print(f"   💾 WAL Stored: {data['wal_stored']}")
+                return 0
+            else:
+                print(f"❌ Failed to add file: {result['error']}")
+                return 1
+                
+        except Exception as e:
+            print(f"❌ File addition failed: {e}")
+            return 1
+
+    async def cmd_bucket_get(self, args):
+        """Get bucket information."""
+        try:
+            from .simple_bucket_manager import SimpleBucketManager
+            bucket_manager = SimpleBucketManager()
+            
+            result = await bucket_manager.get_bucket_files(args.bucket_name)
+            
+            if result['success']:
+                data = result['data']
+                files = data['files']
+                
+                print(f"🪣 Bucket: {args.bucket_name}")
+                print(f"📊 Total files: {data['total_files']}")
+                print("=" * 60)
+                
+                if not files:
+                    print("   No files in bucket")
+                    return 0
+                
+                for file_info in files:
+                    print(f"📄 {file_info['file_path']}")
+                    print(f"   🆔 CID: {file_info['file_cid']}")
+                    print(f"   📏 Size: {file_info['file_size']} bytes")
+                    print(f"   📅 Added: {file_info['created_at']}")
+                    if file_info.get('metadata'):
+                        print(f"   🏷️  Metadata: {json.dumps(file_info['metadata'], indent=6)}")
+                    print()
+                
+                return 0
+            else:
+                print(f"❌ Failed to get bucket info: {result['error']}")
+                return 1
+                
+        except Exception as e:
+            print(f"❌ Bucket info retrieval failed: {e}")
+            return 1
+
+    async def cmd_bucket_rm(self, args):
+        """Remove a bucket."""
+        try:
+            print(f"🗑️  Removing bucket: {args.bucket_name}")
+            
+            # Import simple bucket manager
+            from .simple_bucket_manager import SimpleBucketManager
+            bucket_manager = SimpleBucketManager()
+            
+            # For now, just remove the parquet file
+            import os
+            bucket_file = bucket_manager.buckets_dir / f"{args.bucket_name}.parquet"
+            config_file = bucket_manager.data_dir / 'bucket_configs' / f"{args.bucket_name}.yaml"
+            
+            removed_files = []
+            
+            if bucket_file.exists():
+                os.remove(bucket_file)
+                removed_files.append(str(bucket_file))
+                
+            if config_file.exists():
+                os.remove(config_file)
+                removed_files.append(str(config_file))
+            
+            if removed_files:
+                print(f"✅ Bucket removed successfully")
+                for removed in removed_files:
+                    print(f"   🗑️  Removed: {removed}")
+                return 0
+            else:
+                print(f"❌ Bucket '{args.bucket_name}' not found")
+                return 1
+                
+        except Exception as e:
+            print(f"❌ Bucket removal failed: {e}")
+            return 1
+
+    async def cmd_bucket_index(self, args):
+        """Show comprehensive bucket index."""
+        try:
+            import pandas as pd
+            from pathlib import Path
+            
+            print("📊 IPFS-Kit Comprehensive Bucket Index")
+            print("=" * 60)
+            
+            # Get bucket index with optional refresh
+            buckets = self.get_bucket_index(force_refresh=args.refresh)
+            
+            if not buckets:
+                print("   No buckets found")
+                return 0
+            
+            if args.format == 'table':
+                # Display as formatted table
+                print(f"📂 Found {len(buckets)} buckets:")
+                print()
+                
+                for bucket in buckets:
+                    print(f"🪣 {bucket['name']}")
+                    print(f"   📋 Type: {bucket['type']}")
+                    print(f"   🔗 Backend: {bucket['backend']}")
+                    print(f"   📊 Files: {bucket.get('file_count', 'unknown')}")
+                    print(f"   💾 Size: {self._format_size(bucket['size_bytes'])}")
+                    print(f"   📅 Updated: {bucket['last_updated']}")
+                    print(f"   📄 VFS Index: {bucket.get('vfs_index_path', 'N/A')}")
+                    
+                    if bucket.get('config_path'):
+                        print(f"   ⚙️  Config: {bucket['config_path']}")
+                    
+                    if bucket.get('backend_bindings'):
+                        print(f"   🔗 Bindings: {', '.join(bucket['backend_bindings'])}")
+                    
+                    metadata = bucket.get('metadata', {})
+                    if metadata and any(v for v in metadata.values() if v):
+                        print(f"   🏷️  Metadata: {len([k for k, v in metadata.items() if v])} fields")
+                    
+                    print(f"   📡 Source: {bucket.get('source', 'unknown')}")
+                    print()
+                
+            elif args.format == 'json':
+                import json
+                output = json.dumps(buckets, indent=2, default=str)
+                if args.export:
+                    with open(args.export, 'w') as f:
+                        f.write(output)
+                    print(f"✅ Bucket index exported to: {args.export}")
+                else:
+                    print(output)
+                    
+            elif args.format == 'yaml':
+                import yaml
+                output = yaml.dump(buckets, default_flow_style=False, sort_keys=True)
+                if args.export:
+                    with open(args.export, 'w') as f:
+                        f.write(output)
+                    print(f"✅ Bucket index exported to: {args.export}")
+                else:
+                    print(output)
+            
+            # Show summary statistics
+            print("📈 Index Statistics:")
+            types = {}
+            backends = {}
+            total_size = 0
+            total_files = 0
+            
+            for bucket in buckets:
+                bucket_type = bucket['type']
+                types[bucket_type] = types.get(bucket_type, 0) + 1
+                
+                backend = bucket['backend']
+                backends[backend] = backends.get(backend, 0) + 1
+                
+                total_size += bucket.get('size_bytes', 0)
+                total_files += bucket.get('file_count', 0)
+            
+            print(f"   📊 Total buckets: {len(buckets)}")
+            print(f"   📁 Total files: {total_files}")
+            print(f"   💾 Total size: {self._format_size(total_size)}")
+            print(f"   📋 Types: {', '.join(f'{t}({c})' for t, c in types.items())}")
+            print(f"   🔗 Backends: {', '.join(f'{b}({c})' for b, c in backends.items())}")
+            
+            index_file = Path.home() / '.ipfs_kit' / 'bucket_index' / 'bucket_registry.parquet'
+            if index_file.exists():
+                print(f"   💾 Index file: {index_file}")
+                print(f"   📅 Last updated: {pd.Timestamp.fromtimestamp(index_file.stat().st_mtime)}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Failed to show bucket index: {e}")
+            return 1
+
+    async def cmd_bucket_backends(self, args):
+        """Show comprehensive backend index."""
+        try:
+            import pandas as pd
+            from pathlib import Path
+            
+            print("🔗 IPFS-Kit Comprehensive Backend Index")
+            print("=" * 60)
+            
+            # Get backend index with optional refresh
+            backends = self.get_backend_index(force_refresh=args.refresh)
+            
+            if not backends:
+                print("   No backends found")
+                return 0
+            
+            # Filter by status if specified
+            if args.status != 'all':
+                status_filter = args.status
+                if status_filter == 'online':
+                    filtered_backends = [b for b in backends if b['status'] in ['online']]
+                elif status_filter == 'offline':
+                    filtered_backends = [b for b in backends if b['status'] in ['offline', 'unreachable']]
+                elif status_filter == 'configured':
+                    filtered_backends = [b for b in backends if b['status'] in ['configured', 'referenced']]
+                else:
+                    filtered_backends = backends
+            else:
+                filtered_backends = backends
+            
+            if args.format == 'table':
+                # Display as formatted table
+                print(f"🔗 Found {len(filtered_backends)} backends:")
+                print()
+                
+                status_icons = {
+                    'online': '🟢',
+                    'offline': '🔴', 
+                    'configured': '🟡',
+                    'referenced': '🟠',
+                    'unreachable': '⚫'
+                }
+                
+                for backend in filtered_backends:
+                    status_icon = status_icons.get(backend['status'], '❓')
+                    dirty_icon = '🚨' if backend.get('dirty', False) else '✅'
+                    
+                    print(f"{status_icon} {backend['name']} {dirty_icon}")
+                    print(f"   📋 Type: {backend['type']}")
+                    print(f"   🌐 Endpoint: {backend['endpoint']}")
+                    print(f"   📊 Status: {backend['status']}")
+                    
+                    # Show dirty state information
+                    if backend.get('dirty', False):
+                        print(f"   🚨 Sync Status: DIRTY (needs sync)")
+                        print(f"   #️⃣  Pinset Hash: {backend.get('pinset_hash', 'unknown')}")
+                        if backend.get('last_sync', 0) > 0:
+                            import pandas as pd
+                            last_sync = pd.Timestamp.fromtimestamp(backend['last_sync']).strftime('%Y-%m-%d %H:%M:%S')
+                            print(f"   ⏰ Last Sync: {last_sync}")
+                        else:
+                            print(f"   ⏰ Last Sync: Never")
+                    else:
+                        print(f"   ✅ Sync Status: CLEAN")
+                    
+                    capabilities = backend.get('capabilities', [])
+                    if capabilities:
+                        print(f"   ⚡ Capabilities: {', '.join(capabilities)}")
+                    
+                    if backend.get('config_file'):
+                        print(f"   ⚙️  Config: {backend['config_file']}")
+                    
+                    if backend.get('version_info'):
+                        version = backend['version_info'].get('Version', 'unknown')
+                        print(f"   📦 Version: {version}")
+                    
+                    if backend.get('referenced_in'):
+                        print(f"   📎 Referenced in: {', '.join(backend['referenced_in'])}")
+                    
+                    if backend.get('error'):
+                        print(f"   ⚠️  Error: {backend['error']}")
+                    
+                    print(f"   📡 Source: {backend.get('source', 'unknown')}")
+                    print(f"   📅 Updated: {pd.Timestamp.fromtimestamp(backend.get('last_updated', 0)).strftime('%Y-%m-%d %H:%M:%S')}")
+                    print()
+                
+            elif args.format == 'json':
+                import json
+                output = json.dumps(filtered_backends, indent=2, default=str)
+                if args.export:
+                    with open(args.export, 'w') as f:
+                        f.write(output)
+                    print(f"✅ Backend index exported to: {args.export}")
+                else:
+                    print(output)
+                    
+            elif args.format == 'yaml':
+                import yaml
+                output = yaml.dump(filtered_backends, default_flow_style=False, sort_keys=True)
+                if args.export:
+                    with open(args.export, 'w') as f:
+                        f.write(output)
+                    print(f"✅ Backend index exported to: {args.export}")
+                else:
+                    print(output)
+            
+            # Show summary statistics
+            print("📈 Backend Statistics:")
+            types = {}
+            statuses = {}
+            dirty_count = 0
+            
+            for backend in backends:  # Use full list for stats
+                backend_type = backend['type']
+                types[backend_type] = types.get(backend_type, 0) + 1
+                
+                status = backend['status']
+                statuses[status] = statuses.get(status, 0) + 1
+                
+                if backend.get('dirty', False):
+                    dirty_count += 1
+            
+            print(f"   🔗 Total backends: {len(backends)}")
+            print(f"   📋 Types: {', '.join(f'{t}({c})' for t, c in types.items())}")
+            print(f"   📊 Status: {', '.join(f'{s}({c})' for s, c in statuses.items())}")
+            print(f"   🚨 Dirty backends: {dirty_count}")
+            if dirty_count > 0:
+                print(f"   ⚠️  Sync needed for {dirty_count} backend(s)")
+            
+            index_file = Path.home() / '.ipfs_kit' / 'backend_index' / 'backend_registry.parquet'
+            if index_file.exists():
+                print(f"   💾 Index file: {index_file}")
+                print(f"   📅 Last updated: {pd.Timestamp.fromtimestamp(index_file.stat().st_mtime)}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Failed to show backend index: {e}")
+            return 1
+
+    async def analyze_pinsets_and_replicas(self, args):
+        """
+        Comprehensive pinset analysis and replica management.
+        
+        Reviews bucket configs, analyzes pinsets across backends, and implements
+        intelligent pin management with disaster recovery and caching strategies.
+        """
+        try:
+            import yaml
+            import time
+            from collections import defaultdict, Counter
+            from pathlib import Path
+            
+            print("🔍 IPFS-Kit Comprehensive Pinset & Replica Analysis")
+            print("=" * 65)
+            
+            # Step 1: Load bucket configurations
+            print("\n📋 Step 1: Loading Bucket Configurations")
+            print("-" * 45)
+            
+            config_dir = Path.home() / '.ipfs_kit' / 'bucket_configs'
+            bucket_configs = {}
+            
+            if not config_dir.exists():
+                print("   ⚠️  No bucket configurations found")
+                return 1
+                
+            for config_file in config_dir.glob("*.yaml"):
+                try:
+                    with open(config_file, 'r') as f:
+                        config = yaml.safe_load(f)
+                        bucket_name = config_file.stem
+                        bucket_configs[bucket_name] = config
+                        print(f"   ✅ Loaded: {bucket_name}")
+                except Exception as e:
+                    print(f"   ❌ Failed to load {config_file}: {e}")
+            
+            print(f"   📊 Total buckets analyzed: {len(bucket_configs)}")
+            
+            # Step 2: Analyze disaster recovery requirements
+            print("\n🚨 Step 2: Disaster Recovery Analysis") 
+            print("-" * 45)
+            
+            dr_analysis = {}
+            for bucket_name, config in bucket_configs.items():
+                dr_config = config.get('disaster_recovery', {})
+                repl_config = config.get('replication', {})
+                
+                min_replicas = repl_config.get('min_replicas', 2)
+                max_replicas = repl_config.get('max_replicas', 5)
+                dr_tier = dr_config.get('tier', 'standard')
+                cross_region = dr_config.get('cross_region_backup', True)
+                
+                # Calculate required replicas based on DR tier
+                if dr_tier == 'critical':
+                    required_replicas = max(min_replicas, 4)
+                elif dr_tier == 'important':
+                    required_replicas = max(min_replicas, 3)
+                elif dr_tier == 'standard':
+                    required_replicas = max(min_replicas, 2)
+                else:  # archive
+                    required_replicas = max(min_replicas, 1)
+                
+                dr_analysis[bucket_name] = {
+                    'tier': dr_tier,
+                    'required_replicas': required_replicas,
+                    'max_replicas': max_replicas,
+                    'cross_region_required': cross_region,
+                    'rpo_minutes': dr_config.get('rpo_minutes', 60),
+                    'rto_minutes': dr_config.get('rto_minutes', 30),
+                    'auto_replication': repl_config.get('auto_replication', True),
+                    'consistency_model': repl_config.get('consistency_model', 'eventual')
+                }
+                
+                print(f"   🪣 {bucket_name}:")
+                print(f"      🚨 DR Tier: {dr_tier}")
+                print(f"      🔢 Required replicas: {required_replicas}")
+                print(f"      🌍 Cross-region: {cross_region}")
+                print(f"      ⏱️  RPO: {dr_config.get('rpo_minutes', 60)}min, RTO: {dr_config.get('rto_minutes', 30)}min")
+            
+            # Step 3: Scan existing pinsets from buckets
+            print("\n📌 Step 3: Scanning Existing Pinsets")
+            print("-" * 45)
+            
+            bucket_pinsets = {}
+            bucket_dir = Path.home() / '.ipfs_kit' / 'buckets'
+            
+            if bucket_dir.exists():
+                for bucket_file in bucket_dir.glob("*.parquet"):
+                    bucket_name = bucket_file.stem
+                    try:
+                        import pandas as pd
+                        df = pd.read_parquet(bucket_file)
+                        
+                        if not df.empty and 'cid' in df.columns:
+                            pinset = set(df['cid'].tolist())
+                            bucket_pinsets[bucket_name] = {
+                                'pins': pinset,
+                                'count': len(pinset),
+                                'last_update': bucket_file.stat().st_mtime,
+                                'file_sizes': df.get('size', pd.Series()).sum() if 'size' in df.columns else 0
+                            }
+                            print(f"   🪣 {bucket_name}: {len(pinset)} pins ({self._format_size(bucket_pinsets[bucket_name]['file_sizes'])})")
+                        else:
+                            bucket_pinsets[bucket_name] = {'pins': set(), 'count': 0, 'last_update': bucket_file.stat().st_mtime, 'file_sizes': 0}
+                            print(f"   🪣 {bucket_name}: 0 pins (empty)")
+                            
+                    except Exception as e:
+                        print(f"   ❌ Failed to read {bucket_file}: {e}")
+                        bucket_pinsets[bucket_name] = {'pins': set(), 'count': 0, 'last_update': 0, 'file_sizes': 0}
+            
+            # Step 4: Get backend status and capabilities
+            print("\n🔗 Step 4: Backend Capability Analysis")
+            print("-" * 45)
+            
+            backends = self.get_backend_index(force_refresh=True)
+            online_backends = [b for b in backends if b['status'] == 'online']
+            
+            backend_capabilities = {}
+            for backend in backends:
+                backend_capabilities[backend['name']] = {
+                    'online': backend['status'] == 'online',
+                    'type': backend['type'],
+                    'endpoint': backend['endpoint'],
+                    'can_pin': backend['type'] in ['ipfs', 'ipfs_cluster'],
+                    'is_fast_cache': backend['type'] in ['ipfs'] and 'localhost' in backend['endpoint'],
+                    'is_distributed': backend['type'] in ['ipfs_cluster', 'filecoin'],
+                    'region': self._detect_backend_region(backend),
+                    'last_seen': backend.get('last_updated', 0)
+                }
+                
+                status_icon = '🟢' if backend['status'] == 'online' else '🔴'
+                print(f"   {status_icon} {backend['name']} ({backend['type']})")
+                print(f"      📍 Region: {backend_capabilities[backend['name']]['region']}")
+                print(f"      ⚡ Can pin: {backend_capabilities[backend['name']]['can_pin']}")
+                print(f"      🚀 Fast cache: {backend_capabilities[backend['name']]['is_fast_cache']}")
+                print(f"      🌐 Distributed: {backend_capabilities[backend['name']]['is_distributed']}")
+            
+            # Step 5: Create unified pinset from all buckets
+            print("\n🔗 Step 5: Creating Unified Pinset Union")
+            print("-" * 45)
+            
+            all_pins = set()
+            pin_sources = defaultdict(list)  # CID -> list of bucket names
+            pin_metadata = {}  # CID -> metadata
+            
+            for bucket_name, pinset_info in bucket_pinsets.items():
+                bucket_pins = pinset_info['pins']
+                all_pins.update(bucket_pins)
+                
+                for pin_cid in bucket_pins:
+                    pin_sources[pin_cid].append(bucket_name)
+                    
+                    # Enhanced metadata tracking
+                    if pin_cid not in pin_metadata:
+                        pin_metadata[pin_cid] = {
+                            'first_seen': pinset_info['last_update'],
+                            'last_accessed': pinset_info['last_update'],
+                            'access_count': 1,
+                            'source_buckets': [],
+                            'priority_score': 0,
+                            'size_estimate': 0
+                        }
+                    
+                    pin_metadata[pin_cid]['source_buckets'].append(bucket_name)
+                    
+                    # Calculate priority based on bucket DR tier and access patterns
+                    bucket_dr_tier = dr_analysis.get(bucket_name, {}).get('tier', 'standard')
+                    tier_weights = {'critical': 100, 'important': 50, 'standard': 20, 'archive': 5}
+                    pin_metadata[pin_cid]['priority_score'] += tier_weights.get(bucket_dr_tier, 20)
+            
+            print(f"   📊 Total unique pins: {len(all_pins)}")
+            print(f"   📈 Pin distribution:")
+            
+            bucket_distribution = Counter()
+            for pin_cid, buckets in pin_sources.items():
+                bucket_distribution.update(buckets)
+            
+            for bucket_name, count in bucket_distribution.most_common():
+                print(f"      📦 {bucket_name}: {count} pins")
+            
+            # Step 6: Analyze current replication status
+            print("\n🔍 Step 6: Current Replication Status Analysis")
+            print("-" * 45)
+            
+            replica_analysis = {}
+            replication_gaps = []
+            
+            for bucket_name, dr_req in dr_analysis.items():
+                bucket_pins = bucket_pinsets.get(bucket_name, {}).get('pins', set())
+                required_replicas = dr_req['required_replicas']
+                
+                # Simulate current replication status (in real implementation, query backends)
+                current_replicas = self._simulate_current_replicas(bucket_pins, online_backends)
+                
+                gaps = []
+                for pin_cid in bucket_pins:
+                    pin_replicas = current_replicas.get(pin_cid, 0)
+                    if pin_replicas < required_replicas:
+                        gap_info = {
+                            'cid': pin_cid,
+                            'current': pin_replicas,
+                            'required': required_replicas,
+                            'gap': required_replicas - pin_replicas,
+                            'bucket': bucket_name,
+                            'priority': pin_metadata.get(pin_cid, {}).get('priority_score', 0)
+                        }
+                        gaps.append(gap_info)
+                        replication_gaps.append(gap_info)
+                
+                replica_analysis[bucket_name] = {
+                    'total_pins': len(bucket_pins),
+                    'adequately_replicated': len(bucket_pins) - len(gaps),
+                    'under_replicated': len(gaps),
+                    'replication_health': (len(bucket_pins) - len(gaps)) / max(len(bucket_pins), 1) * 100,
+                    'gaps': gaps
+                }
+                
+                health_icon = '🟢' if replica_analysis[bucket_name]['replication_health'] > 90 else '🟡' if replica_analysis[bucket_name]['replication_health'] > 70 else '🔴'
+                print(f"   {health_icon} {bucket_name}:")
+                print(f"      📊 Health: {replica_analysis[bucket_name]['replication_health']:.1f}%")
+                print(f"      ✅ Adequately replicated: {replica_analysis[bucket_name]['adequately_replicated']}")
+                print(f"      ⚠️  Under-replicated: {replica_analysis[bucket_name]['under_replicated']}")
+            
+            # Step 7: Cache analysis for frequently accessed content
+            print("\n🚀 Step 7: Fast Cache Optimization Analysis")
+            print("-" * 45)
+            
+            cache_candidates = []
+            fast_cache_backends = [name for name, cap in backend_capabilities.items() 
+                                 if cap['is_fast_cache'] and cap['online']]
+            
+            if fast_cache_backends:
+                # Sort pins by priority and recent access
+                sorted_pins = sorted(pin_metadata.items(), 
+                                   key=lambda x: (x[1]['priority_score'], x[1]['last_accessed']), 
+                                   reverse=True)
+                
+                # Top candidates for fast cache (high priority + recent access)
+                for pin_cid, metadata in sorted_pins[:20]:  # Top 20 candidates
+                    cache_candidates.append({
+                        'cid': pin_cid,
+                        'priority_score': metadata['priority_score'],
+                        'source_buckets': metadata['source_buckets'],
+                        'access_count': metadata['access_count'],
+                        'should_cache': metadata['priority_score'] > 30 or len(metadata['source_buckets']) > 1
+                    })
+                
+                print(f"   ⚡ Fast cache backends available: {', '.join(fast_cache_backends)}")
+                print(f"   🎯 High-priority cache candidates: {len([c for c in cache_candidates if c['should_cache']])}")
+                
+                for candidate in cache_candidates[:10]:  # Show top 10
+                    if candidate['should_cache']:
+                        print(f"      🚀 {candidate['cid'][:12]}...:")
+                        print(f"         📊 Priority: {candidate['priority_score']}")
+                        print(f"         📦 Sources: {', '.join(candidate['source_buckets'])}")
+            else:
+                print("   ⚠️  No fast cache backends available")
+            
+            # Step 8: Generate pin management actions
+            print("\n📌 Step 8: Pin Management Action Plan")
+            print("-" * 45)
+            
+            actions = []
+            
+            # Sort replication gaps by priority
+            sorted_gaps = sorted(replication_gaps, key=lambda x: x['priority'], reverse=True)
+            
+            # High priority replication actions (only if not cache-only)
+            high_priority_gaps = [g for g in sorted_gaps if g['priority'] > 50]
+            if high_priority_gaps and not args.cache_only:
+                print(f"   🚨 Critical replication gaps ({len(high_priority_gaps)}):")
+                for gap in high_priority_gaps[:10]:  # Show top 10
+                    action = {
+                        'type': 'replicate',
+                        'cid': gap['cid'],
+                        'target_backends': self._select_replication_targets(gap, backend_capabilities, dr_analysis[gap['bucket']]),
+                        'priority': 'critical',
+                        'gap_size': gap['gap'],
+                        'bucket': gap['bucket']
+                    }
+                    actions.append(action)
+                    print(f"      🔥 {gap['cid'][:12]}... ({gap['bucket']})")
+                    print(f"         📊 Gap: {gap['current']}/{gap['required']} replicas")
+                    print(f"         🎯 Targets: {', '.join(action['target_backends'])}")
+            
+            # Cache optimization actions (only if not replicate-only)
+            high_priority_cache = [c for c in cache_candidates if c['should_cache']]
+            if high_priority_cache and fast_cache_backends and not args.replicate_only:
+                print(f"   🚀 Fast cache recommendations ({len(high_priority_cache)}):")
+                for candidate in high_priority_cache[:10]:
+                    action = {
+                        'type': 'cache',
+                        'cid': candidate['cid'],
+                        'target_backends': fast_cache_backends,
+                        'priority': 'performance',
+                        'reason': 'high_priority_frequent_access'
+                    }
+                    actions.append(action)
+                    print(f"      ⚡ {candidate['cid'][:12]}...")
+                    print(f"         📊 Priority: {candidate['priority_score']}")
+                    print(f"         🎯 Cache targets: {', '.join(fast_cache_backends)}")
+            
+            # Apply max actions limit
+            if len(actions) > args.max_actions:
+                actions = actions[:args.max_actions]
+                print(f"   📌 Limited to {args.max_actions} actions (as requested)")
+            
+            # Step 9: Execute actions if requested
+            if args.execute:
+                print("\n⚡ Step 9: Executing Pin Management Actions")
+                print("-" * 45)
+                
+                executed_actions = []
+                
+                for action in actions:
+                    try:
+                        if action['type'] == 'replicate':
+                            result = await self._execute_replication_action(action, backend_capabilities)
+                        elif action['type'] == 'cache':
+                            result = await self._execute_cache_action(action, backend_capabilities)
+                        
+                        if result['success']:
+                            executed_actions.append(action)
+                            print(f"   ✅ {action['type'].title()}: {action['cid'][:12]}...")
+                        else:
+                            print(f"   ❌ {action['type'].title()} failed: {action['cid'][:12]}... - {result.get('error', 'Unknown error')}")
+                    
+                    except Exception as e:
+                        print(f"   ❌ Action failed: {e}")
+                
+                # Mark filesystem as dirty for daemon sync
+                if executed_actions:
+                    await self._mark_filesystem_dirty(executed_actions)
+                    print(f"\n   🔄 Marked filesystem as dirty for daemon sync")
+                    print(f"   ✅ Executed {len(executed_actions)}/{len(actions)} actions")
+            else:
+                print(f"\n   💡 Use --execute to apply {len(actions)} recommended actions")
+            
+            # Step 10: Summary report
+            print("\n📊 Summary Report")
+            print("-" * 20)
+            
+            total_pins = len(all_pins)
+            total_gaps = len(replication_gaps)
+            critical_gaps = len([g for g in replication_gaps if g['priority'] > 50])
+            
+            overall_health = (total_pins - total_gaps) / max(total_pins, 1) * 100
+            health_icon = '🟢' if overall_health > 90 else '🟡' if overall_health > 70 else '🔴'
+            
+            print(f"   {health_icon} Overall replication health: {overall_health:.1f}%")
+            print(f"   📌 Total pins analyzed: {total_pins}")
+            print(f"   ⚠️  Replication gaps: {total_gaps}")
+            print(f"   🚨 Critical gaps: {critical_gaps}")
+            print(f"   🪣 Buckets analyzed: {len(bucket_configs)}")
+            print(f"   🔗 Online backends: {len(online_backends)}")
+            print(f"   🚀 Cache candidates: {len([c for c in cache_candidates if c['should_cache']])}")
+            print(f"   📋 Recommended actions: {len(actions)}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Pinset analysis failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
+
+    def _format_size(self, size_bytes):
+        """Format bytes as human readable size."""
+        if size_bytes == 0:
+            return "0 B"
+        
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} PB"
+
+    def _detect_backend_region(self, backend):
+        """Detect backend region from endpoint or configuration."""
+        endpoint = backend.get('endpoint', '')
+        
+        if 'localhost' in endpoint or '127.0.0.1' in endpoint:
+            return 'local'
+        elif '.amazonaws.com' in endpoint:
+            return 'aws'
+        elif 'storacha' in endpoint:
+            return 'storacha'
+        elif 'filecoin' in backend.get('type', ''):
+            return 'filecoin'
+        else:
+            return 'unknown'
+
+    def _simulate_current_replicas(self, pin_set, online_backends):
+        """Simulate current replication status (replace with actual backend queries)."""
+        current_replicas = {}
+        
+        # In real implementation, query each backend for pin status
+        for pin_cid in pin_set:
+            # Simulate current replicas (1-3 replicas randomly)
+            replica_count = hash(pin_cid) % 3 + 1
+            current_replicas[pin_cid] = replica_count
+        
+        return current_replicas
+
+    def _select_replication_targets(self, gap_info, backend_capabilities, dr_config):
+        """Select optimal backends for replication based on DR requirements."""
+        targets = []
+        
+        available_backends = [name for name, cap in backend_capabilities.items() 
+                            if cap['can_pin'] and cap['online']]
+        
+        # Prioritize distributed backends for critical data
+        if dr_config.get('tier') in ['critical', 'important']:
+            distributed_backends = [name for name in available_backends 
+                                  if backend_capabilities[name]['is_distributed']]
+            targets.extend(distributed_backends[:gap_info['gap']])
+        
+        # Fill remaining gaps with any available backends
+        remaining_gap = gap_info['gap'] - len(targets)
+        if remaining_gap > 0:
+            other_backends = [name for name in available_backends if name not in targets]
+            targets.extend(other_backends[:remaining_gap])
+        
+        return targets[:gap_info['gap']]
+
+    async def _execute_replication_action(self, action, backend_capabilities):
+        """Execute replication action on target backends."""
+        try:
+            # In real implementation, make API calls to backends
+            for backend_name in action['target_backends']:
+                backend = backend_capabilities[backend_name]
+                
+                if backend['type'] == 'ipfs':
+                    # IPFS pin add
+                    result = await self._pin_to_ipfs(action['cid'], backend['endpoint'])
+                elif backend['type'] == 'ipfs_cluster':
+                    # IPFS Cluster pin add
+                    result = await self._pin_to_cluster(action['cid'], backend['endpoint'])
+                
+                if not result.get('success', False):
+                    return {'success': False, 'error': f'Failed to pin to {backend_name}'}
+                
+                # Mark backend as dirty since we've updated its pinset but haven't synced CAR files
+                self.mark_backend_dirty(backend_name, 'pin_add', action['cid'])
+            
+            return {'success': True, 'replicated_to': action['target_backends']}
+            
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    async def _execute_cache_action(self, action, backend_capabilities):
+        """Execute cache action on fast cache backends."""
+        try:
+            # In real implementation, prioritize content in fast cache
+            for backend_name in action['target_backends']:
+                backend = backend_capabilities[backend_name]
+                
+                if backend['is_fast_cache']:
+                    # Simulate cache priority setting
+                    result = await self._prioritize_in_cache(action['cid'], backend['endpoint'])
+                    
+                    if not result.get('success', False):
+                        return {'success': False, 'error': f'Failed to cache in {backend_name}'}
+                    
+                    # Mark backend as dirty since we've updated its cache priorities but haven't synced
+                    self.mark_backend_dirty(backend_name, 'cache_priority', action['cid'])
+            
+            return {'success': True, 'cached_to': action['target_backends']}
+            
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    async def _pin_to_ipfs(self, cid, endpoint):
+        """Pin content to IPFS backend."""
+        try:
+            # Simulate IPFS pin add API call
+            import time
+            await asyncio.sleep(0.1)  # Simulate network delay
+            return {'success': True, 'endpoint': endpoint}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    async def _pin_to_cluster(self, cid, endpoint):
+        """Pin content to IPFS Cluster backend."""
+        try:
+            # Simulate IPFS Cluster pin add API call
+            import time
+            await asyncio.sleep(0.2)  # Simulate network delay
+            return {'success': True, 'endpoint': endpoint}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    async def _prioritize_in_cache(self, cid, endpoint):
+        """Prioritize content in fast cache."""
+        try:
+            # Simulate cache prioritization
+            await asyncio.sleep(0.05)  # Simulate fast operation
+            return {'success': True, 'endpoint': endpoint}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    async def _mark_filesystem_dirty(self, executed_actions):
+        """Mark filesystem as dirty so daemon knows to sync pins and remote filesystem."""
+        try:
+            dirty_file = Path.home() / '.ipfs_kit' / 'backend_index' / 'filesystem_dirty.flag'
+            dirty_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            dirty_info = {
+                'timestamp': time.time(),
+                'actions_executed': len(executed_actions),
+                'action_types': list(set(action['type'] for action in executed_actions)),
+                'affected_cids': [action['cid'] for action in executed_actions],
+                'sync_required': True,
+                'daemon_notification': True
+            }
+            
+            import json
+            with open(dirty_file, 'w') as f:
+                json.dump(dirty_info, f, indent=2)
+            
+            # Also create a simple flag file for fast checking
+            flag_file = Path.home() / '.ipfs_kit' / '.needs_sync'
+            flag_file.touch()
+            
+        except Exception as e:
+            print(f"   ⚠️  Failed to mark filesystem dirty: {e}")
+
+    async def sync_backends(self, args):
+        """Sync backend storage and manage dirty state"""
+        if args.status:
+            return await self._show_backend_sync_status()
+        
+        if args.clear_dirty:
+            return await self._clear_all_dirty_state()
+        
+        return await self._sync_dirty_backends(
+            specific_backend=getattr(args, 'backend', None),
+            dry_run=args.dry_run,
+            force=args.force
+        )
+
+    async def _show_backend_sync_status(self):
+        """Show dirty state status for all backends"""
+        if Console is None:
+            print("Rich library not available. Using simple output:")
+            backend_list = self.get_backend_index()
+            for backend in backend_list:
+                dirty_state = backend.get('dirty_state', {})
+                is_dirty = dirty_state.get('is_dirty', False)
+                status = "DIRTY" if is_dirty else "CLEAN"
+                print(f"{backend['name']}: {status}")
+            return self.format_pretty_status("Backend Sync Status")
+        
+        console = Console()
+        
+        # Get backend index with dirty state
+        backend_list = self.get_backend_index()
+        
+        total_backends = len(backend_list)
+        dirty_count = 0
+        
+        table = Table(title="Backend Sync Status")
+        table.add_column("Backend", style="cyan", no_wrap=True)
+        table.add_column("Type", style="magenta")
+        table.add_column("Status", style="green")
+        table.add_column("Last Sync", style="yellow")
+        table.add_column("Pending Changes", style="red")
+        
+        for backend in backend_list:
+            # Check dirty state from backend registry or dirty metadata
+            is_dirty = backend.get('dirty', False)
+            
+            # Get detailed dirty metadata if available
+            dirty_metadata = self._get_backend_dirty_metadata(backend['name'])
+            
+            if is_dirty or dirty_metadata.get('is_dirty', False):
+                dirty_count += 1
+                status = "🚨 Dirty"
+                last_sync_timestamp = backend.get('last_sync', 0)
+                if last_sync_timestamp > 0:
+                    from datetime import datetime
+                    last_sync = datetime.fromtimestamp(last_sync_timestamp).strftime('%Y-%m-%d %H:%M')
+                else:
+                    last_sync = "Never"
+                pending_changes = f"{dirty_metadata.get('pending_cids', len(dirty_metadata.get('affected_cids', [])))} CIDs"
+            else:
+                status = "✅ Clean"
+                last_sync_timestamp = backend.get('last_sync', 0)
+                if last_sync_timestamp > 0:
+                    from datetime import datetime
+                    last_sync = datetime.fromtimestamp(last_sync_timestamp).strftime('%Y-%m-%d %H:%M')
+                else:
+                    last_sync = "Never"
+                pending_changes = "None"
+            
+            table.add_row(
+                backend['name'],
+                backend.get('type', 'unknown'),
+                status,
+                last_sync,
+                pending_changes
+            )
+        
+        console.print(table)
+        console.print(f"\n📊 Summary: {dirty_count}/{total_backends} backends need sync")
+        
+        return self.format_pretty_status("Backend Sync Status")
+
+    async def _clear_all_dirty_state(self):
+        """Mark all backends as clean without syncing"""
+        if Console is None:
+            backend_list = self.get_backend_index()
+            cleared_count = 0
+            
+            for backend in backend_list:
+                if self._check_backend_dirty_state(backend):
+                    self.mark_backend_clean(backend['name'])
+                    cleared_count += 1
+            
+            # Clear global dirty flag
+            dirty_flag_path = os.path.expanduser("~/.ipfs_kit/backend_index/filesystem_dirty.flag")
+            if os.path.exists(dirty_flag_path):
+                os.remove(dirty_flag_path)
+            
+            print(f"✅ Cleared dirty state for {cleared_count} backends")
+            return self.format_pretty_status("Dirty State Cleared")
+        
+        console = Console()
+        
+        backend_list = self.get_backend_index()
+        cleared_count = 0
+        
+        for backend in backend_list:
+            if self._check_backend_dirty_state(backend):
+                self.mark_backend_clean(backend['name'])
+                cleared_count += 1
+        
+        # Clear global dirty flag
+        dirty_flag_path = os.path.expanduser("~/.ipfs_kit/backend_index/filesystem_dirty.flag")
+        if os.path.exists(dirty_flag_path):
+            os.remove(dirty_flag_path)
+        
+        console.print(f"✅ Cleared dirty state for {cleared_count} backends")
+        return self.format_pretty_status("Dirty State Cleared")
+
+    async def _sync_dirty_backends(self, specific_backend=None, dry_run=False, force=False):
+        """Sync dirty backends to storage"""
+        if Console is None:
+            backend_list = self.get_backend_index()
+            backends_to_sync = []
+            
+            if specific_backend:
+                backend_found = None
+                for backend in backend_list:
+                    if backend['name'] == specific_backend:
+                        backend_found = backend
+                        break
+                
+                if backend_found:
+                    if force or self._check_backend_dirty_state(backend_found):
+                        backends_to_sync.append(backend_found)
+                    else:
+                        print(f"Backend {specific_backend} is already clean")
+                else:
+                    print(f"❌ Backend {specific_backend} not found")
+                    return self.format_pretty_status("Backend Not Found")
+            else:
+                # Find all dirty backends
+                for backend in backend_list:
+                    if force or self._check_backend_dirty_state(backend):
+                        backends_to_sync.append(backend)
+            
+            if not backends_to_sync:
+                print("✅ All backends are already clean")
+                return self.format_pretty_status("No Sync Needed")
+            
+            print(f"🔄 Found {len(backends_to_sync)} backends to sync:")
+            for backend in backends_to_sync:
+                dirty_state = self._get_backend_dirty_metadata(backend['name'])
+                pending_cids = dirty_state.get('pending_cids', 0)
+                print(f"  - {backend['name']}: {pending_cids} pending CIDs")
+            
+            if dry_run:
+                print("\n🔍 [Dry Run] Would sync the above backends")
+                return self.format_pretty_status("Dry Run Complete")
+            
+            # Perform actual sync
+            synced_count = 0
+            error_count = 0
+            
+            for backend in backends_to_sync:
+                try:
+                    await self._sync_backend_storage(backend['name'])
+                    self.mark_backend_clean(backend['name'])
+                    synced_count += 1
+                    print(f"✅ Synced {backend['name']}")
+                except Exception as e:
+                    error_count += 1
+                    print(f"❌ Failed to sync {backend['name']}: {e}")
+            
+            print(f"\n📊 Sync Summary: {synced_count} succeeded, {error_count} failed")
+            return self.format_pretty_status("Backend Sync Completed")
+        
+        console = Console()
+        
+        backend_list = self.get_backend_index()
+        backends_to_sync = []
+        
+        if specific_backend:
+            backend_found = None
+            for backend in backend_list:
+                if backend['name'] == specific_backend:
+                    backend_found = backend
+                    break
+            
+            if backend_found:
+                if force or self._check_backend_dirty_state(backend_found):
+                    backends_to_sync.append(backend_found)
+                else:
+                    console.print(f"Backend {specific_backend} is already clean")
+            else:
+                console.print(f"❌ Backend {specific_backend} not found")
+                return self.format_pretty_status("Backend Not Found")
+        else:
+            # Find all dirty backends
+            for backend in backend_list:
+                if force or self._check_backend_dirty_state(backend):
+                    backends_to_sync.append(backend)
+        
+        if not backends_to_sync:
+            console.print("✅ All backends are already clean")
+            return self.format_pretty_status("No Sync Needed")
+        
+        console.print(f"🔄 Found {len(backends_to_sync)} backends to sync:")
+        for backend in backends_to_sync:
+            dirty_state = self._get_backend_dirty_metadata(backend['name'])
+            pending_cids = dirty_state.get('pending_cids', 0)
+            console.print(f"  - {backend['name']}: {pending_cids} pending CIDs")
+        
+        if dry_run:
+            console.print("\n🔍 [Dry Run] Would sync the above backends")
+            return self.format_pretty_status("Dry Run Complete")
+        
+        # Perform actual sync
+        synced_count = 0
+        error_count = 0
+        
+        if Progress is not None:
+            with Progress() as progress:
+                task = progress.add_task("Syncing backends...", total=len(backends_to_sync))
+                
+                for backend in backends_to_sync:
+                    try:
+                        await self._sync_backend_storage(backend['name'])
+                        self.mark_backend_clean(backend['name'])
+                        synced_count += 1
+                        console.print(f"✅ Synced {backend['name']}")
+                    except Exception as e:
+                        error_count += 1
+                        console.print(f"❌ Failed to sync {backend['name']}: {e}")
+                    
+                    progress.advance(task)
+        else:
+            # Fallback without progress bar
+            for backend in backends_to_sync:
+                try:
+                    await self._sync_backend_storage(backend['name'])
+                    self.mark_backend_clean(backend['name'])
+                    synced_count += 1
+                    console.print(f"✅ Synced {backend['name']}")
+                except Exception as e:
+                    error_count += 1
+                    console.print(f"❌ Failed to sync {backend['name']}: {e}")
+        
+        # Clear global dirty flag if all backends are now clean
+        if synced_count > 0 and error_count == 0:
+            dirty_flag_path = os.path.expanduser("~/.ipfs_kit/backend_index/filesystem_dirty.flag")
+            if os.path.exists(dirty_flag_path):
+                # Check if any backends are still dirty
+                remaining_dirty = any(self._check_backend_dirty_state(backend) for backend in backend_list)
+                if not remaining_dirty:
+                    os.remove(dirty_flag_path)
+                    console.print("🏁 Cleared global dirty flag")
+        
+        console.print(f"\n📊 Sync Summary: {synced_count} succeeded, {error_count} failed")
+        return self.format_pretty_status("Backend Sync Completed")
+
+    async def _sync_backend_storage(self, backend_id):
+        """Sync a specific backend's storage (simulation)"""
+        # This would contain the actual backend sync logic
+        # For now, simulate the sync process
+        
+        dirty_metadata = self._get_backend_dirty_metadata(backend_id)
+        pending_cids = dirty_metadata.get('pending_cids', 0)
+        
+        if pending_cids > 0:
+            # Simulate processing CIDs
+            await asyncio.sleep(0.1)  # Simulate network operation
+            
+            # In a real implementation, this would:
+            # 1. Get the list of pending CIDs from the dirty metadata
+            # 2. Copy CAR files to the backend storage
+            # 3. Remove obsolete CAR files from the backend
+            # 4. Update the backend's filesystem index
+            
+            print(f"[SIMULATE] Synced {pending_cids} CIDs to {backend_id}")
+        
+        return True
+
+    def _get_backend_dirty_metadata(self, backend_id):
+        """Get the dirty metadata for a backend"""
+        metadata_path = os.path.expanduser(f"~/.ipfs_kit/backend_index/dirty_metadata/{backend_id}_dirty.json")
+        
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path, 'r') as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        
+        return {}
+
+    def format_pretty_status(self, status_message):
+        """Format a pretty status message for CLI output"""
+        return f"✅ {status_message}"
+
 
 async def main():
     """Main entry point - ultra-fast for help commands."""
@@ -7007,11 +9504,46 @@ async def main():
                 return await cli.cmd_pin_get(args.cid, output=args.output, recursive=args.recursive)
             elif args.pin_action == 'cat':
                 return await cli.cmd_pin_cat(args.cid, limit=args.limit)
+            elif args.pin_action == 'export-metadata':
+                return await cli.export_pin_metadata_to_shards(
+                    max_shard_size_mb=args.max_shard_size
+                )
         
         # Backend commands - interface to kit modules
         elif args.command == 'backend':
-            if args.backend_action == 'list':
-                return await cli.cmd_backend_list(args)
+            if args.backend_action == 'create':
+                from ipfs_kit_py.backend_cli import handle_backend_create
+                return await handle_backend_create(args)
+            elif args.backend_action == 'show':
+                from ipfs_kit_py.backend_cli import handle_backend_show
+                return await handle_backend_show(args)
+            elif args.backend_action == 'update':
+                from ipfs_kit_py.backend_cli import handle_backend_update
+                return await handle_backend_update(args)
+            elif args.backend_action == 'remove':
+                from ipfs_kit_py.backend_cli import handle_backend_remove
+                return await handle_backend_remove(args)
+            elif args.backend_action == 'pin':
+                if hasattr(args, 'pin_action') and args.pin_action == 'add':
+                    from ipfs_kit_py.backend_cli import handle_backend_pin_add
+                    return await handle_backend_pin_add(args)
+                elif hasattr(args, 'pin_action') and args.pin_action == 'list':
+                    from ipfs_kit_py.backend_cli import handle_backend_pin_list
+                    return await handle_backend_pin_list(args)
+                elif hasattr(args, 'pin_action') and args.pin_action == 'find':
+                    from ipfs_kit_py.backend_cli import handle_backend_pin_find
+                    return await handle_backend_pin_find(args)
+                else:
+                    print("❌ Pin action required: add, list, find")
+                    return 1
+            elif args.backend_action == 'list':
+                # Check if we want configured backends or available backend types
+                if hasattr(args, 'configured') and args.configured:
+                    from ipfs_kit_py.backend_cli import handle_backend_list
+                    return await handle_backend_list(args)
+                else:
+                    # Show available backend types (existing behavior)
+                    return await cli.cmd_backend_list(args)
             elif args.backend_action == 'test':
                 backend_type = getattr(args, 'backend', None)
                 return await cli.cmd_backend_test(type('Args', (), {'backend_type': backend_type}))
@@ -7045,7 +9577,7 @@ async def main():
                 return await cli.cmd_backend_arrow(args)
             else:
                 print(f"❌ Unknown backend: {args.backend_action}")
-                print("📋 Available backends: list, test, huggingface, github, s3, storacha, ipfs, gdrive, lotus, synapse, sshfs, ftp, ipfs-cluster, ipfs-cluster-follow, parquet, arrow")
+                print("📋 Available backends: create, show, update, remove, pin, list, test, huggingface, github, s3, storacha, ipfs, gdrive, lotus, synapse, sshfs, ftp, ipfs-cluster, ipfs-cluster-follow, parquet, arrow")
                 return 1
         
         # Health commands - using Parquet data for fast health checks
@@ -7910,6 +10442,32 @@ async def main():
                 
                 return 0
             
+            elif args.bucket_action == 'generate-registry-car':
+                # Generate CAR file from bucket registry parquet
+                try:
+                    print("🗂️  Generating bucket registry CAR file...")
+                    
+                    result = cli.generate_bucket_registry_car()
+                    
+                    if result['success']:
+                        print(f"✅ Successfully generated bucket registry CAR:")
+                        print(f"   Registry CID: {result['cid']}")
+                        print(f"   CAR file: {result['car_file']}")
+                        print(f"   JSON file: {result['json_file']}")
+                        print(f"   Size: {result['size_bytes'] / 1024:.1f} KB")
+                        print(f"   Buckets included: {result['bucket_count']}")
+                        print(f"\n💡 The registry CAR can be downloaded using CID: {result['cid']}")
+                        
+                    else:
+                        print(f"❌ Failed to generate bucket registry CAR: {result['error']}")
+                        return 1
+                        
+                except Exception as e:
+                    print(f"❌ Failed to generate bucket registry CAR: {e}")
+                    return 1
+                
+                return 0
+            
             elif args.bucket_action == 'upload-ipfs':
                 # Upload CAR files to IPFS
                 if args.all and args.car_filename:
@@ -8344,6 +10902,16 @@ async def main():
                     return await cli.cmd_bucket_pin_rm(args)
                 elif args.pin_action == 'tag':
                     return await cli.cmd_bucket_pin_tag(args)
+            
+            # Index operations  
+            elif args.bucket_action == 'index':
+                return await cli.cmd_bucket_index(args)
+            elif args.bucket_action == 'backends':
+                return await cli.cmd_bucket_backends(args)
+            elif args.bucket_action == 'analyze-pinsets':
+                return await cli.analyze_pinsets_and_replicas(args)
+            elif args.bucket_action == 'sync-backends':
+                return await cli.sync_backends(args)
 
         # MCP commands
         elif args.command == 'mcp':

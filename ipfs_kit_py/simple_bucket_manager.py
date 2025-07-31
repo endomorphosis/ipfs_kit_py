@@ -88,16 +88,18 @@ class SimpleBucketManager:
         bucket_name: str, 
         bucket_type: str = 'general',
         vfs_structure: str = 'hybrid',
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         """
-        Create a new bucket (just a VFS index file).
+        Create a new bucket (just a VFS index file) with comprehensive YAML configuration.
         
         Args:
             bucket_name: Name of the bucket
             bucket_type: Type of bucket (general, dataset, etc.)
             vfs_structure: VFS structure type (ignored in simple implementation)
             metadata: Optional metadata
+            **kwargs: Additional configuration parameters for comprehensive bucket setup
             
         Returns:
             Result dictionary
@@ -126,13 +128,20 @@ class SimpleBucketManager:
             df = pd.DataFrame(vfs_data)
             df.to_parquet(vfs_index_path, index=False)
             
+            # Generate comprehensive YAML configuration file
+            yaml_config_path = await self._generate_bucket_yaml_config(
+                bucket_name, bucket_type, vfs_structure, metadata, **kwargs
+            )
+            
             logger.info(f"Created bucket '{bucket_name}' at {vfs_index_path}")
+            logger.info(f"Generated YAML config at {yaml_config_path}")
             
             return {
                 'success': True,
                 'data': {
                     'bucket_name': bucket_name,
                     'vfs_index_path': str(vfs_index_path),
+                    'yaml_config_path': str(yaml_config_path),
                     'bucket_type': bucket_type,
                     'created_at': datetime.utcnow().isoformat()
                 }
@@ -144,6 +153,213 @@ class SimpleBucketManager:
                 'success': False,
                 'error': f"Failed to create bucket: {str(e)}"
             }
+    
+    async def _generate_bucket_yaml_config(
+        self,
+        bucket_name: str,
+        bucket_type: str,
+        vfs_structure: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> Path:
+        """
+        Generate comprehensive YAML configuration file for bucket.
+        
+        This includes all fields necessary for daemon and replication management.
+        """
+        # Create bucket configs directory
+        bucket_configs_dir = self.data_dir / 'bucket_configs'
+        bucket_configs_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Comprehensive bucket configuration with all required fields
+        config = {
+            # Basic bucket metadata
+            'bucket_name': bucket_name,
+            'type': bucket_type,
+            'description': kwargs.get('description', f'{bucket_type.title()} bucket for {bucket_name}'),
+            'created_at': datetime.utcnow().isoformat(),
+            'version': '2.0',
+            'schema_version': '1.0',
+            
+            # VFS Structure
+            'vfs': {
+                'structure': vfs_structure,
+                'index_path': str(self.buckets_dir / f"{bucket_name}.parquet"),
+                'encoding': 'parquet',
+                'compression': 'snappy'
+            },
+            
+            # Daemon Management Fields
+            'daemon': {
+                'managed': True,
+                'auto_start': kwargs.get('daemon_auto_start', True),
+                'health_check_interval': kwargs.get('health_check_interval', 30),
+                'restart_policy': kwargs.get('restart_policy', 'always'),
+                'log_level': kwargs.get('log_level', 'INFO'),
+                'monitoring_enabled': kwargs.get('monitoring_enabled', True)
+            },
+            
+            # Backend Bindings and Storage
+            'backend_bindings': kwargs.get('backend_bindings', []),
+            'storage': {
+                'wal_enabled': True,
+                'wal_format': 'car',
+                'compression_enabled': kwargs.get('compression_enabled', True),
+                'deduplication_enabled': kwargs.get('deduplication_enabled', True),
+                'encryption_enabled': kwargs.get('encryption_enabled', False)
+            },
+            
+            # Comprehensive Replication Configuration
+            'replication': {
+                'enabled': kwargs.get('replication_enabled', True),
+                'min_replicas': max(2, kwargs.get('replication_min', 2)),
+                'target_replicas': kwargs.get('replication_target', 3),
+                'max_replicas': kwargs.get('replication_max', 5),
+                'policy': kwargs.get('replication_policy', 'balanced'),
+                'geographic_distribution': kwargs.get('geographic_distribution', True),
+                'priority': kwargs.get('replication_priority', 'normal'),
+                'auto_replication': kwargs.get('auto_replication', True),
+                'emergency_backup_enabled': kwargs.get('emergency_backup_enabled', True),
+                'consistency_model': kwargs.get('consistency_model', 'eventual'),
+                'conflict_resolution': kwargs.get('conflict_resolution', 'timestamp'),
+                'preferred_regions': kwargs.get('preferred_regions', []),
+                'avoid_regions': kwargs.get('avoid_regions', [])
+            },
+            
+            # Backup and Disaster Recovery
+            'backup': {
+                'enabled': kwargs.get('backup_enabled', True),
+                'frequency': kwargs.get('backup_frequency', 'daily'),
+                'retention_days': kwargs.get('retention_days', 365),
+                'destinations': kwargs.get('backend_bindings', []),
+                'incremental_enabled': kwargs.get('incremental_backup', True),
+                'compression_enabled': kwargs.get('backup_compression', True),
+                'encryption_enabled': kwargs.get('backup_encryption', False),
+                'verification_enabled': kwargs.get('backup_verification', True)
+            },
+            
+            # Disaster Recovery
+            'disaster_recovery': {
+                'tier': kwargs.get('dr_tier', 'standard'),
+                'rpo_minutes': kwargs.get('rpo_minutes', 60),  # Recovery Point Objective
+                'rto_minutes': kwargs.get('rto_minutes', 30),  # Recovery Time Objective
+                'zones': kwargs.get('dr_zones', []),
+                'backup_frequency': kwargs.get('dr_backup_frequency', 'daily'),
+                'cross_region_backup': kwargs.get('cross_region_backup', True),
+                'automated_failover': kwargs.get('automated_failover', False)
+            },
+            
+            # Cache Configuration
+            'cache': {
+                'enabled': kwargs.get('cache_enabled', True),
+                'policy': kwargs.get('cache_policy', 'lru'),
+                'size_mb': kwargs.get('cache_size_mb', 512),
+                'max_entries': kwargs.get('cache_max_entries', 10000),
+                'ttl_seconds': kwargs.get('cache_ttl', 3600),
+                'priority': kwargs.get('cache_priority', 'normal'),
+                'write_through': kwargs.get('cache_write_through', False),
+                'compression_enabled': kwargs.get('cache_compression', True)
+            },
+            
+            # Performance and Throughput
+            'performance': {
+                'throughput_mode': kwargs.get('throughput_mode', 'balanced'),
+                'concurrent_ops': kwargs.get('concurrent_ops', 5),
+                'max_connection_pool': kwargs.get('max_connections', 20),
+                'timeout_seconds': kwargs.get('timeout_seconds', 30),
+                'retry_attempts': kwargs.get('retry_attempts', 3),
+                'batch_size': kwargs.get('batch_size', 100),
+                'optimization_tier': kwargs.get('performance_tier', 'balanced')
+            },
+            
+            # Lifecycle Management
+            'lifecycle': {
+                'policy': kwargs.get('lifecycle_policy', 'none'),
+                'archive_after_days': kwargs.get('archive_after_days'),
+                'delete_after_days': kwargs.get('delete_after_days'),
+                'auto_cleanup_enabled': kwargs.get('auto_cleanup', False),
+                'version_retention': kwargs.get('version_retention', 10)
+            },
+            
+            # Access Control and Security
+            'access': {
+                'public_read': kwargs.get('public_read', False),
+                'api_access': kwargs.get('api_access', True),
+                'web_interface': kwargs.get('web_interface', True),
+                'authentication_required': kwargs.get('auth_required', False),
+                'encryption_at_rest': kwargs.get('encryption_at_rest', False),
+                'encryption_in_transit': kwargs.get('encryption_in_transit', True)
+            },
+            
+            # Monitoring and Observability
+            'monitoring': {
+                'metrics_enabled': kwargs.get('metrics_enabled', True),
+                'logging_enabled': kwargs.get('logging_enabled', True),
+                'tracing_enabled': kwargs.get('tracing_enabled', False),
+                'alert_on_failures': kwargs.get('alert_on_failures', True),
+                'health_check_enabled': kwargs.get('health_check_enabled', True),
+                'performance_monitoring': kwargs.get('performance_monitoring', True),
+                'retention_days': kwargs.get('monitoring_retention_days', 30)
+            },
+            
+            # Resource Limits
+            'limits': {
+                'max_file_size_gb': kwargs.get('max_file_size_gb', 10),
+                'max_total_size_gb': kwargs.get('max_total_size_gb', 1000),
+                'max_files': kwargs.get('max_files', 100000),
+                'rate_limit_rps': kwargs.get('rate_limit_rps', 100),
+                'bandwidth_limit_mbps': kwargs.get('bandwidth_limit_mbps')
+            },
+            
+            # Quality of Service
+            'qos': {
+                'priority_class': kwargs.get('priority_class', 'normal'),
+                'guaranteed_bandwidth': kwargs.get('guaranteed_bandwidth'),
+                'burst_bandwidth': kwargs.get('burst_bandwidth'),
+                'latency_requirements': kwargs.get('latency_requirements', 'standard')
+            },
+            
+            # Integration Settings
+            'integrations': {
+                'mcp_enabled': kwargs.get('mcp_enabled', True),
+                'api_gateway_enabled': kwargs.get('api_gateway_enabled', True),
+                'webhook_notifications': kwargs.get('webhook_enabled', False),
+                'external_indexing': kwargs.get('external_indexing', False)
+            },
+            
+            # Custom metadata and tags
+            'metadata': metadata or {},
+            'tags': kwargs.get('tags', []),
+            'labels': kwargs.get('labels', {}),
+            
+            # Operational metadata
+            'operational': {
+                'last_modified': datetime.utcnow().isoformat(),
+                'modified_by': kwargs.get('created_by', 'system'),
+                'version_history': [],
+                'maintenance_windows': kwargs.get('maintenance_windows', [])
+            }
+        }
+        
+        # Save YAML configuration
+        yaml_config_path = bucket_configs_dir / f"{bucket_name}.yaml"
+        
+        try:
+            import yaml
+            with open(yaml_config_path, 'w') as f:
+                yaml.dump(config, f, default_flow_style=False, sort_keys=True, indent=2)
+            
+            logger.info(f"Generated comprehensive YAML config for bucket {bucket_name}")
+            return yaml_config_path
+            
+        except ImportError:
+            # Fallback to JSON if YAML not available
+            json_config_path = bucket_configs_dir / f"{bucket_name}.json"
+            with open(json_config_path, 'w') as f:
+                json.dump(config, f, indent=2, sort_keys=True)
+            
+            logger.warning(f"YAML not available, saved config as JSON: {json_config_path}")
+            return json_config_path
     
     async def list_buckets(self) -> Dict[str, Any]:
         """List all buckets (parquet files in buckets directory)."""

@@ -85,8 +85,72 @@ class SimplePinManager:
         # Ensure directories exist
         self.pin_metadata_dir.mkdir(parents=True, exist_ok=True)
         
+        # Initialize shard files if they don't exist (synchronous)
+        self._initialize_shard_files_sync()
+        
         logger.info(f"SimplePinManager initialized with data_dir: {self.data_dir}")
         logger.info(f"Using CAR WAL: {self.use_car_wal}")
+
+    def _initialize_shard_files_sync(self):
+        """Initialize shard files if they don't exist (synchronous version)."""
+        try:
+            # Initialize pin_metadata_shard_index.parquet
+            shard_index_path = self.pin_metadata_dir / "pin_metadata_shard_index.parquet"
+            if not shard_index_path.exists():
+                shard_df = pd.DataFrame({
+                    'shard_id': [],
+                    'start_cid': [],
+                    'end_cid': [],
+                    'entry_count': [],
+                    'created_at': [],
+                    'last_updated': []
+                })
+                shard_df.to_parquet(shard_index_path, index=False)
+                logger.info(f"Initialized shard index: {shard_index_path}")
+            
+            # Initialize pin_metadata.parquet
+            metadata_path = self.pin_metadata_dir / "pin_metadata.parquet"
+            if not metadata_path.exists():
+                meta_df = pd.DataFrame({
+                    'cid': [],
+                    'name': [],
+                    'size': [],
+                    'pinned_at': [],
+                    'origin': [],
+                    'shard_id': [],
+                    'entry_checksum': [],
+                    'metadata': []
+                })
+                meta_df.to_parquet(metadata_path, index=False)
+                logger.info(f"Initialized metadata file: {metadata_path}")
+            
+            # Initialize pin_metadata_shard_index.car if it doesn't exist
+            car_path = self.pin_metadata_dir / "pin_metadata_shard_index.car"
+            if not car_path.exists():
+                # Create empty CAR file with proper header
+                import io
+                car_buffer = io.BytesIO()
+                
+                # Empty CAR header
+                empty_header = {
+                    'version': 1,
+                    'roots': []
+                }
+                header_json = json.dumps(empty_header).encode('utf-8')
+                header_length = len(header_json)
+                
+                # Write empty CAR file with header
+                car_buffer.write(self._encode_varint(header_length))
+                car_buffer.write(header_json)
+                
+                # Write to file
+                with open(car_path, 'wb') as f:
+                    f.write(car_buffer.getvalue())
+                
+                logger.info(f"Initialized CAR shard index: {car_path} ({len(car_buffer.getvalue())} bytes)")
+                
+        except Exception as e:
+            logger.error(f"Error initializing shard files: {e}")
     
     async def add_pin_operation(
         self, 
@@ -287,10 +351,13 @@ class SimplePinManager:
         metadata: Optional[Dict[str, Any]] = None,
         source_file: Optional[str] = None
     ):
-        """Append new PIN entry to PIN index."""
+        """Append new PIN entry to PIN index and create shard files."""
         try:
-            # Pin index file
+            # Pin index files
             pin_index_path = self.pin_metadata_dir / 'pins.parquet'
+            pin_metadata_path = self.pin_metadata_dir / 'pin_metadata.parquet'
+            shard_index_path = self.pin_metadata_dir / 'pin_metadata_shard_index.parquet'
+            shard_car_path = self.pin_metadata_dir / 'pin_metadata_shard_index.car'
             
             # Create new entry
             new_entry = {
@@ -304,6 +371,7 @@ class SimplePinManager:
                 'metadata': json.dumps(metadata or {})
             }
             
+            # Update main PIN index (pins.parquet)
             if pin_index_path.exists():
                 # Read existing PIN index
                 df_existing = pd.read_parquet(pin_index_path)
@@ -318,11 +386,255 @@ class SimplePinManager:
             # Save updated PIN index
             df_combined.to_parquet(pin_index_path, index=False)
             
-            logger.info(f"Appended PIN entry to index: {name} -> {cid}")
+            # Update comprehensive pin metadata file (pin_metadata.parquet)
+            await self._update_pin_metadata_file(pin_metadata_path, new_entry, df_combined)
+            
+            # Update shard index (pin_metadata_shard_index.parquet)
+            await self._update_shard_index(shard_index_path, new_entry, df_combined)
+            
+            # Create or update CAR shard index (pin_metadata_shard_index.car)
+            await self._update_shard_car_file(shard_car_path, new_entry, df_combined)
+            
+            logger.info(f"Appended PIN entry and updated all indexes: {name} -> {cid}")
             
         except Exception as e:
             logger.error(f"Error appending to PIN index: {e}")
             raise
+    
+    async def _update_pin_metadata_file(
+        self, 
+        metadata_path: Path, 
+        new_entry: Dict[str, Any], 
+        all_pins_df: pd.DataFrame
+    ):
+        """Update the comprehensive pin metadata file."""
+        try:
+            # Enhanced metadata entry with additional fields
+            enhanced_entry = {
+                **new_entry,
+                'shard_id': self._calculate_shard_id(new_entry['cid']),
+                'index_position': len(all_pins_df) - 1,  # Position in main index
+                'updated_at': datetime.utcnow().isoformat(),
+                'metadata_version': '1.0',
+                'checksum': self._calculate_entry_checksum(new_entry),
+                'storage_tier': 'primary',  # Default storage tier
+                'replication_count': 1,  # Default replication count
+                'access_count': 0,  # Access statistics
+                'last_accessed': None
+            }
+            
+            if metadata_path.exists():
+                # Read existing metadata
+                df_existing = pd.read_parquet(metadata_path)
+                
+                # Check if entry already exists (update case)
+                existing_mask = df_existing['cid'] == new_entry['cid']
+                if existing_mask.any():
+                    # Update existing entry
+                    for key, value in enhanced_entry.items():
+                        df_existing.loc[existing_mask, key] = value
+                    df_combined = df_existing
+                else:
+                    # Add new entry
+                    df_new = pd.DataFrame([enhanced_entry])
+                    df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+            else:
+                # Create new metadata file
+                df_combined = pd.DataFrame([enhanced_entry])
+            
+            # Save updated metadata file
+            df_combined.to_parquet(metadata_path, index=False)
+            
+            logger.info(f"Updated pin metadata file: {metadata_path}")
+            
+        except Exception as e:
+            logger.error(f"Error updating pin metadata file: {e}")
+            raise
+    
+    async def _update_shard_index(
+        self, 
+        shard_index_path: Path, 
+        new_entry: Dict[str, Any], 
+        all_pins_df: pd.DataFrame
+    ):
+        """Update the shard index for distributed PIN management."""
+        try:
+            shard_id = self._calculate_shard_id(new_entry['cid'])
+            shard_entry = {
+                'shard_id': shard_id,
+                'cid': new_entry['cid'],
+                'pin_name': new_entry['name'],
+                'shard_type': 'metadata',
+                'shard_size': new_entry['file_size'],
+                'shard_offset': 0,  # Offset within shard
+                'shard_length': new_entry['file_size'],
+                'created_at': new_entry['created_at'],
+                'updated_at': datetime.utcnow().isoformat(),
+                'shard_status': 'active',
+                'parent_cid': new_entry['cid'],  # Reference to parent
+                'shard_metadata': json.dumps({
+                    'compression': 'none',
+                    'encoding': 'raw',
+                    'checksum_type': 'sha256',
+                    'replication_factor': 1
+                })
+            }
+            
+            if shard_index_path.exists():
+                # Read existing shard index
+                df_existing = pd.read_parquet(shard_index_path)
+                
+                # Check if shard entry already exists
+                existing_mask = (df_existing['cid'] == new_entry['cid']) & (df_existing['shard_id'] == shard_id)
+                if existing_mask.any():
+                    # Update existing shard entry
+                    for key, value in shard_entry.items():
+                        df_existing.loc[existing_mask, key] = value
+                    df_combined = df_existing
+                else:
+                    # Add new shard entry
+                    df_new = pd.DataFrame([shard_entry])
+                    df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+            else:
+                # Create new shard index
+                df_combined = pd.DataFrame([shard_entry])
+            
+            # Save updated shard index
+            df_combined.to_parquet(shard_index_path, index=False)
+            
+            logger.info(f"Updated shard index: shard_id={shard_id}, cid={new_entry['cid']}")
+            
+        except Exception as e:
+            logger.error(f"Error updating shard index: {e}")
+            raise
+    
+    async def _update_shard_car_file(
+        self, 
+        shard_car_path: Path, 
+        new_entry: Dict[str, Any], 
+        all_pins_df: pd.DataFrame
+    ):
+        """Create or update the CAR shard index file with actual CAR format content."""
+        try:
+            import struct
+            import io
+            
+            # Create CAR file with proper binary format
+            car_buffer = io.BytesIO()
+            
+            # CAR v1 header structure
+            car_header = {
+                'version': 1,
+                'roots': [new_entry['cid']]
+            }
+            
+            # Encode header as JSON bytes
+            header_json = json.dumps(car_header).encode('utf-8')
+            header_length = len(header_json)
+            
+            # Write CAR header: [varint length][header JSON]
+            car_buffer.write(self._encode_varint(header_length))
+            car_buffer.write(header_json)
+            
+            # Write blocks for each pin entry
+            block_count = 0
+            total_size = 0
+            
+            for _, row in all_pins_df.iterrows():
+                # Create block data for this pin entry
+                pin_data = {
+                    'cid': row['cid'],
+                    'name': row['name'],
+                    'shard_id': self._calculate_shard_id(row['cid']),
+                    'file_size': row['file_size'],
+                    'created_at': row['created_at'],
+                    'recursive': row['recursive'],
+                    'metadata': json.loads(row.get('metadata', '{}'))
+                }
+                
+                # Encode pin data as JSON bytes
+                block_data = json.dumps(pin_data).encode('utf-8')
+                block_size = len(block_data)
+                
+                # Write block: [varint length][CID bytes][block data]
+                # For simplicity, use CID string as bytes
+                cid_bytes = row['cid'].encode('utf-8')
+                cid_length = len(cid_bytes)
+                
+                # Calculate total block length: CID length + block data length
+                total_block_length = cid_length + block_size
+                
+                # Write: [total length][CID length][CID][block data]
+                car_buffer.write(self._encode_varint(total_block_length))
+                car_buffer.write(self._encode_varint(cid_length))
+                car_buffer.write(cid_bytes)
+                car_buffer.write(block_data)
+                
+                block_count += 1
+                total_size += total_block_length
+            
+            # Add metadata footer with shard index information
+            footer_data = {
+                'shard_index_metadata': {
+                    'version': '1.0',
+                    'created_at': datetime.utcnow().isoformat(),
+                    'total_pins': len(all_pins_df),
+                    'total_size': int(all_pins_df['file_size'].sum()),
+                    'block_count': block_count,
+                    'compression': 'none',
+                    'encoding': 'json'
+                }
+            }
+            
+            footer_json = json.dumps(footer_data).encode('utf-8')
+            footer_length = len(footer_json)
+            
+            # Write footer
+            car_buffer.write(self._encode_varint(footer_length))
+            car_buffer.write(footer_json)
+            
+            # Write the complete CAR file
+            car_content = car_buffer.getvalue()
+            with open(shard_car_path, 'wb') as f:
+                f.write(car_content)
+            
+            logger.info(f"Updated CAR shard index with {block_count} blocks ({len(car_content)} bytes): {shard_car_path}")
+            
+        except Exception as e:
+            logger.error(f"Error updating CAR shard file: {e}")
+            raise
+    
+    def _encode_varint(self, value: int) -> bytes:
+        """Encode integer as varint for CAR format."""
+        result = []
+        while value >= 0x80:
+            result.append((value & 0x7f) | 0x80)
+            value >>= 7
+        result.append(value & 0x7f)
+        return bytes(result)
+    
+    def _calculate_shard_id(self, cid: str) -> str:
+        """Calculate shard ID based on CID for distributed storage."""
+        # Use first 4 characters of CID for simple sharding
+        # In production, use consistent hashing
+        if len(cid) >= 4:
+            shard_prefix = cid[:4]
+        else:
+            shard_prefix = cid.ljust(4, '0')
+        
+        # Create shard ID with timestamp component for uniqueness
+        timestamp_component = str(int(datetime.utcnow().timestamp()) % 10000)
+        return f"shard_{shard_prefix}_{timestamp_component}"
+    
+    def _calculate_entry_checksum(self, entry: Dict[str, Any]) -> str:
+        """Calculate checksum for entry integrity verification."""
+        import hashlib
+        
+        # Create deterministic string from entry
+        checksum_data = f"{entry['cid']}{entry['name']}{entry['file_size']}{entry['created_at']}"
+        
+        # Calculate SHA256 hash
+        return hashlib.sha256(checksum_data.encode()).hexdigest()[:16]  # Short hash
     
     async def list_pins(self, limit: Optional[int] = None) -> Dict[str, Any]:
         """List all pins from PIN index."""
