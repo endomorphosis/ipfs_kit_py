@@ -531,6 +531,41 @@ class UnifiedMCPServerWithObservability:
                         "error_details": str(e)
                     }
                 }
+
+        @self.app.get("/dashboard/api/configs")
+        async def dashboard_api_configs():
+            """Returns all aggregated configuration data."""
+            if self.mcp_server:
+                return self.mcp_server.get_all_configs()
+            return JSONResponse({"error": "MCP server not initialized"}, status_code=500)
+
+        @self.app.get("/dashboard/api/pins")
+        async def dashboard_api_pins():
+            """Returns pin metadata."""
+            if self.mcp_server:
+                return self.mcp_server.get_pin_metadata()
+            return JSONResponse({"error": "MCP server not initialized"}, status_code=500)
+
+        @self.app.get("/dashboard/api/program_state")
+        async def dashboard_api_program_state():
+            """Returns program state data."""
+            if self.mcp_server:
+                return self.mcp_server.get_program_state_data()
+            return JSONResponse({"error": "MCP server not initialized"}, status_code=500)
+
+        @self.app.get("/dashboard/api/buckets")
+        async def dashboard_api_buckets():
+            """Returns bucket registry data."""
+            if self.mcp_server:
+                return self.mcp_server.get_bucket_registry()
+            return JSONResponse({"error": "MCP server not initialized"}, status_code=500)
+
+        @self.app.get("/dashboard/api/backend_status")
+        async def dashboard_api_backend_status():
+            """Returns backend status data."""
+            if self.mcp_server:
+                return self.mcp_server.get_backend_status_data()
+            return JSONResponse({"error": "MCP server not initialized"}, status_code=500)
     
     def _setup_observability_endpoints(self):
         """Setup enhanced observability and debugging endpoints."""
@@ -758,6 +793,31 @@ class UnifiedMCPServerWithObservability:
                 <h2>📈 Backend Monitor</h2>
                 <div id="backend-status">Loading...</div>
             </div>
+            
+            <div class="card">
+                <h2>⚙️ Configurations</h2>
+                <div id="config-status">Loading...</div>
+            </div>
+            
+            <div class="card">
+                <h2>📌 Pin Metadata</h2>
+                <div id="pin-status">Loading...</div>
+            </div>
+            
+            <div class="card">
+                <h2>💾 Program State</h2>
+                <div id="program-state-status">Loading...</div>
+            </div>
+            
+            <div class="card">
+                <h2>🗄️ Bucket Registry</h2>
+                <div id="bucket-registry-status">Loading...</div>
+            </div>
+            
+            <div class="card">
+                <h2>🌐 Backend Status (New)</h2>
+                <div id="backend-status-new">Loading...</div>
+            </div>
         </div>
     </div>
     
@@ -786,7 +846,7 @@ class UnifiedMCPServerWithObservability:
                 document.getElementById('mcp-status').innerHTML = '<div style="color: #f56565;">Error loading MCP status</div>';
             }});
         
-        // Load backend status
+        // Load backend status (old endpoint)
         fetch('/dashboard/api/filesystem/status')
             .then(r => r.json())
             .then(data => {{
@@ -805,6 +865,83 @@ class UnifiedMCPServerWithObservability:
             .catch(e => {{
                 document.getElementById('backend-status').innerHTML = '<div style="color: #f56565;">Error loading backend status</div>';
             }});
+
+        // Load Configurations
+        fetch('/dashboard/api/configs')
+            .then(r => r.json())
+            .then(data => {
+                let html = '';
+                for (const key in data) {
+                    html += `<div class="metric"><span class="metric-label">${{key}}:</span><span class="metric-value">${{JSON.stringify(data[key]).substring(0, 50)}}...</span></div>`;
+                }
+                document.getElementById('config-status').innerHTML = html;
+            })
+            .catch(e => {
+                document.getElementById('config-status').innerHTML = '<div style="color: #f56565;">Error loading configs</div>';
+            });
+
+        // Load Pin Metadata
+        fetch('/dashboard/api/pins')
+            .then(r => r.json())
+            .then(data => {
+                let html = '';
+                if (data.length > 0) {
+                    html += `<div class="metric"><span class="metric-label">Total Pins:</span><span class="metric-value">${{data.length}}</span></div>`;
+                    html += `<div class="metric"><span class="metric-label">First Pin CID:</span><span class="metric-value">${{data[0].cid.substring(0, 20)}}...</span></div>`;
+                } else {
+                    html += `<div class="metric"><span class="metric-label">Total Pins:</span><span class="metric-value">0</span></div>`;
+                }
+                document.getElementById('pin-status').innerHTML = html;
+            })
+            .catch(e => {
+                document.getElementById('pin-status').innerHTML = '<div style="color: #f56565;">Error loading pins</div>';
+            });
+
+        // Load Program State
+        fetch('/dashboard/api/program_state')
+            .then(r => r.json())
+            .then(data => {
+                let html = '';
+                for (const key in data) {
+                    html += `<div class="metric"><span class="metric-label">${{key}}:</span><span class="metric-value">${{JSON.stringify(data[key]).substring(0, 50)}}...</span></div>`;
+                }
+                document.getElementById('program-state-status').innerHTML = html;
+            })
+            .catch(e => {
+                document.getElementById('program-state-status').innerHTML = '<div style="color: #f56565;">Error loading program state</div>';
+            });
+
+        // Load Bucket Registry
+        fetch('/dashboard/api/buckets')
+            .then(r => r.json())
+            .then(data => {
+                let html = '';
+                if (data.length > 0) {
+                    html += `<div class="metric"><span class="metric-label">Total Buckets:</span><span class="metric-value">${{data.length}}</span></div>`;
+                    html += `<div class="metric"><span class="metric-label">First Bucket:</span><span class="metric-value">${{data[0].name}}</span></div>`;
+                } else {
+                    html += `<div class="metric"><span class="metric-label">Total Buckets:</span><span class="metric-value">0</span></div>`;
+                }
+                document.getElementById('bucket-registry-status').innerHTML = html;
+            })
+            .catch(e => {
+                document.getElementById('bucket-registry-status').innerHTML = '<div style="color: #f56565;">Error loading buckets</div>';
+            });
+
+        // Load Backend Status (new endpoint)
+        fetch('/dashboard/api/backend_status')
+            .then(r => r.json())
+            .then(data => {
+                let html = '';
+                const configuredBackends = Object.keys(data).length;
+                const activeBackends = Object.values(data).filter(b => b.status === 'active').length;
+                html += `<div class="metric"><span class="metric-label">Configured:</span><span class="metric-value">${{configuredBackends}}</span></div>`;
+                html += `<div class="metric"><span class="metric-label">Active:</span><span class="metric-value">${{activeBackends}}</span></div>`;
+                document.getElementById('backend-status-new').innerHTML = html;
+            })
+            .catch(e => {
+                document.getElementById('backend-status-new').innerHTML = '<div style="color: #f56565;">Error loading backend status</div>';
+            });
     </script>
 </body>
 </html>"""

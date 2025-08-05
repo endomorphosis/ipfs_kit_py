@@ -1,0 +1,180 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "title": "IPFS-Kit Enhanced Dashboard",
+    "version": "2.0.0"
+  },
+  "mcp_server": {
+    "url": "http://127.0.0.1:8001",
+    "timeout": 30,
+    "retry_attempts": 3,
+    "retry_interval": 5
+  },
+  "metadata": {
+    "path": "~/.ipfs_kit",
+    "cache_ttl": 30,
+    "update_interval": 5
+  },
+  "dashboard": {
+    "update_interval": 5,
+    "websocket_reconnect_interval": 5000,
+    "max_reconnect_attempts": 10,
+    "themes": {
+      "default": "light",
+      "available": ["light", "dark", "auto"]
+    },
+    "features": {
+      "real_time_updates": true,
+      "system_metrics": true,
+      "log_streaming": true,
+      "notifications": true,
+      "auto_refresh": true
+    }
+  },
+  "monitoring": {
+    "metrics_history_retention": 3600,
+    "alert_thresholds": {
+      "cpu_percent": 80,
+      "memory_percent": 85,
+      "disk_percent": 90,
+      "pin_failure_rate": 10
+    },
+    "health_check_interval": 30
+  },
+  "pages": {
+    "home": {
+      "enabled": true,
+      "widgets": [
+        "system_status",
+        "pin_metrics",
+        "backend_metrics",
+        "system_resources",
+        "recent_activity"
+      ]
+    },
+    "daemon": {
+      "enabled": true,
+      "auto_refresh": true,
+      "control_buttons": ["start", "stop", "restart", "status"]
+    },
+    "pins": {
+      "enabled": true,
+      "default_limit": 100,
+      "auto_refresh": true,
+      "bulk_operations": true,
+      "filters": ["status", "name", "date"]
+    },
+    "backends": {
+      "enabled": true,
+      "auto_test": false,
+      "health_monitoring": true,
+      "supported_types": [
+        "huggingface",
+        "github", 
+        "s3",
+        "storacha",
+        "ipfs",
+        "gdrive",
+        "lotus",
+        "synapse",
+        "sshfs",
+        "ftp",
+        "ipfs_cluster",
+        "parquet",
+        "arrow"
+      ]
+    },
+    "services": {
+      "enabled": true,
+      "monitored_services": [
+        "ipfs",
+        "lotus", 
+        "cluster",
+        "lassie"
+      ],
+      "auto_refresh": true
+    },
+    "logs": {
+      "enabled": true,
+      "default_limit": 100,
+      "live_streaming": true,
+      "levels": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+      "components": ["daemon", "pin", "backend", "service", "all"]
+    },
+    "config": {
+      "enabled": true,
+      "editable": true,
+      "backup_on_change": true
+    },
+    "metrics": {
+      "enabled": true,
+      "charts": true,
+      "export_formats": ["json", "csv"],
+      "retention_period": "24h"
+    }
+  },
+  "security": {
+    "enable_cors": true,
+    "allowed_origins": ["*"],
+    "rate_limiting": {
+      "enabled": false,
+      "requests_per_minute": 100
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s [%(levelname)8s] %(name)s: %(message)s",
+    "file_logging": {
+      "enabled": false,
+      "path": "~/.ipfs_kit/logs/dashboard.log",
+      "max_size": "10MB",
+      "backup_count": 5
+    }
+  },
+  "ui": {
+    "language": "en",
+    "timezone": "auto",
+    "date_format": "YYYY-MM-DD HH:mm:ss",
+    "number_format": {
+      "decimal_separator": ".",
+      "thousands_separator": ","
+    },
+    "table_settings": {
+      "page_size": 25,
+      "sortable": true,
+      "filterable": true
+    },
+    "chart_settings": {
+      "animation": true,
+      "grid": true,
+      "legend": true,
+      "tooltips": true
+    }
+  },
+  "integrations": {
+    "cli": {
+      "enabled": true,
+      "mirror_commands": true
+    },
+    "mcp_server": {
+      "full_feature_parity": true,
+      "command_interface": true,
+      "rest_interface": true
+    },
+    "metadata_reader": {
+      "efficient_caching": true,
+      "ttl_seconds": 60
+    },
+    "daemon_connector": {
+      "coordination": true,
+      "health_monitoring": true
+    }
+  },
+  "development": {
+    "debug_mode": false,
+    "hot_reload": false,
+    "profiling": false,
+    "mock_data": false
+  }
+}

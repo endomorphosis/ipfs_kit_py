@@ -10,7 +10,7 @@ import time
 import sys
 import os
 import glob
-from typing import Dict, Any, Optional, Union, BinaryIO
+from typing import Dict, Any, List, Optional, Union, BinaryIO
 
 # Import the base class and storage types
 from ..backend_base import BackendStorage
@@ -546,7 +546,7 @@ class IPFSBackend(BackendStorage):
         """
         return self.monitor.get_operation_stats(operation_type)
 
-    async def get_logs(self) -> List[str]:
+    async def get_logs(self) -> list:
         """
         Get mock log entries for the IPFS backend.
         """

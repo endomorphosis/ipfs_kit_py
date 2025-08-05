@@ -539,8 +539,9 @@ async function loadLogsTab() {
     try {
         // Get logs from the working endpoint
         const logData = await dashboardAPI.fetch('/api/logs?limit=100');
+        console.log('loadLogsTab: Received log data:', logData);
         
-        if (logData && logData.logs) {
+        if (logData && logData.success && logData.logs) {
             // Convert structured log data to formatted log strings
             let logs = [];
             
@@ -548,8 +549,9 @@ async function loadLogsTab() {
             for (const [backend, backendLogs] of Object.entries(logData.logs)) {
                 if (Array.isArray(backendLogs)) {
                     for (const logEntry of backendLogs) {
-                        // Format: timestamp - backend - level - message
-                        const formattedLog = `${logEntry.formatted_time} - ${logEntry.backend} - ${logEntry.level} - ${logEntry.message}`;
+                        // Format: [timestamp] backend - level - message
+                        const timestamp = logEntry.formatted_time || new Date(logEntry.timestamp).toLocaleTimeString();
+                        const formattedLog = `[${logEntry.formatted_date || new Date(logEntry.timestamp).toLocaleDateString()}, ${timestamp}] [${logEntry.level}] [${logEntry.backend}] ${logEntry.message}`;
                         logs.push(formattedLog);
                     }
                 }
@@ -564,28 +566,38 @@ async function loadLogsTab() {
             
             if (levelFilter_value) {
                 logs = logs.filter(log => 
-                    log.includes(` - ${levelFilter_value} - `)
+                    log.includes(`[${levelFilter_value}]`)
                 );
             }
 
             if (sourceFilter_value) {
                 logs = logs.filter(log => 
-                    log.includes(sourceFilter_value)
+                    log.includes(`[${sourceFilter_value}]`) || log.includes(sourceFilter_value)
                 );
             }
 
             // Always use renderLogEntries for proper layout (logs first, stats at bottom)
             renderLogEntries(logs, logViewer, false);
+            console.log('loadLogsTab: Successfully loaded and rendered', logs.length, 'log entries');
+        } else if (logData && !logData.success) {
+            // Handle error case from backend
+            console.warn('loadLogsTab: Backend returned error:', logData.error);
+            const errorLogs = [`[${new Date().toLocaleDateString()}, ${new Date().toLocaleTimeString()}] [ERROR] [system] ${logData.error || 'Failed to load logs from server'}`];
+            renderLogEntries(errorLogs, logViewer, false);
         } else {
             // Generate sample log data for demonstration
+            console.log('loadLogsTab: No valid log data received, generating sample logs');
             const sampleLogs = generateSampleLogData(levelFilter_value, sourceFilter_value, searchQuery);
             renderLogEntries(sampleLogs, logViewer, true);
         }
     } catch (error) {
         console.error('loadLogsTab: Error loading logs:', error);
-        // Generate sample data on error
-        const sampleLogs = generateSampleLogData(levelFilter_value, sourceFilter_value, searchQuery);
-        renderLogEntries(sampleLogs, logViewer, true);
+        // Show error message in logs
+        const errorLogs = [
+            `[${new Date().toLocaleDateString()}, ${new Date().toLocaleTimeString()}] [ERROR] [dashboard] Failed to connect to log server: ${error.message}`,
+            `[${new Date().toLocaleDateString()}, ${new Date().toLocaleTimeString()}] [INFO] [dashboard] Showing sample logs instead`
+        ];
+        renderLogEntries(errorLogs, logViewer, true);
     }
 }
 
@@ -692,17 +704,37 @@ function calculateLogStats(logs) {
     const stats = { errors: 0, warnings: 0, info: 0, debug: 0, critical: 0 };
     
     for (const log of logs) {
-        if (log.includes(' - ERROR - ')) stats.errors++;
-        else if (log.includes(' - WARNING - ')) stats.warnings++;
-        else if (log.includes(' - INFO - ')) stats.info++;
-        else if (log.includes(' - DEBUG - ')) stats.debug++;
-        else if (log.includes(' - CRITICAL - ')) stats.critical++;
+        const level = extractLogLevel(log);
+        switch (level.toUpperCase()) {
+            case 'ERROR':
+                stats.errors++;
+                break;
+            case 'WARNING':
+                stats.warnings++;
+                break;
+            case 'INFO':
+                stats.info++;
+                break;
+            case 'DEBUG':
+                stats.debug++;
+                break;
+            case 'CRITICAL':
+                stats.critical++;
+                break;
+        }
     }
     
     return stats;
 }
 
 function extractLogLevel(logEntry) {
+    // New format: "[date, time] [LEVEL] [backend] message"
+    const levelMatch = logEntry.match(/\[([A-Z]+)\]/);
+    if (levelMatch) {
+        return levelMatch[1];
+    }
+    
+    // Fallback to old format patterns
     if (logEntry.includes(' - ERROR - ')) return 'ERROR';
     if (logEntry.includes(' - WARNING - ')) return 'WARNING';
     if (logEntry.includes(' - INFO - ')) return 'INFO';
@@ -712,12 +744,33 @@ function extractLogLevel(logEntry) {
 }
 
 function extractTimestamp(logEntry) {
-    // Extract timestamp from log entry
-    // New format: "HH:MM:SS - backend - LEVEL - message"
+    // New format: "[date, time] [LEVEL] [backend] message"
+    const timestampMatch = logEntry.match(/^\[([^\]]+), ([^\]]+)\]/);
+    if (timestampMatch) {
+        const dateStr = timestampMatch[1];
+        const timeStr = timestampMatch[2];
+        try {
+            // Parse the date and time
+            const timestamp = new Date(`${dateStr} ${timeStr}`);
+            return timestamp.getTime();
+        } catch (e) {
+            // If parsing fails, extract just time for comparison
+            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+            if (timeMatch) {
+                const hours = parseInt(timeMatch[1]);
+                const minutes = parseInt(timeMatch[2]);
+                const seconds = parseInt(timeMatch[3]);
+                const today = new Date();
+                const timestamp = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes, seconds);
+                return timestamp.getTime();
+            }
+        }
+    }
+    
+    // Fallback: try old format "HH:MM:SS - backend - LEVEL - message"
     const timeMatch = logEntry.match(/^(\d{2}:\d{2}:\d{2})\s*-/);
     if (timeMatch) {
         const timeStr = timeMatch[1];
-        // Create a date object with today's date and the extracted time
         const today = new Date();
         const [hours, minutes, seconds] = timeStr.split(':');
         const timestamp = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 
@@ -726,9 +779,9 @@ function extractTimestamp(logEntry) {
     }
     
     // Fallback: try full timestamp format "YYYY-MM-DD HH:MM:SS,mmm - ..."
-    const timestampMatch = logEntry.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})[,\.]?\d*\s*-/);
-    if (timestampMatch) {
-        const timestampStr = timestampMatch[1];
+    const timestampMatch2 = logEntry.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})[,\.]?\d*\s*-/);
+    if (timestampMatch2) {
+        const timestampStr = timestampMatch2[1];
         const timestamp = new Date(timestampStr);
         return timestamp.getTime();
     }
@@ -739,8 +792,8 @@ function extractTimestamp(logEntry) {
         return new Date(isoMatch[1]).getTime();
     }
     
-    // If no timestamp found, return 0 (will be sorted to end)
-    return 0;
+    // If no timestamp found, return current time (will be sorted at top)
+    return Date.now();
 }
 
 function formatLogEntry(logEntry) {
@@ -755,13 +808,13 @@ function formatLogEntry(logEntry) {
 function generateSampleLogData(levelFilter = '', sourceFilter = '', searchQuery = '') {
     const now = new Date();
     const levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'];
-    const sources = ['backend.ipfs', 'backend.lotus', 'backend.storacha', 'api.server', 'mcp.server'];
+    const backends = ['ipfs', 'dashboard', 'mcp', 'daemon', 'ipfs_cluster', 'lotus', 'storacha', 'gdrive', 'huggingface'];
     const operations = [
         'Health check completed',
         'Backend status updated',
-        'VFS operation: read',
-        'VFS operation: write', 
-        'API request processed',
+        'VFS operation: read completed',
+        'VFS operation: write completed', 
+        'API request processed successfully',
         'Configuration updated',
         'Cache miss, loading from storage',
         'Cache hit, serving cached data',
@@ -770,23 +823,30 @@ function generateSampleLogData(levelFilter = '', sourceFilter = '', searchQuery 
         'Index update finished',
         'Search operation completed',
         'Backup operation started',
-        'Cleanup task executed'
+        'Cleanup task executed',
+        'WebSocket connection active',
+        'JSON-RPC request handled',
+        'Storage verification passed',
+        'Network synchronization complete'
     ];
     
     const logs = [];
     
     for (let i = 50; i >= 0; i--) {
-        const timestamp = new Date(now.getTime() - i * 10000); // Every 10 seconds
+        const logTime = new Date(now.getTime() - i * 10000); // Every 10 seconds
+        const dateStr = logTime.toLocaleDateString();
+        const timeStr = logTime.toLocaleTimeString();
         const level = levels[Math.floor(Math.random() * levels.length)];
-        const source = sources[Math.floor(Math.random() * sources.length)];
+        const backend = backends[Math.floor(Math.random() * backends.length)];
         const operation = operations[Math.floor(Math.random() * operations.length)];
         
         // Apply filters if specified
         if (levelFilter && level !== levelFilter) continue;
-        if (sourceFilter && !source.includes(sourceFilter)) continue;
+        if (sourceFilter && backend !== sourceFilter && !backend.includes(sourceFilter)) continue;
         if (searchQuery && !operation.toLowerCase().includes(searchQuery.toLowerCase())) continue;
         
-        const logEntry = `${timestamp.toISOString().replace('T', ' ').slice(0, 19)} - ${source} - ${level} - ${operation}`;
+        // Format: [date, time] [LEVEL] [backend] message
+        const logEntry = `[${dateStr}, ${timeStr}] [${level}] [${backend}] ${operation}`;
         logs.push(logEntry);
     }
     
@@ -872,31 +932,36 @@ function generateSampleSystemLogs() {
     const now = new Date();
     const logs = [];
     
-    // Generate realistic system activity logs
+    // Generate realistic system activity logs in the new format
+    const backends = ['ipfs', 'dashboard', 'mcp', 'daemon', 'ipfs_cluster', 'lotus', 'storacha'];
+    const levels = ['INFO', 'DEBUG', 'WARNING', 'ERROR'];
+    
     for (let i = 20; i >= 0; i--) {
-        const timestamp = new Date(now.getTime() - i * 60000).toISOString();
+        const logTime = new Date(now.getTime() - i * 60000);
+        const dateStr = logTime.toLocaleDateString();
+        const timeStr = logTime.toLocaleTimeString();
+        const backend = backends[Math.floor(Math.random() * backends.length)];
+        const level = levels[Math.floor(Math.random() * levels.length)];
         
-        const activities = [
-            `${timestamp} - INFO - Backend health check completed for IPFS`,
-            `${timestamp} - INFO - VFS operation: read /vectors/embeddings_cache.bin (245ms)`,
-            `${timestamp} - DEBUG - Memory usage: 629.18MB, CPU: 12.3%`,
-            `${timestamp} - INFO - WebSocket connection established from 127.0.0.1`,
-            `${timestamp} - WARNING - IPFS cluster connection timeout, retrying...`,
-            `${timestamp} - INFO - Semantic search query processed: 'document classification' (34ms)`,
-            `${timestamp} - INFO - Cache hit for vector similarity search`,
-            `${timestamp} - DEBUG - Processing file upload to storage backend`,
-            `${timestamp} - INFO - Knowledge graph updated: 5 new entities added`,
-            `${timestamp} - ERROR - Failed to connect to Lotus daemon: connection refused`,
-            `${timestamp} - INFO - Dashboard page accessed from 127.0.0.1`,
-            `${timestamp} - INFO - Backend status updated: Storacha (healthy)`,
-            `${timestamp} - DEBUG - Garbage collection: freed 45.2MB`,
-            `${timestamp} - INFO - VFS journal entry: write operation completed`,
-            `${timestamp} - WARNING - High memory usage detected: 85% threshold exceeded`
-        ];
+        const messages = {
+            'ipfs': ['Node connectivity established', 'Peer discovery active', 'Content routing enabled', 'DHT query completed'],
+            'dashboard': ['WebSocket connection established', 'User interface ready', 'Data refresh completed', 'Dashboard page accessed'],
+            'mcp': ['JSON-RPC endpoint active', 'Tool registry initialized', 'Server components loaded', 'Request processed successfully'],
+            'daemon': ['Background services initialized', 'Health monitoring active', 'Process started', 'Cleanup operation completed'],
+            'ipfs_cluster': ['Consensus algorithm active', 'Pin management ready', 'Cluster service started', 'Peer synchronization completed'],
+            'lotus': ['Lotus daemon connected', 'Blockchain sync in progress', 'Storage deal created', 'Mining operation active'],
+            'storacha': ['Storage backend ready', 'Upload operation completed', 'Retrieval request processed', 'Cache updated']
+        };
         
-        // Add random activity
+        const messageList = messages[backend] || ['System operational'];
+        const message = messageList[Math.floor(Math.random() * messageList.length)];
+        
+        // Format: [date, time] [LEVEL] [backend] message
+        const logEntry = `[${dateStr}, ${timeStr}] [${level}] [${backend}] ${message}`;
+        
+        // Add some logs based on probability
         if (Math.random() > 0.3) {
-            logs.push(activities[Math.floor(Math.random() * activities.length)]);
+            logs.push(logEntry);
         }
     }
     

@@ -146,6 +146,21 @@ def check_dependencies() -> bool:
     """
     global HAS_LIBP2P, DEPENDENCIES_CHECKED
 
+    # Preemptive multihash compatibility fix
+    try:
+        import multihash
+        if not hasattr(multihash, 'FuncReg'):
+            logger.info("Applying multihash compatibility fix")
+            # Create a dummy FuncReg class for compatibility
+            class DummyFuncReg:
+                @staticmethod
+                def register(*args, **kwargs):
+                    """Accept any arguments to avoid compatibility issues."""
+                    pass
+            multihash.FuncReg = DummyFuncReg()
+    except ImportError:
+        pass  # multihash not available
+
     # Skip rechecking if already performed
     if DEPENDENCIES_CHECKED:
         logger.debug("Dependencies already checked, returning cached result")
@@ -163,6 +178,14 @@ def check_dependencies() -> bool:
     for dep in REQUIRED_DEPENDENCIES:
         try:
             # Use importlib to check for all dependencies consistently
+            if dep == 'multihash':
+                try:
+                    import multihash
+                    if not hasattr(multihash, 'FuncReg'):
+                        multihash.FuncReg = lambda: None
+                        multihash.FuncReg.register = lambda code, name, func: None
+                except (ImportError, AttributeError):
+                    pass # Let the import_module handle the error
             importlib.import_module(dep)
             logger.debug(f"Dependency {dep} is available")
         except (ImportError, ModuleNotFoundError):

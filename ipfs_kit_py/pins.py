@@ -234,7 +234,11 @@ class EnhancedPinMetadataIndex:
         self.metrics_parquet = self.data_dir / "traffic_metrics.parquet"
         self.analytics_parquet = self.data_dir / "pin_analytics.parquet"
         
-        self.conn = duckdb.connect(str(self.db_path))
+        # Initialize fallback mode flag
+        self.parquet_fallback_mode = False
+        
+        # Try to connect to DuckDB with retry logic and fallback to read-only
+        self.conn = self._connect_with_retry()
         
         # In-memory cache for fast access
         self.pin_metadata: Dict[str, EnhancedPinMetadata] = {}
@@ -263,13 +267,184 @@ class EnhancedPinMetadataIndex:
         self._initialize_enhanced_schema()
         self._load_enhanced_cache()
         self._setup_integrations()
+
+    def _connect_with_retry(self, max_retries: int = 3, retry_delay: float = 1.0):
+        """
+        Connect to DuckDB with retry logic and fallback options.
+        
+        Args:
+            max_retries: Maximum number of retry attempts
+            retry_delay: Delay between retries in seconds
+            
+        Returns:
+            DuckDB connection object
+        """
+        import time
+        
+        for attempt in range(max_retries):
+            try:
+                # Try normal connection first
+                conn = duckdb.connect(str(self.db_path))
+                logger.info(f"✓ Connected to DuckDB database at {self.db_path}")
+                self.parquet_fallback_mode = False
+                return conn
+                
+            except Exception as e:
+                if "lock" in str(e).lower() or "conflicting" in str(e).lower():
+                    logger.warning(f"Database lock detected (attempt {attempt + 1}/{max_retries}): {e}")
+                    
+                    if attempt < max_retries - 1:
+                        logger.info(f"Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                        continue
+                    else:
+                        # Final attempt: try read-only mode
+                        try:
+                            logger.warning("Attempting read-only connection as fallback...")
+                            conn = duckdb.connect(f"{self.db_path}", read_only=True)
+                            logger.warning("⚠️  Connected in READ-ONLY mode - writes will be disabled")
+                            self.parquet_fallback_mode = False
+                            return conn
+                        except Exception as readonly_error:
+                            logger.error(f"Read-only connection also failed: {readonly_error}")
+                            
+                            # Check if parquet files exist for fallback
+                            if self.pins_parquet.exists():
+                                logger.warning("🔄 Using parquet files as fallback data source")
+                                self.parquet_fallback_mode = True
+                                # Return in-memory database for basic operations
+                                conn = duckdb.connect(":memory:")
+                                self._initialize_parquet_fallback(conn)
+                                return conn
+                            else:
+                                logger.warning("No parquet files available for fallback, using empty in-memory database")
+                                self.parquet_fallback_mode = True
+                                return duckdb.connect(":memory:")
+                else:
+                    # Non-lock related error, re-raise immediately
+                    logger.error(f"Database connection failed: {e}")
+                    raise
+        
+        # This shouldn't be reached, but just in case
+        logger.warning("All connection attempts failed, checking for parquet fallback")
+        if self.pins_parquet.exists():
+            logger.warning("🔄 Using parquet files as fallback data source")
+            self.parquet_fallback_mode = True
+            conn = duckdb.connect(":memory:")
+            self._initialize_parquet_fallback(conn)
+            return conn
+        else:
+            logger.warning("Using empty in-memory database as last resort")
+            self.parquet_fallback_mode = True
+            return duckdb.connect(":memory:")
+
+    def _initialize_parquet_fallback(self, conn):
+        """
+        Initialize the in-memory database with data from parquet files.
+        
+        Args:
+            conn: DuckDB connection to initialize
+        """
+        try:
+            # Create basic schema
+            self._initialize_enhanced_schema_in_memory(conn)
+            
+            # Load data from parquet files if they exist
+            if self.pins_parquet.exists():
+                try:
+                    conn.execute(f"""
+                        INSERT INTO enhanced_pins 
+                        SELECT * FROM parquet_scan('{self.pins_parquet}')
+                    """)
+                    logger.info("✓ Loaded pin data from parquet fallback")
+                except Exception as e:
+                    logger.warning(f"Failed to load pins from parquet: {e}")
+            
+            if self.metrics_parquet.exists():
+                try:
+                    conn.execute(f"""
+                        INSERT INTO traffic_metrics 
+                        SELECT * FROM parquet_scan('{self.metrics_parquet}')
+                    """)
+                    logger.info("✓ Loaded metrics from parquet fallback")
+                except Exception as e:
+                    logger.warning(f"Failed to load metrics from parquet: {e}")
+                    
+            if self.analytics_parquet.exists():
+                try:
+                    conn.execute(f"""
+                        INSERT INTO pin_analytics 
+                        SELECT * FROM parquet_scan('{self.analytics_parquet}')
+                    """)
+                    logger.info("✓ Loaded analytics from parquet fallback")
+                except Exception as e:
+                    logger.warning(f"Failed to load analytics from parquet: {e}")
+                    
+        except Exception as e:
+            logger.error(f"Failed to initialize parquet fallback: {e}")
+
+    def _initialize_enhanced_schema_in_memory(self, conn):
+        """Initialize schema in memory database for parquet fallback."""
+        try:
+            # Create enhanced pins table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS enhanced_pins (
+                    cid VARCHAR PRIMARY KEY,
+                    name VARCHAR,
+                    size INTEGER,
+                    pin_time TIMESTAMP,
+                    last_accessed TIMESTAMP,
+                    access_count INTEGER DEFAULT 0,
+                    priority INTEGER DEFAULT 5,
+                    storage_tiers VARCHAR,
+                    metadata_hash VARCHAR,
+                    verification_status VARCHAR DEFAULT 'pending',
+                    replication_factor INTEGER DEFAULT 1,
+                    bandwidth_usage INTEGER DEFAULT 0,
+                    geographic_preference VARCHAR,
+                    content_type VARCHAR,
+                    tags VARCHAR
+                )
+            """)
+            
+            # Create traffic metrics table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS traffic_metrics (
+                    id INTEGER PRIMARY KEY,
+                    cid VARCHAR,
+                    timestamp TIMESTAMP,
+                    operation VARCHAR,
+                    bytes_transferred INTEGER,
+                    duration_ms INTEGER,
+                    client_ip VARCHAR,
+                    user_agent VARCHAR
+                )
+            """)
+            
+            # Create analytics table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS pin_analytics (
+                    id INTEGER PRIMARY KEY,
+                    cid VARCHAR,
+                    analysis_date TIMESTAMP,
+                    popularity_score REAL,
+                    access_pattern VARCHAR,
+                    predicted_demand REAL,
+                    optimization_suggestions VARCHAR
+                )
+            """)
+            
+        except Exception as e:
+            logger.error(f"Failed to create schema for parquet fallback: {e}")
         
         logger.info(f"✓ Enhanced Pin Metadata Index initialized")
         logger.info(f"  - Data directory: {self.data_dir}")
-        logger.info(f"  - Analytics: {'enabled' if enable_analytics else 'disabled'}")
-        logger.info(f"  - Predictions: {'enabled' if enable_predictions else 'disabled'}")
-        logger.info(f"  - VFS integration: {'available' if ipfs_filesystem else 'not available'}")
-        logger.info(f"  - Journal sync: {'available' if journal else 'not available'}")
+        logger.info(f"  - Analytics: {'enabled' if self.enable_analytics else 'disabled'}")
+        logger.info(f"  - Predictions: {'enabled' if self.enable_predictions else 'disabled'}")
+        logger.info(f"  - VFS integration: {'available' if self.ipfs_filesystem else 'not available'}")
+        logger.info(f"  - Journal sync: {'available' if self.journal else 'not available'}")
+        logger.info(f"  - Fallback mode: {'parquet' if getattr(self, 'parquet_fallback_mode', False) else 'normal'}")
     
     def _initialize_enhanced_schema(self):
         """Initialize enhanced DuckDB schema with VFS and analytics support."""
