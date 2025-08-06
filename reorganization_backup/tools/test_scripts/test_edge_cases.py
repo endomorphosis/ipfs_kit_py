@@ -15,7 +15,7 @@ from pathlib import Path
 
 # Add the current directory to the path to ensure imports work
 current_dir = Path(__file__).parent
-sys.path.insert(0, str(current_dir))
+sys.path.insert(0, "/home/devel/ipfs_kit_py/tools")
 
 # Import the unified IPFS tools
 try:
@@ -121,7 +121,7 @@ class TestIPFSEdgeCases(unittest.TestCase):
                 result = operation(params)
                 if isinstance(result, dict) and 'error' not in result:
                     successful_operations += 1
-                print(f"   ✅ {operation.__name__} succeeded")
+                print(f"   ✅ {operation.__name__} succeeded with result: {result}")
             except Exception as e:
                 print(f"   ⚠️  {operation.__name__} failed: {e}")
         

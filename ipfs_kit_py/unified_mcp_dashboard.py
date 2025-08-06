@@ -123,6 +123,7 @@ class UnifiedMCPDashboard:
         self.system_metrics_cache = {}
         self.backends_cache = {}
         self.services_cache = {}
+        self.pins_cache = {}
         self.last_update = 0
         
         self._setup_routes()
@@ -256,23 +257,90 @@ class UnifiedMCPDashboard:
             """Create a new bucket."""
             try:
                 data = await request.json()
-                bucket_name = data.get("bucket_name")
+                bucket_name = data.get("name") or data.get("bucket_name")
                 bucket_type = data.get("bucket_type", "general")
                 description = data.get("description", "")
                 
                 if not bucket_name:
-                    return {"success": False, "error": "Bucket name is required"}
+                    return JSONResponse(
+                        status_code=400,
+                        content={"error": "Bucket name is required"}
+                    )
                 
                 # Create bucket using the bucket manager
                 result = await self._create_bucket(bucket_name, bucket_type, description)
-                return result
+                return JSONResponse(content=result)
             except Exception as e:
-                return {"success": False, "error": str(e)}
+                logger.error(f"Error in create_bucket API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to create bucket: {str(e)}"}
+                )
+
+        @self.app.delete("/api/buckets/{bucket_name}")
+        async def api_delete_bucket(bucket_name: str):
+            """Delete a bucket."""
+            try:
+                result = await self._delete_bucket(bucket_name)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in delete_bucket API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to delete bucket: {str(e)}"}
+                )
+
+        @self.app.get("/api/buckets/{bucket_name}")
+        async def api_get_bucket_details(bucket_name: str):
+            """Get bucket details and file list."""
+            try:
+                result = await self._get_bucket_details(bucket_name)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in get_bucket_details API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to get bucket details: {str(e)}"}
+                )
+
+        @self.app.post("/api/buckets/{bucket_name}/upload")
+        async def api_upload_file_to_bucket(bucket_name: str, file: UploadFile = File(...)):
+            """Upload a file to a bucket."""
+            try:
+                result = await self._upload_file_to_bucket(bucket_name, file)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in upload_to_bucket API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to upload file: {str(e)}"}
+                )
+
+        @self.app.get("/api/buckets/{bucket_name}/download/{file_path:path}")
+        async def api_download_file_from_bucket(bucket_name: str, file_path: str):
+            """Download a file from a bucket."""
+            try:
+                return await self._download_file_from_bucket(bucket_name, file_path)
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error in download_file API: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
         
         @self.app.get("/api/services")
         async def api_services():
             """Get services status."""
             return await self._get_services_data()
+        
+        @self.app.get("/api/services/test")
+        async def api_services_test():
+            """Test services endpoint with simple data."""
+            return {
+                "services": [
+                    {"name": "IPFS Daemon", "status": "running"},
+                    {"name": "Test Service", "status": "stopped"}
+                ]
+            }
         
         @self.app.get("/api/config")
         async def api_config():
@@ -294,6 +362,32 @@ class UnifiedMCPDashboard:
             """Get all backend configurations."""
             return await self._get_backend_configs()
         
+        @self.app.get("/api/pins")
+        async def api_pins():
+            """Get all pins."""
+            return await self._get_pins_data()
+
+        @self.app.post("/api/pins")
+        async def api_add_pin(request: Request):
+            """Add a new pin."""
+            try:
+                data = await request.json()
+                cid = data.get("cid")
+                name = data.get("name")
+                if not cid:
+                    return {"success": False, "error": "CID is required"}
+                return await self._add_pin(cid, name)
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
+        @self.app.delete("/api/pins/{cid}")
+        async def api_remove_pin(cid: str):
+            """Remove a pin."""
+            try:
+                return await self._remove_pin(cid)
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
         @self.app.post("/api/config/backends/{backend_name}")
         async def api_update_backend_config(backend_name: str, request: Request):
             """Update a specific backend configuration."""
@@ -302,6 +396,111 @@ class UnifiedMCPDashboard:
                 result = await self._update_backend_config(backend_name, config_data)
                 return {"success": True, "result": result}
             except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        # Comprehensive backend management endpoints
+        @self.app.post("/api/backends/create")
+        async def api_create_backend(request: Request):
+            """Create a new backend configuration."""
+            try:
+                backend_data = await request.json()
+                result = await self._create_backend_config(backend_data)
+                
+                # Update the cache
+                await self._update_backends_cache()
+                
+                return {"success": True, "result": result}
+            except Exception as e:
+                logger.error(f"Error creating backend: {e}")
+                return {"success": False, "error": str(e)}
+
+        @self.app.delete("/api/backends/{backend_name}")
+        async def api_remove_backend(backend_name: str, request: Request):
+            """Remove a backend configuration."""
+            try:
+                data = await request.json() if hasattr(request, 'body') else {}
+                force = data.get('force', False)
+                result = await self._remove_backend_config(backend_name, force)
+                
+                # Update the cache
+                await self._update_backends_cache()
+                
+                return {"success": True, "result": result}
+            except Exception as e:
+                logger.error(f"Error removing backend {backend_name}: {e}")
+                return {"success": False, "error": str(e)}
+
+        @self.app.post("/api/backends/{backend_name}/test")
+        async def api_test_backend(backend_name: str):
+            """Test backend connection."""
+            try:
+                result = await self._test_backend_connection(backend_name)
+                return {"success": True, "result": result}
+            except Exception as e:
+                logger.error(f"Error testing backend {backend_name}: {e}")
+                return {"success": False, "error": str(e)}
+
+        @self.app.get("/api/backends/types")
+        async def api_backend_types():
+            """Get available backend types."""
+            try:
+                return {
+                    "success": True,
+                    "types": [
+                        {"name": "s3", "display": "S3 Compatible", "description": "Amazon S3 or S3-compatible storage"},
+                        {"name": "huggingface", "display": "HuggingFace Hub", "description": "HuggingFace model and dataset hub"},
+                        {"name": "storacha", "display": "Storacha", "description": "Storacha decentralized storage"},
+                        {"name": "ipfs", "display": "IPFS", "description": "InterPlanetary File System"},
+                        {"name": "filecoin", "display": "Filecoin", "description": "Filecoin decentralized storage network"},
+                        {"name": "gdrive", "display": "Google Drive", "description": "Google Drive cloud storage"}
+                    ]
+                }
+            except Exception as e:
+                logger.error(f"Error getting backend types: {e}")
+                return {"success": False, "error": str(e)}
+
+        # CLI Integration endpoints - simulate ipfs-kit CLI behavior
+        @self.app.get("/api/cli/execute")
+        async def api_cli_execute_get(command: str, args: str = "", format: str = "json"):
+            """Execute CLI commands through MCP server (GET method)."""
+            try:
+                result = await self._execute_cli_command(command, args, format)
+                return result
+            except Exception as e:
+                logger.error(f"Error executing CLI command: {e}")
+                return {"success": False, "error": str(e)}
+
+        @self.app.post("/api/cli/execute")
+        async def api_cli_execute_post(request: Request):
+            """Execute CLI commands through MCP server (POST method)."""
+            try:
+                command_data = await request.json()
+                result = await self._execute_cli_command_post(command_data)
+                return result
+            except Exception as e:
+                logger.error(f"Error executing CLI command: {e}")
+                return {"success": False, "error": str(e)}
+
+        @self.app.post("/api/cli/backends")
+        async def api_cli_backends(request: Request):
+            """Handle backend CLI commands (create, list, show, update, remove)."""
+            try:
+                command_data = await request.json()
+                result = await self._handle_cli_backend_command(command_data)
+                return result
+            except Exception as e:
+                logger.error(f"Error executing backend CLI command: {e}")
+                return {"success": False, "error": str(e)}
+
+        @self.app.post("/api/cli/config")
+        async def api_cli_config(request: Request):
+            """Handle config CLI commands (show, set, validate, init)."""
+            try:
+                command_data = await request.json()
+                result = await self._handle_cli_config_command(command_data)
+                return result
+            except Exception as e:
+                logger.error(f"Error executing config CLI command: {e}")
                 return {"success": False, "error": str(e)}
         
         # Health endpoint
@@ -326,6 +525,7 @@ class UnifiedMCPDashboard:
             "services": len(self.services_cache.get("services", [])),
             "backends": len(self.backends_cache.get("backends", [])),
             "buckets": sum(len(b.get("buckets", [])) for b in self.backends_cache.get("backends", [])),
+            "pins": len(self.pins_cache.get("pins", [])),
             "system": self.system_metrics_cache,
             "timestamp": datetime.now().isoformat()
         }
@@ -421,7 +621,7 @@ class UnifiedMCPDashboard:
         return self.backends_cache
     
     async def _get_buckets_data(self):
-        """Get buckets data."""
+        """Get buckets data from multiple sources."""
         backends = await self._get_backends_data()
         all_buckets = []
         
@@ -430,6 +630,45 @@ class UnifiedMCPDashboard:
             for bucket in backend.get("buckets", []):
                 bucket["backend"] = backend["name"]
                 all_buckets.append(bucket)
+        
+        # Get buckets from filesystem
+        try:
+            buckets_dir = self.data_dir / "buckets"
+            if buckets_dir.exists():
+                for bucket_path in buckets_dir.iterdir():
+                    if bucket_path.is_dir():
+                        # Read metadata if available
+                        metadata_file = bucket_path / "metadata.json"
+                        metadata = {}
+                        if metadata_file.exists():
+                            try:
+                                with open(metadata_file, 'r') as f:
+                                    metadata = json.load(f)
+                            except Exception:
+                                pass
+                        
+                        # Count files and calculate size
+                        file_count = 0
+                        total_size = 0
+                        for item in bucket_path.iterdir():
+                            if item.is_file() and item.name != "metadata.json":
+                                file_count += 1
+                                total_size += item.stat().st_size
+                        
+                        bucket_data = {
+                            "name": bucket_path.name,
+                            "type": metadata.get("type", "general"),
+                            "backend": "Filesystem",
+                            "size_bytes": total_size,
+                            "files_count": file_count,
+                            "created_at": metadata.get("created_at", ""),
+                            "last_modified": datetime.fromtimestamp(bucket_path.stat().st_mtime).isoformat(),
+                            "description": metadata.get("description", ""),
+                            "tags": metadata.get("tags", [])
+                        }
+                        all_buckets.append(bucket_data)
+        except Exception as e:
+            logger.error(f"Error loading buckets from filesystem: {e}")
         
         # Also get buckets from simple bucket manager
         try:
@@ -453,69 +692,247 @@ class UnifiedMCPDashboard:
                     }
                     all_buckets.append(bucket_data)
         except Exception as e:
-            print(f"Error loading buckets from simple bucket manager: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error loading buckets from simple bucket manager: {e}")
         
         return {"buckets": all_buckets}
+
+    async def _get_pins_data(self):
+        """Get pins data."""
+        if not self.pins_cache or time.time() - self.last_update > self.update_interval:
+            await self._update_pins_cache()
+        return self.pins_cache
+
+    async def _add_pin(self, cid: str, name: Optional[str] = None):
+        """Add a new pin."""
+        try:
+            cmd = ["ipfs", "pin", "add", cid]
+            if name:
+                cmd.extend(["--name", name])
+            result = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await result.communicate()
+            
+            if result.returncode == 0:
+                await self._update_pins_cache()
+                return {"success": True, "message": stdout.decode()}
+            else:
+                return {"success": False, "error": stderr.decode()}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def _remove_pin(self, cid: str):
+        """Remove a pin."""
+        try:
+            result = await asyncio.create_subprocess_exec(
+                "ipfs", "pin", "rm", cid,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await result.communicate()
+            
+            if result.returncode == 0:
+                await self._update_pins_cache()
+                return {"success": True, "message": stdout.decode()}
+            else:
+                return {"success": False, "error": stderr.decode()}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
     
     async def _create_bucket(self, bucket_name: str, bucket_type: str = "general", description: str = ""):
-        """Create a new bucket."""
+        """Create a new bucket using filesystem operations."""
         try:
-            # Try to import and use the simple bucket manager
-            try:
-                from .simple_bucket_manager import get_simple_bucket_manager
-                bucket_manager = get_simple_bucket_manager()
-                result = await bucket_manager.create_bucket(
-                    bucket_name=bucket_name,
-                    bucket_type=bucket_type,
-                    metadata={"description": description}
-                )
-                # Force refresh of buckets cache
-                self.buckets_cache = None
-                return result
-            except ImportError:
-                # Try the unified bucket interface
-                try:
-                    from .unified_bucket_interface import get_global_unified_bucket_interface
-                    from .bucket_vfs_manager import BucketType
-                    
-                    interface = get_global_unified_bucket_interface()
-                    await interface.initialize()
-                    
-                    # Convert string to enum
-                    bucket_type_enum = BucketType.GENERAL
-                    if hasattr(BucketType, bucket_type.upper()):
-                        bucket_type_enum = getattr(BucketType, bucket_type.upper())
-                    
-                    # Use PARQUET backend as default
-                    from .unified_bucket_interface import BackendType
-                    result = await interface.create_backend_bucket(
-                        backend=BackendType.PARQUET,
-                        bucket_name=bucket_name,
-                        bucket_type=bucket_type_enum,
-                        metadata={"description": description}
-                    )
-                    # Force refresh of buckets cache
-                    self.buckets_cache = None
-                    return result
-                except ImportError:
-                    # Fallback: create a mock successful response
-                    return {
-                        "success": True,
-                        "data": {
-                            "bucket_name": bucket_name,
-                            "bucket_type": bucket_type,
-                            "description": description,
-                            "created_at": datetime.now().isoformat(),
-                            "message": "Bucket created successfully (mock implementation - bucket managers not available)"
-                        }
-                    }
+            # Create bucket directory
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            
+            if bucket_dir.exists():
+                return {
+                    "success": False,
+                    "error": f"Bucket '{bucket_name}' already exists"
+                }
+            
+            bucket_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create metadata
+            metadata = {
+                "name": bucket_name,
+                "type": bucket_type,
+                "description": description,
+                "created_at": datetime.now().isoformat(),
+                "files": {}
+            }
+            
+            metadata_file = bucket_dir / "metadata.json"
+            with open(metadata_file, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
+            # Force refresh of buckets cache
+            self.buckets_cache = None
+            
+            return {
+                "success": True,
+                "message": f"Bucket '{bucket_name}' created successfully",
+                "bucket": {
+                    "name": bucket_name,
+                    "type": bucket_type,
+                    "description": description,
+                    "created_at": metadata["created_at"]
+                }
+            }
+            
         except Exception as e:
+            logger.error(f"Error creating bucket: {e}")
             return {
                 "success": False,
                 "error": f"Failed to create bucket: {str(e)}"
             }
+    
+    async def _delete_bucket(self, bucket_name: str):
+        """Delete a bucket using filesystem operations."""
+        try:
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            
+            if not bucket_dir.exists():
+                return {"success": False, "error": "Bucket not found"}
+            
+            # Remove the bucket directory and all contents
+            import shutil
+            shutil.rmtree(bucket_dir)
+            
+            # Force refresh of buckets cache
+            self.buckets_cache = None
+            
+            return {
+                "success": True,
+                "message": f"Bucket '{bucket_name}' deleted successfully"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to delete bucket: {str(e)}"
+            }
+
+    async def _get_bucket_details(self, bucket_name: str):
+        """Get bucket details and file list using filesystem operations."""
+        try:
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            
+            if not bucket_dir.exists():
+                return {"success": False, "error": "Bucket not found"}
+            
+            # Read metadata if available
+            metadata_file = bucket_dir / "metadata.json"
+            metadata = {}
+            if metadata_file.exists():
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
+            
+            # List files in bucket
+            files = []
+            total_size = 0
+            for item in bucket_dir.iterdir():
+                if item.is_file() and item.name != "metadata.json":
+                    stat = item.stat()
+                    files.append({
+                        "name": item.name,
+                        "size": stat.st_size,
+                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "path": str(item.relative_to(bucket_dir))
+                    })
+                    total_size += stat.st_size
+            
+            return {
+                "success": True,
+                "bucket": {
+                    "name": bucket_name,
+                    "description": metadata.get("description", ""),
+                    "type": metadata.get("type", "general"),
+                    "created_at": metadata.get("created_at", ""),
+                    "file_count": len(files),
+                    "total_size": total_size
+                },
+                "files": files
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to get bucket details: {str(e)}"
+            }
+
+    async def _upload_file_to_bucket(self, bucket_name: str, file: UploadFile):
+        """Upload a file to a bucket using filesystem operations."""
+        try:
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            bucket_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Save the uploaded file
+            file_path = bucket_dir / file.filename
+            with open(file_path, 'wb') as f:
+                content = await file.read()
+                f.write(content)
+            
+            # Update metadata
+            metadata_file = bucket_dir / "metadata.json"
+            metadata = {}
+            if metadata_file.exists():
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
+            
+            if "files" not in metadata:
+                metadata["files"] = {}
+            
+            metadata["files"][file.filename] = {
+                "size": len(content),
+                "uploaded_at": datetime.now().isoformat(),
+                "content_type": file.content_type
+            }
+            
+            with open(metadata_file, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
+            return {
+                "success": True,
+                "message": f"File '{file.filename}' uploaded successfully",
+                "file": {
+                    "name": file.filename,
+                    "size": len(content),
+                    "content_type": file.content_type
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to upload file: {str(e)}"
+            }
+
+    async def _download_file_from_bucket(self, bucket_name: str, file_path: str):
+        """Download a file from a bucket using filesystem operations."""
+        try:
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            target_file = bucket_dir / file_path
+            
+            if not bucket_dir.exists():
+                raise HTTPException(status_code=404, detail="Bucket not found")
+            
+            if not target_file.exists():
+                raise HTTPException(status_code=404, detail="File not found")
+            
+            return FileResponse(
+                path=str(target_file),
+                filename=target_file.name,
+                media_type='application/octet-stream'
+            )
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error downloading file: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
     
     async def _get_services_data(self):
         """Get services data."""
@@ -554,6 +971,7 @@ class UnifiedMCPDashboard:
         await asyncio.gather(
             self._update_backends_cache(),
             self._update_services_cache(),
+            self._update_pins_cache(),
             self._update_system_metrics_cache()
         )
     
@@ -742,7 +1160,7 @@ class UnifiedMCPDashboard:
                 "stopped": error_services,
                 "by_type": {
                     "core_service": len([s for s in services if s["type"] == "core_service"]),
-                    "cluster_service": len([s for s in services if s["type"] == "cluster_service"]), 
+                    "cluster_service": len([s for s in services if s["type"] == "cluster_service"]),
                     "storage_service": len([s for s in services if s["type"] == "storage_service"]),
                     "storage_backend": len([s for s in services if s["type"] == "storage_backend"]),
                     "data_format": len([s for s in services if s["type"] == "data_format"]),
@@ -754,6 +1172,28 @@ class UnifiedMCPDashboard:
     async def _update_system_metrics_cache(self):
         """Update system metrics cache."""
         self.system_metrics_cache = await self._get_system_metrics()
+    
+    async def _update_pins_cache(self):
+        """Update pins cache."""
+        try:
+            result = await asyncio.create_subprocess_exec(
+                "ipfs", "pin", "ls", "--type=recursive",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await result.communicate()
+            
+            if result.returncode == 0:
+                pins = []
+                for line in stdout.decode().splitlines():
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        pins.append({"cid": parts[0], "name": "".join(parts[1:-1])})
+                self.pins_cache = {"pins": pins}
+            else:
+                self.pins_cache = {"pins": [], "error": stderr.decode()}
+        except Exception as e:
+            self.pins_cache = {"pins": [], "error": str(e)}
     
     async def _get_config_data(self):
         """Get configuration data from ~/.ipfs_kit/."""
@@ -884,6 +1324,510 @@ class UnifiedMCPDashboard:
             logger.error(f"Error updating backend config {backend_name}: {e}")
             return {"error": str(e)}
     
+    async def _create_backend_config(self, backend_data):
+        """Create a new backend configuration."""
+        try:
+            backend_name = backend_data.get("name")
+            backend_type = backend_data.get("type")
+            
+            if not backend_name or not backend_type:
+                return {"error": "Backend name and type are required"}
+            
+            # Create configuration object
+            config = {
+                "type": backend_type,
+                "enabled": backend_data.get("enabled", True),
+                "created": datetime.now().isoformat(),
+                "last_modified": datetime.now().isoformat()
+            }
+            
+            # Add backend-specific configuration
+            if backend_type == "s3":
+                config.update({
+                    "endpoint": backend_data.get("endpoint"),
+                    "access_key": backend_data.get("access_key"),
+                    "secret_key": backend_data.get("secret_key"),
+                    "bucket": backend_data.get("bucket"),
+                    "region": backend_data.get("region", "us-east-1")
+                })
+            elif backend_type == "huggingface":
+                config.update({
+                    "token": backend_data.get("token"),
+                    "endpoint": backend_data.get("endpoint", "https://huggingface.co")
+                })
+            elif backend_type == "ipfs":
+                config.update({
+                    "api_url": backend_data.get("api_url", "http://127.0.0.1:5001"),
+                    "gateway_url": backend_data.get("gateway_url", "http://127.0.0.1:8080")
+                })
+            elif backend_type == "gdrive":
+                config.update({
+                    "credentials_path": backend_data.get("credentials_path"),
+                    "token": backend_data.get("token")
+                })
+            
+            # Save configuration
+            backends_dir = self.data_dir / "backends"
+            backends_dir.mkdir(exist_ok=True)
+            config_file = backends_dir / f"{backend_name}.json"
+            
+            if config_file.exists():
+                return {"error": f"Backend '{backend_name}' already exists"}
+            
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            return {
+                "status": "created",
+                "backend": backend_name,
+                "type": backend_type,
+                "file": str(config_file),
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error creating backend config: {e}")
+            return {"error": str(e)}
+    
+    async def _remove_backend_config(self, backend_name: str, force: bool = False):
+        """Remove a backend configuration."""
+        try:
+            # Check both JSON and YAML config locations
+            backends_dir = self.data_dir / "backends"
+            config_dir = self.data_dir / "backend_configs"
+            
+            json_file = backends_dir / f"{backend_name}.json"
+            yaml_file = config_dir / f"{backend_name}.yaml"
+            
+            removed_files = []
+            
+            if json_file.exists():
+                if not force:
+                    # Check if backend has active pins or connections
+                    # This is a simplified check - in practice you'd want more comprehensive validation
+                    pass
+                
+                json_file.unlink()
+                removed_files.append(str(json_file))
+            
+            if yaml_file.exists():
+                yaml_file.unlink()
+                removed_files.append(str(yaml_file))
+            
+            if not removed_files:
+                return {"error": f"Backend '{backend_name}' not found"}
+            
+            return {
+                "status": "removed",
+                "backend": backend_name,
+                "files_removed": removed_files,
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error removing backend config {backend_name}: {e}")
+            return {"error": str(e)}
+    
+    async def _test_backend_connection(self, backend_name: str):
+        """Test connection to a backend."""
+        try:
+            # Get backend configuration
+            backends = await self._get_backend_configs()
+            
+            if backend_name not in backends:
+                return {"error": f"Backend '{backend_name}' not found"}
+            
+            backend_info = backends[backend_name]
+            backend_config = backend_info.get("config", {}) if isinstance(backend_info, dict) else {}
+            backend_type = backend_config.get("type")
+            
+            # Mock connection tests - in practice, these would be real connection attempts
+            if backend_type == "s3":
+                # Test S3 connection
+                endpoint = backend_config.get("endpoint")
+                bucket = backend_config.get("bucket")
+                
+                if not endpoint or not bucket:
+                    return {"error": "S3 backend missing endpoint or bucket configuration"}
+                
+                return {
+                    "status": "connected",
+                    "backend": backend_name,
+                    "type": backend_type,
+                    "endpoint": endpoint,
+                    "bucket": bucket,
+                    "message": "S3 connection test successful (mock)",
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+            elif backend_type == "ipfs":
+                # Test IPFS connection
+                api_url = backend_config.get("api_url", "http://127.0.0.1:5001")
+                
+                try:
+                    # Simple test - check if IPFS daemon is responding
+                    result = await asyncio.create_subprocess_exec(
+                        "ipfs", "id",
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    stdout, stderr = await result.communicate()
+                    
+                    if result.returncode == 0:
+                        return {
+                            "status": "connected",
+                            "backend": backend_name,
+                            "type": backend_type,
+                            "api_url": api_url,
+                            "message": "IPFS daemon is responding",
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    else:
+                        return {
+                            "status": "error",
+                            "backend": backend_name,
+                            "type": backend_type,
+                            "error": "IPFS daemon not responding",
+                            "timestamp": datetime.now().isoformat()
+                        }
+                except Exception as e:
+                    return {
+                        "status": "error",
+                        "backend": backend_name,
+                        "type": backend_type,
+                        "error": f"IPFS test failed: {str(e)}",
+                        "timestamp": datetime.now().isoformat()
+                    }
+            
+            else:
+                # Generic test for other backend types
+                backend_display_type = backend_type.upper() if backend_type else "UNKNOWN"
+                return {
+                    "status": "connected",
+                    "backend": backend_name,
+                    "type": backend_type,
+                    "message": f"{backend_display_type} connection test successful (mock)",
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+        except Exception as e:
+            logger.error(f"Error testing backend {backend_name}: {e}")
+            return {"error": str(e)}
+    
+    async def _execute_cli_command(self, command: str, args: str = "", format: str = "json"):
+        """Execute a CLI command with simplified interface."""
+        try:
+            # Parse args into a list
+            args_list = args.split() if args else []
+            
+            # Handle basic CLI commands that map to existing functionality
+            if command == "backends":
+                if len(args_list) == 0 or args_list[0] == "list":
+                    backends = await self._get_backends_data()
+                    return {"success": True, "command": "backends list", "result": backends}
+            
+            elif command == "config":
+                if len(args_list) == 0 or args_list[0] == "show":
+                    config = await self._get_config_data()
+                    return {"success": True, "command": "config show", "result": config}
+            
+            return {"success": False, "error": f"Command '{command}' not implemented"}
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def _execute_cli_command_post(self, command_data: dict):
+        """Execute CLI command from POST data."""
+        try:
+            command = command_data.get("command", "")
+            action = command_data.get("action", "")
+            args = command_data.get("args", {})
+            
+            # Route to appropriate handler
+            if command == "backend":
+                return await self._handle_cli_backend_command(command_data)
+            elif command == "config":
+                return await self._handle_cli_config_command(command_data)
+            else:
+                return {"success": False, "error": f"Unknown command: {command}"}
+                
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def _handle_cli_backend_command(self, command_data: dict):
+        """Handle backend CLI commands with full CLI syntax compatibility."""
+        try:
+            action = command_data.get("action", "")
+            args = command_data.get("args", {})
+            
+            if action == "list":
+                # ipfs-kit backend list [--configured]
+                configured_only = args.get("configured", False)
+                backends = await self._get_backends_data()
+                
+                # Filter to configured only if requested
+                if configured_only:
+                    filtered_backends = []
+                    for backend in backends.get("backends", []):
+                        if backend.get("status") == "configured":
+                            filtered_backends.append(backend)
+                    backends["backends"] = filtered_backends
+                
+                return {
+                    "success": True,
+                    "command": "backend list",
+                    "result": backends,
+                    "cli_output": self._format_backends_table(backends.get("backends", []))
+                }
+            
+            elif action == "create":
+                # ipfs-kit backend create <name> <type> [options]
+                name = args.get("name", "")
+                backend_type = args.get("type", "")
+                
+                if not name or not backend_type:
+                    return {"success": False, "error": "Backend name and type are required"}
+                
+                config = {
+                    "name": name,
+                    "type": backend_type,
+                    "endpoint": args.get("endpoint"),
+                    "access_key": args.get("access_key"),
+                    "secret_key": args.get("secret_key"),
+                    "token": args.get("token"),
+                    "bucket": args.get("bucket"),
+                    "region": args.get("region"),
+                    "enabled": True
+                }
+                
+                # Remove None values
+                config = {k: v for k, v in config.items() if v is not None}
+                
+                result = await self._create_backend_config(config)
+                return {
+                    "success": True,
+                    "command": f"backend create {name}",
+                    "result": result,
+                    "cli_output": f"✅ Backend '{name}' created successfully."
+                }
+            
+            elif action == "show":
+                # ipfs-kit backend show <name>
+                name = args.get("name", "")
+                if not name:
+                    return {"success": False, "error": "Backend name is required"}
+                
+                backend_configs = await self._get_backend_configs()
+                if name not in backend_configs:
+                    return {"success": False, "error": f"Backend '{name}' not found"}
+                
+                return {
+                    "success": True,
+                    "command": f"backend show {name}",
+                    "result": backend_configs[name],
+                    "cli_output": json.dumps(backend_configs[name], indent=2)
+                }
+            
+            elif action == "update":
+                # ipfs-kit backend update <name> [options]
+                name = args.get("name", "")
+                if not name:
+                    return {"success": False, "error": "Backend name is required"}
+                
+                updates = {k: v for k, v in args.items() if k != "name" and v is not None}
+                result = await self._update_backend_config(name, {"config": updates})
+                
+                return {
+                    "success": True,
+                    "command": f"backend update {name}",
+                    "result": result,
+                    "cli_output": f"✅ Backend '{name}' updated successfully."
+                }
+            
+            elif action == "remove":
+                # ipfs-kit backend remove <name> [--force]
+                name = args.get("name", "")
+                force = args.get("force", False)
+                
+                if not name:
+                    return {"success": False, "error": "Backend name is required"}
+                
+                result = await self._remove_backend_config(name, force)
+                return {
+                    "success": True,
+                    "command": f"backend remove {name}",
+                    "result": result,
+                    "cli_output": f"✅ Backend '{name}' removed successfully."
+                }
+            
+            else:
+                return {"success": False, "error": f"Unknown backend action: {action}"}
+                
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def _handle_cli_config_command(self, command_data: dict):
+        """Handle config CLI commands with full CLI syntax compatibility."""
+        try:
+            action = command_data.get("action", "")
+            args = command_data.get("args", {})
+            
+            if action == "show":
+                # ipfs-kit config show [--backend <backend>]
+                backend_filter = args.get("backend")
+                config = await self._get_config_data()
+                
+                if backend_filter and backend_filter != "all":
+                    # Filter to specific backend
+                    filtered_config = {}
+                    if backend_filter in config.get("backends", {}):
+                        filtered_config = {backend_filter: config["backends"][backend_filter]}
+                    config = {"backends": filtered_config}
+                
+                return {
+                    "success": True,
+                    "command": "config show",
+                    "result": config,
+                    "cli_output": json.dumps(config, indent=2)
+                }
+            
+            elif action == "set":
+                # ipfs-kit config set <key> <value>
+                key = args.get("key", "")
+                value = args.get("value", "")
+                
+                if not key or value is None:
+                    return {"success": False, "error": "Key and value are required"}
+                
+                # Parse the key (e.g., "s3.region" -> backend="s3", setting="region")
+                if "." in key:
+                    backend, setting = key.split(".", 1)
+                    result = await self._set_backend_config_value(backend, setting, value)
+                else:
+                    result = await self._set_global_config_value(key, value)
+                
+                return {
+                    "success": True,
+                    "command": f"config set {key}",
+                    "result": result,
+                    "cli_output": f"✅ Configuration updated: {key} = {value}"
+                }
+            
+            elif action == "validate":
+                # ipfs-kit config validate [--backend <backend>]
+                backend_filter = args.get("backend")
+                results = await self._validate_config(backend_filter)
+                
+                return {
+                    "success": True,
+                    "command": "config validate",
+                    "result": results,
+                    "cli_output": self._format_validation_results(results)
+                }
+            
+            else:
+                return {"success": False, "error": f"Unknown config action: {action}"}
+                
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def _format_backends_table(self, backends):
+        """Format backends list as CLI table output."""
+        if not backends:
+            return "No backends configured."
+        
+        # Create a simple table format
+        lines = ["📋 Available Backends:", ""]
+        lines.append(f"{'Name':<20} {'Type':<15} {'Status':<12} {'Configured'}")
+        lines.append("-" * 60)
+        
+        for backend in backends:
+            name = backend.get("name", "Unknown")[:19]
+            backend_type = backend.get("type", "Unknown")[:14]
+            status = backend.get("status", "unknown")[:11]
+            configured = "✅" if backend.get("status") == "configured" else "❌"
+            lines.append(f"{name:<20} {backend_type:<15} {status:<12} {configured}")
+        
+        return "\n".join(lines)
+
+    def _format_validation_results(self, results):
+        """Format validation results as CLI output."""
+        if not results:
+            return "No validation results."
+        
+        lines = ["✔️ Configuration Validation Results:", ""]
+        
+        for result in results:
+            file_path = result.get("file", "Unknown")
+            status = "✅ Valid" if result.get("valid", False) else "❌ Invalid"
+            error = result.get("error", "")
+            
+            lines.append(f"{file_path}: {status}")
+            if error:
+                lines.append(f"  Error: {error}")
+        
+        return "\n".join(lines)
+
+    async def _set_backend_config_value(self, backend: str, setting: str, value: str):
+        """Set a specific backend configuration value."""
+        try:
+            backend_configs = await self._get_backend_configs()
+            
+            if backend not in backend_configs:
+                return {"error": f"Backend '{backend}' not found"}
+            
+            # Update the specific setting
+            if "config" not in backend_configs[backend]:
+                backend_configs[backend]["config"] = {}
+            
+            backend_configs[backend]["config"][setting] = value
+            
+            # Save the updated config
+            result = await self._update_backend_config(backend, backend_configs[backend])
+            return result
+            
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def _set_global_config_value(self, key: str, value: str):
+        """Set a global configuration value."""
+        try:
+            # For now, just return success - can be implemented later
+            return {"message": f"Global config {key} set to {value}"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def _validate_config(self, backend_filter: str = None):
+        """Validate configuration files."""
+        try:
+            results = []
+            backend_configs = await self._get_backend_configs()
+            
+            for name, config in backend_configs.items():
+                if backend_filter and backend_filter != "all" and name != backend_filter:
+                    continue
+                
+                # Basic validation
+                is_valid = True
+                error_msg = ""
+                
+                if not config.get("config", {}):
+                    is_valid = False
+                    error_msg = "Missing configuration data"
+                elif config.get("type") == "json" and not config.get("file"):
+                    is_valid = False
+                    error_msg = "Missing file path"
+                
+                results.append({
+                    "file": config.get("file", f"{name}.config"),
+                    "backend": name,
+                    "valid": is_valid,
+                    "error": error_msg
+                })
+            
+            return results
+            
+        except Exception as e:
+            return [{"file": "global", "valid": False, "error": str(e)}]
+
     def _get_dashboard_html(self):
         """Generate the dashboard HTML with modern aesthetic design."""
         return f"""
@@ -894,6 +1838,17 @@ class UnifiedMCPDashboard:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IPFS Kit - Unified Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {{
+            theme: {{
+                extend: {{
+                    fontFamily: {{
+                        'inter': ['Inter', 'sans-serif'],
+                    }}
+                }}
+            }}
+        }}
+    </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -1368,6 +2323,10 @@ class UnifiedMCPDashboard:
                     <i class="fas fa-broadcast-tower mr-4 text-lg"></i> 
                     <span class="font-medium">MCP Server</span>
                 </a>
+                <a href="#" onclick="showTab('pins')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-thumbtack mr-4 text-lg"></i> 
+                    <span class="font-medium">Pins</span>
+                </a>
             </nav>
         </div>
         
@@ -1473,7 +2432,7 @@ class UnifiedMCPDashboard:
                         <div class="flex items-center justify-between mb-4">
                             <div class="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600">
                                 <i class="fas fa-broadcast-tower text-white text-xl"></i>
-                            </div>
+                            }
                             <div class="text-right">
                                 <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">MCP Server</div>
                             </div>
@@ -1675,7 +2634,7 @@ class UnifiedMCPDashboard:
                     </div>
                 </div>
             </div>
-            
+
             <!-- Backends Tab -->
             <div id="backends-tab" class="tab-content">
                 <div class="card p-8 rounded-2xl">
@@ -1684,1721 +2643,553 @@ class UnifiedMCPDashboard:
                             <i class="fas fa-server text-white"></i>
                         </div>
                         Storage Backends
-                        <span id="backends-total-badge" class="ml-4 text-sm bg-purple-100 text-purple-800 px-3 py-1 rounded-full font-medium">0</span>
                     </h3>
-                    <div id="backends-list" class="space-y-6">
-                        <div class="text-center py-12">
-                            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
-                                <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
-                            </div>
-                            <p class="text-gray-500 font-medium">Loading backends...</p>
-                        </div>
+                    <div id="backends-list">
+                        <!-- Backends will be loaded here -->
                     </div>
                 </div>
             </div>
-            
+
             <!-- Buckets Tab -->
             <div id="buckets-tab" class="tab-content">
                 <div class="card p-8 rounded-2xl">
-                    <h3 class="text-2xl font-bold mb-6 flex items-center justify-between">
-                        <div class="flex items-center">
-                            <div class="p-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 mr-4">
-                                <i class="fas fa-folder text-white"></i>
-                            </div>
-                            Bucket Management
-                            <span id="buckets-total-badge" class="ml-4 text-sm bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-medium">0</span>
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 mr-4">
+                            <i class="fas fa-folder text-white"></i>
                         </div>
-                        <button onclick="showCreateBucketModal()" class="btn-primary px-4 py-2 rounded-lg text-sm">
-                            <i class="fas fa-plus mr-2"></i> Create Bucket
-                        </button>
+                        Buckets
                     </h3>
-                    <div id="buckets-list" class="space-y-6">
-                        <div class="text-center py-12">
-                            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
-                                <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
-                            </div>
-                            <p class="text-gray-500 font-medium">Loading buckets...</p>
-                        </div>
+                    <div id="buckets-list">
+                        <!-- Buckets will be loaded here -->
                     </div>
                 </div>
             </div>
-            
+
             <!-- Metrics Tab -->
             <div id="metrics-tab" class="tab-content">
                 <div class="card p-8 rounded-2xl">
                     <h3 class="text-2xl font-bold mb-6 flex items-center">
-                        <div class="p-2 rounded-lg bg-gradient-to-r from-red-500 to-pink-600 mr-4">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-600 mr-4">
                             <i class="fas fa-chart-line text-white"></i>
                         </div>
-                        Detailed System Metrics
+                        Real-time Metrics
                     </h3>
-                    <div id="detailed-metrics" class="space-y-6">
+                    <div id="metrics-content">
+                        <!-- Detailed metrics will be loaded here -->
+                    </div>
+                }
+            </div>
+
+            <!-- Config Tab -->
+            <div id="config-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-gray-500 to-gray-700 mr-4">
+                            <i class="fas fa-cog text-white"></i>
+                        </div>
+                        Configuration
+                    </h3>
+                    <div id="config-content">
                         <div class="text-center py-12">
                             <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
                                 <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
                             </div>
-                            <p class="text-gray-500 font-medium">Loading detailed metrics...</p>
+                            <p class="text-gray-500 font-medium">Loading configuration...</p>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <!-- Configuration Tab -->
-            <div id="config-tab" class="tab-content">
-                <div class="space-y-8">
-                    <!-- Main Configuration -->
-                    <div class="card p-8 rounded-2xl">
-                        <h3 class="text-2xl font-bold mb-6 flex items-center">
-                            <div class="p-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 mr-4">
-                                <i class="fas fa-cog text-white"></i>
-                            </div>
-                            System Configuration
-                        </h3>
-                        <div id="config-content" class="space-y-6">
-                            <div class="text-center py-12">
-                                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
-                                    <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
-                                </div>
-                                <p class="text-gray-500 font-medium">Loading configuration...</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Backend Configurations -->
-                    <div class="card p-8 rounded-2xl">
-                        <h3 class="text-2xl font-bold mb-6 flex items-center">
-                            <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-600 mr-4">
-                                <i class="fas fa-server text-white"></i>
-                            </div>
-                            Backend Configurations
-                        </h3>
-                        <div id="backend-configs-content" class="space-y-6">
-                            <div class="text-center py-12">
-                                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
-                                    <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
-                                </div>
-                                <p class="text-gray-500 font-medium">Loading backend configurations...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
+
             <!-- MCP Tab -->
             <div id="mcp-tab" class="tab-content">
                 <div class="card p-8 rounded-2xl">
                     <h3 class="text-2xl font-bold mb-6 flex items-center">
-                        <div class="p-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 mr-4">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 mr-4">
                             <i class="fas fa-broadcast-tower text-white"></i>
                         </div>
-                        MCP Server Control
+                        MCP Server Details
                     </h3>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div class="space-y-6">
-                            <h4 class="text-xl font-semibold mb-4 flex items-center">
-                                <i class="fas fa-info-circle mr-3 text-blue-500"></i>
-                                Server Information
-                            </h4>
-                            <div class="space-y-4">
-                                <div class="flex justify-between items-center p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-                                    <span class="text-gray-700 font-medium">Status:</span>
-                                    <div class="flex items-center">
-                                        <div class="status-dot running mr-2"></div>
-                                        <span class="text-green-600 font-semibold">Running</span>
-                                    </div>
-                                </div>
-                                <div class="flex justify-between items-center p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
-                                    <span class="text-gray-700 font-medium">Port:</span>
-                                    <span class="font-semibold text-gray-800">{self.port}</span>
-                                </div>
-                                <div class="flex justify-between items-center p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
-                                    <span class="text-gray-700 font-medium">Protocol:</span>
-                                    <span class="font-semibold text-gray-800">MCP v1.0</span>
-                                </div>
-                                <div class="flex justify-between items-center p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl border border-orange-200">
-                                    <span class="text-gray-700 font-medium">Mode:</span>
-                                    <span class="font-semibold text-gray-800">Unified Dashboard</span>
-                                </div>
-                            </div>
+                    <div id="mcp-content">
+                        <!-- MCP server details will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pins Tab -->
+            <div id="pins-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 mr-4">
+                            <i class="fas fa-thumbtack text-white"></i>
                         </div>
-                        <div class="space-y-6">
-                            <h4 class="text-xl font-semibold mb-4 flex items-center">
-                                <i class="fas fa-tools mr-3 text-green-500"></i>
-                                Available Tools
-                            </h4>
-                            <div id="mcp-tools" class="space-y-3">
-                                <div class="flex items-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                                    <i class="fas fa-heartbeat mr-3 text-red-500"></i>
-                                    <span class="font-medium">daemon_status</span>
-                                </div>
-                                <div class="flex items-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                                    <i class="fas fa-list mr-3 text-blue-500"></i>
-                                    <span class="font-medium">list_backends</span>
-                                </div>
-                                <div class="flex items-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                                    <i class="fas fa-folder-open mr-3 text-orange-500"></i>
-                                    <span class="font-medium">list_buckets</span>
-                                </div>
-                                <div class="flex items-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                                    <i class="fas fa-chart-bar mr-3 text-green-500"></i>
-                                    <span class="font-medium">system_metrics</span>
-                                </div>
-                            </div>
+                        Manage Pins
+                    </h3>
+
+                    <!-- Add Pin Form -->
+                    <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
+                        <h4 class="text-lg font-semibold mb-4">Add New Pin</h4>
+                        <div class="flex items-center space-x-4">
+                            <input id="pin-cid-input" type="text" placeholder="Enter IPFS CID" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <input id="pin-name-input" type="text" placeholder="Optional Name" class="w-1/3 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <button onclick="addPin()" class="btn-primary px-6 py-3 rounded-lg font-semibold flex items-center">
+                                <i class="fas fa-plus mr-2"></i>
+                                <span>Add Pin</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pin List -->
+                    <div>
+                        <h4 class="text-lg font-semibold mb-4">Pinned Items</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white rounded-lg shadow overflow-hidden">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-4 text-left text-sm font-semibold text-gray-600">CID</th>
+                                        <th class="p-4 text-left text-sm font-semibold text-gray-600">Name</th>
+                                        <th class="p-4 text-right text-sm font-semibold text-gray-600">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pins-list" class="divide-y divide-gray-200">
+                                    <!-- Pins will be loaded here -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script>
-        let updateInterval;
-        let isUpdating = false;
-        
-        // Utility functions
-        function formatBytes(bytes) {{
-            if (bytes === 0) return '0 B';
+        // Utility Functions
+        const formatBytes = (bytes, decimals = 2) => {
+            if (bytes === 0) return '0 Bytes';
             const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-        }}
-        
-        function updateClock() {{
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        };
+
+        // Tab Switching
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // Show the selected tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+
+            // Update active link style
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`.nav-link[onclick="showTab('${tabName}')"]`).classList.add('active');
+
+            // Load data for the selected tab
+            if (tabName === 'overview') {
+                loadOverviewData();
+            } else if (tabName === 'services') {
+                loadServices();
+            } else if (tabName === 'backends') {
+                loadBackends();
+            } else if (tabName === 'buckets') {
+                loadBuckets();
+            } else if (tabName === 'metrics') {
+                loadMetrics();
+            } else if (tabName === 'config') {
+                loadConfig();
+            } else if (tabName === 'mcp') {
+                loadMcpDetails();
+            } else if (tabName === 'pins') {
+                loadPins();
+            }
+            
+            // Close mobile sidebar on tab selection
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                document.getElementById('mobile-overlay').classList.add('hidden');
+            }
+        }
+
+        // Data Loading Functions
+        async function loadOverviewData() {
+            try {
+                const response = await fetch('/api/system/overview');
+                const data = await response.json();
+
+                // Update main metrics
+                document.getElementById('services-count').textContent = data.services;
+                document.getElementById('backends-count').textContent = data.backends;
+                document.getElementById('buckets-count').textContent = data.buckets;
+
+                // Update system performance
+                const system = data.system;
+                document.getElementById('cpu-percent').textContent = `${system.cpu.usage.toFixed(1)}%`;
+                document.getElementById('cpu-bar').style.width = `${system.cpu.usage}%`;
+                document.getElementById('memory-percent').textContent = `${system.memory.percent.toFixed(1)}%`;
+                document.getElementById('memory-bar').style.width = `${system.memory.percent}%`;
+                document.getElementById('memory-used').textContent = formatBytes(system.memory.used);
+                document.getElementById('memory-total').textContent = formatBytes(system.memory.total);
+                document.getElementById('disk-percent').textContent = `${system.disk.percent.toFixed(1)}%`;
+                document.getElementById('disk-bar').style.width = `${system.disk.percent}%`;
+                document.getElementById('disk-used').textContent = formatBytes(system.disk.used);
+                document.getElementById('disk-total').textContent = formatBytes(system.disk.total);
+
+                // Update sidebar stats
+                document.getElementById('sidebar-backends-count').textContent = data.backends;
+                document.getElementById('sidebar-cpu-percent').textContent = `${system.cpu.usage.toFixed(0)}%`;
+                document.getElementById('sidebar-cpu-bar').style.width = `${system.cpu.usage}%`;
+                document.getElementById('sidebar-memory-percent').textContent = `${system.memory.percent.toFixed(0)}%`;
+                document.getElementById('sidebar-memory-bar').style.width = `${system.memory.percent}%`;
+
+                // Load IPFS daemon status
+                loadIpfsDaemonStatus();
+                loadNetworkActivity();
+
+            } catch (error) {
+                console.error('Error loading overview data:', error);
+            }
+        }
+
+        async function loadIpfsDaemonStatus() {
+            try {
+                const response = await fetch('/api/system/overview');
+                const data = await response.json();
+                const daemonStatus = data.services.find(s => s.name === 'IPFS Daemon');
+                const statusDiv = document.getElementById('ipfs-daemon-status');
+                
+                let statusHtml = '';
+                if (daemonStatus && daemonStatus.status === 'running') {
+                    statusHtml = `
+                        <div class="text-center p-4 bg-green-50 rounded-lg">
+                            <div class="text-4xl text-green-500 mb-2"><i class="fas fa-check-circle"></i></div>
+                            <p class="font-semibold text-green-800">Daemon Running</p>
+                        </div>
+                        <div class="p-4 bg-gray-50 rounded-lg col-span-2">
+                            <p class="text-sm text-gray-600"><strong>Peer ID:</strong> ${data.peer_id || 'N/A'}</p>
+                            <p class="text-sm text-gray-600"><strong>Addresses:</strong></p>
+                            <ul class="text-xs list-disc list-inside pl-2 mt-1">
+                                ${data.addresses ? data.addresses.map(a => `<li>${a}</li>`).join('') : '<li>No addresses found</li>'}
+                            </ul>
+                        </div>
+                    `;
+                    document.getElementById('sidebar-ipfs-status').textContent = 'Running';
+                    document.getElementById('sidebar-ipfs-dot').className = 'status-dot running';
+                } else {
+                    statusHtml = `
+                        <div class="text-center p-4 bg-red-50 rounded-lg col-span-3">
+                            <div class="text-4xl text-red-500 mb-2"><i class="fas fa-times-circle"></i></div>
+                            <p class="font-semibold text-red-800">Daemon Stopped</p>
+                            <p class="text-sm text-gray-600 mt-2">${daemonStatus ? daemonStatus.error : 'Could not fetch status.'}</p>
+                        </div>
+                    `;
+                    document.getElementById('sidebar-ipfs-status').textContent = 'Stopped';
+                    document.getElementById('sidebar-ipfs-dot').className = 'status-dot error';
+                }
+                statusDiv.innerHTML = statusHtml;
+            } catch (error) {
+                console.error('Error loading IPFS daemon status:', error);
+                document.getElementById('ipfs-daemon-status').innerHTML = '<p class="text-red-500">Failed to load daemon status.</p>';
+            }
+        }
+
+        async function loadNetworkActivity() {
+            try {
+                const response = await fetch('/api/system/metrics');
+                const data = await response.json();
+                const network = data.network;
+                const contentDiv = document.getElementById('network-activity-content');
+                contentDiv.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-lg bg-gradient-to-r from-blue-400 to-cyan-500 mr-4">
+                            <i class="fas fa-arrow-up text-white"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-600 text-sm">Data Sent</p>
+                            <p class="font-bold text-xl">${formatBytes(network.sent)}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 mr-4">
+                            <i class="fas fa-arrow-down text-white"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-600 text-sm">Data Received</p>
+                            <p class="font-bold text-xl">${formatBytes(network.recv)}</p>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading network activity:', error);
+                document.getElementById('network-activity-content').innerHTML = '<p class="text-red-500">Failed to load network data.</p>';
+            }
+        }
+
+        async function loadServices() {
+            try {
+                const response = await fetch('/api/services');
+                const data = await response.json();
+                const servicesList = document.getElementById('services-list');
+                const totalBadge = document.getElementById('services-total-badge');
+                servicesList.innerHTML = '';
+                totalBadge.textContent = data.summary.total;
+
+                if (data.services && data.services.length > 0) {
+                    data.services.forEach(service => {
+                        let statusClass = 'bg-gray-500';
+                        let statusIcon = 'fa-question-circle';
+                        if (service.status === 'running') {
+                            statusClass = 'bg-green-500';
+                            statusIcon = 'fa-check-circle';
+                        } else if (service.status === 'stopped' || service.status === 'error') {
+                            statusClass = 'bg-red-500';
+                            statusIcon = 'fa-times-circle';
+                        } else if (service.status === 'configured' || service.status === 'available') {
+                            statusClass = 'bg-blue-500';
+                            statusIcon = 'fa-cog';
+                        }
+
+                        const item = `
+                            <div class="service-item p-6 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-lg font-semibold text-gray-800">${service.name}</h4>
+                                    <p class="text-sm text-gray-600">${service.description}</p>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <span class="text-sm font-medium text-gray-500">${service.type}</span>
+                                    <div class="flex items-center px-3 py-1 rounded-full text-white text-sm font-medium ${statusClass}">
+                                        <i class="fas ${statusIcon} mr-2"></i>
+                                        <span>${service.status}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        servicesList.innerHTML += item;
+                    });
+                } else {
+                    servicesList.innerHTML = '<p class="text-center text-gray-500">No services found.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading services:', error);
+                document.getElementById('services-list').innerHTML = '<p class="text-red-500">Failed to load services.</p>';
+            }
+        }
+
+        async function loadBackends() {
+            try {
+                const response = await fetch('/api/backends');
+                const data = await response.json();
+                const backendsList = document.getElementById('backends-list');
+                backendsList.innerHTML = '';
+
+                if (data.backends && data.backends.length > 0) {
+                    data.backends.forEach(backend => {
+                        const item = `
+                            <div class="card p-6 mb-4">
+                                <h4 class="text-lg font-semibold">${backend.name}</h4>
+                                <p>Type: ${backend.type}</p>
+                                <p>Status: ${backend.status}</p>
+                            </div>
+                        `;
+                        backendsList.innerHTML += item;
+                    });
+                } else {
+                    backendsList.innerHTML = '<p class="text-center text-gray-500">No backends configured.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading backends:', error);
+                document.getElementById('backends-list').innerHTML = '<p class="text-red-500">Failed to load backends.</p>';
+            }
+        }
+
+        async function loadBuckets() {
+            try {
+                const response = await fetch('/api/buckets');
+                const data = await response.json();
+                const bucketsList = document.getElementById('buckets-list');
+                bucketsList.innerHTML = '';
+
+                if (data.buckets && data.buckets.length > 0) {
+                    data.buckets.forEach(bucket => {
+                        const item = `
+                            <div class="card p-6 mb-4">
+                                <h4 class="text-lg font-semibold">${bucket.name}</h4>
+                                <p>Backend: ${bucket.backend}</p>
+                                <p>Files: ${bucket.files_count}</p>
+                                <p>Size: ${formatBytes(bucket.size_bytes)}</p>
+                            </div>
+                        `;
+                        bucketsList.innerHTML += item;
+                    });
+                } else {
+                    bucketsList.innerHTML = '<p class="text-center text-gray-500">No buckets found.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading buckets:', error);
+                document.getElementById('buckets-list').innerHTML = '<p class="text-red-500">Failed to load buckets.</p>';
+            }
+        }
+
+        async function loadMetrics() {
+            // Placeholder for metrics loading logic
+            document.getElementById('metrics-content').innerHTML = '<p class="text-center text-gray-500">Detailed metrics coming soon.</p>';
+        }
+
+        async function loadConfig() {
+            // Placeholder for config loading logic
+            document.getElementById('config-content').innerHTML = '<p class="text-center text-gray-500">Configuration management coming soon.</p>';
+        }
+
+        async function loadMcpDetails() {
+            // Placeholder for MCP details loading logic
+            document.getElementById('mcp-content').innerHTML = '<p class="text-center text-gray-500">MCP server details coming soon.</p>';
+        }
+
+        // Pins Tab
+        async function loadPins() {
+            try {
+                const response = await fetch('/api/pins');
+                const data = await response.json();
+                const pinsList = document.getElementById('pins-list');
+                pinsList.innerHTML = ''; // Clear existing list
+
+                if (data.pins && data.pins.length > 0) {
+                    data.pins.forEach(pin => {
+                        const row = `
+                            <tr class="hover:bg-gray-50">
+                                <td class="p-4 text-sm text-gray-800 font-mono">${pin.cid}</td>
+                                <td class="p-4 text-sm text-gray-600">${pin.name || ''}</td>
+                                <td class="p-4 text-right">
+                                    <button onclick="removePin('${pin.cid}')" class="text-red-500 hover:text-red-700 font-semibold">
+                                        <i class="fas fa-trash-alt mr-1"></i> Remove
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                        pinsList.innerHTML += row;
+                    });
+                } else {
+                    pinsList.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">No pins found.</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading pins:', error);
+                const pinsList = document.getElementById('pins-list');
+                pinsList.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-red-500">Failed to load pins.</td></tr>';
+            }
+        }
+
+        async function addPin() {
+            const cid = document.getElementById('pin-cid-input').value;
+            const name = document.getElementById('pin-name-input').value;
+
+            if (!cid) {
+                alert('Please enter a CID.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/pins', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cid, name }),
+                });
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('pin-cid-input').value = '';
+                    document.getElementById('pin-name-input').value = '';
+                    loadPins(); // Refresh the list
+                } else {
+                    alert(`Error adding pin: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error adding pin:', error);
+                alert('An unexpected error occurred while adding the pin.');
+            }
+        }
+
+        async function removePin(cid) {
+            if (!confirm(`Are you sure you want to remove pin ${cid}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/pins/${cid}`, {
+                    method: 'DELETE',
+                });
+                const result = await response.json();
+                if (result.success) {
+                    loadPins(); // Refresh the list
+                } else {
+                    alert(`Error removing pin: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error removing pin:', error);
+                alert('An unexpected error occurred while removing the pin.');
+            }
+        }
+
+        // Global Refresh and Timers
+        function refreshData() {
+            const activeTab = document.querySelector('.nav-link.active').getAttribute('onclick').replace("showTab('", "").replace("')", "");
+            showTab(activeTab);
+        }
+
+        function updateTime() {
             const now = new Date();
             document.getElementById('current-time').textContent = now.toLocaleTimeString();
-        }}
-        
-        // Tab management
-        function showTab(tabName) {{
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {{
-                tab.classList.remove('active');
-            }});
-            
-            // Remove active class from all nav links
-            document.querySelectorAll('.nav-link').forEach(link => {{
-                link.classList.remove('active');
-            }});
-            
-            // Show selected tab
-            const targetTab = document.getElementById(tabName + '-tab');
-            if (targetTab) {{
-                targetTab.classList.add('active');
-            }}
-            
-            // Add active class to clicked nav link
-            if (event && event.target) {{
-                let navLink = event.target;
-                while (navLink && !navLink.classList.contains('nav-link')) {{
-                    navLink = navLink.parentElement;
-                }}
-                if (navLink) {{
-                    navLink.classList.add('active');
-                }}
-            }}
-            
-            // Load tab-specific data
-            loadTabData(tabName);
-            
-            // Close mobile menu if open
-            closeMobileMenu();
-        }}
-        
-        // Mobile menu management
-        function toggleMobileMenu() {{
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            
-            if (sidebar.classList.contains('open')) {{
-                closeMobileMenu();
-            }} else {{
-                openMobileMenu();
-            }}
-        }}
-        
-        function openMobileMenu() {{
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            
-            sidebar.classList.add('open');
-            overlay.classList.remove('hidden');
-            setTimeout(() => overlay.classList.remove('opacity-0'), 10);
-        }}
-        
-        function closeMobileMenu() {{
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            
-            sidebar.classList.remove('open');
-            overlay.classList.add('opacity-0');
-            setTimeout(() => overlay.classList.add('hidden'), 300);
-        }}
-        
-        // Mobile menu event listeners
-        document.getElementById('mobile-menu-btn').addEventListener('click', toggleMobileMenu);
-        document.getElementById('mobile-overlay').addEventListener('click', closeMobileMenu);
-        
-        // Data loading functions with enhanced error handling
-        async function loadSystemOverview() {{
-            if (isUpdating) return;
-            isUpdating = true;
-            
-            try {{
-                const response = await fetch('/api/system/overview');
-                if (!response.ok) throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
-                
-                const data = await response.json();
-                
-                // Update metric cards with animation
-                updateMetricCard('services-count', data.services || 0);
-                updateMetricCard('backends-count', data.backends || 0);
-                updateMetricCard('buckets-count', data.buckets || 0);
-                
-                // Update sidebar with enhanced status
-                updateSidebarStatus(data);
-                
-                // Update system performance with better formatting
-                if (data.system) {{
-                    updateSystemPerformance(data.system);
-                }}
-                
-                // Load IPFS daemon status
-                await loadIPFSDaemonStatus();
-                
-            }} catch (error) {{
-                console.error('Error loading system overview:', error);
-                showErrorState('overview');
-            }} finally {{
-                isUpdating = false;
-            }}
-        }}
-        
-        function updateMetricCard(elementId, value) {{
-            const element = document.getElementById(elementId);
-            if (element && element.textContent !== value.toString()) {{
-                element.style.transform = 'scale(1.1)';
-                element.textContent = value;
-                setTimeout(() => {{
-                    element.style.transform = 'scale(1)';
-                }}, 200);
-            }}
-        }}
-        
-        function updateSidebarStatus(data) {{
-            // Update MCP status
-            const mcpStatus = document.getElementById('sidebar-mcp-status');
-            const mcpDot = mcpStatus?.parentElement?.querySelector('.status-dot');
-            if (mcpStatus) {{
-                mcpStatus.textContent = 'Running';
-                mcpStatus.className = 'text-green-400 font-medium';
-            }}
-            if (mcpDot) {{
-                mcpDot.className = 'status-dot running mr-2';
-            }}
-            
-            // Update backends count
-            const backendsCount = document.getElementById('sidebar-backends-count');
-            if (backendsCount) {{
-                backendsCount.textContent = data.backends || 0;
-            }}
-        }}
-        
-        function updateSystemPerformance(metrics) {{
-            // Update CPU
-            if (metrics.cpu) {{
-                const cpuPercent = Math.round(metrics.cpu.usage * 10) / 10;
-                updateProgressBar('cpu', cpuPercent);
-                updateSidebarProgressBar('cpu', cpuPercent);
-            }}
-            
-            // Update Memory
-            if (metrics.memory) {{
-                const memoryPercent = Math.round(metrics.memory.percent * 10) / 10;
-                updateProgressBar('memory', memoryPercent);
-                updateSidebarProgressBar('memory', memoryPercent);
-                
-                // Update memory details
-                const memoryUsed = document.getElementById('memory-used');
-                const memoryTotal = document.getElementById('memory-total');
-                if (memoryUsed) memoryUsed.textContent = formatBytes(metrics.memory.used);
-                if (memoryTotal) memoryTotal.textContent = formatBytes(metrics.memory.total);
-            }}
-            
-            // Update Disk
-            if (metrics.disk) {{
-                const diskPercent = Math.round(metrics.disk.percent * 10) / 10;
-                updateProgressBar('disk', diskPercent);
-                
-                // Update disk details
-                const diskUsed = document.getElementById('disk-used');
-                const diskTotal = document.getElementById('disk-total');
-                if (diskUsed) diskUsed.textContent = formatBytes(metrics.disk.used);
-                if (diskTotal) diskTotal.textContent = formatBytes(metrics.disk.total);
-            }}
-            
-            // Update Network Activity
-            if (metrics.network) {{
-                updateNetworkActivity(metrics.network);
-            }}
-        }}
-        
-        function updateProgressBar(type, percent) {{
-            const percentElement = document.getElementById(`${{type}}-percent`);
-            const barElement = document.getElementById(`${{type}}-bar`);
-            
-            if (percentElement) {{
-                percentElement.textContent = percent + '%';
-            }}
-            
-            if (barElement) {{
-                barElement.style.width = percent + '%';
-            }}
-        }}
-        
-        function updateSidebarProgressBar(type, percent) {{
-            const percentElement = document.getElementById(`sidebar-${{type}}-percent`);
-            const barElement = document.getElementById(`sidebar-${{type}}-bar`);
-            
-            if (percentElement) {{
-                percentElement.textContent = percent + '%';
-            }}
-            
-            if (barElement) {{
-                barElement.style.width = percent + '%';
-            }}
-        }}
-        
-        function updateNetworkActivity(networkData) {{
-            const networkContainer = document.getElementById('network-activity-content');
-            if (!networkContainer) return;
-            
-            try {{
-                const sent = networkData.sent || 0;
-                const recv = networkData.recv || 0;
-                
-                networkContainer.innerHTML = `
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-                                <span class="text-sm font-medium text-gray-700">Data Sent</span>
-                            </div>
-                            <span class="text-sm font-semibold text-gray-900">${{formatBytes(sent)}}</span>
-                        </div>
-                        
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
-                                <span class="text-sm font-medium text-gray-700">Data Received</span>
-                            </div>
-                            <span class="text-sm font-semibold text-gray-900">${{formatBytes(recv)}}</span>
-                        </div>
-                        
-                        <div class="pt-2 border-t border-gray-200">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm font-medium text-gray-700">Total Transfer</span>
-                                <span class="text-sm font-semibold text-indigo-600">${{formatBytes(sent + recv)}}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }} catch (error) {{
-                console.error('Error updating network activity:', error);
-                networkContainer.innerHTML = `
-                    <div class="text-center py-4">
-                        <i class="fas fa-exclamation-triangle text-red-500 mb-2"></i>
-                        <p class="text-sm text-red-600">Error loading network data</p>
-                    </div>
-                `;
-            }}
-        }}
-        
-        async function loadIPFSDaemonStatus() {{
-            try {{
-                const response = await fetch('/api/services');
-                const data = await response.json();
-                
-                const ipfsDaemon = data.services?.find(s => s.name === 'IPFS Daemon');
-                const statusContainer = document.getElementById('ipfs-daemon-status');
-                const sidebarStatus = document.getElementById('sidebar-ipfs-status');
-                const sidebarDot = document.getElementById('sidebar-ipfs-dot');
-                
-                if (ipfsDaemon && statusContainer) {{
-                    const isRunning = ipfsDaemon.status === 'running';
-                    
-                    statusContainer.innerHTML = `
-                        <div class="text-center">
-                            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${{
-                                isRunning ? 'bg-green-100' : 'bg-red-100'
-                            }}">
-                                <i class="fas fa-${{isRunning ? 'check-circle' : 'times-circle'}} text-2xl ${{
-                                    isRunning ? 'text-green-600' : 'text-red-600'
-                                }}"></i>
-                            </div>
-                            <h4 class="font-semibold text-lg mb-2">${{ipfsDaemon.status.charAt(0).toUpperCase() + ipfsDaemon.status.slice(1)}}</h4>
-                            <p class="text-sm text-gray-600">${{ipfsDaemon.description}}</p>
-                        </div>
-                        ${{isRunning && ipfsDaemon.port ? `
-                            <div class="text-center">
-                                <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                                    <i class="fas fa-ethernet text-2xl text-blue-600"></i>
-                                </div>
-                                <h4 class="font-semibold text-lg mb-2">Port ${{ipfsDaemon.port}}</h4>
-                                <p class="text-sm text-gray-600">API Endpoint</p>
-                            </div>
-                        ` : ''}}
-                        ${{isRunning ? `
-                            <div class="text-center">
-                                <div class="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
-                                    <i class="fas fa-network-wired text-2xl text-purple-600"></i>
-                                </div>
-                                <h4 class="font-semibold text-lg mb-2">Connected</h4>
-                                <p class="text-sm text-gray-600">P2P Network</p>
-                            </div>
-                        ` : ''}}
-                    `;
-                    
-                    // Update sidebar
-                    if (sidebarStatus) {{
-                        sidebarStatus.textContent = isRunning ? 'Running' : 'Stopped';
-                        sidebarStatus.className = isRunning ? 'text-green-400 font-medium' : 'text-red-400 font-medium';
-                    }}
-                    
-                    if (sidebarDot) {{
-                        sidebarDot.className = `status-dot ${{isRunning ? 'running' : 'error'}} mr-2`;
-                    }}
-                }}
-            }} catch (error) {{
-                console.error('Error loading IPFS daemon status:', error);
-            }}
-        }}
-        
-        function showErrorState(section) {{
-            const errorHtml = `
-                <div class="text-center py-12">
-                    <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-                        <i class="fas fa-exclamation-triangle text-2xl text-red-600"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Unable to Load Data</h3>
-                    <p class="text-gray-600 mb-4">There was an error loading the ${{section}} information.</p>
-                    <button onclick="refreshData()" class="btn-primary px-4 py-2 rounded-lg text-sm">
-                        <i class="fas fa-sync-alt mr-2"></i> Try Again
-                    </button>
-                </div>
-            `;
-            
-            // Apply error state to relevant containers
-            if (section === 'overview') {{
-                document.getElementById('system-performance').innerHTML = errorHtml;
-                document.getElementById('network-activity').innerHTML = errorHtml;
-            }}
-        }}
-        
-        async function loadServices() {{
-            try {{
-                const response = await fetch('/api/services');
-                if (!response.ok) throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
-                
-                const data = await response.json();
-                const container = document.getElementById('services-list');
-                const totalBadge = document.getElementById('services-total-badge');
-                
-                if (data.services && data.services.length > 0) {{
-                    // Update total badge
-                    if (totalBadge) {{
-                        totalBadge.textContent = data.services.length;
-                    }}
-                    
-                    // Group services by type
-                    const servicesByType = data.services.reduce((acc, service) => {{
-                        if (!acc[service.type]) acc[service.type] = [];
-                        acc[service.type].push(service);
-                        return acc;
-                    }}, {{}});
-                    
-                    const typeLabels = {{
-                        'core_service': 'Core Services',
-                        'cluster_service': 'Cluster Services',
-                        'storage_service': 'Storage Services',
-                        'storage_backend': 'Storage Backends',
-                        'data_format': 'Data Format Support',
-                        'networking': 'Networking'
-                    }};
-                    
-                    const typeIcons = {{
-                        'core_service': 'fas fa-cube',
-                        'cluster_service': 'fas fa-network-wired',
-                        'storage_service': 'fas fa-database',
-                        'storage_backend': 'fas fa-cloud',
-                        'data_format': 'fas fa-file-code',
-                        'networking': 'fas fa-wifi'
-                    }};
-                    
-                    const typeColors = {{
-                        'core_service': 'blue',
-                        'cluster_service': 'green',
-                        'storage_service': 'purple',
-                        'storage_backend': 'indigo',
-                        'data_format': 'orange',
-                        'networking': 'pink'
-                    }};
-                    
-                    container.innerHTML = Object.entries(servicesByType).map(([type, services]) => {{
-                        const color = typeColors[type] || 'gray';
-                        return `
-                        <div class="space-y-4 fade-in">
-                            <div class="flex items-center justify-between">
-                                <h4 class="text-xl font-bold flex items-center text-gray-800">
-                                    <div class="p-2 rounded-lg bg-gradient-to-r from-${{color}}-500 to-${{color}}-600 mr-3">
-                                        <i class="${{typeIcons[type] || 'fas fa-cog'}} text-white"></i>
-                                    </div>
-                                    ${{typeLabels[type] || type}}
-                                </h4>
-                                <span class="text-sm bg-${{color}}-100 text-${{color}}-800 px-3 py-1 rounded-full font-semibold">
-                                    ${{services.length}} service${{services.length !== 1 ? 's' : ''}}
-                                </span>
-                            </div>
-                            <div class="grid gap-4">
-                                ${{services.map(service => {{
-                                    const statusColor = 
-                                        service.status === 'running' ? 'green' :
-                                        service.status === 'configured' ? 'blue' :
-                                        service.status === 'available' ? 'cyan' :
-                                        service.status === 'warning' ? 'yellow' :
-                                        service.status === 'disabled' ? 'gray' :
-                                        service.status === 'not_configured' ? 'orange' :
-                                        service.status === 'not_available' ? 'gray' : 'red';
-                                    
-                                    return `
-                                    <div class="service-item p-6 rounded-xl border border-gray-200 hover:border-${{color}}-300 transition-all duration-300">
-                                        <div class="flex items-start justify-between">
-                                            <div class="flex items-start flex-1">
-                                                <div class="status-dot ${{service.status === 'running' ? 'running' : service.status === 'warning' ? 'warning' : 'error'}} mr-4 mt-1"></div>
-                                                <div class="flex-1">
-                                                    <h5 class="text-lg font-semibold text-gray-900 mb-2">${{service.name}}</h5>
-                                                    <p class="text-gray-600 mb-3">${{service.description || 'No description available'}}</p>
-                                                    <div class="flex items-center space-x-3">
-                                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-${{statusColor}}-100 text-${{statusColor}}-800">
-                                                            ${{service.status.replace('_', ' ').toUpperCase()}}
-                                                        </span>
-                                                        ${{service.port ? `
-                                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700">
-                                                                <i class="fas fa-ethernet mr-1"></i>
-                                                                Port ${{service.port}}
-                                                            </span>
-                                                        ` : ''}}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="ml-4">
-                                                <i class="fas fa-${{
-                                                    service.status === 'running' ? 'check-circle text-green-500' :
-                                                    service.status === 'warning' ? 'exclamation-triangle text-yellow-500' :
-                                                    service.status === 'configured' ? 'cog text-blue-500' :
-                                                    service.status === 'available' ? 'check text-cyan-500' :
-                                                    'times-circle text-red-500'
-                                                }} text-2xl"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    `;
-                                }}).join('')}}
-                            </div>
-                        </div>
-                    `;
-                    }}).join('');
-                    
-                    // Update service count in overview
-                    updateMetricCard('services-count', data.services.length);
-                    
-                }} else {{
-                    container.innerHTML = `
-                        <div class="text-center py-16">
-                            <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-6">
-                                <i class="fas fa-cogs text-3xl text-gray-400"></i>
-                            </div>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">No Services Found</h3>
-                            <p class="text-gray-600 max-w-md mx-auto">No services are currently configured or detected. Check your IPFS installation and configuration.</p>
-                        </div>
-                    `;
-                    if (totalBadge) totalBadge.textContent = '0';
-                }}
-            }} catch (error) {{
-                console.error('Error loading services:', error);
-                const container = document.getElementById('services-list');
-                container.innerHTML = `
-                    <div class="text-center py-16">
-                        <div class="inline-flex items-center justify-center w-20 h-20 bg-red-100 rounded-full mb-6">
-                            <i class="fas fa-exclamation-triangle text-3xl text-red-500"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-2">Error Loading Services</h3>
-                        <p class="text-gray-600 mb-6 max-w-md mx-auto">There was an error loading the services information. Please try refreshing the page.</p>
-                        <button onclick="loadServices()" class="btn-primary px-6 py-3 rounded-xl">
-                            <i class="fas fa-sync-alt mr-2"></i> Try Again
-                        </button>
-                    </div>
-                `;
-            }}
-        }}
-        
-        async function loadBackends() {{
-            try {{
-                const response = await fetch('/api/backends');
-                if (!response.ok) throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
-                
-                const data = await response.json();
-                const container = document.getElementById('backends-list');
-                const totalBadge = document.getElementById('backends-total-badge');
-                
-                if (data.backends && data.backends.length > 0) {{
-                    // Update total badge
-                    if (totalBadge) {{
-                        totalBadge.textContent = data.backends.length;
-                    }}
-                    
-                    // Group backends by type/category
-                    const backendIcons = {{
-                        's3': 'fab fa-aws',
-                        'aws': 'fab fa-aws',
-                        'gdrive': 'fab fa-google-drive',
-                        'google': 'fab fa-google',
-                        'github': 'fab fa-github',
-                        'huggingface': 'fas fa-robot',
-                        'ftp': 'fas fa-server',
-                        'ssh': 'fas fa-terminal',
-                        'sftp': 'fas fa-exchange-alt',
-                        'storacha': 'fas fa-cloud',
-                        'web3': 'fas fa-cube'
-                    }};
-                    
-                    container.innerHTML = data.backends.map((backend, index) => {{
-                        const backendType = backend.type || backend.name.toLowerCase();
-                        const icon = Object.keys(backendIcons).find(key => backendType.includes(key)) || 'server';
-                        const iconClass = backendIcons[icon] || 'fas fa-server';
-                        
-                        const statusColor = 
-                            backend.status === 'configured' ? 'green' :
-                            backend.status === 'connected' ? 'blue' :
-                            backend.status === 'error' ? 'red' :
-                            backend.status === 'warning' ? 'yellow' : 'gray';
-                        
-                        return `
-                        <div class="service-item p-6 rounded-xl border border-gray-200 hover:border-purple-300 transition-all duration-300 fade-in" style="animation-delay: ${{index * 100}}ms">
-                            <div class="flex items-start justify-between">
-                                <div class="flex items-start flex-1">
-                                    <div class="p-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 mr-4">
-                                        <i class="${{iconClass}} text-white text-xl"></i>
-                                    </div>
-                                    <div class="flex-1">
-                                        <h5 class="text-xl font-bold text-gray-900 mb-2">${{backend.name}}</h5>
-                                        <p class="text-gray-600 mb-3">${{backend.description || `${{backend.type || 'Storage'}} backend configuration`}}</p>
-                                        <div class="flex items-center space-x-3">
-                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-${{statusColor}}-100 text-${{statusColor}}-800">
-                                                ${{backend.status?.toUpperCase() || 'UNKNOWN'}}
-                                            </span>
-                                            ${{backend.type ? `
-                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700">
-                                                    <i class="fas fa-tag mr-1"></i>
-                                                    ${{backend.type}}
-                                                </span>
-                                            ` : ''}}
-                                            ${{backend.buckets && backend.buckets.length ? `
-                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700">
-                                                    <i class="fas fa-folder mr-1"></i>
-                                                    ${{backend.buckets.length}} bucket${{backend.buckets.length !== 1 ? 's' : ''}}
-                                                </span>
-                                            ` : ''}}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="ml-4">
-                                    <i class="fas fa-${{
-                                        backend.status === 'configured' ? 'check-circle text-green-500' :
-                                        backend.status === 'connected' ? 'link text-blue-500' :
-                                        backend.status === 'error' ? 'times-circle text-red-500' :
-                                        backend.status === 'warning' ? 'exclamation-triangle text-yellow-500' :
-                                        'question-circle text-gray-400'
-                                    }} text-2xl"></i>
-                                </div>
-                            </div>
-                            
-                            ${{backend.buckets && backend.buckets.length > 0 ? `
-                                <div class="mt-4 pt-4 border-t border-gray-200">
-                                    <h6 class="text-sm font-semibold text-gray-700 mb-2">Available Buckets:</h6>
-                                    <div class="flex flex-wrap gap-2">
-                                        ${{backend.buckets.map(bucket => `
-                                            <span class="inline-flex items-center px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs">
-                                                <i class="fas fa-folder mr-1"></i>
-                                                ${{bucket.name || bucket}}
-                                            </span>
-                                        `).join('')}}
-                                    </div>
-                                </div>
-                            ` : ''}}
-                        </div>
-                        `;
-                    }}).join('');
-                    
-                    // Update backend count in overview
-                    updateMetricCard('backends-count', data.backends.length);
-                    
-                }} else {{
-                    container.innerHTML = `
-                        <div class="text-center py-16">
-                            <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-6">
-                                <i class="fas fa-server text-3xl text-gray-400"></i>
-                            </div>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">No Backends Configured</h3>
-                            <p class="text-gray-600 max-w-md mx-auto mb-6">No storage backends are currently configured. Add backend configurations to start using distributed storage.</p>
-                            <button class="btn-primary px-6 py-3 rounded-xl">
-                                <i class="fas fa-plus mr-2"></i> Add Backend
-                            </button>
-                        </div>
-                    `;
-                    if (totalBadge) totalBadge.textContent = '0';
-                }}
-            }} catch (error) {{
-                console.error('Error loading backends:', error);
-                const container = document.getElementById('backends-list');
-                container.innerHTML = `
-                    <div class="text-center py-16">
-                        <div class="inline-flex items-center justify-center w-20 h-20 bg-red-100 rounded-full mb-6">
-                            <i class="fas fa-exclamation-triangle text-3xl text-red-500"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-2">Error Loading Backends</h3>
-                        <p class="text-gray-600 mb-6 max-w-md mx-auto">There was an error loading the backend information. Please try refreshing the page.</p>
-                        <button onclick="loadBackends()" class="btn-primary px-6 py-3 rounded-xl">
-                            <i class="fas fa-sync-alt mr-2"></i> Try Again
-                        </button>
-                    </div>
-                `;
-            }}
-        }}
-        
-        async function loadBuckets() {{
-            try {{
-                const response = await fetch('/api/buckets');
-                if (!response.ok) throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
-                
-                const data = await response.json();
-                const container = document.getElementById('buckets-list');
-                const totalBadge = document.getElementById('buckets-total-badge');
-                
-                if (data.buckets && data.buckets.length > 0) {{
-                    // Update total badge
-                    if (totalBadge) {{
-                        totalBadge.textContent = data.buckets.length;
-                    }}
-                    
-                    // Group buckets by backend
-                    const bucketsByBackend = data.buckets.reduce((acc, bucket) => {{
-                        const backend = bucket.backend || 'Unknown';
-                        if (!acc[backend]) acc[backend] = [];
-                        acc[backend].push(bucket);
-                        return acc;
-                    }}, {{}});
-                    
-                    const backendIcons = {{
-                        's3': 'fab fa-aws',
-                        'aws': 'fab fa-aws',
-                        'gdrive': 'fab fa-google-drive',
-                        'google': 'fab fa-google',
-                        'github': 'fab fa-github',
-                        'huggingface': 'fas fa-robot',
-                        'ftp': 'fas fa-server',
-                        'ssh': 'fas fa-terminal',
-                        'storacha': 'fas fa-cloud',
-                        'unknown': 'fas fa-folder'
-                    }};
-                    
-                    container.innerHTML = Object.entries(bucketsByBackend).map(([backend, buckets]) => {{
-                        const backendType = backend.toLowerCase();
-                        const icon = Object.keys(backendIcons).find(key => backendType.includes(key)) || 'folder';
-                        const iconClass = backendIcons[icon] || 'fas fa-folder';
-                        const color = ['orange', 'red', 'blue', 'green', 'purple', 'pink'][Math.abs(backend.charCodeAt(0)) % 6];
-                        
-                        return `
-                        <div class="space-y-4 fade-in">
-                            <div class="flex items-center justify-between">
-                                <h4 class="text-xl font-bold flex items-center text-gray-800">
-                                    <div class="p-2 rounded-lg bg-gradient-to-r from-${{color}}-500 to-${{color}}-600 mr-3">
-                                        <i class="${{iconClass}} text-white"></i>
-                                    </div>
-                                    ${{backend}} Backend
-                                </h4>
-                                <span class="text-sm bg-${{color}}-100 text-${{color}}-800 px-3 py-1 rounded-full font-semibold">
-                                    ${{buckets.length}} bucket${{buckets.length !== 1 ? 's' : ''}}
-                                </span>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                ${{buckets.map((bucket, index) => {{
-                                    const bucketSize = bucket.size ? formatBytes(bucket.size) : 'Unknown size';
-                                    const lastModified = bucket.last_modified ? new Date(bucket.last_modified).toLocaleDateString() : 'Unknown';
-                                    
-                                    return `
-                                    <div class="service-item p-6 rounded-xl border border-gray-200 hover:border-${{color}}-300 transition-all duration-300" style="animation-delay: ${{index * 50}}ms">
-                                        <div class="flex items-start justify-between mb-4">
-                                            <div class="flex items-center">
-                                                <div class="p-2 rounded-lg bg-${{color}}-100 mr-3">
-                                                    <i class="fas fa-folder text-${{color}}-600"></i>
-                                                </div>
-                                                <div>
-                                                    <h5 class="font-bold text-gray-900">${{bucket.name}}</h5>
-                                                    <p class="text-sm text-gray-500">${{bucket.type || 'Standard'}}</p>
-                                                </div>
-                                            </div>
-                                            <div class="flex items-center">
-                                                <i class="fas fa-${{
-                                                    bucket.status === 'active' ? 'check-circle text-green-500' :
-                                                    bucket.status === 'syncing' ? 'sync text-blue-500' :
-                                                    bucket.status === 'error' ? 'times-circle text-red-500' :
-                                                    'question-circle text-gray-400'
-                                                }}"></i>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="space-y-2 text-sm">
-                                            ${{bucket.description ? `
-                                                <p class="text-gray-600">${{bucket.description}}</p>
-                                            ` : ''}}
-                                            
-                                            <div class="flex justify-between">
-                                                <span class="text-gray-500">Size:</span>
-                                                <span class="font-medium">${{bucketSize}}</span>
-                                            </div>
-                                            
-                                            ${{bucket.files_count !== undefined ? `
-                                                <div class="flex justify-between">
-                                                    <span class="text-gray-500">Files:</span>
-                                                    <span class="font-medium">${{bucket.files_count.toLocaleString()}}</span>
-                                                </div>
-                                            ` : ''}}
-                                            
-                                            <div class="flex justify-between">
-                                                <span class="text-gray-500">Modified:</span>
-                                                <span class="font-medium">${{lastModified}}</span>
-                                            </div>
-                                        </div>
-                                        
-                                        ${{bucket.tags && bucket.tags.length > 0 ? `
-                                            <div class="mt-4 pt-3 border-t border-gray-200">
-                                                <div class="flex flex-wrap gap-1">
-                                                    ${{bucket.tags.map(tag => `
-                                                        <span class="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                                                            ${{tag}}
-                                                        </span>
-                                                    `).join('')}}
-                                                </div>
-                                            </div>
-                                        ` : ''}}
-                                        
-                                        <div class="mt-4 pt-3 border-t border-gray-200">
-                                            <div class="flex space-x-2">
-                                                <button class="flex-1 text-sm px-3 py-2 bg-${{color}}-50 text-${{color}}-700 rounded-lg hover:bg-${{color}}-100 transition-colors">
-                                                    <i class="fas fa-eye mr-1"></i> View
-                                                </button>
-                                                <button class="flex-1 text-sm px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-                                                    <i class="fas fa-download mr-1"></i> Sync
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    `;
-                                }}).join('')}}
-                            </div>
-                        </div>
-                        `;
-                    }}).join('');
-                    
-                    // Update bucket count in overview
-                    updateMetricCard('buckets-count', data.buckets.length);
-                    
-                }} else {{
-                    container.innerHTML = `
-                        <div class="text-center py-16">
-                            <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-6">
-                                <i class="fas fa-folder text-3xl text-gray-400"></i>
-                            </div>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">No Buckets Found</h3>
-                            <p class="text-gray-600 max-w-md mx-auto mb-6">No storage buckets are currently available. Create or connect backends to start managing your data.</p>
-                            <button onclick="showCreateBucketModal()" class="btn-primary px-6 py-3 rounded-xl">
-                                <i class="fas fa-plus mr-2"></i> Create Bucket
-                            </button>
-                        </div>
-                    `;
-                    if (totalBadge) totalBadge.textContent = '0';
-                }}
-            }} catch (error) {{
-                console.error('Error loading buckets:', error);
-                const container = document.getElementById('buckets-list');
-                container.innerHTML = `
-                    <div class="text-center py-16">
-                        <div class="inline-flex items-center justify-center w-20 h-20 bg-red-100 rounded-full mb-6">
-                            <i class="fas fa-exclamation-triangle text-3xl text-red-500"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-2">Error Loading Buckets</h3>
-                        <p class="text-gray-600 mb-6 max-w-md mx-auto">There was an error loading the bucket information. Please try refreshing the page.</p>
-                        <button onclick="loadBuckets()" class="btn-primary px-6 py-3 rounded-xl">
-                            <i class="fas fa-sync-alt mr-2"></i> Try Again
-                        </button>
-                    </div>
-                `;
-            }}
-        }}
-        
-        async function loadConfig() {{
-            try {{
-                const [configResponse, backendResponse] = await Promise.all([
-                    fetch('/api/config'),
-                    fetch('/api/config/backends')
-                ]);
-                
-                if (!configResponse.ok) throw new Error(`Config HTTP ${{configResponse.status}}: ${{configResponse.statusText}}`);
-                if (!backendResponse.ok) throw new Error(`Backend Config HTTP ${{backendResponse.status}}: ${{backendResponse.statusText}}`);
-                
-                const configData = await configResponse.json();
-                const backendData = await backendResponse.json();
-                
-                const container = document.getElementById('config-content');
-                const backendContainer = document.getElementById('backend-configs-content');
-                
-                // Main Configuration
-                if (configData.config || configData.data_dir) {{
-                    container.innerHTML = `
-                        <div class="space-y-6">
-                            <!-- Data Directory -->
-                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                                <h4 class="text-lg font-bold mb-4 flex items-center text-blue-800">
-                                    <i class="fas fa-folder text-blue-600 mr-3"></i>
-                                    Data Directory
-                                </h4>
-                                <div class="bg-white rounded-lg p-4 border border-blue-200">
-                                    <code class="text-sm text-gray-800 font-mono break-all">${{configData.data_dir || '~/.ipfs_kit'}}</code>
-                                </div>
-                            </div>
-                            
-                            ${{configData.config?.main ? `
-                                <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
-                                    <h4 class="text-lg font-bold mb-4 flex items-center text-purple-800">
-                                        <i class="fas fa-cog text-purple-600 mr-3"></i>
-                                        Main Configuration
-                                    </h4>
-                                    <div class="bg-white rounded-lg p-4 border border-purple-200 overflow-hidden">
-                                        <pre class="text-sm text-gray-800 overflow-auto max-h-64 whitespace-pre-wrap">${{JSON.stringify(configData.config.main, null, 2)}}</pre>
-                                    </div>
-                                </div>
-                            ` : ''}}
-                            
-                            ${{configData.config?.metadata ? `
-                                <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-                                    <h4 class="text-lg font-bold mb-4 flex items-center text-green-800">
-                                        <i class="fas fa-info-circle text-green-600 mr-3"></i>
-                                        Metadata
-                                    </h4>
-                                    <div class="bg-white rounded-lg p-4 border border-green-200 overflow-hidden">
-                                        <pre class="text-sm text-gray-800 overflow-auto max-h-64 whitespace-pre-wrap">${{JSON.stringify(configData.config.metadata, null, 2)}}</pre>
-                                    </div>
-                                </div>
-                            ` : ''}}
-                            
-                            <!-- Timestamp -->
-                            <div class="text-center">
-                                <div class="inline-flex items-center px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-600">
-                                    <i class="fas fa-clock mr-2"></i>
-                                    Last updated: ${{configData.timestamp ? new Date(configData.timestamp).toLocaleString() : 'Unknown'}}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }} else {{
-                    container.innerHTML = `
-                        <div class="text-center py-16">
-                            <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-6">
-                                <i class="fas fa-cog text-3xl text-gray-400"></i>
-                            </div>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">No Configuration Found</h3>
-                            <p class="text-gray-600 max-w-md mx-auto">No main configuration data is available. The system may be using default settings.</p>
-                        </div>
-                    `;
-                }}
-                
-                // Backend Configurations
-                if (backendData && Object.keys(backendData).length > 0) {{
-                    const configs = Object.entries(backendData);
-                    backendContainer.innerHTML = `
-                        <div class="grid gap-6">
-                            ${{configs.map(([name, config], index) => {{
-                                const backendType = name.toLowerCase();
-                                const icon = 
-                                    backendType.includes('s3') || backendType.includes('aws') ? 'fab fa-aws' :
-                                    backendType.includes('github') ? 'fab fa-github' :
-                                    backendType.includes('gdrive') || backendType.includes('google') ? 'fab fa-google-drive' :
-                                    backendType.includes('huggingface') ? 'fas fa-robot' :
-                                    backendType.includes('ftp') ? 'fas fa-server' :
-                                    backendType.includes('ssh') ? 'fas fa-terminal' :
-                                    'fas fa-server';
-                                
-                                const color = ['blue', 'green', 'purple', 'orange', 'pink', 'indigo'][index % 6];
-                                
-                                return `
-                                <div class="bg-gradient-to-r from-${{color}}-50 to-${{color}}-100 rounded-xl p-6 border border-${{color}}-200 fade-in" style="animation-delay: ${{index * 100}}ms">
-                                    <div class="flex items-center justify-between mb-4">
-                                        <h4 class="text-lg font-bold flex items-center text-${{color}}-800">
-                                            <div class="p-2 rounded-lg bg-${{color}}-200 mr-3">
-                                                <i class="${{icon}} text-${{color}}-700"></i>
-                                            </div>
-                                            ${{name}}
-                                        </h4>
-                                        <div class="flex items-center space-x-2">
-                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-${{color}}-200 text-${{color}}-800">
-                                                ${{config.type?.toUpperCase() || 'CONFIG'}}
-                                            </span>
-                                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-200 text-green-800">
-                                                <i class="fas fa-check mr-1"></i>ACTIVE
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="mb-4 text-sm text-${{color}}-700">
-                                        <div class="flex items-center mb-2">
-                                            <i class="fas fa-file mr-2"></i>
-                                            <code class="bg-white px-2 py-1 rounded text-xs">${{config.file}}</code>
-                                        </div>
-                                        <div class="flex items-center">
-                                            <i class="fas fa-clock mr-2"></i>
-                                            <span>Modified: ${{config.last_modified ? new Date(config.last_modified).toLocaleString() : 'Unknown'}}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <details class="cursor-pointer">
-                                        <summary class="text-sm font-semibold text-${{color}}-700 hover:text-${{color}}-900 flex items-center transition-colors">
-                                            <i class="fas fa-eye mr-2"></i>
-                                            View Configuration Details
-                                            <i class="fas fa-chevron-down ml-auto transition-transform duration-200"></i>
-                                        </summary>
-                                        <div class="mt-4 bg-white rounded-lg p-4 border border-${{color}}-200 overflow-hidden">
-                                            <pre class="text-xs text-gray-800 overflow-auto max-h-64 whitespace-pre-wrap">${{JSON.stringify(config.config, null, 2)}}</pre>
-                                        </div>
-                                    </details>
-                                    
-                                    <div class="mt-4 pt-4 border-t border-${{color}}-200">
-                                        <div class="flex space-x-2">
-                                            <button class="flex-1 text-sm px-4 py-2 bg-${{color}}-200 text-${{color}}-800 rounded-lg hover:bg-${{color}}-300 transition-colors">
-                                                <i class="fas fa-edit mr-1"></i> Edit
-                                            </button>
-                                            <button class="flex-1 text-sm px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                                                <i class="fas fa-copy mr-1"></i> Duplicate
-                                            </button>
-                                            <button class="flex-1 text-sm px-4 py-2 bg-red-200 text-red-700 rounded-lg hover:bg-red-300 transition-colors">
-                                                <i class="fas fa-trash mr-1"></i> Delete
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                `;
-                            }}).join('')}}
-                        </div>
-                    `;
-                }} else {{
-                    backendContainer.innerHTML = `
-                        <div class="text-center py-16">
-                            <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-6">
-                                <i class="fas fa-server text-3xl text-gray-400"></i>
-                            </div>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">No Backend Configurations</h3>
-                            <p class="text-gray-600 max-w-md mx-auto mb-6">No backend configurations are currently available. Add backend configurations to enable storage services.</p>
-                            <button class="btn-primary px-6 py-3 rounded-xl">
-                                <i class="fas fa-plus mr-2"></i> Add Backend Configuration
-                            </button>
-                        </div>
-                    `;
-                }}
-                
-            }} catch (error) {{
-                console.error('Error loading configuration:', error);
-                const container = document.getElementById('config-content');
-                const backendContainer = document.getElementById('backend-configs-content');
-                
-                const errorHtml = `
-                    <div class="text-center py-16">
-                        <div class="inline-flex items-center justify-center w-20 h-20 bg-red-100 rounded-full mb-6">
-                            <i class="fas fa-exclamation-triangle text-3xl text-red-500"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-2">Error Loading Configuration</h3>
-                        <p class="text-gray-600 mb-6 max-w-md mx-auto">There was an error loading the configuration data. Please try refreshing the page.</p>
-                        <button onclick="loadConfig()" class="btn-primary px-6 py-3 rounded-xl">
-                            <i class="fas fa-sync-alt mr-2"></i> Try Again
-                        </button>
-                    </div>
-                `;
-                
-                container.innerHTML = errorHtml;
-                backendContainer.innerHTML = errorHtml;
-            }}
-        }}
-        
-        async function loadDetailedMetrics() {{
-            try {{
-                const response = await fetch('/api/system/metrics');
-                if (!response.ok) throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
-                
-                const data = await response.json();
-                const container = document.getElementById('detailed-metrics');
-                
-                container.innerHTML = `
-                    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                        <!-- CPU Metrics -->
-                        <div class="card p-6 rounded-2xl">
-                            <h4 class="text-lg font-bold mb-4 flex items-center">
-                                <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-600 mr-3">
-                                    <i class="fas fa-microchip text-white"></i>
-                                </div>
-                                CPU Information
-                            </h4>
-                            <div class="space-y-4">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-600 font-medium">Current Usage</span>
-                                    <span class="text-2xl font-bold text-blue-600">${{data.cpu.usage.toFixed(1)}}%</span>
-                                </div>
-                                <div class="progress-bar h-3">
-                                    <div class="progress-fill bg-gradient-to-r from-blue-400 to-blue-600" style="width: ${{data.cpu.usage}}%"></div>
-                                </div>
-                                <div class="grid grid-cols-2 gap-4 text-sm">
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <div class="text-gray-500">Cores</div>
-                                        <div class="font-semibold text-lg">${{data.cpu.cores}}</div>
-                                    </div>
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <div class="text-gray-500">Load (1m)</div>
-                                        <div class="font-semibold text-lg">${{data.cpu.load_avg[0].toFixed(2)}}</div>
-                                    </div>
-                                </div>
-                                ${{data.cpu.load_avg.length >= 3 ? `
-                                    <div class="grid grid-cols-3 gap-2 text-xs">
-                                        <div class="text-center p-2 bg-blue-50 rounded">
-                                            <div class="text-gray-500">1m</div>
-                                            <div class="font-medium">${{data.cpu.load_avg[0].toFixed(2)}}</div>
-                                        </div>
-                                        <div class="text-center p-2 bg-blue-50 rounded">
-                                            <div class="text-gray-500">5m</div>
-                                            <div class="font-medium">${{data.cpu.load_avg[1].toFixed(2)}}</div>
-                                        </div>
-                                        <div class="text-center p-2 bg-blue-50 rounded">
-                                            <div class="text-gray-500">15m</div>
-                                            <div class="font-medium">${{data.cpu.load_avg[2].toFixed(2)}}</div>
-                                        </div>
-                                    </div>
-                                ` : ''}}
-                            </div>
-                        </div>
-                        
-                        <!-- Memory Metrics -->
-                        <div class="card p-6 rounded-2xl">
-                            <h4 class="text-lg font-bold mb-4 flex items-center">
-                                <div class="p-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 mr-3">
-                                    <i class="fas fa-memory text-white"></i>
-                                </div>
-                                Memory Information
-                            </h4>
-                            <div class="space-y-4">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-600 font-medium">Usage</span>
-                                    <span class="text-2xl font-bold text-green-600">${{data.memory.percent.toFixed(1)}}%</span>
-                                </div>
-                                <div class="progress-bar h-3">
-                                    <div class="progress-fill bg-gradient-to-r from-green-400 to-green-600" style="width: ${{data.memory.percent}}%"></div>
-                                </div>
-                                <div class="grid grid-cols-2 gap-4 text-sm">
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <div class="text-gray-500">Used</div>
-                                        <div class="font-semibold text-lg">${{formatBytes(data.memory.used)}}</div>
-                                    </div>
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <div class="text-gray-500">Total</div>
-                                        <div class="font-semibold text-lg">${{formatBytes(data.memory.total)}}</div>
-                                    </div>
-                                </div>
-                                <div class="bg-green-50 rounded-lg p-3">
-                                    <div class="text-gray-500 text-sm">Available</div>
-                                    <div class="font-semibold text-lg text-green-700">${{formatBytes(data.memory.total - data.memory.used)}}</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Disk Metrics -->
-                        <div class="card p-6 rounded-2xl">
-                            <h4 class="text-lg font-bold mb-4 flex items-center">
-                                <div class="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 mr-3">
-                                    <i class="fas fa-hdd text-white"></i>
-                                </div>
-                                Disk Information
-                            </h4>
-                            <div class="space-y-4">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-600 font-medium">Usage</span>
-                                    <span class="text-2xl font-bold text-purple-600">${{data.disk.percent.toFixed(1)}}%</span>
-                                </div>
-                                <div class="progress-bar h-3">
-                                    <div class="progress-fill bg-gradient-to-r from-purple-400 to-purple-600" style="width: ${{data.disk.percent}}%"></div>
-                                </div>
-                                <div class="grid grid-cols-2 gap-4 text-sm">
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <div class="text-gray-500">Used</div>
-                                        <div class="font-semibold text-lg">${{formatBytes(data.disk.used)}}</div>
-                                    </div>
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <div class="text-gray-500">Total</div>
-                                        <div class="font-semibold text-lg">${{formatBytes(data.disk.total)}}</div>
-                                    </div>
-                                </div>
-                                <div class="bg-purple-50 rounded-lg p-3">
-                                    <div class="text-gray-500 text-sm">Free Space</div>
-                                    <div class="font-semibold text-lg text-purple-700">${{formatBytes(data.disk.total - data.disk.used)}}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Network Statistics -->
-                    <div class="mt-6 card p-6 rounded-2xl">
-                        <h4 class="text-lg font-bold mb-4 flex items-center">
-                            <div class="p-2 rounded-lg bg-gradient-to-r from-indigo-500 to-blue-600 mr-3">
-                                <i class="fas fa-network-wired text-white"></i>
-                            </div>
-                            Network Statistics
-                        </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <div class="text-blue-600 text-sm font-medium">Bytes Sent</div>
-                                        <div class="text-2xl font-bold text-blue-800">${{formatBytes(data.network.sent)}}</div>
-                                    </div>
-                                    <i class="fas fa-upload text-2xl text-blue-500"></i>
-                                </div>
-                            </div>
-                            <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <div class="text-green-600 text-sm font-medium">Bytes Received</div>
-                                        <div class="text-2xl font-bold text-green-800">${{formatBytes(data.network.recv)}}</div>
-                                    </div>
-                                    <i class="fas fa-download text-2xl text-green-500"></i>
-                                </div>
-                            </div>
-                            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <div class="text-purple-600 text-sm font-medium">Total Traffic</div>
-                                        <div class="text-2xl font-bold text-purple-800">${{formatBytes(data.network.sent + data.network.recv)}}</div>
-                                    </div>
-                                    <i class="fas fa-exchange-alt text-2xl text-purple-500"></i>
-                                </div>
-                            </div>
-                            <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4 border border-yellow-200">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <div class="text-yellow-600 text-sm font-medium">Last Updated</div>
-                                        <div class="text-sm font-bold text-yellow-800">${{new Date(data.timestamp).toLocaleTimeString()}}</div>
-                                    </div>
-                                    <i class="fas fa-clock text-2xl text-yellow-500"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- System Information -->
-                    <div class="mt-6 card p-6 rounded-2xl">
-                        <h4 class="text-lg font-bold mb-4 flex items-center">
-                            <div class="p-2 rounded-lg bg-gradient-to-r from-gray-500 to-gray-600 mr-3">
-                                <i class="fas fa-info-circle text-white"></i>
-                            </div>
-                            System Information
-                        </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                            <div class="bg-gray-50 rounded-lg p-4">
-                                <div class="text-gray-500 mb-1">Platform</div>
-                                <div class="font-semibold">${{navigator.platform}}</div>
-                            </div>
-                            <div class="bg-gray-50 rounded-lg p-4">
-                                <div class="text-gray-500 mb-1">User Agent</div>
-                                <div class="font-semibold text-xs">${{navigator.userAgent.split(' ')[0]}}</div>
-                            </div>
-                            <div class="bg-gray-50 rounded-lg p-4">
-                                <div class="text-gray-500 mb-1">Timestamp</div>
-                                <div class="font-semibold">${{new Date(data.timestamp).toLocaleString()}}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }} catch (error) {{
-                console.error('Error loading detailed metrics:', error);
-                const container = document.getElementById('detailed-metrics');
-                container.innerHTML = `
-                    <div class="text-center py-16">
-                        <div class="inline-flex items-center justify-center w-20 h-20 bg-red-100 rounded-full mb-6">
-                            <i class="fas fa-exclamation-triangle text-3xl text-red-500"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-2">Error Loading Metrics</h3>
-                        <p class="text-gray-600 mb-6 max-w-md mx-auto">There was an error loading the system metrics. Please try refreshing the page.</p>
-                        <button onclick="loadDetailedMetrics()" class="btn-primary px-6 py-3 rounded-xl">
-                            <i class="fas fa-sync-alt mr-2"></i> Try Again
-                        </button>
-                    </div>
-                `;
-            }}
-        }}
-        
-        function loadTabData(tabName) {{
-            switch (tabName) {{
-                case 'overview':
-                    loadSystemOverview();
-                    break;
-                case 'services':
-                    loadServices();
-                    break;
-                case 'backends':
-                    loadBackends();
-                    break;
-                case 'buckets':
-                    loadBuckets();
-                    break;
-                case 'metrics':
-                    loadDetailedMetrics();
-                    break;
-                case 'config':
-                    loadConfig();
-                    break;
-            }}
-        }}
-        
-        // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', function() {{
-            // Set up clock
-            updateClock();
-            setInterval(updateClock, 1000);
-            
-            // Initial data load
-            loadSystemOverview();
-            
-            // Set up auto-refresh with smart timing
-            updateInterval = setInterval(function() {{
-                const currentTab = document.querySelector('.tab-content.active')?.id?.replace('-tab', '');
-                if (currentTab === 'overview' && !isUpdating) {{
-                    loadSystemOverview();
-                }}
-            }}, {self.update_interval * 1000});
-            
-            // Add smooth transitions to metric cards
-            document.querySelectorAll('.metric-card').forEach((card, index) => {{
-                card.style.animationDelay = `${{index * 100}}ms`;
-                card.classList.add('fade-in');
-            }});
-            
-            // Add keyboard shortcuts
-            document.addEventListener('keydown', function(e) {{
-                if (e.ctrlKey || e.metaKey) {{
-                    switch(e.key) {{
-                        case 'r':
-                            e.preventDefault();
-                            refreshData();
-                            break;
-                        case '1':
-                            e.preventDefault();
-                            showTab('overview');
-                            break;
-                        case '2':
-                            e.preventDefault();
-                            showTab('services');
-                            break;
-                        case '3':
-                            e.preventDefault();
-                            showTab('backends');
-                            break;
-                    }}
-                }}
-                
-                if (e.key === 'Escape') {{
-                    closeMobileMenu();
-                }}
-            }});
-            
-            // Add loading indicators for better UX
-            const observer = new IntersectionObserver((entries) => {{
-                entries.forEach(entry => {{
-                    if (entry.isIntersecting) {{
-                        entry.target.classList.add('fade-in');
-                    }}
-                }});
-            }});
-            
-            document.querySelectorAll('.card').forEach(card => {{
-                observer.observe(card);
-            }});
-        }});
-        
-        // Enhanced refresh function with user feedback
-        async function refreshData() {{
-            const refreshBtn = document.querySelector('button[onclick="refreshData()"]');
-            const originalText = refreshBtn?.innerHTML;
-            
-            if (refreshBtn) {{
-                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Refreshing...';
-                refreshBtn.disabled = true;
-            }}
-            
-            try {{
-                const currentTab = document.querySelector('.tab-content.active')?.id?.replace('-tab', '');
-                await loadTabData(currentTab);
-                
-                // Show success feedback
-                if (refreshBtn) {{
-                    refreshBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Updated';
-                    setTimeout(() => {{
-                        refreshBtn.innerHTML = originalText;
-                        refreshBtn.disabled = false;
-                    }}, 1500);
-                }}
-            }} catch (error) {{
-                console.error('Error refreshing data:', error);
-                if (refreshBtn) {{
-                    refreshBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i> Error';
-                    setTimeout(() => {{
-                        refreshBtn.innerHTML = originalText;
-                        refreshBtn.disabled = false;
-                    }}, 2000);
-                }}
-            }}
-        }}
-        
-        async function loadTabData(tabName) {{
-            switch (tabName) {{
-                case 'overview':
-                    return await loadSystemOverview();
-                case 'services':
-                    return await loadServices();
-                case 'backends':
-                    return await loadBackends();
-                case 'buckets':
-                    return await loadBuckets();
-                case 'metrics':
-                    return await loadDetailedMetrics();
-                case 'config':
-                    return await loadConfig();
-                default:
-                    return Promise.resolve();
-            }}
-        }}
-        
-        // Bucket creation functionality
-        function showCreateBucketModal() {{
-            const modal = document.getElementById('createBucketModal');
-            if (!modal) {{
-                // Create the modal if it doesn't exist
-                createBucketModal();
-            }}
-            document.getElementById('createBucketModal').style.display = 'flex';
-        }}
-        
-        function hideCreateBucketModal() {{
-            document.getElementById('createBucketModal').style.display = 'none';
-            // Reset form
-            document.getElementById('bucketName').value = '';
-            document.getElementById('bucketType').value = 'general';
-            document.getElementById('bucketDescription').value = '';
-        }}
-        
-        function createBucketModal() {{
-            const modalHTML = `
-                <div id="createBucketModal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
-                        <div class="p-6">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-xl font-bold text-gray-900">Create New Bucket</h3>
-                                <button onclick="hideCreateBucketModal()" class="text-gray-400 hover:text-gray-600">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            
-                            <form onsubmit="createBucket(event)">
-                                <div class="space-y-4">
-                                    <div>
-                                        <label for="bucketName" class="block text-sm font-medium text-gray-700 mb-1">
-                                            Bucket Name <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="text" id="bucketName" name="bucketName" required
-                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                               placeholder="Enter bucket name">
-                                    </div>
-                                    
-                                    <div>
-                                        <label for="bucketType" class="block text-sm font-medium text-gray-700 mb-1">
-                                            Bucket Type
-                                        </label>
-                                        <select id="bucketType" name="bucketType"
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                            <option value="general">General</option>
-                                            <option value="dataset">Dataset</option>
-                                            <option value="media">Media</option>
-                                            <option value="archive">Archive</option>
-                                            <option value="knowledge">Knowledge</option>
-                                            <option value="temp">Temporary</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div>
-                                        <label for="bucketDescription" class="block text-sm font-medium text-gray-700 mb-1">
-                                            Description
-                                        </label>
-                                        <textarea id="bucketDescription" name="bucketDescription" rows="3"
-                                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                  placeholder="Optional bucket description"></textarea>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex space-x-3 mt-6">
-                                    <button type="button" onclick="hideCreateBucketModal()" 
-                                            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                                        Cancel
-                                    </button>
-                                    <button type="submit" 
-                                            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                                        <i class="fas fa-plus mr-2"></i> Create Bucket
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', modalHTML);
-        }}
-        
-        async function createBucket(event) {{
-            event.preventDefault();
-            
-            const bucketName = document.getElementById('bucketName').value.trim();
-            const bucketType = document.getElementById('bucketType').value;
-            const bucketDescription = document.getElementById('bucketDescription').value.trim();
-            
-            if (!bucketName) {{
-                alert('Please enter a bucket name');
-                return;
-            }}
-            
-            const submitBtn = event.target.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            
-            try {{
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Creating...';
-                submitBtn.disabled = true;
-                
-                const response = await fetch('/api/buckets', {{
-                    method: 'POST',
-                    headers: {{
-                        'Content-Type': 'application/json',
-                    }},
-                    body: JSON.stringify({{
-                        bucket_name: bucketName,
-                        bucket_type: bucketType,
-                        description: bucketDescription
-                    }})
-                }});
-                
-                const result = await response.json();
-                
-                if (result.success) {{
-                    // Show success message
-                    submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Created!';
-                    
-                    // Hide modal after a delay
-                    setTimeout(() => {{
-                        hideCreateBucketModal();
-                        // Refresh buckets list
-                        loadBuckets();
-                    }}, 1000);
-                }} else {{
-                    throw new Error(result.error || 'Failed to create bucket');
-                }}
-            }} catch (error) {{
-                console.error('Error creating bucket:', error);
-                alert(`Error creating bucket: ${{error.message}}`);
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }}
-        }}
-        
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', function() {{
-            if (updateInterval) {{
-                clearInterval(updateInterval);
-            }}
-        }});
-        
-        // Add service worker for offline functionality (optional)
-        if ('serviceWorker' in navigator) {{
-            navigator.serviceWorker.register('/sw.js').catch(function(error) {{
-                console.log('ServiceWorker registration failed: ', error);
-            }});
-        }}
-        
-        // Performance monitoring
-        window.addEventListener('load', function() {{
-            const loadTime = performance.now();
-            console.log(`Dashboard loaded in ${{loadTime.toFixed(2)}}ms`);
-        }});
+        }
+
+        // Mobile Menu
+        document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('mobile-overlay').classList.toggle('hidden');
+        });
+        document.getElementById('mobile-overlay').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('mobile-overlay').classList.add('hidden');
+        });
+
+        // Initial Load
+        document.addEventListener('DOMContentLoaded', () => {
+            showTab('overview');
+            setInterval(refreshData, 5000); // Auto-refresh data every 5 seconds
+            setInterval(updateTime, 1000);
+        });
     </script>
 </body>
 </html>
-        """
-    
-    async def start(self):
-        """Start the unified MCP dashboard server."""
-        print(f"🚀 Starting Unified MCP Dashboard on http://{self.host}:{self.port}")
-        print(f"📊 Dashboard available at: http://{self.host}:{self.port}")
-        print(f"🔧 MCP endpoints available at: http://{self.host}:{self.port}/mcp/*")
-        
-        # Create server config
-        config = uvicorn.Config(
-            self.app,
-            host=self.host,
-            port=self.port,
-            log_level="info" if self.debug else "warning"
-        )
-        
-        # Create and start server
-        server = uvicorn.Server(config)
-        await server.serve()
+"""
 
     def run(self):
-        """Run the unified MCP dashboard server (sync version)."""
-        print(f"🚀 Starting Unified MCP Dashboard on http://{self.host}:{self.port}")
-        print(f"📊 Dashboard available at: http://{self.host}:{self.port}")
-        print(f"🔧 MCP endpoints available at: http://{self.host}:{self.port}/mcp/*")
-        
+        """Run the unified server."""
         uvicorn.run(
             self.app,
             host=self.host,
             port=self.port,
-            log_level="info" if self.debug else "warning"
+            log_level="info" if not self.debug else "debug"
         )
 
-
-async def main():
-    """Main entry point for unified MCP dashboard."""
-    config = {
-        'host': '127.0.0.1',
-        'port': 8004,
-        'data_dir': '~/.ipfs_kit',
-        'debug': True,
-        'update_interval': 3
-    }
+def main():
+    """Main entry point for the unified MCP dashboard."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     
-    dashboard = UnifiedMCPDashboard(config)
-    await dashboard.start()
-
+    # Example of running with custom config
+    # config = {
+    #     'host': '0.0.0.0',
+    #     'port': 8004,
+    #     'data_dir': '/tmp/ipfs_kit_dashboard',
+    #     'debug': True
+    # }
+    # dashboard = UnifiedMCPDashboard(config)
+    
+    dashboard = UnifiedMCPDashboard()
+    dashboard.run()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

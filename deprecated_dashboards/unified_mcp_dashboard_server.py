@@ -1393,7 +1393,7 @@ class UnifiedMCPDashboardServer:
     </div>
     
     <!-- Pending Operations Modal -->
-    <div id="pending-operations-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div id="pending-operations-modal" class="fixed inset-0 bg-black bg-opacity50 hidden z-50">
         <div class="flex items-center justify-center min-h-screen p-4">
             <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full">
                 <div class="p-6">
@@ -2137,7 +2137,7 @@ class MCPDashboard {
             await this.jsonRpcCall('config.save_backend_config', { backend: backend, config: newConfig });
             this.showNotification(`${backend} configuration saved successfully`, 'success');
         } catch (error) {
-            this.showNotification(`Failed to save ${backend} configuration: ' + error.message, 'error');
+            this.showNotification("Failed to save " + backend + " configuration: " + error.message, 'error');
         }
     }
 

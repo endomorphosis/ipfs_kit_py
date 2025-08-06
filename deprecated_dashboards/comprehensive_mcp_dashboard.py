@@ -1,4 +1,4 @@
-hich should be on the same port and as the dashboard, can use mcp tools to provide data to the dashboard for rendering.#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Comprehensive MCP Dashboard - Full Feature Integration
 
@@ -600,24 +600,85 @@ class ComprehensiveMCPDashboard:
         # API Routes - Buckets
         @self.app.get("/api/buckets")
         async def get_buckets():
-            return await self._get_buckets_data()
+            try:
+                buckets_data = await self._get_buckets_data()
+                return JSONResponse(content={
+                    "success": True,
+                    "data": {"buckets": buckets_data}
+                })
+            except Exception as e:
+                logger.error(f"Error in get_buckets API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"success": False, "error": str(e)}
+                )
         
         @self.app.post("/api/buckets")
         async def create_bucket(request: Request):
-            data = await request.json()
-            return await self._create_bucket(data)
+            try:
+                data = await request.json()
+                result = await self._create_bucket(data)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in create_bucket API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"success": False, "error": str(e)}
+                )
         
         @self.app.get("/api/buckets/{bucket_name}")
         async def get_bucket_details(bucket_name: str):
-            return await self._get_bucket_details(bucket_name)
+            try:
+                result = await self._get_bucket_details(bucket_name)
+                return JSONResponse(content={
+                    "success": True,
+                    "data": result
+                })
+            except Exception as e:
+                logger.error(f"Error in get_bucket_details API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"success": False, "error": str(e)}
+                )
+        
+        @self.app.delete("/api/buckets/{bucket_name}")
+        async def delete_bucket(bucket_name: str):
+            try:
+                result = await self._delete_bucket(bucket_name)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in delete_bucket API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"success": False, "error": str(e)}
+                )
         
         @self.app.get("/api/buckets/{bucket_name}/files")
         async def list_bucket_files(bucket_name: str):
-            return await self._list_bucket_files(bucket_name)
+            try:
+                result = await self._list_bucket_files(bucket_name)
+                return JSONResponse(content={
+                    "success": True,
+                    "data": result
+                })
+            except Exception as e:
+                logger.error(f"Error in list_bucket_files API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"success": False, "error": str(e)}
+                )
         
         @self.app.post("/api/buckets/{bucket_name}/upload")
         async def upload_to_bucket(bucket_name: str, file: UploadFile = File(...), virtual_path: str = Form(None)):
-            return await self._upload_file_to_bucket(bucket_name, file, virtual_path)
+            try:
+                result = await self._upload_file_to_bucket(bucket_name, file, virtual_path)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in upload_to_bucket API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"success": False, "error": str(e)}
+                )
         
         @self.app.get("/api/buckets/{bucket_name}/download/{file_path:path}")
         async def download_from_bucket(bucket_name: str, file_path: str):
@@ -3538,17 +3599,60 @@ class ComprehensiveMCPDashboard:
                         
                         const bucketsList = document.getElementById('buckets-list');
                         if (bucketsList) {
-                            bucketsList.innerHTML = '<div class="text-gray-500">Loading buckets...</div>';
+                            if (data.success && data.data && data.data.buckets) {
+                                const buckets = data.data.buckets;
+                                bucketsList.innerHTML = '';
+                                
+                                if (buckets.length === 0) {
+                                    bucketsList.innerHTML = '<div class="text-gray-500">No buckets found</div>';
+                                } else {
+                                    buckets.forEach(bucket => {
+                                        const bucketDiv = document.createElement('div');
+                                        bucketDiv.className = 'bucket-item p-3 border rounded-lg';
+                                        bucketDiv.innerHTML = `
+                                            <div class="flex justify-between items-center">
+                                                <div>
+                                                    <h4 class="font-medium">${bucket.name}</h4>
+                                                    <p class="text-sm text-gray-600">Type: ${bucket.type || 'general'}</p>
+                                                    <p class="text-sm text-gray-600">Files: ${bucket.file_count || 0}</p>
+                                                </div>
+                                                <div class="space-x-2">
+                                                    <button onclick="viewBucket('${bucket.name}')" class="btn btn-sm btn-secondary">View</button>
+                                                    <button onclick="deleteBucket('${bucket.name}')" class="btn btn-sm btn-danger">Delete</button>
+                                                </div>
+                                            </div>
+                                        `;
+                                        bucketsList.appendChild(bucketDiv);
+                                    });
+                                }
+                            } else {
+                                bucketsList.innerHTML = '<div class="text-red-500">Failed to load buckets</div>';
+                            }
                         }
                         
                         // Update bucket selector for uploads
                         const uploadSelect = document.getElementById('upload-bucket-select');
-                        if (uploadSelect) {
+                        if (uploadSelect && data.success && data.data && data.data.buckets) {
                             uploadSelect.innerHTML = '<option value="">Select bucket...</option>';
+                            data.data.buckets.forEach(bucket => {
+                                const option = document.createElement('option');
+                                option.value = bucket.name;
+                                option.textContent = bucket.name;
+                                uploadSelect.appendChild(option);
+                            });
                         }
                     } catch (error) {
                         console.error('Error refreshing buckets:', error);
+                        const bucketsList = document.getElementById('buckets-list');
+                        if (bucketsList) {
+                            bucketsList.innerHTML = '<div class="text-red-500">Error loading buckets</div>';
+                        }
                     }
+                }
+                
+                // Alias for loadBucketData
+                async function loadBucketData() {
+                    return await refreshBuckets();
                 }
                 
                 async function refreshVFS() {
@@ -4218,15 +4322,91 @@ class ComprehensiveMCPDashboard:
                     document.getElementById('create-bucket-modal').classList.add('hidden');
                 }
                 
-                function createBucket() {
+                async function createBucket() {
                     const name = document.getElementById('new-bucket-name').value;
                     const type = document.getElementById('new-bucket-type').value;
                     const description = document.getElementById('new-bucket-description').value;
                     
-                    console.log('Creating bucket:', { name, type, description });
-                    // TODO: Implement bucket creation
+                    if (!name.trim()) {
+                        alert('Please enter a bucket name');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await axios.post('/api/buckets', {
+                            bucket_name: name.trim(),
+                            bucket_type: type,
+                            vfs_structure: 'hybrid',
+                            metadata: {
+                                description: description.trim(),
+                                created_by: 'dashboard',
+                                created_at: new Date().toISOString()
+                            }
+                        });
+                        
+                        if (response.data.success) {
+                            console.log('Bucket created successfully:', response.data);
+                            alert(`Bucket "${name}" created successfully!`);
+                            
+                            // Clear form fields
+                            document.getElementById('new-bucket-name').value = '';
+                            document.getElementById('new-bucket-type').value = 'general';
+                            document.getElementById('new-bucket-description').value = '';
+                            
+                            // Refresh bucket data if we're on the bucket tab
+                            const currentTab = document.querySelector('.tab-content:not(.hidden)');
+                            if (currentTab && currentTab.id === 'bucket-tab') {
+                                await loadBucketData();
+                            }
+                        } else {
+                            console.error('Failed to create bucket:', response.data);
+                            alert(`Failed to create bucket: ${response.data.error || 'Unknown error'}`);
+                        }
+                    } catch (error) {
+                        console.error('Error creating bucket:', error);
+                        alert(`Error creating bucket: ${error.response?.data?.error || error.message}`);
+                    }
                     
                     hideCreateBucketModal();
+                }
+                
+                async function viewBucket(bucketName) {
+                    console.log('Viewing bucket:', bucketName);
+                    try {
+                        const response = await axios.get(`/api/buckets/${bucketName}`);
+                        if (response.data.success) {
+                            // Show bucket details in a modal or navigate to bucket view
+                            alert(`Bucket "${bucketName}" details:\n${JSON.stringify(response.data.data, null, 2)}`);
+                        } else {
+                            alert(`Failed to get bucket details: ${response.data.error}`);
+                        }
+                    } catch (error) {
+                        console.error('Error viewing bucket:', error);
+                        alert(`Error viewing bucket: ${error.message}`);
+                    }
+                }
+                
+                async function deleteBucket(bucketName) {
+                    if (!confirm(`Are you sure you want to delete bucket "${bucketName}"? This action cannot be undone.`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await axios.delete(`/api/buckets/${bucketName}`);
+                        if (response.data.success) {
+                            console.log('Bucket deleted successfully:', response.data);
+                            alert(`Bucket "${bucketName}" deleted successfully!`);
+                            
+                            // Refresh bucket data
+                            await loadBucketData();
+                        } else {
+                            console.error('Failed to delete bucket:', response.data);
+                            alert(`Failed to delete bucket: ${response.data.error || 'Unknown error'}`);
+                        }
+                    } catch (error) {
+                        console.error('Error deleting bucket:', error);
+                        alert(`Error deleting bucket: ${error.response?.data?.error || error.message}`);
+                    }
                 }
                 
                 function executeQuery() {
@@ -6870,16 +7050,53 @@ class ComprehensiveMCPDashboard:
                             buckets.append(bucket_info)
                 return buckets
             
-            # Use integrated MCP tool instead of HTTP request
-            buckets_result = await self._call_mcp_tool("bucket_list", {})
+            # Use direct MCP tool call
+            buckets_result = await self._call_mcp_tool_direct("bucket_list", {})
             
             if buckets_result.get("success"):
-                return buckets_result.get("result", {}).get("buckets", [])
+                buckets_data = buckets_result.get("data", {})
+                if isinstance(buckets_data, dict):
+                    return buckets_data.get("buckets", [])
+                elif isinstance(buckets_data, list):
+                    return buckets_data
+                else:
+                    return []
             else:
+                logger.warning(f"Failed to get buckets: {buckets_result.get('error', 'Unknown error')}")
                 return []
         except Exception as e:
             logger.error(f"Error getting buckets data from MCP: {e}")
             return []
+    
+    async def _delete_bucket(self, bucket_name: str) -> Dict[str, Any]:
+        """Delete a bucket using direct MCP tool calls."""
+        try:
+            if not bucket_name:
+                return {"success": False, "error": "bucket_name is required"}
+            
+            # Use direct MCP tool call
+            result = await self._call_mcp_tool_direct("bucket_delete", {
+                "bucket_name": bucket_name,
+                "force": True  # Force deletion for dashboard operations
+            })
+            
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "data": {
+                        "bucket_name": bucket_name,
+                        "message": f"Bucket '{bucket_name}' deleted successfully"
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": result.get("error", "Failed to delete bucket")
+                }
+                
+        except Exception as e:
+            logger.error(f"Error deleting bucket: {e}")
+            return {"success": False, "error": str(e)}
     
     async def _get_bucket_info(self, bucket_name: str) -> Dict[str, Any]:
         """Get information about a specific bucket."""
@@ -6936,129 +7153,181 @@ class ComprehensiveMCPDashboard:
             }
     
     async def _create_bucket(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new bucket using the MCP server."""
+        """Create a new bucket using direct MCP tool calls."""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.mcp_server_url}/tools/bucket_create",
-                    json={"arguments": data}
-                ) as resp:
-                    if resp.status == 200:
-                        return await resp.json()
-                    else:
-                        return {"success": False, "error": f"MCP server error: {resp.status}"}
+            # Extract bucket parameters
+            bucket_name = data.get("bucket_name")
+            bucket_type = data.get("bucket_type", "general")
+            vfs_structure = data.get("vfs_structure", "hybrid")
+            metadata = data.get("metadata", {})
+            
+            if not bucket_name:
+                return {"success": False, "error": "bucket_name is required"}
+            
+            # Use direct MCP tool call
+            result = await self._call_mcp_tool_direct("bucket_create", {
+                "bucket_name": bucket_name,
+                "bucket_type": bucket_type,
+                "vfs_structure": vfs_structure,
+                "metadata": metadata
+            })
+            
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "data": {
+                        "bucket_name": bucket_name,
+                        "bucket_type": bucket_type,
+                        "vfs_structure": vfs_structure,
+                        "metadata": metadata,
+                        "message": f"Bucket '{bucket_name}' created successfully"
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": result.get("error", "Failed to create bucket")
+                }
+                
         except Exception as e:
+            logger.error(f"Error creating bucket: {e}")
             return {"success": False, "error": str(e)}
     
     async def _get_bucket_details(self, bucket_name: str) -> Dict[str, Any]:
-        """Get detailed information about a bucket from the MCP server."""
+        """Get detailed information about a bucket using filesystem operations."""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.mcp_server_url}/tools/bucket_list",
-                    json={"arguments": {"name": bucket_name}}
-                ) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        buckets = data.get("buckets", [])
-                        if buckets:
-                            return buckets[0]
-                        else:
-                            return {"error": "Bucket not found"}
-                    else:
-                        return {"error": f"MCP server error: {resp.status}"}
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            
+            if not bucket_dir.exists():
+                return {"error": "Bucket not found"}
+            
+            # Read metadata
+            metadata_file = bucket_dir / "metadata.json"
+            if metadata_file.exists():
+                try:
+                    with open(metadata_file, 'r') as f:
+                        bucket_info = json.load(f)
+                except Exception as e:
+                    bucket_info = {"name": bucket_name, "type": "unknown"}
+            else:
+                bucket_info = {"name": bucket_name, "type": "unknown"}
+            
+            # Add file statistics
+            files = []
+            total_size = 0
+            for file_path in bucket_dir.rglob("*"):
+                if file_path.is_file() and file_path.name != "metadata.json":
+                    file_size = file_path.stat().st_size
+                    total_size += file_size
+                    files.append({
+                        "name": file_path.name,
+                        "path": str(file_path.relative_to(bucket_dir)),
+                        "size": file_size,
+                        "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
+                    })
+            
+            bucket_info.update({
+                "file_count": len(files),
+                "total_size": total_size,
+                "files": files[:10],  # Show first 10 files
+                "last_accessed": datetime.now().isoformat()
+            })
+            
+            return bucket_info
+            
         except Exception as e:
+            logger.error(f"Error getting bucket details for {bucket_name}: {e}")
             return {"error": str(e)}
     
     async def _list_bucket_files(self, bucket_name: str) -> Dict[str, Any]:
-        """List files in a bucket using the MCP server."""
+        """List files in a bucket using filesystem operations."""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.mcp_server_url}/tools/vfs_list",
-                    json={"arguments": {"path": f"/buckets/{bucket_name}"}}
-                ) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        return {"files": data.get("items", []), "count": data.get("total_count", 0)}
-                    else:
-                        return {"files": [], "error": f"MCP server error: {resp.status}"}
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            
+            if not bucket_dir.exists():
+                return {"files": [], "error": "Bucket not found"}
+            
+            files = []
+            for file_path in bucket_dir.rglob("*"):
+                if file_path.is_file() and file_path.name != "metadata.json":
+                    file_info = {
+                        "name": file_path.name,
+                        "path": str(file_path.relative_to(bucket_dir)),
+                        "size": file_path.stat().st_size,
+                        "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat(),
+                        "type": "file"
+                    }
+                    files.append(file_info)
+            
+            return {"files": files, "count": len(files)}
+            
         except Exception as e:
+            logger.error(f"Error listing files in bucket {bucket_name}: {e}")
             return {"files": [], "error": str(e)}
     
     async def _upload_file_to_bucket(self, bucket_name: str, file: UploadFile, virtual_path: str = None) -> Dict[str, Any]:
-        """Upload a file to a bucket using the MCP server."""
+        """Upload a file to a bucket using filesystem operations."""
         try:
-            # Save the file temporarily
-            temp_dir = self.data_dir / "temp_uploads"
-            temp_dir.mkdir(exist_ok=True)
-            temp_path = temp_dir / file.filename
-            with open(temp_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.mcp_server_url}/tools/storage_upload",
-                    json={
-                        "arguments": {
-                            "file_path": str(temp_path),
-                            "backend": "default",  # Or determine from bucket
-                            "remote_path": f"/buckets/{bucket_name}/{virtual_path or file.filename}"
-                        }
-                    }
-                ) as resp:
-                    if resp.status == 200:
-                        return await resp.json()
-                    else:
-                        return {"success": False, "error": f"MCP server error: {resp.status}"}
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            
+            if not bucket_dir.exists():
+                return {"success": False, "error": "Bucket not found"}
+            
+            # Determine the target path
+            if virtual_path:
+                target_path = bucket_dir / virtual_path
+            else:
+                target_path = bucket_dir / file.filename
+            
+            # Create parent directories if needed
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Save the uploaded file
+            content = await file.read()
+            with open(target_path, "wb") as f:
+                f.write(content)
+            
+            return {
+                "success": True,
+                "data": {
+                    "bucket_name": bucket_name,
+                    "file_name": file.filename,
+                    "file_path": str(target_path.relative_to(bucket_dir)),
+                    "file_size": len(content),
+                    "uploaded_at": datetime.now().isoformat()
+                }
+            }
+            
         except Exception as e:
+            logger.error(f"Error uploading file to bucket {bucket_name}: {e}")
             return {"success": False, "error": str(e)}
-        finally:
             # Clean up the temporary file
             if temp_path.exists():
                 temp_path.unlink()
     
     async def _download_file_from_bucket(self, bucket_name: str, file_path: str) -> FileResponse:
-        """Download a file from a bucket using the MCP server."""
+        """Download a file from a bucket using filesystem operations."""
         try:
-            # We need the CID to download, so we first need to get it from the VFS
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.mcp_server_url}/tools/vfs_list",
-                    json={"arguments": {"path": f"/buckets/{bucket_name}/{file_path}"}}
-                ) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        items = data.get("items", [])
-                        if not items:
-                            raise HTTPException(status_code=404, detail="File not found in VFS")
-                        cid = items[0].get("cid") # Assuming the VFS provides the CID
-                        if not cid:
-                            raise HTTPException(status_code=500, detail="CID not found in VFS for the file")
-                    else:
-                        raise HTTPException(status_code=500, detail=f"MCP server error: {resp.status}")
-
-            # Now download the file using the CID
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.mcp_server_url}/tools/storage_download",
-                    json={"arguments": {"cid": cid, "local_path": f"/tmp/{file_path}"}}
-                ) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        local_file_path = data.get("local_path")
-                        if local_file_path and Path(local_file_path).exists():
-                            return FileResponse(
-                                path=local_file_path,
-                                filename=Path(file_path).name,
-                                media_type='application/octet-stream'
-                            )
-                        else:
-                            raise HTTPException(status_code=500, detail="File not downloaded correctly")
-                    else:
-                        raise HTTPException(status_code=500, detail=f"MCP server error: {resp.status}")
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            target_file = bucket_dir / file_path
+            
+            if not bucket_dir.exists():
+                raise HTTPException(status_code=404, detail="Bucket not found")
+            
+            if not target_file.exists():
+                raise HTTPException(status_code=404, detail="File not found")
+            
+            return FileResponse(
+                path=str(target_file),
+                filename=target_file.name,
+                media_type='application/octet-stream'
+            )
+            
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error downloading file: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
             raise HTTPException(status_code=500, detail=str(e))
     
     async def _delete_bucket_file(self, bucket_name: str, file_path: str) -> Dict[str, Any]:
@@ -7305,6 +7574,10 @@ class ComprehensiveMCPDashboard:
             
             logger.info(f"🔧 Calling MCP tool directly: {tool_name} with arguments: {arguments}")
             
+            # Handle bucket operations first
+            if tool_name.startswith("bucket_"):
+                return await self._handle_bucket_tool_direct(tool_name, arguments)
+            
             # Convert tool name to CLI command
             if tool_name == "ipfs_pin_ls":
                 cmd = ["ipfs", "pin", "ls"]
@@ -7346,6 +7619,111 @@ class ComprehensiveMCPDashboard:
             return {"success": False, "error": "Command timed out"}
         except Exception as e:
             logger.error(f"Error executing MCP tool {tool_name}: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _handle_bucket_tool_direct(self, tool_name: str, arguments: Dict[str, Any]):
+        """Handle bucket operations directly using filesystem operations."""
+        try:
+            logger.info(f"🪣 Handling bucket tool: {tool_name} with arguments: {arguments}")
+            
+            if tool_name == "bucket_create":
+                bucket_name = arguments.get("bucket_name")
+                bucket_type = arguments.get("bucket_type", "general")
+                vfs_structure = arguments.get("vfs_structure", "hybrid")
+                metadata = arguments.get("metadata", {})
+                
+                if not bucket_name:
+                    return {"success": False, "error": "bucket_name is required"}
+                
+                # Create bucket directory
+                bucket_dir = self.data_dir / "buckets" / bucket_name
+                if bucket_dir.exists():
+                    return {"success": False, "error": f"Bucket '{bucket_name}' already exists"}
+                
+                bucket_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Save metadata
+                metadata_file = bucket_dir / "metadata.json"
+                bucket_metadata = {
+                    "name": bucket_name,
+                    "type": bucket_type,
+                    "vfs_structure": vfs_structure,
+                    "created_at": datetime.now().isoformat(),
+                    "metadata": metadata
+                }
+                
+                with open(metadata_file, 'w') as f:
+                    json.dump(bucket_metadata, f, indent=2)
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "bucket_name": bucket_name,
+                        "type": bucket_type,
+                        "vfs_structure": vfs_structure,
+                        "created_at": bucket_metadata["created_at"]
+                    }
+                }
+                
+            elif tool_name == "bucket_list":
+                buckets = []
+                buckets_dir = self.data_dir / "buckets"
+                
+                if buckets_dir.exists():
+                    for bucket_dir in buckets_dir.iterdir():
+                        if bucket_dir.is_dir():
+                            # Read metadata
+                            metadata_file = bucket_dir / "metadata.json"
+                            if metadata_file.exists():
+                                try:
+                                    with open(metadata_file, 'r') as f:
+                                        bucket_info = json.load(f)
+                                except:
+                                    bucket_info = {"name": bucket_dir.name, "type": "unknown"}
+                            else:
+                                bucket_info = {"name": bucket_dir.name, "type": "unknown"}
+                            
+                            # Add file count
+                            file_count = len([f for f in bucket_dir.rglob("*") if f.is_file() and f.name != "metadata.json"])
+                            bucket_info["file_count"] = file_count
+                            
+                            buckets.append(bucket_info)
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "buckets": buckets
+                    }
+                }
+                
+            elif tool_name == "bucket_delete":
+                bucket_name = arguments.get("bucket_name")
+                force = arguments.get("force", False)
+                
+                if not bucket_name:
+                    return {"success": False, "error": "bucket_name is required"}
+                
+                bucket_dir = self.data_dir / "buckets" / bucket_name
+                if not bucket_dir.exists():
+                    return {"success": False, "error": f"Bucket '{bucket_name}' does not exist"}
+                
+                # Remove bucket directory and contents
+                import shutil
+                shutil.rmtree(bucket_dir)
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "bucket_name": bucket_name,
+                        "message": f"Bucket '{bucket_name}' deleted successfully"
+                    }
+                }
+                
+            else:
+                return {"success": False, "error": f"Unknown bucket tool: {tool_name}"}
+                
+        except Exception as e:
+            logger.error(f"Error handling bucket tool {tool_name}: {e}")
             return {"success": False, "error": str(e)}
 
     async def _get_pins_data(self) -> Dict[str, Any]:
