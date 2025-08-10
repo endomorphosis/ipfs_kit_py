@@ -12,6 +12,50 @@
 
 > 🎉 **Advanced Cluster Ready!** Production-tested 3-node cluster with leader election, master/worker/leecher role hierarchy, replication management, indexing services, and comprehensive Docker/Kubernetes deployment support. All cluster features validated and operational.
 
+> Note: A minimal consolidated MCP dashboard is included for lightweight local use. See CONSOLIDATED_MCP_DASHBOARD.md and start it via:
+> - Foreground: `ipfs-kit mcp start --foreground` or `python -m ipfs_kit_py.cli mcp start --foreground`
+> - Background: `ipfs-kit mcp start` or `python -m ipfs_kit_py.cli mcp start`
+> Then open http://127.0.0.1:8004/
+
+## 🖥️ Unified MCP Dashboard Quickstart
+
+Use the lightweight JSON-RPC-first dashboard to manage buckets, pins, backends, services, files, CARs, and logs. State is file-backed under `~/.ipfs_kit` for CLI parity.
+
+1) Start the dashboard server
+
+```bash
+# either CLI alias
+ipfs-kit mcp start --host 127.0.0.1 --port 8004
+
+# or module form
+python -m ipfs_kit_py.cli mcp start --host 127.0.0.1 --port 8004
+```
+
+2) Open the UI at http://127.0.0.1:8004/
+
+3) Endpoints available
+
+- UI: `/`
+- SDK: `/mcp-client.js` (inline UMD; app also loads `/static/mcp-sdk.js` if present)
+- Tools (JSON-RPC): `POST /mcp/tools/list`, `POST /mcp/tools/call`
+- Health: `GET /api/system/health`, `GET /api/mcp/status`
+- Logs: `GET /api/logs/stream` (SSE), `WS /ws`
+- Backends (file-backed): `GET/POST/DELETE /api/state/backends[...]`
+- Services: `GET /api/services`
+
+4) Panels in the SPA
+
+- Overview, Tools Explorer, Buckets, Pins, Backends, Services, Integrations, Files, CARs, Logs (with in-memory log buffer, log files list, and tail helpers)
+
+5) Data locations (by default)
+
+- `~/.ipfs_kit/buckets.json`, `~/.ipfs_kit/pins.json`
+- `~/.ipfs_kit/backend_configs/*.yaml`, `~/.ipfs_kit/backends/*.json`
+- `~/.ipfs_kit/files/` and per-bucket resolved paths
+- `~/.ipfs_kit/car_store/*.car`, `~/.ipfs_kit/logs/*.log`
+
+See `CONSOLIDATED_MCP_DASHBOARD.md` for details and `MCP_DASHBOARD_FEATURES_CHECKLIST.md` for coverage.
+
 ## 🌟 Key Features
 
 ### 🚀 **Cluster Management**

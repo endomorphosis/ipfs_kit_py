@@ -15,9 +15,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-# Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
-import mcp_error_handling
+from ipfs_kit_py.mcp import mcp_error_handling
 
 # Configure logger
 logger = logging.getLogger(__name__)

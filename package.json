@@ -1,5 +1,14 @@
 {
-  "dependencies": {
-    "@filoz/synapse-sdk": "^0.19.4"
+  "name": "ipfs_kit_py-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Playwright E2E tests for the consolidated MCP dashboard",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.46.0"
   }
 }

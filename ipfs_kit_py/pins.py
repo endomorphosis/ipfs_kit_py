@@ -934,6 +934,35 @@ class EnhancedPinMetadataIndex:
                 self.metrics["cache_misses"] += 1
                 return None
     
+    def get_all_pins(self) -> List[Dict[str, Any]]:
+        """Get all pins from the metadata index."""
+        try:
+            with self.lock:
+                # Return all pins from the in-memory cache
+                all_pins = []
+                for cid, pin_metadata in self.pin_metadata.items():
+                    pin_dict = {
+                        'cid': cid,
+                        'name': pin_metadata.name,
+                        'origin': pin_metadata.origin,
+                        'size': pin_metadata.size,
+                        'timestamp': pin_metadata.timestamp,
+                        'metadata': pin_metadata.metadata,
+                        'access_count': pin_metadata.access_count,
+                        'last_access': pin_metadata.last_access,
+                        'mount_point': getattr(pin_metadata, 'mount_point', None),
+                        'storage_metrics': getattr(pin_metadata, 'storage_metrics', {}),
+                        'optimization_metrics': getattr(pin_metadata, 'optimization_metrics', {})
+                    }
+                    all_pins.append(pin_dict)
+                
+                logger.info(f"Retrieved {len(all_pins)} pins from metadata index")
+                return all_pins
+                
+        except Exception as e:
+            logger.error(f"Error getting all pins: {e}")
+            return []
+    
     def get_vfs_analytics(self) -> Dict[str, Any]:
         """Get VFS-specific analytics."""
         try:

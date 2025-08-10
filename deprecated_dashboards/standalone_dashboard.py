@@ -42,7 +42,7 @@ def main():
     # Standalone configuration
     config = {
         'host': '127.0.0.1',
-        'port': 8086,
+        'port': 8085,
         'mcp_server_url': None,  # Forces standalone mode
         'data_dir': '~/.ipfs_kit',
         'debug': False,

@@ -17,7 +17,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
-from dataclasses import dataclass, field
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
+import socket
 
 # Import MCP dependencies with fallback
 try:
@@ -88,16 +90,24 @@ from .controllers.mcp_daemon_controller import MCPDaemonController
 from .controllers.mcp_storage_controller import MCPStorageController
 from .controllers.mcp_vfs_controller import MCPVFSController
 
+import psutil
+
 logger = logging.getLogger(__name__)
 
+def find_random_port(host='127.0.0.1'):
+    """Finds a random available port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, 0))
+        return s.getsockname()[1]
 
-@dataclass
 @dataclass
 class MCPServerConfig:
     """Configuration for the MCP Server."""
     data_dir: Path = field(default_factory=lambda: Path.home() / ".ipfs_kit")
     host: str = "127.0.0.1"
-    port: int = 3000
+    port: Optional[int] = None # None means find a random port
+    static_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / "mcp" / "dashboard_static")
+    template_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / "mcp" / "dashboard_templates")
     debug_mode: bool = False
     enable_stdio: bool = True
     enable_websocket: bool = False
@@ -138,28 +148,30 @@ class MCPServer:
         """Initialize the refactored MCP server."""
         self.config = config or MCPServerConfig()
         self.server = Server("ipfs-kit-mcp")
-        
+        # Expose a logger attribute for HTTP handlers
+        self.logger = logger
+
         # Initialize MCP config manager
         from .models.mcp_config_manager import get_mcp_config_manager
         self.config_manager = get_mcp_config_manager(self.config.data_dir)
-        
+
         # Initialize core components aligned with CLI
         self.metadata_manager = MCPMetadataManager(self.config.data_dir)
         self.daemon_service = MCPDaemonService(self.config.data_dir)
-        
+
         # Initialize controllers that mirror CLI commands
         self.cli_controller = MCPCLIController(self.metadata_manager, self.daemon_service)
         self.backend_controller = MCPBackendController(self.metadata_manager, self.daemon_service)
         self.daemon_controller = MCPDaemonController(self.metadata_manager, self.daemon_service)
         self.storage_controller = MCPStorageController(self.metadata_manager, self.daemon_service)
         self.vfs_controller = MCPVFSController(self.metadata_manager, self.daemon_service)
-        
+
         # Register MCP tools that mirror CLI commands
         self._register_mcp_tools()
-        
+
         # Set up signal handlers
         self._setup_signal_handlers()
-        
+
         logger.info(f"MCP Server initialized with data_dir: {self.config.data_dir}")
     
     def _register_mcp_tools(self) -> None:
@@ -507,8 +519,11 @@ class MCPServer:
                 self.server.create_initialization_options()
             )
     
-    async def start_daemon_mode(self, host: str = "127.0.0.1", port: int = 3000) -> None:
+    async def start_daemon_mode(self, host: str = "127.0.0.1", port: Optional[int] = None) -> None:
         """Start the MCP server in daemon mode with HTTP status endpoint."""
+        if port is None:
+            port = find_random_port(host)
+
         logger.info(f"Starting MCP server in daemon mode on {host}:{port}")
         
         # Initialize daemon service interface
@@ -516,13 +531,14 @@ class MCPServer:
         
         # Create a simple HTTP server for status and health checks
         try:
-            from http.server import HTTPServer, BaseHTTPRequestHandler
-            import threading
-            import json
-            
             class MCPStatusHandler(BaseHTTPRequestHandler):
                 def do_GET(self):
-                    if self.path == '/health':
+                    self.server.mcp_server.logger.debug(f"Received GET request for path: {self.path}")
+                    if self.path == '/':
+                        self._serve_html_template('unified_dashboard.html')
+                    elif self.path.startswith('/static/'):
+                        self._serve_static_file(self.path[len('/static/'):])
+                    elif self.path == '/health':
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
@@ -536,22 +552,7 @@ class MCPServer:
                         }
                         self.wfile.write(json.dumps(status).encode())
                     elif self.path == '/status':
-                        self.send_response(200)
-                        self.send_header('Content-type', 'application/json')
-                        self.end_headers()
-                        
-                        # Get daemon status
-                        daemon_status = asyncio.run(self.server.mcp_server.daemon_service.get_daemon_status())
-                        backends = asyncio.run(self.server.mcp_server.metadata_manager.get_backend_metadata())
-                        
-                        status = {
-                            "mcp_server": "running",
-                            "daemon_running": daemon_status.is_running,
-                            "daemon_role": daemon_status.role,
-                            "backend_count": len(backends),
-                            "timestamp": datetime.now().isoformat()
-                        }
-                        self.wfile.write(json.dumps(status).encode())
+                        self._handle_status_api()
                     elif self.path == '/api/backends':
                         self._handle_backends_api()
                     elif self.path == '/api/services':
@@ -560,29 +561,145 @@ class MCPServer:
                         self._handle_buckets_api()
                     elif self.path == '/api/tools':
                         self._handle_tools_api()
+                    elif self.path == '/api/jsonrpc':
+                        # JSON-RPC is primarily POST, but allow GET for basic checks
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"jsonrpc": "2.0", "result": "JSON-RPC endpoint active", "id": None}).encode())
+                    elif self.path == '/api/pins':
+                        self._handle_pins_api_get()
+                    elif self.path.startswith('/api/pins/'):
+                        self._handle_pins_api_delete()
                     elif self.path.startswith('/tools/'):
                         self._handle_mcp_tools()
+                    elif self.path == '/api/system/overview':
+                        self._handle_system_overview_api()
+                    elif self.path == '/api/system/metrics':
+                        self._handle_system_metrics_api()
                     elif self.path.startswith('/api/'):
                         # All other API endpoints
                         self._handle_generic_api()
                     else:
                         self.send_response(404)
                         self.end_headers()
-                
+
+                def _serve_html_template(self, template_name):
+                    template_path = self.server.mcp_server.config.template_dir / template_name
+                    if template_path.exists():
+                        self.send_response(200)
+                        self.send_header('Content-type', 'text/html')
+                        self.end_headers()
+                        with open(template_path, 'rb') as f:
+                            self.wfile.write(f.read())
+                    else:
+                        self.send_response(404)
+                        self.end_headers()
+
+                def _serve_static_file(self, file_path):
+                    full_path = self.server.mcp_server.config.static_dir / file_path
+                    if full_path.exists():
+                        content_type = 'application/octet-stream'
+                        if file_path.endswith('.js'):
+                            content_type = 'application/javascript'
+                        elif file_path.endswith('.css'):
+                            content_type = 'text/css'
+                        elif file_path.endswith('.png'):
+                            content_type = 'image/png'
+                        elif file_path.endswith('.jpg') or file_path.endswith('.jpeg'):
+                            content_type = 'image/jpeg'
+                        elif file_path.endswith('.gif'):
+                            content_type = 'image/gif'
+                        elif file_path.endswith('.svg'):
+                            content_type = 'image/svg+xml'
+                        elif file_path.endswith('.ico'):
+                            content_type = 'image/x-icon'
+
+                        self.send_response(200)
+                        self.send_header('Content-type', content_type)
+                        self.end_headers()
+                        with open(full_path, 'rb') as f:
+                            self.wfile.write(f.read())
+                    else:
+                        self.send_response(404)
+                        self.end_headers()
+
                 def do_POST(self):
-                    if self.path.startswith('/tools/'):
+                    self.server.mcp_server.logger.debug(f"Received POST request for path: {self.path}")
+                    if self.path == '/api/jsonrpc':
+                        self._handle_jsonrpc_api()
+                    elif self.path == '/api/pins':
+                        self._handle_pins_api_post()
+                    elif self.path.startswith('/tools/'):
                         self._handle_mcp_tools()
                     else:
                         self.send_response(404)
                         self.end_headers()
+
+                def _handle_jsonrpc_api(self):
+                    try:
+                        content_length = int(self.headers.get('Content-Length', 0))
+                        if content_length == 0:
+                            self.send_response(400)
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error: Empty request body"}}).encode())
+                            return
+
+                        post_data = self.rfile.read(content_length)
+                        request_data = json.loads(post_data.decode('utf-8'))
+
+                        method = request_data.get('method')
+                        params = request_data.get('params', {})
+                        request_id = request_data.get('id', None)
+
+                        result = None
+                        error = None
+
+                        if method == 'ipfs.pin.ls':
+                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.list_pins(params), self.server.async_loop).result()
+                        elif method == 'ipfs.pin.add':
+                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.add_pin(params), self.server.async_loop).result()
+                        elif method == 'ipfs.pin.verify':
+                            # Placeholder for verify
+                            result = {"verified_pins": 0, "total_pins": 0}
+                        elif method == 'ipfs.pin.cleanup':
+                            # Placeholder for cleanup
+                            result = {"total_cleaned": 0}
+                        elif method == 'ipfs.pin.export_metadata':
+                            # Placeholder for export
+                            result = {"shards_created": 0}
+                        else:
+                            error = {"code": -32601, "message": f"Method not found: {method}"}
+
+                        if error:
+                            self.send_response(200)
+                            self.send_header('Content-type', 'application/json')
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"jsonrpc": "2.0", "error": error, "id": request_id}).encode())
+                        else:
+                            self.send_response(200)
+                            self.send_header('Content-type', 'application/json')
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"jsonrpc": "2.0", "result": result, "id": request_id}).encode())
+
+                    except json.JSONDecodeError:
+                        self.send_response(400)
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error: Invalid JSON"}}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"jsonrpc": "2.0", "error": {"code": -32000, "message": str(e)}, "id": request_id}).encode())
                 
                 def _handle_backends_api(self):
                     try:
-                        backends = asyncio.run(self.server.mcp_server.backend_controller.list_backends({}))
+                        backends = asyncio.run_coroutine_threadsafe(self.server.mcp_server.backend_controller.list_backends({}), self.server.async_loop).result()
+                        # dashboard.js expects a 'backends' key in the response
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
-                        self.wfile.write(json.dumps(backends).encode())
+                        self.wfile.write(json.dumps({"backends": backends}).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header('Content-type', 'application/json')
@@ -592,7 +709,7 @@ class MCPServer:
                 def _handle_services_api(self):
                     try:
                         # Get services status from daemon
-                        daemon_status = asyncio.run(self.server.mcp_server.daemon_service.get_daemon_status())
+                        daemon_status = asyncio.run_coroutine_threadsafe(self.server.mcp_server.daemon_service.get_daemon_status(), self.server.async_loop).result()
                         services = {
                             "ipfs": {
                                 "status": "running" if daemon_status.services.get("ipfs", False) else "stopped",
@@ -608,10 +725,11 @@ class MCPServer:
                                 "role": daemon_status.role
                             }
                         }
+                        # dashboard.js expects a 'services' key in the response
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
-                        self.wfile.write(json.dumps(services).encode())
+                        self.wfile.write(json.dumps({"services": services}).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header('Content-type', 'application/json')
@@ -620,36 +738,70 @@ class MCPServer:
                 
                 def _handle_buckets_api(self):
                     try:
-                        buckets = asyncio.run(self.server.mcp_server.storage_controller.list_storage({}))
+                        buckets = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.list_buckets({}), self.server.async_loop).result()
+                        # dashboard.js expects a 'buckets' key in the response
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
-                        self.wfile.write(json.dumps(buckets).encode())
+                        self.wfile.write(json.dumps({"buckets": buckets}).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
                         self.wfile.write(json.dumps({"error": str(e)}).encode())
                 
+                def _handle_status_api(self):
+                    try:
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        
+                        # Get daemon status
+                        daemon_status = asyncio.run_coroutine_threadsafe(self.server.mcp_server.daemon_service.get_daemon_status(), self.server.async_loop).result()
+                        backends = asyncio.run_coroutine_threadsafe(self.server.mcp_server.metadata_manager.get_backend_metadata(), self.server.async_loop).result()
+                        
+                        status = {
+                            "mcp_server": "running",
+                            "daemon_running": daemon_status.is_running,
+                            "daemon_role": daemon_status.role,
+                            "backend_count": len(backends),
+                            "timestamp": datetime.now().isoformat()
+                        }
+                        self.wfile.write(json.dumps(status).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
                 def _handle_tools_api(self):
                     try:
-                        tools = [
-                            {"name": "backend_list", "description": "List all storage backends"},
-                            {"name": "bucket_list", "description": "List all buckets"},
-                            {"name": "daemon_status", "description": "Get daemon status"},
-                            {"name": "vfs_browse", "description": "Browse VFS structure"},
-                            {"name": "cli_execute", "description": "Execute CLI commands"}
-                        ]
+                        # Dynamically get all registered tools
+                        all_tools = []
+                        # Access the MCPServer's embedded Server instance where tools are registered
+                        registered = getattr(self.server.mcp_server.server, "_tools", [])
+                        for tool_func in registered:
+                            all_tools.extend(asyncio.run_coroutine_threadsafe(tool_func(), self.server.async_loop).result())
+                        
+                        # Convert Tool objects to dictionaries for JSON serialization
+                        tools_data = []
+                        for tool in all_tools:
+                            tools_data.append({
+                                "name": tool.name,
+                                "description": tool.description,
+                                "inputSchema": tool.inputSchema
+                            })
+
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
-                        self.wfile.write(json.dumps(tools).encode())
+                        self.wfile.write(json.dumps(tools_data).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
                         self.wfile.write(json.dumps({"error": str(e)}).encode())
-                
+
                 def _handle_mcp_tools(self):
                     try:
                         tool_name = self.path.split('/tools/')[-1]
@@ -666,17 +818,19 @@ class MCPServer:
                         else:
                             arguments = {}
                         
-                        # Route tool calls to appropriate controllers
-                        if tool_name == 'daemon_status':
-                            result = asyncio.run(self.server.mcp_server.daemon_controller.get_daemon_status(arguments))
-                        elif tool_name == 'backend_list':
-                            result = asyncio.run(self.server.mcp_server.backend_controller.list_backends(arguments))
-                        elif tool_name == 'storage_list':
-                            result = asyncio.run(self.server.mcp_server.storage_controller.list_storage(arguments))
-                        elif tool_name == 'vfs_browse':
-                            result = asyncio.run(self.server.mcp_server.vfs_controller.browse_vfs(arguments))
-                        elif tool_name == 'cli_execute':
-                            result = asyncio.run(self.server.mcp_server.cli_controller.execute_command(arguments))
+                        # Dynamically route tool calls to appropriate controllers
+                        if tool_name.startswith("backend_"):
+                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.backend_controller.handle_tool_call(tool_name, arguments), self.server.async_loop).result()
+                        elif tool_name.startswith("storage_"):
+                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.storage_controller.handle_tool_call(tool_name, arguments), self.server.async_loop).result()
+                        elif tool_name.startswith("daemon_"):
+                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.daemon_controller.handle_tool_call(tool_name, arguments), self.server.async_loop).result()
+                        elif tool_name.startswith("vfs_"):
+                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.vfs_controller.handle_tool_call(tool_name, arguments), self.server.async_loop).result()
+                        elif tool_name.startswith("pin_"):
+                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.handle_pin_tool_call(tool_name, arguments), self.server.async_loop).result()
+                        elif tool_name.startswith("bucket_"):
+                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.handle_bucket_tool_call(tool_name, arguments), self.server.async_loop).result()
                         else:
                             result = {"error": f"Unknown tool: {tool_name}"}
                         
@@ -692,23 +846,144 @@ class MCPServer:
                         self.wfile.write(json.dumps({"error": str(e)}).encode())
                 
                 def _handle_generic_api(self):
-                    # Return success for now to prevent 501 errors
+                    # Return 404 for now to prevent unexpected behavior
+                    self.send_response(404)
+                    self.end_headers()
+                        
+                def _handle_system_overview_api(self):
                     try:
+                        # Get system metrics using psutil
+                        cpu_percent = psutil.cpu_percent(interval=0.1)
+                        memory = psutil.virtual_memory()
+                        disk = psutil.disk_usage('/')
+
+                        # Get services and backends count from MCP server
+                        services_count = len(self.server.mcp_server.daemon_service.get_services_status().services)
+                        backends_count = len(self.server.mcp_server.metadata_manager.get_backend_metadata())
+                        buckets_count = len(asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.list_buckets({}), self.server.async_loop).result())
+
+                        # Get IPFS peer ID and addresses (if daemon is running)
+                        ipfs_status = asyncio.run_coroutine_threadsafe(self.server.mcp_server.daemon_service.get_daemon_status(), self.server.async_loop).result()
+                        peer_id = ipfs_status.peer_id if ipfs_status.is_running else None
+                        addresses = ipfs_status.addresses if ipfs_status.is_running else []
+
+                        overview_data = {
+                            "services": services_count,
+                            "backends": backends_count,
+                            "buckets": buckets_count,
+                            "system": {
+                                "cpu": {
+                                    "usage": cpu_percent
+                                },
+                                "memory": {
+                                    "percent": memory.percent,
+                                    "used": memory.used,
+                                    "total": memory.total
+                                },
+                                "disk": {
+                                    "percent": disk.percent,
+                                    "used": disk.used,
+                                    "total": disk.total
+                                }
+                            },
+                            "peer_id": peer_id,
+                            "addresses": addresses,
+                            "timestamp": datetime.now().isoformat()
+                        }
+
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
-                        response = {
-                            "status": "ok",
-                            "endpoint": self.path,
-                            "message": "API endpoint available"
-                        }
-                        self.wfile.write(json.dumps(response).encode())
+                        self.wfile.write(json.dumps(overview_data).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
                         self.wfile.write(json.dumps({"error": str(e)}).encode())
-                        
+
+                def _handle_system_metrics_api(self):
+                    try:
+                        # Get network metrics using psutil
+                        net_io_counters = psutil.net_io_counters()
+                        network_data = {
+                            "network": {
+                                "sent": net_io_counters.bytes_sent,
+                                "recv": net_io_counters.bytes_recv
+                            },
+                            "timestamp": datetime.now().isoformat()
+                        }
+
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(network_data).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                def _handle_pins_api_get(self):
+                    try:
+                        # Get the list of pins from the CLI controller and return the raw list for parity with tools
+                        pins_result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.list_pins({}), self.server.async_loop).result()
+                        # pins_result is a dict with a 'pins' key per controller contract
+                        pins = pins_result.get('pins', []) if isinstance(pins_result, dict) else pins_result
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(pins).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                def _handle_pins_api_post(self):
+                    try:
+                        content_length = int(self.headers.get('Content-Length', 0))
+                        post_data = self.rfile.read(content_length)
+                        request_data = json.loads(post_data.decode('utf-8'))
+                        cid = request_data.get('cid')
+                        name = request_data.get('name')
+
+                        if not cid:
+                            self.send_response(400)
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": False, "error": "CID is required"}).encode())
+                            return
+
+                        result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.add_pin({"cid_or_file": cid, "name": name}), self.server.async_loop).result()
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True, "result": result}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
+                def _handle_pins_api_delete(self):
+                    try:
+                        cid = self.path.split('/api/pins/')[-1]
+                        if not cid:
+                            self.send_response(400)
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": False, "error": "CID is required"}).encode())
+                            return
+
+                        result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.remove_pin({"cid": cid}), self.server.async_loop).result()
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True, "result": result}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
                 def log_message(self, format, *args):
                     # Suppress default HTTP server logs
                     pass
@@ -717,12 +992,13 @@ class MCPServer:
             MCPStatusHandler.server_class = type('MCPServerRef', (), {'mcp_server': self})
             
             # Create HTTP server
+            loop = asyncio.get_running_loop()
             httpd = HTTPServer((host, port), MCPStatusHandler)
             httpd.mcp_server = self
+            httpd.async_loop = loop
             
             logger.info(f"MCP server daemon mode started on http://{host}:{port}")
-            logger.info(f"Health check: http://{host}:{port}/health")
-            logger.info(f"Status check: http://{host}:{port}/status")
+            print(f"MCP_SERVER_PORT:{port}")
             
             # Save PID file for management
             pid_file = self.config.data_dir / "mcp_server.pid"
@@ -731,7 +1007,10 @@ class MCPServer:
             
             # Run HTTP server
             def run_server():
-                httpd.serve_forever()
+                try:
+                    httpd.serve_forever()
+                except Exception as e:
+                    print(f"Error in HTTP server thread: {e}")
             
             server_thread = threading.Thread(target=run_server, daemon=True)
             server_thread.start()
@@ -796,7 +1075,7 @@ async def main():
                        help="Run as daemon (keeps running for CLI management)")
     parser.add_argument("--host", type=str, default="127.0.0.1",
                        help="Host for WebSocket server")
-    parser.add_argument("--port", type=int, default=3000,
+    parser.add_argument("--port", type=int, default=None, # Changed default to None
                        help="Port for WebSocket server")
     
     args = parser.parse_args()
@@ -815,7 +1094,7 @@ async def main():
         daemon_sync_enabled=not args.no_daemon_sync,
         enable_websocket=args.websocket,
         host=args.host,
-        port=args.port
+        port=args.port # Pass port from args
     )
     
     # Create and start server

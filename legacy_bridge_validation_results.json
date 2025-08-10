@@ -1,0 +1,187 @@
+{
+  "validation_results": {
+    "pin.list": {
+      "implemented": false,
+      "scenarios_passed": 0,
+      "scenarios_total": 2,
+      "errors": [
+        "Scenario 1: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]",
+        "Scenario 2: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+      ],
+      "responses": [
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        },
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        }
+      ]
+    },
+    "pin.add": {
+      "implemented": false,
+      "scenarios_passed": 0,
+      "scenarios_total": 2,
+      "errors": [
+        "Scenario 1: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]",
+        "Scenario 2: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+      ],
+      "responses": [
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        },
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        }
+      ]
+    },
+    "bucket.list": {
+      "implemented": false,
+      "scenarios_passed": 0,
+      "scenarios_total": 2,
+      "errors": [
+        "Scenario 1: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]",
+        "Scenario 2: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+      ],
+      "responses": [
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        },
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        }
+      ]
+    },
+    "bucket.create": {
+      "implemented": false,
+      "scenarios_passed": 0,
+      "scenarios_total": 2,
+      "errors": [
+        "Scenario 1: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]",
+        "Scenario 2: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+      ],
+      "responses": [
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        },
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        }
+      ]
+    },
+    "pin.get_metadata": {
+      "implemented": false,
+      "scenarios_passed": 0,
+      "scenarios_total": 2,
+      "errors": [
+        "Scenario 1: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]",
+        "Scenario 2: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+      ],
+      "responses": [
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        },
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        }
+      ]
+    },
+    "bucket.info": {
+      "implemented": false,
+      "scenarios_passed": 0,
+      "scenarios_total": 2,
+      "errors": [
+        "Scenario 1: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]",
+        "Scenario 2: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+      ],
+      "responses": [
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        },
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        }
+      ]
+    },
+    "backend.status": {
+      "implemented": false,
+      "scenarios_passed": 0,
+      "scenarios_total": 2,
+      "errors": [
+        "Scenario 1: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]",
+        "Scenario 2: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+      ],
+      "responses": [
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        },
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        }
+      ]
+    },
+    "bucket.search": {
+      "implemented": false,
+      "scenarios_passed": 0,
+      "scenarios_total": 2,
+      "errors": [
+        "Scenario 1: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]",
+        "Scenario 2: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+      ],
+      "responses": [
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        },
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        }
+      ]
+    },
+    "analytics.dashboard": {
+      "implemented": false,
+      "scenarios_passed": 0,
+      "scenarios_total": 2,
+      "errors": [
+        "Scenario 1: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]",
+        "Scenario 2: Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+      ],
+      "responses": [
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        },
+        {
+          "success": false,
+          "error": "Request failed: Cannot connect to host 127.0.0.1:8005 ssl:default [Connect call failed ('127.0.0.1', 8005)]"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "timestamp": "2025-08-07 15:11:31",
+    "validation_duration_seconds": 0.01,
+    "total_features": 9,
+    "implemented_features": 0,
+    "implementation_rate_percent": 0.0,
+    "total_scenarios": 18,
+    "passed_scenarios": 0,
+    "scenario_success_rate_percent": 0.0,
+    "total_errors": 18,
+    "status": "FAIL"
+  }
+}

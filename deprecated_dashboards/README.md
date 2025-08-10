@@ -11,7 +11,7 @@ The old architecture used separate ports for:
 
 ## New unified architecture
 
-The new unified MCP dashboard (`ipfs_kit_py/unified_mcp_dashboard.py`) provides:
+The new unified MCP dashboard is consolidated in `consolidated_mcp_dashboard.py` and runnable via the CLI (`python -m ipfs_kit_py.cli mcp start`). It provides:
 - **Single port operation** (8004) for both MCP and dashboard
 - **Direct MCP command integration** (no WebSockets needed)
 - **Modern aesthetic design** with pleasing color gradients
@@ -21,8 +21,8 @@ The new unified MCP dashboard (`ipfs_kit_py/unified_mcp_dashboard.py`) provides:
 ## How to use the new dashboard
 
 ```bash
-# Start the unified MCP server + dashboard
-ipfs-kit mcp start
+# Start the consolidated MCP server + dashboard
+python -m ipfs_kit_py.cli mcp start
 
 # Check status
 ipfs-kit mcp status  

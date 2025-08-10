@@ -397,10 +397,19 @@ class UnifiedBucketInterface:
                 error=f"Failed to add pin: {str(e)}"
             )
     
-    async def list_backend_buckets(
-        self,
-        backend: Optional[BackendType] = None
-    ) -> Dict[str, Any]:
+    async def list_all_pins(self) -> Dict[str, Any]:
+        """List all pins across all managed buckets."""
+        if not self.global_pin_index:
+            return create_result_dict("list_all_pins", success=False, error="Global pin index not initialized")
+
+        try:
+            all_pins = self.global_pin_index.get_all_pins()
+            return create_result_dict("list_all_pins", success=True, data={"pins": all_pins})
+        except Exception as e:
+            logger.error(f"Error listing all pins: {e}")
+            return create_result_dict("list_all_pins", success=False, error=str(e))
+    
+    async def list_backend_buckets(self, backend: Optional[BackendType] = None) -> Dict[str, Any]:
         """
         List buckets, optionally filtered by backend.
         
@@ -456,6 +465,129 @@ class UnifiedBucketInterface:
                 error=f"Failed to list buckets: {str(e)}"
             )
     
+    async def list_all_pins(self) -> Dict[str, Any]:
+        """List all pins across all managed buckets."""
+        if not self.global_pin_index:
+            return create_result_dict("list_all_pins", success=False, error="Global pin index not initialized")
+
+        try:
+            all_pins = self.global_pin_index.get_all_pins()
+            return create_result_dict("list_all_pins", success=True, data={"pins": all_pins})
+        except Exception as e:
+            logger.error(f"Error listing all pins: {e}")
+            return create_result_dict("list_all_pins", success=False, error=str(e))
+
+    async def remove_pin(self, cid: str) -> Dict[str, Any]:
+        """Remove a pin by CID."""
+        if not self.global_pin_index:
+            return create_result_dict("remove_pin", success=False, error="Global pin index not initialized")
+
+        try:
+            result = self.global_pin_index.remove_pin(cid)
+            if result["success"]:
+                return create_result_dict("remove_pin", success=True, message=f"Pin {cid} removed successfully.")
+            else:
+                return create_result_dict("remove_pin", success=False, error=result["error"])
+        except Exception as e:
+            logger.error(f"Error removing pin {cid}: {e}")
+            return create_result_dict("remove_pin", success=False, error=str(e))
+
+    async def update_bucket(
+        self,
+        bucket_name: str,
+        backend_config: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Update an existing bucket's configuration or metadata."""
+        if bucket_name not in self.bucket_registry:
+            return create_result_dict("update_bucket", success=False, error=f"Bucket '{bucket_name}' not found")
+
+        try:
+            bucket_info = self.bucket_registry[bucket_name]
+            
+            # Update backend_config and metadata
+            if backend_config is not None:
+                bucket_info["backend_config"] = {**bucket_info.get("backend_config", {}), **backend_config}
+            if metadata is not None:
+                bucket_info["metadata"] = {**bucket_info.get("metadata", {}), **metadata}
+            
+            bucket_info["last_modified"] = datetime.utcnow().isoformat()
+
+            # Save updated registry
+            await self._save_bucket_registry()
+            
+            # Update the underlying bucket VFS manager if necessary
+            bucket_manager = self.bucket_vfs_managers.get(bucket_name)
+            if bucket_manager:
+                # Assuming BucketVFSManager has an update_bucket_metadata method
+                # This might need to be implemented in BucketVFSManager if it doesn't exist
+                if hasattr(bucket_manager, 'update_bucket_metadata'):
+                    await bucket_manager.update_bucket_metadata(bucket_name, metadata=bucket_info["metadata"])
+
+            return create_result_dict("update_bucket", success=True, message=f"Bucket '{bucket_name}' updated successfully.")
+        except Exception as e:
+            logger.error(f"Error updating bucket {bucket_name}: {e}")
+            return create_result_dict("update_bucket", success=False, error=str(e))
+
+    async def get_content_from_bucket(self, bucket_name: str, file_path: str) -> Dict[str, Any]:
+        """Get content of a file from a specific bucket."""
+        if bucket_name not in self.bucket_registry:
+            return create_result_dict("get_content_from_bucket", success=False, error=f"Bucket '{bucket_name}' not found")
+
+        try:
+            bucket_manager = self.bucket_vfs_managers.get(bucket_name)
+            if not bucket_manager:
+                return create_result_dict("get_content_from_bucket", success=False, error=f"Bucket manager for '{bucket_name}' not initialized")
+
+            bucket = await bucket_manager.get_bucket(bucket_name)
+            if not bucket:
+                return create_result_dict("get_content_from_bucket", success=False, error=f"Bucket '{bucket_name}' not found in manager")
+
+            content_result = await bucket.get_file_content(file_path)
+            if content_result["success"]:
+                return create_result_dict("get_content_from_bucket", success=True, data={"content": content_result["data"], "content_type": "application/octet-stream"}) # Default content type
+            else:
+                return create_result_dict("get_content_from_bucket", success=False, error=content_result["error"])
+        except Exception as e:
+            logger.error(f"Error getting content from bucket {bucket_name}/{file_path}: {e}")
+            return create_result_dict("get_content_from_bucket", success=False, error=str(e))
+
+    async def delete_bucket(self, bucket_name: str) -> Dict[str, Any]:
+        """Delete a bucket and its associated data."""
+        if bucket_name not in self.bucket_registry:
+            return create_result_dict("delete_bucket", success=False, error=f"Bucket '{bucket_name}' not found")
+
+        try:
+            bucket_info = self.bucket_registry[bucket_name]
+            storage_path = Path(bucket_info["storage_path"])
+            vfs_index_path = Path(bucket_info["vfs_index_path"])
+            pin_metadata_path = Path(bucket_info["pin_metadata_path"])
+
+            # Remove directories
+            import shutil
+            if storage_path.exists():
+                shutil.rmtree(storage_path)
+            if vfs_index_path.exists():
+                shutil.rmtree(vfs_index_path)
+            if pin_metadata_path.exists():
+                shutil.rmtree(pin_metadata_path)
+
+            # Remove from registry
+            del self.bucket_registry[bucket_name]
+            await self._save_bucket_registry()
+
+            # Remove from bucket_vfs_managers if present
+            if bucket_name in self.bucket_vfs_managers:
+                del self.bucket_vfs_managers[bucket_name]
+
+            # Update global indices
+            await self._update_global_indices()
+
+            return create_result_dict("delete_bucket", success=True, message=f"Bucket '{bucket_name}' and its data deleted successfully.")
+        except Exception as e:
+            logger.error(f"Error deleting bucket {bucket_name}: {e}")
+            return create_result_dict("delete_bucket", success=False, error=str(e))
+
     async def query_across_backends(
         self,
         sql_query: str,

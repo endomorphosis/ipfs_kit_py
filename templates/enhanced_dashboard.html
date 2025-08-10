@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFS Kit - Comprehensive MCP Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-running { background-color: #10b981; }
+        .status-stopped { background-color: #ef4444; }
+        .status-warning { background-color: #f59e0b; }
+        .status-unknown { background-color: #6b7280; }
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-left: 3px solid #e5e7eb;
+            margin-bottom: 2px;
+        }
+        .log-entry.error { border-left-color: #ef4444; background-color: #fef2f2; }
+        .log-entry.warning { border-left-color: #f59e0b; background-color: #fffbeb; }
+        .log-entry.info { border-left-color: #3b82f6; background-color: #eff6ff; }
+        .log-entry.debug { border-left-color: #6b7280; background-color: #f9fafb; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen flex">
+        <!-- Enhanced Sidebar -->
+        <div class="w-64 bg-white shadow-lg">
+            <div class="p-6">
+                <h1 class="text-xl font-bold text-gray-800">🚀 IPFS Kit</h1>
+                <p class="text-sm text-gray-600">Comprehensive MCP Dashboard</p>
+                <div class="mt-2">
+                    <span class="status-indicator status-running"></span>
+                    <span class="text-sm text-green-600">MCP Server Active</span>
+                </div>
+            </div>
+            <nav class="mt-6">
+                <div class="px-6 space-y-2">
+                    <button class="tab-button w-full text-left px-4 py-2 rounded bg-blue-500 text-white" data-tab="overview">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Overview
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="services">
+                        <i class="fas fa-cogs mr-2"></i>Services
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="backends">
+                        <i class="fas fa-server mr-2"></i>Backends
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="buckets">
+                        <i class="fas fa-folder mr-2"></i>Buckets
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="pins">
+                        <i class="fas fa-thumbtack mr-2"></i>Pin Management
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="peers">
+                        <i class="fas fa-network-wired mr-2"></i>Peer Management
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="logs">
+                        <i class="fas fa-file-alt mr-2"></i>Logs
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="analytics">
+                        <i class="fas fa-chart-bar mr-2"></i>Analytics
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="config">
+                        <i class="fas fa-wrench mr-2"></i>Configuration
+                    </button>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-6">
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- System Metrics -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h2 class="text-xl font-bold text-gray-800 mb-4">System Metrics</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
+                                    <div class="text-2xl font-bold" id="cpu-usage">-</div>
+                                    <div class="text-sm opacity-90">CPU Usage</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg">
+                                    <div class="text-2xl font-bold" id="memory-usage">-</div>
+                                    <div class="text-sm opacity-90">Memory Usage</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg">
+                                    <div class="text-2xl font-bold" id="disk-usage">-</div>
+                                    <div class="text-sm opacity-90">Disk Usage</div>
+                                </div>
+                            </div>
+                            <canvas id="metricsChart" height="100"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div>
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">Quick Actions</h3>
+                            <div class="space-y-3">
+                                <button class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-sync-alt mr-2"></i>Refresh All Data
+                                </button>
+                                <button class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-plus mr-2"></i>Add New Pin
+                                </button>
+                                <button class="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-folder-plus mr-2"></i>Create Bucket
+                                </button>
+                                <button class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-tools mr-2"></i>System Health Check
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Recent Activity -->
+                        <div class="bg-white rounded-lg shadow p-6 mt-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">Recent Activity</h3>
+                            <div id="recent-activity" class="space-y-2 text-sm">
+                                <div class="text-gray-500">Loading recent activity...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Services Tab -->
+            <div id="services" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Service Management</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="services-grid">
+                        <!-- Services will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backends Tab -->
+            <div id="backends" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Backend Health & Management</h2>
+                    <div class="mb-4">
+                        <button id="refresh-backends" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                        <button id="test-all-backends" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-vial mr-2"></i>Test All
+                        </button>
+                    </div>
+                    <div id="backends-list" class="space-y-4">
+                        <!-- Backends will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buckets Tab -->
+            <div id="buckets" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Bucket Management</h2>
+                    <div class="mb-4">
+                        <button id="refresh-buckets" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                        <button id="create-bucket" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-plus mr-2"></i>Create Bucket
+                        </button>
+                    </div>
+                    <div id="buckets-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Buckets will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pin Management Tab -->
+            <div id="pins" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Pin Management Dashboard</h2>
+                    
+                    <!-- Pin Operations Toolbar -->
+                    <div class="flex flex-wrap gap-2 mb-6 p-4 bg-gray-50 rounded-lg">
+                        <button id="refresh-pins" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                        <button id="add-pin" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-plus mr-2"></i>Add Pin
+                        </button>
+                        <button id="bulk-operations" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-layer-group mr-2"></i>Bulk Ops
+                        </button>
+                        <button id="verify-pins" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-check-circle mr-2"></i>Verify
+                        </button>
+                    </div>
+                    
+                    <!-- Pin Statistics -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="total-pins">-</div>
+                            <div class="text-sm opacity-90">Total Pins</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="active-pins">-</div>
+                            <div class="text-sm opacity-90">Active Pins</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="pending-pins">-</div>
+                            <div class="text-sm opacity-90">Pending</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="total-storage">-</div>
+                            <div class="text-sm opacity-90">Storage Used</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pins List -->
+                    <div id="pins-list" class="space-y-3">
+                        <div class="text-gray-500 text-center py-8">
+                            <i class="fas fa-thumbtack text-4xl mb-4"></i>
+                            <div>Click "Refresh" to load pins...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Peer Management Tab -->
+            <div id="peers" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Peer Management</h2>
+                    <div class="mb-4">
+                        <button id="refresh-peers" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh Peers
+                        </button>
+                        <button id="connect-peer" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-link mr-2"></i>Connect Peer
+                        </button>
+                    </div>
+                    <div id="peers-list" class="space-y-4">
+                        <!-- Peers will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div id="logs" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Real-time Logs</h2>
+                    
+                    <!-- Log Controls -->
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <select id="log-component" class="border rounded px-3 py-1">
+                            <option value="all">All Components</option>
+                            <option value="ipfs_kit_py">IPFS Kit</option>
+                            <option value="mcp">MCP Server</option>
+                            <option value="dashboard">Dashboard</option>
+                        </select>
+                        <select id="log-level" class="border rounded px-3 py-1">
+                            <option value="all">All Levels</option>
+                            <option value="DEBUG">Debug</option>
+                            <option value="INFO">Info</option>
+                            <option value="WARNING">Warning</option>
+                            <option value="ERROR">Error</option>
+                        </select>
+                        <button id="clear-logs" class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded">
+                            <i class="fas fa-trash mr-2"></i>Clear
+                        </button>
+                        <button id="download-logs" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded">
+                            <i class="fas fa-download mr-2"></i>Download
+                        </button>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="auto-scroll" checked class="mr-2">
+                            Auto-scroll
+                        </label>
+                    </div>
+                    
+                    <!-- Log Display -->
+                    <div id="log-display" class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm h-96 overflow-y-auto">
+                        <div class="text-gray-500">Logs will appear here...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Tab -->
+            <div id="analytics" class="tab-content">
+                <div class="space-y-6">
+                    <!-- Performance Analytics -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-6">Performance Analytics</h2>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div>
+                                <canvas id="performanceChart" height="200"></canvas>
+                            </div>
+                            <div>
+                                <canvas id="usageChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bucket Analytics -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Bucket Analytics</h3>
+                        <canvas id="bucketChart" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Tab -->
+            <div id="config" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Configuration Management</h2>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Config Files List -->
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">Configuration Files</h3>
+                            <div id="config-files-list" class="space-y-2">
+                                <!-- Config files will be populated dynamically -->
+                            </div>
+                        </div>
+                        
+                        <!-- Config Editor -->
+                        <div class="lg:col-span-2">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">Configuration Editor</h3>
+                            <div class="mb-4">
+                                <button id="save-config" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded mr-2">
+                                    <i class="fas fa-save mr-2"></i>Save
+                                </button>
+                                <button id="reload-config" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-undo mr-2"></i>Reload
+                                </button>
+                            </div>
+                            <textarea id="config-editor" class="w-full h-96 font-mono text-sm border rounded p-4" placeholder="Select a configuration file to edit..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Real-time updates and UI scripts -->
+    <script>
+        // Global variables
+        let currentTab = 'overview';
+        let wsConnection = null;
+        let metricsChart = null;
+        let performanceChart = null;
+        let usageChart = null;
+        let bucketChart = null;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+            setupEventListeners();
+            connectWebSocket();
+            loadInitialData();
+        });
+
+        function initializeDashboard() {
+            // Initialize charts
+            initializeCharts();
+            
+            // Set initial tab
+            showTab('overview');
+        }
+
+        function setupEventListeners() {
+            // Tab switching
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const tabName = this.dataset.tab;
+                    showTab(tabName);
+                });
+            });
+
+            // Refresh buttons
+            setupRefreshButtons();
+            
+            // Action buttons
+            setupActionButtons();
+        }
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Update active tab button
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('bg-blue-500', 'text-white');
+                button.classList.add('text-gray-700', 'hover:bg-gray-100');
+            });
+            
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('bg-blue-500', 'text-white');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.remove('text-gray-700', 'hover:bg-gray-100');
+            
+            currentTab = tabName;
+            
+            // Load tab-specific data
+            loadTabData(tabName);
+        }
+
+        function connectWebSocket() {
+            const wsUrl = `ws://${window.location.host}/ws`;
+            wsConnection = new WebSocket(wsUrl);
+            
+            wsConnection.onopen = function() {
+                console.log('WebSocket connected');
+            };
+            
+            wsConnection.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                updateRealTimeData(data);
+            };
+            
+            wsConnection.onclose = function() {
+                console.log('WebSocket disconnected, reconnecting...');
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        function updateRealTimeData(data) {
+            // Update system metrics
+            if (data.metrics) {
+                updateElement('cpu-usage', data.metrics.cpu + '%');
+                updateElement('memory-usage', data.metrics.memory + '%');
+                updateElement('disk-usage', data.metrics.disk + '%');
+            }
+            
+            // Update charts if visible
+            if (currentTab === 'overview' && metricsChart) {
+                updateMetricsChart(data.metrics);
+            }
+        }
+
+        function updateElement(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        }
+
+        function loadInitialData() {
+            loadTabData(currentTab);
+        }
+
+        async function loadTabData(tabName) {
+            switch(tabName) {
+                case 'overview':
+                    await loadOverviewData();
+                    break;
+                case 'services':
+                    await loadServicesData();
+                    break;
+                case 'backends':
+                    await loadBackendsData();
+                    break;
+                case 'buckets':
+                    await loadBucketsData();
+                    break;
+                case 'pins':
+                    await loadPinsData();
+                    break;
+                case 'peers':
+                    await loadPeersData();
+                    break;
+                case 'logs':
+                    await loadLogsData();
+                    break;
+                case 'analytics':
+                    await loadAnalyticsData();
+                    break;
+                case 'config':
+                    await loadConfigData();
+                    break;
+            }
+        }
+
+        // Chart initialization
+        function initializeCharts() {
+            // System metrics chart
+            const metricsCtx = document.getElementById('metricsChart');
+            if (metricsCtx) {
+                metricsChart = new Chart(metricsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'CPU %',
+                            data: [],
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                        }, {
+                            label: 'Memory %',
+                            data: [],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateMetricsChart(metrics) {
+            if (!metricsChart || !metrics) return;
+            
+            const now = new Date().toLocaleTimeString();
+            metricsChart.data.labels.push(now);
+            metricsChart.data.datasets[0].data.push(metrics.cpu);
+            metricsChart.data.datasets[1].data.push(metrics.memory);
+            
+            // Keep only last 20 data points
+            if (metricsChart.data.labels.length > 20) {
+                metricsChart.data.labels.shift();
+                metricsChart.data.datasets[0].data.shift();
+                metricsChart.data.datasets[1].data.shift();
+            }
+            
+            metricsChart.update();
+        }
+
+        // Data loading functions
+        async function loadOverviewData() {
+            try {
+                const response = await fetch('/api/system/overview');
+                const data = await response.json();
+                // Update overview UI
+                console.log('Overview data:', data);
+            } catch (error) {
+                console.error('Error loading overview data:', error);
+            }
+        }
+
+        async function loadServicesData() {
+            try {
+                const response = await fetch('/api/services');
+                const data = await response.json();
+                displayServices(data);
+            } catch (error) {
+                console.error('Error loading services data:', error);
+            }
+        }
+
+        async function loadBackendsData() {
+            try {
+                const response = await fetch('/api/backends');
+                const data = await response.json();
+                displayBackends(data);
+            } catch (error) {
+                console.error('Error loading backends data:', error);
+            }
+        }
+
+        async function loadBucketsData() {
+            try {
+                const response = await fetch('/api/buckets');
+                const data = await response.json();
+                displayBuckets(data);
+            } catch (error) {
+                console.error('Error loading buckets data:', error);
+            }
+        }
+
+        async function loadPinsData() {
+            try {
+                const response = await fetch('/api/pins');
+                const data = await response.json();
+                displayPins(data);
+            } catch (error) {
+                console.error('Error loading pins data:', error);
+            }
+        }
+
+        async function loadPeersData() {
+            try {
+                const response = await fetch('/api/peers');
+                const data = await response.json();
+                displayPeers(data);
+            } catch (error) {
+                console.error('Error loading peers data:', error);
+            }
+        }
+
+        async function loadLogsData() {
+            try {
+                const component = document.getElementById('log-component').value;
+                const level = document.getElementById('log-level').value;
+                const response = await fetch(`/api/logs?component=${component}&level=${level}&limit=100`);
+                const data = await response.json();
+                displayLogs(data.logs);
+            } catch (error) {
+                console.error('Error loading logs data:', error);
+            }
+        }
+
+        async function loadAnalyticsData() {
+            try {
+                const response = await fetch('/api/analytics/summary');
+                const data = await response.json();
+                // Update analytics charts
+                console.log('Analytics data:', data);
+            } catch (error) {
+                console.error('Error loading analytics data:', error);
+            }
+        }
+
+        async function loadConfigData() {
+            try {
+                const response = await fetch('/api/config/files');
+                const data = await response.json();
+                displayConfigFiles(data.files);
+            } catch (error) {
+                console.error('Error loading config data:', error);
+            }
+        }
+
+        // Display functions
+        function displayServices(services) {
+            const grid = document.getElementById('services-grid');
+            grid.innerHTML = '';
+            
+            for (const [name, service] of Object.entries(services)) {
+                const serviceCard = createServiceCard(name, service);
+                grid.appendChild(serviceCard);
+            }
+        }
+
+        function createServiceCard(name, service) {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 p-4 rounded-lg border';
+            div.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-medium">${service.name || name}</h3>
+                    <span class="status-indicator status-${service.status || 'unknown'}"></span>
+                </div>
+                <div class="text-sm text-gray-600 mb-3">
+                    Status: <span class="font-medium">${service.status || 'Unknown'}</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="controlService('${name}', 'start')" class="bg-green-500 text-white px-2 py-1 rounded text-xs">Start</button>
+                    <button onclick="controlService('${name}', 'stop')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Stop</button>
+                    <button onclick="controlService('${name}', 'restart')" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Restart</button>
+                </div>
+            `;
+            return div;
+        }
+
+        function displayBackends(backends) {
+            const list = document.getElementById('backends-list');
+            list.innerHTML = '';
+            
+            backends.forEach(backend => {
+                const backendCard = createBackendCard(backend);
+                list.appendChild(backendCard);
+            });
+        }
+
+        function createBackendCard(backend) {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 p-4 rounded-lg border';
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-medium">${backend.name}</h3>
+                        <p class="text-sm text-gray-600">${backend.type}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="status-indicator status-${backend.status || 'unknown'}"></span>
+                        <span class="text-sm">${backend.status || 'Unknown'}</span>
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        function displayBuckets(buckets) {
+            const list = document.getElementById('buckets-list');
+            list.innerHTML = '';
+            
+            buckets.forEach(bucket => {
+                const bucketCard = createBucketCard(bucket);
+                list.appendChild(bucketCard);
+            });
+        }
+
+        function createBucketCard(bucket) {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 p-4 rounded-lg border';
+            div.innerHTML = `
+                <h3 class="font-medium mb-2">${bucket.name}</h3>
+                <p class="text-sm text-gray-600 mb-2">${bucket.description || 'No description'}</p>
+                <div class="text-xs text-gray-500">
+                    Files: ${bucket.file_count || 0} | Size: ${bucket.total_size || '0 B'}
+                </div>
+            `;
+            return div;
+        }
+
+        function displayPins(pins) {
+            const list = document.getElementById('pins-list');
+            list.innerHTML = '';
+            
+            // Update statistics
+            updateElement('total-pins', pins.total || 0);
+            updateElement('active-pins', pins.active || 0);
+            updateElement('pending-pins', pins.pending || 0);
+            updateElement('total-storage', pins.total_size || '0 B');
+            
+            if (pins.pins && pins.pins.length > 0) {
+                pins.pins.forEach(pin => {
+                    const pinCard = createPinCard(pin);
+                    list.appendChild(pinCard);
+                });
+            } else {
+                list.innerHTML = '<div class="text-gray-500 text-center py-8">No pins found</div>';
+            }
+        }
+
+        function createPinCard(pin) {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 p-4 rounded-lg border';
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="font-mono text-sm text-blue-600">${pin.cid}</div>
+                        <div class="text-sm text-gray-600">${pin.name || 'Unnamed pin'}</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="status-indicator status-${pin.status || 'unknown'}"></span>
+                        <span class="text-sm">${pin.status || 'Unknown'}</span>
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        function displayPeers(peers) {
+            const list = document.getElementById('peers-list');
+            list.innerHTML = '';
+            
+            if (peers.connected_peers && peers.connected_peers.length > 0) {
+                peers.connected_peers.forEach(peer => {
+                    const peerCard = createPeerCard(peer);
+                    list.appendChild(peerCard);
+                });
+            } else {
+                list.innerHTML = '<div class="text-gray-500 text-center py-8">No connected peers</div>';
+            }
+        }
+
+        function createPeerCard(peer) {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 p-4 rounded-lg border';
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="font-mono text-sm">${peer.id}</div>
+                        <div class="text-sm text-gray-600">${peer.address}</div>
+                    </div>
+                    <button onclick="disconnectPeer('${peer.id}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
+                        Disconnect
+                    </button>
+                </div>
+            `;
+            return div;
+        }
+
+        function displayLogs(logs) {
+            const display = document.getElementById('log-display');
+            display.innerHTML = '';
+            
+            logs.forEach(log => {
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry ${log.level.toLowerCase()}`;
+                logEntry.innerHTML = `
+                    <span class="text-gray-400">[${log.timestamp}]</span>
+                    <span class="text-blue-300">[${log.level}]</span>
+                    <span class="text-yellow-300">[${log.component}]</span>
+                    <span>${log.message}</span>
+                `;
+                display.appendChild(logEntry);
+            });
+            
+            // Auto-scroll if enabled
+            if (document.getElementById('auto-scroll').checked) {
+                display.scrollTop = display.scrollHeight;
+            }
+        }
+
+        function displayConfigFiles(files) {
+            const list = document.getElementById('config-files-list');
+            list.innerHTML = '';
+            
+            files.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'cursor-pointer p-2 hover:bg-gray-100 rounded border';
+                fileItem.innerHTML = `
+                    <div class="font-medium">${file.name}</div>
+                    <div class="text-xs text-gray-500">${file.size} bytes</div>
+                `;
+                fileItem.onclick = () => loadConfigFile(file.name);
+                list.appendChild(fileItem);
+            });
+        }
+
+        // Control functions
+        async function controlService(serviceName, action) {
+            try {
+                const response = await fetch(`/api/services/${serviceName}/${action}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                console.log(`Service ${action} result:`, result);
+                // Refresh services data
+                loadServicesData();
+            } catch (error) {
+                console.error(`Error ${action} service:`, error);
+            }
+        }
+
+        async function disconnectPeer(peerId) {
+            try {
+                const response = await fetch('/api/peers/disconnect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id: peerId })
+                });
+                const result = await response.json();
+                console.log('Disconnect peer result:', result);
+                // Refresh peers data
+                loadPeersData();
+            } catch (error) {
+                console.error('Error disconnecting peer:', error);
+            }
+        }
+
+        async function loadConfigFile(filename) {
+            try {
+                const response = await fetch(`/api/config/file/${filename}`);
+                const data = await response.json();
+                document.getElementById('config-editor').value = data.content;
+            } catch (error) {
+                console.error('Error loading config file:', error);
+            }
+        }
+
+        // Setup refresh buttons
+        function setupRefreshButtons() {
+            const refreshButtons = [
+                'refresh-pins', 'refresh-backends', 'refresh-buckets', 
+                'refresh-peers', 'refresh-services'
+            ];
+            
+            refreshButtons.forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    button.addEventListener('click', () => {
+                        loadTabData(currentTab);
+                    });
+                }
+            });
+        }
+
+        // Setup action buttons
+        function setupActionButtons() {
+            // Add pin button
+            const addPinBtn = document.getElementById('add-pin');
+            if (addPinBtn) {
+                addPinBtn.addEventListener('click', () => {
+                    const cid = prompt('Enter CID to pin:');
+                    if (cid) {
+                        addPin(cid);
+                    }
+                });
+            }
+
+            // Create bucket button
+            const createBucketBtn = document.getElementById('create-bucket');
+            if (createBucketBtn) {
+                createBucketBtn.addEventListener('click', () => {
+                    const name = prompt('Enter bucket name:');
+                    if (name) {
+                        createBucket(name);
+                    }
+                });
+            }
+        }
+
+        async function addPin(cid) {
+            try {
+                const response = await fetch('/api/pins', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ cid: cid })
+                });
+                const result = await response.json();
+                console.log('Add pin result:', result);
+                loadPinsData();
+            } catch (error) {
+                console.error('Error adding pin:', error);
+            }
+        }
+
+        async function createBucket(name) {
+            try {
+                const response = await fetch('/api/buckets', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: name })
+                });
+                const result = await response.json();
+                console.log('Create bucket result:', result);
+                loadBucketsData();
+            } catch (error) {
+                console.error('Error creating bucket:', error);
+            }
+        }
+    </script>
+</body>
+</html>

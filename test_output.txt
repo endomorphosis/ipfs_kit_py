@@ -1,0 +1,6 @@
+Testing HAS_LOTUS availability...
+HAS_LOTUS: True
+Creating ipfs_kit instance...
+Has lotus_kit: False
+✗ FAILED: lotus_kit is not available
+Lotus-related attributes: []

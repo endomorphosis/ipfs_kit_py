@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFS Kit - Unified Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Suppress Tailwind development warning
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            'inter': ['Inter', 'sans-serif'],
+                        }
+                    }
+                }
+            };
+        }
+    </script>
+    <script>
+        const API_BASE_URL = `http://127.0.0.1:{{ port }}/api`;
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="/static/css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Mobile Menu Button -->
+    <div class="lg:hidden fixed top-6 left-6 z-50">
+        <button id="mobile-menu-btn" class="btn-primary text-white p-4 rounded-xl shadow-lg">
+            <i class="fas fa-bars text-lg"></i>
+        </button>
+    </div>
+    
+    <!-- Mobile Overlay -->
+    <div id="mobile-overlay" class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30 hidden opacity-0 transition-opacity duration-300"></div>
+    
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar fixed left-0 top-0 h-full text-white z-40">
+        <div class="p-8">
+            <div class="flex items-center mb-10">
+                <div class="p-2 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 mr-4">
+                    <i class="fas fa-rocket text-2xl text-white"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold">IPFS Kit</h2>
+                    <p class="text-xs text-blue-200 opacity-80">v4.0.0</p>
+                </div>
+            </div>
+            
+            <nav class="space-y-2">
+                <a href="#" onclick="showTab('overview')" class="nav-link active flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-tachometer-alt mr-4 text-lg"></i> 
+                    <span class="font-medium">Overview</span>
+                </a>
+                <a href="#" onclick="showTab('services')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-cogs mr-4 text-lg"></i> 
+                    <span class="font-medium">Services</span>
+                </a>
+                <a href="#" onclick="showTab('backends')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-server mr-4 text-lg"></i> 
+                    <span class="font-medium">Backends</span>
+                </a>
+                <a href="#" onclick="showTab('buckets')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-folder mr-4 text-lg"></i> 
+                    <span class="font-medium">Buckets</span>
+                </a>
+                <a href="#" onclick="showTab('metrics')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-chart-line mr-4 text-lg"></i> 
+                    <span class="font-medium">Metrics</span>
+                </a>
+                <a href="#" onclick="showTab('config')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-cog mr-4 text-lg"></i> 
+                    <span class="font-medium">Configuration</span>
+                </a>
+                <a href="#" onclick="showTab('mcp')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-broadcast-tower mr-4 text-lg"></i> 
+                    <span class="font-medium">MCP Server</span>
+                </a>
+                <a href="#" onclick="showTab('pins')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-thumbtack mr-4 text-lg"></i> 
+                    <span class="font-medium">Pins</span>
+                </a>
+            </nav>
+        </div>
+        
+        <!-- System Status Panel -->
+        <div class="p-8 border-t border-white/20 mt-auto">
+            <h3 class="text-sm font-semibold mb-6 text-white/90 flex items-center">
+                <i class="fas fa-heartbeat mr-2 text-red-400"></i>
+                System Status
+            </h3>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-white/80">MCP Server</span>
+                    <div class="flex items-center">
+                        <div class="status-dot running mr-2"></div>
+                        <span id="sidebar-mcp-status" class="text-green-400 font-medium">Running</span>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-white/80">IPFS Daemon</span>
+                    <div class="flex items-center">
+                        <div id="sidebar-ipfs-dot" class="status-dot mr-2"></div>
+                        <span id="sidebar-ipfs-status" class="text-white/60">-</span>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-white/80">Backends</span>
+                    <span id="sidebar-backends-count" class="text-blue-300 font-medium">-</span>
+                </div>
+            </div>
+            
+            <!-- Mini Performance Indicators -->
+            <div class="mt-6 space-y-3">
+                <div class="text-xs text-white/60 mb-2">Quick Stats</div>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-white/70">CPU</span>
+                        <div class="flex items-center">
+                            <div class="w-16 h-1 bg-white/20 rounded-full mr-2">
+                                <div id="sidebar-cpu-bar" class="h-full bg-green-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="sidebar-cpu-percent" class="text-white/80 w-8 text-right">0%</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-white/70">RAM</span>
+                        <div class="flex items-center">
+                            <div class="w-16 h-1 bg-white/20 rounded-full mr-2">
+                                <div id="sidebar-memory-bar" class="h-full bg-blue-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="sidebar-memory-percent" class="text-white/80 w-8 text-right">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="lg:ml-[280px] min-h-screen">
+        <!-- Header -->
+        <header class="gradient-bg text-white px-8 py-12 shadow-2xl relative overflow-hidden">
+            <!-- Background Pattern -->
+            <div class="absolute inset-0 opacity-10">
+                <div class="absolute inset-0" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 1px); background-size: 20px 20px;"></div>
+            </div>
+            
+            <div class="relative z-10">
+                <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                    <div class="mb-6 lg:mb-0">
+                        <h1 class="text-4xl lg:text-5xl font-extrabold mb-3 bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+                            IPFS Kit Dashboard
+                        </h1>
+                        <p class="text-blue-100 text-lg font-medium">Unified MCP Server & Control Interface</p>
+                        <div class="flex items-center mt-3 text-sm text-blue-200">
+                            <i class="fas fa-server mr-2"></i>
+                            <span>Port {{ port }}</span>
+                            <span class="mx-3">•</span>
+                            <i class="fas fa-clock mr-2"></i>
+                            <span id="current-time">--:--:--</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                        <div class="flex items-center bg-white/20 backdrop-blur-sm px-4 py-3 rounded-xl text-sm font-medium">
+                            <div class="status-dot running mr-3"></div>
+                            <span>Real-time Updates</span>
+                        </div>
+                        <button onclick="refreshData()" class="btn-primary px-6 py-3 rounded-xl font-semibold flex items-center">
+                            <i class="fas fa-sync-alt mr-2"></i> 
+                            <span>Refresh Data</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Tab Content Container -->
+        <div class="p-8">
+            <!-- Overview Tab -->
+            <div id="overview-tab" class="tab-content active fade-in">
+                <!-- Main Metrics Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                    <div class="card metric-card p-8 rounded-2xl fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600">
+                                <i class="fas fa-broadcast-tower text-white text-xl"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">MCP Server</div>
+                            </div>
+                        </div>
+                        <div id="mcp-status" class="metric-value mb-2">Running</div>
+                        <p class="text-sm text-gray-600 flex items-center">
+                            <i class="fas fa-ethernet mr-2 text-blue-500"></i>
+                            Port {{ port }}
+                        </p>
+                    </div>
+                    
+                    <div class="card metric-card p-8 rounded-2xl fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-green-500 to-teal-600">
+                                <i class="fas fa-cogs text-white text-xl"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Services</div>
+                            </div>
+                        </div>
+                        <div id="services-count" class="metric-value mb-2">0</div>
+                        <p class="text-sm text-gray-600 flex items-center">
+                            <div class="status-dot running mr-2"></div>
+                            Active Services
+                        </p>
+                    </div>
+                    
+                    <div class="card metric-card p-8 rounded-2xl fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-600">
+                                <i class="fas fa-server text-white text-xl"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Backends</div>
+                            </div>
+                        </div>
+                        <div id="backends-count" class="metric-value mb-2">0</div>
+                        <p class="text-sm text-gray-600 flex items-center">
+                            <i class="fas fa-cloud mr-2 text-purple-500"></i>
+                            Storage Backends
+                        </p>
+                    </div>
+                    
+                    <div class="card metric-card p-8 rounded-2xl fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-600">
+                                <i class="fas fa-folder text-white text-xl"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Buckets</div>
+                            </div>
+                        </div>
+                        <div id="buckets-count" class="metric-value mb-2">0</div>
+                        <p class="text-sm text-gray-600 flex items-center">
+                            <i class="fas fa-database mr-2 text-orange-500"></i>
+                            Total Buckets
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- System Overview Grid -->
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                    <!-- System Performance -->
+                    <div class="xl:col-span-2">
+                        <div class="card p-8 rounded-2xl">
+                            <h3 class="text-2xl font-bold mb-6 flex items-center">
+                                <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-600 mr-4">
+                                    <i class="fas fa-chart-bar text-white"></i>
+                                </div>
+                                System Performance
+                            </h3>
+                            <div id="system-performance" class="space-y-6">
+                                <!-- CPU Usage -->
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-gray-700 font-medium flex items-center">
+                                            <i class="fas fa-microchip mr-3 text-blue-500"></i>
+                                            CPU Usage
+                                        </span>
+                                        <span id="cpu-percent" class="text-lg font-bold text-gray-800">0%</span>
+                                    </div>
+                                    <div class="progress-bar h-3">
+                                        <div id="cpu-bar" class="progress-fill bg-gradient-to-r from-blue-400 to-blue-600" style="width: 0%"></div>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>0%</span>
+                                        <span>100%</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Memory Usage -->
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-gray-700 font-medium flex items-center">
+                                            <i class="fas fa-memory mr-3 text-green-500"></i>
+                                            Memory Usage
+                                        </span>
+                                        <div class="text-right">
+                                            <span id="memory-percent" class="text-lg font-bold text-gray-800">0%</span>
+                                            <div class="text-xs text-gray-500">
+                                                <span id="memory-used">0 GB</span> / <span id="memory-total">0 GB</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar h-3">
+                                        <div id="memory-bar" class="progress-fill bg-gradient-to-r from-green-400 to-green-600" style="width: 0%"></div>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>0%</span>
+                                        <span>100%</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Disk Usage -->
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-gray-700 font-medium flex items-center">
+                                            <i class="fas fa-hdd mr-3 text-purple-500"></i>
+                                            Disk Usage
+                                        </span>
+                                        <div class="text-right">
+                                            <span id="disk-percent" class="text-lg font-bold text-gray-800">0%</span>
+                                            <div class="text-xs text-gray-500">
+                                                <span id="disk-used">0 GB</span> / <span id="disk-total">0 GB</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar h-3">
+                                        <div id="disk-bar" class="progress-fill bg-gradient-to-r from-purple-400 to-purple-600" style="width: 0%"></div>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>0%</span>
+                                        <span>100%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Network Activity -->
+                    <div>
+                        <div class="card p-8 rounded-2xl">
+                            <h3 class="text-2xl font-bold mb-6 flex items-center">
+                                <div class="p-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 mr-4">
+                                    <i class="fas fa-network-wired text-white"></i>
+                                </div>
+                                Network Activity
+                            </h3>
+                            <div id="network-activity-content" class="space-y-6">
+                                <div class="text-center py-8">
+                                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
+                                        <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+                                    </div>
+                                    <p class="text-gray-500 font-medium">Loading network data...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- IPFS Daemon Status -->
+                <div class="mt-8">
+                    <div class="card p-8 rounded-2xl">
+                        <h3 class="text-2xl font-bold mb-6 flex items-center">
+                            <div class="p-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 mr-4">
+                                <i class="fas fa-cube text-white"></i>
+                            </div>
+                            IPFS Daemon Status
+                        </h3>
+                        <div id="ipfs-daemon-status" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="text-center py-8">
+                                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
+                                    <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+                                </div>
+                                <p class="text-gray-500 font-medium">Checking daemon status...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Services Tab -->
+            <div id="services-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-green-500 to-teal-600 mr-4">
+                            <i class="fas fa-cogs text-white"></i>
+                        </div>
+                        Services Status
+                        <span id="services-total-badge" class="ml-4 text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">0</span>
+                    </h3>
+                    <div id="services-list" class="space-y-6">
+                        <div class="text-center py-12">
+                            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
+                                <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+                            </div>
+                            <p class="text-gray-500 font-medium">Loading services...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backends Tab -->
+            <div id="backends-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 mr-4">
+                            <i class="fas fa-server text-white"></i>
+                        </div>
+                        Storage Backends
+                    </h3>
+                    <div id="backends-list">
+                        <!-- Backends will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buckets Tab -->
+            <div id="buckets-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 mr-4">
+                            <i class="fas fa-folder text-white"></i>
+                        </div>
+                        Buckets
+                    </h3>
+                    <div id="buckets-list">
+                        <!-- Buckets will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metrics Tab -->
+            <div id="metrics-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-600 mr-4">
+                            <i class="fas fa-chart-line text-white"></i>
+                        </div>
+                        Real-time Metrics
+                    </h3>
+                    <div id="metrics-content">
+                        <!-- Detailed metrics will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Config Tab -->
+            <div id="config-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-gray-500 to-gray-700 mr-4">
+                            <i class="fas fa-cog text-white"></i>
+                        </div>
+                        Configuration
+                    </h3>
+                    <div id="config-content">
+                        <div class="text-center py-12">
+                            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
+                                <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+                            </div>
+                            <p class="text-gray-500 font-medium">Loading configuration...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MCP Tab -->
+            <div id="mcp-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 mr-4">
+                            <i class="fas fa-broadcast-tower text-white"></i>
+                        </div>
+                        MCP Server Details
+                    </h3>
+                    <div id="mcp-content">
+                        <!-- MCP server details will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pins Tab -->
+            <div id="pins-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 mr-4">
+                            <i class="fas fa-thumbtack text-white"></i>
+                        </div>
+                        Manage Pins
+                    </h3>
+
+                    <!-- Add Pin Form -->
+                    <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
+                        <h4 class="text-lg font-semibold mb-4">Add New Pin</h4>
+                        <div class="flex items-center space-x-4">
+                            <input id="pin-cid-input" type="text" placeholder="Enter IPFS CID" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <input id="pin-name-input" type="text" placeholder="Optional Name" class="w-1/3 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <button onclick="addPin()" class="btn-primary px-6 py-3 rounded-lg font-semibold flex items-center">
+                                <i class="fas fa-plus mr-2"></i>
+                                <span>Add Pin</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pin List -->
+                    <div>
+                        <h4 class="text-lg font-semibold mb-4">Pinned Items</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white rounded-lg shadow overflow-hidden">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-4 text-left text-sm font-semibold text-gray-600">CID</th>
+                                        <th class="p-4 text-left text-sm font-semibold text-gray-600">Name</th>
+                                        <th class="p-4 text-right text-sm font-semibold text-gray-600">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pins-list" class="divide-y divide-gray-200">
+                                    <!-- Pins will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

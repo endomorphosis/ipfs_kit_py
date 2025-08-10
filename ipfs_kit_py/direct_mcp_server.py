@@ -12,7 +12,7 @@ import logging
 import argparse
 import uvicorn
 from pathlib import Path
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -118,6 +118,50 @@ def create_app(config_path=None):
         except Exception as e:
             logger.error(f"Error initializing AI/ML components: {e}")
     
+    # JSON-RPC 2.0 endpoint
+    @app.post("/jsonrpc")
+    async def jsonrpc_endpoint(request: Request):
+        """Minimal JSON-RPC 2.0 endpoint for dashboard integration."""
+        try:
+            payload = await request.json()
+        except Exception as e:
+            return {"jsonrpc": "2.0", "error": {"code": -32700, "message": f"Parse error: {e}"}, "id": None}
+
+        req_id = payload.get("id")
+        method = payload.get("method")
+        params = payload.get("params", {}) or {}
+
+        try:
+            if method == "system.status":
+                # Return a simple server status
+                result = {
+                    "name": "IPFS Kit MCP Server",
+                    "version": "0.1.0",
+                    "status": "running",
+                    "features": {"ai_ml": HAS_AI_ML},
+                }
+                return {"jsonrpc": "2.0", "result": result, "id": req_id}
+
+            if method == "tools.list":
+                # Return a minimal tool catalog (stub)
+                tools = [
+                    # {"name": "pin.add", "description": "Add a pin", "params": ["cid"]},
+                ]
+                return {"jsonrpc": "2.0", "result": {"tools": tools}, "id": req_id}
+
+            if method == "tools.call":
+                # Execute a tool call (stub)
+                tool = params.get("tool") or params.get("name")
+                args = params.get("args") or params.get("parameters") or {}
+                # For now, just echo back
+                return {"jsonrpc": "2.0", "result": {"tool": tool, "args": args, "ok": True}, "id": req_id}
+
+            # Method not found
+            return {"jsonrpc": "2.0", "error": {"code": -32601, "message": f"Method not found: {method}"}, "id": req_id}
+        except Exception as e:
+            logger.exception("JSON-RPC handler error")
+            return {"jsonrpc": "2.0", "error": {"code": -32000, "message": str(e)}, "id": req_id}
+
     return app
 
 

@@ -30,6 +30,7 @@ import shutil
 import json
 import time
 import signal
+import contextlib
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -832,6 +833,12 @@ class ComprehensiveTestSuite:
             return await self.test_log_aggregation()
         elif component == "integration":
             return await self.test_integration_end_to_end()
+        elif component == "mcp":
+            ok1 = await self.test_mcp_daemon_smoke()
+            ok2 = await self.test_dashboard_proxy_baseurl()
+            ok3 = await self.test_mcp_pins_http_vs_tool_parity()
+            ok4 = await self.test_mcp_tools_endpoint_sanity()
+            return ok1 and ok2 and ok3 and ok4
         else:
             self.log_error(f"Unknown component: {component}")
             return False
@@ -839,22 +846,240 @@ class ComprehensiveTestSuite:
     async def run_all_tests(self) -> bool:
         """Run all test components"""
         self.log_info("🚀 Running comprehensive test suite...")
-        
-        components = ["virtualenv", "cli", "daemon", "docker", "k8s", "cicd", "logs", "integration"]
-        
+        components = ["virtualenv", "cli", "daemon", "docker", "k8s", "cicd", "logs", "integration", "mcp"]
         results = {}
         for component in components:
             self.log_info(f"\n{'='*60}")
             self.log_info(f"Testing component: {component.upper()}")
             self.log_info(f"{'='*60}")
-            
             try:
                 results[component] = await self.run_test_component(component)
             except Exception as e:
                 self.log_error(f"Component {component} test failed with exception: {e}")
                 results[component] = False
-        
         return all(results.values())
+
+    async def test_mcp_daemon_smoke(self) -> bool:
+        """Start MCP server in daemon mode, discover port, and smoke-check endpoints."""
+        self.log_info("🛠️  MCP daemon smoke test starting...")
+        start = time.time()
+        proc = None
+        try:
+            # Launch MCP server in daemon mode with random port (port None)
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, "-u", "-m", "ipfs_kit_py.mcp_server.server", "--daemon", "--host", "127.0.0.1",
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, cwd=self.project_root, env=env
+            )
+
+            port = None
+            # Read lines until we see MCP_SERVER_PORT
+            deadline = time.time() + 25
+            while time.time() < deadline:
+                try:
+                    line = await asyncio.wait_for(proc.stdout.readline(), timeout=2)
+                except asyncio.TimeoutError:
+                    continue
+                if not line:
+                    await asyncio.sleep(0.2)
+                    continue
+                text = line.decode(errors="ignore").strip()
+                if "MCP_SERVER_PORT:" in text:
+                    try:
+                        port = int(text.split("MCP_SERVER_PORT:", 1)[1].split()[0])
+                    except Exception:
+                        port = None
+                    break
+
+            if not port:
+                self.add_result("MCP Daemon Smoke", False, "Failed to discover MCP server port from output")
+                # Ensure process is terminated
+                if proc and proc.returncode is None:
+                    proc.terminate()
+                    with contextlib.suppress(Exception):
+                        await asyncio.wait_for(proc.wait(), timeout=5)
+                return False
+
+            base = f"http://127.0.0.1:{port}"
+
+            async def fetch(path: str) -> Tuple[bool, str]:
+                import urllib.request, urllib.error
+                def _do():
+                    try:
+                        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+                        with opener.open(base + path, timeout=5) as resp:
+                            return True, resp.read().decode()
+                    except Exception as e:
+                        return False, str(e)
+                return await asyncio.to_thread(_do)
+
+            async def fetch_retry(path: str, attempts: int = 8, delay: float = 0.5) -> Tuple[bool, str]:
+                last = (False, "")
+                for i in range(attempts):
+                    ok, body = await fetch(path)
+                    if ok:
+                        return ok, body
+                    await asyncio.sleep(delay)
+                    # small backoff
+                    delay = min(delay * 1.5, 2.0)
+                    last = (ok, body)
+                return last
+
+            ok_status, status_body = await fetch_retry("/status")
+            ok_tools, tools_body = await fetch_retry("/api/tools")
+            ok_jsonrpc, jsonrpc_body = await fetch_retry("/api/jsonrpc")
+
+            all_ok = ok_status and ok_tools and ok_jsonrpc
+            msg = f"status={ok_status}, tools={ok_tools}, jsonrpc={ok_jsonrpc}"
+            duration = time.time() - start
+            self.add_result("MCP Daemon Smoke", all_ok, msg, duration, {
+                "status": status_body[:200],
+                "tools": tools_body[:200],
+                "jsonrpc": jsonrpc_body[:200]
+            })
+            return all_ok
+        except Exception as e:
+            self.add_result("MCP Daemon Smoke", False, f"Exception: {e}")
+            return False
+        finally:
+            if proc and proc.returncode is None:
+                with contextlib.suppress(Exception):
+                    proc.terminate()
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+
+    async def test_dashboard_proxy_baseurl(self) -> bool:
+        """Verify dashboard’s MCP base URL derivation from JSON-RPC env var."""
+        self.log_info("🔗 Dashboard MCP base URL resolution test...")
+        start = time.time()
+        try:
+            code = (
+                "import os; os.environ['IPFS_KIT_MCP_JSONRPC_URL']='http://127.0.0.1:1234/api/jsonrpc';"
+                "from consolidated_mcp_dashboard import ConsolidatedMCPDashboard;"
+                "d=ConsolidatedMCPDashboard({'debug':True});"
+                "print(d._get_mcp_base_url())"
+            )
+            success, stdout, stderr = await self.run_command([sys.executable, "-c", code], timeout=30)
+            expected = "http://127.0.0.1:1234"
+            ok = success and stdout.strip().endswith(expected)
+            duration = time.time() - start
+            self.add_result("Dashboard MCP BaseURL", ok, f"Derived base URL = {stdout.strip()}", duration)
+            return ok
+        except Exception as e:
+            self.add_result("Dashboard MCP BaseURL", False, f"Exception: {e}")
+            return False
+
+    async def test_mcp_pins_http_vs_tool_parity(self) -> bool:
+        """Start MCP daemon; compare /api/pins vs /tools/pin_list outputs length."""
+        self.log_info("🔄 MCP pins HTTP vs tool parity test...")
+        start = time.time()
+        proc = None
+        try:
+            env = os.environ.copy(); env['PYTHONUNBUFFERED'] = '1'
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, '-u', '-m', 'ipfs_kit_py.mcp_server.server', '--daemon', '--host', '127.0.0.1',
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, cwd=self.project_root, env=env
+            )
+            # Discover port
+            port = None; deadline = time.time() + 20
+            while time.time() < deadline:
+                try:
+                    line = await asyncio.wait_for(proc.stdout.readline(), timeout=2)
+                except asyncio.TimeoutError:
+                    continue
+                if not line:
+                    await asyncio.sleep(0.1); continue
+                text = line.decode(errors='ignore').strip()
+                if 'MCP_SERVER_PORT:' in text:
+                    try:
+                        port = int(text.split('MCP_SERVER_PORT:')[1].split()[0]); break
+                    except Exception:
+                        pass
+            if not port:
+                self.add_result("MCP Pins Parity", False, "Failed to discover MCP server port")
+                return False
+            base = f"http://127.0.0.1:{port}"
+            import urllib.request, json as _json
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            def get(path):
+                with opener.open(base+path, timeout=5) as r:
+                    return _json.loads(r.read().decode())
+            def post(path, payload):
+                data = _json.dumps(payload).encode('utf-8')
+                req = urllib.request.Request(base+path, data=data, headers={'Content-Type':'application/json'})
+                with opener.open(req, timeout=5) as r:
+                    return _json.loads(r.read().decode())
+            http_pins = get('/api/pins')
+            tool_pins = post('/tools/pin_list', {"arguments": {}})
+            http_count = len(http_pins.get('pins') or []) if isinstance(http_pins, dict) else 0
+            tool_result = tool_pins.get('pins') if isinstance(tool_pins, dict) else None
+            # Some handlers might nest under 'result'
+            if tool_result is None and isinstance(tool_pins, dict):
+                tool_result = tool_pins.get('result', {}).get('pins') if isinstance(tool_pins.get('result'), dict) else None
+            tool_count = len(tool_result or [])
+            ok = http_count == tool_count
+            duration = time.time() - start
+            self.add_result("MCP Pins Parity", ok, f"/api/pins={http_count}, tool pin_list={tool_count}", duration)
+            return ok
+        except Exception as e:
+            self.add_result("MCP Pins Parity", False, f"Exception: {e}")
+            return False
+        finally:
+            if proc and proc.returncode is None:
+                with contextlib.suppress(Exception):
+                    proc.terminate()
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+
+    async def test_mcp_tools_endpoint_sanity(self) -> bool:
+        """Ensure /api/tools returns a non-empty list with expected core tools."""
+        self.log_info("🧰 MCP tools endpoint sanity...")
+        start = time.time()
+        proc = None
+        try:
+            env = os.environ.copy(); env['PYTHONUNBUFFERED'] = '1'
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, '-u', '-m', 'ipfs_kit_py.mcp_server.server', '--daemon', '--host', '127.0.0.1',
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, cwd=self.project_root, env=env
+            )
+            port = None; deadline = time.time() + 20
+            while time.time() < deadline:
+                try:
+                    line = await asyncio.wait_for(proc.stdout.readline(), timeout=2)
+                except asyncio.TimeoutError:
+                    continue
+                if not line:
+                    await asyncio.sleep(0.1); continue
+                text = line.decode(errors='ignore').strip()
+                if 'MCP_SERVER_PORT:' in text:
+                    try:
+                        port = int(text.split('MCP_SERVER_PORT:')[1].split()[0]); break
+                    except Exception:
+                        pass
+            if not port:
+                self.add_result("MCP Tools Sanity", False, "Failed to discover MCP server port")
+                return False
+            base = f"http://127.0.0.1:{port}"
+            import urllib.request, json as _json
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(base + '/api/tools', timeout=5) as r:
+                tools = _json.loads(r.read().decode())
+            names = {t.get('name') for t in tools if isinstance(t, dict)}
+            expected = {"pin_list", "bucket_list"}
+            ok = bool(names) and expected.issubset(names)
+            duration = time.time() - start
+            self.add_result("MCP Tools Sanity", ok, f"{len(names)} tools, has expected={expected.issubset(names)}", duration, {"sample": sorted(list(names))[:10]})
+            return ok
+        except Exception as e:
+            self.add_result("MCP Tools Sanity", False, f"Exception: {e}")
+            return False
+        finally:
+            if proc and proc.returncode is None:
+                with contextlib.suppress(Exception):
+                    proc.terminate()
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(proc.wait(), timeout=5)
 
     def generate_report(self) -> str:
         """Generate a comprehensive test report"""
@@ -918,7 +1143,7 @@ async def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="IPFS-Kit Comprehensive Test Suite")
-    parser.add_argument("--component", choices=["virtualenv", "cli", "daemon", "docker", "k8s", "cicd", "logs", "integration"], 
+    parser.add_argument("--component", choices=["virtualenv", "cli", "daemon", "docker", "k8s", "cicd", "logs", "integration", "mcp"], 
                        help="Test specific component only")
     parser.add_argument("--all", action="store_true", help="Run all tests")
     parser.add_argument("--output", help="Output report to file")
