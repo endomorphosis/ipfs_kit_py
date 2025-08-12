@@ -1,0 +1,147 @@
+{
+  "tools": {
+    "get_system_status": {
+      "description": "System health, versions, and paths."
+    },
+    "list_services": {
+      "description": "List known services and their probe status."
+    },
+    "service_control": {
+      "description": "Control a local service.",
+      "fields": {
+        "service": { "enum": ["ipfs"], "default": "ipfs" },
+        "action": { "enum": ["status", "start", "stop", "restart"], "default": "status" }
+      }
+    },
+    "service_status": {
+      "description": "Probe a service.",
+      "fields": {
+        "service": { "enum": ["ipfs"], "default": "ipfs" }
+      }
+    },
+
+    "list_backends": { "description": "List configured backends." },
+    "create_backend": {
+      "description": "Register a backend with a config object.",
+      "fields": {
+        "name": { "placeholder": "backend name" },
+        "config": { "placeholder": "{\n  \"type\": \"ipfs\",\n  \"host\": \"127.0.0.1\"\n}", "rows": 160 }
+      }
+    },
+    "update_backend": {
+      "description": "Update an existing backend.",
+      "fields": {
+        "name": { "placeholder": "backend name" },
+        "config": { "placeholder": "{\n  \"type\": \"ipfs\"\n}", "rows": 120 }
+      }
+    },
+    "delete_backend": {
+      "description": "Delete a backend by name.",
+      "fields": {
+        "name": { "placeholder": "backend name" }
+      }
+    },
+    "get_backend": {
+      "description": "Get backend by name.",
+      "fields": {
+        "name": { "placeholder": "backend name" }
+      }
+    },
+
+    "list_buckets": { "description": "List buckets." },
+    "create_bucket": {
+      "description": "Create a new bucket bound to a backend.",
+      "fields": {
+        "name": { "placeholder": "bucket name" },
+        "backend": { "enum": ["local", "ipfs"], "default": "local", "placeholder": "select backend" }
+      }
+    },
+    "update_bucket": {
+      "description": "Merge fields into an existing bucket.",
+      "fields": {
+        "name": { "placeholder": "bucket to update" },
+        "patch": { "placeholder": "{\n  \"backend\": \"local\"\n}", "rows": 120 }
+      }
+    },
+    "delete_bucket": {
+      "description": "Delete a bucket by name.",
+      "fields": {
+        "name": { "placeholder": "bucket name" }
+      }
+    },
+    "get_bucket": {
+      "description": "Get bucket by name.",
+      "fields": {
+        "name": { "placeholder": "bucket name" }
+      }
+    },
+
+    "list_pins": { "description": "List pins." },
+    "create_pin": {
+      "description": "Create a pin.",
+      "fields": {
+        "cid": { "placeholder": "CID" },
+        "name": { "placeholder": "optional label" }
+      }
+    },
+    "delete_pin": {
+      "description": "Delete a pin.",
+      "fields": {
+        "cid": { "placeholder": "CID" }
+      }
+    },
+    "pins_export": { "description": "Export pins to a raw list." },
+    "pins_import": {
+      "description": "Import pins (merge).",
+      "fields": {
+        "items": { "placeholder": "[]", "rows": 120 }
+      }
+    },
+
+    "files_list": {
+      "description": "List VFS directory.",
+      "fields": { "path": { "placeholder": "." } }
+    },
+    "files_read": {
+      "description": "Read a VFS file.",
+      "fields": { "path": { "placeholder": "./path/to/file" } }
+    },
+    "files_write": {
+      "description": "Write content to a VFS file.",
+      "fields": {
+        "path": { "placeholder": "./notes.txt" },
+        "mode": { "enum": ["text", "hex"], "default": "text" },
+        "content": { "placeholder": "file content (text or hex)", "rows": 140 }
+      }
+    },
+    "files_mkdir": { "description": "Create a directory.", "fields": { "path": { "placeholder": "./new-folder" } } },
+    "files_rm": { "description": "Remove file/dir.", "fields": { "path": { "placeholder": "./file-or-dir" }, "recursive": {} } },
+    "files_mv": { "description": "Move or rename.", "fields": { "src": { "placeholder": "./old" }, "dst": { "placeholder": "./new" } } },
+    "files_copy": { "description": "Copy file/dir.", "fields": { "src": { "placeholder": "./src" }, "dst": { "placeholder": "./dst" }, "recursive": {} } },
+    "files_stat": { "description": "Stat a path.", "fields": { "path": { "placeholder": "./path" } } },
+    "files_touch": { "description": "Create an empty file.", "fields": { "path": { "placeholder": "./empty.txt" } } },
+    "files_tree": { "description": "Recursive listing.", "fields": { "path": { "placeholder": "." }, "depth": { "placeholder": "2", "default": 2 } } },
+
+    "ipfs_add": { "description": "Add a VFS path to IPFS.", "fields": { "path": { "placeholder": "./folder-or-file" } } },
+    "ipfs_pin": { "description": "Pin a CID.", "fields": { "cid": { "placeholder": "CID" }, "name": { "placeholder": "optional label" } } },
+    "ipfs_cat": { "description": "Cat a CID.", "fields": { "cid": { "placeholder": "CID" } } },
+    "ipfs_ls": { "description": "List links for CID.", "fields": { "cid": { "placeholder": "CID" } } },
+    "ipfs_version": { "description": "IPFS version info." },
+
+    "cars_list": { "description": "List CAR files." },
+    "car_export": { "description": "Export a VFS path to CAR.", "fields": { "path": { "placeholder": "./folder" }, "car": { "placeholder": "./car_store/out.car" } } },
+    "car_import": { "description": "Import a CAR to VFS.", "fields": { "car": { "placeholder": "./car_store/out.car" }, "dest": { "placeholder": "./imported" } } },
+
+    "state_snapshot": { "description": "Snapshot key state files." },
+    "state_backup": { "description": "Backup state to tar.gz." },
+    "state_reset": { "description": "Reset state JSON with backups." },
+
+    "get_logs": { "description": "Get recent logs.", "fields": { "limit": { "placeholder": "100", "default": 100 } } },
+    "clear_logs": { "description": "Clear logs." },
+
+    "ui_presets_get": { "description": "Get UI presets by key.", "fields": { "key": { "placeholder": "mcp_presets_<tool>" } } },
+    "ui_presets_set": { "description": "Set UI presets by key.", "fields": { "key": { "placeholder": "mcp_presets_<tool>" }, "value": { "placeholder": "{}", "rows": 120 } } },
+
+    "server_shutdown": { "description": "Shutdown this MCP server." }
+  }
+}

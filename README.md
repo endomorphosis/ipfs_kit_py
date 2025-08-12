@@ -17,44 +17,107 @@
 > - Background: `ipfs-kit mcp start` or `python -m ipfs_kit_py.cli mcp start`
 > Then open http://127.0.0.1:8004/
 
-## 🖥️ Unified MCP Dashboard Quickstart
+## 🖥️ Unified MCP Dashboard (Finalized)
 
-Use the lightweight JSON-RPC-first dashboard to manage buckets, pins, backends, services, files, CARs, and logs. State is file-backed under `~/.ipfs_kit` for CLI parity.
+The repository includes a modern, schema-driven MCP dashboard with:
+- **Single-file FastAPI app** (`consolidated_mcp_dashboard.py`)
+- **UI at `/`**: SPA with sidebar navigation, dashboard cards, and real-time updates
+- **Tool Runner UI**: Both legacy and beta (schema-driven) UIs available
+  - Enable beta UI via `?ui=beta` or `localStorage.setItem('toolRunner.beta', 'true')`
+- **MCP JS SDK**: `/mcp-client.js` exposes `window.MCP` with all tool namespaces
+- **Endpoints**:
+  - `/` (UI)
+  - `/mcp-client.js` (SDK)
+  - `/app.js` (UI logic)
+  - `/api/mcp/status`, `/api/system/health` (status)
+  - `/api/logs/stream` (SSE), `/ws` (WebSocket)
+  - `POST /mcp/tools/list`, `POST /mcp/tools/call` (JSON-RPC)
+  - `/api/state/backends`, `/api/services`, `/api/files`, etc.
+- **Panels**:
+  - Overview, Tools, Buckets, Pins, Backends, Services, Integrations, Files, CARs, Logs
+- **Security (optional)**:
+  - Set an API token via environment `MCP_API_TOKEN` or config `--api-token` when starting the dashboard.
+  - Read-only endpoints (GET status/metrics/list) remain open.
+  - Mutating endpoints (create/update/delete buckets, backends, pins, files write, tool execution) require token.
+  - Accepted credential forms:
+    - Header: `x-api-token: <token>`
+    - Authorization: `Bearer <token>`
+    - Query: `?token=<token>` (use sparingly; appears in logs/history)
+  - Example:
+    ```bash
+    MCP_API_TOKEN=secret123 ipfs-kit mcp start --port 8004
+    curl -H 'x-api-token: secret123' -X POST http://127.0.0.1:8004/api/state/buckets -d '{"name":"secure-bkt"}' -H 'Content-Type: application/json'
+    ```
+  - Tools: `POST /mcp/tools/call` also requires the token.
+  - Status telemetry additions:
+    - `GET /api/mcp/status` now returns:
+      - `counts.requests` – total HTTP requests handled since process start (in-memory)
+      - `security.auth_enabled` – boolean indicating whether an API token is active
+    - These fields assist with lightweight observability without external metrics backends.
+- **Accessibility**: ARIA roles, keyboard navigation, responsive design
+- **Testing**: Playwright E2E, Python smoke/unit tests
+- **Data locations** (default):
+  - `~/.ipfs_kit/buckets.json`, `~/.ipfs_kit/pins.json`
+  - `~/.ipfs_kit/backends/*.json`, `~/.ipfs_kit/backend_configs/*.yaml`
+  - `~/.ipfs_kit/files/`, `~/.ipfs_kit/car_store/*.car`, `~/.ipfs_kit/logs/*.log`
 
-1) Start the dashboard server
+---
+
+## 🚀 Quickstart
+
+Start the dashboard server:
 
 ```bash
-# either CLI alias
+# CLI alias
 ipfs-kit mcp start --host 127.0.0.1 --port 8004
-
-# or module form
+# or Python module
 python -m ipfs_kit_py.cli mcp start --host 127.0.0.1 --port 8004
 ```
 
-2) Open the UI at http://127.0.0.1:8004/
+Open the UI at [http://127.0.0.1:8004/](http://127.0.0.1:8004/)
 
-3) Endpoints available
+Stop or check status:
 
-- UI: `/`
-- SDK: `/mcp-client.js` (inline UMD; app also loads `/static/mcp-sdk.js` if present)
-- Tools (JSON-RPC): `POST /mcp/tools/list`, `POST /mcp/tools/call`
-- Health: `GET /api/system/health`, `GET /api/mcp/status`
-- Logs: `GET /api/logs/stream` (SSE), `WS /ws`
-- Backends (file-backed): `GET/POST/DELETE /api/state/backends[...]`
-- Services: `GET /api/services`
+```bash
+ipfs-kit mcp stop --port 8004
+ipfs-kit mcp status --port 8004
+```
 
-4) Panels in the SPA
+---
 
-- Overview, Tools Explorer, Buckets, Pins, Backends, Services, Integrations, Files, CARs, Logs (with in-memory log buffer, log files list, and tail helpers)
+## 🧑‍💻 Tool Runner UI
 
-5) Data locations (by default)
+- **Legacy UI**: Simple select + run
+- **Beta UI**: Schema-driven forms, ARIA, validation, keyboard shortcuts
+  - Enable via `?ui=beta` or `localStorage.setItem('toolRunner.beta', 'true')`
+  - See `README_BETA_UI.md` for details
 
-- `~/.ipfs_kit/buckets.json`, `~/.ipfs_kit/pins.json`
-- `~/.ipfs_kit/backend_configs/*.yaml`, `~/.ipfs_kit/backends/*.json`
-- `~/.ipfs_kit/files/` and per-bucket resolved paths
-- `~/.ipfs_kit/car_store/*.car`, `~/.ipfs_kit/logs/*.log`
+## 🧰 MCP JS SDK
 
-See `CONSOLIDATED_MCP_DASHBOARD.md` for details and `MCP_DASHBOARD_FEATURES_CHECKLIST.md` for coverage.
+- Exposed at `/mcp-client.js` as `window.MCP`
+- Namespaces: Services, Backends, Buckets, Pins, Files, IPFS, CARs, State, Logs, Server
+- Methods: `listTools()`, `callTool(name, args)`, plus per-namespace helpers
+
+## 🗂️ Panels
+
+- Overview, Tools, Buckets, Pins, Backends, Services, Integrations, Files, CARs, Logs
+
+## 🗄️ Data Locations
+
+- All state is file-backed under `~/.ipfs_kit` for CLI parity
+
+## 🧪 Testing
+
+- Playwright E2E tests (see `tests/e2e/`)
+- Python smoke and unit tests
+
+## 📚 Documentation
+
+- See `CONSOLIDATED_MCP_DASHBOARD.md` for dashboard details
+- See `MCP_DASHBOARD_UI_PLAN.md` for UI/UX and implementation plan
+- See `README_BETA_UI.md` for beta Tool Runner UI details
+
+---
 
 ## 🌟 Key Features
 
@@ -1126,44 +1189,4 @@ cd tests/ && python -m pytest
 # Check status
 cd tools/ && python verify_reorganization.py
 ```
-
-## �📞 Support & Contact
-
-- **GitHub Issues**: [Report bugs or request features](https://github.com/endomorphosis/ipfs_kit_py/issues)
-- **Email**: starworks5@gmail.com
-- **Documentation**: Check the `docs/` directory for detailed guides
-- **Structure Guide**: See `PROJECT_STRUCTURE.md` for complete organization details
-
----
-
-**✅ Production Ready** | **🧪 100% Tested** | **🚀 High Performance** | **🔌 MCP Compatible**
-
-## Repository Organization
-
-This repository has been organized into a clear directory structure:
-
-### Root Directory
-Contains only essential project files:
-- `README.md` - Main project documentation
-- `pyproject.toml` / `setup.py` - Python package configuration
-- `requirements.txt` - Python dependencies
-- `main.py` - Main entry point
-- `ipfs_kit_cli.py` - Primary CLI tool
-- Key documentation files
-
-### Directory Structure
-- `docs/` - All documentation (guides, implementation docs, summaries)
-- `examples/` - Demo scripts and integration examples
-- `tests/` - Comprehensive test suite (unit, integration, performance)
-- `tools/` - Utility scripts and maintenance tools
-- `cli/` - Alternative CLI implementations
-- `data/` - Configuration files, sample data, and results
-- `logs/` - Log files
-- `deprecated/` - Archived files for reference
-
-### Finding Files
-- **Documentation**: Check `docs/` and its subdirectories
-- **Examples**: Look in `examples/demos/` or `examples/integration/`
-- **Tests**: All test files are in `tests/` with appropriate subdirectories
-- **Utilities**: Maintenance and analysis tools are in `tools/`
 

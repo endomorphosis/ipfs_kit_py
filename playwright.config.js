@@ -1,9 +1,7 @@
-// @ts-check
-const { devices } = require('@playwright/test');
-
-/** @type {import('@playwright/test').PlaywrightTestConfig} */
+// Note: Avoid requiring '@playwright/test' here so this config works with `npx @playwright/test` even without local node_modules.
 module.exports = {
   testDir: './tests/e2e',
+  testMatch: /.*\.spec\.js$/,
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
@@ -24,7 +22,10 @@ module.exports = {
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        // Lightweight device emulation to avoid importing Playwright devices here
+        viewport: { width: 1280, height: 720 },
+      },
     },
   ],
   globalSetup: require.resolve('./tests/e2e/global-setup.js'),

@@ -1,14 +1,12 @@
 #!/bin/bash
 # IPFS-Kit CLI Wrapper
-# Ensures the virtual environment is used correctly
+# Prefer the repo-local .venv Python if available.
 
-# Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PY="$SCRIPT_DIR/.venv/bin/python"
 
-# Activate virtual environment if it exists
-if [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
-    source "$SCRIPT_DIR/.venv/bin/activate"
+if [ -x "$VENV_PY" ]; then
+    exec "$VENV_PY" "$SCRIPT_DIR/ipfs-kit.py" "$@"
+else
+    exec python "$SCRIPT_DIR/ipfs-kit.py" "$@"
 fi
-
-# Execute the Python CLI with all arguments
-exec python "$SCRIPT_DIR/ipfs-kit.py" "$@"

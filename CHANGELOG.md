@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Refactored JSON-RPC dispatcher in `consolidated_mcp_dashboard.py` into domain-specific handlers (system/services, backends, buckets, pins, files, IPFS, CARs, state, logs/server). No API changes; behavior verified by Playwright E2E (13/13 passing).
+
+- Tool Runner polish: persist last-selected tool in localStorage, Reset button to restore defaults from hints, and Copy cURL to clipboard.
+
+### Added
+- Beta Tool Runner accessibility and UX improvements:
+	- ARIA roles/labels, live result region, and validation with `aria-invalid`.
+	- Error summary region announced via `role=alert` and focus management.
+	- Keyboard shortcut: Ctrl/Cmd+Enter to run.
+	- Responsive layout for narrow screens.
+	- Opt-in Playwright tests (enable with `BETA_UI=1`) for a11y and confirmation flows.
+ - MCP Dashboard status endpoint now includes `counts.requests` (lifetime HTTP request counter) and `security.auth_enabled` flag.
+ - Lightweight HTTP middleware added to increment an in-memory request counter; covered by unit tests (`test_status_request_count.py`).
 ## [3.1.0] - 2025-07-29 - Three-Tier Policy System Release
 
 ### 🎯 Major Feature: Comprehensive Three-Tier Policy System

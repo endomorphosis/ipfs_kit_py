@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "test": "BASE_URL=${BASE_URL:-http://127.0.0.1:8004} npx playwright test",
+  "test:headed": "BASE_URL=${BASE_URL:-http://127.0.0.1:8004} npx playwright test --headed",
+  "test:ui": "BASE_URL=${BASE_URL:-http://127.0.0.1:8004} npx playwright test --ui"
   },
   "keywords": [],
   "author": "",
