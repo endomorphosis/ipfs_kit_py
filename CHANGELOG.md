@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Formal JSON Schema for deprecations report (`schemas/deprecations_report.schema.json`) with accompanying lightweight validation test (`test_cli_deprecations_report_schema_file.py`). This codifies the nested policy structure (`hits_enforcement`, `migration_enforcement`) and stabilizes the artifact for CI governance.
+	- Added `report_version` semantic version field (initial `1.0.0`) to each generated deprecations report for explicit contract versioning.
 
 ### Changed
 - Refactored JSON-RPC dispatcher in `consolidated_mcp_dashboard.py` into domain-specific handlers (system/services, backends, buckets, pins, files, IPFS, CARs, state, logs/server). No API changes; behavior verified by Playwright E2E (13/13 passing).
@@ -23,6 +26,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - Restored legacy `/api/system/overview` endpoint for backward compatibility (now returns combined `status`, `health`, and `metrics`). It is marked deprecated and emits one warning log on first use; clients should migrate to `/api/mcp/status` + `/api/system/health` + `/api/metrics/system`.
  - Added `/api/system/deprecations` endpoint exposing a machine-readable deprecation registry (with planned removal versions and migration hints).
  - WebSocket `/ws` initial `system_update` message now includes a `deprecations` array so UI clients can surface notices without extra HTTP calls.
+ - Per-endpoint hit counting middleware records usage for every HTTP path; counts are exposed in `/api/system/deprecations` and the initial WebSocket `system_update` payload to inform early removal decisions.
+ - Dismissible UI deprecation banner (rendered from the first WebSocket payload with HTTP fallback) highlighting active deprecated endpoints with planned removal versions.
+ - New CLI command: `ipfs-kit mcp deprecations` (add `--json` for raw output) to list deprecated endpoints with hit counts and migration hints.
+ - Pre-release GitHub Action (`pre_release_deprecation_check.yml`) invoking `verify_deprecations.py` on tag pushes and manual dispatch to enforce deprecation policy before publishing.
+ - CLI deprecations command enhancements: added `--sort` (endpoint|remove_in|hits), `--reverse`, and `--min-hits` flags for prioritized analysis of deprecated endpoints.
+ - Persistent endpoint hit counting: hit counts now saved to `~/.ipfs_kit/endpoint_hits.json` (or chosen `--data-dir`) on clean shutdown/SIGTERM and reloaded on startup for longitudinal deprecation usage tracking.
+ - CLI deprecations policy enforcement: `--fail-if-hits-over <N>` exits with code 3 if any deprecated endpoint exceeds N hits (for CI gating / removal readiness checks).
+ - CLI deprecations reporting: `--report-json <PATH>` writes a machine-readable report (timestamp, filtered list, summary stats, raw payload) to the given path for CI artifact publishing and historical tracking.
+	- Report policy section originally flat; now upgraded to nested structure with:
+	  - `policy.hits_enforcement` (status, threshold, violations)
+	  - `policy.migration_enforcement` (status, violations for endpoints missing migration hints)
+ - CLI deprecations migration enforcement: `--fail-if-missing-migration` exits with code 4 if any deprecated endpoint lacks a migration hint mapping (ensures removal planning completeness).
+ - New exit codes for CI:
+ 	- 0 = success / no policy violations
+ 	- 3 = hits threshold violation (`--fail-if-hits-over`)
+ 	- 4 = missing migration mapping violation (`--fail-if-missing-migration`)
 
 ### Deprecated
 - `/api/system/overview` planned removal in **3.2.0**. Use:

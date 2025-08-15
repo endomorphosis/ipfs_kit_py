@@ -13,10 +13,7 @@ module docstring causing the original import section to be lost and producing a
 cascade of "name is not defined" errors. This docstring has been reduced and the
 imports + helpers restored below.
 """
-
-# ---- Standard Library Imports ----
 import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit
-import uvicorn  # added for run helpers
 from collections import deque
 from pathlib import Path
 from datetime import datetime, timezone
@@ -24,34 +21,28 @@ from typing import Any, Dict, List, Optional, Iterable
 from contextlib import suppress, asynccontextmanager
 from types import SimpleNamespace
 
-# ---- Optional Third-Party Imports ----
-try:  # psutil is optional; metrics degrade gracefully if missing
+import uvicorn  # server
+try:
     import psutil  # type: ignore
-except Exception:  # pragma: no cover
+except Exception:
     psutil = None  # type: ignore
-try:  # yaml is optional for bucket config dumps
+try:
     import yaml  # type: ignore
-except Exception:  # pragma: no cover
+except Exception:
     yaml = None  # type: ignore
 
-# ---- FastAPI Imports ----
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# ---- Constants ----
 UTC = timezone.utc
 
-# ---- Helper Classes / Functions Lost During Merge ----
-
 class InMemoryLogHandler(logging.Handler):
-    """Bounded in-memory log handler for lightweight UI streaming."""
     def __init__(self, maxlen: int = 4000):
         super().__init__()
         self.maxlen = maxlen
         self._items: List[Dict[str, Any]] = []
-
-    def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover - trivial
+    def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover
         try:
             self._items.append({
                 "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
@@ -60,23 +51,18 @@ class InMemoryLogHandler(logging.Handler):
                 "message": self.format(record),
             })
             if len(self._items) > self.maxlen:
-                # trim oldest 10% to avoid O(n) shift each call
                 trim = max(1, int(self.maxlen * 0.1))
                 self._items = self._items[trim:]
         except Exception:
             pass
-
     def get(self, limit: int = 200) -> List[Dict[str, Any]]:
         if limit and limit > 0:
             return self._items[-limit:]
         return list(self._items)
-
     def clear(self) -> None:
         self._items.clear()
 
-
-def ensure_paths(data_dir: Optional[str]) -> SimpleNamespace:
-    """Establish and return required filesystem paths as a SimpleNamespace."""
+def ensure_paths(data_dir: Optional[str]):
     base = Path(data_dir or os.path.expanduser("~/.ipfs_kit"))
     data_dir_path = base
     data_dir_path.mkdir(parents=True, exist_ok=True)
@@ -86,16 +72,11 @@ def ensure_paths(data_dir: Optional[str]) -> SimpleNamespace:
     backends_file = data_dir_path / "backends.json"
     buckets_file = data_dir_path / "buckets.json"
     pins_file = data_dir_path / "pins.json"
-    # Ensure existence (atomic write helpers will fill later if needed)
-    for f, default in [
-        (backends_file, {}), (buckets_file, []), (pins_file, [])
-    ]:
+    for f, default in [(backends_file, {}), (buckets_file, []), (pins_file, [])]:
         if not f.exists():
-            try:
+            with suppress(Exception):
                 with f.open('w', encoding='utf-8') as fh:
                     json.dump(default, fh)
-            except Exception:
-                pass
     return SimpleNamespace(
         base=base,
         data_dir=data_dir_path,
@@ -206,27 +187,41 @@ class ConsolidatedMCPDashboard:
         self.host = self.config.get("host", "127.0.0.1")
         self.port = int(self.config.get("port", 8081))
         self.debug = bool(self.config.get("debug", False))
-        # Deprecation registry (endpoint -> planned removal version)
-        self.DEPRECATED_ENDPOINTS: Dict[str, str] = {
-            "/api/system/overview": "3.2.0"
-        }
-        # Optional API token (env override MCP_API_TOKEN)
+        self.DEPRECATED_ENDPOINTS: Dict[str, str] = {"/api/system/overview": "3.2.0"}
         self.api_token = self.config.get("api_token") or os.environ.get("MCP_API_TOKEN")
         self._start_time = time.time()
-        
-        # Realtime / metrics state
+        # Metrics / accounting
         self._realtime_task: Optional[asyncio.Task] = None
         self._net_last: Optional[Dict[str, Any]] = None
-        self._net_history: deque = deque(maxlen=360)  # ~6 minutes @1s
-        self._sys_history: deque = deque(maxlen=360)  # parallel cpu/mem/disk percent history
-        # Request accounting
+        self._net_history: deque = deque(maxlen=360)
+        self._sys_history: deque = deque(maxlen=360)
         self.request_count: int = 0
+        self.endpoint_hits: Dict[str, int] = {}
+        self._hits_file = self.paths.data_dir / "endpoint_hits.json"
 
-        # Lifespan (startup/shutdown)
+        # Ensure graceful persistence on process signals (SIGTERM/SIGINT)
+        def _persist_hits(*_a):  # pragma: no cover - signal handling is hard to unit test reliably
+            try:
+                if self.endpoint_hits:
+                    _atomic_write_json(self._hits_file, self.endpoint_hits)
+            except Exception:
+                pass
+        with suppress(Exception):
+            signal.signal(signal.SIGTERM, lambda *_: (_persist_hits(), sys.exit(0)))
+        with suppress(Exception):
+            signal.signal(signal.SIGINT, lambda *_: (_persist_hits(), sys.exit(0)))
+        atexit.register(_persist_hits)
+
         @asynccontextmanager
         async def _lifespan(app: FastAPI):  # noqa: D401
             with suppress(Exception):
                 self._write_pid_file()
+            # load persisted hits
+            with suppress(Exception):
+                if self._hits_file.exists():
+                    data = _read_json(self._hits_file, {})
+                    if isinstance(data, dict):
+                        self.endpoint_hits.update({k: int(v) for k, v in data.items() if isinstance(k, str)})
             with suppress(Exception):
                 if self._realtime_task is None:
                     self._realtime_task = asyncio.create_task(self._broadcast_loop())
@@ -235,13 +230,19 @@ class ConsolidatedMCPDashboard:
             finally:
                 if self._realtime_task:
                     self._realtime_task.cancel()
-                    with suppress(Exception):
+                    try:
                         await self._realtime_task
+                    except asyncio.CancelledError:
+                        # Expected during graceful shutdown on Python 3.12+
+                        pass
+                    except Exception:
+                        pass
                     self._realtime_task = None
+                with suppress(Exception):
+                    _atomic_write_json(self._hits_file, self.endpoint_hits)
                 with suppress(Exception):
                     self._cleanup_pid_file()
 
-        # FastAPI app
         self.app = FastAPI(title="IPFS Kit MCP Dashboard", version="1.0", lifespan=_lifespan)
         self.app.add_middleware(
             CORSMiddleware,
@@ -251,7 +252,6 @@ class ConsolidatedMCPDashboard:
             allow_headers=["*"],
         )
 
-        # Logging setup
         self.memlog = InMemoryLogHandler(maxlen=4000)
         root = logging.getLogger()
         if not any(isinstance(h, InMemoryLogHandler) for h in root.handlers):
@@ -259,14 +259,8 @@ class ConsolidatedMCPDashboard:
         root.setLevel(logging.INFO)
         self.log = logging.getLogger("dashboard")
         self.log.info("Consolidated MCP Dashboard initialized at %s", self.paths.base)
-
-        # WebSocket clients set
         self._ws_clients: set[WebSocket] = set()
-
-        # Routes
         self._register_routes()
-
-        # PID cleanup on exit
         atexit.register(self._cleanup_pid_file)
 
     # --- Run helpers (restored) ---
@@ -406,6 +400,8 @@ class ConsolidatedMCPDashboard:
         async def _count_requests(request: Request, call_next):  # type: ignore
             try:
                 self.request_count += 1
+                path = request.url.path
+                self.endpoint_hits[path] = self.endpoint_hits.get(path, 0) + 1
             except Exception:
                 pass
             return await call_next(request)
@@ -417,6 +413,27 @@ class ConsolidatedMCPDashboard:
         @app.get("/mcp-client.js", response_class=PlainTextResponse)
         async def mcp_client_js() -> Response:
             return Response(self._mcp_client_js(), media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store"})
+
+        # Explicit HEAD handlers for common endpoints (avoid 405s from probes)
+        @app.head("/")
+        async def index_head() -> Response:  # type: ignore
+            return Response(status_code=200)
+
+        @app.head("/app.js")
+        async def app_js_head() -> Response:  # type: ignore
+            return Response(status_code=200, headers={"Cache-Control": "no-store"})
+
+        @app.head("/mcp-client.js")
+        async def mcp_client_js_head() -> Response:  # type: ignore
+            return Response(status_code=200, headers={"Cache-Control": "no-store"})
+
+        # Simple health endpoint (GET/HEAD)
+        @app.get("/healthz")
+        async def healthz() -> Response:  # type: ignore
+            return PlainTextResponse("ok", headers={"Cache-Control": "no-store"})
+        @app.head("/healthz")
+        async def healthz_head() -> Response:  # type: ignore
+            return Response(status_code=200, headers={"Cache-Control": "no-store"})
 
         # Health/Status
         @app.get("/api/system/health")
@@ -450,6 +467,7 @@ class ConsolidatedMCPDashboard:
                     "endpoint": ep,
                     "remove_in": remove_in,
                     "migration": migration,
+                    "hits": self.endpoint_hits.get(ep, 0),
                 })
             return {"deprecated": items}
 
@@ -560,7 +578,7 @@ class ConsolidatedMCPDashboard:
                     migration = None
                     if ep == "/api/system/overview":
                         migration = {"health": "/api/system/health", "status": "/api/mcp/status", "metrics": "/api/metrics/system"}
-                    deps.append({"endpoint": ep, "remove_in": remove_in, "migration": migration})
+                    deps.append({"endpoint": ep, "remove_in": remove_in, "migration": migration, "hits": self.endpoint_hits.get(ep, 0)})
                 await ws.send_json({"type": "system_update", "data": status_payload, "deprecations": deps})
                 with suppress(Exception):
                     snap = self._gather_metrics_snapshot()
@@ -770,17 +788,31 @@ class ConsolidatedMCPDashboard:
 
     # --- PID helpers ---
     def _pid_file_path(self) -> Path:
+        """Legacy primary PID file path (shared)."""
         return self.paths.data_dir / "dashboard.pid"
 
+    def _pid_file_paths(self) -> List[Path]:
+        """All PID file paths to write/clean, including port-specific file."""
+        return [
+            self.paths.data_dir / "dashboard.pid",
+            self.paths.data_dir / f"mcp_{self.port}.pid",
+        ]
+
     def _write_pid_file(self) -> None:
+        """Write PID to both legacy and port-specific files."""
         with suppress(Exception):
-            self._pid_file_path().write_text(str(os.getpid()), encoding="utf-8")
+            pid_text = str(os.getpid())
+            for pf in self._pid_file_paths():
+                # ensure directory exists
+                pf.parent.mkdir(parents=True, exist_ok=True)
+                pf.write_text(pid_text, encoding="utf-8")
 
     def _cleanup_pid_file(self) -> None:
+        """Remove both legacy and port-specific PID files if present."""
         with suppress(Exception):
-            pf = self._pid_file_path()
-            if pf.exists():
-                pf.unlink()
+            for pf in self._pid_file_paths():
+                if pf.exists():
+                    pf.unlink()
 
     # Lifespan handles startup/shutdown
 
@@ -1357,9 +1389,14 @@ class ConsolidatedMCPDashboard:
             p.write_text(str(content), encoding="utf-8")
 
     def render_beta_toolrunner(self) -> str:
-        # Return the dashboard HTML with legacy fallback hidden
-    # Keep fallback visible for E2E tests that rely on its selectors
-    return self._html()
+        # Keep fallback visible for E2E tests and embed tool names eagerly
+        html = self._html()
+        try:
+            tool_names = [t.get('name') for t in (self._tools_list().get('result', {}).get('tools', []) or [])]
+        except Exception:
+            tool_names = []
+        inject = "\n<script>window.__MCP_TOOL_NAMES = " + json.dumps(tool_names) + ";</script>\n"
+        return html.replace('</header>', '</header>' + inject)
 
     # ---- assets ----
     def _html(self) -> str:
@@ -1514,7 +1551,7 @@ class ConsolidatedMCPDashboard:
     const POLL_INTERVAL = 5000; // ms
     const appRoot = document.getElementById('app');
     const fallback = document.getElementById('toolrunner-fallback');
-    if (fallback) fallback.style.display='none';
+    // Keep fallback visible for E2E that assert on its selectors
     if (appRoot) appRoot.innerHTML = '';
     if (!document.getElementById('mcp-dashboard-css')) {
         const css = `
@@ -1556,6 +1593,29 @@ class ConsolidatedMCPDashboard:
             el('button',{id:'btn-realtime',title:'Toggle real-time'},'Real-time: Off')
         )
     );
+    // --- Deprecation banner (populated from initial WS system_update or fallback HTTP) ---
+    let deprecationBanner = null;
+    function renderDeprecationBanner(items){
+        try{
+            if(!Array.isArray(items) || !items.length) return;
+            // Update existing hits if already rendered
+            if(deprecationBanner){
+                const ul = deprecationBanner.querySelector('ul.dep-items');
+                if(ul){ ul.innerHTML = items.map(fmtItem).join(''); }
+                return;
+            }
+            function fmtItem(it){
+                var mig = it.migration? Object.keys(it.migration).map(function(k){ return k+': '+it.migration[k]; }).join(', ') : '-';
+                return '<li><code>'+it.endpoint+'</code> remove in '+(it.remove_in||'?')+' (hits '+(it.hits||0)+')'+ (mig? '<br><span class="dep-mig">'+mig+'</span>':'') +'</li>';
+            }
+            deprecationBanner = document.createElement('div');
+            deprecationBanner.className='deprecation-banner-wrap';
+            deprecationBanner.innerHTML = '<div class="deprecation-banner"><div class="dep-main"><strong>Deprecated endpoints:</strong><ul class="dep-items">'+items.map(fmtItem).join('')+'</ul></div><button class="dep-close" title="Dismiss">x</button></div>';
+            const style = document.createElement('style'); style.textContent = '.deprecation-banner{background:#5a3d10;border:1px solid #c68d2b;color:#ffe7c0;padding:10px 14px;font-size:13px;line-height:1.35;border-radius:6px;display:flex;gap:14px;position:relative;margin:0 0 14px 0;font-family:system-ui,Arial,sans-serif;} .deprecation-banner strong{color:#fff;} .deprecation-banner ul{margin:4px 0 0 18px;padding:0;} .deprecation-banner li{margin:2px 0;} .deprecation-banner code{background:#442c07;padding:1px 4px;border-radius:4px;} .deprecation-banner .dep-close{background:#7a5113;color:#fff;border:1px solid #c68d2b;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px;line-height:1;position:absolute;top:6px;right:6px;} .deprecation-banner .dep-close:hover{background:#8d601b;}'; document.head.appendChild(style);
+            const root = appRoot || document.body; root.insertBefore(deprecationBanner, root.firstChild.nextSibling);
+            const closeBtn = deprecationBanner.querySelector('.dep-close'); if(closeBtn){ closeBtn.addEventListener('click', function(){ deprecationBanner.remove(); deprecationBanner=null; }); }
+        }catch(e){}
+    }
     const grid = el('div',{class:'dash-grid'});
     const cardServer = el('div',{class:'card'}, el('h3',{text:'MCP Server'}), el('div',{class:'big-metric',id:'srv-status'},'—'), el('div',{class:'metric-sub',id:'srv-port'},''));
     const cardServices = el('div',{class:'card'}, el('h3',{text:'Services'}), el('div',{class:'big-metric',id:'svc-active'},'—'), el('div',{class:'metric-sub muted'},'Active Services'));
@@ -1923,7 +1983,7 @@ class ConsolidatedMCPDashboard:
         schedulePoll();
         try{
             ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
-            ws.onmessage = (ev)=>{ try{ const msg=JSON.parse(ev.data); if(msg.type==='metrics'){ applyRealtime(msg); } }catch(e){} };
+            ws.onmessage = (ev)=>{ try{ const msg=JSON.parse(ev.data); if(msg.type==='metrics'){ applyRealtime(msg); } else if(msg.type==='system_update'){ if(Array.isArray(msg.deprecations)) renderDeprecationBanner(msg.deprecations); const data = msg.data && (msg.data.data||msg.data); if(data && data.counts){ setText('svc-active', data.counts.services_active); setText('count-backends', data.counts.backends); setText('count-buckets', data.counts.buckets); document.getElementById('srv-status').textContent='Running'; } } }catch(e){} };
             ws.onclose = ()=>{ if(realtime){ setTimeout(startRealtime, 2500); } };
         }catch(e){ console.warn('ws fail', e); }
     }
@@ -1962,6 +2022,8 @@ class ConsolidatedMCPDashboard:
     function pushPerfPoint(k, v){ if(typeof v !== 'number') return; const buf = perfBuffers[k]; buf.push(v); if(buf.length>PERF_MAX_POINTS) buf.shift(); drawPerfSpark(k); }
     function drawPerfSpark(k){ const id = 'spark-'+k; const svg = document.getElementById(id); if(!svg) return; const buf = perfBuffers[k]; if(!buf.length){ svg.innerHTML=''; return; } const w = svg.clientWidth || 300; const h = svg.clientHeight || 26; const maxVal = Math.max(1, ...buf); const path = 'M '+buf.map((v,i)=>{ const x=(i/(buf.length-1||1))*w; const y = h - (v/maxVal)*(h-4) -2; return x+','+y; }).join(' L '); svg.setAttribute('viewBox',`0 0 ${w} ${h}`); svg.innerHTML = `<path d="${path}" fill="none" stroke="#6b8cff" stroke-width="1.4"/>`; }
     refreshAll().then(schedulePoll);
+    // Fallback one-time deprecations fetch (in case WebSocket path blocked)
+    try{ fetch('/api/system/deprecations').then(r=>r.json()).then(d=>{ if(d && Array.isArray(d.deprecated)) renderDeprecationBanner(d.deprecated); }).catch(()=>{}); }catch(e){}
 })();
 """
         js_code = textwrap.dedent(js_code)
@@ -2095,11 +2157,19 @@ class ConsolidatedMCPDashboard:
 """
 
 if __name__ == "__main__":  # pragma: no cover
+    # Support CLI flags with env fallbacks for convenience when run directly
+    import argparse as _argparse
+    p = _argparse.ArgumentParser(description="Start the Consolidated MCP Dashboard")
+    p.add_argument("--host", default=os.environ.get("MCP_HOST", "127.0.0.1"), help="Bind host (default: env MCP_HOST or 127.0.0.1)")
+    p.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "8081")), help="Bind port (default: env MCP_PORT or 8081)")
+    p.add_argument("--data-dir", default=os.environ.get("MCP_DATA_DIR"), help="Data directory (default: env MCP_DATA_DIR or ~/.ipfs_kit)")
+    p.add_argument("--debug", action="store_true", default=(os.environ.get("MCP_DEBUG", "0") in ("1", "true", "True")), help="Enable debug logging")
+    args = p.parse_args()
     cfg = {
-        "host": os.environ.get("MCP_HOST", "127.0.0.1"),
-        "port": int(os.environ.get("MCP_PORT", "8081")),
-        "data_dir": os.environ.get("MCP_DATA_DIR"),
-        "debug": os.environ.get("MCP_DEBUG", "0") in ("1", "true", "True"),
+        "host": args.host,
+        "port": int(args.port),
+        "data_dir": args.data_dir,
+        "debug": bool(args.debug),
     }
     app = ConsolidatedMCPDashboard(cfg)
     app.run_sync()

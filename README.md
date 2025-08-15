@@ -17,6 +17,12 @@
 > - Background: `ipfs-kit mcp start` or `python -m ipfs_kit_py.cli mcp start`
 > Then open http://127.0.0.1:8004/
 
+PID files and CLI semantics:
+- The dashboard writes two PID files on startup:
+  - `~/.ipfs_kit/dashboard.pid` (legacy, shared)
+  - `~/.ipfs_kit/mcp_{port}.pid` (port-specific)
+- The CLI uses the port-specific PID file for `status` and `stop` to avoid cross-port ambiguity. If you ran the server manually and only `dashboard.pid` exists, the CLI may show HTTP status but no PID for that port. Start via the CLI to have `mcp_{port}.pid` created.
+
 ## 🖥️ Unified MCP Dashboard (Finalized)
 
 The repository includes a modern, schema-driven MCP dashboard with:
@@ -35,6 +41,7 @@ The repository includes a modern, schema-driven MCP dashboard with:
   - `POST /mcp/tools/list`, `POST /mcp/tools/call` (JSON-RPC)
   - `/api/state/backends`, `/api/services`, `/api/files`, etc.
   - Deprecated (temporary): `/api/system/overview` – legacy compatibility. Returns combined `status`, `health`, and `metrics` plus deprecation headers. Planned removal in version 3.2.0; migrate to `/api/mcp/status`, `/api/system/health`, and `/api/metrics/system`.
+  - The initial WebSocket `system_update` payload now includes a `deprecations` array (with per-endpoint hit counts) used by a dismissible UI banner; if the WS payload is delayed the UI lazily fetches `/api/system/deprecations` as a fallback.
 - **Panels**:
   - Overview, Tools, Buckets, Pins, Backends, Services, Integrations, Files, CARs, Logs
 - **Security (optional)**:
@@ -84,6 +91,45 @@ Stop or check status:
 ipfs-kit mcp stop --port 8004
 ipfs-kit mcp status --port 8004
 ```
+
+List deprecated endpoints (with planned removal version, hit counts, and migration hints):
+
+```bash
+ipfs-kit mcp deprecations          # pretty table
+ipfs-kit mcp deprecations --json   # raw JSON
+```
+
+The hit counts help decide if an endpoint can be removed sooner (low / zero usage) or needs extended support.
+
+Advanced options for deprecations analysis and CI gating:
+
+```bash
+# Sort and filter
+ipfs-kit mcp deprecations --sort hits --reverse           # highest hits first
+ipfs-kit mcp deprecations --min-hits 1                    # hide 0-hit endpoints
+
+# CI policy enforcement (exit codes):
+# 0 = OK, 3 = hits threshold violation, 4 = missing migration hints
+ipfs-kit mcp deprecations --fail-if-hits-over 0           # fail if any endpoint was used
+ipfs-kit mcp deprecations --fail-if-missing-migration     # fail if any endpoint lacks migration hints
+
+# Write a machine-readable report for artifacts
+ipfs-kit mcp deprecations --report-json ./deprecations_report.json
+```
+
+Run the dashboard script directly (without the CLI):
+
+```bash
+python consolidated_mcp_dashboard.py \
+  --host 127.0.0.1 \
+  --port 8081 \
+  --data-dir ~/.ipfs_kit \
+  --debug
+```
+
+Notes:
+- When run directly, the server still writes both PID files: `~/.ipfs_kit/dashboard.pid` and `~/.ipfs_kit/mcp_{port}.pid`.
+- The CLI `status` and `stop` subcommands look only at the port-specific file (e.g., `mcp_8099.pid`).
 
 ---
 

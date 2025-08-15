@@ -220,6 +220,200 @@ ipfs-kit bucket vfs-composition --bucket ml-models
 ipfs-kit bucket vfs-composition --backend s3,sshfs,gdrive
 ```
 
+## MCP Dashboard & Deprecations Visibility
+
+### Deprecation Tracking Overview
+The MCP dashboard exposes a machine-readable deprecation registry at `/api/system/deprecations` and mirrors it in the initial WebSocket `system_update` payload. Each entry includes:
+
+| Field | Description |
+|-------|-------------|
+| endpoint | Deprecated HTTP path |
+| remove_in | Planned removal version |
+| migration | Mapping of replacement endpoints (when available) |
+| hits | Observed request count since the dashboard first started (persisted across restarts) |
+
+### Persistent Hit Counts
+Per-endpoint request counts are persisted to `endpoint_hits.json` in the data directory (default: `~/.ipfs_kit`). On clean shutdown or receipt of `SIGTERM`/`SIGINT`, the dashboard writes the file; on startup it reloads and continues counting. This enables longitudinal tracking to prioritize removal of truly unused endpoints sooner.
+
+Data directory layout excerpt:
+```
+~/.ipfs_kit/
+  backends.json
+  buckets.json
+  pins.json
+  endpoint_hits.json   # persisted hit counters
+```
+
+### CLI: Listing Deprecated Endpoints
+Use the unified CLI command to inspect deprecations:
+
+```bash
+ipfs-kit mcp deprecations              # human table output
+ipfs-kit mcp deprecations --json       # raw JSON list
+```
+
+Enhancement flags for prioritization:
+
+```bash
+ipfs-kit mcp deprecations --sort hits           # order by usage (descending add --reverse for ascending)
+ipfs-kit mcp deprecations --sort remove_in      # semantic-like version ordering
+ipfs-kit mcp deprecations --min-hits 10         # filter out rarely-used endpoints
+ipfs-kit mcp deprecations --sort endpoint --reverse  # reverse lexicographic
+ipfs-kit mcp deprecations --report-json out/report.json  # write machine-readable report for CI artifacts
+```
+
+Flag summary:
+* `--sort endpoint|remove_in|hits` – choose column to sort (default: registry order)
+* `--reverse` – invert sort order
+* `--min-hits N` – include only endpoints with at least N recorded hits
+* `--json` – structured output suitable for scripts / CI checks
+* `--fail-if-hits-over N` – exit with code 3 if any deprecated endpoint exceeds N hits (for CI gating / removal readiness)
+* `--fail-if-missing-migration` – exit with code 4 if any deprecated endpoint lacks a migration mapping (ensures every deprecated path has a documented replacement strategy)
+
+### Example JSON Output
+```json
+[
+  {
+    "endpoint": "/api/system/overview",
+    "remove_in": "3.2.0",
+    "migration": {"health":"/api/system/health","status":"/api/mcp/status","metrics":"/api/metrics/system"},
+    "hits": 42
+  }
+]
+```
+
+### CI / Policy Integration
+Because hit counts persist across restarts, automation (e.g. a pre-release job) can enforce that endpoints below a threshold (e.g. `<5` hits in last week) are safe for removal or trigger warnings when high-usage deprecated endpoints remain.
+
+### UI Banner
+The built-in dashboard UI shows a dismissible banner summarizing active deprecations, sourced from the first WebSocket payload (fallback to HTTP if needed) so users get immediate visibility without extra requests.
+
+### JSON Report Export (`--report-json`)
+
+Use `--report-json <PATH>` to generate a machine-readable snapshot that CI pipelines or monitoring jobs can archive without scraping stdout. The report file contains:
+
+Updated nested policy schema (replacing earlier flat `policy.status` form):
+
+```jsonc
+{
+  "generated_at": "2025-08-14T12:34:56.123456+00:00",  // UTC timestamp
+  "deprecated": [ /* filtered & sorted list (after --min-hits / --sort applied) */ ],
+  "summary": {
+    "count": 1,
+    "max_hits": 42
+  },
+  "policy": {
+    "hits_enforcement": {
+      "status": "pass" | "violation" | "skipped",
+      "threshold": 100,              // evaluated threshold or null
+      "violations": [                // endpoints exceeding threshold
+        { "endpoint": "/api/system/overview", "hits": 120, "remove_in": "3.2.0", "threshold": 100 }
+      ]
+    },
+    "migration_enforcement": {
+      "status": "pass" | "violation" | "skipped",
+      "violations": [                // endpoints missing migration mapping
+        { "endpoint": "/api/legacy/old", "remove_in": "3.3.0", "hits": 5 }
+      ]
+    }
+  },
+  "raw": { /* original /api/system/deprecations response (unfiltered) */ }
+}
+```
+
+Typical CI usage patterns:
+
+1. Enforce hit threshold only:
+```bash
+ipfs-kit mcp deprecations \
+  --report-json build/deprecations/report.json \
+  --fail-if-hits-over 100
+```
+
+2. Enforce both hit threshold and migration completeness:
+```bash
+ipfs-kit mcp deprecations \
+  --report-json build/deprecations/report.json \
+  --fail-if-hits-over 100 \
+  --fail-if-missing-migration
+```
+
+3. Example GitHub Actions step (captures exit codes 3/4 distinctly):
+```yaml
+ - name: Deprecation policy check
+   run: |
+     set -e
+     ipfs-kit mcp deprecations \
+       --report-json build/deprecations/report.json \
+       --fail-if-hits-over 100 \
+       --fail-if-missing-migration || exit_code=$?
+     if [ "${exit_code:-0}" -eq 3 ]; then
+       echo "High-usage deprecated endpoint(s) detected (hits threshold)." >&2
+       exit 3
+     elif [ "${exit_code:-0}" -eq 4 ]; then
+       echo "Deprecated endpoint(s) missing migration mapping." >&2
+       exit 4
+     elif [ "${exit_code:-0}" -ne 0 ]; then
+       echo "Unexpected failure code: $exit_code" >&2
+       exit $exit_code
+     fi
+   shell: bash
+ - name: Upload deprecation report
+   uses: actions/upload-artifact@v4
+   with:
+     name: deprecations-report
+     path: build/deprecations/report.json
+```
+
+Exit codes reference:
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success (no violations) |
+| 3 | Hits threshold violation (`--fail-if-hits-over`) |
+| 4 | Missing migration mapping violation (`--fail-if-missing-migration`) |
+
+Upload `build/deprecations/report.json` as a workflow artifact and visualize trends over time (e.g. diff `summary.max_hits` and counts of `policy.migration_enforcement.violations`).
+
+## Deprecation Governance & Report Schema
+
+The JSON artifact produced by `--report-json` is now governed by a formal JSON Schema at `schemas/deprecations_report.schema.json`. This codifies:
+
+- Stable top-level keys: `generated_at`, `deprecated`, `summary`, `policy`, `raw`.
+- Nested policy objects: `policy.hits_enforcement` and `policy.migration_enforcement` (each with `status` + `violations`).
+- Backward-compatible allowance for unknown additional properties (schema is permissive for additive evolution).
+
+### Why a Schema?
+1. Contract stability for CI & downstream tooling.
+2. Safer refactors (tests fail fast on breaking shape changes).
+3. Enables automatic documentation generation and validation.
+
+### Lightweight Validation
+Current test `test_cli_deprecations_report_schema_file.py` performs structural checks without extra dependencies. To enable full Draft 2020-12 validation later, add `jsonschema` to dependencies and extend the test to run a full schema validation.
+
+### Evolution Guidelines
+- Only add new fields (avoid removals/renames) for non-breaking changes.
+- Make new fields optional first; after broad adoption, consider making them required via a schema version bump.
+- Keep additive changes backward-compatible; document them in CHANGELOG.
+
+### Schema Versioning (`report_version`)
+Each generated report now includes a `report_version` (semantic version). Bump rules:
+* PATCH: Purely additive (new optional fields) or documentation clarifications.
+* MINOR: New required fields OR behavior changes that remain backward-compatible for existing keys.
+* MAJOR: Removals, renames, or structural changes to existing required fields.
+
+Automation can pin to a major.minor (e.g. `^1.0.0`) ensuring compatible evolution. Tests assert presence and semantic format.
+
+### Exit Codes (For Quick Reference)
+| Code | Meaning |
+|------|---------|
+| 0 | No policy violations |
+| 3 | Hits threshold violation (`--fail-if-hits-over`) |
+| 4 | Missing migration mapping (`--fail-if-missing-migration`) |
+
+Use these codes in CI to gate merges or releases based on deprecation policy health.
+
+
 ### 5. Cross-Backend Querying with SQL
 
 #### Query Pins Across All Backends
