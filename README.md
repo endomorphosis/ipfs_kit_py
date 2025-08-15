@@ -117,6 +117,40 @@ ipfs-kit mcp deprecations --fail-if-missing-migration     # fail if any endpoint
 ipfs-kit mcp deprecations --report-json ./deprecations_report.json
 ```
 
+### Deprecation Governance & Report Schema
+
+All deprecation policy decisions are driven by a machine‑readable report generated via:
+
+```bash
+ipfs-kit mcp deprecations \
+  --report-json build/deprecations/report.json \
+  --fail-if-hits-over 100 \
+  --fail-if-missing-migration
+```
+
+Key properties of the report (see `schemas/deprecations_report.schema.json`):
+* `generated_at` – UTC timestamp
+* `report_version` – Semantic schema contract (currently `1.0.0`)
+* `deprecated[]` – Filtered/sorted endpoints (after flags)
+* `summary.{count,max_hits}` – Aggregated stats
+* `policy.hits_enforcement` – `status|threshold|violations[]`
+* `policy.migration_enforcement` – `status|violations[]`
+* `raw` – Original unfiltered payload (traceability)
+
+Exit codes (for CI): 0=pass/skip, 3=hits threshold violation, 4=missing migration mapping. See `CLI_OVERVIEW.md` for detailed policy usage, evolution guidelines, and schema versioning strategy.
+
+Versioning Rules (`report_version`):
+* PATCH: Add optional fields / doc clarifications
+* MINOR: Add required fields (backward compatible for existing keys)
+* MAJOR: Remove/rename existing required keys or structural changes
+
+Automation Tips:
+* Gate merges: fail workflow if report exit code is 3 or 4
+* Trend analysis: archive `summary` diff across runs
+* Enforcement drift detection: compare previous vs current violation sets
+
+For full governance details and upgrade strategy refer to `CLI_OVERVIEW.md` (Deprecation Governance & Report Schema section).
+
 Run the dashboard script directly (without the CLI):
 
 ```bash

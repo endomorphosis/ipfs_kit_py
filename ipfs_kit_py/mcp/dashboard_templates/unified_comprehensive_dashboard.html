@@ -987,13 +987,25 @@
 
         async function loadSystemOverview() {
             try {
-                const response = await fetch('/api/system/overview');
-                const data = await response.json();
-                
-                updateSystemMetrics(data.system || {});
-                updateSystemStatus(data);
-                
-                console.log('✅ System overview loaded');
+                const [statusRes, metricsRes] = await Promise.all([
+                    fetch('/api/mcp/status'),
+                    fetch('/api/metrics/system')
+                ]);
+                const statusJson = await statusRes.json();
+                const metricsJson = await metricsRes.json();
+                const status = statusJson && (statusJson.data || statusJson);
+                const sys = {
+                    cpu: { usage: metricsJson.cpu_percent || 0 },
+                    memory: metricsJson.memory || {},
+                    disk: metricsJson.disk || {}
+                };
+                updateSystemMetrics(sys);
+                updateSystemStatus({
+                    services: (status.counts||{}).services_active || 0,
+                    backends: (status.counts||{}).backends || 0,
+                    buckets: (status.counts||{}).buckets || 0
+                });
+                console.log('✅ System overview (migrated) loaded');
             } catch (error) {
                 console.error('❌ Failed to load system overview:', error);
             }

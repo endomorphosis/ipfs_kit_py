@@ -55,38 +55,47 @@ function showTab(tabName) {
 // Data Loading Functions
 async function loadOverviewData() {
     try {
-        const response = await fetch(`${API_BASE_URL}/system/overview`);
-        const data = await response.json();
+        const [statusRes, metricsRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/mcp/status`),
+            fetch(`${API_BASE_URL}/metrics/system`)
+        ]);
+        const statusJson = await statusRes.json();
+        const metricsJson = await metricsRes.json();
+        const status = statusJson && (statusJson.data || statusJson);
+        const counts = (status && status.counts) || {};
+        const memory = metricsJson.memory || {};
+        const disk = metricsJson.disk || {};
+        const cpuPercent = typeof metricsJson.cpu_percent === 'number' ? metricsJson.cpu_percent : 0;
 
-        // Update main metrics
-        document.getElementById('services-count').textContent = data.services;
-        document.getElementById('backends-count').textContent = data.backends;
-        document.getElementById('buckets-count').textContent = data.buckets;
+        document.getElementById('services-count').textContent = counts.services_active ?? '0';
+        document.getElementById('backends-count').textContent = counts.backends ?? '0';
+        document.getElementById('buckets-count').textContent = counts.buckets ?? '0';
 
-        // Update system performance
-        const system = data.system;
-        document.getElementById('cpu-percent').textContent = `${system.cpu.usage.toFixed(1)}%`;
-        document.getElementById('cpu-bar').style.width = `${system.cpu.usage}%`;
-        document.getElementById('memory-percent').textContent = `${system.memory.percent.toFixed(1)}%`;
-        document.getElementById('memory-bar').style.width = `${system.memory.percent}%`;
-        document.getElementById('memory-used').textContent = formatBytes(system.memory.used);
-        document.getElementById('memory-total').textContent = formatBytes(system.memory.total);
-        document.getElementById('disk-percent').textContent = `${system.disk.percent.toFixed(1)}%`;
-        document.getElementById('disk-bar').style.width = `${system.disk.percent}%`;
-        document.getElementById('disk-used').textContent = formatBytes(system.disk.used);
-        document.getElementById('disk-total').textContent = formatBytes(system.disk.total);
+        document.getElementById('cpu-percent').textContent = `${cpuPercent.toFixed(1)}%`;
+        document.getElementById('cpu-bar').style.width = `${cpuPercent}%`;
+        if (typeof memory.percent === 'number') {
+            document.getElementById('memory-percent').textContent = `${memory.percent.toFixed(1)}%`;
+            document.getElementById('memory-bar').style.width = `${memory.percent}%`;
+        }
+        if (typeof memory.used === 'number') document.getElementById('memory-used').textContent = formatBytes(memory.used);
+        if (typeof memory.total === 'number') document.getElementById('memory-total').textContent = formatBytes(memory.total);
+        if (typeof disk.percent === 'number') {
+            document.getElementById('disk-percent').textContent = `${disk.percent.toFixed(1)}%`;
+            document.getElementById('disk-bar').style.width = `${disk.percent}%`;
+        }
+        if (typeof disk.used === 'number') document.getElementById('disk-used').textContent = formatBytes(disk.used);
+        if (typeof disk.total === 'number') document.getElementById('disk-total').textContent = formatBytes(disk.total);
 
-        // Update sidebar stats
-        document.getElementById('sidebar-backends-count').textContent = data.backends;
-        document.getElementById('sidebar-cpu-percent').textContent = `${system.cpu.usage.toFixed(0)}%`;
-        document.getElementById('sidebar-cpu-bar').style.width = `${system.cpu.usage}%`;
-        document.getElementById('sidebar-memory-percent').textContent = `${system.memory.percent.toFixed(0)}%`;
-        document.getElementById('sidebar-memory-bar').style.width = `${system.memory.percent}%`;
+        document.getElementById('sidebar-backends-count').textContent = counts.backends ?? '0';
+        document.getElementById('sidebar-cpu-percent').textContent = `${Number(cpuPercent || 0).toFixed(0)}%`;
+        document.getElementById('sidebar-cpu-bar').style.width = `${cpuPercent}%`;
+        if (typeof memory.percent === 'number') {
+            document.getElementById('sidebar-memory-percent').textContent = `${memory.percent.toFixed(0)}%`;
+            document.getElementById('sidebar-memory-bar').style.width = `${memory.percent}%`;
+        }
 
-        // Load IPFS daemon status
         loadIpfsDaemonStatus();
         loadNetworkActivity();
-
     } catch (error) {
         console.error('Error loading overview data:', error);
     }
@@ -94,31 +103,22 @@ async function loadOverviewData() {
 
 async function loadIpfsDaemonStatus() {
     try {
-        // Get services data for daemon status
         const servicesResponse = await fetch(`${API_BASE_URL}/services`);
         const servicesData = await servicesResponse.json();
         const services = servicesData.services || {};
-        const daemonStatus = services.ipfs || { status: 'stopped' };
-        
-        // Get overview data for peer ID and addresses
-        const overviewResponse = await fetch(`${API_BASE_URL}/system/overview`);
-        const overviewData = await overviewResponse.json();
-        
+        const ipfs = services.ipfs || {};
+        const isRunning = !!ipfs.api_port_open;
         const statusDiv = document.getElementById('ipfs-daemon-status');
-        
         let statusHtml = '';
-        if (daemonStatus && daemonStatus.status === 'running') {
+        if (isRunning) {
             statusHtml = `
                 <div class="text-center p-4 bg-green-50 rounded-lg">
                     <div class="text-4xl text-green-500 mb-2"><i class="fas fa-check-circle"></i></div>
                     <p class="font-semibold text-green-800">Daemon Running</p>
                 </div>
                 <div class="p-4 bg-gray-50 rounded-lg col-span-2">
-                    <p class="text-sm text-gray-600"><strong>Peer ID:</strong> ${overviewData.peer_id || 'N/A'}</p>
-                    <p class="text-sm text-gray-600"><strong>Addresses:</strong></p>
-                    <ul class="text-xs list-disc list-inside pl-2 mt-1">
-                        ${overviewData.addresses ? overviewData.addresses.map(a => `<li>${a}</li>`).join('') : '<li>No addresses found</li>'}
-                    </ul>
+                    <p class="text-sm text-gray-600"><strong>Binary:</strong> ${ipfs.bin || 'N/A'}</p>
+                    <p class="text-sm text-gray-600"><strong>API Port:</strong> ${ipfs.api_port_open ? 'open' : 'closed'}</p>
                 </div>
             `;
             document.getElementById('sidebar-ipfs-status').textContent = 'Running';
@@ -128,7 +128,7 @@ async function loadIpfsDaemonStatus() {
                 <div class="text-center p-4 bg-red-50 rounded-lg col-span-3">
                     <div class="text-4xl text-red-500 mb-2"><i class="fas fa-times-circle"></i></div>
                     <p class="font-semibold text-red-800">Daemon Stopped</p>
-                    <p class="text-sm text-gray-600 mt-2">${daemonStatus ? daemonStatus.error : 'Could not fetch status.'}</p>
+                    <p class="text-sm text-gray-600 mt-2">${ipfs.bin ? 'API not reachable' : 'ipfs binary not found'}</p>
                 </div>
             `;
             document.getElementById('sidebar-ipfs-status').textContent = 'Stopped';
@@ -143,18 +143,27 @@ async function loadIpfsDaemonStatus() {
 
 async function loadNetworkActivity() {
     try {
-        const response = await fetch('/api/system/metrics');
+        const response = await fetch(`${API_BASE_URL}/metrics/network`);
         const data = await response.json();
-        const network = data.network;
+        const points = Array.isArray(data.points) ? data.points : [];
+        const last = points.length ? points[points.length - 1] : {};
+        const tx = last.tx_bps || 0;
+        const rx = last.rx_bps || 0;
         const contentDiv = document.getElementById('network-activity-content');
+        function formatBps(v){
+            const kb = v/1024; const mb = kb/1024;
+            if (mb >= 1) return `${mb.toFixed(2)} MiB/s`;
+            if (kb >= 1) return `${kb.toFixed(1)} KiB/s`;
+            return `${v.toFixed(0)} B/s`;
+        }
         contentDiv.innerHTML = `
             <div class="flex items-center">
                 <div class="p-3 rounded-lg bg-gradient-to-r from-blue-400 to-cyan-500 mr-4">
                     <i class="fas fa-arrow-up text-white"></i>
                 </div>
                 <div>
-                    <p class="text-gray-600 text-sm">Data Sent</p>
-                    <p class="font-bold text-xl">${formatBytes(network.sent)}</p>
+                    <p class="text-gray-600 text-sm">TX Rate</p>
+                    <p class="font-bold text-xl">${formatBps(tx)}</p>
                 </div>
             </div>
             <div class="flex items-center">
@@ -162,8 +171,8 @@ async function loadNetworkActivity() {
                     <i class="fas fa-arrow-down text-white"></i>
                 </div>
                 <div>
-                    <p class="text-gray-600 text-sm">Data Received</p>
-                    <p class="font-bold text-xl">${formatBytes(network.recv)}</p>
+                    <p class="text-gray-600 text-sm">RX Rate</p>
+                    <p class="font-bold text-xl">${formatBps(rx)}</p>
                 </div>
             </div>
         `;

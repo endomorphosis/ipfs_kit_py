@@ -1,4 +1,4 @@
-import json, subprocess, sys, re, tempfile, pathlib
+import json, subprocess, sys, re, tempfile, pathlib, importlib
 
 
 def test_report_version_constant_exposed():
@@ -16,4 +16,6 @@ def test_report_version_constant_exposed():
         assert ver, 'report_version missing in report'
         assert re.match(r'^\d+\.\d+\.\d+$', ver), f'report_version not semantic: {ver}'
 
-        # Future enhancement: parse cli module to ensure constant matches (skipped to avoid importing implementation details here)
+    # Ensure constant in module matches report value
+    cli_mod = importlib.import_module('ipfs_kit_py.cli')
+    assert getattr(cli_mod, 'REPORT_SCHEMA_VERSION', None) == ver, 'Module REPORT_SCHEMA_VERSION mismatch'

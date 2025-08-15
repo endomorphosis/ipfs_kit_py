@@ -23,6 +23,9 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Optional, Callable, Awaitable
 
+# Semantic version for the deprecations report schema contract.
+REPORT_SCHEMA_VERSION = "1.0.0"
+
 
 class FastCLI:
     """Small async-friendly CLI wrapper.
@@ -327,11 +330,9 @@ class FastCLI:
 
                 items = sorted(items, key=key_func, reverse=bool(getattr(args, 'reverse', False)))
 
-        # Prepare report output (before printing) if requested
+    # Prepare report output (before printing) if requested
         report_path = getattr(args, 'report_json', None)
         report_written = False
-        # Schema/report version (increment on backward-incompatible structure changes)
-        REPORT_SCHEMA_VERSION = "1.0.0"
         if report_path:
             try:
                 deps_list = items or []
