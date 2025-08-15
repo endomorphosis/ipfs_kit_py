@@ -300,7 +300,10 @@ def start_mcp_server(port: int, debug: bool = False, real_implementations: bool 
                         
                         # Check if it's an MCP server process
                         cmdline = " ".join(process.cmdline())
-                        if "enhanced_mcp_server.py" in cmdline or "fixed_mcp_server.py" in cmdline or "real_mcp_server.py" in cmdline:
+                        if ("enhanced_mcp_server.py" in cmdline or 
+                            "integrated_enhanced_mcp_server.py" in cmdline or
+                            "fixed_mcp_server.py" in cmdline or 
+                            "real_mcp_server.py" in cmdline):
                             logger.info(f"Found an MCP server already running on port {port}")
                             return process
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
@@ -314,17 +317,20 @@ def start_mcp_server(port: int, debug: bool = False, real_implementations: bool 
     if real_implementations:
         setup_real_implementations()
     
-    # Determine which MCP server script to use
-    if os.path.exists("enhanced_mcp_server.py"):
-        mcp_script = "enhanced_mcp_server.py"
-    elif os.path.exists("fixed_mcp_server.py"):
-        mcp_script = "fixed_mcp_server.py"
-    else:
-        logger.error("No MCP server script found")
-        return None
+    # Use the new integrated enhanced MCP server
+    mcp_script = "integrated_enhanced_mcp_server.py"
+    if not os.path.exists(mcp_script):
+        # Fall back to older scripts if the new one doesn't exist
+        if os.path.exists("enhanced_mcp_server.py"):
+            mcp_script = "enhanced_mcp_server.py"
+        elif os.path.exists("fixed_mcp_server.py"):
+            mcp_script = "fixed_mcp_server.py"
+        else:
+            logger.error("No MCP server script found")
+            return None
     
     # Start the MCP server
-    cmd = [sys.executable, mcp_script, "--port", str(port)]
+    cmd = [sys.executable, mcp_script, "--port", str(port), "--host", "127.0.0.1"]
     if debug:
         cmd.append("--debug")
     
@@ -340,7 +346,7 @@ def start_mcp_server(port: int, debug: bool = False, real_implementations: bool 
         )
         
         # Wait a moment for the server to start
-        time.sleep(2)
+        time.sleep(3)
         
         # Check if the process is still running
         if process.poll() is not None:
@@ -348,6 +354,24 @@ def start_mcp_server(port: int, debug: bool = False, real_implementations: bool 
             logger.error(f"MCP server process exited with code {process.returncode}")
             logger.error(f"STDOUT: {stdout}")
             logger.error(f"STDERR: {stderr}")
+            return None
+        
+        # Check if port is now listening
+        if not is_port_in_use(port):
+            logger.error("MCP server process is running but port is not listening")
+            process.terminate()
+            return None
+        
+        # Create PID file
+        with open(PID_FILE, "w") as f:
+            f.write(str(process.pid))
+        
+        logger.info(f"MCP server started successfully with PID {process.pid}")
+        return psutil.Process(process.pid)
+        
+    except Exception as e:
+        logger.error(f"Failed to start MCP server: {e}")
+        return None
             return None
         
         logger.info(f"Started MCP server process with PID {process.pid}")
