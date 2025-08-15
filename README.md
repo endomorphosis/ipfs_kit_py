@@ -359,6 +359,39 @@ ipfs-kit bucket policy show              # All bucket policies
 | `ENABLE_INDEXING` | `true` | Enable indexing features |
 | `ENABLE_VFS` | `true` | Enable VFS integration |
 
+### Bucket Policy REST & Dashboard Integration
+
+The dashboard now supports inline per-bucket policy editing (replication factor, cache policy, retention days):
+
+REST Endpoints:
+```
+GET  /api/state/buckets/{name}/policy          # Return current policy (auto-injects defaults if missing)
+POST /api/state/buckets/{name}/policy          # Update one or more policy fields (requires x-api-token)
+```
+JSON Body Fields (partial updates allowed on POST):
+- `replication_factor` (int, 1–10, default 1)
+- `cache_policy` (enum: none|memory|disk, default none)
+- `retention_days` (int, >=0, default 0)
+
+Example Update:
+```bash
+curl -H 'Content-Type: application/json' \
+  -H 'x-api-token: $TOKEN' \
+  -d '{"replication_factor":3, "cache_policy":"memory", "retention_days":30}' \
+  http://127.0.0.1:8004/api/state/buckets/my-bucket/policy
+```
+
+Dashboard Usage:
+- Navigate to Buckets panel → each bucket row is expandable.
+- Click the ▾ control to load and reveal policy form (lazy loads via GET endpoint).
+- Edit values and press Save (POST); inline status messages indicate success or validation errors.
+
+Validation Errors:
+- 400 returned for out-of-range replication_factor or invalid cache_policy values.
+- 401 returned if missing/invalid token for POST.
+
+Legacy buckets without a `policy` object receive defaults on first read (implicit migration, persisted on next update).
+
 ### Three-Tier Policy System Configuration
 
 #### 1. Global Pinset Policies (`ipfs-kit config pinset-policy`)

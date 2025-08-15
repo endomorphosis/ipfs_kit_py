@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Formal JSON Schema for deprecations report (`schemas/deprecations_report.schema.json`) with accompanying lightweight validation test (`test_cli_deprecations_report_schema_file.py`). This codifies the nested policy structure (`hits_enforcement`, `migration_enforcement`) and stabilizes the artifact for CI governance.
 	- Added `report_version` semantic version field (initial `1.0.0`) to each generated deprecations report for explicit contract versioning.
+- Bucket Policy management (backend + UI):
+	- New per-bucket policy object persisted in `buckets.json` with defaults (`replication_factor`, `cache_policy`, `retention_days`).
+	- REST: `GET /api/state/buckets/{name}/policy` & `POST /api/state/buckets/{name}/policy` (partial updates, validation, auth on mutate).
+	- JSON-RPC tools: `get_bucket_policy`, `update_bucket_policy` plus JS wrappers (`Buckets.getPolicy` / `Buckets.updatePolicy`).
+	- Dashboard UI: Expandable bucket rows with inline policy editor, Save/Cancel, status feedback.
+- Service lifecycle simulation:
+	- In-memory lifecycle state for `ipfs`, `cars` services with timestamps.
+	- REST: `GET /api/services` includes status + detection info; `POST /api/services/{name}/{action}` (start/stop/restart) with auth + validation.
+	- Dashboard services panel upgraded: action buttons, polling (5s), transitional states (starting/stopping/restarting) → final states.
+- Tests: `test_bucket_policy.py` (defaults, update, validation, auth) & `test_services_lifecycle.py` (list, auth enforcement, transition to running).
 
 ### Changed
 - Refactored JSON-RPC dispatcher in `consolidated_mcp_dashboard.py` into domain-specific handlers (system/services, backends, buckets, pins, files, IPFS, CARs, state, logs/server). No API changes; behavior verified by Playwright E2E (13/13 passing).

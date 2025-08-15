@@ -1,27 +1,28 @@
 #!/usr/bin/env python3
-"""
-Comprehensive MCP Tools Test Suite for IPFS Kit Python
-Tests all MCP tools to ensure they work correctly with the stable virtual environment
+"""Pytest-compatible comprehensive MCP tools test.
+
+Refactored from script style to a collectible test that:
+ - Skips cleanly if the enhanced MCP server module is unavailable
+ - Avoids direct sys.exit calls that abort the entire test session
+ - Asserts acceptable success rate from the existing MCPToolsTester logic
 """
 
 import asyncio
 import json
-import sys
-import os
 import traceback
-from datetime import datetime
 from pathlib import Path
 
-# Add the project root to the path
+import pytest
+
+# Ensure local mcp package path is available (mirrors original script behavior)
 project_root = Path(__file__).parent
+import sys
 sys.path.insert(0, str(project_root / "mcp" / "ipfs_kit" / "mcp"))
 
-try:
+try:  # pragma: no cover - import guard
     from enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
-except ImportError as e:
-    print(f"Error importing MCP server: {e}")
-    print("Make sure you're running this from the project root directory")
-    sys.exit(1)
+except ImportError as e:  # Skip instead of exiting test run
+    pytest.skip(f"Enhanced MCP server not available: {e}", allow_module_level=True)
 
 class MCPToolsTester:
     """Comprehensive tester for MCP tools."""
@@ -302,22 +303,16 @@ class MCPToolsTester:
         if self.server:
             self.server.cleanup()
 
-async def main():
-    """Main test runner."""
+@pytest.mark.timeout(120)
+def test_mcp_tools_comprehensive():
+    """Run comprehensive MCP tool suite; require acceptable success rate.
+
+    Uses existing tester to maintain coverage breadth but converts exit codes
+    into pytest assertion semantics.
+    """
     tester = MCPToolsTester()
-    
     try:
-        success = await tester.run_all_tests()
-        return 0 if success else 1
-    except KeyboardInterrupt:
-        print("\n⚠️  Test interrupted by user")
-        return 1
-    except Exception as e:
-        print(f"\n💥 Unexpected error: {e}")
-        traceback.print_exc()
-        return 1
+        success = asyncio.run(tester.run_all_tests())
     finally:
         tester.cleanup()
-
-if __name__ == "__main__":
-    exit(asyncio.run(main()))
+    assert success, "Comprehensive MCP tools success rate below threshold (>=60% expected)"

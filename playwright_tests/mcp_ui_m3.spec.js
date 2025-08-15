@@ -14,59 +14,31 @@ test.describe('MCP Dashboard M3 behaviors', () => {
     page.on('console', (msg) => console.log(`[browser:${msg.type()}] ${msg.text()}`));
   });
 
-  test('Tool Runner keyboard shortcuts/run flow works', async ({ page }) => {
+  test('Tools panel run flow works', async ({ page }) => {
     await page.goto(`${BASE_URL}/`);
+    // Open Tools view
+    const toolsBtn = page.locator('.dash-nav .nav-btn', { hasText: 'Tools' }).first();
+    await toolsBtn.click();
+    const card = page.locator('#view-tools .card').first();
+    await expect(card.locator('h3:has-text("Tools")')).toBeVisible();
 
-    // Try advanced UI first; fall back to minimal UI
-    const advancedRunner = page.locator('h4:has-text("Tool Runner (SDK)")').first();
-    const minimalRunner = page.locator('h4:has-text("Tool Runner")').first();
-    let card;
-    if (await advancedRunner.isVisible({ timeout: 1000 }).catch(() => false)) {
-      card = advancedRunner.locator('xpath=ancestor::div[contains(@class, "card")]').first();
+    // Select a tool and run
+    const select = card.locator('select#tool-select');
+    await expect(select).toBeVisible({ timeout: 15000 });
+    const hasOption = await select.locator('option', { hasText: 'get_system_status' }).count();
+    if (hasOption > 0) {
+      await select.selectOption({ label: 'get_system_status' });
     } else {
-      await expect(minimalRunner).toBeVisible({ timeout: 30000 });
-      card = minimalRunner.locator('xpath=ancestor::div[contains(@class, "card")]').first();
+      const first = await select.locator('option').first().getAttribute('value');
+      if (first) await select.selectOption(first);
     }
-
-    // Search for a simple tool
-    // Advanced UI path
-    const search = card.locator('input[placeholder="Search tools"]');
-    if (await search.isVisible().catch(() => false)) {
-      await search.fill('get_system_status');
-      await search.press('Enter');
-      const responsePre = card.locator('h5:has-text("Response")').locator('xpath=following-sibling::pre[1]');
-      await expect(responsePre).toContainText('jsonrpc', { timeout: 15_000 });
-      // JSON args Ctrl+Enter
-      const jsonToggle = card.getByRole('button', { name: 'JSON args' });
-      if (await jsonToggle.isVisible().catch(() => false)) {
-        await jsonToggle.click();
-        const jsonTa = card.locator('details:has(> summary:has-text("Args JSON")) textarea').first();
-        await expect(jsonTa).toBeVisible();
-        await jsonTa.fill('{"limit": 1}');
-        await jsonTa.press('Control+Enter');
-        await expect(responsePre).toContainText('jsonrpc', { timeout: 15_000 });
-      }
-    } else {
-      // Minimal UI path: select tool and click Run
-      const select = card.locator('select#tool-select');
-      await expect(select).toBeVisible({ timeout: 15000 });
-      // Choose get_system_status if present, else first option
-      const hasOption = await select.locator('option', { hasText: 'get_system_status' }).count();
-      if (hasOption > 0) {
-        await select.selectOption({ label: 'get_system_status' });
-      } else {
-        const first = await select.locator('option').first().getAttribute('value');
-        if (first) await select.selectOption(first);
-      }
-      // Clear args
-      const args = card.locator('textarea#tool-args');
-      if (await args.isVisible().catch(() => false)) {
-        await args.fill('{}');
-      }
-      await card.locator('button#tool-run').click();
-      const result = card.locator('pre#tool-result');
-      await expect(result).toContainText('jsonrpc', { timeout: 20000 });
+    const args = card.locator('textarea#tool-args');
+    if (await args.isVisible().catch(() => false)) {
+      await args.fill('{}');
     }
+    await card.locator('button#btn-tool-run').click();
+    const result = card.locator('pre#tool-result');
+    await expect(result).toContainText('jsonrpc', { timeout: 20000 });
   });
 
   test('Tools list cache is populated in localStorage', async ({ page }) => {
