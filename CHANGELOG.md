@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 	- Responsive layout for narrow screens.
 	- Opt-in Playwright tests (enable with `BETA_UI=1`) for a11y and confirmation flows.
  - MCP Dashboard status endpoint now includes `counts.requests` (lifetime HTTP request counter) and `security.auth_enabled` flag.
+ - Restored legacy `/api/system/overview` endpoint for backward compatibility (now returns combined `status`, `health`, and `metrics`). It is marked deprecated and emits one warning log on first use; clients should migrate to `/api/mcp/status` + `/api/system/health` + `/api/metrics/system`.
+ - Added `/api/system/deprecations` endpoint exposing a machine-readable deprecation registry (with planned removal versions and migration hints).
+ - WebSocket `/ws` initial `system_update` message now includes a `deprecations` array so UI clients can surface notices without extra HTTP calls.
+
+### Deprecated
+- `/api/system/overview` planned removal in **3.2.0**. Use:
+	- `/api/mcp/status` for status & counts
+	- `/api/system/health` for health snapshot
+	- `/api/metrics/system` (and `/api/metrics/system/history`) for metrics
+	The legacy endpoint currently returns a superset (`status`,`health`,`metrics`) with `deprecated: true`, `remove_in: 3.2.0`, and `X-Deprecated: true` header to ease migration.
  - Lightweight HTTP middleware added to increment an in-memory request counter; covered by unit tests (`test_status_request_count.py`).
 ## [3.1.0] - 2025-07-29 - Three-Tier Policy System Release
 
