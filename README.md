@@ -30,9 +30,11 @@ The repository includes a modern, schema-driven MCP dashboard with:
   - `/mcp-client.js` (SDK)
   - `/app.js` (UI logic)
   - `/api/mcp/status`, `/api/system/health` (status)
+  - `/api/system/deprecations` (deprecation registry)
   - `/api/logs/stream` (SSE), `/ws` (WebSocket)
   - `POST /mcp/tools/list`, `POST /mcp/tools/call` (JSON-RPC)
   - `/api/state/backends`, `/api/services`, `/api/files`, etc.
+  - Deprecated (temporary): `/api/system/overview` – legacy compatibility. Returns combined `status`, `health`, and `metrics` plus deprecation headers. Planned removal in version 3.2.0; migrate to `/api/mcp/status`, `/api/system/health`, and `/api/metrics/system`.
 - **Panels**:
   - Overview, Tools, Buckets, Pins, Backends, Services, Integrations, Files, CARs, Logs
 - **Security (optional)**:
@@ -116,6 +118,9 @@ ipfs-kit mcp status --port 8004
 - See `CONSOLIDATED_MCP_DASHBOARD.md` for dashboard details
 - See `MCP_DASHBOARD_UI_PLAN.md` for UI/UX and implementation plan
 - See `README_BETA_UI.md` for beta Tool Runner UI details
+- See `MCP_DASHBOARD_FEATURE_PARITY_CHECKLIST.md` for a feature parity tracker aligned to the legacy dashboard UI
+- See `DASHBOARD_UI_COMPONENTS_SPEC.md` for concrete UI component contracts and examples
+- See `LEGACY_TO_NEW_DASHBOARD_MIGRATION.md` for mapping legacy UI to new components/SDK
 
 ---
 
@@ -589,6 +594,11 @@ ipfs_kit_py/
 - **[VFS Integration](./docs/VFS_INTEGRATION.md)**: Virtual filesystem usage
 - **[Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md)**: Production best practices
 
+- See `MCP_DASHBOARD_FEATURE_PARITY_CHECKLIST.md` for a feature parity tracker aligned to the legacy dashboard UI
+- See `LEGACY_TO_NEW_DASHBOARD_MIGRATION.md` for mapping legacy UI to new components/SDK
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
@@ -948,8 +958,6 @@ ipfs_kit_py/
 ├── 📄 pyproject.toml                  # Package configuration
 ├── 📚 docs/                           # Documentation (2,400+ files)
 ├── 🧪 tests/                          # Test suites (900+ files)
-│   ├── integration/                   # Integration tests
-│   └── unit/                          # Unit tests
 ├── 🛠️ tools/                          # Development tools (400+ files)
 ├── 🔧 scripts/                        # Shell scripts (200+ files)
 ├── 🐳 docker/                         # Docker configuration

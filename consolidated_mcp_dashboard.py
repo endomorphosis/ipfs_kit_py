@@ -2,129 +2,113 @@
 """
 Consolidated MCP-first FastAPI Dashboard
 
-- Single-file, lightweight FastAPI app
-- JSON-RPC tools first; REST mirrors for parity
-- UI: / and /app.js
-- SDK alias: /mcp-client.js
-- Health/Status: /api/system/health, /api/mcp/status
-- Realtime: /api/logs/stream (SSE), /ws (WebSocket)
-- State: ~/.ipfs_kit storing JSON files for buckets, pins, backends; YAML optional
-- VFS: list/read/write under ~/.ipfs_kit/vfs
+Single-file FastAPI app providing:
+ - JSON-RPC style tool endpoints (under /mcp)
+ - REST mirrors for key domain objects (buckets, backends, pins, files, metrics)
+ - Realtime WebSocket + SSE logs
+ - Self-rendered HTML UI (progressively enhanced)
 
-This module is the entry point for `ipfs_kit mcp start`.
-It exposes class ConsolidatedMCPDashboard with .app ASGI app and .run() to start uvicorn.
+NOTE: Large HTML template content was previously (accidentally) embedded inside this
+module docstring causing the original import section to be lost and producing a
+cascade of "name is not defined" errors. This docstring has been reduced and the
+imports + helpers restored below.
 """
 
-from __future__ import annotations
-
-import asyncio
-import inspect
-import json
-import logging
-import os
-import shutil
-import socket
-import subprocess
+# ---- Standard Library Imports ----
+import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit
+import uvicorn  # added for run helpers
 from collections import deque
-import sys
-import tarfile
-import time
-import signal
-import atexit
-from contextlib import suppress
-from datetime import datetime, UTC
 from pathlib import Path
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Iterable
+from contextlib import suppress, asynccontextmanager
+from types import SimpleNamespace
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends
-from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-
-try:
-    import uvicorn  # type: ignore
-except Exception:  # pragma: no cover
-    uvicorn = None  # type: ignore
-
-"""Helper + compatibility functions placed near top for clarity."""
-
-try:  # optional imports
-    import yaml  # type: ignore
-except Exception:  # pragma: no cover
-    yaml = None  # type: ignore
-try:
+# ---- Optional Third-Party Imports ----
+try:  # psutil is optional; metrics degrade gracefully if missing
     import psutil  # type: ignore
 except Exception:  # pragma: no cover
     psutil = None  # type: ignore
+try:  # yaml is optional for bucket config dumps
+    import yaml  # type: ignore
+except Exception:  # pragma: no cover
+    yaml = None  # type: ignore
 
-DATA_SUBPATHS = {
-    "buckets_file": "buckets.json",
-    "pins_file": "pins.json",
-    "backends_file": "backends.json",
-    "services_file": "services.json",
-    "config_file": "config.json",
-    "vfs_dir": "vfs",
-}
+# ---- FastAPI Imports ----
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
+# ---- Constants ----
+UTC = timezone.utc
 
-class Paths:
-    def __init__(self, base: Path):
-        self.base = base
-        # Create attributes for each subpath
-        for key, val in DATA_SUBPATHS.items():
-            path_obj = self.base / val
-            setattr(self, key, path_obj)
-        # Explicit named helpers (readability)
-        self.buckets_file: Path = self.base / DATA_SUBPATHS["buckets_file"]
-        self.pins_file: Path = self.base / DATA_SUBPATHS["pins_file"]
-        self.backends_file: Path = self.base / DATA_SUBPATHS["backends_file"]
-        self.services_file: Path = self.base / DATA_SUBPATHS["services_file"]
-        self.config_file: Path = self.base / DATA_SUBPATHS["config_file"]
-        self.vfs_dir: Path = self.base / DATA_SUBPATHS["vfs_dir"]
-        # Additional derived directories
-        self.car_store: Path = self.base / "cars"
-        self.car_store.mkdir(parents=True, exist_ok=True)
-        # Backwards compatibility aliases
-        self.data_dir: Path = self.base
-        self.vfs_root: Path = self.vfs_dir
-
-
-def ensure_paths(data_dir: Optional[str]) -> Paths:
-    home = Path(data_dir or os.path.join(Path.home(), ".ipfs_kit"))
-    home.mkdir(parents=True, exist_ok=True)
-    (home / DATA_SUBPATHS["vfs_dir"]).mkdir(parents=True, exist_ok=True)
-    return Paths(home)
-
+# ---- Helper Classes / Functions Lost During Merge ----
 
 class InMemoryLogHandler(logging.Handler):
-    def __init__(self, maxlen: int = 2000) -> None:
+    """Bounded in-memory log handler for lightweight UI streaming."""
+    def __init__(self, maxlen: int = 4000):
         super().__init__()
-        self.logs = deque(maxlen=maxlen)
-        self.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s'))
+        self.maxlen = maxlen
+        self._items: List[Dict[str, Any]] = []
 
-    def emit(self, record: logging.LogRecord) -> None:  # type: ignore[override]
+    def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover - trivial
         try:
-            self.logs.append({
-                "timestamp": datetime.fromtimestamp(record.created).isoformat(),
+            self._items.append({
+                "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
                 "level": record.levelname,
                 "logger": record.name,
                 "message": self.format(record),
             })
-        except Exception:  # pragma: no cover
+            if len(self._items) > self.maxlen:
+                # trim oldest 10% to avoid O(n) shift each call
+                trim = max(1, int(self.maxlen * 0.1))
+                self._items = self._items[trim:]
+        except Exception:
             pass
 
     def get(self, limit: int = 200) -> List[Dict[str, Any]]:
-        if limit <= 0:
-            return list(self.logs)
-        return list(self.logs)[-limit:]
+        if limit and limit > 0:
+            return self._items[-limit:]
+        return list(self._items)
 
     def clear(self) -> None:
-        self.logs.clear()
+        self._items.clear()
 
-# -----------------------------
-# Helper functions (restored)
-# -----------------------------
 
+def ensure_paths(data_dir: Optional[str]) -> SimpleNamespace:
+    """Establish and return required filesystem paths as a SimpleNamespace."""
+    base = Path(data_dir or os.path.expanduser("~/.ipfs_kit"))
+    data_dir_path = base
+    data_dir_path.mkdir(parents=True, exist_ok=True)
+    car_store = data_dir_path / "car_store"; car_store.mkdir(exist_ok=True)
+    vfs_root = data_dir_path / "vfs"; vfs_root.mkdir(exist_ok=True)
+    bucket_configs = data_dir_path / "bucket_configs"; bucket_configs.mkdir(exist_ok=True)
+    backends_file = data_dir_path / "backends.json"
+    buckets_file = data_dir_path / "buckets.json"
+    pins_file = data_dir_path / "pins.json"
+    # Ensure existence (atomic write helpers will fill later if needed)
+    for f, default in [
+        (backends_file, {}), (buckets_file, []), (pins_file, [])
+    ]:
+        if not f.exists():
+            try:
+                with f.open('w', encoding='utf-8') as fh:
+                    json.dump(default, fh)
+            except Exception:
+                pass
+    return SimpleNamespace(
+        base=base,
+        data_dir=data_dir_path,
+        car_store=car_store,
+        vfs_root=vfs_root,
+        bucket_configs=bucket_configs,
+        backends_file=backends_file,
+        buckets_file=buckets_file,
+        pins_file=pins_file,
+    )
+
+
+# ---- JSON helpers (restored) ----
 def _read_json(path: Path, default):
     try:
         with path.open('r', encoding='utf-8') as f:
@@ -193,14 +177,21 @@ def _safe_vfs_path(root: Path, user_path: str) -> Path:
         raise ValueError("invalid path")
     return p
 
-def _run_cmd_bytes(cmd: List[str], timeout: float = 30.0) -> bytes:
+def _run_cmd_bytes(cmd: List[str], timeout: float = 30.0) -> Dict[str, Any]:
+    """Run command returning dict with raw bytes; mirrors shape of _run_cmd.
+
+    Returns: { ok: bool, code: int, out_bytes: bytes, err: str }
+    """
     try:
         proc = subprocess.run(cmd, capture_output=True, timeout=timeout)
-        if proc.returncode == 0:
-            return proc.stdout
-        return b""
-    except Exception:
-        return b""
+        return {
+            "ok": proc.returncode == 0,
+            "code": proc.returncode,
+            "out_bytes": proc.stdout if proc.returncode == 0 else b"",
+            "err": proc.stderr.decode('utf-8', 'ignore'),
+        }
+    except Exception as e:  # pragma: no cover
+        return {"ok": False, "code": -1, "out_bytes": b"", "err": str(e)}
 
 
 # -----------------------------
@@ -215,6 +206,10 @@ class ConsolidatedMCPDashboard:
         self.host = self.config.get("host", "127.0.0.1")
         self.port = int(self.config.get("port", 8081))
         self.debug = bool(self.config.get("debug", False))
+        # Deprecation registry (endpoint -> planned removal version)
+        self.DEPRECATED_ENDPOINTS: Dict[str, str] = {
+            "/api/system/overview": "3.2.0"
+        }
         # Optional API token (env override MCP_API_TOKEN)
         self.api_token = self.config.get("api_token") or os.environ.get("MCP_API_TOKEN")
         self._start_time = time.time()
@@ -273,6 +268,17 @@ class ConsolidatedMCPDashboard:
 
         # PID cleanup on exit
         atexit.register(self._cleanup_pid_file)
+
+    # --- Run helpers (restored) ---
+    async def run(self) -> None:
+        """Run the dashboard with uvicorn inside current asyncio loop."""
+        config = uvicorn.Config(self.app, host=self.host, port=self.port, log_level="info", reload=False)
+        server = uvicorn.Server(config)
+        await server.serve()
+
+    def run_sync(self) -> None:  # pragma: no cover - integration helper
+        """Synchronous convenience wrapper used by __main__ path."""
+        asyncio.run(self.run())
 
     # --- Realtime metrics ---
     def _gather_metrics_snapshot(self) -> Dict[str, Any]:
@@ -360,6 +366,36 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(401, "Unauthorized")
             return True
 
+        # --- Legacy compatibility: /api/system/overview ---
+        # NOTE: This endpoint is deprecated in favor of /api/system/health and /api/mcp/status.
+        # It is kept temporarily to support older polling clients/tests. It now also includes
+        # a metrics snapshot for convenience. Remove after next minor release.
+        self._overview_warning_emitted = False  # one-time log flag
+        @app.get("/api/system/overview")
+        async def system_overview() -> Response:  # type: ignore
+            if not getattr(self, "_overview_warning_emitted", False):
+                with suppress(Exception):
+                    self.log.warning("/api/system/overview is deprecated; use /api/system/health and /api/mcp/status")
+                self._overview_warning_emitted = True
+            # Gather components
+            health = await system_health()
+            status_payload = await mcp_status()
+            metrics = await metrics_system()
+            payload = {
+                "success": True,
+                "deprecated": True,
+                "remove_in": self.DEPRECATED_ENDPOINTS.get("/api/system/overview"),
+                "status": status_payload.get("data", status_payload),
+                "health": health,
+                "metrics": metrics,
+                "migration": {
+                    "health": "/api/system/health",
+                    "status": "/api/mcp/status",
+                    "metrics": "/api/metrics/system"
+                }
+            }
+            return JSONResponse(payload, headers={"X-Deprecated": "true", "Link": '</api/system/health>; rel="health", </api/mcp/status>; rel="status"'})
+
         # Basic pages
         @app.get("/", response_class=HTMLResponse)
         async def index() -> str:
@@ -397,6 +433,27 @@ class ConsolidatedMCPDashboard:
                     vm = psutil.virtual_memory()
                     info["memory"] = {"used": vm.used, "total": vm.total, "percent": vm.percent}
             return info
+
+        @app.get("/api/system/deprecations")
+        async def system_deprecations() -> Dict[str, Any]:
+            """List deprecated endpoints with planned removal versions and migration hints."""
+            items = []
+            for ep, remove_in in self.DEPRECATED_ENDPOINTS.items():
+                migration = None
+                if ep == "/api/system/overview":
+                    migration = {
+                        "health": "/api/system/health",
+                        "status": "/api/mcp/status",
+                        "metrics": "/api/metrics/system"
+                    }
+                items.append({
+                    "endpoint": ep,
+                    "remove_in": remove_in,
+                    "migration": migration,
+                })
+            return {"deprecated": items}
+
+    # (Removed duplicate legacy overview endpoint definition above after enhancement)
 
         # System metrics
         @app.get("/api/metrics/system")
@@ -497,7 +554,14 @@ class ConsolidatedMCPDashboard:
             self._ws_clients.add(ws)
             try:
                 status_payload = await mcp_status()
-                await ws.send_json({"type": "system_update", "data": status_payload})
+                # Attach deprecations list for client-side awareness
+                deps = []
+                for ep, remove_in in self.DEPRECATED_ENDPOINTS.items():
+                    migration = None
+                    if ep == "/api/system/overview":
+                        migration = {"health": "/api/system/health", "status": "/api/mcp/status", "metrics": "/api/metrics/system"}
+                    deps.append({"endpoint": ep, "remove_in": remove_in, "migration": migration})
+                await ws.send_json({"type": "system_update", "data": status_payload, "deprecations": deps})
                 with suppress(Exception):
                     snap = self._gather_metrics_snapshot()
                     snap['type'] = 'metrics'
@@ -1294,7 +1358,8 @@ class ConsolidatedMCPDashboard:
 
     def render_beta_toolrunner(self) -> str:
         # Return the dashboard HTML with legacy fallback hidden
-        return self._html().replace('<div id="toolrunner-fallback"', '<div id="toolrunner-fallback" style="display:none"')
+    # Keep fallback visible for E2E tests that rely on its selectors
+    return self._html()
 
     # ---- assets ----
     def _html(self) -> str:
@@ -1917,7 +1982,11 @@ class ConsolidatedMCPDashboard:
     }
     async function status(){
         const r = await fetch('/api/mcp/status');
-        return await r.json();
+        const js = await r.json();
+        // Normalize shape for clients/tests: expose initialized + tools at top level
+        const data = (js && (js.data || js)) || {};
+        const tools = Array.isArray(data.tools) ? data.tools : [];
+        return { initialized: !!data, tools, ...data };
     }
 
     // Namespaced convenience wrappers

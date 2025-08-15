@@ -118,7 +118,7 @@ The SPA includes the following panels:
 - Files (list/read/write; bucket path resolution)
 - CARs (list/import/export/remove; import-to-bucket)
 
-See `MCP_DASHBOARD_FEATURES_CHECKLIST.md` for requirement coverage.
+See also: `MCP_DASHBOARD_FEATURE_PARITY_CHECKLIST.md` for a checklist to track visual/functional parity with the legacy dashboard.
 
 ## Finalized Features (2025)
 

@@ -22,11 +22,10 @@ import asyncio
 from typing import Dict, List, Any, Optional, Union
 from pathlib import Path
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Form, Query, Depends
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Form, Query, Depends, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.websockets import WebSocket, WebSocketDisconnect
 
 # Configure logging
 logging.basicConfig(
@@ -71,9 +70,12 @@ try:
     # Streaming Operations
     from ipfs_kit_py.mcp.streaming import (
         ChunkedFileUploader, StreamingDownloader, BackgroundPinningManager, ProgressTracker,
-        WebSocketManager, get_ws_manager, EventType,
-        SignalingServer
+        EventType
     )
+    
+    # JSON-RPC Event Management (replaces WebSocket functionality)
+    from ipfs_kit_py.mcp.jsonrpc_event_manager import get_jsonrpc_event_manager, initialize_jsonrpc_event_manager
+    from ipfs_kit_py.mcp.jsonrpc_methods import register_jsonrpc_methods
     
     # Advanced Authentication & Authorization
     from ipfs_kit_py.mcp.auth.enhanced_integration import (
@@ -122,8 +124,7 @@ search_engine = None
 pinning_manager = None
 file_uploader = None
 file_downloader = None
-ws_manager = None
-signaling_server = None
+jsonrpc_event_manager = None
 monitoring_service = None
 router_instance = None
 
@@ -132,9 +133,13 @@ async def initialize_components():
     """Initialize MCP components."""
     global backend_manager, migration_controller, search_engine
     global pinning_manager, file_uploader, file_downloader
-    global ws_manager, signaling_server, monitoring_service
+    global jsonrpc_event_manager, monitoring_service
     
     logger.info("Initializing MCP components...")
+    
+    # Initialize JSON-RPC Event Manager (replaces WebSocket manager)
+    jsonrpc_event_manager = initialize_jsonrpc_event_manager()
+    logger.info("JSON-RPC Event Manager initialized")
     
     # Initialize Backend Health Monitor and Manager
     from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
@@ -216,14 +221,6 @@ async def initialize_components():
         max_concurrent=int(os.environ.get("MAX_CONCURRENT_DOWNLOADS", "3"))
     )
     logger.info("Initialized File Streaming components")
-    
-    # Get WebSocket Manager
-    ws_manager = get_ws_manager()
-    logger.info("Initialized WebSocket Manager")
-    
-    # Initialize Signaling Server
-    signaling_server = SignalingServer()
-    logger.info("Initialized WebRTC Signaling Server")
     
     # Initialize Advanced Authentication & Authorization System
     from ipfs_kit_py.mcp.auth.enhanced_integration import initialize_auth_system, get_auth_system
@@ -1202,98 +1199,63 @@ async def stream_download(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# API Router for real-time notifications
+# API Router for real-time notifications (now via JSON-RPC)
 @app.get("/api/v0/realtime/status")
 async def realtime_status(current_user: User = Depends(get_current_user)):
-    """Get WebSocket manager status."""
-    if not COMPONENTS_INITIALIZED or not ws_manager:
+    """Get JSON-RPC event manager status."""
+    if not COMPONENTS_INITIALIZED or not jsonrpc_event_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
     
     try:
-        stats = ws_manager.get_stats()
+        stats = jsonrpc_event_manager.get_server_stats()
         return {"success": True, "stats": stats}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time notifications."""
-    if not COMPONENTS_INITIALIZED or not ws_manager:
-        await websocket.close(code=1011, reason="MCP components not initialized")
-        return
-    
-    try:
-        # Accept connection
-        await websocket.accept()
-        
-        # Register client
-        client_id = await ws_manager.register_client(websocket)
-        
-        # Send welcome message
-        await websocket.send_text(json.dumps({
-            "type": "welcome",
-            "client_id": client_id,
-            "timestamp": time.time()
-        }))
-        
-        # Handle incoming messages
-        try:
-            while True:
-                # Wait for message
-                message = await websocket.receive_text()
-                
-                try:
-                    # Parse message
-                    data = json.loads(message)
-                    
-                    # Handle subscribe/unsubscribe
-                    if data.get("type") == "subscribe" and "channel" in data:
-                        await ws_manager.subscribe(client_id, data["channel"])
-                        await websocket.send_text(json.dumps({
-                            "type": "subscribed",
-                            "channel": data["channel"],
-                            "timestamp": time.time()
-                        }))
-                    
-                    elif data.get("type") == "unsubscribe" and "channel" in data:
-                        await ws_manager.unsubscribe(client_id, data["channel"])
-                        await websocket.send_text(json.dumps({
-                            "type": "unsubscribed",
-                            "channel": data["channel"],
-                            "timestamp": time.time()
-                        }))
-                    
-                except json.JSONDecodeError:
-                    # Invalid JSON
-                    await websocket.send_text(json.dumps({
-                        "type": "error",
-                        "error": "Invalid JSON",
-                        "timestamp": time.time()
-                    }))
-                
-        except WebSocketDisconnect:
-            # Client disconnected
-            await ws_manager.unregister_client(client_id)
-    
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-        # Try to close connection
-        try:
-            await websocket.close(code=1011, reason=str(e))
-        except:
-            pass
-
-
-# API Router for WebRTC signaling
-@app.get("/api/v0/webrtc/status")
-async def webrtc_status(current_user: User = Depends(get_current_user)):
-    """Get WebRTC signaling server status."""
-    if not COMPONENTS_INITIALIZED or not signaling_server:
+# JSON-RPC endpoint for event management and WebRTC signaling
+@app.post("/api/v0/jsonrpc")
+async def jsonrpc_endpoint(request: Request, current_user: User = Depends(get_current_user)):
+    """JSON-RPC endpoint replacing WebSocket functionality."""
+    if not COMPONENTS_INITIALIZED or not jsonrpc_event_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
     
     try:
-        stats = signaling_server.get_stats()
+        # Import JSON-RPC dispatcher
+        from jsonrpc.dispatcher import Dispatcher
+        
+        # Create dispatcher and register methods
+        dispatcher = Dispatcher()
+        register_jsonrpc_methods(dispatcher)
+        
+        # Get request data
+        request_json = await request.json()
+        logger.debug(f"Received JSON-RPC request: {request_json}")
+        
+        # Process the request
+        response = await dispatcher.dispatch(request_json)
+        
+        return JSONResponse(response.to_dict())
+    except Exception as e:
+        logger.error(f"Error handling JSON-RPC request: {e}")
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "error": {"code": -32603, "message": str(e)},
+            "id": request_json.get("id") if "request_json" in locals() else None
+        }, status_code=500)
+
+
+# API Router for WebRTC signaling (now handled via JSON-RPC)
+@app.get("/api/v0/webrtc/status")
+async def webrtc_status(current_user: User = Depends(get_current_user)):
+    """Get WebRTC signaling server status."""
+    if not COMPONENTS_INITIALIZED or not jsonrpc_event_manager:
+        raise HTTPException(status_code=500, detail="MCP components not initialized")
+    
+    try:
+        from ipfs_kit_py.mcp.jsonrpc_methods import get_jsonrpc_webrtc_methods
+        webrtc_methods = get_jsonrpc_webrtc_methods()
+        stats = await webrtc_methods.get_webrtc_stats()
         return {"success": True, "stats": stats}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1302,95 +1264,18 @@ async def webrtc_status(current_user: User = Depends(get_current_user)):
 @app.get("/api/v0/webrtc/rooms")
 async def list_webrtc_rooms(current_user: User = Depends(get_current_user)):
     """List WebRTC signaling rooms."""
-    if not COMPONENTS_INITIALIZED or not signaling_server:
+    if not COMPONENTS_INITIALIZED or not jsonrpc_event_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
     
     try:
-        rooms = signaling_server.list_rooms()
-        return {"success": True, "rooms": rooms}
+        from ipfs_kit_py.mcp.jsonrpc_methods import get_jsonrpc_webrtc_methods
+        webrtc_methods = get_jsonrpc_webrtc_methods()
+        # Return room information from the WebRTC methods
+        stats = await webrtc_methods.get_webrtc_stats()
+        return {"success": True, "rooms": stats.get("stats", {}).get("active_rooms", {})}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.websocket("/webrtc/signal/{room_id}")
-async def webrtc_signaling(websocket: WebSocket, room_id: str):
-    """WebRTC signaling endpoint."""
-    if not COMPONENTS_INITIALIZED or not signaling_server:
-        await websocket.close(code=1011, reason="MCP components not initialized")
-        return
-    
-    try:
-        # Accept connection
-        await websocket.accept()
-        
-        # Extract peer ID from query parameters if available
-        query_params = dict(websocket.query_params)
-        peer_id = query_params.get("peer_id")
-        
-        # Extract metadata from query parameters
-        metadata = {}
-        for key, value in query_params.items():
-            if key.startswith("meta_"):
-                metadata[key[5:]] = value
-        
-        # Join room
-        peer = await signaling_server.join_room(
-            room_id=room_id,
-            websocket=websocket,
-            peer_id=peer_id,
-            metadata=metadata
-        )
-        
-        # Send welcome message
-        await websocket.send_text(json.dumps({
-            "type": "welcome",
-            "peer_id": peer.id,
-            "room_id": room_id,
-            "timestamp": time.time()
-        }))
-        
-        # Send peers list
-        room = await signaling_server.get_room(room_id)
-        if room:
-            await websocket.send_text(json.dumps({
-                "type": "peers",
-                "peers": [p for p in room.get_peers() if p["id"] != peer.id],
-                "timestamp": time.time()
-            }))
-        
-        # Handle incoming messages
-        try:
-            while True:
-                # Wait for message
-                message = await websocket.receive_text()
-                
-                try:
-                    # Parse message
-                    data = json.loads(message)
-                    
-                    # Handle signaling messages
-                    if "type" in data:
-                        await signaling_server.handle_signal(room_id, peer.id, data)
-                    
-                except json.JSONDecodeError:
-                    # Invalid JSON
-                    await websocket.send_text(json.dumps({
-                        "type": "error",
-                        "error": "Invalid JSON",
-                        "timestamp": time.time()
-                    }))
-                
-        except WebSocketDisconnect:
-            # Peer disconnected
-            await signaling_server.leave_room(room_id, peer.id)
-    
-    except Exception as e:
-        logger.error(f"WebRTC signaling error: {e}")
-        # Try to close connection
-        try:
-            await websocket.close(code=1011, reason=str(e))
-        except:
-            pass
 
 
 # Admin endpoints
@@ -1437,15 +1322,19 @@ async def admin_system_status(current_user: User = Depends(get_admin_user)):
             search_stats = await search_engine.get_stats()
             status["search"] = search_stats
         
-        # Get WebSocket status
-        if ws_manager:
-            ws_stats = ws_manager.get_stats()
-            status["websocket"] = ws_stats
+        # Get JSON-RPC Event Manager status
+        if jsonrpc_event_manager:
+            event_stats = jsonrpc_event_manager.get_server_stats()
+            status["events"] = event_stats
         
-        # Get WebRTC status
-        if signaling_server:
-            webrtc_stats = signaling_server.get_stats()
-            status["webrtc"] = webrtc_stats
+        # Get WebRTC status (via JSON-RPC methods)
+        try:
+            from ipfs_kit_py.mcp.jsonrpc_methods import get_jsonrpc_webrtc_methods
+            webrtc_methods = get_jsonrpc_webrtc_methods()
+            webrtc_stats = await webrtc_methods.get_webrtc_stats()
+            status["webrtc"] = webrtc_stats.get("stats", {})
+        except Exception as e:
+            status["webrtc"] = {"error": str(e)}
         
         # Get monitoring status
         if monitoring_service:
@@ -1572,15 +1461,19 @@ async def system_status():
             search_stats = await search_engine.get_stats()
             status["search"] = search_stats
         
-        # Get WebSocket status
-        if ws_manager:
-            ws_stats = ws_manager.get_stats()
-            status["websocket"] = ws_stats
+        # Get JSON-RPC Event Manager status
+        if jsonrpc_event_manager:
+            event_stats = jsonrpc_event_manager.get_server_stats()
+            status["events"] = event_stats
         
-        # Get WebRTC status
-        if signaling_server:
-            webrtc_stats = signaling_server.get_stats()
-            status["webrtc"] = webrtc_stats
+        # Get WebRTC status (via JSON-RPC methods)
+        try:
+            from ipfs_kit_py.mcp.jsonrpc_methods import get_jsonrpc_webrtc_methods
+            webrtc_methods = get_jsonrpc_webrtc_methods()
+            webrtc_stats = await webrtc_methods.get_webrtc_stats()
+            status["webrtc"] = webrtc_stats.get("stats", {})
+        except Exception as e:
+            status["webrtc"] = {"error": str(e)}
         
         return status
     except Exception as e:
