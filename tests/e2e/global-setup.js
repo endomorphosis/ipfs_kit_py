@@ -77,6 +77,29 @@ module.exports = async function globalSetup() {
   // Wait for readiness with hard timeout
   await waitForHttp(`${base}/api/mcp/status`, 20_000);
 
+  // Debug: fetch index HTML and log a small snippet to verify SDK script presence
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const url = new URL(base);
+    const isHttps = url.protocol === 'https:';
+    const mod = isHttps ? require('https') : require('http');
+    await new Promise((resolve) => {
+      const req = mod.request({ method: 'GET', hostname: url.hostname, port: url.port || (isHttps ? 443 : 80), path: '/' }, (res) => {
+        let buf = '';
+        res.on('data', (c) => (buf += String(c||'')));
+        res.on('end', () => {
+          const head = buf.slice(0, 400).replace(/\s+/g, ' ').trim();
+          const hasMcp = buf.includes('window.MCP');
+          console.log('[global-setup] INDEX HEAD:', head);
+          console.log('[global-setup] INDEX has window.MCP literal:', hasMcp);
+          resolve();
+        });
+      });
+      req.on('error', () => resolve());
+      req.end();
+    });
+  } catch {}
+
   // If the CLI wrote a PID file, prefer that PID for teardown
   try {
     if (fs.existsSync(pidFile)) {

@@ -13,7 +13,7 @@ module docstring causing the original import section to be lost and producing a
 cascade of "name is not defined" errors. This docstring has been reduced and the
 imports + helpers restored below.
 """
-import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit
+import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading
 from collections import deque
 from pathlib import Path
 from datetime import datetime, timezone
@@ -1304,14 +1304,20 @@ class ConsolidatedMCPDashboard:
             res = _run_cmd([ipfs_bin, 'add', '-Qr', str(p)], timeout=120)
             return {"jsonrpc": "2.0", "result": res, "id": None}
         if name == "ipfs_pin":
-            entry = {"name": bname, "backend": backend, "created_at": datetime.now(UTC).isoformat(), "policy": {"replication_factor": 1, "cache_policy": "none", "retention_days": 0}}
+            cid = args.get("cid")
+            label = args.get("name")
             if not cid:
                 raise HTTPException(400, "Missing cid")
             ipfs_bin = _which("ipfs")
             if not ipfs_bin:
                 raise HTTPException(404, "ipfs binary not found")
             res = _run_cmd([ipfs_bin, 'pin', 'add', cid], timeout=60)
-            if res.get('ok'):
+            # If pin succeeded, update our local pins index for convenience
+            try:
+                ok_code = int(res.get('code', 1))
+            except Exception:
+                ok_code = 1
+            if ok_code == 0:
                 pins = _normalize_pins(_read_json(self.paths.pins_file, default=[]))
                 if not any(p.get('cid') == cid for p in pins):
                     pins.append({"cid": cid, "name": label, "created_at": datetime.now(UTC).isoformat()})
@@ -1548,38 +1554,17 @@ class ConsolidatedMCPDashboard:
         return """
 <!doctype html>
 <html>
-    <h3>IPFS Kit MCP Dashboard</h3>
-  </header>
-                            if (Array.isArray(names) && names.length) {
-                                toolsCache = names.map(function(n){ return { name: n }; });
-                                refillOptions(toolsCache); attachHandlers(toolsCache); refreshPresets();
-                            }
-                        }catch(e){}
-                    }).catch(function(_){});
-                }catch(e){}
-                // Also use embedded tool names if present
-                try{
-                    if (Array.isArray(window.__MCP_TOOL_NAMES) && (!toolsCache || !toolsCache.length)) {
-                        toolsCache = window.__MCP_TOOL_NAMES.map(function(n){ return { name: n }; });
-                        refillOptions(toolsCache); attachHandlers(toolsCache); refreshPresets();
-                    }
-                } catch(e){}
-                // Then refresh from live MCP list once available
-                var iv = setInterval(function(){
-                    if(!(window.MCP && window.MCP.listTools)) return;
-                    window.MCP.listTools().then(function(tl){
-                        try{ toolsCache = (tl && tl.result && tl.result.tools)||toolsCache; refillOptions(toolsCache); attachHandlers(toolsCache); refreshPresets(); }catch(e){}
-                    });
-                    clearInterval(iv);
-                }, 150);
-            }
-
-        if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
-    })();
-    </script>
-    <script src=\"/app.js\"></script>
-</body>
-</html>
+    <head>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <title>IPFS Kit MCP Dashboard</title>
+    </head>
+    <body>
+        <div id="app">Loading…</div>
+        <script src="/mcp-client.js"></script>
+        <script src="/app.js"></script>
+    </body>
+ </html>
 """
 
     def _app_js(self) -> str:
