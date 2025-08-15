@@ -17,6 +17,7 @@ import json
 import logging
 import logging.handlers
 import os
+import sys
 import time
 import yaml
 import sqlite3
@@ -279,6 +280,16 @@ class ConsolidatedMCPDashboard:
         self.data_dir = Path(config.get('data_dir', '~/.ipfs_kit')).expanduser()
         self.debug = config.get('debug', False)
         self.update_interval = config.get('update_interval', 5)
+        
+        # Initialize StateService for enhanced service management
+        logger.info("🔧 Initializing enhanced StateService...")
+        try:
+            from ipfs_kit_py.services.state_service import StateService
+            self.state_service = StateService(self.data_dir)
+            logger.info("✅ StateService initialized successfully")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to initialize StateService: {e}")
+            self.state_service = None
         
         # Setup logging system first
         self.memory_log_handler = setup_dashboard_logging(self.data_dir)
@@ -1946,6 +1957,374 @@ async function loadAnalyticsData() {
         )
         server = uvicorn.Server(config)
         await server.serve()
+
+    # =================== MCP TOOL IMPLEMENTATIONS ===================
+    
+    async def _call_mcp_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Call an MCP tool by name with arguments."""
+        try:
+            # Handle different tool types
+            if tool_name == "list_services":
+                return await self._handle_list_services(arguments)
+            elif tool_name == "control_service":
+                return await self._handle_control_service(arguments)
+            elif tool_name == "list_backends":
+                return await self._handle_list_backends(arguments)
+            elif tool_name == "list_buckets":
+                return await self._handle_list_buckets(arguments)
+            elif tool_name == "list_pins":
+                return await self._handle_list_pins(arguments)
+            elif tool_name == "get_system_overview":
+                return await self._handle_get_system_overview(arguments)
+            elif tool_name == "get_system_status":
+                return await self._handle_get_system_status(arguments)
+            elif tool_name == "get_logs":
+                return await self._handle_get_logs(arguments)
+            elif tool_name == "list_files":
+                return await self._handle_list_files(arguments)
+            elif tool_name == "ipfs_add":
+                return await self._handle_ipfs_add(arguments)
+            elif tool_name == "ipfs_get":
+                return await self._handle_ipfs_get(arguments)
+            elif tool_name == "list_peers":
+                return await self._handle_list_peers(arguments)
+            elif tool_name == "get_system_analytics":
+                return await self._handle_get_system_analytics(arguments)
+            elif tool_name == "create_bucket":
+                return await self._handle_create_bucket(arguments)
+            elif tool_name == "create_pin":
+                return await self._handle_create_pin(arguments)
+            else:
+                return {
+                    "error": f"Unknown tool: {tool_name}",
+                    "available_tools": [
+                        "list_services", "control_service", "list_backends", "list_buckets", 
+                        "list_pins", "get_system_overview", "get_system_status", "get_logs",
+                        "list_files", "ipfs_add", "ipfs_get", "list_peers", "get_system_analytics",
+                        "create_bucket", "create_pin"
+                    ]
+                }
+        except Exception as e:
+            logger.error(f"Error calling MCP tool {tool_name}: {e}")
+            return {"error": str(e)}
+    
+    async def _get_all_mcp_tools(self) -> Dict[str, Any]:
+        """Get list of all available MCP tools."""
+        tools = [
+            {
+                "name": "list_services",
+                "description": "List all detected services including daemons and VFS backends",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "control_service", 
+                "description": "Control a service (start, stop, restart, configure)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "service": {"type": "string", "description": "Service name"},
+                        "action": {"type": "string", "description": "Action to perform"}
+                    },
+                    "required": ["service", "action"]
+                }
+            },
+            {
+                "name": "list_backends",
+                "description": "List all storage backends",
+                "inputSchema": {"type": "object", "properties": {}, "required": []}
+            },
+            {
+                "name": "list_buckets", 
+                "description": "List all buckets",
+                "inputSchema": {"type": "object", "properties": {}, "required": []}
+            },
+            {
+                "name": "list_pins",
+                "description": "List all pins",
+                "inputSchema": {"type": "object", "properties": {}, "required": []}
+            },
+            {
+                "name": "get_system_overview",
+                "description": "Get system overview",
+                "inputSchema": {"type": "object", "properties": {}, "required": []}
+            },
+            {
+                "name": "get_system_status",
+                "description": "Get detailed system status",
+                "inputSchema": {"type": "object", "properties": {}, "required": []}
+            },
+            {
+                "name": "get_logs",
+                "description": "Get system logs",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "component": {"type": "string", "description": "Component to get logs for"},
+                        "level": {"type": "string", "description": "Log level filter"},
+                        "limit": {"type": "number", "description": "Number of log entries"}
+                    },
+                    "required": []
+                }
+            }
+        ]
+        return {"result": {"tools": tools}}
+    
+    async def _handle_list_services(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle list_services tool call."""
+        try:
+            # Use StateService to get enhanced service list
+            if hasattr(self, 'state_service') and self.state_service:
+                services = self.state_service.list_services()
+            else:
+                # Fallback: create StateService instance
+                from ipfs_kit_py.services.state_service import StateService
+                state_service = StateService(self.data_dir)
+                services = state_service.list_services()
+            
+            return {"result": services}
+        except Exception as e:
+            logger.error(f"Error listing services: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_control_service(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle control_service tool call."""
+        try:
+            service_name = arguments.get("service")
+            action = arguments.get("action")
+            
+            if not service_name or not action:
+                return {"error": "service and action parameters are required"}
+            
+            # Use StateService to control service
+            if hasattr(self, 'state_service') and self.state_service:
+                result = self.state_service.control_service(service_name, action)
+            else:
+                from ipfs_kit_py.services.state_service import StateService
+                state_service = StateService(self.data_dir)
+                result = state_service.control_service(service_name, action)
+            
+            return {"result": result}
+        except Exception as e:
+            logger.error(f"Error controlling service: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_list_backends(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle list_backends tool call.""" 
+        try:
+            if hasattr(self, 'state_service') and self.state_service:
+                backends = self.state_service.list_backends()
+            else:
+                from ipfs_kit_py.services.state_service import StateService
+                state_service = StateService(self.data_dir)
+                backends = state_service.list_backends()
+            
+            return {"result": backends}
+        except Exception as e:
+            logger.error(f"Error listing backends: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_list_buckets(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle list_buckets tool call."""
+        try:
+            if hasattr(self, 'state_service') and self.state_service:
+                buckets = self.state_service.list_buckets()
+            else:
+                from ipfs_kit_py.services.state_service import StateService
+                state_service = StateService(self.data_dir)
+                buckets = state_service.list_buckets()
+            
+            return {"result": buckets}
+        except Exception as e:
+            logger.error(f"Error listing buckets: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_list_pins(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle list_pins tool call."""
+        try:
+            if hasattr(self, 'state_service') and self.state_service:
+                pins = self.state_service.list_pins()
+            else:
+                from ipfs_kit_py.services.state_service import StateService
+                state_service = StateService(self.data_dir)
+                pins = state_service.list_pins()
+            
+            return {"result": pins}
+        except Exception as e:
+            logger.error(f"Error listing pins: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_get_system_overview(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle get_system_overview tool call."""
+        try:
+            if hasattr(self, 'state_service') and self.state_service:
+                overview = self.state_service.get_system_overview()
+            else:
+                from ipfs_kit_py.services.state_service import StateService
+                state_service = StateService(self.data_dir)
+                overview = state_service.get_system_overview()
+            
+            return {"result": overview}
+        except Exception as e:
+            logger.error(f"Error getting system overview: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_get_system_status(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle get_system_status tool call."""
+        try:
+            if hasattr(self, 'state_service') and self.state_service:
+                status = self.state_service.get_system_status()
+            else:
+                from ipfs_kit_py.services.state_service import StateService
+                state_service = StateService(self.data_dir)
+                status = state_service.get_system_status()
+            
+            return {"result": status}
+        except Exception as e:
+            logger.error(f"Error getting system status: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_get_logs(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle get_logs tool call."""
+        try:
+            component = arguments.get("component", "all")
+            level = arguments.get("level", "all")
+            limit = arguments.get("limit", 50)
+            
+            if hasattr(self, 'memory_log_handler') and self.memory_log_handler:
+                logs = self.memory_log_handler.get_logs(component, level, limit)
+            else:
+                logs = []
+            
+            return {"result": logs}
+        except Exception as e:
+            logger.error(f"Error getting logs: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_list_files(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle list_files tool call."""
+        try:
+            path = arguments.get("path", ".")
+            files = []
+            
+            try:
+                import os
+                for item in os.listdir(path):
+                    item_path = os.path.join(path, item)
+                    files.append({
+                        "name": item,
+                        "path": item_path,
+                        "type": "directory" if os.path.isdir(item_path) else "file",
+                        "size": os.path.getsize(item_path) if os.path.isfile(item_path) else None
+                    })
+            except Exception as e:
+                return {"error": f"Error listing files: {str(e)}"}
+            
+            return {"result": files}
+        except Exception as e:
+            logger.error(f"Error handling list_files: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_ipfs_add(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle ipfs_add tool call."""
+        try:
+            content = arguments.get("content")
+            if not content:
+                return {"error": "content parameter is required"}
+            
+            # Placeholder for IPFS add functionality
+            return {"result": {"cid": "QmPlaceholder", "content": content[:100] + "..." if len(content) > 100 else content}}
+        except Exception as e:
+            logger.error(f"Error handling ipfs_add: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_ipfs_get(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle ipfs_get tool call."""
+        try:
+            cid = arguments.get("cid")
+            if not cid:
+                return {"error": "cid parameter is required"}
+            
+            # Placeholder for IPFS get functionality
+            return {"result": {"cid": cid, "content": f"Content for {cid} (placeholder)"}}
+        except Exception as e:
+            logger.error(f"Error handling ipfs_get: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_list_peers(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle list_peers tool call."""
+        try:
+            # Placeholder for peer listing
+            peers = [
+                {"id": "12D3KooWExample1", "addresses": ["/ip4/127.0.0.1/tcp/4001"]},
+                {"id": "12D3KooWExample2", "addresses": ["/ip4/192.168.1.100/tcp/4001"]}
+            ]
+            return {"result": peers}
+        except Exception as e:
+            logger.error(f"Error handling list_peers: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_get_system_analytics(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle get_system_analytics tool call."""
+        try:
+            # Placeholder for system analytics
+            analytics = {
+                "cpu_usage": 25.5,
+                "memory_usage": 60.2,
+                "disk_usage": 45.8,
+                "network_io": {"bytes_sent": 1024000, "bytes_recv": 2048000}
+            }
+            return {"result": analytics}
+        except Exception as e:
+            logger.error(f"Error handling get_system_analytics: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_create_bucket(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle create_bucket tool call."""
+        try:
+            name = arguments.get("name")
+            backend = arguments.get("backend")
+            
+            if not name or not backend:
+                return {"error": "name and backend parameters are required"}
+            
+            if hasattr(self, 'state_service') and self.state_service:
+                result = self.state_service.create_bucket(name, backend)
+            else:
+                from ipfs_kit_py.services.state_service import StateService
+                state_service = StateService(self.data_dir)
+                result = state_service.create_bucket(name, backend)
+            
+            return {"result": result}
+        except Exception as e:
+            logger.error(f"Error creating bucket: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_create_pin(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle create_pin tool call."""
+        try:
+            cid = arguments.get("cid")
+            name = arguments.get("name", "")
+            
+            if not cid:
+                return {"error": "cid parameter is required"}
+            
+            if hasattr(self, 'state_service') and self.state_service:
+                result = self.state_service.create_pin(cid, name)
+            else:
+                from ipfs_kit_py.services.state_service import StateService
+                state_service = StateService(self.data_dir)
+                result = state_service.create_pin(cid, name)
+            
+            return {"result": result}
+        except Exception as e:
+            logger.error(f"Error creating pin: {e}")
+            return {"error": str(e)}
+
+    # =================== OTHER METHODS ===================
 
     async def _test_all_components(self):
         """Test all components for functionality."""
