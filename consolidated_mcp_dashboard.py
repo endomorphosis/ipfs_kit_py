@@ -13,10 +13,7 @@ module docstring causing the original import section to be lost and producing a
 cascade of "name is not defined" errors. This docstring has been reduced and the
 imports + helpers restored below.
 """
-
-# ---- Standard Library Imports ----
 import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit
-import uvicorn  # added for run helpers
 from collections import deque
 from pathlib import Path
 from datetime import datetime, timezone
@@ -24,34 +21,28 @@ from typing import Any, Dict, List, Optional, Iterable
 from contextlib import suppress, asynccontextmanager
 from types import SimpleNamespace
 
-# ---- Optional Third-Party Imports ----
-try:  # psutil is optional; metrics degrade gracefully if missing
+import uvicorn  # server
+try:
     import psutil  # type: ignore
-except Exception:  # pragma: no cover
+except Exception:
     psutil = None  # type: ignore
-try:  # yaml is optional for bucket config dumps
+try:
     import yaml  # type: ignore
-except Exception:  # pragma: no cover
+except Exception:
     yaml = None  # type: ignore
 
-# ---- FastAPI Imports ----
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# ---- Constants ----
 UTC = timezone.utc
 
-# ---- Helper Classes / Functions Lost During Merge ----
-
 class InMemoryLogHandler(logging.Handler):
-    """Bounded in-memory log handler for lightweight UI streaming."""
     def __init__(self, maxlen: int = 4000):
         super().__init__()
         self.maxlen = maxlen
         self._items: List[Dict[str, Any]] = []
-
-    def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover - trivial
+    def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover
         try:
             self._items.append({
                 "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
@@ -60,23 +51,18 @@ class InMemoryLogHandler(logging.Handler):
                 "message": self.format(record),
             })
             if len(self._items) > self.maxlen:
-                # trim oldest 10% to avoid O(n) shift each call
                 trim = max(1, int(self.maxlen * 0.1))
                 self._items = self._items[trim:]
         except Exception:
             pass
-
     def get(self, limit: int = 200) -> List[Dict[str, Any]]:
         if limit and limit > 0:
             return self._items[-limit:]
         return list(self._items)
-
     def clear(self) -> None:
         self._items.clear()
 
-
-def ensure_paths(data_dir: Optional[str]) -> SimpleNamespace:
-    """Establish and return required filesystem paths as a SimpleNamespace."""
+def ensure_paths(data_dir: Optional[str]):
     base = Path(data_dir or os.path.expanduser("~/.ipfs_kit"))
     data_dir_path = base
     data_dir_path.mkdir(parents=True, exist_ok=True)
@@ -86,16 +72,11 @@ def ensure_paths(data_dir: Optional[str]) -> SimpleNamespace:
     backends_file = data_dir_path / "backends.json"
     buckets_file = data_dir_path / "buckets.json"
     pins_file = data_dir_path / "pins.json"
-    # Ensure existence (atomic write helpers will fill later if needed)
-    for f, default in [
-        (backends_file, {}), (buckets_file, []), (pins_file, [])
-    ]:
+    for f, default in [(backends_file, {}), (buckets_file, []), (pins_file, [])]:
         if not f.exists():
-            try:
+            with suppress(Exception):
                 with f.open('w', encoding='utf-8') as fh:
                     json.dump(default, fh)
-            except Exception:
-                pass
     return SimpleNamespace(
         base=base,
         data_dir=data_dir_path,
@@ -154,7 +135,14 @@ def _normalize_buckets(items):
         name = it.get('name') or it.get('id')
         if not name:
             continue
-        out.append({"name": name, "backend": it.get('backend'), "meta": it.get('meta', {})})
+        # Normalize embedded policy with defaults
+        pol = it.get('policy') or {}
+        norm_policy = {
+            'replication_factor': int(pol.get('replication_factor', 1) or 1),
+            'cache_policy': pol.get('cache_policy', 'none') or 'none',
+            'retention_days': int(pol.get('retention_days', 0) or 0),
+        }
+        out.append({"name": name, "backend": it.get('backend'), "meta": it.get('meta', {}), "policy": norm_policy})
     return out
 
 def _normalize_pins(items):
@@ -206,27 +194,41 @@ class ConsolidatedMCPDashboard:
         self.host = self.config.get("host", "127.0.0.1")
         self.port = int(self.config.get("port", 8081))
         self.debug = bool(self.config.get("debug", False))
-        # Deprecation registry (endpoint -> planned removal version)
-        self.DEPRECATED_ENDPOINTS: Dict[str, str] = {
-            "/api/system/overview": "3.2.0"
-        }
-        # Optional API token (env override MCP_API_TOKEN)
+        self.DEPRECATED_ENDPOINTS: Dict[str, str] = {"/api/system/overview": "3.2.0"}
         self.api_token = self.config.get("api_token") or os.environ.get("MCP_API_TOKEN")
         self._start_time = time.time()
-        
-        # Realtime / metrics state
+        # Metrics / accounting
         self._realtime_task: Optional[asyncio.Task] = None
         self._net_last: Optional[Dict[str, Any]] = None
-        self._net_history: deque = deque(maxlen=360)  # ~6 minutes @1s
-        self._sys_history: deque = deque(maxlen=360)  # parallel cpu/mem/disk percent history
-        # Request accounting
+        self._net_history: deque = deque(maxlen=360)
+        self._sys_history: deque = deque(maxlen=360)
         self.request_count: int = 0
+        self.endpoint_hits: Dict[str, int] = {}
+        self._hits_file = self.paths.data_dir / "endpoint_hits.json"
 
-        # Lifespan (startup/shutdown)
+        # Ensure graceful persistence on process signals (SIGTERM/SIGINT)
+        def _persist_hits(*_a):  # pragma: no cover - signal handling is hard to unit test reliably
+            try:
+                if self.endpoint_hits:
+                    _atomic_write_json(self._hits_file, self.endpoint_hits)
+            except Exception:
+                pass
+        with suppress(Exception):
+            signal.signal(signal.SIGTERM, lambda *_: (_persist_hits(), sys.exit(0)))
+        with suppress(Exception):
+            signal.signal(signal.SIGINT, lambda *_: (_persist_hits(), sys.exit(0)))
+        atexit.register(_persist_hits)
+
         @asynccontextmanager
         async def _lifespan(app: FastAPI):  # noqa: D401
             with suppress(Exception):
                 self._write_pid_file()
+            # load persisted hits
+            with suppress(Exception):
+                if self._hits_file.exists():
+                    data = _read_json(self._hits_file, {})
+                    if isinstance(data, dict):
+                        self.endpoint_hits.update({k: int(v) for k, v in data.items() if isinstance(k, str)})
             with suppress(Exception):
                 if self._realtime_task is None:
                     self._realtime_task = asyncio.create_task(self._broadcast_loop())
@@ -235,13 +237,19 @@ class ConsolidatedMCPDashboard:
             finally:
                 if self._realtime_task:
                     self._realtime_task.cancel()
-                    with suppress(Exception):
+                    try:
                         await self._realtime_task
+                    except asyncio.CancelledError:
+                        # Expected during graceful shutdown on Python 3.12+
+                        pass
+                    except Exception:
+                        pass
                     self._realtime_task = None
+                with suppress(Exception):
+                    _atomic_write_json(self._hits_file, self.endpoint_hits)
                 with suppress(Exception):
                     self._cleanup_pid_file()
 
-        # FastAPI app
         self.app = FastAPI(title="IPFS Kit MCP Dashboard", version="1.0", lifespan=_lifespan)
         self.app.add_middleware(
             CORSMiddleware,
@@ -251,7 +259,6 @@ class ConsolidatedMCPDashboard:
             allow_headers=["*"],
         )
 
-        # Logging setup
         self.memlog = InMemoryLogHandler(maxlen=4000)
         root = logging.getLogger()
         if not any(isinstance(h, InMemoryLogHandler) for h in root.handlers):
@@ -259,14 +266,13 @@ class ConsolidatedMCPDashboard:
         root.setLevel(logging.INFO)
         self.log = logging.getLogger("dashboard")
         self.log.info("Consolidated MCP Dashboard initialized at %s", self.paths.base)
-
-        # WebSocket clients set
         self._ws_clients: set[WebSocket] = set()
-
-        # Routes
+        # Basic in-memory services lifecycle state (placeholder services list)
+        self._services_state: Dict[str, Dict[str, Any]] = {
+            'ipfs': {'status': 'unknown', 'last_changed': time.time()},
+            'cars': {'status': 'unknown', 'last_changed': time.time()},
+        }
         self._register_routes()
-
-        # PID cleanup on exit
         atexit.register(self._cleanup_pid_file)
 
     # --- Run helpers (restored) ---
@@ -406,6 +412,8 @@ class ConsolidatedMCPDashboard:
         async def _count_requests(request: Request, call_next):  # type: ignore
             try:
                 self.request_count += 1
+                path = request.url.path
+                self.endpoint_hits[path] = self.endpoint_hits.get(path, 0) + 1
             except Exception:
                 pass
             return await call_next(request)
@@ -417,6 +425,27 @@ class ConsolidatedMCPDashboard:
         @app.get("/mcp-client.js", response_class=PlainTextResponse)
         async def mcp_client_js() -> Response:
             return Response(self._mcp_client_js(), media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store"})
+
+        # Explicit HEAD handlers for common endpoints (avoid 405s from probes)
+        @app.head("/")
+        async def index_head() -> Response:  # type: ignore
+            return Response(status_code=200)
+
+        @app.head("/app.js")
+        async def app_js_head() -> Response:  # type: ignore
+            return Response(status_code=200, headers={"Cache-Control": "no-store"})
+
+        @app.head("/mcp-client.js")
+        async def mcp_client_js_head() -> Response:  # type: ignore
+            return Response(status_code=200, headers={"Cache-Control": "no-store"})
+
+        # Simple health endpoint (GET/HEAD)
+        @app.get("/healthz")
+        async def healthz() -> Response:  # type: ignore
+            return PlainTextResponse("ok", headers={"Cache-Control": "no-store"})
+        @app.head("/healthz")
+        async def healthz_head() -> Response:  # type: ignore
+            return Response(status_code=200, headers={"Cache-Control": "no-store"})
 
         # Health/Status
         @app.get("/api/system/health")
@@ -450,6 +479,7 @@ class ConsolidatedMCPDashboard:
                     "endpoint": ep,
                     "remove_in": remove_in,
                     "migration": migration,
+                    "hits": self.endpoint_hits.get(ep, 0),
                 })
             return {"deprecated": items}
 
@@ -560,7 +590,7 @@ class ConsolidatedMCPDashboard:
                     migration = None
                     if ep == "/api/system/overview":
                         migration = {"health": "/api/system/health", "status": "/api/mcp/status", "metrics": "/api/metrics/system"}
-                    deps.append({"endpoint": ep, "remove_in": remove_in, "migration": migration})
+                    deps.append({"endpoint": ep, "remove_in": remove_in, "migration": migration, "hits": self.endpoint_hits.get(ep, 0)})
                 await ws.send_json({"type": "system_update", "data": status_payload, "deprecations": deps})
                 with suppress(Exception):
                     snap = self._gather_metrics_snapshot()
@@ -641,12 +671,49 @@ class ConsolidatedMCPDashboard:
         # Services
         @app.get("/api/services")
         async def list_services() -> Dict[str, Any]:
-            services = {
-                "ipfs": {"bin": _which("ipfs"), "api_port_open": _port_open("127.0.0.1", 5001)},
-                "docker": {"bin": _which("docker")},
-                "kubectl": {"bin": _which("kubectl")},
-            }
+            services = {}
+            for name, state in self._services_state.items():
+                # Merge detection info for known services
+                det: Dict[str, Any] = {"status": state.get("status"), "last_changed": state.get("last_changed")}
+                if name == 'ipfs':
+                    det.update({"bin": _which("ipfs"), "api_port_open": _port_open("127.0.0.1", 5001)})
+                services[name] = det
+            # Add auxiliary tools (read-only) without lifecycle controls
+            for aux in ("docker","kubectl"):
+                services.setdefault(aux, {"bin": _which(aux)})
             return {"services": services}
+
+        @app.post("/api/services/{name}/{action}")
+        async def service_action(name: str, action: str, request: Request) -> Dict[str, Any]:
+            # Manual auth check (reuse _auth_dep logic)
+            try:
+                _auth_dep(request)
+            except HTTPException:
+                raise
+            if name not in self._services_state:
+                raise HTTPException(status_code=400, detail="Unknown service")
+            if action not in ("start","stop","restart"):
+                raise HTTPException(status_code=400, detail="Invalid action")
+            state = self._services_state[name]
+            now = time.time()
+            # Transition state
+            transitional = {"start": "starting", "stop": "stopping", "restart": "restarting"}[action]
+            state['status'] = transitional
+            state['last_changed'] = now
+            def complete():
+                final = None
+                if action == 'start':
+                    final = 'running'
+                elif action == 'stop':
+                    final = 'stopped'
+                elif action == 'restart':
+                    final = 'running'
+                if final:
+                    state['status'] = final
+                    state['last_changed'] = time.time()
+            with suppress(Exception):
+                threading.Timer(1.0, complete).start()
+            return {"ok": True, "service": name, "status": state['status']}
 
         # Buckets
         @app.get("/api/state/buckets")
@@ -663,7 +730,7 @@ class ConsolidatedMCPDashboard:
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             if any(b.get("name") == name for b in items):
                 raise HTTPException(409, "Bucket exists")
-            entry = {"name": name, "backend": backend, "created_at": datetime.now(UTC).isoformat()}
+            entry = {"name": name, "backend": backend, "created_at": datetime.now(UTC).isoformat(), "policy": {"replication_factor": 1, "cache_policy": "none", "retention_days": 0}}
             items.append(entry)
             _atomic_write_json(self.paths.buckets_file, items)
             if yaml is not None:
@@ -672,6 +739,55 @@ class ConsolidatedMCPDashboard:
                     ydir.mkdir(exist_ok=True)
                     (ydir / f"{name}.yaml").write_text(yaml.safe_dump(entry), encoding="utf-8")
             return {"ok": True, "bucket": entry}
+
+        @app.get("/api/state/buckets/{name}/policy")
+        async def get_bucket_policy(name: str) -> Dict[str, Any]:
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            for b in items:
+                if b.get("name") == name:
+                    return {"name": name, "policy": b.get("policy")}
+            raise HTTPException(404, "Not found")
+
+        @app.post("/api/state/buckets/{name}/policy")
+        async def update_bucket_policy(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+            rf = payload.get("replication_factor")
+            cp = payload.get("cache_policy")
+            rd = payload.get("retention_days")
+            if rf is not None:
+                try:
+                    rf = int(rf)
+                except Exception:
+                    raise HTTPException(400, "replication_factor must be int")
+                if rf < 1 or rf > 10:
+                    raise HTTPException(400, "replication_factor out of range")
+            if cp is not None and cp not in ("none", "memory", "disk"):
+                raise HTTPException(400, "cache_policy invalid")
+            if rd is not None:
+                try:
+                    rd = int(rd)
+                except Exception:
+                    raise HTTPException(400, "retention_days must be int")
+                if rd < 0:
+                    raise HTTPException(400, "retention_days must be >=0")
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            updated = False
+            for i, b in enumerate(items):
+                if b.get("name") == name:
+                    pol = dict(b.get("policy") or {})
+                    if rf is not None: pol['replication_factor'] = rf
+                    if cp is not None: pol['cache_policy'] = cp
+                    if rd is not None: pol['retention_days'] = rd
+                    pol.setdefault('replication_factor', 1)
+                    pol.setdefault('cache_policy', 'none')
+                    pol.setdefault('retention_days', 0)
+                    nb = dict(b); nb['policy'] = pol
+                    items[i] = nb
+                    updated = True
+                    break
+            if not updated:
+                raise HTTPException(404, "Not found")
+            _atomic_write_json(self.paths.buckets_file, items)
+            return {"ok": True, "policy": pol}
 
         @app.delete("/api/state/buckets/{name}")
         async def delete_bucket(name: str, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
@@ -770,17 +886,31 @@ class ConsolidatedMCPDashboard:
 
     # --- PID helpers ---
     def _pid_file_path(self) -> Path:
+        """Legacy primary PID file path (shared)."""
         return self.paths.data_dir / "dashboard.pid"
 
+    def _pid_file_paths(self) -> List[Path]:
+        """All PID file paths to write/clean, including port-specific file."""
+        return [
+            self.paths.data_dir / "dashboard.pid",
+            self.paths.data_dir / f"mcp_{self.port}.pid",
+        ]
+
     def _write_pid_file(self) -> None:
+        """Write PID to both legacy and port-specific files."""
         with suppress(Exception):
-            self._pid_file_path().write_text(str(os.getpid()), encoding="utf-8")
+            pid_text = str(os.getpid())
+            for pf in self._pid_file_paths():
+                # ensure directory exists
+                pf.parent.mkdir(parents=True, exist_ok=True)
+                pf.write_text(pid_text, encoding="utf-8")
 
     def _cleanup_pid_file(self) -> None:
+        """Remove both legacy and port-specific PID files if present."""
         with suppress(Exception):
-            pf = self._pid_file_path()
-            if pf.exists():
-                pf.unlink()
+            for pf in self._pid_file_paths():
+                if pf.exists():
+                    pf.unlink()
 
     # Lifespan handles startup/shutdown
 
@@ -802,6 +932,8 @@ class ConsolidatedMCPDashboard:
             {"name": "delete_bucket", "description": "Delete bucket", "inputSchema": {"type":"object", "required":["name"], "confirm": {"message":"This will delete the bucket record. Continue?"}, "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
             {"name": "get_bucket", "description": "Get bucket by name", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
             {"name": "update_bucket", "description": "Update bucket (merge fields)", "inputSchema": {"type":"object", "required":["name","patch"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "patch": {"type":"object", "title":"Patch"}}}},
+            {"name": "get_bucket_policy", "description": "Get bucket policy", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
+            {"name": "update_bucket_policy", "description": "Update bucket policy", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "replication_factor": {"type":"number", "title":"Replication", "default":1}, "cache_policy": {"type":"string", "title":"Cache", "enum":["none","memory","disk"], "default":"none"}, "retention_days": {"type":"number", "title":"Retention Days", "default":0}}}},
             {"name": "list_pins", "description": "List pins", "inputSchema": {}},
             {"name": "create_pin", "description": "Create pin", "inputSchema": {"type":"object", "required":["cid"], "properties": {"cid": {"type":"string", "title":"CID"}, "name": {"type":"string", "title":"Name"}}}},
             {"name": "delete_pin", "description": "Delete pin", "inputSchema": {"type":"object", "required":["cid"], "confirm": {"message":"This will unpin the CID. Continue?"}, "properties": {"cid": {"type":"string", "title":"CID", "ui": {"enumFrom":"pins", "valueKey":"cid", "labelFormat":"{name} ({cid})"}}}}},
@@ -1172,7 +1304,7 @@ class ConsolidatedMCPDashboard:
             res = _run_cmd([ipfs_bin, 'add', '-Qr', str(p)], timeout=120)
             return {"jsonrpc": "2.0", "result": res, "id": None}
         if name == "ipfs_pin":
-            cid = args.get("cid"); label = args.get("name")
+            entry = {"name": bname, "backend": backend, "created_at": datetime.now(UTC).isoformat(), "policy": {"replication_factor": 1, "cache_policy": "none", "retention_days": 0}}
             if not cid:
                 raise HTTPException(400, "Missing cid")
             ipfs_bin = _which("ipfs")
@@ -1209,6 +1341,57 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(404, "ipfs binary not found")
             res = _run_cmd([ipfs_bin, 'version', '--all'], timeout=20)
             return {"jsonrpc": "2.0", "result": res, "id": None}
+        if name == "get_bucket_policy":
+            bname = args.get("name")
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            for b in items:
+                if b.get("name") == bname:
+                    return {"jsonrpc": "2.0", "result": {"name": bname, "policy": b.get("policy")}, "id": None}
+            raise HTTPException(404, "Not found")
+        if name == "update_bucket_policy":
+            bname = args.get("name")
+            if not bname:
+                raise HTTPException(400, "Missing name")
+            rf = args.get("replication_factor")
+            cp = args.get("cache_policy")
+            rd = args.get("retention_days")
+            # validation / partial updates allowed
+            if rf is not None:
+                try:
+                    rf = int(rf)
+                except Exception:
+                    raise HTTPException(400, "replication_factor must be int")
+                if rf < 1 or rf > 10:
+                    raise HTTPException(400, "replication_factor out of range")
+            if cp is not None and cp not in ("none", "memory", "disk"):
+                raise HTTPException(400, "cache_policy invalid")
+            if rd is not None:
+                try:
+                    rd = int(rd)
+                except Exception:
+                    raise HTTPException(400, "retention_days must be int")
+                if rd < 0:
+                    raise HTTPException(400, "retention_days must be >=0")
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            updated = False
+            for i, b in enumerate(items):
+                if b.get("name") == bname:
+                    pol = dict(b.get("policy") or {})
+                    if rf is not None: pol['replication_factor'] = rf
+                    if cp is not None: pol['cache_policy'] = cp
+                    if rd is not None: pol['retention_days'] = rd
+                    # ensure defaults
+                    pol.setdefault('replication_factor', 1)
+                    pol.setdefault('cache_policy', 'none')
+                    pol.setdefault('retention_days', 0)
+                    nb = dict(b); nb['policy'] = pol
+                    items[i] = nb
+                    updated = True
+                    break
+            if not updated:
+                raise HTTPException(404, "Not found")
+            _atomic_write_json(self.paths.buckets_file, items)
+            return {"jsonrpc": "2.0", "result": {"ok": True, "policy": pol}, "id": None}
         return None
 
     def _handle_cars(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -1357,124 +1540,16 @@ class ConsolidatedMCPDashboard:
             p.write_text(str(content), encoding="utf-8")
 
     def render_beta_toolrunner(self) -> str:
-        # Return the dashboard HTML with legacy fallback hidden
-    # Keep fallback visible for E2E tests that rely on its selectors
-    return self._html()
+        # Return the consolidated dashboard HTML (fallback tool runner removed)
+        return self._html()
 
     # ---- assets ----
     def _html(self) -> str:
         return """
 <!doctype html>
 <html>
-<head>
-  <meta charset=\"utf-8\" />
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-  <title>IPFS Kit MCP Dashboard</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; }
-    header { background:#111; color:#fff; padding:10px 16px; }
-    main { padding: 16px; }
-    pre { background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; }
-    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    .card { border:1px solid #ddd; border-radius:8px; padding:12px; margin:8px 0; }
-    button { padding:6px 10px; }
-        @media (max-width: 640px) {
-            .row { gap:8px; }
-            #toolrunner-beta-card .row input,
-            #toolrunner-beta-card .row select,
-            #toolrunner-beta-card .row button { flex: 1 1 100%; min-width: unset; width: 100%; }
-            #toolrunner-beta-card textarea { width: 100% !important; }
-        }
-  </style>
-</head>
-<body>
-  <header>
     <h3>IPFS Kit MCP Dashboard</h3>
   </header>
-  <main>
-        <div id="app">Loading…</div>
-        <div id="toolrunner-fallback" class="card" style="margin-top:12px;">
-            <h4>Tool Runner (fallback)</h4>
-            <div class="row">
-                <input data-testid="toolrunner-filter" placeholder="Filter tools…" style="width:200px; margin-right:8px;" />
-                <select data-testid="toolrunner-select" style="min-width:260px;">
-                    <option>Loading…</option>
-                </select>
-            </div>
-            <div style="margin-top:8px;">
-                <textarea data-testid="toolrunner-args" rows="8" style="width:100%;">{
-    "path": "."
-}</textarea>
-            </div>
-            <div class="row" style="margin-top:8px; align-items:center;">
-                <span style="margin-right:8px;">Presets:</span>
-                <input id="preset-name" placeholder="preset name" style="width:160px; margin-right:6px;" />
-                <button id="preset-save" style="margin-right:8px;">Save preset</button>
-                <select id="preset-select" style="min-width:180px; margin-right:6px;"></select>
-                <button id="preset-load">Load</button>
-            </div>
-            <button data-testid="toolrunner-run" style="margin-top:8px;">Run</button>
-            <div style="margin-top:8px;"><pre data-testid="toolrunner-result">Result…</pre></div>
-        </div>
-  </main>
-    <script src="/mcp-client.js"></script>
-    <script>
-    (function(){
-        function safeParse(s){ try{ return {ok:true, v: JSON.parse(s)}; }catch(e){ return {ok:false, e:String(e)}; } }
-        function qs(sel){ return document.querySelector(sel); }
-        function q(sel){ return Array.from(document.querySelectorAll(sel)); }
-
-        function refillOptions(tools){
-            var select = qs('select[data-testid="toolrunner-select"]'); if(!select) return;
-            var filter = qs('[data-testid="toolrunner-filter"]'); var qstr = (filter && filter.value||'').toLowerCase();
-            select.innerHTML = '';
-            tools.filter(function(t){ return !qstr || (t.name||'').toLowerCase().indexOf(qstr)>=0; })
-                     .forEach(function(t){ var opt = document.createElement('option'); opt.value=t.name; opt.textContent=t.name; select.append(opt); });
-        }
-
-        function refreshPresets(){
-            var select = qs('select[data-testid="toolrunner-select"]'); if(!select) return;
-            var list=[]; try{ list = JSON.parse(localStorage.getItem('mcp_presets_'+select.value)||'[]')||[]; }catch(e){ list=[]; }
-            var psel = qs('#preset-select'); if(!psel) return; psel.innerHTML='';
-            list.forEach(function(p){ var o=document.createElement('option'); o.value=p.name; o.textContent=p.name; psel.append(o); });
-        }
-
-        function attachHandlers(tools){
-            var filter = qs('[data-testid="toolrunner-filter"]');
-            var select = qs('select[data-testid="toolrunner-select"]');
-            var args = qs('[data-testid="toolrunner-args"]');
-            var run = qs('[data-testid="toolrunner-run"]');
-            var out = qs('[data-testid="toolrunner-result"]');
-            if(filter) filter.addEventListener('input', function(){ refillOptions(tools); });
-            if(select) select.addEventListener('change', function(){ refreshPresets(); });
-            if(run) run.addEventListener('click', function(){
-                if(!window.MCP){ if(out) out.textContent='MCP not ready'; return; }
-                var tool = (select && select.value) || 'get_logs';
-                var p = safeParse((args && args.value)||'{}'); if(!p.ok){ if(out) out.textContent='Invalid JSON'; return; }
-                var started = Date.now();
-                window.MCP.callTool(tool, p.v||{}).then(function(r){ if(out) out.textContent = JSON.stringify({ took_ms: Date.now()-started, ...r }, null, 2); }).catch(function(e){ if(out) out.textContent = 'Error: '+String(e); });
-            });
-            var ps = qs('#preset-save'); if(ps) ps.addEventListener('click', function(){
-                var name = (qs('#preset-name')&&qs('#preset-name').value||'').trim(); if(!name) return;
-                var tool = (select && select.value)||''; var p = safeParse((args && args.value)||'{}'); if(!p.ok) return;
-                var key = 'mcp_presets_'+tool; var list=[]; try{ list = JSON.parse(localStorage.getItem(key)||'[]')||[]; }catch(e){ list=[]; }
-                var idx = list.findIndex(function(x){ return x.name===name; }); var item={name, args:p.v}; if(idx>=0) list[idx]=item; else list.push(item);
-                localStorage.setItem(key, JSON.stringify(list)); refreshPresets();
-            });
-            var pl = qs('#preset-load'); if(pl) pl.addEventListener('click', function(){
-                var tool = (select && select.value)||''; var key = 'mcp_presets_'+tool; var list=[]; try{ list = JSON.parse(localStorage.getItem(key)||'[]')||[]; }catch(e){ list=[]; }
-                var sel = qs('#preset-select'); var name = sel && sel.value; if(!name) return; var found = list.find(function(x){ return x.name===name; });
-                if(found && args) args.value = JSON.stringify(found.args||{}, null, 2);
-            });
-        }
-
-            function init(){
-                var toolsCache = [];
-                // First, populate quickly via status endpoint (contains tool names)
-                try{
-                    fetch('/api/mcp/status').then(function(r){ return r.json(); }).then(function(st){
-                        try{
-                            var names = (st && st.tools) || [];
                             if (Array.isArray(names) && names.length) {
                                 toolsCache = names.map(function(n){ return { name: n }; });
                                 refillOptions(toolsCache); attachHandlers(toolsCache); refreshPresets();
@@ -1513,8 +1588,6 @@ class ConsolidatedMCPDashboard:
 (function(){
     const POLL_INTERVAL = 5000; // ms
     const appRoot = document.getElementById('app');
-    const fallback = document.getElementById('toolrunner-fallback');
-    if (fallback) fallback.style.display='none';
     if (appRoot) appRoot.innerHTML = '';
     if (!document.getElementById('mcp-dashboard-css')) {
         const css = `
@@ -1556,6 +1629,29 @@ class ConsolidatedMCPDashboard:
             el('button',{id:'btn-realtime',title:'Toggle real-time'},'Real-time: Off')
         )
     );
+    // --- Deprecation banner (populated from initial WS system_update or fallback HTTP) ---
+    let deprecationBanner = null;
+    function renderDeprecationBanner(items){
+        try{
+            if(!Array.isArray(items) || !items.length) return;
+            // Update existing hits if already rendered
+            if(deprecationBanner){
+                const ul = deprecationBanner.querySelector('ul.dep-items');
+                if(ul){ ul.innerHTML = items.map(fmtItem).join(''); }
+                return;
+            }
+            function fmtItem(it){
+                var mig = it.migration? Object.keys(it.migration).map(function(k){ return k+': '+it.migration[k]; }).join(', ') : '-';
+                return '<li><code>'+it.endpoint+'</code> remove in '+(it.remove_in||'?')+' (hits '+(it.hits||0)+')'+ (mig? '<br><span class="dep-mig">'+mig+'</span>':'') +'</li>';
+            }
+            deprecationBanner = document.createElement('div');
+            deprecationBanner.className='deprecation-banner-wrap';
+            deprecationBanner.innerHTML = '<div class="deprecation-banner"><div class="dep-main"><strong>Deprecated endpoints:</strong><ul class="dep-items">'+items.map(fmtItem).join('')+'</ul></div><button class="dep-close" title="Dismiss">x</button></div>';
+            const style = document.createElement('style'); style.textContent = '.deprecation-banner{background:#5a3d10;border:1px solid #c68d2b;color:#ffe7c0;padding:10px 14px;font-size:13px;line-height:1.35;border-radius:6px;display:flex;gap:14px;position:relative;margin:0 0 14px 0;font-family:system-ui,Arial,sans-serif;} .deprecation-banner strong{color:#fff;} .deprecation-banner ul{margin:4px 0 0 18px;padding:0;} .deprecation-banner li{margin:2px 0;} .deprecation-banner code{background:#442c07;padding:1px 4px;border-radius:4px;} .deprecation-banner .dep-close{background:#7a5113;color:#fff;border:1px solid #c68d2b;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px;line-height:1;position:absolute;top:6px;right:6px;} .deprecation-banner .dep-close:hover{background:#8d601b;}'; document.head.appendChild(style);
+            const root = appRoot || document.body; root.insertBefore(deprecationBanner, root.firstChild.nextSibling);
+            const closeBtn = deprecationBanner.querySelector('.dep-close'); if(closeBtn){ closeBtn.addEventListener('click', function(){ deprecationBanner.remove(); deprecationBanner=null; }); }
+        }catch(e){}
+    }
     const grid = el('div',{class:'dash-grid'});
     const cardServer = el('div',{class:'card'}, el('h3',{text:'MCP Server'}), el('div',{class:'big-metric',id:'srv-status'},'—'), el('div',{class:'metric-sub',id:'srv-port'},''));
     const cardServices = el('div',{class:'card'}, el('h3',{text:'Services'}), el('div',{class:'big-metric',id:'svc-active'},'—'), el('div',{class:'metric-sub muted'},'Active Services'));
@@ -1601,7 +1697,8 @@ class ConsolidatedMCPDashboard:
                 el('input',{id:'bucket-backend',placeholder:'backend',style:'width:140px;'}),
                 el('button',{id:'btn-bucket-add'},'Add')
             ),
-            el('div',{id:'buckets-list',style:'margin-top:8px;font-size:13px;'},'Loading…')
+            el('div',{id:'buckets-list',style:'margin-top:8px;font-size:13px;'},'Loading…'),
+            el('div',{style:'margin-top:10px;font-size:11px;opacity:.65;'},'Click a bucket row to expand policy editor (replication/cache/retention).')
         )
     );
     const pinsView = el('div',{id:'view-pins',class:'view-panel',style:'display:none;'},
@@ -1709,8 +1806,60 @@ class ConsolidatedMCPDashboard:
     showView('overview');
 
     async function loadServices(){
-        try{ const r=await fetch('/api/services'); const js=await r.json(); document.getElementById('services-json').textContent = JSON.stringify(js.services||{}, null, 2); }catch(e){ setText('services-json','Error'); }
+        const pre=document.getElementById('services-json'); if(pre) pre.textContent='Loading…';
+        try{ const r=await fetch('/api/services'); const js=await r.json(); const services=js.services||{}; 
+            // Build table
+            let html='';
+            html += 'Service | Status | Actions\n';
+            html += '--------|--------|--------\n';
+            Object.entries(services).forEach(([name, info])=>{
+                const st=(info&&info.status)||info.bin? (info.status||'detected'): 'missing';
+                html += `${name} | ${st} | `;
+                if(['ipfs','cars'].includes(name)){
+                    const running = st==='running';
+                    html += running? `[stop] [restart]` : `[start]`;
+                }
+                html += '\n';
+            });
+            if(pre) pre.textContent=html.trim();
+            // attach click handler for actions within pre (simple delegation parsing tokens)
+            if(pre && !pre._svcBound){
+                pre._svcBound=true;
+                pre.addEventListener('click', (e)=>{
+                    if(e.target.nodeType!==Node.TEXT_NODE) return; // plain text selection ignored
+                });
+                pre.addEventListener('mousedown', (e)=>{
+                    const sel=window.getSelection();
+                    if(sel && sel.toString()) return; // allow text selection
+                    const pos=pre.ownerDocument.caretRangeFromPoint? pre.ownerDocument.caretRangeFromPoint(e.clientX,e.clientY): null;
+                    if(!pos) return;
+                });
+                // Simpler: use regex on clicked position not robust; instead overlay buttons separately below
+            }
+            // Render interactive buttons below table for each lifecycle-managed service
+            const containerBtns = document.getElementById('services-actions');
+            if(containerBtns){
+                containerBtns.innerHTML='';
+                Object.entries(services).forEach(([name, info])=>{
+                    if(!['ipfs','cars'].includes(name)) return;
+                    const st=(info&&info.status)||'unknown';
+                    const wrap=document.createElement('div'); wrap.style.marginBottom='4px';
+                    const title=document.createElement('strong'); title.textContent=name+':'; title.style.marginRight='6px'; wrap.append(title);
+                    function addBtn(label, action){ const b=document.createElement('button'); b.textContent=label; b.style.marginRight='4px'; b.style.fontSize='11px'; b.onclick=()=> serviceAction(name, action); wrap.append(b);} 
+                    if(st==='running'){ addBtn('Stop','stop'); addBtn('Restart','restart'); }
+                    else if(st==='starting' || st==='stopping' || st==='restarting'){ const span=document.createElement('span'); span.textContent='(transition '+st+')'; wrap.append(span); }
+                    else { addBtn('Start','start'); }
+                    const statusSpan=document.createElement('span'); statusSpan.textContent=' status='+st; statusSpan.style.marginLeft='6px'; wrap.append(statusSpan);
+                    containerBtns.append(wrap);
+                });
+            }
+        }catch(e){ if(pre) pre.textContent='Error'; }
     }
+    async function serviceAction(name, action){
+        try{ await fetch(`/api/services/${name}/${action}`, {method:'POST', headers:{'x-api-token': (window.API_TOKEN||'')}}); loadServices(); }catch(e){}
+    }
+    // Polling for services when services view active
+    setInterval(()=>{ const sv=document.getElementById('view-services'); if(sv && sv.style.display==='block') loadServices(); }, 5000);
     async function loadBackends(){
         const container = document.getElementById('backends-list'); if(!container) return;
         container.textContent='Loading…';
@@ -1729,10 +1878,44 @@ class ConsolidatedMCPDashboard:
         const container=document.getElementById('buckets-list'); if(!container) return; container.textContent='Loading…';
         try{ const r=await fetch('/api/state/buckets'); const js=await r.json(); const items=js.items||[]; if(!items.length){ container.textContent='(none)'; return; }
             container.innerHTML=''; items.forEach(it=>{
-                const row=el('div',{class:'row',style:'justify-content:space-between;'},
-                    el('span',{text: it.name + (it.backend? ' -> '+it.backend:'')}),
-                    el('span',{}, el('button',{style:'padding:2px 6px;font-size:11px;',title:'Delete',onclick:()=>deleteBucket(it.name)},'✕'))
-                ); container.append(row);
+                const wrap=el('div',{class:'bucket-wrap',style:'border:1px solid #333;margin:4px 0;padding:4px;border-radius:4px;background:#111;'});
+                const header=el('div',{style:'display:flex;align-items:center;justify-content:space-between;cursor:pointer;'},
+                    el('div',{}, el('strong',{text:it.name}), el('span',{style:'color:#888;margin-left:6px;',text: it.backend? ('→ '+it.backend):''})),
+                    el('div',{},
+                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Expand/Collapse',onclick:(e)=>{ e.stopPropagation(); toggle(); }},'▾'),
+                        el('button',{style:'padding:2px 6px;font-size:11px;',title:'Delete',onclick:(e)=>{ e.stopPropagation(); if(confirm('Delete bucket '+it.name+'?')) deleteBucket(it.name); }},'✕')
+                    )
+                );
+                const body=el('div',{style:'display:none;margin-top:6px;font-size:12px;'});
+                body.innerHTML='<div style="margin-bottom:4px;color:#aaa;">Bucket Policy</div>'+
+                    '<div class="policy-fields" style="display:flex;gap:8px;flex-wrap:wrap;">'
+                    +' <label style="display:flex;flex-direction:column;font-size:11px;">Replication Factor<input type="number" min="1" max="10" class="pf-rep" style="width:90px;"/></label>'
+                    +' <label style="display:flex;flex-direction:column;font-size:11px;">Cache Policy<select class="pf-cache" style="width:120px;"><option>none</option><option>memory</option><option>disk</option></select></label>'
+                    +' <label style="display:flex;flex-direction:column;font-size:11px;">Retention Days<input type="number" min="0" class="pf-ret" style="width:110px;"/></label>'
+                    +'</div>'
+                    +'<div style="margin-top:6px;display:flex;gap:6px;">'
+                    +' <button class="btn-policy-save" style="padding:4px 10px;font-size:11px;">Save</button>'
+                    +' <button class="btn-policy-cancel" style="padding:4px 10px;font-size:11px;">Cancel</button>'
+                    +' <span class="policy-status" style="margin-left:8px;color:#888;"></span>'
+                    +'</div>';
+                wrap.append(header, body); container.append(wrap);
+                let loaded=false; let loading=false; let expanded=false; let currentPolicy=null;
+                async function fetchPolicy(){ if(loading||loaded) return; loading=true; setStatus('Loading...'); try{ const pr=await fetch('/api/state/buckets/'+encodeURIComponent(it.name)+'/policy'); const pj=await pr.json(); currentPolicy=pj.policy||pj||{}; applyPolicy(); loaded=true; setStatus(''); }catch(e){ setStatus('Error loading'); } finally { loading=false; } }
+                function applyPolicy(){ if(!currentPolicy) return; const rep=body.querySelector('.pf-rep'); const cache=body.querySelector('.pf-cache'); const ret=body.querySelector('.pf-ret'); if(rep) rep.value=currentPolicy.replication_factor; if(cache) cache.value=currentPolicy.cache_policy; if(ret) ret.value=currentPolicy.retention_days; }
+                function toggle(){ expanded=!expanded; body.style.display= expanded? 'block':'none'; header.querySelector('button').textContent = expanded? '▴':'▾'; if(expanded) fetchPolicy(); }
+                function setStatus(msg, isErr){ const st=body.querySelector('.policy-status'); if(st){ st.textContent=msg||''; st.style.color = isErr? '#f66':'#888'; } }
+                body.querySelector('.btn-policy-cancel').onclick = ()=>{ applyPolicy(); setStatus('Reverted'); };
+                body.querySelector('.btn-policy-save').onclick = async ()=>{
+                    const rep=parseInt(body.querySelector('.pf-rep').value,10); const cache=body.querySelector('.pf-cache').value; const ret=parseInt(body.querySelector('.pf-ret').value,10);
+                    const payload={replication_factor:rep, cache_policy:cache, retention_days:ret};
+                    setStatus('Saving...');
+                    try{
+                        const rs=await fetch('/api/state/buckets/'+encodeURIComponent(it.name)+'/policy',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+                        if(!rs.ok){ const tx=await rs.text(); setStatus('Error: '+tx.slice(0,60), true); return; }
+                        const jsR=await rs.json(); currentPolicy=jsR.policy||payload; applyPolicy(); setStatus('Saved');
+                    }catch(e){ setStatus('Save failed', true); }
+                };
+                header.addEventListener('click', ()=> toggle());
             });
         }catch(e){ container.textContent='Error'; }
     }
@@ -1923,7 +2106,7 @@ class ConsolidatedMCPDashboard:
         schedulePoll();
         try{
             ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
-            ws.onmessage = (ev)=>{ try{ const msg=JSON.parse(ev.data); if(msg.type==='metrics'){ applyRealtime(msg); } }catch(e){} };
+            ws.onmessage = (ev)=>{ try{ const msg=JSON.parse(ev.data); if(msg.type==='metrics'){ applyRealtime(msg); } else if(msg.type==='system_update'){ if(Array.isArray(msg.deprecations)) renderDeprecationBanner(msg.deprecations); const data = msg.data && (msg.data.data||msg.data); if(data && data.counts){ setText('svc-active', data.counts.services_active); setText('count-backends', data.counts.backends); setText('count-buckets', data.counts.buckets); document.getElementById('srv-status').textContent='Running'; } } }catch(e){} };
             ws.onclose = ()=>{ if(realtime){ setTimeout(startRealtime, 2500); } };
         }catch(e){ console.warn('ws fail', e); }
     }
@@ -1962,6 +2145,8 @@ class ConsolidatedMCPDashboard:
     function pushPerfPoint(k, v){ if(typeof v !== 'number') return; const buf = perfBuffers[k]; buf.push(v); if(buf.length>PERF_MAX_POINTS) buf.shift(); drawPerfSpark(k); }
     function drawPerfSpark(k){ const id = 'spark-'+k; const svg = document.getElementById(id); if(!svg) return; const buf = perfBuffers[k]; if(!buf.length){ svg.innerHTML=''; return; } const w = svg.clientWidth || 300; const h = svg.clientHeight || 26; const maxVal = Math.max(1, ...buf); const path = 'M '+buf.map((v,i)=>{ const x=(i/(buf.length-1||1))*w; const y = h - (v/maxVal)*(h-4) -2; return x+','+y; }).join(' L '); svg.setAttribute('viewBox',`0 0 ${w} ${h}`); svg.innerHTML = `<path d="${path}" fill="none" stroke="#6b8cff" stroke-width="1.4"/>`; }
     refreshAll().then(schedulePoll);
+    // Fallback one-time deprecations fetch (in case WebSocket path blocked)
+    try{ fetch('/api/system/deprecations').then(r=>r.json()).then(d=>{ if(d && Array.isArray(d.deprecated)) renderDeprecationBanner(d.deprecated); }).catch(()=>{}); }catch(e){}
 })();
 """
         js_code = textwrap.dedent(js_code)
@@ -2010,6 +2195,8 @@ class ConsolidatedMCPDashboard:
         create: (name, backend) => rpcCall('create_bucket', {name, backend}),
         update: (name, patch) => rpcCall('update_bucket', {name, patch}),
         delete: (name) => rpcCall('delete_bucket', {name}),
+    getPolicy: (name) => rpcCall('get_bucket_policy', {name}),
+    updatePolicy: (name, policy) => rpcCall('update_bucket_policy', {name, policy}),
     };
 
     const Pins = {
@@ -2095,11 +2282,19 @@ class ConsolidatedMCPDashboard:
 """
 
 if __name__ == "__main__":  # pragma: no cover
+    # Support CLI flags with env fallbacks for convenience when run directly
+    import argparse as _argparse
+    p = _argparse.ArgumentParser(description="Start the Consolidated MCP Dashboard")
+    p.add_argument("--host", default=os.environ.get("MCP_HOST", "127.0.0.1"), help="Bind host (default: env MCP_HOST or 127.0.0.1)")
+    p.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "8081")), help="Bind port (default: env MCP_PORT or 8081)")
+    p.add_argument("--data-dir", default=os.environ.get("MCP_DATA_DIR"), help="Data directory (default: env MCP_DATA_DIR or ~/.ipfs_kit)")
+    p.add_argument("--debug", action="store_true", default=(os.environ.get("MCP_DEBUG", "0") in ("1", "true", "True")), help="Enable debug logging")
+    args = p.parse_args()
     cfg = {
-        "host": os.environ.get("MCP_HOST", "127.0.0.1"),
-        "port": int(os.environ.get("MCP_PORT", "8081")),
-        "data_dir": os.environ.get("MCP_DATA_DIR"),
-        "debug": os.environ.get("MCP_DEBUG", "0") in ("1", "true", "True"),
+        "host": args.host,
+        "port": int(args.port),
+        "data_dir": args.data_dir,
+        "debug": bool(args.debug),
     }
     app = ConsolidatedMCPDashboard(cfg)
     app.run_sync()

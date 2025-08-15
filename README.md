@@ -17,6 +17,12 @@
 > - Background: `ipfs-kit mcp start` or `python -m ipfs_kit_py.cli mcp start`
 > Then open http://127.0.0.1:8004/
 
+PID files and CLI semantics:
+- The dashboard writes two PID files on startup:
+  - `~/.ipfs_kit/dashboard.pid` (legacy, shared)
+  - `~/.ipfs_kit/mcp_{port}.pid` (port-specific)
+- The CLI uses the port-specific PID file for `status` and `stop` to avoid cross-port ambiguity. If you ran the server manually and only `dashboard.pid` exists, the CLI may show HTTP status but no PID for that port. Start via the CLI to have `mcp_{port}.pid` created.
+
 ## 🖥️ Unified MCP Dashboard (Finalized)
 
 The repository includes a modern, schema-driven MCP dashboard with:
@@ -35,6 +41,7 @@ The repository includes a modern, schema-driven MCP dashboard with:
   - `POST /mcp/tools/list`, `POST /mcp/tools/call` (JSON-RPC)
   - `/api/state/backends`, `/api/services`, `/api/files`, etc.
   - Deprecated (temporary): `/api/system/overview` – legacy compatibility. Returns combined `status`, `health`, and `metrics` plus deprecation headers. Planned removal in version 3.2.0; migrate to `/api/mcp/status`, `/api/system/health`, and `/api/metrics/system`.
+  - The initial WebSocket `system_update` payload now includes a `deprecations` array (with per-endpoint hit counts) used by a dismissible UI banner; if the WS payload is delayed the UI lazily fetches `/api/system/deprecations` as a fallback.
 - **Panels**:
   - Overview, Tools, Buckets, Pins, Backends, Services, Integrations, Files, CARs, Logs
 - **Security (optional)**:
@@ -84,6 +91,79 @@ Stop or check status:
 ipfs-kit mcp stop --port 8004
 ipfs-kit mcp status --port 8004
 ```
+
+List deprecated endpoints (with planned removal version, hit counts, and migration hints):
+
+```bash
+ipfs-kit mcp deprecations          # pretty table
+ipfs-kit mcp deprecations --json   # raw JSON
+```
+
+The hit counts help decide if an endpoint can be removed sooner (low / zero usage) or needs extended support.
+
+Advanced options for deprecations analysis and CI gating:
+
+```bash
+# Sort and filter
+ipfs-kit mcp deprecations --sort hits --reverse           # highest hits first
+ipfs-kit mcp deprecations --min-hits 1                    # hide 0-hit endpoints
+
+# CI policy enforcement (exit codes):
+# 0 = OK, 3 = hits threshold violation, 4 = missing migration hints
+ipfs-kit mcp deprecations --fail-if-hits-over 0           # fail if any endpoint was used
+ipfs-kit mcp deprecations --fail-if-missing-migration     # fail if any endpoint lacks migration hints
+
+# Write a machine-readable report for artifacts
+ipfs-kit mcp deprecations --report-json ./deprecations_report.json
+```
+
+### Deprecation Governance & Report Schema
+
+All deprecation policy decisions are driven by a machine‑readable report generated via:
+
+```bash
+ipfs-kit mcp deprecations \
+  --report-json build/deprecations/report.json \
+  --fail-if-hits-over 100 \
+  --fail-if-missing-migration
+```
+
+Key properties of the report (see `schemas/deprecations_report.schema.json`):
+* `generated_at` – UTC timestamp
+* `report_version` – Semantic schema contract (currently `1.0.0`)
+* `deprecated[]` – Filtered/sorted endpoints (after flags)
+* `summary.{count,max_hits}` – Aggregated stats
+* `policy.hits_enforcement` – `status|threshold|violations[]`
+* `policy.migration_enforcement` – `status|violations[]`
+* `raw` – Original unfiltered payload (traceability)
+
+Exit codes (for CI): 0=pass/skip, 3=hits threshold violation, 4=missing migration mapping. See `CLI_OVERVIEW.md` for detailed policy usage, evolution guidelines, and schema versioning strategy.
+
+Versioning Rules (`report_version`):
+* PATCH: Add optional fields / doc clarifications
+* MINOR: Add required fields (backward compatible for existing keys)
+* MAJOR: Remove/rename existing required keys or structural changes
+
+Automation Tips:
+* Gate merges: fail workflow if report exit code is 3 or 4
+* Trend analysis: archive `summary` diff across runs
+* Enforcement drift detection: compare previous vs current violation sets
+
+For full governance details and upgrade strategy refer to `CLI_OVERVIEW.md` (Deprecation Governance & Report Schema section).
+
+Run the dashboard script directly (without the CLI):
+
+```bash
+python consolidated_mcp_dashboard.py \
+  --host 127.0.0.1 \
+  --port 8081 \
+  --data-dir ~/.ipfs_kit \
+  --debug
+```
+
+Notes:
+- When run directly, the server still writes both PID files: `~/.ipfs_kit/dashboard.pid` and `~/.ipfs_kit/mcp_{port}.pid`.
+- The CLI `status` and `stop` subcommands look only at the port-specific file (e.g., `mcp_8099.pid`).
 
 ---
 
@@ -278,6 +358,39 @@ ipfs-kit bucket policy show              # All bucket policies
 | `ENABLE_REPLICATION` | `true` | Enable replication features |
 | `ENABLE_INDEXING` | `true` | Enable indexing features |
 | `ENABLE_VFS` | `true` | Enable VFS integration |
+
+### Bucket Policy REST & Dashboard Integration
+
+The dashboard now supports inline per-bucket policy editing (replication factor, cache policy, retention days):
+
+REST Endpoints:
+```
+GET  /api/state/buckets/{name}/policy          # Return current policy (auto-injects defaults if missing)
+POST /api/state/buckets/{name}/policy          # Update one or more policy fields (requires x-api-token)
+```
+JSON Body Fields (partial updates allowed on POST):
+- `replication_factor` (int, 1–10, default 1)
+- `cache_policy` (enum: none|memory|disk, default none)
+- `retention_days` (int, >=0, default 0)
+
+Example Update:
+```bash
+curl -H 'Content-Type: application/json' \
+  -H 'x-api-token: $TOKEN' \
+  -d '{"replication_factor":3, "cache_policy":"memory", "retention_days":30}' \
+  http://127.0.0.1:8004/api/state/buckets/my-bucket/policy
+```
+
+Dashboard Usage:
+- Navigate to Buckets panel → each bucket row is expandable.
+- Click the ▾ control to load and reveal policy form (lazy loads via GET endpoint).
+- Edit values and press Save (POST); inline status messages indicate success or validation errors.
+
+Validation Errors:
+- 400 returned for out-of-range replication_factor or invalid cache_policy values.
+- 401 returned if missing/invalid token for POST.
+
+Legacy buckets without a `policy` object receive defaults on first read (implicit migration, persisted on next update).
 
 ### Three-Tier Policy System Configuration
 

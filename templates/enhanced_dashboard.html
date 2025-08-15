@@ -545,10 +545,14 @@
         // Data loading functions
         async function loadOverviewData() {
             try {
-                const response = await fetch('/api/system/overview');
-                const data = await response.json();
-                // Update overview UI
-                console.log('Overview data:', data);
+                const [statusRes, metricsRes] = await Promise.all([
+                    fetch('/api/mcp/status'),
+                    fetch('/api/metrics/system')
+                ]);
+                const status = await statusRes.json();
+                const metrics = await metricsRes.json();
+                // Minimal no-op update to avoid console noise; template bindings may use ids elsewhere
+                console.debug('overview ready', { tools: (status.data||status).total_tools, cpu: metrics.cpu_percent });
             } catch (error) {
                 console.error('Error loading overview data:', error);
             }

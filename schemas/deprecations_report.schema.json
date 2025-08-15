@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ipfs-kit.dev/schemas/deprecations_report.schema.json",
+  "title": "IPFS Kit Deprecations Report",
+  "type": "object",
+  "required": ["generated_at", "report_version", "deprecated", "summary", "policy", "raw"],
+  "properties": {
+    "generated_at": {"type": "string", "format": "date-time"},
+    "report_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Semantic version of the report schema contract"},
+    "deprecated": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["endpoint", "remove_in", "hits"],
+        "properties": {
+          "endpoint": {"type": "string"},
+            "remove_in": {"type": ["string", "null"]},
+            "migration": {
+              "oneOf": [
+                {"type": "null"},
+                {
+                  "type": "object",
+                  "additionalProperties": {"type": "string"}
+                }
+              ]
+            },
+            "hits": {"type": ["integer", "null"], "minimum": 0}
+        },
+        "additionalProperties": true
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["count", "max_hits"],
+      "properties": {
+        "count": {"type": "integer", "minimum": 0},
+        "max_hits": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "policy": {
+      "type": "object",
+      "required": ["hits_enforcement", "migration_enforcement"],
+      "properties": {
+        "hits_enforcement": {
+          "type": "object",
+          "required": ["status", "violations"],
+          "properties": {
+            "status": {"enum": ["pass", "violation", "skipped"]},
+            "threshold": {"type": ["integer", "null"], "minimum": 0},
+            "violations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["endpoint", "hits", "remove_in", "threshold"],
+                "properties": {
+                  "endpoint": {"type": "string"},
+                  "hits": {"type": "integer", "minimum": 0},
+                  "remove_in": {"type": ["string", "null"]},
+                  "threshold": {"type": "integer", "minimum": 0}
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "migration_enforcement": {
+          "type": "object",
+          "required": ["status", "violations"],
+          "properties": {
+            "status": {"enum": ["pass", "violation", "skipped"]},
+            "violations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["endpoint", "remove_in", "hits"],
+                "properties": {
+                  "endpoint": {"type": "string"},
+                  "remove_in": {"type": ["string", "null"]},
+                  "hits": {"type": ["integer", "null"], "minimum": 0}
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "raw": {"type": "object"}
+  },
+  "additionalProperties": true
+}
