@@ -74,7 +74,7 @@ class ClientSession:
     subscriptions: Set[str] = field(default_factory=set)
     created_at: datetime = field(default_factory=datetime.now)
     last_activity: datetime = field(default_factory=datetime.now)
-    last_poll: datetime = field(default_factory=datetime.now)
+    last_poll: datetime = field(default_factory=lambda: datetime.now() - timedelta(seconds=1))  # Start 1 second in the past
     
     def update_activity(self) -> None:
         """Update last activity timestamp."""
@@ -329,9 +329,8 @@ class JSONRPCEventManager:
                 return {"success": False, "error": f"Session {session_id} not found"}
             
             session = self.sessions[session_id]
-            session.update_poll()
             
-            # Parse since timestamp
+            # Parse since timestamp BEFORE updating last_poll
             since_dt = None
             if since:
                 try:
@@ -339,8 +338,11 @@ class JSONRPCEventManager:
                 except ValueError:
                     return {"success": False, "error": "Invalid since timestamp format"}
             else:
-                # Default to last poll time
+                # Default to last poll time (before updating it)
                 since_dt = session.last_poll
+            
+            # Now update the session poll time
+            session.update_poll()
             
             # Collect events from subscribed categories
             events = []
@@ -370,7 +372,7 @@ class JSONRPCEventManager:
                 "events": events,
                 "count": len(events),
                 "session_id": session_id,
-                "since": since,
+                "since": since_dt.isoformat() if since_dt else None,
                 "timestamp": datetime.now().isoformat()
             }
     
