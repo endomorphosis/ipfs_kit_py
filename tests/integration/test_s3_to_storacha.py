@@ -7,7 +7,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # Import the actual class instead of mocking it
+import sys
 from ipfs_kit_py.migration_tools.s3_to_storacha import s3_to_storacha
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
 @pytest.fixture

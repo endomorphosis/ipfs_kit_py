@@ -9,7 +9,9 @@ import tempfile
 from ipfs_kit_py.mcp.models.storage.filecoin_model import FilecoinModel
 # Mock base class methods if necessary, or mock dependencies directly
 # from ipfs_kit_py.mcp.models.storage.base_storage_model import BaseStorageModel
+import sys
 from ipfs_kit_py.lotus_kit import lotus_kit # To spec the mock
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 # Mock IPFS Model for cross-service tests
 # Using AsyncMock for async methods as the real model likely uses them

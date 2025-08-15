@@ -3,6 +3,9 @@ import json
 import time
 from unittest.mock import patch, MagicMock
 
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
 
 

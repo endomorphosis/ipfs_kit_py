@@ -9,7 +9,9 @@ import io
 from fastapi.testclient import TestClient
 
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+import sys
 from ipfs_kit_py.api import app
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 class TestStreaming(unittest.TestCase):
     """Test streaming functionality for both HTTP and WebSocket interfaces."""

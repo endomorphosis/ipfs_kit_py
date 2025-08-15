@@ -6,6 +6,9 @@ import anyio
 
 # Adjust imports based on actual file structure
 from ipfs_kit_py.mcp.controllers.storage.filecoin_controller import FilecoinController
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from ipfs_kit_py.mcp.models.storage.filecoin_model import FilecoinModel
 
 class TestFilecoinController:

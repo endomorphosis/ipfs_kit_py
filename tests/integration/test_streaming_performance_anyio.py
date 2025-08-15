@@ -13,7 +13,9 @@ from statistics import mean, median, stdev
 
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
+import sys
 from ipfs_kit_py.performance_metrics import PerformanceMetrics
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
 class TestStreamingPerformance(unittest.TestCase):

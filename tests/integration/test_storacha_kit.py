@@ -3,7 +3,9 @@ import os
 import platform
 import tempfile
 
+import sys
 from ipfs_kit_py import storacha_kit
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
 class test_storacha_kit:

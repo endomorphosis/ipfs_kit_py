@@ -5,7 +5,9 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from ipfs_kit_py.ipfs import ipfs_py
+import sys
 from ipfs_kit_py.ipfs_kit import ipfs_kit
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
 class TestParameterValidation(unittest.TestCase):

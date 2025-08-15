@@ -5,7 +5,9 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+import sys
 from ipfs_kit_py.ipfs_kit import ipfs_kit
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 # Pandas patches are applied in conftest.py
 

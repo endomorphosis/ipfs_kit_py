@@ -7,7 +7,9 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 
 from ipfs_kit_py.error import IPFSConnectionError, IPFSError, IPFSTimeoutError
+import sys
 from ipfs_kit_py.ipfs import ipfs_py
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
 @pytest.fixture

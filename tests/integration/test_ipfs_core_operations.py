@@ -3,7 +3,9 @@ import os
 import tempfile
 import time
 import unittest
+import sys
 from unittest.mock import MagicMock, PropertyMock, patch
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
 class TestIPFSCoreOperations(unittest.TestCase):

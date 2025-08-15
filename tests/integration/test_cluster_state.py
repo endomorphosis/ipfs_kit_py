@@ -5,7 +5,9 @@ import tempfile
 import time
 import unittest
 import uuid
+import sys
 from unittest.mock import MagicMock, patch
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 # Try to import pyarrow for tests
 try:

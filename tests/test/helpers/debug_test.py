@@ -6,7 +6,9 @@ import time
 import unittest
 from unittest.mock import MagicMock, patch
 
+import sys
 from ipfs_kit_py.error import (
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
     IPFSConfigurationError,
     IPFSConnectionError,
     IPFSContentNotFoundError,

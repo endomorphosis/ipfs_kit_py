@@ -10,7 +10,9 @@ import pytest
 # pytestmark = pytest.mark.skip(reason="Tests need updating to match current API")
 
 from ipfs_kit_py.ipfs_kit import IPFSKit
+import sys
 from ipfs_kit_py.cli import main as cli_main
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
 class TestFirstRunInitialization(unittest.TestCase):
