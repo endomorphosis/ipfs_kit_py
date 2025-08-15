@@ -52,7 +52,7 @@ def categorize_test_file(filename):
 def organize_mcp_tests():
     """Move MCP test files to their appropriate subdirectories."""
     # Define paths
-    test_dir = Path("/home/barberb/ipfs_kit_py/test")
+    test_dir = Path("/home/runner/work/ipfs_kit_py/ipfs_kit_py/test")
     mcp_test_dir = test_dir / "mcp"
     
     # Ensure all necessary subdirectories exist

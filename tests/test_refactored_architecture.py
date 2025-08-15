@@ -81,7 +81,7 @@ def test_streamlined_mcp_server_import():
         import importlib.util
         spec = importlib.util.spec_from_file_location(
             "streamlined_mcp_server", 
-            "/home/barberb/ipfs_kit_py/mcp/streamlined_mcp_server.py"
+            "/home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/streamlined_mcp_server.py"
         )
         
         if spec is None or spec.loader is None:
@@ -142,7 +142,7 @@ def test_mcp_tools():
         import importlib.util
         spec = importlib.util.spec_from_file_location(
             "streamlined_mcp_server", 
-            "/home/barberb/ipfs_kit_py/mcp/streamlined_mcp_server.py"
+            "/home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/streamlined_mcp_server.py"
         )
         
         if spec is None or spec.loader is None:

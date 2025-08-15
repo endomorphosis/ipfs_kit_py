@@ -15,11 +15,11 @@ def test_mcp_server():
     
     # Set up environment
     env = os.environ.copy()
-    env["PYTHONPATH"] = "/home/barberb/ipfs_kit_py"
+    env["PYTHONPATH"] = "/home/runner/work/ipfs_kit_py/ipfs_kit_py"
     
     server_cmd = [
         sys.executable, 
-        "/home/barberb/ipfs_kit_py/mcp/ipfs_kit/mcp/enhanced_mcp_server_with_daemon_mgmt.py"
+        "/home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/ipfs_kit/mcp/enhanced_mcp_server_with_daemon_mgmt.py"
     ]
     
     proc = None
@@ -131,8 +131,8 @@ def test_mcp_server():
         
         print("\n✅ MCP Server test completed successfully!")
         print("\n📋 Configuration Summary:")
-        print("   Server Path: /home/barberb/ipfs_kit_py/mcp/ipfs_kit/mcp/enhanced_mcp_server_with_daemon_mgmt.py")
-        print("   Environment: PYTHONPATH=/home/barberb/ipfs_kit_py")
+        print("   Server Path: /home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/ipfs_kit/mcp/enhanced_mcp_server_with_daemon_mgmt.py")
+        print("   Environment: PYTHONPATH=/home/runner/work/ipfs_kit_py/ipfs_kit_py")
         print("   Status: Ready for Cline integration")
         
         return True

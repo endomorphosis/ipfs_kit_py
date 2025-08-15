@@ -5,7 +5,7 @@ Test script to verify the updated IPFS installation with version checking.
 
 import sys
 import os
-sys.path.insert(0, '/home/barberb/ipfs_kit_py')
+sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
 
 from ipfs_kit_py.install_ipfs import install_ipfs
 

@@ -9,7 +9,7 @@ import os
 import logging
 
 # Add the project root to the path
-sys.path.insert(0, '/home/devel/ipfs_kit_py')
+sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
 
 from mcp.ipfs_kit.api.vector_kb_endpoints import VectorKBEndpoints
 

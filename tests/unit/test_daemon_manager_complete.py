@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 # Add the project to the path
-sys.path.insert(0, '/home/devel/ipfs_kit_py')
+sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
 
 def test_daemon_manager():
     """Test the standalone daemon manager functionality."""

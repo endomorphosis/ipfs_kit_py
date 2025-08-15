@@ -15,7 +15,7 @@ async def test_mcp_server():
     
     # Start the server
     process = await asyncio.create_subprocess_exec(
-        "python3", "/home/barberb/ipfs_kit_py/enhanced_mcp_server_phase1.py",
+        "python3", "/home/runner/work/ipfs_kit_py/ipfs_kit_py/enhanced_mcp_server_phase1.py",
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
@@ -104,7 +104,7 @@ def test_vscode_config():
     
     # Check .vscode/settings.json
     try:
-        with open("/home/barberb/ipfs_kit_py/.vscode/settings.json", "r") as f:
+        with open("/home/runner/work/ipfs_kit_py/ipfs_kit_py/.vscode/settings.json", "r") as f:
             settings = json.load(f)
         
         # Check for MCP servers
@@ -134,7 +134,7 @@ def test_vscode_config():
     
     # Check .vscode/mcp.json  
     try:
-        with open("/home/barberb/ipfs_kit_py/.vscode/mcp.json", "r") as f:
+        with open("/home/runner/work/ipfs_kit_py/ipfs_kit_py/.vscode/mcp.json", "r") as f:
             mcp_config = json.load(f)
         
         if "mcpServers" in mcp_config:

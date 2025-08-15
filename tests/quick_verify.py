@@ -5,7 +5,7 @@ print("=== BINARY VERIFICATION ===")
 import os
 import subprocess
 
-bin_dir = "/home/barberb/ipfs_kit_py/ipfs_kit_py/bin"
+bin_dir = "/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_kit_py/bin"
 binaries = ["ipfs", "lotus", "lassie"]
 
 for binary in binaries:
@@ -37,7 +37,7 @@ print("\n=== INSTALLER VERIFICATION ===")
 
 try:
     import sys
-    sys.path.insert(0, '/home/barberb/ipfs_kit_py')
+    sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
     
     from ipfs_kit_py import install_ipfs, install_lotus, install_lassie, install_storacha
     print("✓ All installers can be imported")

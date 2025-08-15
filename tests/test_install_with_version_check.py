@@ -5,7 +5,7 @@ Test script to verify the updated IPFS installation function with version checki
 
 import sys
 import os
-sys.path.insert(0, '/home/barberb/ipfs_kit_py')
+sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
 
 def test_install_ipfs_with_version_checking():
     """Test the updated install_ipfs_daemon method with version checking."""
