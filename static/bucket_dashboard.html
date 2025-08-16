@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFS Kit - Bucket Management Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            margin-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .actions-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+            transform: translateY(-1px);
+        }
+
+        .buckets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .bucket-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .bucket-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .bucket-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .bucket-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-inactive {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .bucket-info {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .bucket-info div {
+            margin-bottom: 5px;
+        }
+
+        .quota-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .quota-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #48bb78, #38a169);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .quota-fill.warning {
+            background: linear-gradient(90deg, #ed8936, #dd6b20);
+        }
+
+        .quota-fill.danger {
+            background: linear-gradient(90deg, #f56565, #e53e3e);
+        }
+
+        .bucket-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: #48bb78;
+        }
+
+        .notification.error {
+            background: #f56565;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+            color: #2d3748;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #6c757d;
+            padding: 40px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>IPFS Kit Bucket Management</h1>
+            <p>Manage your distributed storage buckets with advanced monitoring and configuration</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-buckets">0</div>
+                <div class="stat-label">Total Buckets</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="active-buckets">0</div>
+                <div class="stat-label">Active Buckets</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-bucket-size">0 Bytes</div>
+                <div class="stat-label">Total Storage Used</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-bucket-files">0</div>
+                <div class="stat-label">Total Files</div>
+            </div>
+        </div>
+
+        <div class="actions-bar">
+            <button class="btn btn-primary" onclick="showCreateBucketModal()">
+                <span>+ Create Bucket</span>
+            </button>
+            <button class="btn btn-success" onclick="refreshBuckets()">
+                <span>🔄 Refresh</span>
+            </button>
+            <button class="btn btn-primary" onclick="showBulkOperationsModal()">
+                <span>⚙️ Bulk Operations</span>
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>Loading buckets...</div>
+        </div>
+
+        <div class="buckets-grid" id="buckets-list">
+            <!-- Buckets will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Create Bucket Modal -->
+    <div id="create-bucket-modal" class="modal">
+        <div class="modal-content">
+            <h2>Create New Bucket</h2>
+            <form id="create-bucket-form">
+                <div class="form-group">
+                    <label for="bucket-name">Bucket Name</label>
+                    <input type="text" id="bucket-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="bucket-backend">Storage Backend</label>
+                    <select id="bucket-backend" name="backend">
+                        <option value="local">Local Storage</option>
+                        <option value="s3">Amazon S3</option>
+                        <option value="ipfs">IPFS Network</option>
+                        <option value="filecoin">Filecoin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="bucket-max-size">Max Size (bytes)</label>
+                    <input type="number" id="bucket-max-size" name="max_size" placeholder="Leave empty for unlimited">
+                </div>
+                <div class="form-group">
+                    <label for="bucket-max-files">Max Files</label>
+                    <input type="number" id="bucket-max-files" name="max_files" placeholder="Leave empty for unlimited">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="hideCreateBucketModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Bucket</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification placeholder -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Include MCP SDK -->
+    <script src="/static/mcp-sdk.js"></script>
+    
+    <!-- Dashboard Script -->
+    <script>
+        class BucketDashboard {
+            constructor() {
+                this.mcp = new window.MCP.MCPClient({ baseUrl: '' });
+                this.buckets = [];
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadBuckets();
+            }
+
+            setupEventListeners() {
+                document.getElementById('create-bucket-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleCreateBucket();
+                });
+
+                // Close modal when clicking outside
+                document.getElementById('create-bucket-modal').addEventListener('click', (e) => {
+                    if (e.target === document.getElementById('create-bucket-modal')) {
+                        this.hideCreateBucketModal();
+                    }
+                });
+            }
+
+            async loadBuckets() {
+                this.showLoading(true);
+                try {
+                    const response = await fetch('/api/v0/buckets');
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.buckets = result.buckets || [];
+                        this.updateBucketsList();
+                        this.updateStatistics();
+                        this.showNotification('Buckets loaded successfully', 'success');
+                    } else {
+                        throw new Error(result.error || 'Failed to load buckets');
+                    }
+                } catch (error) {
+                    console.error('Failed to load buckets:', error);
+                    this.showNotification('Error loading buckets: ' + error.message, 'error');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            async createBucket(bucketData) {
+                try {
+                    const formData = new FormData();
+                    Object.keys(bucketData).forEach(key => {
+                        if (bucketData[key] !== null && bucketData[key] !== undefined && bucketData[key] !== '') {
+                            formData.append(key, bucketData[key]);
+                        }
+                    });
+                    
+                    const response = await fetch('/api/v0/buckets', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        this.showNotification('Bucket created successfully', 'success');
+                        this.loadBuckets();
+                        return true;
+                    } else {
+                        throw new Error(result.message || 'Failed to create bucket');
+                    }
+                } catch (error) {
+                    console.error('Failed to create bucket:', error);
+                    this.showNotification('Error creating bucket: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            async deleteBucket(bucketName, force = false) {
+                if (!confirm(`Are you sure you want to delete bucket "${bucketName}"?`)) {
+                    return false;
+                }
+
+                try {
+                    const response = await fetch(`/api/v0/buckets/${bucketName}?force=${force}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        this.showNotification('Bucket deleted successfully', 'success');
+                        this.loadBuckets();
+                        return true;
+                    } else {
+                        throw new Error(result.message || 'Failed to delete bucket');
+                    }
+                } catch (error) {
+                    console.error('Failed to delete bucket:', error);
+                    this.showNotification('Error deleting bucket: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            updateBucketsList() {
+                const container = document.getElementById('buckets-list');
+                
+                if (this.buckets.length === 0) {
+                    container.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align: center; color: #6c757d; padding: 40px;">
+                            <h3>No buckets found</h3>
+                            <p>Create your first bucket to get started with distributed storage.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const bucketsHtml = this.buckets.map(bucket => {
+                    const sizeFormatted = this.formatBytes(bucket.size);
+                    const quotaUsage = bucket.quota.size_usage_percent || 0;
+                    let quotaClass = '';
+                    
+                    if (quotaUsage > 90) quotaClass = 'danger';
+                    else if (quotaUsage > 70) quotaClass = 'warning';
+                    
+                    return `
+                        <div class="bucket-card">
+                            <div class="bucket-header">
+                                <div class="bucket-name">${bucket.name}</div>
+                                <span class="status-badge status-${bucket.status}">${bucket.status}</span>
+                            </div>
+                            <div class="bucket-info">
+                                <div><strong>Backend:</strong> ${bucket.backend}</div>
+                                <div><strong>Size:</strong> ${sizeFormatted} (${bucket.files} files)</div>
+                                <div><strong>Created:</strong> ${new Date(bucket.created_at * 1000).toLocaleDateString()}</div>
+                                ${bucket.quota.max_size ? `
+                                    <div><strong>Quota:</strong> ${Math.round(quotaUsage)}% used</div>
+                                    <div class="quota-bar">
+                                        <div class="quota-fill ${quotaClass}" style="width: ${quotaUsage}%"></div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div class="bucket-actions">
+                                <button class="btn btn-small btn-primary" onclick="dashboard.viewBucketStats('${bucket.name}')">Stats</button>
+                                <button class="btn btn-small btn-success" onclick="dashboard.editBucket('${bucket.name}')">Edit</button>
+                                <button class="btn btn-small btn-danger" onclick="dashboard.deleteBucket('${bucket.name}')">Delete</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = bucketsHtml;
+            }
+
+            updateStatistics() {
+                const totalBuckets = this.buckets.length;
+                const activeBuckets = this.buckets.filter(b => b.status === 'active').length;
+                const totalSize = this.buckets.reduce((sum, bucket) => sum + bucket.size, 0);
+                const totalFiles = this.buckets.reduce((sum, bucket) => sum + bucket.files, 0);
+
+                document.getElementById('total-buckets').textContent = totalBuckets;
+                document.getElementById('active-buckets').textContent = activeBuckets;
+                document.getElementById('total-bucket-size').textContent = this.formatBytes(totalSize);
+                document.getElementById('total-bucket-files').textContent = totalFiles.toLocaleString();
+            }
+
+            async handleCreateBucket() {
+                const form = document.getElementById('create-bucket-form');
+                const formData = new FormData(form);
+                const bucketData = {};
+                
+                for (let [key, value] of formData.entries()) {
+                    if (value) bucketData[key] = value;
+                }
+
+                if (await this.createBucket(bucketData)) {
+                    form.reset();
+                    this.hideCreateBucketModal();
+                }
+            }
+
+            async viewBucketStats(bucketName) {
+                try {
+                    const response = await fetch(`/api/v0/buckets/${bucketName}/stats`);
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        const stats = result.stats;
+                        alert(JSON.stringify(stats, null, 2));
+                    } else {
+                        throw new Error(result.error || 'Failed to get bucket stats');
+                    }
+                } catch (error) {
+                    this.showNotification('Error getting bucket stats: ' + error.message, 'error');
+                }
+            }
+
+            editBucket(bucketName) {
+                this.showNotification('Edit functionality coming soon!', 'success');
+            }
+
+            showCreateBucketModal() {
+                document.getElementById('create-bucket-modal').style.display = 'block';
+            }
+
+            hideCreateBucketModal() {
+                document.getElementById('create-bucket-modal').style.display = 'none';
+            }
+
+            showLoading(show) {
+                document.getElementById('loading').style.display = show ? 'block' : 'none';
+                document.getElementById('buckets-list').style.display = show ? 'none' : 'grid';
+            }
+
+            showNotification(message, type = 'success') {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.className = `notification ${type}`;
+                notification.classList.add('show');
+
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+
+            formatBytes(bytes, decimals = 2) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const dm = decimals < 0 ? 0 : decimals;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+            }
+        }
+
+        // Global functions
+        function showCreateBucketModal() {
+            dashboard.showCreateBucketModal();
+        }
+
+        function refreshBuckets() {
+            dashboard.loadBuckets();
+        }
+
+        function showBulkOperationsModal() {
+            dashboard.showNotification('Bulk operations coming soon!', 'success');
+        }
+
+        // Initialize dashboard
+        const dashboard = new BucketDashboard();
+    </script>
+</body>
+</html>
