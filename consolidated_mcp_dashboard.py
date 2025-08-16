@@ -829,25 +829,47 @@ class ConsolidatedMCPDashboard:
 
         # Files VFS
         @app.get("/api/files/list")
-        async def files_list(path: str = ".") -> Dict[str, Any]:
+        async def files_list(path: str = ".", bucket: str = None) -> Dict[str, Any]:
+            # Use bucket-specific path if provided
             base = self.paths.vfs_root
+            if bucket:
+                # Check if bucket exists
+                buckets_data = _read_json(self.paths.buckets_file, [])
+                bucket_exists = any(b.get("name") == bucket for b in buckets_data)
+                if bucket_exists:
+                    base = self.paths.vfs_root / bucket
+                    base.mkdir(parents=True, exist_ok=True)
+            
             p = _safe_vfs_path(base, path)
             if not p.exists():
-                return {"path": str(path), "items": []}
+                return {"path": str(path), "bucket": bucket, "items": []}
             if p.is_file():
                 raise HTTPException(400, "Path is a file")
             items = []
             for child in sorted(p.iterdir()):
+                stat_info = child.stat() if child.exists() else None
                 items.append({
                     "name": child.name,
                     "is_dir": child.is_dir(),
-                    "size": child.stat().st_size if child.exists() and child.is_file() else None,
+                    "size": stat_info.st_size if stat_info and child.is_file() else None,
+                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat() if stat_info else None,
+                    "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat() if stat_info else None,
+                    "permissions": oct(stat_info.st_mode)[-3:] if stat_info else None,
+                    "type": "file" if child.is_file() else "directory",
                 })
-            return {"path": str(path), "items": items}
+            return {"path": str(path), "bucket": bucket, "items": items, "total_items": len(items)}
 
         @app.get("/api/files/read")
-        async def files_read(path: str) -> Dict[str, Any]:
-            p = _safe_vfs_path(self.paths.vfs_root, path)
+        async def files_read(path: str, bucket: str = None) -> Dict[str, Any]:
+            base = self.paths.vfs_root
+            if bucket:
+                # Check if bucket exists
+                buckets_data = _read_json(self.paths.buckets_file, [])
+                bucket_exists = any(b.get("name") == bucket for b in buckets_data)
+                if bucket_exists:
+                    base = self.paths.vfs_root / bucket
+                    
+            p = _safe_vfs_path(base, path)
             if not p.exists() or not p.is_file():
                 raise HTTPException(404, "File not found")
             try:
@@ -856,22 +878,196 @@ class ConsolidatedMCPDashboard:
             except UnicodeDecodeError:
                 content = p.read_bytes().hex()
                 mode = "hex"
-            return {"path": path, "mode": mode, "content": content}
+            
+            stat_info = p.stat()
+            return {
+                "path": path,
+                "bucket": bucket,
+                "mode": mode,
+                "content": content,
+                "size": stat_info.st_size,
+                "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
+                "permissions": oct(stat_info.st_mode)[-3:],
+            }
 
         @app.post("/api/files/write")
         async def files_write(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
             path = payload.get("path")
             content = payload.get("content", "")
             mode = payload.get("mode", "text")
+            bucket = payload.get("bucket")
             if not path:
                 raise HTTPException(400, "Missing path")
-            p = _safe_vfs_path(self.paths.vfs_root, path)
+                
+            base = self.paths.vfs_root
+            if bucket:
+                # Check if bucket exists, create if not
+                buckets_data = _read_json(self.paths.buckets_file, [])
+                bucket_exists = any(b.get("name") == bucket for b in buckets_data)
+                if not bucket_exists:
+                    # Create bucket entry
+                    new_bucket = {"name": bucket, "created": datetime.now(UTC).isoformat()}
+                    buckets_data.append(new_bucket)
+                    _atomic_write_json(self.paths.buckets_file, buckets_data)
+                base = self.paths.vfs_root / bucket
+                
+            p = _safe_vfs_path(base, path)
             p.parent.mkdir(parents=True, exist_ok=True)
             if mode == "hex":
                 p.write_bytes(bytes.fromhex(content))
             else:
                 p.write_text(str(content), encoding="utf-8")
-            return {"ok": True}
+            
+            # Update metadata in ~/.ipfs_kit/ before calling library
+            try:
+                metadata_file = self.paths.data_dir / "file_metadata.json"
+                metadata = _read_json(metadata_file, {})
+                file_key = f"{bucket or 'default'}:{path}"
+                stat_info = p.stat()
+                metadata[file_key] = {
+                    "path": path,
+                    "bucket": bucket,
+                    "size": stat_info.st_size,
+                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                    "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
+                    "operation": "write",
+                    "timestamp": datetime.now(UTC).isoformat()
+                }
+                _atomic_write_json(metadata_file, metadata)
+            except Exception as e:
+                logger.warning(f"Failed to update file metadata: {e}")
+                
+            return {"ok": True, "path": path, "bucket": bucket}
+
+        @app.delete("/api/files/delete")
+        async def files_delete(path: str, bucket: str = None, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+            base = self.paths.vfs_root
+            if bucket:
+                base = self.paths.vfs_root / bucket
+                
+            p = _safe_vfs_path(base, path)
+            if not p.exists():
+                raise HTTPException(404, "File or directory not found")
+            
+            try:
+                if p.is_file():
+                    p.unlink()
+                else:
+                    import shutil
+                    shutil.rmtree(p)
+                    
+                # Update metadata
+                metadata_file = self.paths.data_dir / "file_metadata.json"
+                metadata = _read_json(metadata_file, {})
+                file_key = f"{bucket or 'default'}:{path}"
+                if file_key in metadata:
+                    del metadata[file_key]
+                _atomic_write_json(metadata_file, metadata)
+                
+                return {"ok": True, "path": path, "bucket": bucket, "deleted": True}
+            except Exception as e:
+                raise HTTPException(500, f"Failed to delete: {str(e)}")
+
+        @app.post("/api/files/mkdir")
+        async def files_mkdir(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+            path = payload.get("path")
+            bucket = payload.get("bucket")
+            if not path:
+                raise HTTPException(400, "Missing path")
+                
+            base = self.paths.vfs_root
+            if bucket:
+                base = self.paths.vfs_root / bucket
+                
+            p = _safe_vfs_path(base, path)
+            p.mkdir(parents=True, exist_ok=True)
+            
+            return {"ok": True, "path": path, "bucket": bucket, "created": True}
+
+        @app.get("/api/files/buckets")
+        async def files_buckets() -> Dict[str, Any]:
+            """List available buckets for virtual filesystem"""
+            buckets_data = _read_json(self.paths.buckets_file, [])
+            vfs_buckets = []
+            
+            # Add default bucket
+            vfs_buckets.append({
+                "name": "default",
+                "display_name": "Default",
+                "path": str(self.paths.vfs_root),
+                "file_count": len(list(self.paths.vfs_root.glob("**/*"))),
+                "is_default": True
+            })
+            
+            # Add configured buckets
+            for bucket in buckets_data:
+                bucket_path = self.paths.vfs_root / bucket["name"]
+                if bucket_path.exists():
+                    file_count = len(list(bucket_path.glob("**/*")))
+                else:
+                    file_count = 0
+                    
+                vfs_buckets.append({
+                    "name": bucket["name"],
+                    "display_name": bucket.get("display_name", bucket["name"]),
+                    "path": str(bucket_path),
+                    "file_count": file_count,
+                    "is_default": False,
+                    "created": bucket.get("created")
+                })
+                
+            return {"buckets": vfs_buckets}
+
+        @app.get("/api/files/stats")
+        async def files_stats(path: str = ".", bucket: str = None) -> Dict[str, Any]:
+            """Get detailed file/directory statistics"""
+            base = self.paths.vfs_root
+            if bucket:
+                base = self.paths.vfs_root / bucket
+                
+            p = _safe_vfs_path(base, path)
+            if not p.exists():
+                raise HTTPException(404, "Path not found")
+                
+            stat_info = p.stat()
+            stats = {
+                "path": path,
+                "bucket": bucket,
+                "is_file": p.is_file(),
+                "is_dir": p.is_dir(),
+                "size": stat_info.st_size,
+                "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
+                "accessed": datetime.fromtimestamp(stat_info.st_atime, UTC).isoformat(),
+                "permissions": oct(stat_info.st_mode)[-3:],
+                "owner_uid": stat_info.st_uid,
+                "group_gid": stat_info.st_gid,
+            }
+            
+            if p.is_dir():
+                # Directory stats
+                total_size = 0
+                file_count = 0
+                dir_count = 0
+                
+                for item in p.rglob("*"):
+                    if item.is_file():
+                        file_count += 1
+                        try:
+                            total_size += item.stat().st_size
+                        except:
+                            pass
+                    elif item.is_dir():
+                        dir_count += 1
+                        
+                stats.update({
+                    "total_size": total_size,
+                    "file_count": file_count,
+                    "dir_count": dir_count
+                })
+                
+            return stats
 
         # Tools (JSON-RPC wrappers)
         @app.post("/mcp/tools/list")
@@ -1704,9 +1900,37 @@ class ConsolidatedMCPDashboard:
         )
     );
     const filesView = el('div',{id:'view-files',class:'view-panel',style:'display:none;'},
-        el('div',{class:'card'}, el('h3',{text:'Files'}),
-            el('div',{class:'row'}, el('input',{id:'files-path',value:'.',style:'width:140px;'}), el('button',{id:'btn-files-load'},'Load')),
-            el('pre',{id:'files-pre',text:'Loading…'})
+        el('div',{class:'card'}, el('h3',{text:'Virtual File System'}),
+            // Bucket selection and path navigation
+            el('div',{class:'row',style:'margin-bottom:8px;'},
+                el('label',{style:'margin-right:8px;',text:'Bucket:'}),
+                el('select',{id:'files-bucket',style:'width:120px;margin-right:8px;'}),
+                el('button',{id:'btn-bucket-refresh',style:'font-size:11px;padding:2px 6px;'},'Refresh')
+            ),
+            el('div',{class:'row',style:'margin-bottom:8px;'},
+                el('label',{style:'margin-right:8px;',text:'Path:'}),
+                el('input',{id:'files-path',value:'.',style:'width:200px;margin-right:8px;'}),
+                el('button',{id:'btn-files-load'},'Load'),
+                el('button',{id:'btn-files-up',style:'margin-left:4px;'},'↑ Up'),
+                el('button',{id:'btn-files-refresh',style:'margin-left:4px;'},'Refresh')
+            ),
+            // File operations toolbar
+            el('div',{class:'row',style:'margin-bottom:8px;border-top:1px solid #333;padding-top:8px;'},
+                el('button',{id:'btn-file-new',style:'margin-right:4px;'},'New File'),
+                el('button',{id:'btn-dir-new',style:'margin-right:4px;'},'New Directory'),
+                el('button',{id:'btn-file-upload',style:'margin-right:4px;'},'Upload'),
+                el('input',{id:'file-upload-input',type:'file',style:'display:none;multiple:true'}),
+                el('button',{id:'btn-file-delete',disabled:true,style:'margin-left:12px;color:#f66;'},'Delete Selected')
+            ),
+            // File listing
+            el('div',{id:'files-container',style:'border:1px solid #333;min-height:200px;max-height:400px;overflow-y:auto;padding:4px;background:#0a0a0a;'},
+                el('div',{id:'files-loading',text:'Loading…'})
+            ),
+            // File details panel
+            el('div',{id:'file-details',style:'margin-top:8px;padding:8px;border:1px solid #333;background:#111;display:none;'},
+                el('h4',{text:'File Details',style:'margin:0 0 8px 0;'}),
+                el('div',{id:'file-stats',style:'font-family:monospace;font-size:12px;white-space:pre-wrap;'})
+            )
         )
     );
     // Tools (enhanced tool runner)
@@ -1782,7 +2006,7 @@ class ConsolidatedMCPDashboard:
         else if(name==='buckets') loadBuckets();
         else if(name==='pins') loadPins();
         else if(name==='logs') initLogs();
-    else if(name==='files') loadFiles();
+    else if(name==='files') { loadBuckets(); loadFiles(); }
     else if(name==='tools') initTools();
     else if(name==='ipfs') initIPFS();
     else if(name==='cars') initCARs();
@@ -1938,10 +2162,336 @@ class ConsolidatedMCPDashboard:
         const clr=document.getElementById('btn-clear-logs'); if(clr) clr.onclick = ()=>{ if(window.MCP){ window.MCP.callTool('clear_logs',{}).then(()=>{ const pre=document.getElementById('logs-pre'); if(pre) pre.textContent='(cleared)'; }); } };
     }
     async function loadFiles(){
-        const pathInput=document.getElementById('files-path'); const p=(pathInput&&pathInput.value)||'.';
-        try{ const r=await fetch('/api/files/list?path='+encodeURIComponent(p)); const js=await r.json(); document.getElementById('files-pre').textContent = JSON.stringify(js.items||[], null, 2); }catch(e){ setText('files-pre','Error'); }
+        const pathEl = document.getElementById('files-path');
+        const bucketEl = document.getElementById('files-bucket');
+        const container = document.getElementById('files-container');
+        const loading = document.getElementById('files-loading');
+        
+        if (!container) return;
+        
+        const path = (pathEl && pathEl.value) || '.';
+        const bucket = (bucketEl && bucketEl.value) || null;
+        
+        if (loading) loading.textContent = 'Loading…';
+        
+        try {
+            // Use MCP SDK for API calls
+            const params = new URLSearchParams();
+            if (path !== '.') params.append('path', path);
+            if (bucket) params.append('bucket', bucket);
+            
+            const response = await fetch(`/api/files/list?${params.toString()}`);
+            const data = await response.json();
+            
+            if (loading) loading.textContent = '';
+            
+            // Clear container
+            container.innerHTML = '';
+            
+            if (!data.items || data.items.length === 0) {
+                container.appendChild(el('div', {text: '(empty directory)', style: 'color: #888; padding: 8px;'}));
+                return;
+            }
+            
+            // Create file table
+            const table = el('table', {style: 'width: 100%; font-size: 12px; border-collapse: collapse;'});
+            
+            // Header
+            const header = el('tr', {style: 'border-bottom: 1px solid #333;'},
+                el('th', {text: '', style: 'width: 20px; padding: 4px;'}), // checkbox
+                el('th', {text: 'Name', style: 'text-align: left; padding: 4px;'}),
+                el('th', {text: 'Type', style: 'text-align: left; padding: 4px; width: 80px;'}),
+                el('th', {text: 'Size', style: 'text-align: right; padding: 4px; width: 80px;'}),
+                el('th', {text: 'Modified', style: 'text-align: left; padding: 4px; width: 130px;'})
+            );
+            table.appendChild(header);
+            
+            // Sort items: directories first, then files, alphabetically
+            const sortedItems = [...data.items].sort((a, b) => {
+                if (a.is_dir && !b.is_dir) return -1;
+                if (!a.is_dir && b.is_dir) return 1;
+                return a.name.localeCompare(b.name);
+            });
+            
+            // File rows
+            sortedItems.forEach(item => {
+                const row = el('tr', {
+                    style: 'border-bottom: 1px solid #222; cursor: pointer;',
+                    'data-name': item.name,
+                    'data-type': item.type
+                });
+                
+                // Checkbox
+                const checkbox = el('input', {type: 'checkbox', style: 'margin: 0;'});
+                checkbox.addEventListener('change', updateDeleteButton);
+                row.appendChild(el('td', {style: 'padding: 4px;'}, checkbox));
+                
+                // Name
+                const nameEl = el('td', {
+                    text: item.name,
+                    style: `padding: 4px; ${item.is_dir ? 'font-weight: bold; color: #6b8cff;' : ''}`
+                });
+                row.appendChild(nameEl);
+                
+                // Type
+                row.appendChild(el('td', {text: item.type, style: 'padding: 4px; color: #888;'}));
+                
+                // Size
+                const sizeText = item.size !== null ? formatBytes(item.size) : '—';
+                row.appendChild(el('td', {text: sizeText, style: 'padding: 4px; text-align: right; font-family: monospace;'}));
+                
+                // Modified
+                const modText = item.modified ? new Date(item.modified).toLocaleDateString() + ' ' + new Date(item.modified).toLocaleTimeString() : '—';
+                row.appendChild(el('td', {text: modText, style: 'padding: 4px; font-family: monospace; font-size: 10px;'}));
+                
+                // Click handlers
+                row.addEventListener('click', (e) => {
+                    if (e.target.type === 'checkbox') return; // Don't interfere with checkbox
+                    
+                    if (item.is_dir) {
+                        // Navigate to directory
+                        const newPath = path === '.' ? item.name : `${path}/${item.name}`;
+                        if (pathEl) pathEl.value = newPath;
+                        loadFiles();
+                    } else {
+                        // Show file details
+                        showFileDetails(item, path, bucket);
+                    }
+                });
+                
+                table.appendChild(row);
+            });
+            
+            container.appendChild(table);
+            
+            // Update path breadcrumb
+            updatePathBreadcrumb(path, bucket);
+            
+        } catch (e) {
+            console.error('Error loading files:', e);
+            if (loading) loading.textContent = 'Error loading files';
+        }
+    }
+    
+    function updateDeleteButton() {
+        const checkboxes = document.querySelectorAll('#files-container input[type="checkbox"]');
+        const deleteBtn = document.getElementById('btn-file-delete');
+        const hasSelected = Array.from(checkboxes).some(cb => cb.checked);
+        
+        if (deleteBtn) {
+            deleteBtn.disabled = !hasSelected;
+            deleteBtn.style.opacity = hasSelected ? '1' : '0.5';
+        }
+    }
+    
+    function updatePathBreadcrumb(path, bucket) {
+        // Could add breadcrumb navigation here in the future
+        const pathEl = document.getElementById('files-path');
+        if (pathEl && pathEl.value !== path) {
+            pathEl.value = path;
+        }
+    }
+    
+    async function showFileDetails(item, path, bucket) {
+        const detailsPanel = document.getElementById('file-details');
+        const statsEl = document.getElementById('file-stats');
+        
+        if (!detailsPanel || !statsEl) return;
+        
+        try {
+            const params = new URLSearchParams();
+            params.append('path', path === '.' ? item.name : `${path}/${item.name}`);
+            if (bucket) params.append('bucket', bucket);
+            
+            const response = await fetch(`/api/files/stats?${params.toString()}`);
+            const stats = await response.json();
+            
+            let statsText = '';
+            statsText += `Name: ${item.name}\n`;
+            statsText += `Type: ${stats.is_file ? 'File' : 'Directory'}\n`;
+            statsText += `Size: ${formatBytes(stats.size || 0)}\n`;
+            statsText += `Modified: ${stats.modified ? new Date(stats.modified).toLocaleString() : '—'}\n`;
+            statsText += `Created: ${stats.created ? new Date(stats.created).toLocaleString() : '—'}\n`;
+            statsText += `Permissions: ${stats.permissions || '—'}\n`;
+            
+            if (stats.is_dir) {
+                statsText += `\nContains:\n`;
+                statsText += `  Files: ${stats.file_count || 0}\n`;
+                statsText += `  Directories: ${stats.dir_count || 0}\n`;
+                statsText += `  Total Size: ${formatBytes(stats.total_size || 0)}\n`;
+            }
+            
+            statsEl.textContent = statsText;
+            detailsPanel.style.display = 'block';
+            
+        } catch (e) {
+            console.error('Error getting file stats:', e);
+            statsEl.textContent = 'Error loading file details';
+            detailsPanel.style.display = 'block';
+        }
+    }
+    
+    async function loadBuckets() {
+        const bucketEl = document.getElementById('files-bucket');
+        if (!bucketEl) return;
+        
+        try {
+            const response = await fetch('/api/files/buckets');
+            const data = await response.json();
+            
+            // Clear and populate bucket selector
+            bucketEl.innerHTML = '';
+            
+            // Add "All Buckets" option
+            const defaultOption = el('option', {value: '', text: '(default)'});
+            bucketEl.appendChild(defaultOption);
+            
+            if (data.buckets) {
+                data.buckets.forEach(bucket => {
+                    if (bucket.name !== 'default') { // Skip default as we already have it
+                        const option = el('option', {
+                            value: bucket.name,
+                            text: `${bucket.display_name || bucket.name} (${bucket.file_count} files)`
+                        });
+                        bucketEl.appendChild(option);
+                    }
+                });
+            }
+            
+        } catch (e) {
+            console.error('Error loading buckets:', e);
+        }
     }
     const btnFiles=document.getElementById('btn-files-load'); if(btnFiles) btnFiles.onclick = ()=> loadFiles();
+    const btnBucketRefresh=document.getElementById('btn-bucket-refresh'); if(btnBucketRefresh) btnBucketRefresh.onclick = ()=> loadBuckets();
+    const btnFilesUp=document.getElementById('btn-files-up'); if(btnFilesUp) btnFilesUp.onclick = ()=> {
+        const pathEl = document.getElementById('files-path');
+        if (pathEl) {
+            const currentPath = pathEl.value || '.';
+            if (currentPath !== '.') {
+                const parts = currentPath.split('/');
+                parts.pop();
+                pathEl.value = parts.length > 0 ? parts.join('/') : '.';
+                loadFiles();
+            }
+        }
+    };
+    const btnFilesRefresh=document.getElementById('btn-files-refresh'); if(btnFilesRefresh) btnFilesRefresh.onclick = ()=> loadFiles();
+    const bucketSelect=document.getElementById('files-bucket'); if(bucketSelect) bucketSelect.onchange = ()=> loadFiles();
+    
+    // File operations
+    const btnFileNew=document.getElementById('btn-file-new'); if(btnFileNew) btnFileNew.onclick = async ()=> {
+        const filename = prompt('Enter filename:');
+        if (!filename) return;
+        
+        const pathEl = document.getElementById('files-path');
+        const bucketEl = document.getElementById('files-bucket');
+        const currentPath = (pathEl && pathEl.value) || '.';
+        const bucket = (bucketEl && bucketEl.value) || null;
+        
+        const fullPath = currentPath === '.' ? filename : `${currentPath}/${filename}`;
+        
+        try {
+            const response = await fetch('/api/files/write', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'x-api-token': (window.API_TOKEN || '')},
+                body: JSON.stringify({
+                    path: fullPath,
+                    content: '',
+                    bucket: bucket
+                })
+            });
+            
+            if (response.ok) {
+                loadFiles();
+            } else {
+                alert('Failed to create file');
+            }
+        } catch (e) {
+            console.error('Error creating file:', e);
+            alert('Error creating file');
+        }
+    };
+    
+    const btnDirNew=document.getElementById('btn-dir-new'); if(btnDirNew) btnDirNew.onclick = async ()=> {
+        const dirname = prompt('Enter directory name:');
+        if (!dirname) return;
+        
+        const pathEl = document.getElementById('files-path');
+        const bucketEl = document.getElementById('files-bucket');
+        const currentPath = (pathEl && pathEl.value) || '.';
+        const bucket = (bucketEl && bucketEl.value) || null;
+        
+        const fullPath = currentPath === '.' ? dirname : `${currentPath}/${dirname}`;
+        
+        try {
+            const response = await fetch('/api/files/mkdir', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'x-api-token': (window.API_TOKEN || '')},
+                body: JSON.stringify({
+                    path: fullPath,
+                    bucket: bucket
+                })
+            });
+            
+            if (response.ok) {
+                loadFiles();
+            } else {
+                alert('Failed to create directory');
+            }
+        } catch (e) {
+            console.error('Error creating directory:', e);
+            alert('Error creating directory');
+        }
+    };
+    
+    const btnFileDelete=document.getElementById('btn-file-delete'); if(btnFileDelete) btnFileDelete.onclick = async ()=> {
+        const checkboxes = document.querySelectorAll('#files-container input[type="checkbox"]:checked');
+        const selectedFiles = Array.from(checkboxes).map(cb => {
+            const row = cb.closest('tr');
+            return row ? row.getAttribute('data-name') : null;
+        }).filter(name => name);
+        
+        if (selectedFiles.length === 0) return;
+        
+        if (!confirm(`Delete ${selectedFiles.length} selected items?`)) return;
+        
+        const pathEl = document.getElementById('files-path');
+        const bucketEl = document.getElementById('files-bucket');
+        const currentPath = (pathEl && pathEl.value) || '.';
+        const bucket = (bucketEl && bucketEl.value) || null;
+        
+        let successCount = 0;
+        for (const filename of selectedFiles) {
+            try {
+                const fullPath = currentPath === '.' ? filename : `${currentPath}/${filename}`;
+                const response = await fetch(`/api/files/delete?path=${encodeURIComponent(fullPath)}${bucket ? '&bucket=' + encodeURIComponent(bucket) : ''}`, {
+                    method: 'DELETE',
+                    headers: {'x-api-token': (window.API_TOKEN || '')}
+                });
+                
+                if (response.ok) {
+                    successCount++;
+                }
+            } catch (e) {
+                console.error('Error deleting file:', filename, e);
+            }
+        }
+        
+        if (successCount > 0) {
+            loadFiles();
+            document.getElementById('file-details').style.display = 'none';
+        }
+        
+        if (successCount < selectedFiles.length) {
+            alert(`${successCount}/${selectedFiles.length} items deleted successfully`);
+        }
+    };
+    
+    // Initialize files view
+    if (document.getElementById('view-files')) {
+        loadBuckets();
+    }
     // ---- Tools Tab ----
     let toolsLoaded=false; let toolDefs=[]; function initTools(){ if(toolsLoaded) return; toolsLoaded=true; loadToolList(); }
     async function loadToolList(){
