@@ -3,6 +3,8 @@ class PinDashboard {
     constructor() {
         this.init();
         this.setupEventListeners();
+        // Initialize MCP client
+        this.mcp = new window.MCP.MCPClient({ baseUrl: '' });
     }
 
     init() {
@@ -33,27 +35,226 @@ class PinDashboard {
     }
 
     async jsonRpcCall(method, params = {}) {
+        // Use MCP SDK instead of direct JSON-RPC calls
         try {
-            const response = await fetch('/api/jsonrpc', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    method: method,
-                    params: params,
-                    id: this.jsonrpcId++
-                })
-            });
-            const data = await response.json();
-            if (data.error) {
-                throw new Error(data.error.message || 'Unknown error');
-            }
-            return data.result;
+            return await this.mcp.rpc(method, params);
         } catch (error) {
-            console.error('JSON-RPC call failed:', error);
+            console.error('MCP call failed:', error);
             this.showNotification('Error: ' + error.message, 'error');
             throw error;
         }
+    }
+
+    // Bucket management methods using MCP SDK
+    async loadBuckets() {
+        try {
+            const result = await this.mcp.rpc('get', { url: '/api/v0/buckets' });
+            if (result.success) {
+                this.bucketData = result.buckets || [];
+                this.updateBucketsList();
+                this.updateBucketStatistics();
+                this.showNotification('Buckets loaded successfully', 'success');
+            } else {
+                throw new Error(result.error || 'Failed to load buckets');
+            }
+        } catch (error) {
+            console.error('Failed to load buckets:', error);
+        }
+    }
+
+    async createBucket(bucketData) {
+        try {
+            const formData = new FormData();
+            Object.keys(bucketData).forEach(key => {
+                if (bucketData[key] !== null && bucketData[key] !== undefined) {
+                    formData.append(key, bucketData[key]);
+                }
+            });
+            
+            const result = await this.mcp.rpc('post', { 
+                url: '/api/v0/buckets', 
+                data: formData 
+            });
+            
+            if (result.status === 'success') {
+                this.showNotification('Bucket created successfully', 'success');
+                this.loadBuckets(); // Refresh the list
+                return true;
+            } else {
+                throw new Error(result.message || 'Failed to create bucket');
+            }
+        } catch (error) {
+            console.error('Failed to create bucket:', error);
+            this.showNotification('Error creating bucket: ' + error.message, 'error');
+            return false;
+        }
+    }
+
+    async updateBucket(bucketName, updateData) {
+        try {
+            const formData = new FormData();
+            Object.keys(updateData).forEach(key => {
+                if (updateData[key] !== null && updateData[key] !== undefined) {
+                    formData.append(key, updateData[key]);
+                }
+            });
+            
+            const result = await this.mcp.rpc('put', { 
+                url: `/api/v0/buckets/${bucketName}`, 
+                data: formData 
+            });
+            
+            if (result.status === 'success') {
+                this.showNotification('Bucket updated successfully', 'success');
+                this.loadBuckets(); // Refresh the list
+                return true;
+            } else {
+                throw new Error(result.message || 'Failed to update bucket');
+            }
+        } catch (error) {
+            console.error('Failed to update bucket:', error);
+            this.showNotification('Error updating bucket: ' + error.message, 'error');
+            return false;
+        }
+    }
+
+    async deleteBucket(bucketName, force = false) {
+        try {
+            const result = await this.mcp.rpc('delete', { 
+                url: `/api/v0/buckets/${bucketName}${force ? '?force=true' : ''}` 
+            });
+            
+            if (result.status === 'success') {
+                this.showNotification('Bucket deleted successfully', 'success');
+                this.loadBuckets(); // Refresh the list
+                return true;
+            } else {
+                throw new Error(result.message || 'Failed to delete bucket');
+            }
+        } catch (error) {
+            console.error('Failed to delete bucket:', error);
+            this.showNotification('Error deleting bucket: ' + error.message, 'error');
+            return false;
+        }
+    }
+
+    async getBucketStats(bucketName) {
+        try {
+            const result = await this.mcp.rpc('get', { 
+                url: `/api/v0/buckets/${bucketName}/stats` 
+            });
+            
+            if (result.success) {
+                return result.stats;
+            } else {
+                throw new Error(result.error || 'Failed to get bucket stats');
+            }
+        } catch (error) {
+            console.error('Failed to get bucket stats:', error);
+            return null;
+        }
+    }
+
+    // Metadata management using MCP SDK
+    async getMetadata(key) {
+        try {
+            const result = await this.mcp.rpc('get', { 
+                url: `/api/v0/config/metadata/${key}` 
+            });
+            
+            if (result.success) {
+                return result.value;
+            } else {
+                return null;
+            }
+        } catch (error) {
+            console.error('Failed to get metadata:', error);
+            return null;
+        }
+    }
+
+    async setMetadata(key, value) {
+        try {
+            const formData = new FormData();
+            formData.append('value', typeof value === 'object' ? JSON.stringify(value) : value);
+            
+            const result = await this.mcp.rpc('post', { 
+                url: `/api/v0/config/metadata/${key}`, 
+                data: formData 
+            });
+            
+            if (result.success) {
+                return true;
+            } else {
+                throw new Error(result.error || 'Failed to set metadata');
+            }
+        } catch (error) {
+            console.error('Failed to set metadata:', error);
+            return false;
+        }
+    }
+
+    // Update bucket list display
+    updateBucketsList() {
+        const container = document.getElementById('buckets-list');
+        if (!container) return;
+
+        if (!this.bucketData || this.bucketData.length === 0) {
+            container.innerHTML = '<div class="text-gray-500 text-center py-8">No buckets found</div>';
+            return;
+        }
+
+        const bucketsHtml = this.bucketData.map(bucket => {
+            const sizeFormatted = this.formatBytes(bucket.size);
+            const quotaUsage = bucket.quota.size_usage_percent ? 
+                Math.round(bucket.quota.size_usage_percent) : 0;
+            
+            return `
+                <div class="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-semibold text-lg">${bucket.name}</h3>
+                        <span class="text-sm px-2 py-1 rounded ${bucket.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${bucket.status}</span>
+                    </div>
+                    <div class="text-sm text-gray-600 space-y-1">
+                        <div>Backend: ${bucket.backend}</div>
+                        <div>Size: ${sizeFormatted} (${bucket.files} files)</div>
+                        ${bucket.quota.max_size ? `<div>Quota: ${quotaUsage}% used</div>` : ''}
+                        <div class="flex justify-between mt-3">
+                            <div class="space-x-2">
+                                <button onclick="dashboard.viewBucketDetails('${bucket.name}')" class="text-blue-600 hover:text-blue-800">View</button>
+                                <button onclick="dashboard.editBucket('${bucket.name}')" class="text-green-600 hover:text-green-800">Edit</button>
+                                <button onclick="dashboard.deleteBucketPrompt('${bucket.name}')" class="text-red-600 hover:text-red-800">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = bucketsHtml;
+    }
+
+    updateBucketStatistics() {
+        if (!this.bucketData) return;
+
+        const totalBuckets = this.bucketData.length;
+        const totalSize = this.bucketData.reduce((sum, bucket) => sum + bucket.size, 0);
+        const totalFiles = this.bucketData.reduce((sum, bucket) => sum + bucket.files, 0);
+        const activeBuckets = this.bucketData.filter(bucket => bucket.status === 'active').length;
+
+        document.getElementById('total-buckets')?.textContent = totalBuckets;
+        document.getElementById('total-bucket-size')?.textContent = this.formatBytes(totalSize);
+        document.getElementById('total-bucket-files')?.textContent = totalFiles;
+        document.getElementById('active-buckets')?.textContent = activeBuckets;
+    }
+
+    formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
     }
 
     async loadPins() {
