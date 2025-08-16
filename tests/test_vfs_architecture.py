@@ -20,7 +20,7 @@ def test_vfs_architecture():
     
     try:
         # Add the current directory to Python path
-        sys.path.insert(0, '/home/barberb/ipfs_kit_py')
+        sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
         
         # Import core components directly
         from ipfs_fsspec import (

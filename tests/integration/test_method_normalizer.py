@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Path to the method_normalizer.py file
-NORMALIZER_PATH = "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/utils/method_normalizer.py"
+NORMALIZER_PATH = "/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_kit_py/mcp/utils/method_normalizer.py"
 
 # Since we can't import the module directly due to circular imports,
 # we'll load it from the file

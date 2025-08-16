@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 
 def load_dashboard(config=None):
-    spec = importlib.util.spec_from_file_location('dash','/home/devel/ipfs_kit_py/consolidated_mcp_dashboard.py')
+    spec = importlib.util.spec_from_file_location('dash','/home/runner/work/ipfs_kit_py/ipfs_kit_py/consolidated_mcp_dashboard.py')
     mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
     return mod.ConsolidatedMCPDashboard(config)
 

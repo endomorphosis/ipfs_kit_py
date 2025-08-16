@@ -25,7 +25,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 # Add project root to path for imports
-sys.path.insert(0, "/home/barberb/ipfs_kit_py")
+sys.path.insert(0, "/home/runner/work/ipfs_kit_py/ipfs_kit_py")
 
 # Import anyio
 import anyio

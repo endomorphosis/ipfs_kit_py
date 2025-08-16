@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 # We need to import just the cluster_state_helpers module without importing
 # the entire package that has dependency issues
-sys.path.insert(0, "/home/barberb/ipfs_kit_py")
+sys.path.insert(0, "/home/runner/work/ipfs_kit_py/ipfs_kit_py")
 
 # Manually mock the module dependencies before importing
 mock_pyarrow = MagicMock()

@@ -20,7 +20,7 @@ async def test_mcp_server_with_vfs():
     print("🧪 Testing VFS through MCP server via JSON-RPC")
     
     # Start the MCP server as a subprocess
-    server_path = Path("/home/barberb/ipfs_kit_py/mcp/enhanced_mcp_server_with_daemon_mgmt.py")
+    server_path = Path("/home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/enhanced_mcp_server_with_daemon_mgmt.py")
     
     if not server_path.exists():
         print(f"❌ MCP server not found at {server_path}")
@@ -35,7 +35,7 @@ async def test_mcp_server_with_vfs():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            cwd="/home/barberb/ipfs_kit_py"
+            cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py"
         )
         
         # Wait a moment for server to start

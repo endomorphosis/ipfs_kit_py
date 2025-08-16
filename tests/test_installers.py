@@ -5,7 +5,7 @@ Test script to verify installer functionality.
 
 import sys
 import os
-sys.path.insert(0, '/home/barberb/ipfs_kit_py')
+sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
 
 print("Testing installer imports...")
 

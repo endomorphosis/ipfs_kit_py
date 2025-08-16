@@ -13,7 +13,7 @@ print("=" * 60)
 try:
     # Test 1: Direct installer imports
     print("\n1. Testing installer imports...")
-    sys.path.insert(0, '/home/barberb/ipfs_kit_py')
+    sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
     
     from ipfs_kit_py import install_ipfs, install_lotus, install_lassie, install_storacha
     print("✓ All installer imports successful")

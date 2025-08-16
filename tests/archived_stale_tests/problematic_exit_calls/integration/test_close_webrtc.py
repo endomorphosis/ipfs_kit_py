@@ -22,7 +22,7 @@ def test_close_all_webrtc_connections():
     logger.info("Testing close_all_webrtc_connections method directly...")
     
     # Import the IPFSModelAnyIO class directly
-    module_path = Path("/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/ipfs_model_anyio.py")
+    module_path = Path("/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_kit_py/mcp/models/ipfs_model_anyio.py")
     spec = importlib.util.spec_from_file_location("ipfs_model_anyio", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

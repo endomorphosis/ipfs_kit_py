@@ -51,7 +51,7 @@ def test_content_integration():
     # Check if the necessary components are present in the dashboard
     logger.info("Testing dashboard-player integration...")
     
-    with open("/home/barberb/ipfs_kit_py/static/webrtc_dashboard.html", "r") as f:
+    with open("/home/runner/work/ipfs_kit_py/ipfs_kit_py/static/webrtc_dashboard.html", "r") as f:
         dashboard_html = f.read()
         
     # Check for open player function
@@ -69,7 +69,7 @@ def test_content_integration():
         return False
     
     # Check video player script for parameter handling
-    with open("/home/barberb/ipfs_kit_py/static/webrtc_video_player.html", "r") as f:
+    with open("/home/runner/work/ipfs_kit_py/ipfs_kit_py/static/webrtc_video_player.html", "r") as f:
         player_html = f.read()
         
     if "Back to Dashboard" in player_html:
@@ -85,7 +85,7 @@ def test_controller_integration():
     logger.info("Testing controller integration...")
     
     # Check video player controller
-    with open("/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/webrtc_video_controller.py", "r") as f:
+    with open("/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_kit_py/mcp/controllers/webrtc_video_controller.py", "r") as f:
         controller_code = f.read()
         
     # Check for connection parameter handling
@@ -108,7 +108,7 @@ def test_server_integration():
     """Test the server runner integration."""
     logger.info("Testing server runner integration...")
     
-    with open("/home/barberb/ipfs_kit_py/run_mcp_with_webrtc_dashboard.py", "r") as f:
+    with open("/home/runner/work/ipfs_kit_py/ipfs_kit_py/run_mcp_with_webrtc_dashboard.py", "r") as f:
         server_code = f.read()
         
     # Check if both controllers are imported
@@ -134,7 +134,7 @@ def test_documentation():
     logger.info("Testing documentation...")
     
     try:
-        with open("/home/barberb/ipfs_kit_py/WEBRTC_DASHBOARD_INTEGRATED.md", "r") as f:
+        with open("/home/runner/work/ipfs_kit_py/ipfs_kit_py/WEBRTC_DASHBOARD_INTEGRATED.md", "r") as f:
             doc_content = f.read()
             
         # Check if documentation mentions key integration points

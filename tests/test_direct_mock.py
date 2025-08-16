@@ -4,7 +4,7 @@ Direct test of the MCP server mock operations
 """
 import sys
 import os
-sys.path.insert(0, '/home/barberb/ipfs_kit_py')
+sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
 
 # Direct import of the IPFSKitIntegration class
 from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration

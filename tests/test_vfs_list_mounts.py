@@ -8,7 +8,7 @@ import sys
 import os
 
 # Add the project root to the Python path
-sys.path.insert(0, '/home/barberb/ipfs_kit_py')
+sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
 
 async def test_vfs_list_mounts():
     """Test vfs_list_mounts specifically."""

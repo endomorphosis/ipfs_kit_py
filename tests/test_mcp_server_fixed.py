@@ -22,7 +22,7 @@ def test_mcp_server():
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        cwd="/home/barberb/ipfs_kit_py"
+        cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py"
     )
     
     try:
@@ -293,7 +293,7 @@ def run_additional_vfs_tests():
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        cwd="/home/barberb/ipfs_kit_py"
+        cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py"
     )
     
     try:

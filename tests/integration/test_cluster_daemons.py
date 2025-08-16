@@ -63,7 +63,7 @@ def test_ipfs_cluster_service():
     """Test IPFS Cluster Service daemon."""
     with pause_daemon_after_test("ipfs_cluster_service"):
         # Check if executable exists
-        script_path = os.path.abspath("/home/barberb/ipfs_kit_py/run_ipfs_cluster_service.py")
+        script_path = os.path.abspath("/home/runner/work/ipfs_kit_py/ipfs_kit_py/run_ipfs_cluster_service.py")
         if not os.path.exists(script_path):
             print(f"❌ Error: Could not find {script_path}")
             return False
@@ -108,7 +108,7 @@ def test_ipfs_cluster_follow():
     """Test IPFS Cluster Follow daemon."""
     with pause_daemon_after_test("ipfs_cluster_follow"):
         # Check if executable exists
-        script_path = os.path.abspath("/home/barberb/ipfs_kit_py/run_ipfs_cluster_follow.py")
+        script_path = os.path.abspath("/home/runner/work/ipfs_kit_py/ipfs_kit_py/run_ipfs_cluster_follow.py")
         if not os.path.exists(script_path):
             print(f"❌ Error: Could not find {script_path}")
             return False

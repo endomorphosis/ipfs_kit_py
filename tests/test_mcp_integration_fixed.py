@@ -7,7 +7,7 @@ import sys
 import os
 
 # Add the project root to Python path
-sys.path.insert(0, '/home/barberb/ipfs_kit_py')
+sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
 
 try:
     from mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration

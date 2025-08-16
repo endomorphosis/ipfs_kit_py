@@ -18,7 +18,7 @@ def test_basic_server():
     print("=" * 40)
     
     # Set proper environment path
-    venv_python = "/home/barberb/ipfs_kit_py/.venv/bin/python"
+    venv_python = "/home/runner/work/ipfs_kit_py/ipfs_kit_py/.venv/bin/python"
     
     try:
         # Test that server can import successfully
@@ -26,7 +26,7 @@ def test_basic_server():
         result = subprocess.run([
             venv_python, "-c", 
             "import sys; sys.path.insert(0, 'mcp'); import enhanced_mcp_server_with_daemon_mgmt; print('✅ Server imports successfully')"
-        ], capture_output=True, text=True, timeout=10, cwd="/home/barberb/ipfs_kit_py")
+        ], capture_output=True, text=True, timeout=10, cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py")
         
         if result.returncode == 0:
             print("✅ Server imports successfully")
@@ -49,7 +49,7 @@ except Exception as e:
 """
         
         result = subprocess.run([venv_python, "-c", test_code], 
-                              capture_output=True, text=True, timeout=15, cwd="/home/barberb/ipfs_kit_py")
+                              capture_output=True, text=True, timeout=15, cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py")
         
         if result.returncode == 0:
             print(result.stdout.strip())
@@ -80,7 +80,7 @@ print(f'✅ Content indexing: {result["success"]=}')
 """
         
         result = subprocess.run([venv_python, "-c", test_code], 
-                              capture_output=True, text=True, timeout=15, cwd="/home/barberb/ipfs_kit_py")
+                              capture_output=True, text=True, timeout=15, cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py")
         
         if result.returncode == 0:
             print(result.stdout.strip())
@@ -114,7 +114,7 @@ print(f'✅ Search functionality: {result["success"]=}, results={len(result.get(
 """
         
         result = subprocess.run([venv_python, "-c", test_code], 
-                              capture_output=True, text=True, timeout=15, cwd="/home/barberb/ipfs_kit_py")
+                              capture_output=True, text=True, timeout=15, cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py")
         
         if result.returncode == 0:
             print(result.stdout.strip())
@@ -138,7 +138,7 @@ def check_capabilities():
     print("\n📊 Search Capabilities Check")
     print("-" * 30)
     
-    venv_python = "/home/barberb/ipfs_kit_py/.venv/bin/python"
+    venv_python = "/home/runner/work/ipfs_kit_py/ipfs_kit_py/.venv/bin/python"
     
     test_code = """
 import sys
@@ -164,7 +164,7 @@ print(f"  📈 RDF triples: {stats.get('rdf_triples', 0)}")
     
     try:
         result = subprocess.run([venv_python, "-c", test_code], 
-                              capture_output=True, text=True, timeout=10, cwd="/home/barberb/ipfs_kit_py")
+                              capture_output=True, text=True, timeout=10, cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py")
         
         if result.returncode == 0:
             print(result.stdout)

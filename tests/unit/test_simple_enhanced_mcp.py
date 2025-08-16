@@ -25,7 +25,7 @@ def test_server_startup():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            cwd="/home/barberb/ipfs_kit_py"
+            cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py"
         )
         
         # Send initialize request

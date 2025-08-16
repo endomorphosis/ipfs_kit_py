@@ -15,7 +15,7 @@ from pathlib import Path
 import sys
 
 # Add project root to path
-sys.path.append('/home/devel/ipfs_kit_py')
+sys.path.append('/home/runner/work/ipfs_kit_py/ipfs_kit_py')
 
 # (Imports removed)
 

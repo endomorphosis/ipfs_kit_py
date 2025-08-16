@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 
 # Don't import from ipfs_kit_py.__init__ since it has indentation errors
 # Import directly from the module instead
-sys.path.insert(0, "/home/barberb/ipfs_kit_py")
+sys.path.insert(0, "/home/runner/work/ipfs_kit_py/ipfs_kit_py")
 
 # Import directly from the module file to avoid dependency issues
 from ipfs_kit_py.content_aware_prefetch import ContentTypeAnalyzer, ContentAwarePrefetchManager
