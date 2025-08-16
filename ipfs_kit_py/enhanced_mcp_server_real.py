@@ -15,9 +15,21 @@ import argparse
 import subprocess
 import tempfile
 import uuid
+from pathlib import Path
 from fastapi import FastAPI, APIRouter, File, UploadFile, Form, HTTPException, Query, Body
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse, Response, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from typing import Dict, List, Any, Optional, Union
+
+# Try to import bucket and config managers
+try:
+    from .bucket_manager import BucketManager
+    from .config_manager import ConfigManager
+except ImportError:
+    # Fallback for relative imports
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from bucket_manager import BucketManager
+    from config_manager import ConfigManager
 
 # Configure logging
 logging.basicConfig(
@@ -44,6 +56,10 @@ HOST = args.host
 API_PREFIX = "/api/v0"
 DEBUG_MODE = args.debug
 SERVER_ID = str(uuid.uuid4())
+
+# Initialize managers
+config_manager = ConfigManager()
+bucket_manager = BucketManager(config_manager)
 
 # Source environment variables from mcp_credentials.sh
 def source_credentials():
@@ -164,6 +180,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Mount static files
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 # Root endpoint
 @app.get("/")
 async def root():
@@ -173,10 +194,17 @@ async def root():
         "debug_mode": DEBUG_MODE,
         "server_id": SERVER_ID,
         "documentation": "/docs",
+        "dashboard": "/dashboard",
         "health_endpoint": f"{API_PREFIX}/health",
         "api_version": "v0",
         "uptime": time.time(),
         "available_endpoints": {
+            "buckets": [
+                f"{API_PREFIX}/buckets",
+                f"{API_PREFIX}/buckets/{{bucket_name}}",
+                f"{API_PREFIX}/buckets/{{bucket_name}}/stats",
+                f"{API_PREFIX}/buckets/{{bucket_name}}/files"
+            ],
             "ipfs": [
                 f"{API_PREFIX}/ipfs/add",
                 f"{API_PREFIX}/ipfs/cat",
@@ -201,9 +229,23 @@ async def root():
                 f"{API_PREFIX}/lassie/status",
                 f"{API_PREFIX}/lassie/retrieve"
             ],
+            "config": [
+                f"{API_PREFIX}/config/metadata/{{key}}"
+            ],
             "health": f"{API_PREFIX}/health"
         }
     }
+
+# Dashboard endpoint
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard():
+    """Serve the bucket management dashboard."""
+    dashboard_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "bucket_dashboard.html")
+    if os.path.exists(dashboard_file):
+        with open(dashboard_file, 'r') as f:
+            return HTMLResponse(content=f.read(), status_code=200)
+    else:
+        return HTMLResponse(content="<h1>Dashboard not found</h1>", status_code=404)
 
 # Create API router for /api/v0 prefix
 router = APIRouter()
@@ -371,10 +413,170 @@ async def ipfs_pin_list():
             
             return {"success": True, "pins": pins}
         except Exception as e:
-            logger.error(f"Error parsing pin list: {e}")
             return {"success": False, "error": str(e)}
     else:
         return {"success": False, "error": result["error"]}
+
+# Bucket Management Endpoints
+
+@router.get("/buckets")
+async def list_buckets():
+    """List all configured buckets with statistics."""
+    try:
+        buckets = bucket_manager.list_buckets()
+        return {"success": True, "buckets": buckets}
+    except Exception as e:
+        logger.error(f"Error listing buckets: {e}")
+        return {"success": False, "error": str(e)}
+
+@router.post("/buckets")
+async def create_bucket(
+    name: str = Form(...),
+    backend: str = Form("local"),
+    max_size: Optional[int] = Form(None),
+    max_files: Optional[int] = Form(None),
+    replication: Optional[str] = Form(None),
+    encryption: bool = Form(False),
+    compression: bool = Form(False)
+):
+    """Create a new bucket with configuration."""
+    try:
+        # Parse replication if provided
+        replication_config = {}
+        if replication:
+            try:
+                replication_config = json.loads(replication)
+            except json.JSONDecodeError:
+                replication_config = {"factor": int(replication) if replication.isdigit() else 1}
+        
+        result = bucket_manager.create_bucket(
+            name=name,
+            backend=backend,
+            max_size=max_size,
+            max_files=max_files,
+            replication=replication_config,
+            encryption=encryption,
+            compression=compression,
+            created_by="mcp_server"
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error creating bucket: {e}")
+        return {"status": "error", "message": str(e)}
+
+@router.put("/buckets/{bucket_name}")
+async def update_bucket(
+    bucket_name: str,
+    backend: Optional[str] = Form(None),
+    max_size: Optional[int] = Form(None),
+    max_files: Optional[int] = Form(None),
+    replication: Optional[str] = Form(None),
+    encryption: Optional[bool] = Form(None),
+    compression: Optional[bool] = Form(None)
+):
+    """Update bucket configuration."""
+    try:
+        update_params = {}
+        
+        if backend is not None:
+            update_params["backend"] = backend
+        if max_size is not None:
+            update_params["max_size"] = max_size
+        if max_files is not None:
+            update_params["max_files"] = max_files
+        if encryption is not None:
+            update_params["encryption"] = encryption
+        if compression is not None:
+            update_params["compression"] = compression
+        if replication is not None:
+            try:
+                update_params["replication"] = json.loads(replication)
+            except json.JSONDecodeError:
+                update_params["replication"] = {"factor": int(replication) if replication.isdigit() else 1}
+        
+        result = bucket_manager.update_bucket(bucket_name, **update_params)
+        return result
+    except Exception as e:
+        logger.error(f"Error updating bucket: {e}")
+        return {"status": "error", "message": str(e)}
+
+@router.delete("/buckets/{bucket_name}")
+async def delete_bucket(bucket_name: str, force: bool = Query(False)):
+    """Delete a bucket and its configuration."""
+    try:
+        result = bucket_manager.remove_bucket(bucket_name, force=force)
+        return result
+    except Exception as e:
+        logger.error(f"Error deleting bucket: {e}")
+        return {"status": "error", "message": str(e)}
+
+@router.get("/buckets/{bucket_name}/stats")
+async def get_bucket_stats(bucket_name: str):
+    """Get detailed statistics for a bucket."""
+    try:
+        stats = bucket_manager.get_bucket_stats(bucket_name)
+        return {"success": True, "stats": stats}
+    except Exception as e:
+        logger.error(f"Error getting bucket stats: {e}")
+        return {"success": False, "error": str(e)}
+
+@router.get("/buckets/{bucket_name}/files")
+async def list_bucket_files(bucket_name: str):
+    """List files in a bucket."""
+    try:
+        files = bucket_manager.list_files(bucket_name)
+        return {"success": True, "files": files}
+    except Exception as e:
+        logger.error(f"Error listing bucket files: {e}")
+        return {"success": False, "error": str(e)}
+
+@router.post("/buckets/{bucket_name}/files")
+async def upload_file_to_bucket(
+    bucket_name: str,
+    file: UploadFile = File(...),
+    filename: Optional[str] = Form(None)
+):
+    """Upload a file to a bucket."""
+    try:
+        file_name = filename or file.filename
+        if not file_name:
+            return {"status": "error", "message": "Filename is required"}
+        
+        file_content = await file.read()
+        result = bucket_manager.upload_file(bucket_name, file_name, file_content)
+        return result
+    except Exception as e:
+        logger.error(f"Error uploading file to bucket: {e}")
+        return {"status": "error", "message": str(e)}
+
+@router.get("/config/metadata/{key}")
+async def get_metadata(key: str):
+    """Get metadata value by key."""
+    try:
+        value = config_manager.get_metadata(key)
+        if value is not None:
+            return {"success": True, "key": key, "value": value}
+        else:
+            return {"success": False, "error": "Key not found"}
+    except Exception as e:
+        logger.error(f"Error getting metadata: {e}")
+        return {"success": False, "error": str(e)}
+
+@router.post("/config/metadata/{key}")
+async def set_metadata(key: str, value: str = Form(...)):
+    """Set metadata value by key."""
+    try:
+        # Try to parse value as JSON, otherwise store as string
+        try:
+            parsed_value = json.loads(value)
+        except json.JSONDecodeError:
+            parsed_value = value
+        
+        config_manager.set_metadata(key, parsed_value)
+        return {"success": True, "key": key, "value": parsed_value}
+    except Exception as e:
+        logger.error(f"Error setting metadata: {e}")
+        return {"success": False, "error": str(e)}
 
 # Register the basic router
 app.include_router(router, prefix=API_PREFIX)
@@ -386,11 +588,27 @@ def setup_extensions():
     
     This function attempts to load real implementations of storage backends,
     and falls back to mock implementations when real ones are not available.
+    It prioritizes checking ~/.ipfs_kit/ metadata before making library calls.
     """
-    # Create necessary directories
+    # Create necessary directories including ~/.ipfs_kit/ structure
     os.makedirs("logs", exist_ok=True)
     mock_base_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit")
     os.makedirs(mock_base_dir, exist_ok=True)
+    
+    # Ensure ~/.ipfs_kit/ subdirectories exist
+    for subdir in ['config', 'buckets', 'metadata', 'bucket_data']:
+        os.makedirs(os.path.join(mock_base_dir, subdir), exist_ok=True)
+    
+    # Initialize metadata if it doesn't exist
+    metadata_file = os.path.join(mock_base_dir, 'metadata', 'metadata.json')
+    if not os.path.exists(metadata_file):
+        initial_metadata = {
+            "server_initialized": time.time(),
+            "server_id": SERVER_ID,
+            "version": "1.0.0"
+        }
+        config_manager.set_metadata("server_config", initial_metadata)
+        logger.info("Initialized ~/.ipfs_kit/ metadata structure")
     
     extension_success = False
     
