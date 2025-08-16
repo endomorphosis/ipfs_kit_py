@@ -155,6 +155,28 @@ Attaches to window.MCP in browsers or exports module in Node.
     // System helpers (dashboard adjunct endpoints)
     async systemStatus() { return this._get('/api/mcp/status'); }
     async systemHealth() { return this._get('/api/system/health'); }
+    
+    // Service management helpers
+    async listServices() { return this._get('/api/services/list'); }
+    async getServiceStatus(serviceName) { return this._get(`/api/services/${serviceName}/status`); }
+    async startService(serviceName) { return this._post(`/api/services/${serviceName}/start`, {}); }
+    async stopService(serviceName) { return this._post(`/api/services/${serviceName}/stop`, {}); }
+    async addService(serviceName, config) { return this._post('/api/services/add', { name: serviceName, config }); }
+    async removeService(serviceName) { return this._delete(`/api/services/${serviceName}`); }
+    async updateServiceConfig(serviceName, config) { return this._put(`/api/services/${serviceName}/config`, config); }
+    async getServiceConfig(serviceName) { return this._get(`/api/services/${serviceName}/config`); }
+    async getServiceStats(serviceName) { return this._get(`/api/services/${serviceName}/stats`); }
+    async getAllServicesStatus() { return this._get('/api/services/status'); }
+    
+    // Monitoring helpers
+    async getMonitoringData(serviceName, metricType) { 
+      let url = `/api/monitoring/${serviceName}`;
+      if (metricType) url += `/${metricType}`;
+      return this._get(url);
+    }
+    async getQuotaInfo(serviceName) { return this._get(`/api/services/${serviceName}/quota`); }
+    async getStorageInfo(serviceName) { return this._get(`/api/services/${serviceName}/storage`); }
+    async getBackendStats() { return this._get('/api/backends/stats'); }
 
     // Files/logs helpers
     streamLogs(onMessage, onError) {
@@ -187,7 +209,7 @@ Attaches to window.MCP in browsers or exports module in Node.
       return ws;
     }
 
-    // Low-level GET
+    // Low-level HTTP methods
     async _get(path) {
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
       const req = fetch(this.baseUrl + path, { method: 'GET', headers: this.headers, signal: controller && controller.signal });
@@ -195,9 +217,336 @@ Attaches to window.MCP in browsers or exports module in Node.
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     }
+    
+    async _post(path, data) {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
+      const req = fetch(this.baseUrl + path, { 
+        method: 'POST', 
+        headers: this.headers, 
+        body: JSON.stringify(data),
+        signal: controller && controller.signal 
+      });
+      const res = await withTimeout(req, this.timeoutMs, controller);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
+    
+    async _put(path, data) {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
+      const req = fetch(this.baseUrl + path, { 
+        method: 'PUT', 
+        headers: this.headers, 
+        body: JSON.stringify(data),
+        signal: controller && controller.signal 
+      });
+      const res = await withTimeout(req, this.timeoutMs, controller);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
+    
+    async _delete(path) {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
+      const req = fetch(this.baseUrl + path, { method: 'DELETE', headers: this.headers, signal: controller && controller.signal });
+      const res = await withTimeout(req, this.timeoutMs, controller);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
+  }
+
+  // Dashboard UI helper class for service management
+  class ServiceDashboard {
+    constructor(client, options = {}) {
+      this.client = client;
+      this.container = options.container || document.body;
+      this.refreshInterval = options.refreshInterval || 5000;
+      this.autoRefresh = options.autoRefresh !== false;
+      this._intervalId = null;
+      this._services = {};
+    }
+
+    async init() {
+      await this.render();
+      if (this.autoRefresh) {
+        this.startAutoRefresh();
+      }
+    }
+
+    async render() {
+      const services = await this.client.getAllServicesStatus();
+      this._services = services;
+      
+      const html = `
+        <div class="service-dashboard">
+          <div class="dashboard-header">
+            <h2>Service Management</h2>
+            <div class="dashboard-actions">
+              <button id="refresh-btn" class="btn btn-primary">Refresh</button>
+              <button id="add-service-btn" class="btn btn-success">Add Service</button>
+            </div>
+          </div>
+          <div class="services-grid">
+            ${Object.entries(services).map(([name, status]) => this.renderServiceCard(name, status)).join('')}
+          </div>
+        </div>
+      `;
+      
+      this.container.innerHTML = html;
+      this.bindEvents();
+    }
+
+    renderServiceCard(name, status) {
+      const statusClass = status.status === 'running' ? 'success' : 
+                         status.status === 'error' ? 'danger' : 'warning';
+      
+      return `
+        <div class="service-card" data-service="${name}">
+          <div class="card-header">
+            <h3>${name}</h3>
+            <span class="status-badge status-${statusClass}">${status.status}</span>
+          </div>
+          <div class="card-body">
+            <div class="service-info">
+              <div class="info-item">
+                <label>Type:</label>
+                <span>${status.type || 'unknown'}</span>
+              </div>
+              <div class="info-item">
+                <label>Last Updated:</label>
+                <span>${new Date(status.last_updated).toLocaleString()}</span>
+              </div>
+            </div>
+            <div class="service-actions">
+              <button class="btn btn-sm ${status.status === 'running' ? 'btn-warning' : 'btn-success'}" 
+                      data-action="${status.status === 'running' ? 'stop' : 'start'}" 
+                      data-service="${name}">
+                ${status.status === 'running' ? 'Stop' : 'Start'}
+              </button>
+              <button class="btn btn-sm btn-info" data-action="config" data-service="${name}">Config</button>
+              <button class="btn btn-sm btn-secondary" data-action="stats" data-service="${name}">Stats</button>
+              <button class="btn btn-sm btn-danger" data-action="remove" data-service="${name}">Remove</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    bindEvents() {
+      // Refresh button
+      const refreshBtn = this.container.querySelector('#refresh-btn');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => this.render());
+      }
+
+      // Add service button
+      const addBtn = this.container.querySelector('#add-service-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => this.showAddServiceModal());
+      }
+
+      // Service action buttons
+      this.container.addEventListener('click', async (e) => {
+        const action = e.target.dataset.action;
+        const serviceName = e.target.dataset.service;
+        
+        if (!action || !serviceName) return;
+        
+        try {
+          switch (action) {
+            case 'start':
+              await this.client.startService(serviceName);
+              break;
+            case 'stop':
+              await this.client.stopService(serviceName);
+              break;
+            case 'config':
+              this.showConfigModal(serviceName);
+              return;
+            case 'stats':
+              this.showStatsModal(serviceName);
+              return;
+            case 'remove':
+              if (confirm(`Are you sure you want to remove service ${serviceName}?`)) {
+                await this.client.removeService(serviceName);
+              }
+              break;
+          }
+          
+          // Refresh the display
+          setTimeout(() => this.render(), 1000);
+        } catch (error) {
+          alert(`Action failed: ${error.message}`);
+        }
+      });
+    }
+
+    showAddServiceModal() {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Add Service</h3>
+            <button class="modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="add-service-form">
+              <div class="form-group">
+                <label>Service Type:</label>
+                <select name="serviceType" required>
+                  <option value="">Select service type...</option>
+                  <option value="ipfs">IPFS</option>
+                  <option value="ipfs_cluster">IPFS Cluster</option>
+                  <option value="s3">S3</option>
+                  <option value="storacha">Storacha</option>
+                  <option value="huggingface">HuggingFace</option>
+                  <option value="ftp">FTP</option>
+                  <option value="sshfs">SSHFS</option>
+                  <option value="lotus">Lotus</option>
+                  <option value="synapse">Synapse</option>
+                  <option value="parquet">Parquet</option>
+                  <option value="arrow">Arrow</option>
+                  <option value="github">GitHub</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Configuration (JSON):</label>
+                <textarea name="config" rows="6" placeholder='{"key": "value"}'></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Add Service</button>
+                <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Bind modal events
+      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+      modal.querySelector('.modal-cancel').addEventListener('click', () => modal.remove());
+      modal.querySelector('#add-service-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const serviceType = formData.get('serviceType');
+        const configText = formData.get('config');
+        
+        let config = {};
+        if (configText) {
+          try {
+            config = JSON.parse(configText);
+          } catch (error) {
+            alert('Invalid JSON configuration');
+            return;
+          }
+        }
+        
+        try {
+          await this.client.addService(serviceType, config);
+          modal.remove();
+          setTimeout(() => this.render(), 1000);
+        } catch (error) {
+          alert(`Failed to add service: ${error.message}`);
+        }
+      });
+    }
+
+    async showConfigModal(serviceName) {
+      const config = await this.client.getServiceConfig(serviceName);
+      
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Configure ${serviceName}</h3>
+            <button class="modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="config-form">
+              <div class="form-group">
+                <label>Configuration (JSON):</label>
+                <textarea name="config" rows="10">${JSON.stringify(config, null, 2)}</textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Update Config</button>
+                <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Bind modal events
+      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+      modal.querySelector('.modal-cancel').addEventListener('click', () => modal.remove());
+      modal.querySelector('#config-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const configText = formData.get('config');
+        
+        try {
+          const newConfig = JSON.parse(configText);
+          await this.client.updateServiceConfig(serviceName, newConfig);
+          modal.remove();
+          setTimeout(() => this.render(), 1000);
+        } catch (error) {
+          alert(`Failed to update config: ${error.message}`);
+        }
+      });
+    }
+
+    async showStatsModal(serviceName) {
+      const stats = await this.client.getServiceStats(serviceName);
+      
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Statistics for ${serviceName}</h3>
+            <button class="modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <pre>${JSON.stringify(stats, null, 2)}</pre>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+    }
+
+    startAutoRefresh() {
+      if (this._intervalId) {
+        clearInterval(this._intervalId);
+      }
+      this._intervalId = setInterval(() => this.render(), this.refreshInterval);
+    }
+
+    stopAutoRefresh() {
+      if (this._intervalId) {
+        clearInterval(this._intervalId);
+        this._intervalId = null;
+      }
+    }
+
+    destroy() {
+      this.stopAutoRefresh();
+      this.container.innerHTML = '';
+    }
   }
 
   function createClient(options) { return new MCPClient(options); }
+  function createServiceDashboard(client, options) { return new ServiceDashboard(client, options); }
 
-  return { MCPClient, createClient };
+  return { 
+    MCPClient, 
+    ServiceDashboard, 
+    createClient, 
+    createServiceDashboard 
+  };
 }));

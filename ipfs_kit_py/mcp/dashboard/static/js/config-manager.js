@@ -1,8 +1,7 @@
 // Configuration Management Functions
 async function loadConfig() {
     try {
-        const response = await fetch('/api/config');
-        const data = await response.json();
+        const data = await window.ipfsKitAPI.getConfig();
         const configContent = document.getElementById('config-content');
         configContent.innerHTML = '';
 
@@ -19,8 +18,7 @@ async function loadConfig() {
 
         // Backend config section
         if (data.config.backends) {
-            const backendTypesResponse = await fetch('/api/backends/types');
-            const backendTypesData = await backendTypesResponse.json();
+            const backendTypesData = await window.ipfsKitAPI.getBackendTypes();
             const backendTypes = backendTypesData.types;
 
             let backendHtml = '<div class="card p-6"><h4 class="text-xl font-bold mb-4">Backend Configurations</h4>';
@@ -92,12 +90,7 @@ async function updateBackendConfig(event, backendName) {
     }
 
     try {
-        const response = await fetch(`/api/config/backends/${backendName}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ config }),
-        });
-        const result = await response.json();
+        const result = await window.ipfsKitAPI.updateBackendConfig(backendName, { config });
         if (result.success) {
             alert('Configuration updated successfully!');
             loadConfig(); // Refresh the config tab
