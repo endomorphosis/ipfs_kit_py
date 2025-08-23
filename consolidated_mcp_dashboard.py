@@ -424,7 +424,48 @@ class ConsolidatedMCPDashboard:
 
         @app.get("/mcp-client.js", response_class=PlainTextResponse)
         async def mcp_client_js() -> Response:
-            return Response(self._mcp_client_js(), media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store"})
+            # Prefer user-provided static SDK if present; otherwise serve inline SDK
+            try:
+                static_path = (Path(__file__).parent / "static" / "mcp-sdk.js").resolve()
+            except Exception:
+                static_path = None
+            # Compatibility shim: ensure core + expected namespaces exist when using static SDKs
+            shim = "\n;(function(){\n" \
+                   "  try {\n" \
+                   "    var g = (typeof window !== 'undefined' ? window : globalThis);\n" \
+                   "    g.MCP = g.MCP || {};\n" \
+                   "    async function rpcList(){ const r = await fetch('/mcp/tools/list', {method:'POST'}); return await r.json(); }\n" \
+                   "    async function rpcCall(name, args){ const r = await fetch('/mcp/tools/call', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({name, args})}); return await r.json(); }\n" \
+                   "    if (!g.MCP.listTools) g.MCP.listTools = rpcList;\n" \
+                   "    if (!g.MCP.callTool) g.MCP.callTool = (n,a)=>rpcCall(n, a||{});\n" \
+                   "    if (!g.MCP.status) {\n" \
+                   "      g.MCP.status = async function(){ const r = await fetch('/api/mcp/status'); const js = await r.json(); const data = (js && (js.data||js)) || {}; const tools = Array.isArray(data.tools)?data.tools:[]; return Object.assign({ initialized: !!data, tools }, data); };\n" \
+                   "    }\n" \
+                   "    function ensureNS(ns, obj){ if (!g.MCP[ns]) g.MCP[ns] = obj; }\n" \
+                   "    ensureNS('Services', { control:(s,a)=>rpcCall('service_control',{service:s, action:a}), status:(s)=>rpcCall('service_status',{service:s}) });\n" \
+                   "    ensureNS('Backends', { list:()=>rpcCall('list_backends',{}), get:(n)=>rpcCall('get_backend',{name:n}), create:(n,c)=>rpcCall('create_backend',{name:n, config:c}), update:(n,c)=>rpcCall('update_backend',{name:n, config:c}), delete:(n)=>rpcCall('delete_backend',{name:n}), test:(n)=>rpcCall('test_backend',{name:n}) });\n" \
+                   "    ensureNS('Buckets', { list:()=>rpcCall('list_buckets',{}), get:(n)=>rpcCall('get_bucket',{name:n}), create:(n,b)=>rpcCall('create_bucket',{name:n, backend:b}), update:(n,p)=>rpcCall('update_bucket',{name:n, patch:p}), delete:(n)=>rpcCall('delete_bucket',{name:n}), getPolicy:(n)=>rpcCall('get_bucket_policy',{name:n}), updatePolicy:(n,pol)=>rpcCall('update_bucket_policy',{name:n, policy:pol}) });\n" \
+                   "    ensureNS('Pins', { list:()=>rpcCall('list_pins',{}), create:(cid,name)=>rpcCall('create_pin',{cid, name}), delete:(cid)=>rpcCall('delete_pin',{cid}), export:()=>rpcCall('pins_export',{}), import:(items)=>rpcCall('pins_import',{items}) });\n" \
+                   "    ensureNS('Files', { list:(p)=>rpcCall('files_list',{path:(p==null?'.':p)}), read:(p)=>rpcCall('files_read',{path:p}), write:(p,c,m)=>rpcCall('files_write',{path:p, content:c, mode:(m||'text')}), mkdir:(p)=>rpcCall('files_mkdir',{path:p}), rm:(p,rec)=>rpcCall('files_rm',{path:p, recursive:!!rec}), mv:(s,d)=>rpcCall('files_mv',{src:s, dst:d}), stat:(p)=>rpcCall('files_stat',{path:p}), copy:(s,d,rec)=>rpcCall('files_copy',{src:s, dst:d, recursive:!!rec}), touch:(p)=>rpcCall('files_touch',{path:p}), tree:(p,d)=>rpcCall('files_tree',{path:(p==null?'.':p), depth:(d==null?2:d)}) });\n" \
+                   "    ensureNS('IPFS', { version:()=>rpcCall('ipfs_version',{}), add:(p)=>rpcCall('ipfs_add',{path:p}), pin:(cid,name)=>rpcCall('ipfs_pin',{cid, name}), cat:(cid)=>rpcCall('ipfs_cat',{cid}), ls:(cid)=>rpcCall('ipfs_ls',{cid}) });\n" \
+                   "    ensureNS('CARs', { list:()=>rpcCall('cars_list',{}), export:(p,car)=>rpcCall('car_export',{path:p, car}), import:(car,dest)=>rpcCall('car_import',{car, dest}) });\n" \
+                   "    ensureNS('State', { snapshot:()=>rpcCall('state_snapshot',{}), backup:()=>rpcCall('state_backup',{}), reset:()=>rpcCall('state_reset',{}) });\n" \
+                   "    ensureNS('Logs', { get:(limit)=>rpcCall('get_logs',{limit: (limit==null?200:limit)}), clear:()=>rpcCall('clear_logs',{}) });\n" \
+                   "    ensureNS('Server', { shutdown:()=>rpcCall('server_shutdown',{}) });\n" \
+                   "  } catch(e) { /* ignore shim errors */ }\n" \
+                   "})();\n"
+            source = "inline"
+            body = None
+            if static_path and static_path.exists():
+                try:
+                    body = static_path.read_text(encoding="utf-8") + shim
+                    source = "static"
+                except Exception:
+                    body = None
+            if body is None:
+                body = self._mcp_client_js()
+                source = "inline"
+            return Response(body, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "X-MCP-SDK-Source": source})
 
         # Explicit HEAD handlers for common endpoints (avoid 405s from probes)
         @app.head("/")
@@ -750,9 +791,11 @@ class ConsolidatedMCPDashboard:
 
         @app.post("/api/state/buckets/{name}/policy")
         async def update_bucket_policy(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
-            rf = payload.get("replication_factor")
-            cp = payload.get("cache_policy")
-            rd = payload.get("retention_days")
+            # Accept either flat keys or nested { policy: { ... } }
+            pol_in = payload.get("policy") if isinstance(payload.get("policy"), dict) else None
+            rf = payload.get("replication_factor") if payload.get("replication_factor") is not None else (pol_in or {}).get("replication_factor")
+            cp = payload.get("cache_policy") if payload.get("cache_policy") is not None else (pol_in or {}).get("cache_policy")
+            rd = payload.get("retention_days") if payload.get("retention_days") is not None else (pol_in or {}).get("retention_days")
             if rf is not None:
                 try:
                     rf = int(rf)
@@ -936,7 +979,7 @@ class ConsolidatedMCPDashboard:
                 }
                 _atomic_write_json(metadata_file, metadata)
             except Exception as e:
-                logger.warning(f"Failed to update file metadata: {e}")
+                self.log.warning(f"Failed to update file metadata: {e}")
                 
             return {"ok": True, "path": path, "bucket": bucket}
 
@@ -1554,9 +1597,11 @@ class ConsolidatedMCPDashboard:
             bname = args.get("name")
             if not bname:
                 raise HTTPException(400, "Missing name")
-            rf = args.get("replication_factor")
-            cp = args.get("cache_policy")
-            rd = args.get("retention_days")
+            # Accept either flat keys or nested { policy: { ... } }
+            pol_in = args.get("policy") if isinstance(args.get("policy"), dict) else None
+            rf = args.get("replication_factor") if args.get("replication_factor") is not None else (pol_in or {}).get("replication_factor")
+            cp = args.get("cache_policy") if args.get("cache_policy") is not None else (pol_in or {}).get("cache_policy")
+            rd = args.get("retention_days") if args.get("retention_days") is not None else (pol_in or {}).get("retention_days")
             # validation / partial updates allowed
             if rf is not None:
                 try:
@@ -1857,7 +1902,11 @@ class ConsolidatedMCPDashboard:
     const nav = el('div',{class:'dash-nav'}, ['Overview','Services','Backends','Buckets','Pins','Logs','Files','Tools','IPFS','CARs'].map(name => el('button',{class:'nav-btn','data-view':name.toLowerCase(),text:name})));
     const overviewView = el('div',{id:'view-overview',class:'view-panel'}, grid, layout);
     const servicesView = el('div',{id:'view-services',class:'view-panel',style:'display:none;'},
-        el('div',{class:'card'}, el('h3',{text:'Services'}), el('pre',{id:'services-json',text:'Loading…'}))
+        el('div',{class:'card'},
+            el('h3',{text:'Services'}),
+            el('pre',{id:'services-json',text:'Loading…'}),
+            el('div',{id:'services-actions',style:'margin-top:6px;font-size:12px;'},'')
+        )
     );
     const backendsView = el('div',{id:'view-backends',class:'view-panel',style:'display:none;'},
         el('div',{class:'card'},
@@ -1954,6 +2003,19 @@ class ConsolidatedMCPDashboard:
             ),
             el('pre',{id:'tool-result',text:'(result)'}),
             el('div',{style:'font-size:11px;opacity:.6;margin-top:4px;'},'Uses MCP JSON-RPC wrappers.')
+            // Beta Tool Runner (always present; visible when beta mode)
+            el('div',{id:'toolrunner-beta-container', style:'margin-top:16px;padding-top:10px;border-top:'+'1px solid #2d3a4d;'},
+                el('h3',{text:'Beta Tool Runner'}),
+                el('div',{class:'row',style:'margin-bottom:6px;'},
+                    el('input',{ 'data-testid':'toolbeta-filter', id:'toolbeta-filter', placeholder:'filter tools', style:'width:200px;margin-right:8px;' }),
+                    el('select',{ 'data-testid':'toolbeta-select', id:'toolbeta-select', style:'min-width:260px;' })
+                ),
+                el('div',{id:'toolbeta-form',style:'margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;'}),
+                el('div',{class:'row',style:'margin-top:6px;'},
+                    el('button',{ 'data-testid':'toolbeta-run', id:'toolbeta-run', style:'font-size:12px;padding:6px 12px;' },'Run')
+                ),
+                el('pre',{ 'data-testid':'toolbeta-result', id:'toolbeta-result', text:'(result)'}),
+            )
         )
     );
     // IPFS Panel
@@ -2003,16 +2065,93 @@ class ConsolidatedMCPDashboard:
         });
         if(name==='services') loadServices();
         else if(name==='backends') loadBackends();
-        else if(name==='buckets') loadBuckets();
+    else if(name==='buckets') loadBuckets();
         else if(name==='pins') loadPins();
         else if(name==='logs') initLogs();
-    else if(name==='files') { loadBuckets(); loadFiles(); }
-    else if(name==='tools') initTools();
+    else if(name==='files') { loadVfsBuckets(); loadFiles(); }
+    else if(name==='tools') { initTools(); initToolRunnerBeta(); }
     else if(name==='ipfs') initIPFS();
     else if(name==='cars') initCARs();
     }
     nav.querySelectorAll('.nav-btn').forEach(btn=> btn.addEventListener('click', ()=> showView(btn.getAttribute('data-view'))));
-    showView('overview');
+    // Always default to Tools (beta Tool Runner) to guarantee the beta UI is shown
+    showView('tools');
+
+    // --- Beta Tool Runner logic ---
+    let toolbetaInited=false; let toolbetaTools=[];
+    async function initToolRunnerBeta(){
+        const container=document.getElementById('toolrunner-beta-container'); if(!container) return;
+        if(toolbetaInited) return; toolbetaInited=true;
+        try{
+            // Load tools
+            await waitForMCP();
+            const list = await MCP.listTools();
+            toolbetaTools = (list && list.result && Array.isArray(list.result.tools))? list.result.tools : [];
+            renderToolbetaSelect(toolbetaTools);
+            bindToolbeta();
+        }catch(e){ /* ignore */ }
+    }
+    function renderToolbetaSelect(tools){
+        const sel=document.getElementById('toolbeta-select'); if(!sel) return;
+        sel.innerHTML='';
+        tools.forEach(t=>{ const opt=document.createElement('option'); opt.value=t.name; opt.textContent=t.name; sel.append(opt); });
+    }
+    function bindToolbeta(){
+        const filter=document.getElementById('toolbeta-filter');
+        const sel=document.getElementById('toolbeta-select');
+        const run=document.getElementById('toolbeta-run');
+        const form=document.getElementById('toolbeta-form');
+        const result=document.getElementById('toolbeta-result');
+        if(filter){ filter.addEventListener('input', ()=>{
+            const q=String(filter.value||'').toLowerCase();
+            const filtered = toolbetaTools.filter(t=> t.name.toLowerCase().includes(q));
+            renderToolbetaSelect(filtered);
+        }); }
+        if(sel){ sel.addEventListener('change', ()=> updateToolbetaForm(sel.value)); }
+        if(run){ run.addEventListener('click', async ()=>{
+            try{
+                const name = sel && sel.value; if(!name) return;
+                const args = collectToolbetaArgs();
+                const out = await MCP.callTool(name, args);
+                if(result) result.textContent = JSON.stringify(out, null, 2);
+            }catch(e){ if(result) result.textContent = String(e); }
+        }); }
+        // Initialize with first tool if available
+        if(sel && sel.options.length>0){ updateToolbetaForm(sel.value); }
+    }
+    function collectToolbetaArgs(){
+        const form=document.getElementById('toolbeta-form'); const args={};
+        if(!form) return args;
+        const inputs=form.querySelectorAll('[data-fld]');
+        inputs.forEach(inp=>{
+            const key=inp.getAttribute('data-fld');
+            if(inp.type==='checkbox') args[key]=!!inp.checked; else args[key]=inp.value;
+        });
+        return args;
+    }
+    async function updateToolbetaForm(toolName){
+        const form=document.getElementById('toolbeta-form'); if(!form) return; form.innerHTML='';
+        const tool = toolbetaTools.find(t=> t.name===toolName) || {};
+        const schema = (tool && tool.inputSchema) || {}; const props = schema.properties || {};
+        const backendNames = await getBackendNames();
+        Object.keys(props).forEach(k=>{
+            const def = props[k]||{}; const type = Array.isArray(def.type)? def.type[0] : (def.type||'string');
+            const id='fld_'+k; let field=null;
+            if(k==='backend'){
+                const sel=document.createElement('select'); sel.setAttribute('data-testid','toolbeta-field-backend'); sel.id=id; sel.setAttribute('data-fld',k);
+                backendNames.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; sel.append(o); });
+                field=sel;
+            }else if(type==='boolean'){
+                const inp=document.createElement('input'); inp.type='checkbox'; inp.id=id; inp.setAttribute('data-fld',k); field=inp;
+            }else{
+                const inp=document.createElement('input'); inp.type='text'; inp.id=id; inp.setAttribute('data-fld',k); field=inp;
+            }
+            const wrap=document.createElement('label'); wrap.style.display='flex'; wrap.style.flexDirection='column'; wrap.style.fontSize='11px';
+            wrap.textContent = k; wrap.appendChild(field); form.appendChild(wrap);
+        });
+    }
+    async function getBackendNames(){ try{ const r=await MCP.Backends.list(); const items=(r && r.result && r.result.items)||[]; return items.map(it=> it.name); }catch(e){ return []; } }
+    async function waitForMCP(){ const t0=Date.now(); while(!(window.MCP && MCP.listTools)){ if(Date.now()-t0>15000) throw new Error('MCP not ready'); await new Promise(r=>setTimeout(r,50)); } }
 
     async function loadServices(){
         const pre=document.getElementById('services-json'); if(pre) pre.textContent='Loading…';
@@ -2331,7 +2470,7 @@ class ConsolidatedMCPDashboard:
         }
     }
     
-    async function loadBuckets() {
+    async function loadVfsBuckets() {
         const bucketEl = document.getElementById('files-bucket');
         if (!bucketEl) return;
         
@@ -2363,7 +2502,7 @@ class ConsolidatedMCPDashboard:
         }
     }
     const btnFiles=document.getElementById('btn-files-load'); if(btnFiles) btnFiles.onclick = ()=> loadFiles();
-    const btnBucketRefresh=document.getElementById('btn-bucket-refresh'); if(btnBucketRefresh) btnBucketRefresh.onclick = ()=> loadBuckets();
+    const btnBucketRefresh=document.getElementById('btn-bucket-refresh'); if(btnBucketRefresh) btnBucketRefresh.onclick = ()=> loadVfsBuckets();
     const btnFilesUp=document.getElementById('btn-files-up'); if(btnFilesUp) btnFilesUp.onclick = ()=> {
         const pathEl = document.getElementById('files-path');
         if (pathEl) {
@@ -2490,7 +2629,7 @@ class ConsolidatedMCPDashboard:
     
     // Initialize files view
     if (document.getElementById('view-files')) {
-        loadBuckets();
+        loadVfsBuckets();
     }
     // ---- Tools Tab ----
     let toolsLoaded=false; let toolDefs=[]; function initTools(){ if(toolsLoaded) return; toolsLoaded=true; loadToolList(); }
