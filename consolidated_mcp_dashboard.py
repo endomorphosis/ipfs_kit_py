@@ -2562,130 +2562,57 @@ class ConsolidatedMCPDashboard:
             });
         }catch(e){ container.textContent='Error'; }
     }
-    async function loadBuckets(){
-        const container=document.getElementById('buckets-list'); if(!container) return; container.textContent='Loading…';
-        try{ 
-            const r=await fetch('/api/state/buckets'); 
-            const js=await r.json(); 
-            const items=js.items||[]; 
-            if(!items.length){ 
-                container.textContent='(none)'; 
-                return; 
-            }
-            
-            container.innerHTML=''; 
-            items.forEach(it=>{
-                const wrap=el('div',{class:'bucket-wrap',style:'border:1px solid #333;margin:4px 0;padding:4px;border-radius:4px;background:#111;'});
-                const header=el('div',{style:'display:flex;align-items:center;justify-content:space-between;cursor:pointer;'},
-                    el('div',{}, 
-                        el('strong',{text:it.name}), 
-                        el('span',{style:'color:#888;margin-left:6px;',text: it.backend? ('→ '+it.backend):''})
-                    ),
-                    el('div',{},
-                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'View Files',onclick:(e)=>{ e.stopPropagation(); showBucketDetails(it.name); }},'📁'),
-                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Settings',onclick:(e)=>{ e.stopPropagation(); showBucketSettings(it.name); }},'⚙️'),
-                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Expand/Collapse',onclick:(e)=>{ e.stopPropagation(); toggle(); }},'▾'),
-                        el('button',{style:'padding:2px 6px;font-size:11px;',title:'Delete',onclick:(e)=>{ e.stopPropagation(); if(confirm('Delete bucket '+it.name+'?')) deleteBucket(it.name); }},'✕')
-                    )
-                );
-                
-                // Enhanced bucket details
-                const body=el('div',{style:'display:none;margin-top:6px;font-size:12px;'});
-                body.innerHTML='<div style="margin-bottom:8px;color:#aaa;font-weight:bold;">Bucket Details & Policy</div>'+
-                    '<div id="bucket-stats-'+it.name+'" style="margin-bottom:8px;padding:4px;background:#0a0a0a;border-radius:3px;font-size:10px;color:#999;"></div>'+
-                    '<div class="policy-fields" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
-                    +' <label style="display:flex;flex-direction:column;font-size:11px;">Replication Factor<input type="number" min="1" max="10" class="pf-rep" style="width:90px;"/></label>'
-                    +' <label style="display:flex;flex-direction:column;font-size:11px;">Cache Policy<select class="pf-cache" style="width:120px;"><option>none</option><option>memory</option><option>disk</option></select></label>'
-                    +' <label style="display:flex;flex-direction:column;font-size:11px;">Retention Days<input type="number" min="0" class="pf-ret" style="width:110px;"/></label>'
-                    +'</div>'
-                    +'<div style="margin-top:6px;display:flex;gap:6px;">'
-                    +' <button class="btn-policy-save" style="padding:4px 10px;font-size:11px;">Save Policy</button>'
-                    +' <button class="btn-policy-cancel" style="padding:4px 10px;font-size:11px;">Cancel</button>'
-                    +' <button class="btn-view-files" style="padding:4px 10px;font-size:11px;background:#444;">View Files</button>'
-                    +' <span class="policy-status" style="margin-left:8px;color:#888;"></span>'
-                    +'</div>';
-                wrap.append(header, body); container.append(wrap);
-                
-                let loaded=false; let loading=false; let expanded=false; let currentPolicy=null;
-                
-                // Load bucket statistics
-                async function loadBucketStats(){
-                    const statsEl = document.getElementById('bucket-stats-'+it.name);
-                    if(!statsEl) return;
-                    try{
-                        const response = await fetch('/api/buckets/'+encodeURIComponent(it.name));
-                        const data = await response.json();
-                        let statsText = `Files: ${data.file_count || 0} | Folders: ${data.folder_count || 0} | Size: ${formatBytes(data.total_size || 0)}`;
-                        if(data.settings.vector_search) statsText += ' | Vector Search: ✓';
-                        if(data.settings.knowledge_graph) statsText += ' | Knowledge Graph: ✓';
-                        statsEl.textContent = statsText;
-                    }catch(e){
-                        statsEl.textContent = 'Unable to load stats';
-                    }
-                }
-                
-                async function fetchPolicy(){ 
-                    if(loading||loaded) return; 
-                    loading=true; 
-                    setStatus('Loading...'); 
-                    try{ 
-                        const pr=await fetch('/api/state/buckets/'+encodeURIComponent(it.name)+'/policy'); 
-                        const pj=await pr.json(); 
-                        currentPolicy=pj.policy||pj||{}; 
-                        applyPolicy(); 
-                        loaded=true; 
-                        setStatus(''); 
-                        loadBucketStats(); // Load additional stats
-                    }catch(e){ 
-                        setStatus('Error loading'); 
-                    } finally { 
-                        loading=false; 
-                    } 
-                }
-                function applyPolicy(){ 
-                    if(!currentPolicy) return; 
-                    const rep=body.querySelector('.pf-rep'); 
-                    const cache=body.querySelector('.pf-cache'); 
-                    const ret=body.querySelector('.pf-ret'); 
-                    if(rep) rep.value=currentPolicy.replication_factor; 
-                    if(cache) cache.value=currentPolicy.cache_policy; 
-                    if(ret) ret.value=currentPolicy.retention_days; 
-                }
-                function toggle(){ 
-                    expanded=!expanded; 
-                    body.style.display= expanded? 'block':'none'; 
-                    header.querySelector('button[title="Expand/Collapse"]').textContent = expanded? '▴':'▾'; 
-                    if(expanded) fetchPolicy(); 
-                }
-                function setStatus(msg, isErr){ 
-                    const st=body.querySelector('.policy-status'); 
-                    if(st){ 
-                        st.textContent=msg||''; 
-                        st.style.color = isErr? '#f66':'#888'; 
-                    } 
-                }
-                
-                // Event handlers
-                body.querySelector('.btn-policy-cancel').onclick = ()=>{ applyPolicy(); setStatus('Reverted'); };
-                body.querySelector('.btn-policy-save').onclick = async ()=>{
-                    const rep=parseInt(body.querySelector('.pf-rep').value,10); 
-                    const cache=body.querySelector('.pf-cache').value; 
-                    const ret=parseInt(body.querySelector('.pf-ret').value,10);
-                    const payload={replication_factor:rep, cache_policy:cache, retention_days:ret};
-                    setStatus('Saving...');
-                    try{
-                        const rs=await fetch('/api/state/buckets/'+encodeURIComponent(it.name)+'/policy',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
-                        if(!rs.ok){ const tx=await rs.text(); setStatus('Error: '+tx.slice(0,60), true); return; }
-                        const jsR=await rs.json(); currentPolicy=jsR.policy||payload; applyPolicy(); setStatus('Saved');
-                    }catch(e){ setStatus('Save failed', true); }
-                };
-                body.querySelector('.btn-view-files').onclick = ()=> showBucketDetails(it.name);
-                header.addEventListener('click', ()=> toggle());
-            });
-        }catch(e){ 
-            container.textContent='Error loading buckets'; 
-            console.error('Bucket loading error:', e);
-        }
+
+    // ---- Enhanced Bucket Management Helper Functions ----
+    
+    // Helper functions for enhanced bucket management
+    function createModal(title, contentCallback) {
+        // Remove existing modal if any
+        const existingModal = document.getElementById('bucket-modal');
+        if (existingModal) existingModal.remove();
+        
+        const modal = document.createElement('div');
+        modal.id = 'bucket-modal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); z-index: 1000; display: flex; 
+            align-items: center; justify-content: center;
+        `;
+        
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: #1a1a1a; border: 1px solid #333; border-radius: 8px; 
+            padding: 20px; max-width: 90%; max-height: 90%; overflow-y: auto;
+            color: white; font-family: system-ui, Arial, sans-serif;
+        `;
+        
+        const header = document.createElement('div');
+        header.style.cssText = `
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;
+        `;
+        header.innerHTML = `
+            <h3 style="margin: 0; color: white;">${title}</h3>
+            <button onclick="document.getElementById('bucket-modal').remove()" 
+                    style="background: #555; color: white; border: none; padding: 5px 10px; 
+                           border-radius: 4px; cursor: pointer;">×</button>
+        `;
+        
+        const body = document.createElement('div');
+        modalContent.appendChild(header);
+        modalContent.appendChild(body);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+        
+        // Execute content callback
+        if (contentCallback) contentCallback(body);
+        
+        return modal;
     }
 
     // Enhanced bucket details view
@@ -2823,56 +2750,6 @@ class ConsolidatedMCPDashboard:
         });
     }
 
-    // Helper functions for enhanced bucket management
-    function createModal(title, contentCallback) {
-        // Remove existing modal if any
-        const existingModal = document.getElementById('bucket-modal');
-        if (existingModal) existingModal.remove();
-        
-        const modal = document.createElement('div');
-        modal.id = 'bucket-modal';
-        modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.8); z-index: 1000; display: flex; 
-            align-items: center; justify-content: center;
-        `;
-        
-        const modalContent = document.createElement('div');
-        modalContent.style.cssText = `
-            background: #1a1a1a; border: 1px solid #333; border-radius: 8px; 
-            padding: 20px; max-width: 90%; max-height: 90%; overflow-y: auto;
-            color: white; font-family: system-ui, Arial, sans-serif;
-        `;
-        
-        const header = document.createElement('div');
-        header.style.cssText = `
-            display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;
-        `;
-        header.innerHTML = `
-            <h3 style="margin: 0; color: white;">${title}</h3>
-            <button onclick="document.getElementById('bucket-modal').remove()" 
-                    style="background: #555; color: white; border: none; padding: 5px 10px; 
-                           border-radius: 4px; cursor: pointer;">×</button>
-        `;
-        
-        const body = document.createElement('div');
-        modalContent.appendChild(header);
-        modalContent.appendChild(body);
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
-        
-        // Close modal when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
-        });
-        
-        // Execute content callback
-        if (contentCallback) contentCallback(body);
-        
-        return modal;
-    }
-
     async function uploadFiles(bucketName, files) {
         if (!files || files.length === 0) return;
         
@@ -2992,6 +2869,134 @@ class ConsolidatedMCPDashboard:
             }
         } catch (e) {
             alert('Error saving settings: ' + e.message);
+        }
+    }
+
+    // ---- End Enhanced Bucket Management Helper Functions ----
+
+    async function loadBuckets(){
+        const container=document.getElementById('buckets-list'); if(!container) return; container.textContent='Loading…';
+        try{ 
+            const r=await fetch('/api/state/buckets'); 
+            const js=await r.json(); 
+            const items=js.items||[]; 
+            if(!items.length){ 
+                container.textContent='(none)'; 
+                return; 
+            }
+            
+            container.innerHTML=''; 
+            items.forEach(it=>{
+                const wrap=el('div',{class:'bucket-wrap',style:'border:1px solid #333;margin:4px 0;padding:4px;border-radius:4px;background:#111;'});
+                const header=el('div',{style:'display:flex;align-items:center;justify-content:space-between;cursor:pointer;'},
+                    el('div',{}, 
+                        el('strong',{text:it.name}), 
+                        el('span',{style:'color:#888;margin-left:6px;',text: it.backend? ('→ '+it.backend):''})
+                    ),
+                    el('div',{},
+                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'View Files',onclick:(e)=>{ e.stopPropagation(); showBucketDetails(it.name); }},'📁'),
+                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Settings',onclick:(e)=>{ e.stopPropagation(); showBucketSettings(it.name); }},'⚙️'),
+                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Expand/Collapse',onclick:(e)=>{ e.stopPropagation(); toggle(); }},'▾'),
+                        el('button',{style:'padding:2px 6px;font-size:11px;',title:'Delete',onclick:(e)=>{ e.stopPropagation(); if(confirm('Delete bucket '+it.name+'?')) deleteBucket(it.name); }},'✕')
+                    )
+                );
+                
+                // Enhanced bucket details
+                const body=el('div',{style:'display:none;margin-top:6px;font-size:12px;'});
+                body.innerHTML='<div style="margin-bottom:8px;color:#aaa;font-weight:bold;">Bucket Details & Policy</div>'+
+                    '<div id="bucket-stats-'+it.name+'" style="margin-bottom:8px;padding:4px;background:#0a0a0a;border-radius:3px;font-size:10px;color:#999;"></div>'+
+                    '<div class="policy-fields" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
+                    +' <label style="display:flex;flex-direction:column;font-size:11px;">Replication Factor<input type="number" min="1" max="10" class="pf-rep" style="width:90px;"/></label>'
+                    +' <label style="display:flex;flex-direction:column;font-size:11px;">Cache Policy<select class="pf-cache" style="width:120px;"><option>none</option><option>memory</option><option>disk</option></select></label>'
+                    +' <label style="display:flex;flex-direction:column;font-size:11px;">Retention Days<input type="number" min="0" class="pf-ret" style="width:110px;"/></label>'
+                    +'</div>'
+                    +'<div style="margin-top:6px;display:flex;gap:6px;">'
+                    +' <button class="btn-policy-save" style="padding:4px 10px;font-size:11px;">Save Policy</button>'
+                    +' <button class="btn-policy-cancel" style="padding:4px 10px;font-size:11px;">Cancel</button>'
+                    +' <button class="btn-view-files" style="padding:4px 10px;font-size:11px;background:#444;">View Files</button>'
+                    +' <span class="policy-status" style="margin-left:8px;color:#888;"></span>'
+                    +'</div>';
+                wrap.append(header, body); container.append(wrap);
+                
+                let loaded=false; let loading=false; let expanded=false; let currentPolicy=null;
+                
+                // Load bucket statistics
+                async function loadBucketStats(){
+                    const statsEl = document.getElementById('bucket-stats-'+it.name);
+                    if(!statsEl) return;
+                    try{
+                        const response = await fetch('/api/buckets/'+encodeURIComponent(it.name));
+                        const data = await response.json();
+                        let statsText = `Files: ${data.file_count || 0} | Folders: ${data.folder_count || 0} | Size: ${formatBytes(data.total_size || 0)}`;
+                        if(data.settings.vector_search) statsText += ' | Vector Search: ✓';
+                        if(data.settings.knowledge_graph) statsText += ' | Knowledge Graph: ✓';
+                        statsEl.textContent = statsText;
+                    }catch(e){
+                        statsEl.textContent = 'Unable to load stats';
+                    }
+                }
+                
+                async function fetchPolicy(){ 
+                    if(loading||loaded) return; 
+                    loading=true; 
+                    setStatus('Loading...'); 
+                    try{ 
+                        const pr=await fetch('/api/state/buckets/'+encodeURIComponent(it.name)+'/policy'); 
+                        const pj=await pr.json(); 
+                        currentPolicy=pj.policy||pj||{}; 
+                        applyPolicy(); 
+                        loaded=true; 
+                        setStatus(''); 
+                        loadBucketStats(); // Load additional stats
+                    }catch(e){ 
+                        setStatus('Error loading'); 
+                    } finally { 
+                        loading=false; 
+                    } 
+                }
+                function applyPolicy(){ 
+                    if(!currentPolicy) return; 
+                    const rep=body.querySelector('.pf-rep'); 
+                    const cache=body.querySelector('.pf-cache'); 
+                    const ret=body.querySelector('.pf-ret'); 
+                    if(rep) rep.value=currentPolicy.replication_factor; 
+                    if(cache) cache.value=currentPolicy.cache_policy; 
+                    if(ret) ret.value=currentPolicy.retention_days; 
+                }
+                function toggle(){ 
+                    expanded=!expanded; 
+                    body.style.display= expanded? 'block':'none'; 
+                    header.querySelector('button[title="Expand/Collapse"]').textContent = expanded? '▴':'▾'; 
+                    if(expanded) fetchPolicy(); 
+                }
+                function setStatus(msg, isErr){ 
+                    const st=body.querySelector('.policy-status'); 
+                    if(st){ 
+                        st.textContent=msg||''; 
+                        st.style.color = isErr? '#f66':'#888'; 
+                    } 
+                }
+                
+                // Event handlers
+                body.querySelector('.btn-policy-cancel').onclick = ()=>{ applyPolicy(); setStatus('Reverted'); };
+                body.querySelector('.btn-policy-save').onclick = async ()=>{
+                    const rep=parseInt(body.querySelector('.pf-rep').value,10); 
+                    const cache=body.querySelector('.pf-cache').value; 
+                    const ret=parseInt(body.querySelector('.pf-ret').value,10);
+                    const payload={replication_factor:rep, cache_policy:cache, retention_days:ret};
+                    setStatus('Saving...');
+                    try{
+                        const rs=await fetch('/api/state/buckets/'+encodeURIComponent(it.name)+'/policy',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+                        if(!rs.ok){ const tx=await rs.text(); setStatus('Error: '+tx.slice(0,60), true); return; }
+                        const jsR=await rs.json(); currentPolicy=jsR.policy||payload; applyPolicy(); setStatus('Saved');
+                    }catch(e){ setStatus('Save failed', true); }
+                };
+                body.querySelector('.btn-view-files').onclick = ()=> showBucketDetails(it.name);
+                header.addEventListener('click', ()=> toggle());
+            });
+        }catch(e){ 
+            container.textContent='Error loading buckets'; 
+            console.error('Bucket loading error:', e);
         }
     }
     async function loadPins(){
