@@ -359,6 +359,66 @@ class RefactoredUnifiedMCPDashboard:
             except Exception as e:
                 logger.error(f"Error in download_file API: {e}")
                 raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+
+        @self.app.get("/api/buckets/{bucket_name}/files")
+        async def api_get_bucket_files(bucket_name: str):
+            """Get list of files in a bucket."""
+            try:
+                result = await self._get_bucket_files(bucket_name)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in get_bucket_files API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to get bucket files: {str(e)}"}
+                )
+
+        @self.app.delete("/api/buckets/{bucket_name}/files/{file_name}")
+        async def api_delete_file_from_bucket(bucket_name: str, file_name: str):
+            """Delete a file from a bucket."""
+            try:
+                result = await self._delete_file_from_bucket(bucket_name, file_name)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in delete_file API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to delete file: {str(e)}"}
+                )
+
+        @self.app.post("/api/buckets/{bucket_name}/files/{file_name}/rename")
+        async def api_rename_file_in_bucket(bucket_name: str, file_name: str, request: Request):
+            """Rename a file in a bucket."""
+            try:
+                data = await request.json()
+                new_name = data.get("new_name")
+                if not new_name:
+                    return JSONResponse(
+                        status_code=400,
+                        content={"error": "New filename is required"}
+                    )
+                result = await self._rename_file_in_bucket(bucket_name, file_name, new_name)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in rename_file API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to rename file: {str(e)}"}
+                )
+
+        @self.app.put("/api/buckets/{bucket_name}/settings")
+        async def api_update_bucket_settings(bucket_name: str, request: Request):
+            """Update bucket settings."""
+            try:
+                settings = await request.json()
+                result = await self._update_bucket_settings(bucket_name, settings)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in update_bucket_settings API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to update bucket settings: {str(e)}"}
+                )
         
         @self.app.get("/api/services")
         async def api_services():
@@ -764,15 +824,59 @@ class RefactoredUnifiedMCPDashboard:
         return self.backends_cache
 
     async def _get_buckets_data(self):
-        """Get buckets data."""
+        """Get buckets data with enhanced information."""
         buckets = []
         bucket_registry_file = self.data_dir / "bucket_index" / "bucket_registry.parquet"
+        
         if bucket_registry_file.exists():
             try:
                 df = pd.read_parquet(bucket_registry_file)
-                buckets = df.to_dict("records")
+                for _, row in df.iterrows():
+                    bucket = row.to_dict()
+                    # Add computed fields for the UI
+                    bucket_path = self.data_dir / "buckets" / bucket.get("name", "")
+                    if bucket_path.exists():
+                        # Calculate storage usage
+                        total_size = sum(f.stat().st_size for f in bucket_path.rglob('*') if f.is_file())
+                        bucket["storage_used"] = total_size
+                        bucket["file_count"] = len(list(bucket_path.rglob('*')))
+                    else:
+                        bucket["storage_used"] = 0
+                        bucket["file_count"] = 0
+                    
+                    # Check for advanced features based on bucket config
+                    bucket_config_file = self.data_dir / "bucket_configs" / f"{bucket.get('name', '')}.yaml"
+                    if bucket_config_file.exists():
+                        try:
+                            with open(bucket_config_file, 'r') as f:
+                                config = yaml.safe_load(f) or {}
+                                bucket["vector_search"] = config.get("vector_search", False)
+                                bucket["knowledge_graph"] = config.get("knowledge_graph", False)
+                                bucket["cache_enabled"] = config.get("cache_enabled", False)
+                                bucket["settings"] = config
+                        except Exception as e:
+                            logger.warning(f"Could not load bucket config for {bucket.get('name')}: {e}")
+                    
+                    buckets.append(bucket)
             except Exception as e:
                 logger.warning(f"Could not load bucket registry: {e}")
+        
+        # If no registry exists, create sample buckets for demonstration
+        if not buckets:
+            buckets = [
+                {
+                    "name": "sample-bucket",
+                    "backend": "local",
+                    "description": "Sample bucket for testing",
+                    "storage_used": 0,
+                    "file_count": 0,
+                    "vector_search": False,
+                    "knowledge_graph": False,
+                    "cache_enabled": True,
+                    "created_at": datetime.now().isoformat()
+                }
+            ]
+        
         return {"buckets": buckets}
 
     async def _get_services_data(self):
@@ -860,24 +964,325 @@ class RefactoredUnifiedMCPDashboard:
         return {"status": "connected"}
 
     async def _create_bucket(self, bucket_name, bucket_type, description):
-        """Create bucket."""
-        return {"success": True, "message": "Bucket created"}
+        """Create bucket with proper directory structure and metadata."""
+        try:
+            # Create bucket directory
+            bucket_path = self.data_dir / "buckets" / bucket_name
+            bucket_path.mkdir(parents=True, exist_ok=True)
+            
+            # Create bucket configuration
+            bucket_config = {
+                "name": bucket_name,
+                "type": bucket_type,
+                "backend": "local",  # Default to local for now
+                "description": description,
+                "created_at": datetime.now().isoformat(),
+                "settings": {
+                    "cache_enabled": True,
+                    "cache_ttl": 3600,
+                    "vector_search": False,
+                    "knowledge_graph": False,
+                    "public_access": False,
+                    "storage_quota": None,
+                    "max_files": None,
+                    "max_file_size": 500,  # MB
+                    "retention_days": None
+                }
+            }
+            
+            # Save bucket config
+            bucket_config_dir = self.data_dir / "bucket_configs"
+            bucket_config_dir.mkdir(parents=True, exist_ok=True)
+            bucket_config_file = bucket_config_dir / f"{bucket_name}.yaml"
+            
+            with open(bucket_config_file, 'w') as f:
+                yaml.dump(bucket_config, f)
+            
+            # Update bucket registry
+            bucket_registry_dir = self.data_dir / "bucket_index"
+            bucket_registry_dir.mkdir(parents=True, exist_ok=True)
+            bucket_registry_file = bucket_registry_dir / "bucket_registry.parquet"
+            
+            bucket_record = {
+                "name": bucket_name,
+                "backend": "local",
+                "type": bucket_type,
+                "description": description,
+                "created_at": datetime.now().isoformat(),
+                "storage_used": 0,
+                "file_count": 0
+            }
+            
+            if bucket_registry_file.exists():
+                try:
+                    df = pd.read_parquet(bucket_registry_file)
+                    # Check if bucket already exists
+                    if bucket_name in df['name'].values:
+                        return {"success": False, "error": "Bucket already exists"}
+                    new_df = pd.concat([df, pd.DataFrame([bucket_record])], ignore_index=True)
+                except Exception as e:
+                    logger.warning(f"Error reading existing registry: {e}")
+                    new_df = pd.DataFrame([bucket_record])
+            else:
+                new_df = pd.DataFrame([bucket_record])
+            
+            new_df.to_parquet(bucket_registry_file)
+            
+            return {"success": True, "message": f"Bucket '{bucket_name}' created successfully", "bucket": bucket_record}
+            
+        except Exception as e:
+            logger.error(f"Error creating bucket: {e}")
+            return {"success": False, "error": str(e)}
 
     async def _delete_bucket(self, bucket_name):
-        """Delete bucket."""
-        return {"success": True, "message": "Bucket deleted"}
+        """Delete bucket and clean up all associated data."""
+        try:
+            # Remove bucket directory
+            bucket_path = self.data_dir / "buckets" / bucket_name
+            if bucket_path.exists():
+                import shutil
+                shutil.rmtree(bucket_path)
+            
+            # Remove bucket config
+            bucket_config_file = self.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
+            if bucket_config_file.exists():
+                bucket_config_file.unlink()
+            
+            # Update bucket registry
+            bucket_registry_file = self.data_dir / "bucket_index" / "bucket_registry.parquet"
+            if bucket_registry_file.exists():
+                try:
+                    df = pd.read_parquet(bucket_registry_file)
+                    df = df[df['name'] != bucket_name]
+                    if len(df) > 0:
+                        df.to_parquet(bucket_registry_file)
+                    else:
+                        bucket_registry_file.unlink()  # Remove empty registry
+                except Exception as e:
+                    logger.warning(f"Error updating registry after deletion: {e}")
+            
+            return {"success": True, "message": f"Bucket '{bucket_name}' deleted successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error deleting bucket: {e}")
+            return {"success": False, "error": str(e)}
 
     async def _get_bucket_details(self, bucket_name):
-        """Get bucket details."""
-        return {"success": True, "bucket": {}}
+        """Get detailed bucket information including settings and stats."""
+        try:
+            bucket_path = self.data_dir / "buckets" / bucket_name
+            bucket_config_file = self.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
+            
+            if not bucket_path.exists():
+                raise HTTPException(status_code=404, detail="Bucket not found")
+            
+            # Load bucket configuration
+            bucket_info = {
+                "name": bucket_name,
+                "backend": "local",
+                "description": "",
+                "settings": {}
+            }
+            
+            if bucket_config_file.exists():
+                try:
+                    with open(bucket_config_file, 'r') as f:
+                        config = yaml.safe_load(f) or {}
+                        bucket_info.update(config)
+                except Exception as e:
+                    logger.warning(f"Could not load bucket config: {e}")
+            
+            # Calculate current stats
+            if bucket_path.exists():
+                total_size = sum(f.stat().st_size for f in bucket_path.rglob('*') if f.is_file())
+                file_count = len(list(bucket_path.glob('*')))
+                bucket_info.update({
+                    "storage_used": total_size,
+                    "file_count": file_count,
+                    "last_accessed": datetime.now().isoformat()
+                })
+            
+            return {"success": True, "bucket": bucket_info}
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting bucket details: {e}")
+            return {"success": False, "error": str(e)}
 
     async def _upload_file_to_bucket(self, bucket_name, file):
-        """Upload file to bucket."""
-        return {"success": True, "message": "File uploaded"}
+        """Upload file to bucket with validation and metadata."""
+        try:
+            bucket_path = self.data_dir / "buckets" / bucket_name
+            if not bucket_path.exists():
+                raise HTTPException(status_code=404, detail="Bucket not found")
+            
+            # Check file size limit
+            bucket_config_file = self.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
+            max_file_size = 500 * 1024 * 1024  # Default 500MB
+            
+            if bucket_config_file.exists():
+                try:
+                    with open(bucket_config_file, 'r') as f:
+                        config = yaml.safe_load(f) or {}
+                        max_file_size = config.get("settings", {}).get("max_file_size", 500) * 1024 * 1024
+                except Exception as e:
+                    logger.warning(f"Could not load bucket config: {e}")
+            
+            # Read file content
+            content = await file.read()
+            if len(content) > max_file_size:
+                raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_file_size // (1024*1024)}MB")
+            
+            # Save file
+            file_path = bucket_path / file.filename
+            with open(file_path, 'wb') as f:
+                f.write(content)
+            
+            # Create file metadata
+            file_metadata = {
+                "name": file.filename,
+                "size": len(content),
+                "uploaded_at": datetime.now().isoformat(),
+                "content_type": file.content_type,
+                "path": str(file_path.relative_to(bucket_path))
+            }
+            
+            return {"success": True, "message": f"File '{file.filename}' uploaded successfully", "file": file_metadata}
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error uploading file: {e}")
+            return {"success": False, "error": str(e)}
 
     async def _download_file_from_bucket(self, bucket_name, file_path):
         """Download file from bucket."""
-        raise HTTPException(status_code=404, detail="File not found")
+        try:
+            bucket_path = self.data_dir / "buckets" / bucket_name
+            if not bucket_path.exists():
+                raise HTTPException(status_code=404, detail="Bucket not found")
+            
+            full_file_path = bucket_path / file_path
+            if not full_file_path.exists() or not full_file_path.is_file():
+                raise HTTPException(status_code=404, detail="File not found")
+            
+            return FileResponse(
+                path=str(full_file_path),
+                filename=full_file_path.name,
+                media_type='application/octet-stream'
+            )
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error downloading file: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def _get_bucket_files(self, bucket_name):
+        """Get list of files in a bucket."""
+        try:
+            bucket_path = self.data_dir / "buckets" / bucket_name
+            if not bucket_path.exists():
+                return {"success": False, "error": "Bucket not found", "files": []}
+            
+            files = []
+            for file_path in bucket_path.iterdir():
+                if file_path.is_file():
+                    stat = file_path.stat()
+                    files.append({
+                        "name": file_path.name,
+                        "size": stat.st_size,
+                        "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "path": file_path.name,
+                        "type": "file"
+                    })
+            
+            return {"success": True, "files": files}
+            
+        except Exception as e:
+            logger.error(f"Error getting bucket files: {e}")
+            return {"success": False, "error": str(e), "files": []}
+
+    async def _delete_file_from_bucket(self, bucket_name, file_name):
+        """Delete a file from a bucket."""
+        try:
+            bucket_path = self.data_dir / "buckets" / bucket_name
+            if not bucket_path.exists():
+                return {"success": False, "error": "Bucket not found"}
+            
+            file_path = bucket_path / file_name
+            if not file_path.exists() or not file_path.is_file():
+                return {"success": False, "error": "File not found"}
+            
+            file_path.unlink()
+            return {"success": True, "message": f"File '{file_name}' deleted successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error deleting file: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _rename_file_in_bucket(self, bucket_name, old_name, new_name):
+        """Rename a file in a bucket."""
+        try:
+            bucket_path = self.data_dir / "buckets" / bucket_name
+            if not bucket_path.exists():
+                return {"success": False, "error": "Bucket not found"}
+            
+            old_file_path = bucket_path / old_name
+            if not old_file_path.exists() or not old_file_path.is_file():
+                return {"success": False, "error": "File not found"}
+            
+            new_file_path = bucket_path / new_name
+            if new_file_path.exists():
+                return {"success": False, "error": "A file with that name already exists"}
+            
+            old_file_path.rename(new_file_path)
+            return {"success": True, "message": f"File renamed from '{old_name}' to '{new_name}'"}
+            
+        except Exception as e:
+            logger.error(f"Error renaming file: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _update_bucket_settings(self, bucket_name, settings):
+        """Update bucket settings."""
+        try:
+            bucket_config_file = self.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
+            
+            # Load existing config or create new one
+            if bucket_config_file.exists():
+                with open(bucket_config_file, 'r') as f:
+                    config = yaml.safe_load(f) or {}
+            else:
+                config = {
+                    "name": bucket_name,
+                    "backend": "local",
+                    "created_at": datetime.now().isoformat()
+                }
+            
+            # Update settings
+            if "settings" not in config:
+                config["settings"] = {}
+            
+            config["settings"].update(settings)
+            config["updated_at"] = datetime.now().isoformat()
+            
+            # Update description if provided
+            if "description" in settings:
+                config["description"] = settings["description"]
+            
+            # Ensure config directory exists
+            bucket_config_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Save updated config
+            with open(bucket_config_file, 'w') as f:
+                yaml.dump(config, f)
+            
+            return {"success": True, "message": "Bucket settings updated successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error updating bucket settings: {e}")
+            return {"success": False, "error": str(e)}
 
     async def _add_pin(self, cid, name):
         """Add pin."""
