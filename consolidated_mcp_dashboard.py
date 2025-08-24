@@ -31,9 +31,10 @@ try:
 except Exception:
     yaml = None  # type: ignore
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends
-from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, UploadFile, File, Form
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+import mimetypes
 
 UTC = timezone.utc
 
@@ -849,6 +850,335 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(404, "Not found")
             _atomic_write_json(self.paths.buckets_file, new_items)
             return {"ok": True}
+
+        # ---- Enhanced Bucket File Management Endpoints ----
+        
+        @app.get("/api/buckets/{bucket_name}")
+        async def get_bucket_details(bucket_name: str) -> Dict[str, Any]:
+            """Get bucket details with file list and advanced settings."""
+            # Check if bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            bucket = None
+            for b in items:
+                if b.get("name") == bucket_name:
+                    bucket = b
+                    break
+            
+            if not bucket:
+                raise HTTPException(404, "Bucket not found")
+            
+            # Get bucket directory
+            bucket_path = self.paths.vfs_root / bucket_name
+            bucket_path.mkdir(parents=True, exist_ok=True)
+            
+            # List files in bucket
+            files = []
+            if bucket_path.exists():
+                for item in bucket_path.iterdir():
+                    stat_info = item.stat()
+                    files.append({
+                        "name": item.name,
+                        "path": str(item.relative_to(bucket_path)),
+                        "size": stat_info.st_size,
+                        "type": "directory" if item.is_dir() else "file",
+                        "mime_type": mimetypes.guess_type(item.name)[0] if item.is_file() else None,
+                        "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                        "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat()
+                    })
+            
+            # Calculate storage usage
+            total_size = sum(f["size"] for f in files if f["type"] == "file")
+            
+            # Load bucket config with advanced settings
+            bucket_config_path = self.paths.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
+            advanced_settings = {
+                "vector_search": False,
+                "knowledge_graph": False,
+                "search_index_type": "hnsw",
+                "storage_quota": None,
+                "max_files": None,
+                "cache_ttl": 3600,
+                "public_access": False
+            }
+            
+            if bucket_config_path.exists() and yaml:
+                try:
+                    with bucket_config_path.open('r') as f:
+                        config = yaml.safe_load(f) or {}
+                        settings = config.get("settings", {})
+                        advanced_settings.update(settings)
+                except Exception:
+                    pass
+            
+            return {
+                "bucket": bucket,
+                "files": sorted(files, key=lambda x: (x["type"] != "directory", x["name"].lower())),
+                "file_count": len([f for f in files if f["type"] == "file"]),
+                "folder_count": len([f for f in files if f["type"] == "directory"]),
+                "total_size": total_size,
+                "settings": advanced_settings
+            }
+
+        @app.get("/api/buckets/{bucket_name}/files")
+        async def list_bucket_files(bucket_name: str, path: str = "") -> Dict[str, Any]:
+            """List files in a specific bucket path."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            bucket_path = self.paths.vfs_root / bucket_name
+            if path:
+                bucket_path = bucket_path / path.lstrip('/')
+                
+            if not bucket_path.exists():
+                return {"files": []}
+                
+            files = []
+            for item in bucket_path.iterdir():
+                stat_info = item.stat()
+                files.append({
+                    "name": item.name,
+                    "path": str(item.relative_to(self.paths.vfs_root / bucket_name)),
+                    "size": stat_info.st_size,
+                    "type": "directory" if item.is_dir() else "file",
+                    "mime_type": mimetypes.guess_type(item.name)[0] if item.is_file() else None,
+                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat()
+                })
+            
+            return {"files": sorted(files, key=lambda x: (x["type"] != "directory", x["name"].lower()))}
+
+        @app.post("/api/buckets/{bucket_name}/upload")
+        async def upload_file_to_bucket(
+            bucket_name: str, 
+            file: UploadFile = File(...),
+            path: str = Form("")
+        ) -> Dict[str, Any]:
+            """Upload a file to a bucket."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            # Create bucket directory
+            bucket_path = self.paths.vfs_root / bucket_name
+            if path:
+                bucket_path = bucket_path / path.lstrip('/')
+            bucket_path.mkdir(parents=True, exist_ok=True)
+            
+            # Check file size limits (500MB default)
+            max_size = 500 * 1024 * 1024  # 500MB
+            content = await file.read()
+            if len(content) > max_size:
+                raise HTTPException(413, f"File too large. Maximum size: {max_size // (1024*1024)}MB")
+            
+            # Save file
+            file_path = bucket_path / file.filename
+            if file_path.exists():
+                raise HTTPException(409, f"File '{file.filename}' already exists")
+            
+            try:
+                with file_path.open('wb') as f:
+                    f.write(content)
+                
+                stat_info = file_path.stat()
+                return {
+                    "success": True,
+                    "file": {
+                        "name": file.filename,
+                        "path": str(file_path.relative_to(self.paths.vfs_root / bucket_name)),
+                        "size": stat_info.st_size,
+                        "mime_type": mimetypes.guess_type(file.filename)[0],
+                        "uploaded": datetime.now(UTC).isoformat()
+                    }
+                }
+            except Exception as e:
+                raise HTTPException(500, f"Failed to save file: {str(e)}")
+
+        @app.get("/api/buckets/{bucket_name}/download/{file_path:path}")
+        async def download_file_from_bucket(bucket_name: str, file_path: str):
+            """Download a file from a bucket."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            full_path = self.paths.vfs_root / bucket_name / file_path.lstrip('/')
+            if not full_path.exists() or not full_path.is_file():
+                raise HTTPException(404, "File not found")
+            
+            mime_type = mimetypes.guess_type(full_path)[0] or "application/octet-stream"
+            return FileResponse(
+                path=str(full_path),
+                filename=full_path.name,
+                media_type=mime_type
+            )
+
+        @app.delete("/api/buckets/{bucket_name}/files/{file_path:path}")
+        async def delete_file_from_bucket(bucket_name: str, file_path: str, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+            """Delete a file or directory from a bucket."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            full_path = self.paths.vfs_root / bucket_name / file_path.lstrip('/')
+            if not full_path.exists():
+                raise HTTPException(404, "File or directory not found")
+            
+            try:
+                if full_path.is_dir():
+                    shutil.rmtree(full_path)
+                else:
+                    full_path.unlink()
+                return {"success": True, "message": f"Deleted '{file_path}'"}
+            except Exception as e:
+                raise HTTPException(500, f"Failed to delete: {str(e)}")
+
+        @app.post("/api/buckets/{bucket_name}/files/{file_path:path}/rename")
+        async def rename_file_in_bucket(
+            bucket_name: str, 
+            file_path: str, 
+            new_name: str = Form(...),
+            _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
+            """Rename a file or directory in a bucket."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            old_path = self.paths.vfs_root / bucket_name / file_path.lstrip('/')
+            if not old_path.exists():
+                raise HTTPException(404, "File or directory not found")
+            
+            new_path = old_path.parent / new_name
+            if new_path.exists():
+                raise HTTPException(409, f"'{new_name}' already exists")
+            
+            try:
+                old_path.rename(new_path)
+                return {
+                    "success": True, 
+                    "old_name": old_path.name,
+                    "new_name": new_name,
+                    "path": str(new_path.relative_to(self.paths.vfs_root / bucket_name))
+                }
+            except Exception as e:
+                raise HTTPException(500, f"Failed to rename: {str(e)}")
+
+        @app.post("/api/buckets/{bucket_name}/files/{file_path:path}/move")
+        async def move_file_in_bucket(
+            bucket_name: str, 
+            file_path: str, 
+            destination: str = Form(...),
+            _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
+            """Move a file or directory to a different location within the bucket."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            bucket_base = self.paths.vfs_root / bucket_name
+            source_path = bucket_base / file_path.lstrip('/')
+            dest_path = bucket_base / destination.lstrip('/')
+            
+            if not source_path.exists():
+                raise HTTPException(404, "Source file or directory not found")
+            
+            # Create destination directory if needed
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            if dest_path.exists():
+                raise HTTPException(409, f"Destination '{destination}' already exists")
+            
+            try:
+                source_path.rename(dest_path)
+                return {
+                    "success": True,
+                    "source": file_path,
+                    "destination": destination,
+                    "new_path": str(dest_path.relative_to(bucket_base))
+                }
+            except Exception as e:
+                raise HTTPException(500, f"Failed to move: {str(e)}")
+
+        @app.put("/api/buckets/{bucket_name}/settings")
+        async def update_bucket_settings(
+            bucket_name: str, 
+            settings: Dict[str, Any],
+            _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
+            """Update advanced bucket settings including vector search and knowledge graph."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            bucket_found = False
+            for b in items:
+                if b.get("name") == bucket_name:
+                    bucket_found = True
+                    break
+            
+            if not bucket_found:
+                raise HTTPException(404, "Bucket not found")
+            
+            # Update bucket config file
+            bucket_config_path = self.paths.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
+            bucket_config_path.parent.mkdir(exist_ok=True)
+            
+            config = {"name": bucket_name, "settings": {}}
+            if bucket_config_path.exists() and yaml:
+                try:
+                    with bucket_config_path.open('r') as f:
+                        config = yaml.safe_load(f) or config
+                except Exception:
+                    pass
+            
+            # Update settings
+            current_settings = config.get("settings", {})
+            current_settings.update(settings)
+            config["settings"] = current_settings
+            
+            # Save config
+            if yaml:
+                try:
+                    with bucket_config_path.open('w') as f:
+                        yaml.safe_dump(config, f)
+                except Exception as e:
+                    raise HTTPException(500, f"Failed to save bucket config: {str(e)}")
+            
+            return {"success": True, "settings": current_settings}
+
+        @app.get("/api/buckets/{bucket_name}/settings")
+        async def get_bucket_settings(bucket_name: str) -> Dict[str, Any]:
+            """Get advanced bucket settings."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            bucket_config_path = self.paths.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
+            settings = {
+                "vector_search": False,
+                "knowledge_graph": False,
+                "search_index_type": "hnsw",
+                "storage_quota": None,
+                "max_files": None,
+                "cache_ttl": 3600,
+                "public_access": False
+            }
+            
+            if bucket_config_path.exists() and yaml:
+                try:
+                    with bucket_config_path.open('r') as f:
+                        config = yaml.safe_load(f) or {}
+                        settings.update(config.get("settings", {}))
+                except Exception:
+                    pass
+            
+            return {"settings": settings}
+
+        # ---- End Enhanced Bucket File Management ----
 
         # Pins
         @app.get("/api/pins")
