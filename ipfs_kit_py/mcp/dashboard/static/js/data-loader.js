@@ -133,56 +133,253 @@ async function loadServices() {
         const data = await response.json();
         const servicesList = document.getElementById('services-list');
         const totalBadge = document.getElementById('services-total-badge');
+        
+        // Update summary counts
+        const summary = data.summary || {};
+        document.getElementById('services-running-count').textContent = summary.running || 0;
+        document.getElementById('services-stopped-count').textContent = summary.stopped || 0;
+        document.getElementById('services-configured-count').textContent = summary.configured || 0;
+        document.getElementById('services-error-count').textContent = summary.error || 0;
+        
+        const services = data.services || [];
+        totalBadge.textContent = services.length;
         servicesList.innerHTML = '';
-        
-        // Convert services object to array format
-        const services = data.services || {};
-        const servicesArray = Object.entries(services).map(([name, service]) => ({
-            name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize first letter
-            status: service.status || 'unknown',
-            description: `${name.charAt(0).toUpperCase() + name.slice(1)} service`
-        }));
-        
-        totalBadge.textContent = servicesArray.length;
 
-        if (servicesArray.length > 0) {
-            servicesArray.forEach(service => {
-                let statusClass = 'bg-gray-500';
-                let statusIcon = 'fa-question-circle';
-                if (service.status === 'running') {
-                    statusClass = 'bg-green-500';
-                    statusIcon = 'fa-check-circle';
-                } else if (service.status === 'stopped' || service.status === 'error') {
-                    statusClass = 'bg-red-500';
-                    statusIcon = 'fa-times-circle';
-                } else if (service.status === 'configured' || service.status === 'available') {
-                    statusClass = 'bg-blue-500';
-                    statusIcon = 'fa-cog';
-                }
+        if (services.length > 0) {
+            services.forEach(service => {
+                const statusConfig = getServiceStatusConfig(service.status);
+                const actions = service.actions || [];
+                
+                // Create action buttons
+                const actionButtons = actions.map(action => {
+                    const actionConfig = getActionConfig(action);
+                    return `
+                        <button onclick="performServiceAction('${service.id}', '${action}')" 
+                                class="px-3 py-1 text-sm font-medium rounded-lg ${actionConfig.class} hover:opacity-80 transition-opacity"
+                                title="${actionConfig.title}">
+                            <i class="fas ${actionConfig.icon} mr-1"></i>
+                            ${actionConfig.label}
+                        </button>
+                    `;
+                }).join(' ');
 
-                const item = `
-                    <div class="service-item p-6 rounded-xl flex items-center justify-between">
-                        <div>
-                            <h4 class="text-lg font-semibold text-gray-800">${service.name}</h4>
-                            <p class="text-sm text-gray-600">${service.description}</p>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <span class="text-sm font-medium text-gray-500">${service.type}</span>
-                            <div class="flex items-center px-3 py-1 rounded-full text-white text-sm font-medium ${statusClass}">
-                                <i class="fas ${statusIcon} mr-2"></i>
-                                <span>${service.status}</span>
+                const serviceCard = `
+                    <div class="service-card bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-grow">
+                                <div class="flex items-center mb-2">
+                                    <div class="p-2 rounded-lg ${statusConfig.bgClass} mr-3">
+                                        <i class="fas ${getServiceTypeIcon(service.type)} text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-lg font-semibold text-gray-800">${service.name}</h4>
+                                        <p class="text-sm text-gray-500">${service.type}</p>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-3">${service.description}</p>
+                                
+                                <!-- Service Details -->
+                                <div class="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
+                                    ${service.port ? `<div><span class="font-medium">Port:</span> ${service.port}</div>` : ''}
+                                    ${service.last_check ? `<div><span class="font-medium">Last Check:</span> ${formatTimestamp(service.last_check)}</div>` : ''}
+                                    ${service.requires_credentials ? `<div><span class="font-medium">Credentials:</span> Required</div>` : ''}
+                                </div>
+                            </div>
+                            
+                            <!-- Status and Actions -->
+                            <div class="flex flex-col items-end space-y-3">
+                                <div class="flex items-center px-3 py-2 rounded-full text-white text-sm font-medium ${statusConfig.badgeClass}">
+                                    <i class="fas ${statusConfig.icon} mr-2"></i>
+                                    <span>${service.status}</span>
+                                </div>
+                                
+                                ${actionButtons.length > 0 ? `
+                                    <div class="flex flex-wrap gap-2 justify-end">
+                                        ${actionButtons}
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
+                        
+                        <!-- Service Details Toggle -->
+                        ${service.details && Object.keys(service.details).length > 0 ? `
+                            <div class="mt-4 pt-4 border-t border-gray-200">
+                                <button onclick="toggleServiceDetails('${service.id}')" class="text-sm text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-chevron-down mr-1" id="details-icon-${service.id}"></i>
+                                    View Details
+                                </button>
+                                <div id="service-details-${service.id}" class="hidden mt-3 p-3 bg-gray-50 rounded-lg">
+                                    <pre class="text-xs text-gray-700">${JSON.stringify(service.details, null, 2)}</pre>
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
-                servicesList.innerHTML += item;
+                servicesList.innerHTML += serviceCard;
             });
         } else {
-            servicesList.innerHTML = '<p class="text-center text-gray-500">No services found.</p>';
+            servicesList.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+                        <i class="fas fa-cogs text-2xl text-gray-400"></i>
+                    </div>
+                    <p class="text-gray-500 font-medium">No services available</p>
+                    <p class="text-gray-400 text-sm mt-2">Enable services in configuration to get started</p>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error loading services:', error);
-        document.getElementById('services-list').innerHTML = '<p class="text-red-500">Failed to load services.</p>';
+        document.getElementById('services-list').innerHTML = `
+            <div class="text-center py-12">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+                    <i class="fas fa-exclamation-triangle text-2xl text-red-500"></i>
+                </div>
+                <p class="text-red-500 font-medium">Failed to load services</p>
+                <p class="text-gray-500 text-sm mt-2">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function getServiceStatusConfig(status) {
+    switch (status) {
+        case 'running':
+            return { bgClass: 'bg-green-500', badgeClass: 'bg-green-500', icon: 'fa-check-circle' };
+        case 'stopped':
+            return { bgClass: 'bg-red-500', badgeClass: 'bg-red-500', icon: 'fa-stop-circle' };
+        case 'configured':
+            return { bgClass: 'bg-blue-500', badgeClass: 'bg-blue-500', icon: 'fa-cog' };
+        case 'error':
+            return { bgClass: 'bg-red-600', badgeClass: 'bg-red-600', icon: 'fa-exclamation-triangle' };
+        case 'starting':
+            return { bgClass: 'bg-yellow-500', badgeClass: 'bg-yellow-500', icon: 'fa-spinner fa-spin' };
+        case 'stopping':
+            return { bgClass: 'bg-orange-500', badgeClass: 'bg-orange-500', icon: 'fa-spinner fa-spin' };
+        default:
+            return { bgClass: 'bg-gray-500', badgeClass: 'bg-gray-500', icon: 'fa-question-circle' };
+    }
+}
+
+function getServiceTypeIcon(type) {
+    switch (type) {
+        case 'daemon':
+            return 'fa-server';
+        case 'storage':
+            return 'fa-database';
+        case 'network':
+            return 'fa-network-wired';
+        case 'credential':
+            return 'fa-key';
+        default:
+            return 'fa-cog';
+    }
+}
+
+function getActionConfig(action) {
+    switch (action) {
+        case 'start':
+            return { class: 'bg-green-500 text-white', icon: 'fa-play', label: 'Start', title: 'Start service' };
+        case 'stop':
+            return { class: 'bg-red-500 text-white', icon: 'fa-stop', label: 'Stop', title: 'Stop service' };
+        case 'restart':
+            return { class: 'bg-orange-500 text-white', icon: 'fa-redo', label: 'Restart', title: 'Restart service' };
+        case 'configure':
+            return { class: 'bg-blue-500 text-white', icon: 'fa-cog', label: 'Configure', title: 'Configure service' };
+        case 'health_check':
+            return { class: 'bg-purple-500 text-white', icon: 'fa-heartbeat', label: 'Health', title: 'Check health' };
+        case 'view_logs':
+            return { class: 'bg-gray-500 text-white', icon: 'fa-file-alt', label: 'Logs', title: 'View logs' };
+        default:
+            return { class: 'bg-gray-400 text-white', icon: 'fa-question', label: action, title: action };
+    }
+}
+
+async function performServiceAction(serviceId, action) {
+    try {
+        // Show loading state
+        const actionButtons = document.querySelectorAll(`[onclick*="${serviceId}"]`);
+        actionButtons.forEach(btn => {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Working...';
+        });
+
+        const response = await fetch(`/api/services/${serviceId}/action`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ action: action })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showNotification(`${action} completed successfully`, 'success');
+            // Reload services to show updated status
+            setTimeout(() => loadServices(), 1000);
+        } else {
+            showNotification(`Failed to ${action}: ${result.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error performing service action:', error);
+        showNotification(`Error performing ${action}: ${error.message}`, 'error');
+    } finally {
+        // Restore button states
+        setTimeout(() => loadServices(), 500);
+    }
+}
+
+function toggleServiceDetails(serviceId) {
+    const detailsDiv = document.getElementById(`service-details-${serviceId}`);
+    const icon = document.getElementById(`details-icon-${serviceId}`);
+    
+    if (detailsDiv.classList.contains('hidden')) {
+        detailsDiv.classList.remove('hidden');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+    } else {
+        detailsDiv.classList.add('hidden');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+        type === 'success' ? 'bg-green-500 text-white' :
+        type === 'error' ? 'bg-red-500 text-white' :
+        'bg-blue-500 text-white'
+    }`;
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas ${
+                type === 'success' ? 'fa-check-circle' :
+                type === 'error' ? 'fa-exclamation-triangle' :
+                'fa-info-circle'
+            } mr-2"></i>
+            ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Remove notification after 3 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => document.body.removeChild(notification), 300);
+    }, 3000);
+}
+
+function formatTimestamp(timestamp) {
+    try {
+        const date = new Date(timestamp);
+        return date.toLocaleString();
+    } catch (error) {
+        return timestamp;
     }
 }
 

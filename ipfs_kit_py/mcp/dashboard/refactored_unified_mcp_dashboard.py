@@ -365,6 +365,77 @@ class RefactoredUnifiedMCPDashboard:
             """Get services status."""
             return await self._get_services_data()
         
+        @self.app.post("/api/services/{service_id}/action")
+        async def api_service_action(service_id: str, request: Request):
+            """Perform an action on a service."""
+            try:
+                body = await request.json()
+                action = body.get("action")
+                params = body.get("params", {})
+                
+                if not hasattr(self, '_service_manager'):
+                    from ..services.comprehensive_service_manager import ComprehensiveServiceManager
+                    self._service_manager = ComprehensiveServiceManager(self.data_dir)
+                
+                result = await self._service_manager.perform_service_action(service_id, action, params)
+                
+                # Refresh services cache after action
+                await self._update_services_cache()
+                
+                return result
+            except Exception as e:
+                logger.error(f"Error performing service action: {e}")
+                return {"success": False, "error": str(e)}
+        
+        @self.app.get("/api/services/{service_id}")
+        async def api_service_details(service_id: str):
+            """Get detailed information about a specific service."""
+            try:
+                if not hasattr(self, '_service_manager'):
+                    from ..services.comprehensive_service_manager import ComprehensiveServiceManager
+                    self._service_manager = ComprehensiveServiceManager(self.data_dir)
+                
+                return await self._service_manager.get_service_details(service_id)
+            except Exception as e:
+                logger.error(f"Error getting service details: {e}")
+                return {"error": str(e)}
+        
+        @self.app.post("/api/services/{service_id}/enable")
+        async def api_enable_service(service_id: str):
+            """Enable a service."""
+            try:
+                if not hasattr(self, '_service_manager'):
+                    from ..services.comprehensive_service_manager import ComprehensiveServiceManager
+                    self._service_manager = ComprehensiveServiceManager(self.data_dir)
+                
+                result = self._service_manager.enable_service(service_id)
+                
+                # Refresh services cache
+                await self._update_services_cache()
+                
+                return result
+            except Exception as e:
+                logger.error(f"Error enabling service: {e}")
+                return {"success": False, "error": str(e)}
+        
+        @self.app.post("/api/services/{service_id}/disable")
+        async def api_disable_service(service_id: str):
+            """Disable a service."""
+            try:
+                if not hasattr(self, '_service_manager'):
+                    from ..services.comprehensive_service_manager import ComprehensiveServiceManager
+                    self._service_manager = ComprehensiveServiceManager(self.data_dir)
+                
+                result = self._service_manager.disable_service(service_id)
+                
+                # Refresh services cache
+                await self._update_services_cache()
+                
+                return result
+            except Exception as e:
+                logger.error(f"Error disabling service: {e}")
+                return {"success": False, "error": str(e)}
+        
         @self.app.get("/api/services/test")
         async def api_services_test():
             """Test services endpoint with simple data."""
@@ -636,20 +707,35 @@ class RefactoredUnifiedMCPDashboard:
 
     async def _update_services_cache(self):
         """Update services cache."""
-        services = []
-        
-        # Mock services for demonstration
-        services.append({
-            "name": "IPFS Daemon",
-            "type": "core_service",
-            "status": (await self._get_daemon_status()).get("status", "unknown"),
-            "description": "Core IPFS daemon for distributed storage"
-        })
-        
-        self.services_cache = {
-            "services": services,
-            "summary": {"total": len(services)}
-        }
+        try:
+            # Use the comprehensive service manager
+            if not hasattr(self, '_service_manager'):
+                from ..services.comprehensive_service_manager import ComprehensiveServiceManager
+                self._service_manager = ComprehensiveServiceManager(self.data_dir)
+            
+            # Get all services from the comprehensive manager
+            services_data = await self._service_manager.list_services()
+            self.services_cache = services_data
+            
+        except Exception as e:
+            logger.error(f"Error updating services cache: {e}")
+            # Fallback to basic service data
+            services = [
+                {
+                    "id": "ipfs",
+                    "name": "IPFS Daemon",
+                    "type": "daemon",
+                    "status": (await self._get_daemon_status()).get("status", "unknown"),
+                    "description": "Core IPFS daemon for distributed storage",
+                    "actions": ["start", "stop", "configure"]
+                }
+            ]
+            
+            self.services_cache = {
+                "services": services,
+                "total": len(services),
+                "summary": {"total": len(services)}
+            }
     
     async def _update_pins_cache(self):
         """Update pins cache."""
