@@ -403,12 +403,24 @@
             <!-- Buckets Tab -->
             <div id="buckets-tab" class="tab-content">
                 <div class="card p-8 rounded-2xl">
-                    <h3 class="text-2xl font-bold mb-6 flex items-center">
-                        <div class="p-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 mr-4">
-                            <i class="fas fa-folder text-white"></i>
-                        </div>
-                        Buckets
-                    </h3>
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-bold flex items-center">
+                            <div class="p-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 mr-4">
+                                <i class="fas fa-folder text-white"></i>
+                            </div>
+                            Bucket Management
+                        </h3>
+                        <button onclick="createBucket()" class="btn-primary px-6 py-3 rounded-lg font-semibold flex items-center hover:shadow-lg transition-shadow">
+                            <i class="fas fa-plus mr-2"></i>
+                            Create Bucket
+                        </button>
+                    </div>
+                    <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p class="text-sm text-blue-700">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>MCP SDK Integration:</strong> All bucket operations use the MCP JavaScript SDK, which reads/writes from ~/.ipfs_kit/ folder first before calling the ipfs_kit_py package.
+                        </p>
+                    </div>
                     <div id="buckets-list">
                         <!-- Buckets will be loaded here -->
                     </div>
@@ -511,6 +523,9 @@
         </div>
     </div>
 
+    <!-- MCP Client SDK -->
+    <script src="/mcp-client.js"></script>
+    
     <!-- JavaScript imports -->
     <script src="{{ url_for('static', path='/js/dashboard-core.js') }}"></script>
     <script src="{{ url_for('static', path='/js/data-loader.js') }}"></script>

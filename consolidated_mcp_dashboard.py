@@ -31,9 +31,10 @@ try:
 except Exception:
     yaml = None  # type: ignore
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends
-from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, UploadFile, File, Form
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+import mimetypes
 
 UTC = timezone.utc
 
@@ -1205,6 +1206,335 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(404, "Not found")
             _atomic_write_json(self.paths.buckets_file, new_items)
             return {"ok": True}
+
+        # ---- Enhanced Bucket File Management Endpoints ----
+        
+        @app.get("/api/buckets/{bucket_name}")
+        async def get_bucket_details(bucket_name: str) -> Dict[str, Any]:
+            """Get bucket details with file list and advanced settings."""
+            # Check if bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            bucket = None
+            for b in items:
+                if b.get("name") == bucket_name:
+                    bucket = b
+                    break
+            
+            if not bucket:
+                raise HTTPException(404, "Bucket not found")
+            
+            # Get bucket directory
+            bucket_path = self.paths.vfs_root / bucket_name
+            bucket_path.mkdir(parents=True, exist_ok=True)
+            
+            # List files in bucket
+            files = []
+            if bucket_path.exists():
+                for item in bucket_path.iterdir():
+                    stat_info = item.stat()
+                    files.append({
+                        "name": item.name,
+                        "path": str(item.relative_to(bucket_path)),
+                        "size": stat_info.st_size,
+                        "type": "directory" if item.is_dir() else "file",
+                        "mime_type": mimetypes.guess_type(item.name)[0] if item.is_file() else None,
+                        "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                        "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat()
+                    })
+            
+            # Calculate storage usage
+            total_size = sum(f["size"] for f in files if f["type"] == "file")
+            
+            # Load bucket config with advanced settings
+            bucket_config_path = self.paths.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
+            advanced_settings = {
+                "vector_search": False,
+                "knowledge_graph": False,
+                "search_index_type": "hnsw",
+                "storage_quota": None,
+                "max_files": None,
+                "cache_ttl": 3600,
+                "public_access": False
+            }
+            
+            if bucket_config_path.exists() and yaml:
+                try:
+                    with bucket_config_path.open('r') as f:
+                        config = yaml.safe_load(f) or {}
+                        settings = config.get("settings", {})
+                        advanced_settings.update(settings)
+                except Exception:
+                    pass
+            
+            return {
+                "bucket": bucket,
+                "files": sorted(files, key=lambda x: (x["type"] != "directory", x["name"].lower())),
+                "file_count": len([f for f in files if f["type"] == "file"]),
+                "folder_count": len([f for f in files if f["type"] == "directory"]),
+                "total_size": total_size,
+                "settings": advanced_settings
+            }
+
+        @app.get("/api/buckets/{bucket_name}/files")
+        async def list_bucket_files(bucket_name: str, path: str = "") -> Dict[str, Any]:
+            """List files in a specific bucket path."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            bucket_path = self.paths.vfs_root / bucket_name
+            if path:
+                bucket_path = bucket_path / path.lstrip('/')
+                
+            if not bucket_path.exists():
+                return {"files": []}
+                
+            files = []
+            for item in bucket_path.iterdir():
+                stat_info = item.stat()
+                files.append({
+                    "name": item.name,
+                    "path": str(item.relative_to(self.paths.vfs_root / bucket_name)),
+                    "size": stat_info.st_size,
+                    "type": "directory" if item.is_dir() else "file",
+                    "mime_type": mimetypes.guess_type(item.name)[0] if item.is_file() else None,
+                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat()
+                })
+            
+            return {"files": sorted(files, key=lambda x: (x["type"] != "directory", x["name"].lower()))}
+
+        @app.post("/api/buckets/{bucket_name}/upload")
+        async def upload_file_to_bucket(
+            bucket_name: str, 
+            file: UploadFile = File(...),
+            path: str = Form("")
+        ) -> Dict[str, Any]:
+            """Upload a file to a bucket."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            # Create bucket directory
+            bucket_path = self.paths.vfs_root / bucket_name
+            if path:
+                bucket_path = bucket_path / path.lstrip('/')
+            bucket_path.mkdir(parents=True, exist_ok=True)
+            
+            # Check file size limits (500MB default)
+            max_size = 500 * 1024 * 1024  # 500MB
+            content = await file.read()
+            if len(content) > max_size:
+                raise HTTPException(413, f"File too large. Maximum size: {max_size // (1024*1024)}MB")
+            
+            # Save file
+            file_path = bucket_path / file.filename
+            if file_path.exists():
+                raise HTTPException(409, f"File '{file.filename}' already exists")
+            
+            try:
+                with file_path.open('wb') as f:
+                    f.write(content)
+                
+                stat_info = file_path.stat()
+                return {
+                    "success": True,
+                    "file": {
+                        "name": file.filename,
+                        "path": str(file_path.relative_to(self.paths.vfs_root / bucket_name)),
+                        "size": stat_info.st_size,
+                        "mime_type": mimetypes.guess_type(file.filename)[0],
+                        "uploaded": datetime.now(UTC).isoformat()
+                    }
+                }
+            except Exception as e:
+                raise HTTPException(500, f"Failed to save file: {str(e)}")
+
+        @app.get("/api/buckets/{bucket_name}/download/{file_path:path}")
+        async def download_file_from_bucket(bucket_name: str, file_path: str):
+            """Download a file from a bucket."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            full_path = self.paths.vfs_root / bucket_name / file_path.lstrip('/')
+            if not full_path.exists() or not full_path.is_file():
+                raise HTTPException(404, "File not found")
+            
+            mime_type = mimetypes.guess_type(full_path)[0] or "application/octet-stream"
+            return FileResponse(
+                path=str(full_path),
+                filename=full_path.name,
+                media_type=mime_type
+            )
+
+        @app.delete("/api/buckets/{bucket_name}/files/{file_path:path}")
+        async def delete_file_from_bucket(bucket_name: str, file_path: str, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+            """Delete a file or directory from a bucket."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            full_path = self.paths.vfs_root / bucket_name / file_path.lstrip('/')
+            if not full_path.exists():
+                raise HTTPException(404, "File or directory not found")
+            
+            try:
+                if full_path.is_dir():
+                    shutil.rmtree(full_path)
+                else:
+                    full_path.unlink()
+                return {"success": True, "message": f"Deleted '{file_path}'"}
+            except Exception as e:
+                raise HTTPException(500, f"Failed to delete: {str(e)}")
+
+        @app.post("/api/buckets/{bucket_name}/files/{file_path:path}/rename")
+        async def rename_file_in_bucket(
+            bucket_name: str, 
+            file_path: str, 
+            new_name: str = Form(...),
+            _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
+            """Rename a file or directory in a bucket."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            old_path = self.paths.vfs_root / bucket_name / file_path.lstrip('/')
+            if not old_path.exists():
+                raise HTTPException(404, "File or directory not found")
+            
+            new_path = old_path.parent / new_name
+            if new_path.exists():
+                raise HTTPException(409, f"'{new_name}' already exists")
+            
+            try:
+                old_path.rename(new_path)
+                return {
+                    "success": True, 
+                    "old_name": old_path.name,
+                    "new_name": new_name,
+                    "path": str(new_path.relative_to(self.paths.vfs_root / bucket_name))
+                }
+            except Exception as e:
+                raise HTTPException(500, f"Failed to rename: {str(e)}")
+
+        @app.post("/api/buckets/{bucket_name}/files/{file_path:path}/move")
+        async def move_file_in_bucket(
+            bucket_name: str, 
+            file_path: str, 
+            destination: str = Form(...),
+            _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
+            """Move a file or directory to a different location within the bucket."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            bucket_base = self.paths.vfs_root / bucket_name
+            source_path = bucket_base / file_path.lstrip('/')
+            dest_path = bucket_base / destination.lstrip('/')
+            
+            if not source_path.exists():
+                raise HTTPException(404, "Source file or directory not found")
+            
+            # Create destination directory if needed
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            if dest_path.exists():
+                raise HTTPException(409, f"Destination '{destination}' already exists")
+            
+            try:
+                source_path.rename(dest_path)
+                return {
+                    "success": True,
+                    "source": file_path,
+                    "destination": destination,
+                    "new_path": str(dest_path.relative_to(bucket_base))
+                }
+            except Exception as e:
+                raise HTTPException(500, f"Failed to move: {str(e)}")
+
+        @app.put("/api/buckets/{bucket_name}/settings")
+        async def update_bucket_settings(
+            bucket_name: str, 
+            settings: Dict[str, Any],
+            _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
+            """Update advanced bucket settings including vector search and knowledge graph."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            bucket_found = False
+            for b in items:
+                if b.get("name") == bucket_name:
+                    bucket_found = True
+                    break
+            
+            if not bucket_found:
+                raise HTTPException(404, "Bucket not found")
+            
+            # Update bucket config file
+            bucket_config_path = self.paths.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
+            bucket_config_path.parent.mkdir(exist_ok=True)
+            
+            config = {"name": bucket_name, "settings": {}}
+            if bucket_config_path.exists() and yaml:
+                try:
+                    with bucket_config_path.open('r') as f:
+                        config = yaml.safe_load(f) or config
+                except Exception:
+                    pass
+            
+            # Update settings
+            current_settings = config.get("settings", {})
+            current_settings.update(settings)
+            config["settings"] = current_settings
+            
+            # Save config
+            if yaml:
+                try:
+                    with bucket_config_path.open('w') as f:
+                        yaml.safe_dump(config, f)
+                except Exception as e:
+                    raise HTTPException(500, f"Failed to save bucket config: {str(e)}")
+            
+            return {"success": True, "settings": current_settings}
+
+        @app.get("/api/buckets/{bucket_name}/settings")
+        async def get_bucket_settings(bucket_name: str) -> Dict[str, Any]:
+            """Get advanced bucket settings."""
+            # Verify bucket exists
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            if not any(b.get("name") == bucket_name for b in items):
+                raise HTTPException(404, "Bucket not found")
+            
+            bucket_config_path = self.paths.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
+            settings = {
+                "vector_search": False,
+                "knowledge_graph": False,
+                "search_index_type": "hnsw",
+                "storage_quota": None,
+                "max_files": None,
+                "cache_ttl": 3600,
+                "public_access": False
+            }
+            
+            if bucket_config_path.exists() and yaml:
+                try:
+                    with bucket_config_path.open('r') as f:
+                        config = yaml.safe_load(f) or {}
+                        settings.update(config.get("settings", {}))
+                except Exception:
+                    pass
+            
+            return {"settings": settings}
+
+        # ---- End Enhanced Bucket File Management ----
 
         # Pins
         @app.get("/api/pins")
@@ -2778,39 +3108,427 @@ class ConsolidatedMCPDashboard:
             default: return '#607D8B';        // Blue-grey for standard
         }
     }
+
+    // ---- Enhanced Bucket Management Helper Functions ----
+    
+    // Helper functions for enhanced bucket management
+    function createModal(title, contentCallback) {
+        // Remove existing modal if any
+        const existingModal = document.getElementById('bucket-modal');
+        if (existingModal) existingModal.remove();
+        
+        const modal = document.createElement('div');
+        modal.id = 'bucket-modal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); z-index: 1000; display: flex; 
+            align-items: center; justify-content: center;
+        `;
+        
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: #1a1a1a; border: 1px solid #333; border-radius: 8px; 
+            padding: 20px; max-width: 90%; max-height: 90%; overflow-y: auto;
+            color: white; font-family: system-ui, Arial, sans-serif;
+        `;
+        
+        const header = document.createElement('div');
+        header.style.cssText = `
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;
+        `;
+        header.innerHTML = `
+            <h3 style="margin: 0; color: white;">${title}</h3>
+            <button onclick="document.getElementById('bucket-modal').remove()" 
+                    style="background: #555; color: white; border: none; padding: 5px 10px; 
+                           border-radius: 4px; cursor: pointer;">×</button>
+        `;
+        
+        const body = document.createElement('div');
+        modalContent.appendChild(header);
+        modalContent.appendChild(body);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+        
+        // Execute content callback
+        if (contentCallback) contentCallback(body);
+        
+        return modal;
+    }
+
+    // Enhanced bucket details view
+    function showBucketDetails(bucketName) {
+        const modal = createModal('Bucket File Manager: ' + bucketName, async (modalBody) => {
+            modalBody.innerHTML = '<div style="text-align:center;padding:20px;">Loading bucket contents...</div>';
+            
+            try {
+                const response = await fetch('/api/buckets/' + encodeURIComponent(bucketName));
+                const data = await response.json();
+                
+                modalBody.innerHTML = `
+                    <div style="margin-bottom:15px;padding:10px;background:#0a0a0a;border-radius:5px;">
+                        <strong>Bucket:</strong> ${bucketName} (${data.bucket.backend})<br>
+                        <strong>Files:</strong> ${data.file_count} | <strong>Folders:</strong> ${data.folder_count} | 
+                        <strong>Storage:</strong> ${formatBytes(data.total_size)}<br>
+                        <strong>Advanced:</strong> 
+                        ${data.settings.vector_search ? '🔍 Vector Search' : ''} 
+                        ${data.settings.knowledge_graph ? '🧠 Knowledge Graph' : ''}
+                        ${data.settings.storage_quota ? '📏 Quota: ' + formatBytes(data.settings.storage_quota) : ''}
+                    </div>
+                    
+                    <div style="margin-bottom:10px;">
+                        <input type="file" id="upload-${bucketName}" multiple style="display:none;">
+                        <button onclick="document.getElementById('upload-${bucketName}').click()" 
+                                style="background:#2a5cb8;color:white;padding:6px 12px;border:none;border-radius:4px;cursor:pointer;">
+                            📤 Upload Files
+                        </button>
+                        <button onclick="refreshBucketFiles('${bucketName}')" 
+                                style="background:#555;color:white;padding:6px 12px;border:none;border-radius:4px;cursor:pointer;margin-left:5px;">
+                            🔄 Refresh
+                        </button>
+                    </div>
+                    
+                    <div id="file-list-${bucketName}" style="max-height:400px;overflow-y:auto;border:1px solid #333;padding:5px;background:#0f0f0f;">
+                        ${data.files.length === 0 ? 
+                            '<div style="text-align:center;padding:20px;color:#888;">No files in this bucket</div>' :
+                            data.files.map(file => `
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px;border-bottom:1px solid #222;">
+                                    <span>
+                                        ${file.type === 'directory' ? '📁' : '📄'} 
+                                        ${file.name} 
+                                        <small style="color:#666;">(${formatBytes(file.size)})</small>
+                                    </span>
+                                    <span>
+                                        ${file.type === 'file' ? `<button onclick="downloadFile('${bucketName}','${file.path}')" style="background:#2a5cb8;color:white;border:none;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:10px;">⬇</button>` : ''}
+                                        <button onclick="deleteFile('${bucketName}','${file.path}')" style="background:#b52a2a;color:white;border:none;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:10px;">🗑</button>
+                                    </span>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                `;
+                
+                // Setup file upload handler
+                const fileInput = document.getElementById('upload-' + bucketName);
+                if (fileInput) {
+                    fileInput.onchange = (e) => uploadFiles(bucketName, e.target.files);
+                }
+                
+            } catch (e) {
+                modalBody.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Error loading bucket details: ' + e.message + '</div>';
+            }
+        });
+    }
+
+    // Enhanced bucket settings modal
+    function showBucketSettings(bucketName) {
+        const modal = createModal('Bucket Settings: ' + bucketName, async (modalBody) => {
+            modalBody.innerHTML = '<div style="text-align:center;padding:20px;">Loading settings...</div>';
+            
+            try {
+                const response = await fetch('/api/buckets/' + encodeURIComponent(bucketName) + '/settings');
+                const data = await response.json();
+                const settings = data.settings || {};
+                
+                modalBody.innerHTML = `
+                    <div style="display:grid;gap:15px;">
+                        <div>
+                            <h4>Search & Indexing</h4>
+                            <label style="display:block;margin:5px 0;">
+                                <input type="checkbox" id="vector_search" ${settings.vector_search ? 'checked' : ''}> 
+                                Vector Search (enables semantic similarity search)
+                            </label>
+                            <label style="display:block;margin:5px 0;">
+                                <input type="checkbox" id="knowledge_graph" ${settings.knowledge_graph ? 'checked' : ''}> 
+                                Knowledge Graph (enables relationship mapping)
+                            </label>
+                            <label style="display:block;margin:5px 0;">
+                                Search Index Type: 
+                                <select id="search_index_type" style="margin-left:5px;">
+                                    <option value="hnsw" ${settings.search_index_type === 'hnsw' ? 'selected' : ''}>HNSW (Fast)</option>
+                                    <option value="ivf" ${settings.search_index_type === 'ivf' ? 'selected' : ''}>IVF (Balanced)</option>
+                                    <option value="flat" ${settings.search_index_type === 'flat' ? 'selected' : ''}>Flat (Accurate)</option>
+                                </select>
+                            </label>
+                        </div>
+                        
+                        <div>
+                            <h4>Storage & Performance</h4>
+                            <label style="display:block;margin:5px 0;">
+                                Storage Quota (bytes): 
+                                <input type="number" id="storage_quota" value="${settings.storage_quota || ''}" placeholder="No limit" style="width:120px;margin-left:5px;">
+                            </label>
+                            <label style="display:block;margin:5px 0;">
+                                Max Files: 
+                                <input type="number" id="max_files" value="${settings.max_files || ''}" placeholder="No limit" style="width:120px;margin-left:5px;">
+                            </label>
+                            <label style="display:block;margin:5px 0;">
+                                Cache TTL (seconds): 
+                                <input type="number" id="cache_ttl" value="${settings.cache_ttl || 3600}" style="width:120px;margin-left:5px;">
+                            </label>
+                        </div>
+                        
+                        <div>
+                            <h4>Access & Security</h4>
+                            <label style="display:block;margin:5px 0;">
+                                <input type="checkbox" id="public_access" ${settings.public_access ? 'checked' : ''}> 
+                                Public Access (allow anonymous downloads)
+                            </label>
+                        </div>
+                        
+                        <div style="text-align:center;margin-top:20px;">
+                            <button onclick="saveBucketSettings('${bucketName}')" 
+                                    style="background:#2a5cb8;color:white;padding:8px 20px;border:none;border-radius:4px;cursor:pointer;">
+                                💾 Save Settings
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (e) {
+                modalBody.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Error loading settings: ' + e.message + '</div>';
+            }
+        });
+    }
+
+    async function uploadFiles(bucketName, files) {
+        if (!files || files.length === 0) return;
+        
+        const results = [];
+        for (const file of files) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch(`/api/buckets/${encodeURIComponent(bucketName)}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    results.push({success: true, file: result.file});
+                } else {
+                    results.push({success: false, error: await response.text()});
+                }
+            } catch (e) {
+                results.push({success: false, error: e.message});
+            }
+        }
+        
+        // Refresh the file list
+        refreshBucketFiles(bucketName);
+        
+        // Show results
+        const successCount = results.filter(r => r.success).length;
+        alert(`Upload complete: ${successCount}/${files.length} files uploaded successfully.`);
+    }
+
+    function refreshBucketFiles(bucketName) {
+        // Find and refresh the file list for this bucket
+        const fileListEl = document.getElementById(`file-list-${bucketName}`);
+        if (!fileListEl) return;
+        
+        fileListEl.innerHTML = '<div style="text-align:center;padding:20px;">Refreshing...</div>';
+        
+        fetch('/api/buckets/' + encodeURIComponent(bucketName))
+            .then(response => response.json())
+            .then(data => {
+                fileListEl.innerHTML = data.files.length === 0 ? 
+                    '<div style="text-align:center;padding:20px;color:#888;">No files in this bucket</div>' :
+                    data.files.map(file => `
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px;border-bottom:1px solid #222;">
+                            <span>
+                                ${file.type === 'directory' ? '📁' : '📄'} 
+                                ${file.name} 
+                                <small style="color:#666;">(${formatBytes(file.size)})</small>
+                            </span>
+                            <span>
+                                ${file.type === 'file' ? `<button onclick="downloadFile('${bucketName}','${file.path}')" style="background:#2a5cb8;color:white;border:none;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:10px;">⬇</button>` : ''}
+                                <button onclick="deleteFile('${bucketName}','${file.path}')" style="background:#b52a2a;color:white;border:none;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:10px;">🗑</button>
+                            </span>
+                        </div>
+                    `).join('');
+            })
+            .catch(e => {
+                fileListEl.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Error refreshing files</div>';
+            });
+    }
+
+    function downloadFile(bucketName, filePath) {
+        const url = `/api/buckets/${encodeURIComponent(bucketName)}/download/${filePath}`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filePath.split('/').pop();
+        a.click();
+    }
+
+    function deleteFile(bucketName, filePath) {
+        if (!confirm(`Delete file: ${filePath}?`)) return;
+        
+        fetch(`/api/buckets/${encodeURIComponent(bucketName)}/files/${filePath}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                refreshBucketFiles(bucketName);
+            } else {
+                alert('Error deleting file: ' + (result.message || 'Unknown error'));
+            }
+        })
+        .catch(e => {
+            alert('Error deleting file: ' + e.message);
+        });
+    }
+
+    async function saveBucketSettings(bucketName) {
+        const settings = {
+            vector_search: document.getElementById('vector_search')?.checked || false,
+            knowledge_graph: document.getElementById('knowledge_graph')?.checked || false,
+            search_index_type: document.getElementById('search_index_type')?.value || 'hnsw',
+            storage_quota: parseInt(document.getElementById('storage_quota')?.value) || null,
+            max_files: parseInt(document.getElementById('max_files')?.value) || null,
+            cache_ttl: parseInt(document.getElementById('cache_ttl')?.value) || 3600,
+            public_access: document.getElementById('public_access')?.checked || false
+        };
+        
+        try {
+            const response = await fetch(`/api/buckets/${encodeURIComponent(bucketName)}/settings`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(settings)
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                alert('Settings saved successfully!');
+                document.getElementById('bucket-modal')?.remove();
+                loadBuckets(); // Refresh bucket list to show updated stats
+            } else {
+                alert('Error saving settings: ' + (result.error || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Error saving settings: ' + e.message);
+        }
+    }
+
+    // ---- End Enhanced Bucket Management Helper Functions ----
+
     async function loadBuckets(){
         const container=document.getElementById('buckets-list'); if(!container) return; container.textContent='Loading…';
-        try{ const r=await fetch('/api/state/buckets'); const js=await r.json(); const items=js.items||[]; if(!items.length){ container.textContent='(none)'; return; }
-            container.innerHTML=''; items.forEach(it=>{
+        try{ 
+            const r=await fetch('/api/state/buckets'); 
+            const js=await r.json(); 
+            const items=js.items||[]; 
+            if(!items.length){ 
+                container.textContent='(none)'; 
+                return; 
+            }
+            
+            container.innerHTML=''; 
+            items.forEach(it=>{
                 const wrap=el('div',{class:'bucket-wrap',style:'border:1px solid #333;margin:4px 0;padding:4px;border-radius:4px;background:#111;'});
                 const header=el('div',{style:'display:flex;align-items:center;justify-content:space-between;cursor:pointer;'},
-                    el('div',{}, el('strong',{text:it.name}), el('span',{style:'color:#888;margin-left:6px;',text: it.backend? ('→ '+it.backend):''})),
+                    el('div',{}, 
+                        el('strong',{text:it.name}), 
+                        el('span',{style:'color:#888;margin-left:6px;',text: it.backend? ('→ '+it.backend):''})
+                    ),
                     el('div',{},
+                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'View Files',onclick:(e)=>{ e.stopPropagation(); showBucketDetails(it.name); }},'📁'),
+                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Settings',onclick:(e)=>{ e.stopPropagation(); showBucketSettings(it.name); }},'⚙️'),
                         el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Expand/Collapse',onclick:(e)=>{ e.stopPropagation(); toggle(); }},'▾'),
                         el('button',{style:'padding:2px 6px;font-size:11px;',title:'Delete',onclick:(e)=>{ e.stopPropagation(); if(confirm('Delete bucket '+it.name+'?')) deleteBucket(it.name); }},'✕')
                     )
                 );
+                
+                // Enhanced bucket details
                 const body=el('div',{style:'display:none;margin-top:6px;font-size:12px;'});
-                body.innerHTML='<div style="margin-bottom:4px;color:#aaa;">Bucket Policy</div>'+
-                    '<div class="policy-fields" style="display:flex;gap:8px;flex-wrap:wrap;">'
+                body.innerHTML='<div style="margin-bottom:8px;color:#aaa;font-weight:bold;">Bucket Details & Policy</div>'+
+                    '<div id="bucket-stats-'+it.name+'" style="margin-bottom:8px;padding:4px;background:#0a0a0a;border-radius:3px;font-size:10px;color:#999;"></div>'+
+                    '<div class="policy-fields" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
                     +' <label style="display:flex;flex-direction:column;font-size:11px;">Replication Factor<input type="number" min="1" max="10" class="pf-rep" style="width:90px;"/></label>'
                     +' <label style="display:flex;flex-direction:column;font-size:11px;">Cache Policy<select class="pf-cache" style="width:120px;"><option>none</option><option>memory</option><option>disk</option></select></label>'
                     +' <label style="display:flex;flex-direction:column;font-size:11px;">Retention Days<input type="number" min="0" class="pf-ret" style="width:110px;"/></label>'
                     +'</div>'
                     +'<div style="margin-top:6px;display:flex;gap:6px;">'
-                    +' <button class="btn-policy-save" style="padding:4px 10px;font-size:11px;">Save</button>'
+                    +' <button class="btn-policy-save" style="padding:4px 10px;font-size:11px;">Save Policy</button>'
                     +' <button class="btn-policy-cancel" style="padding:4px 10px;font-size:11px;">Cancel</button>'
+                    +' <button class="btn-view-files" style="padding:4px 10px;font-size:11px;background:#444;">View Files</button>'
                     +' <span class="policy-status" style="margin-left:8px;color:#888;"></span>'
                     +'</div>';
                 wrap.append(header, body); container.append(wrap);
+                
                 let loaded=false; let loading=false; let expanded=false; let currentPolicy=null;
-                async function fetchPolicy(){ if(loading||loaded) return; loading=true; setStatus('Loading...'); try{ const pr=await fetch('/api/state/buckets/'+encodeURIComponent(it.name)+'/policy'); const pj=await pr.json(); currentPolicy=pj.policy||pj||{}; applyPolicy(); loaded=true; setStatus(''); }catch(e){ setStatus('Error loading'); } finally { loading=false; } }
-                function applyPolicy(){ if(!currentPolicy) return; const rep=body.querySelector('.pf-rep'); const cache=body.querySelector('.pf-cache'); const ret=body.querySelector('.pf-ret'); if(rep) rep.value=currentPolicy.replication_factor; if(cache) cache.value=currentPolicy.cache_policy; if(ret) ret.value=currentPolicy.retention_days; }
-                function toggle(){ expanded=!expanded; body.style.display= expanded? 'block':'none'; header.querySelector('button').textContent = expanded? '▴':'▾'; if(expanded) fetchPolicy(); }
-                function setStatus(msg, isErr){ const st=body.querySelector('.policy-status'); if(st){ st.textContent=msg||''; st.style.color = isErr? '#f66':'#888'; } }
+                
+                // Load bucket statistics
+                async function loadBucketStats(){
+                    const statsEl = document.getElementById('bucket-stats-'+it.name);
+                    if(!statsEl) return;
+                    try{
+                        const response = await fetch('/api/buckets/'+encodeURIComponent(it.name));
+                        const data = await response.json();
+                        let statsText = `Files: ${data.file_count || 0} | Folders: ${data.folder_count || 0} | Size: ${formatBytes(data.total_size || 0)}`;
+                        if(data.settings.vector_search) statsText += ' | Vector Search: ✓';
+                        if(data.settings.knowledge_graph) statsText += ' | Knowledge Graph: ✓';
+                        statsEl.textContent = statsText;
+                    }catch(e){
+                        statsEl.textContent = 'Unable to load stats';
+                    }
+                }
+                
+                async function fetchPolicy(){ 
+                    if(loading||loaded) return; 
+                    loading=true; 
+                    setStatus('Loading...'); 
+                    try{ 
+                        const pr=await fetch('/api/state/buckets/'+encodeURIComponent(it.name)+'/policy'); 
+                        const pj=await pr.json(); 
+                        currentPolicy=pj.policy||pj||{}; 
+                        applyPolicy(); 
+                        loaded=true; 
+                        setStatus(''); 
+                        loadBucketStats(); // Load additional stats
+                    }catch(e){ 
+                        setStatus('Error loading'); 
+                    } finally { 
+                        loading=false; 
+                    } 
+                }
+                function applyPolicy(){ 
+                    if(!currentPolicy) return; 
+                    const rep=body.querySelector('.pf-rep'); 
+                    const cache=body.querySelector('.pf-cache'); 
+                    const ret=body.querySelector('.pf-ret'); 
+                    if(rep) rep.value=currentPolicy.replication_factor; 
+                    if(cache) cache.value=currentPolicy.cache_policy; 
+                    if(ret) ret.value=currentPolicy.retention_days; 
+                }
+                function toggle(){ 
+                    expanded=!expanded; 
+                    body.style.display= expanded? 'block':'none'; 
+                    header.querySelector('button[title="Expand/Collapse"]').textContent = expanded? '▴':'▾'; 
+                    if(expanded) fetchPolicy(); 
+                }
+                function setStatus(msg, isErr){ 
+                    const st=body.querySelector('.policy-status'); 
+                    if(st){ 
+                        st.textContent=msg||''; 
+                        st.style.color = isErr? '#f66':'#888'; 
+                    } 
+                }
+                
+                // Event handlers
                 body.querySelector('.btn-policy-cancel').onclick = ()=>{ applyPolicy(); setStatus('Reverted'); };
                 body.querySelector('.btn-policy-save').onclick = async ()=>{
-                    const rep=parseInt(body.querySelector('.pf-rep').value,10); const cache=body.querySelector('.pf-cache').value; const ret=parseInt(body.querySelector('.pf-ret').value,10);
+                    const rep=parseInt(body.querySelector('.pf-rep').value,10); 
+                    const cache=body.querySelector('.pf-cache').value; 
+                    const ret=parseInt(body.querySelector('.pf-ret').value,10);
                     const payload={replication_factor:rep, cache_policy:cache, retention_days:ret};
                     setStatus('Saving...');
                     try{
@@ -2819,9 +3537,13 @@ class ConsolidatedMCPDashboard:
                         const jsR=await rs.json(); currentPolicy=jsR.policy||payload; applyPolicy(); setStatus('Saved');
                     }catch(e){ setStatus('Save failed', true); }
                 };
+                body.querySelector('.btn-view-files').onclick = ()=> showBucketDetails(it.name);
                 header.addEventListener('click', ()=> toggle());
             });
-        }catch(e){ container.textContent='Error'; }
+        }catch(e){ 
+            container.textContent='Error loading buckets'; 
+            console.error('Bucket loading error:', e);
+        }
     }
     async function loadPins(){
         const container=document.getElementById('pins-list'); if(!container) return; container.textContent='Loading…';
