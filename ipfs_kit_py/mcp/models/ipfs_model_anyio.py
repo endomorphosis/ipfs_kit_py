@@ -107,3 +107,39 @@ class IPFSModelAnyIO:
         # Placeholder for actual implementation
         result = {"success": True, "cid": cid, "pinned": True}
         return result
+
+    async def add_content(self, content=None, **kwargs):
+        """
+        Add content to IPFS and return the CID.
+        This is a compatibility method for MCP server integration.
+        
+        Args:
+            content: The content to add (string or bytes)
+            **kwargs: Additional parameters
+        
+        Returns:
+            Dict with operation results including CID
+        """
+        # Handle args/kwargs
+        if content is None and 'content' in kwargs:
+            content = kwargs.pop('content')
+            
+        if content is None:
+            raise ValueError("Content must be provided")
+        
+        # Determine content type and add to IPFS
+        if isinstance(content, str):
+            # Convert string to bytes
+            content_bytes = content.encode('utf-8')
+        elif isinstance(content, bytes):
+            content_bytes = content
+        else:
+            # Try to convert to string first
+            try:
+                content_str = str(content)
+                content_bytes = content_str.encode('utf-8')
+            except Exception:
+                raise TypeError(f"Unsupported content type: {type(content)}")
+        
+        # Add to IPFS using the async method
+        return await self.add_content_async(content_bytes)
