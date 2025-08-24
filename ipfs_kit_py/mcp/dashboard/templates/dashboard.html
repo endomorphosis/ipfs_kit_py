@@ -402,15 +402,268 @@
 
             <!-- Buckets Tab -->
             <div id="buckets-tab" class="tab-content">
-                <div class="card p-8 rounded-2xl">
-                    <h3 class="text-2xl font-bold mb-6 flex items-center">
-                        <div class="p-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 mr-4">
-                            <i class="fas fa-folder text-white"></i>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Bucket List Panel -->
+                    <div class="lg:col-span-1">
+                        <div class="card p-6 rounded-2xl">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-bold flex items-center">
+                                    <div class="p-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 mr-3">
+                                        <i class="fas fa-folder text-white text-sm"></i>
+                                    </div>
+                                    Buckets
+                                </h3>
+                                <button onclick="showCreateBucketModal()" class="btn-primary text-white px-3 py-1 rounded-lg text-sm hover:shadow-lg transition-shadow">
+                                    <i class="fas fa-plus mr-1"></i> New
+                                </button>
+                            </div>
+                            <div id="buckets-list" class="space-y-2">
+                                <!-- Buckets will be loaded here -->
+                            </div>
                         </div>
-                        Buckets
-                    </h3>
-                    <div id="buckets-list">
-                        <!-- Buckets will be loaded here -->
+                    </div>
+
+                    <!-- Bucket Details & File Manager Panel -->
+                    <div class="lg:col-span-2">
+                        <div id="bucket-details-panel" class="card p-6 rounded-2xl hidden">
+                            <!-- Bucket Header -->
+                            <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                                <div>
+                                    <h3 id="selected-bucket-name" class="text-xl font-bold text-gray-900 dark:text-white">Select a bucket</h3>
+                                    <p id="selected-bucket-info" class="text-sm text-gray-500 dark:text-gray-400">Choose a bucket to view details and manage files</p>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button onclick="showBucketSettingsModal()" class="btn-secondary px-3 py-1 rounded-lg text-sm">
+                                        <i class="fas fa-cog mr-1"></i> Settings
+                                    </button>
+                                    <button onclick="refreshBucketFiles()" class="btn-secondary px-3 py-1 rounded-lg text-sm">
+                                        <i class="fas fa-sync mr-1"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- File Upload Area -->
+                            <div id="file-upload-area" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 mb-6 text-center hover:border-blue-400 transition-colors" 
+                                 ondrop="handleFileDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                                <p class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Drop files here or click to browse</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Supports multiple files up to 500MB each</p>
+                                <input type="file" id="file-input" multiple class="hidden" onchange="handleFileSelect(event)">
+                                <button onclick="document.getElementById('file-input').click()" class="btn-primary text-white px-4 py-2 rounded-lg">
+                                    Browse Files
+                                </button>
+                            </div>
+
+                            <!-- File Browser -->
+                            <div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="font-semibold text-gray-900 dark:text-white">Files & Folders</h4>
+                                    <div class="flex items-center space-x-2">
+                                        <input type="text" id="file-search" placeholder="Search files..." 
+                                               class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                               oninput="filterFiles()">
+                                        <div class="flex border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+                                            <button id="list-view-btn" onclick="setFileView('list')" class="px-2 py-1 bg-blue-500 text-white text-sm">
+                                                <i class="fas fa-list"></i>
+                                            </button>
+                                            <button id="grid-view-btn" onclick="setFileView('grid')" class="px-2 py-1 bg-gray-200 text-gray-700 text-sm">
+                                                <i class="fas fa-th"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- File List -->
+                                <div id="file-browser" class="border border-gray-200 dark:border-gray-700 rounded-lg">
+                                    <!-- Files will be loaded here -->
+                                    <div class="p-8 text-center text-gray-500 dark:text-gray-400">
+                                        <i class="fas fa-folder-open text-4xl mb-4"></i>
+                                        <p>Select a bucket to view files</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Default state when no bucket is selected -->
+                        <div id="no-bucket-selected" class="card p-8 rounded-2xl text-center">
+                            <i class="fas fa-folder-open text-6xl text-gray-400 mb-6"></i>
+                            <h3 class="text-xl font-bold text-gray-700 dark:text-gray-300 mb-2">No Bucket Selected</h3>
+                            <p class="text-gray-500 dark:text-gray-400 mb-6">Choose a bucket from the list to view and manage its files</p>
+                            <button onclick="showCreateBucketModal()" class="btn-primary text-white px-6 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-2"></i> Create New Bucket
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Create Bucket Modal -->
+                <div id="create-bucket-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+                    <div class="card p-6 rounded-2xl max-w-md w-full mx-4">
+                        <h3 class="text-xl font-bold mb-4">Create New Bucket</h3>
+                        <form id="create-bucket-form" onsubmit="createBucket(event)">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2">Bucket Name</label>
+                                <input type="text" id="new-bucket-name" required 
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                       placeholder="my-bucket">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2">Backend Type</label>
+                                <select id="new-bucket-backend" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                                    <option value="s3">S3 Compatible</option>
+                                    <option value="ipfs">IPFS</option>
+                                    <option value="local">Local Storage</option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2">Description</label>
+                                <textarea id="new-bucket-description" rows="2" 
+                                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                          placeholder="Optional description"></textarea>
+                            </div>
+                            <div class="flex space-x-3">
+                                <button type="submit" class="btn-primary text-white px-4 py-2 rounded-lg flex-1">Create Bucket</button>
+                                <button type="button" onclick="hideCreateBucketModal()" class="btn-secondary px-4 py-2 rounded-lg">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Bucket Settings Modal -->
+                <div id="bucket-settings-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+                    <div class="card p-6 rounded-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-6">Bucket Settings</h3>
+                        
+                        <!-- Tabs -->
+                        <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+                            <nav class="-mb-px flex space-x-8">
+                                <button onclick="showSettingsTab('general')" class="settings-tab-btn active py-2 px-1 border-b-2 font-medium text-sm" data-tab="general">
+                                    General
+                                </button>
+                                <button onclick="showSettingsTab('quota')" class="settings-tab-btn py-2 px-1 border-b-2 font-medium text-sm" data-tab="quota">
+                                    Quota & Limits
+                                </button>
+                                <button onclick="showSettingsTab('cache')" class="settings-tab-btn py-2 px-1 border-b-2 font-medium text-sm" data-tab="cache">
+                                    Cache Settings
+                                </button>
+                                <button onclick="showSettingsTab('search')" class="settings-tab-btn py-2 px-1 border-b-2 font-medium text-sm" data-tab="search">
+                                    Search & Index
+                                </button>
+                            </nav>
+                        </div>
+
+                        <!-- General Settings -->
+                        <div id="settings-general" class="settings-tab-content">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Bucket Name</label>
+                                    <input type="text" id="settings-bucket-name" readonly 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Backend Type</label>
+                                    <input type="text" id="settings-bucket-backend" readonly 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium mb-2">Description</label>
+                                    <textarea id="settings-bucket-description" rows="2" 
+                                              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"></textarea>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" id="settings-public-access" class="mr-2">
+                                        <span class="text-sm">Allow public read access</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quota Settings -->
+                        <div id="settings-quota" class="settings-tab-content hidden">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Storage Quota (MB)</label>
+                                    <input type="number" id="settings-storage-quota" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="1000">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Max Files</label>
+                                    <input type="number" id="settings-max-files" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="10000">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Max File Size (MB)</label>
+                                    <input type="number" id="settings-max-file-size" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Retention Days</label>
+                                    <input type="number" id="settings-retention-days" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="30">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cache Settings -->
+                        <div id="settings-cache" class="settings-tab-content hidden">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium">Enable Caching</label>
+                                    <input type="checkbox" id="settings-enable-cache" class="toggle-checkbox">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Cache TTL (seconds)</label>
+                                    <input type="number" id="settings-cache-ttl" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="3600">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Cache Size Limit (MB)</label>
+                                    <input type="number" id="settings-cache-size" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="100">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Search & Index Settings -->
+                        <div id="settings-search" class="settings-tab-content hidden">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium">Enable Vector Search</label>
+                                    <input type="checkbox" id="settings-enable-vector-search" class="toggle-checkbox">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Vector Index Type</label>
+                                    <select id="settings-vector-index-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                                        <option value="hnsw">HNSW (Fast)</option>
+                                        <option value="flat">Flat (Exact)</option>
+                                        <option value="ivf">IVF (Balanced)</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium">Enable Knowledge Graph</label>
+                                    <input type="checkbox" id="settings-enable-knowledge-graph" class="toggle-checkbox">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Search Index Location</label>
+                                    <input type="text" id="settings-search-index-location" readonly 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+                                           placeholder="Auto-generated">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                            <button onclick="saveBucketSettings()" class="btn-primary text-white px-6 py-2 rounded-lg flex-1">Save Settings</button>
+                            <button onclick="hideBucketSettingsModal()" class="btn-secondary px-6 py-2 rounded-lg">Cancel</button>
+                            <button onclick="deleteBucket()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg">Delete</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -517,5 +770,6 @@
     <script src="{{ url_for('static', path='/js/data-loader.js') }}"></script>
     <script src="{{ url_for('static', path='/js/config-manager.js') }}"></script>
     <script src="{{ url_for('static', path='/js/pins-manager.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/bucket-manager.js') }}"></script>
 </body>
 </html>

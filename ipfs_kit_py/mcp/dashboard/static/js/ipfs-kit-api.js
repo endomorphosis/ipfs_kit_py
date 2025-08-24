@@ -318,6 +318,8 @@ class IPFSKitAPI {
     // ===================
     // BUCKETS API
     // ===================
+    // BUCKETS API
+    // ===================
 
     async getBuckets() {
         return await this._getCached('/api/buckets', 'buckets', 15000);
@@ -342,8 +344,61 @@ class IPFSKitAPI {
         return data;
     }
 
+    async getBucketDetails(bucketName) {
+        return await this._getCached(`/api/buckets/${bucketName}`, `bucket_details_${bucketName}`, 10000);
+    }
+
+    async getBucketFiles(bucketName) {
+        return await this._getCached(`/api/buckets/${bucketName}/files`, `bucket_files_${bucketName}`, 5000);
+    }
+
     async getBucketContents(bucketId) {
         return await this._getCached(`/api/buckets/${bucketId}/contents`, `bucket_contents_${bucketId}`, 10000);
+    }
+
+    async uploadFileToBucket(bucketName, file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const data = await this._request(`/api/buckets/${bucketName}/upload`, {
+            method: 'POST',
+            body: formData,
+            // Don't set Content-Type header for FormData
+            headers: {}
+        });
+        this.clearCache(`bucket_files_${bucketName}`);
+        this.emit('fileUploaded', { bucketName, file, data });
+        return data;
+    }
+
+    async deleteFileFromBucket(bucketName, filename) {
+        const data = await this._request(`/api/buckets/${bucketName}/files/${encodeURIComponent(filename)}`, {
+            method: 'DELETE'
+        });
+        this.clearCache(`bucket_files_${bucketName}`);
+        this.emit('fileDeleted', { bucketName, filename, data });
+        return data;
+    }
+
+    async renameFileInBucket(bucketName, oldName, newName) {
+        const data = await this._request(`/api/buckets/${bucketName}/files/${encodeURIComponent(oldName)}/rename`, {
+            method: 'POST',
+            body: JSON.stringify({ new_name: newName })
+        });
+        this.clearCache(`bucket_files_${bucketName}`);
+        this.emit('fileRenamed', { bucketName, oldName, newName, data });
+        return data;
+    }
+
+    async updateBucketSettings(bucketName, settings) {
+        const data = await this._request(`/api/buckets/${bucketName}/settings`, {
+            method: 'PUT',
+            body: JSON.stringify(settings)
+        });
+        this.clearCache('buckets');
+        this.clearCache(`bucket_details_${bucketName}`);
+        this.emit('bucketSettingsUpdated', { bucketName, settings, data });
+        return data;
     }
 
     // ===================
