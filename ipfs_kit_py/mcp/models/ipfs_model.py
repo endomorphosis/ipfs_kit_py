@@ -477,3 +477,93 @@ class IPFSModel:
                 "simulation": True,
                 "mv_error": str(e)
             }
+    
+    # DHT Operations
+    
+    def dht_findpeer(self, peer_id: str, **kwargs) -> Dict[str, Any]:
+        """
+        Find a specific peer via the DHT and retrieve addresses.
+        
+        Args:
+            peer_id: The ID of the peer to find
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dict with operation result containing peer multiaddresses
+        """
+        try:
+            if self.ipfs_kit and hasattr(self.ipfs_kit, 'ipfs'):
+                # Delegate to the ipfs instance
+                response = self.ipfs_kit.ipfs.dht_findpeer(peer_id)
+                return response
+            else:
+                # Simulation mode
+                return {
+                    "success": True,
+                    "peer_id": peer_id,
+                    "addresses": [
+                        f"/ip4/127.0.0.1/tcp/4001/p2p/{peer_id}",
+                        f"/ip6/::1/tcp/4001/p2p/{peer_id}"
+                    ],
+                    "operation": "dht_findpeer",
+                    "simulation": True
+                }
+        except Exception as e:
+            logger.error(f"Error finding peer via DHT: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "peer_id": peer_id,
+                "operation": "dht_findpeer"
+            }
+
+    def dht_findprovs(self, cid: str, num_providers: Optional[int] = None, **kwargs) -> Dict[str, Any]:
+        """
+        Find providers for a CID via the DHT.
+        
+        Args:
+            cid: The Content ID to find providers for
+            num_providers: Maximum number of providers to find
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dict with operation result containing provider information
+        """
+        try:
+            if self.ipfs_kit and hasattr(self.ipfs_kit, 'ipfs'):
+                # Build kwargs to pass to ipfs
+                ipfs_kwargs = {}
+                if num_providers is not None:
+                    ipfs_kwargs["num_providers"] = num_providers
+                
+                # Delegate to the ipfs instance
+                response = self.ipfs_kit.ipfs.dht_findprovs(cid, **ipfs_kwargs)
+                return response
+            else:
+                # Simulation mode
+                max_providers = num_providers or 5
+                providers = []
+                for i in range(min(max_providers, 3)):  # Simulate finding 1-3 providers
+                    providers.append({
+                        "ID": f"12D3KooWProvider{i}xyz",
+                        "Addrs": [
+                            f"/ip4/192.168.1.{100+i}/tcp/4001",
+                            f"/ip6/::1/tcp/{4001+i}"
+                        ]
+                    })
+                
+                return {
+                    "success": True,
+                    "cid": cid,
+                    "providers": providers,
+                    "operation": "dht_findprovs",
+                    "simulation": True
+                }
+        except Exception as e:
+            logger.error(f"Error finding providers via DHT: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "cid": cid,
+                "operation": "dht_findprovs"
+            }
