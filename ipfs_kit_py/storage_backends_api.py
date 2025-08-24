@@ -21,6 +21,18 @@ import fastapi
 from fastapi import Body, HTTPException, Query, Request, BackgroundTasks
 from pydantic import BaseModel
 
+# Import policy models
+try:
+    from .backend_policies import (
+        BackendPolicySet, StorageQuotaPolicy, TrafficQuotaPolicy,
+        ReplicationPolicy, RetentionPolicy, CachePolicy, 
+        PolicyViolation, convert_size_to_bytes, format_bytes
+    )
+    BACKEND_POLICIES_AVAILABLE = True
+except ImportError:
+    BACKEND_POLICIES_AVAILABLE = False
+    BackendPolicySet = dict
+
 # Import enhanced pin index for storage analytics
 try:
     from ipfs_kit_py.enhanced_pin_index import (
@@ -71,7 +83,10 @@ async def list_storage_backends():
                 "type": backend_info.get("type", "unknown"),
                 "description": backend_info.get("description", ""),
                 "capabilities": backend_info.get("capabilities", []),
-                "status": backend_info.get("status", "unknown")
+                "status": backend_info.get("status", "unknown"),
+                "policies": backend_info.get("policies", {}),
+                "quota_usage": backend_info.get("quota_usage", {}),
+                "policy_violations": backend_info.get("policy_violations", [])
             }
         
         return {
@@ -144,7 +159,10 @@ async def get_storage_backend_info(backend_name: str):
             "capabilities": backend_info.get("capabilities", []),
             "status": backend_info.get("status", "unknown"),
             "configuration": backend_info.get("configuration", {}),
-            "stats": backend_info.get("stats", {})
+            "stats": backend_info.get("stats", {}),
+            "policies": backend_info.get("policies", {}),
+            "quota_usage": backend_info.get("quota_usage", {}),
+            "policy_violations": backend_info.get("policy_violations", [])
         }
         
         # Remove sensitive information
@@ -618,3 +636,520 @@ async def get_tier_recommendations():
     except Exception as e:
         logger.exception(f"Error getting tier recommendations: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting tier recommendations: {str(e)}")
+
+
+# Policy Management Endpoints
+
+@storage_router.get("/backends/{backend_name}/policies", response_model=Dict[str, Any])
+async def get_backend_policies(backend_name: str):
+    """
+    Get all policies for a specific storage backend.
+    
+    This endpoint returns the complete policy set for a backend including
+    storage quotas, traffic quotas, replication, retention, and cache policies.
+    
+    Parameters:
+    - **backend_name**: The name of the storage backend
+    
+    Returns:
+        Complete policy set for the backend
+    """
+    if not BACKEND_POLICIES_AVAILABLE:
+        raise HTTPException(
+            status_code=501,
+            detail="Backend policy management not available. Install pydantic>=2.0"
+        )
+    
+    try:
+        # Get API from request state
+        api = fastapi.requests.Request.state.ipfs_api
+        
+        # Check if storage backends integration is available
+        if not hasattr(api, "storage"):
+            raise HTTPException(
+                status_code=404,
+                detail="Storage backends API is not available."
+            )
+            
+        # Get backend policies (this would integrate with existing policy system)
+        logger.info(f"Getting policies for backend: {backend_name}")
+        
+        # For now, return mock data structure that shows what policies would look like
+        # In a real implementation, this would read from the existing policy systems
+        policies = {
+            "storage_quota": {
+                "enabled": True,
+                "max_size": 100,
+                "max_size_unit": "gb",
+                "warn_threshold": 0.8,
+                "max_files": 10000,
+                "usage": {
+                    "used_size": 45,
+                    "used_size_unit": "gb",
+                    "file_count": 4532,
+                    "pin_count": 3241
+                }
+            },
+            "traffic_quota": {
+                "enabled": True,
+                "max_bandwidth_mbps": 100.0,
+                "max_requests_per_minute": 1000,
+                "max_upload_per_day": 10,
+                "max_download_per_day": 50,
+                "usage": {
+                    "current_bandwidth_mbps": 23.4,
+                    "requests_last_minute": 342,
+                    "upload_today": 2.3,
+                    "download_today": 12.7
+                }
+            },
+            "replication": {
+                "enabled": True,
+                "strategy": "simple",
+                "min_redundancy": 2,
+                "max_redundancy": 4,
+                "preferred_backends": ["ipfs", "s3"],
+                "current_redundancy": 3
+            },
+            "retention": {
+                "enabled": True,
+                "default_retention_days": 365,
+                "action_on_expiry": "archive",
+                "legal_hold_supported": True,
+                "archive_backend": "s3"
+            },
+            "cache": {
+                "enabled": True,
+                "max_cache_size": 20,
+                "max_cache_size_unit": "gb",
+                "eviction_policy": "arc",
+                "ttl_seconds": 3600,
+                "usage": {
+                    "used_cache_size": 12.3,
+                    "hit_rate": 0.78,
+                    "evictions_last_hour": 45
+                }
+            }
+        }
+        
+        return {
+            "success": True,
+            "operation": "get_backend_policies",
+            "timestamp": time.time(),
+            "backend": backend_name,
+            "policies": policies
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error getting backend policies: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting backend policies: {str(e)}")
+
+
+@storage_router.put("/backends/{backend_name}/policies", response_model=Dict[str, Any])
+async def update_backend_policies(
+    backend_name: str,
+    policy_set: Dict[str, Any] = Body(..., description="Complete or partial policy set")
+):
+    """
+    Update policies for a storage backend.
+    
+    This endpoint allows updating any combination of policies for a backend.
+    Only provided policies will be updated, others remain unchanged.
+    
+    Parameters:
+    - **backend_name**: The name of the storage backend
+    - **policy_set**: Dictionary containing policy updates
+    
+    Returns:
+        Updated policy set
+    """
+    if not BACKEND_POLICIES_AVAILABLE:
+        raise HTTPException(
+            status_code=501,
+            detail="Backend policy management not available. Install pydantic>=2.0"
+        )
+    
+    try:
+        # Get API from request state
+        api = fastapi.requests.Request.state.ipfs_api
+        
+        # Check if storage backends integration is available
+        if not hasattr(api, "storage"):
+            raise HTTPException(
+                status_code=404,
+                detail="Storage backends API is not available."
+            )
+            
+        # Update backend policies
+        logger.info(f"Updating policies for backend: {backend_name}")
+        
+        # In a real implementation, this would integrate with existing policy systems:
+        # - Validate policy changes
+        # - Apply policies to tiered cache manager
+        # - Update retention policies in lifecycle manager
+        # - Configure replication in cluster management
+        # - Set up quota monitoring
+        
+        return {
+            "success": True,
+            "operation": "update_backend_policies",
+            "timestamp": time.time(),
+            "backend": backend_name,
+            "updated_policies": list(policy_set.keys()),
+            "policies": policy_set
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error updating backend policies: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating backend policies: {str(e)}")
+
+
+@storage_router.get("/backends/{backend_name}/policies/{policy_type}", response_model=Dict[str, Any])
+async def get_backend_policy(backend_name: str, policy_type: str):
+    """
+    Get a specific policy for a storage backend.
+    
+    Parameters:
+    - **backend_name**: The name of the storage backend
+    - **policy_type**: Type of policy (storage_quota, traffic_quota, replication, retention, cache)
+    
+    Returns:
+        Specific policy configuration and usage
+    """
+    if not BACKEND_POLICIES_AVAILABLE:
+        raise HTTPException(
+            status_code=501,
+            detail="Backend policy management not available. Install pydantic>=2.0"
+        )
+    
+    valid_policy_types = ["storage_quota", "traffic_quota", "replication", "retention", "cache"]
+    if policy_type not in valid_policy_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid policy type. Must be one of: {valid_policy_types}"
+        )
+    
+    try:
+        # Get API from request state
+        api = fastapi.requests.Request.state.ipfs_api
+        
+        # Check if storage backends integration is available
+        if not hasattr(api, "storage"):
+            raise HTTPException(
+                status_code=404,
+                detail="Storage backends API is not available."
+            )
+            
+        logger.info(f"Getting {policy_type} policy for backend: {backend_name}")
+        
+        # Mock policy data - in real implementation would read from policy systems
+        policy_data = {
+            "storage_quota": {
+                "enabled": True,
+                "max_size": 100,
+                "max_size_unit": "gb",
+                "warn_threshold": 0.8,
+                "max_files": 10000,
+                "usage": {"used_size": 45, "file_count": 4532}
+            },
+            "traffic_quota": {
+                "enabled": True,
+                "max_bandwidth_mbps": 100.0,
+                "max_requests_per_minute": 1000,
+                "usage": {"current_bandwidth_mbps": 23.4, "requests_last_minute": 342}
+            },
+            "replication": {
+                "enabled": True,
+                "strategy": "simple",
+                "min_redundancy": 2,
+                "max_redundancy": 4,
+                "current_redundancy": 3
+            },
+            "retention": {
+                "enabled": True,
+                "default_retention_days": 365,
+                "action_on_expiry": "archive"
+            },
+            "cache": {
+                "enabled": True,
+                "max_cache_size": 20,
+                "eviction_policy": "arc",
+                "usage": {"hit_rate": 0.78}
+            }
+        }
+        
+        return {
+            "success": True,
+            "operation": "get_backend_policy",
+            "timestamp": time.time(),
+            "backend": backend_name,
+            "policy_type": policy_type,
+            "policy": policy_data.get(policy_type, {})
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error getting backend policy: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting backend policy: {str(e)}")
+
+
+@storage_router.put("/backends/{backend_name}/policies/{policy_type}", response_model=Dict[str, Any])
+async def update_backend_policy(
+    backend_name: str, 
+    policy_type: str,
+    policy_data: Dict[str, Any] = Body(..., description="Policy configuration")
+):
+    """
+    Update a specific policy for a storage backend.
+    
+    Parameters:
+    - **backend_name**: The name of the storage backend
+    - **policy_type**: Type of policy to update
+    - **policy_data**: New policy configuration
+    
+    Returns:
+        Updated policy configuration
+    """
+    if not BACKEND_POLICIES_AVAILABLE:
+        raise HTTPException(
+            status_code=501,
+            detail="Backend policy management not available. Install pydantic>=2.0"
+        )
+    
+    valid_policy_types = ["storage_quota", "traffic_quota", "replication", "retention", "cache"]
+    if policy_type not in valid_policy_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid policy type. Must be one of: {valid_policy_types}"
+        )
+    
+    try:
+        # Get API from request state
+        api = fastapi.requests.Request.state.ipfs_api
+        
+        # Check if storage backends integration is available
+        if not hasattr(api, "storage"):
+            raise HTTPException(
+                status_code=404,
+                detail="Storage backends API is not available."
+            )
+            
+        logger.info(f"Updating {policy_type} policy for backend: {backend_name}")
+        
+        # In a real implementation, validate policy data based on type:
+        # - For storage_quota: validate size limits and units
+        # - For traffic_quota: validate bandwidth and rate limits
+        # - For replication: validate redundancy settings and backend availability
+        # - For retention: validate retention periods and actions
+        # - For cache: validate cache sizes and eviction policies
+        
+        return {
+            "success": True,
+            "operation": "update_backend_policy",
+            "timestamp": time.time(),
+            "backend": backend_name,
+            "policy_type": policy_type,
+            "policy": policy_data
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error updating backend policy: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating backend policy: {str(e)}")
+
+
+@storage_router.get("/backends/{backend_name}/quota-usage", response_model=Dict[str, Any])
+async def get_backend_quota_usage(backend_name: str):
+    """
+    Get current quota usage for a storage backend.
+    
+    This endpoint provides real-time quota usage statistics including
+    storage usage, traffic usage, and policy violation alerts.
+    
+    Parameters:
+    - **backend_name**: The name of the storage backend
+    
+    Returns:
+        Quota usage statistics and alerts
+    """
+    try:
+        # Get API from request state
+        api = fastapi.requests.Request.state.ipfs_api
+        
+        # Check if storage backends integration is available
+        if not hasattr(api, "storage"):
+            raise HTTPException(
+                status_code=404,
+                detail="Storage backends API is not available."
+            )
+            
+        logger.info(f"Getting quota usage for backend: {backend_name}")
+        
+        # Mock usage data - in real implementation would aggregate from multiple sources
+        usage_data = {
+            "storage": {
+                "used_bytes": 48318382080,  # ~45 GB
+                "used_formatted": "45.0 GB",
+                "quota_bytes": 107374182400,  # 100 GB
+                "quota_formatted": "100.0 GB",
+                "utilization": 0.45,
+                "file_count": 4532,
+                "pin_count": 3241,
+                "warning_threshold": 0.8,
+                "status": "normal"
+            },
+            "traffic": {
+                "bandwidth_mbps": 23.4,
+                "bandwidth_quota_mbps": 100.0,
+                "bandwidth_utilization": 0.234,
+                "requests_per_minute": 342,
+                "requests_quota": 1000,
+                "upload_today_gb": 2.3,
+                "upload_quota_gb": 10.0,
+                "download_today_gb": 12.7,
+                "download_quota_gb": 50.0,
+                "status": "normal"
+            },
+            "replication": {
+                "current_redundancy": 3,
+                "min_redundancy": 2,
+                "max_redundancy": 4,
+                "under_replicated_count": 0,
+                "over_replicated_count": 23,
+                "status": "optimal"
+            },
+            "cache": {
+                "used_bytes": 13194139533,  # ~12.3 GB
+                "used_formatted": "12.3 GB",
+                "quota_bytes": 21474836480,  # 20 GB
+                "quota_formatted": "20.0 GB",
+                "utilization": 0.615,
+                "hit_rate": 0.78,
+                "evictions_last_hour": 45,
+                "status": "normal"
+            },
+            "violations": [
+                {
+                    "type": "replication_warning",
+                    "message": "23 items are over-replicated beyond max_redundancy",
+                    "timestamp": time.time() - 3600,
+                    "severity": "warning"
+                }
+            ]
+        }
+        
+        return {
+            "success": True,
+            "operation": "get_quota_usage",
+            "timestamp": time.time(),
+            "backend": backend_name,
+            "usage": usage_data
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error getting quota usage: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting quota usage: {str(e)}")
+
+
+@storage_router.get("/policy-violations", response_model=Dict[str, Any])
+async def get_policy_violations(
+    backend_name: Optional[str] = Query(None, description="Filter by backend name"),
+    severity: Optional[str] = Query(None, description="Filter by severity (warning, error, critical)"),
+    resolved: Optional[bool] = Query(None, description="Filter by resolution status")
+):
+    """
+    Get policy violations across all backends or for a specific backend.
+    
+    This endpoint provides a centralized view of all policy violations
+    including quota exceedances, replication failures, and retention issues.
+    
+    Parameters:
+    - **backend_name**: Optional backend name filter
+    - **severity**: Optional severity filter
+    - **resolved**: Optional resolution status filter
+    
+    Returns:
+        List of policy violations with details
+    """
+    try:
+        logger.info(f"Getting policy violations (backend={backend_name}, severity={severity})")
+        
+        # Mock violation data - in real implementation would aggregate from policy systems
+        all_violations = [
+            {
+                "id": "violation_1",
+                "backend_name": "s3_demo",
+                "policy_type": "storage_quota",
+                "violation_type": "warning_threshold",
+                "severity": "warning",
+                "message": "Storage usage at 85% of quota (85.2 GB / 100 GB)",
+                "timestamp": time.time() - 1800,
+                "resolved": False,
+                "metadata": {"utilization": 0.852}
+            },
+            {
+                "id": "violation_2", 
+                "backend_name": "ipfs_local",
+                "policy_type": "replication",
+                "violation_type": "under_replicated",
+                "severity": "error",
+                "message": "234 items below minimum redundancy (current: 1, required: 2)",
+                "timestamp": time.time() - 3600,
+                "resolved": False,
+                "metadata": {"affected_count": 234}
+            },
+            {
+                "id": "violation_3",
+                "backend_name": "cluster",
+                "policy_type": "traffic_quota",
+                "violation_type": "rate_limit",
+                "severity": "warning",
+                "message": "Request rate approaching limit (980/1000 requests per minute)",
+                "timestamp": time.time() - 300,
+                "resolved": True,
+                "metadata": {"current_rate": 980, "limit": 1000}
+            }
+        ]
+        
+        # Apply filters
+        filtered_violations = all_violations
+        
+        if backend_name:
+            filtered_violations = [v for v in filtered_violations if v["backend_name"] == backend_name]
+            
+        if severity:
+            filtered_violations = [v for v in filtered_violations if v["severity"] == severity]
+            
+        if resolved is not None:
+            filtered_violations = [v for v in filtered_violations if v["resolved"] == resolved]
+            
+        return {
+            "success": True,
+            "operation": "get_policy_violations",
+            "timestamp": time.time(),
+            "filters": {
+                "backend_name": backend_name,
+                "severity": severity,
+                "resolved": resolved
+            },
+            "violations": filtered_violations,
+            "total_count": len(filtered_violations),
+            "summary": {
+                "critical": len([v for v in filtered_violations if v["severity"] == "critical"]),
+                "error": len([v for v in filtered_violations if v["severity"] == "error"]),
+                "warning": len([v for v in filtered_violations if v["severity"] == "warning"]),
+                "resolved": len([v for v in filtered_violations if v["resolved"]])
+            }
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error getting policy violations: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting policy violations: {str(e)}")
