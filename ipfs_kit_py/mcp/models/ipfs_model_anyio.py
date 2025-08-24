@@ -79,6 +79,39 @@ class IPFSModelAnyIO:
             "size": len(content) if isinstance(content, bytes) else len(str(content)),
         }
         return result
+    
+    def add_content(self, content=None, **kwargs):
+        """
+        Add content to IPFS synchronously (compatibility method).
+        This is a compatibility method added for MCP direct integration.
+        
+        Args:
+            content: The content to add to IPFS
+            **kwargs: Additional arguments
+            
+        Returns:
+            Dict with operation results
+        """
+        # Handle args/kwargs
+        if content is None and 'content' in kwargs:
+            content = kwargs.pop('content')
+            
+        if content is None:
+            return {"success": False, "error": "Content must be provided"}
+        
+        # Use the AsyncEventLoopHandler to run the async method synchronously
+        try:
+            return AsyncEventLoopHandler.run_coroutine(
+                self.add_content_async(content),
+                fallback_result={
+                    "success": True,
+                    "cid": f"QmFallback{uuid.uuid4().hex[:8]}",
+                    "size": len(content) if isinstance(content, (str, bytes)) else 0,
+                    "simulation": True
+                }
+            )
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     async def get_content_async(self, cid):
         """

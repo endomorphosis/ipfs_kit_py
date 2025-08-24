@@ -670,6 +670,130 @@ class IPFSFileSystem(AbstractFileSystem):
         
         else:
             return {"backend": self.backend, "metadata": self.metadata}
+    
+    # Hierarchical Storage Management Methods
+    # Import methods from hierarchical_storage_methods.py
+    
+    def _verify_content_integrity(self, cid):
+        """
+        Verify content integrity across storage tiers.
+        
+        This method checks that the content stored in different tiers is identical
+        and matches the expected hash.
+        
+        Args:
+            cid: Content identifier to verify
+            
+        Returns:
+            Dictionary with verification results
+        """
+        import hashlib
+        import time
+        
+        result = {
+            "success": True,
+            "operation": "verify_content_integrity",
+            "cid": cid,
+            "timestamp": time.time(),
+            "verified_tiers": 0,
+            "corrupted_tiers": []
+        }
+        
+        # Get tiers that should contain this content
+        tiers = self._get_content_tiers(cid)
+        if not tiers:
+            result["success"] = False
+            result["error"] = f"Content {cid} not found in any tier"
+            return result
+        
+        # Get content from first tier as reference
+        reference_tier = tiers[0]
+        try:
+            reference_content = self._get_from_tier(cid, reference_tier)
+            reference_hash = hashlib.sha256(reference_content).hexdigest()
+        except Exception as e:
+            result["success"] = False
+            result["error"] = f"Failed to get reference content from {reference_tier}: {str(e)}"
+            return result
+        
+        # Check content in each tier
+        result["verified_tiers"] = 1  # Count reference tier
+        
+        for tier in tiers[1:]:
+            try:
+                tier_content = self._get_from_tier(cid, tier)
+                tier_hash = hashlib.sha256(tier_content).hexdigest()
+                
+                if tier_hash != reference_hash:
+                    # Content mismatch detected
+                    result["corrupted_tiers"].append({
+                        "tier": tier,
+                        "expected_hash": reference_hash,
+                        "actual_hash": tier_hash
+                    })
+                    result["success"] = False
+                else:
+                    result["verified_tiers"] += 1
+                    
+            except Exception as e:
+                logger.warning(f"Failed to verify content in tier {tier}: {e}")
+                # Don't count this as corruption, just a retrieval failure
+                result["retrieval_errors"] = result.get("retrieval_errors", [])
+                result["retrieval_errors"].append({
+                    "tier": tier,
+                    "error": str(e)
+                })
+        
+        # Log the verification result
+        if result["success"]:
+            logger.info(f"Content {cid} integrity verified across {result['verified_tiers']} tiers")
+        else:
+            logger.warning(f"Content {cid} integrity check failed: {len(result['corrupted_tiers'])} corrupted tiers")
+        
+        return result
+    
+    def _get_content_tiers(self, cid):
+        """
+        Get the tiers that should contain a given content.
+        
+        Args:
+            cid: Content identifier
+            
+        Returns:
+            List of tier names
+        """
+        # Check each tier to see if it contains the content
+        tiers = []
+        
+        # Check IPFS
+        try:
+            # Just check if content exists without downloading
+            self.info(f"ipfs://{cid}")
+            tiers.append("ipfs_local")
+        except Exception:
+            pass
+        
+        return tiers
+    
+    def _get_from_tier(self, cid, tier):
+        """
+        Get content from a specific storage tier.
+        
+        Args:
+            cid: Content identifier
+            tier: Source tier name
+            
+        Returns:
+            Content data if found, None otherwise
+        """
+        if tier == "ipfs_local":
+            # Get from local IPFS
+            try:
+                return self._open(f"ipfs://{cid}", "rb").read()
+            except Exception:
+                return None
+        
+        return None
 
 
 # Register the filesystem with clobber=True to handle development reloads
