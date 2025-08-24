@@ -243,7 +243,7 @@ class RefactoredUnifiedMCPDashboard:
                 return {"content": [{"type": "text", "text": str(e)}]}
         
         # Dashboard Routes
-                @self.app.get("/", response_class=HTMLResponse)
+        @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home(request: Request):
             """Serve the main dashboard."""
             # Ensure the template directory is correctly set up
