@@ -28,9 +28,14 @@ PID files and CLI semantics:
 The repository includes a modern, schema-driven MCP dashboard with:
 - **Single-file FastAPI app** (`consolidated_mcp_dashboard.py`)
 - **UI at `/`**: SPA with sidebar navigation, dashboard cards, and real-time updates
-- **Tool Runner UI**: Both legacy and beta (schema-driven) UIs available
-  - Enable beta UI via `?ui=beta` or `localStorage.setItem('toolRunner.beta', 'true')`
+- **Tool Runner UI**:
+  - Beta (schema-driven) UI is the default and always shown at `/` (client-rendered)
+  - Legacy runner remains internally available for parity but is not the default
 - **MCP JS SDK**: `/mcp-client.js` exposes `window.MCP` with all tool namespaces
+  - Sets response header `X-MCP-SDK-Source: inline|static`
+  - If a static SDK exists at `ipfs_kit_py/static/mcp-sdk.js`, it will be served with a compatibility shim that guarantees:
+    - Core: `MCP.listTools()`, `MCP.callTool()`, and `MCP.status()`
+    - Namespaces: `Services, Backends, Buckets, Pins, Files, IPFS, CARs, State, Logs, Server`
 - **Endpoints**:
   - `/` (UI)
   - `/mcp-client.js` (SDK)
@@ -63,6 +68,7 @@ The repository includes a modern, schema-driven MCP dashboard with:
       - `counts.requests` – total HTTP requests handled since process start (in-memory)
       - `security.auth_enabled` – boolean indicating whether an API token is active
     - These fields assist with lightweight observability without external metrics backends.
+  - Client SDK convenience: `MCP.status()` returns `{ initialized, tools, ...data }` for easy checks in the UI/tests.
 - **Accessibility**: ARIA roles, keyboard navigation, responsive design
 - **Testing**: Playwright E2E, Python smoke/unit tests
 - **Data locations** (default):
@@ -178,7 +184,9 @@ Notes:
 
 - Exposed at `/mcp-client.js` as `window.MCP`
 - Namespaces: Services, Backends, Buckets, Pins, Files, IPFS, CARs, State, Logs, Server
-- Methods: `listTools()`, `callTool(name, args)`, plus per-namespace helpers
+- Methods: `listTools()`, `callTool(name, args)`, `status()`, plus per-namespace helpers
+- Header: `X-MCP-SDK-Source: inline|static` indicates whether the SDK is embedded or served from `ipfs_kit_py/static/mcp-sdk.js`
+- Compatibility shim ensures core methods and namespaces are available even with a custom static SDK
 
 ## 🗂️ Panels
 
@@ -192,6 +200,28 @@ Notes:
 
 - Playwright E2E tests (see `tests/e2e/`)
 - Python smoke and unit tests
+
+### Quick test commands
+
+Run targeted Python unit tests for recent dashboard features:
+
+```bash
+python -m unittest -q tests/test_assets_unittest.py tests/test_services_unittest.py tests/test_bucket_policy_unittest.py
+```
+
+Run an SDK-first Playwright smoke test (requires a running dashboard, e.g., on 8099):
+
+```bash
+# Start the server (example)
+python consolidated_mcp_dashboard.py --host 127.0.0.1 --port 8099
+
+# In a separate shell:
+DASHBOARD_URL=http://127.0.0.1:8099 npm run e2e -- tests/e2e/sdk_smoke.spec.js
+```
+
+Notes:
+- The dashboard page at `/` is client-rendered; DOM elements like the nav are injected by `/app.js` at runtime.
+- The SDK is available at `/mcp-client.js` and exposes `window.MCP` once loaded.
 
 ## 📚 Documentation
 

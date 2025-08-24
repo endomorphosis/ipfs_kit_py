@@ -480,6 +480,14 @@ class ConsolidatedMCPDashboard:
         async def mcp_client_js_head() -> Response:  # type: ignore
             return Response(status_code=200, headers={"Cache-Control": "no-store"})
 
+        # Favicon placeholder (avoid 404 noise)
+        @app.get("/favicon.ico")
+        async def favicon() -> Response:  # type: ignore
+            return Response(status_code=204, headers={"Cache-Control": "public, max-age=3600"})
+        @app.head("/favicon.ico")
+        async def favicon_head() -> Response:  # type: ignore
+            return Response(status_code=204, headers={"Cache-Control": "public, max-age=3600"})
+
         # Simple health endpoint (GET/HEAD)
         @app.get("/healthz")
         async def healthz() -> Response:  # type: ignore
@@ -814,6 +822,7 @@ class ConsolidatedMCPDashboard:
                     raise HTTPException(400, "retention_days must be >=0")
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             updated = False
+            pol: Dict[str, Any] = {}
             for i, b in enumerate(items):
                 if b.get("name") == name:
                     pol = dict(b.get("policy") or {})
@@ -872,7 +881,7 @@ class ConsolidatedMCPDashboard:
 
         # Files VFS
         @app.get("/api/files/list")
-        async def files_list(path: str = ".", bucket: str = None) -> Dict[str, Any]:
+        async def files_list(path: str = ".", bucket: Optional[str] = None) -> Dict[str, Any]:
             # Use bucket-specific path if provided
             base = self.paths.vfs_root
             if bucket:
@@ -903,7 +912,7 @@ class ConsolidatedMCPDashboard:
             return {"path": str(path), "bucket": bucket, "items": items, "total_items": len(items)}
 
         @app.get("/api/files/read")
-        async def files_read(path: str, bucket: str = None) -> Dict[str, Any]:
+        async def files_read(path: str, bucket: Optional[str] = None) -> Dict[str, Any]:
             base = self.paths.vfs_root
             if bucket:
                 # Check if bucket exists
@@ -984,11 +993,11 @@ class ConsolidatedMCPDashboard:
             return {"ok": True, "path": path, "bucket": bucket}
 
         @app.delete("/api/files/delete")
-        async def files_delete(path: str, bucket: str = None, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def files_delete(path: str, bucket: Optional[str] = None, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
             base = self.paths.vfs_root
             if bucket:
                 base = self.paths.vfs_root / bucket
-                
+            
             p = _safe_vfs_path(base, path)
             if not p.exists():
                 raise HTTPException(404, "File or directory not found")
@@ -999,7 +1008,7 @@ class ConsolidatedMCPDashboard:
                 else:
                     import shutil
                     shutil.rmtree(p)
-                    
+                
                 # Update metadata
                 metadata_file = self.paths.data_dir / "file_metadata.json"
                 metadata = _read_json(metadata_file, {})
@@ -1063,16 +1072,16 @@ class ConsolidatedMCPDashboard:
             return {"buckets": vfs_buckets}
 
         @app.get("/api/files/stats")
-        async def files_stats(path: str = ".", bucket: str = None) -> Dict[str, Any]:
+        async def files_stats(path: str = ".", bucket: Optional[str] = None) -> Dict[str, Any]:
             """Get detailed file/directory statistics"""
             base = self.paths.vfs_root
             if bucket:
                 base = self.paths.vfs_root / bucket
-                
+            
             p = _safe_vfs_path(base, path)
             if not p.exists():
                 raise HTTPException(404, "Path not found")
-                
+            
             stat_info = p.stat()
             stats = {
                 "path": path,
@@ -1099,7 +1108,7 @@ class ConsolidatedMCPDashboard:
                         file_count += 1
                         try:
                             total_size += item.stat().st_size
-                        except:
+                        except Exception:
                             pass
                     elif item.is_dir():
                         dir_count += 1
@@ -1109,7 +1118,7 @@ class ConsolidatedMCPDashboard:
                     "file_count": file_count,
                     "dir_count": dir_count
                 })
-                
+            
             return stats
 
         # Tools (JSON-RPC wrappers)
@@ -1621,6 +1630,7 @@ class ConsolidatedMCPDashboard:
                     raise HTTPException(400, "retention_days must be >=0")
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             updated = False
+            pol: Dict[str, Any] = {}
             for i, b in enumerate(items):
                 if b.get("name") == bname:
                     pol = dict(b.get("policy") or {})
@@ -2002,7 +2012,7 @@ class ConsolidatedMCPDashboard:
                 el('span',{id:'tool-run-status',style:'font-size:12px;opacity:.7;margin-left:8px;'})
             ),
             el('pre',{id:'tool-result',text:'(result)'}),
-            el('div',{style:'font-size:11px;opacity:.6;margin-top:4px;'},'Uses MCP JSON-RPC wrappers.')
+            el('div',{style:'font-size:11px;opacity:.6;margin-top:4px;'},'Uses MCP JSON-RPC wrappers.'),
             // Beta Tool Runner (always present; visible when beta mode)
             el('div',{id:'toolrunner-beta-container', style:'margin-top:16px;padding-top:10px;border-top:'+'1px solid #2d3a4d;'},
                 el('h3',{text:'Beta Tool Runner'}),
@@ -2632,7 +2642,8 @@ class ConsolidatedMCPDashboard:
         loadVfsBuckets();
     }
     // ---- Tools Tab ----
-    let toolsLoaded=false; let toolDefs=[]; function initTools(){ if(toolsLoaded) return; toolsLoaded=true; loadToolList(); }
+    // Use var to avoid temporal-dead-zone when showView('tools') runs before these are initialized
+    var toolsLoaded=false; var toolDefs=[]; function initTools(){ if(toolsLoaded) return; toolsLoaded=true; loadToolList(); }
     async function loadToolList(){
         const sel=document.getElementById('tool-select'); if(!sel) return; sel.innerHTML=''; toolDefs=[];
         try{
