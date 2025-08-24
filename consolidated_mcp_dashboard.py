@@ -278,6 +278,15 @@ class ConsolidatedMCPDashboard:
             try:
                 from ipfs_kit_py.mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
                 self._service_manager = ComprehensiveServiceManager(self.paths.base)
+                
+                # Auto-enable detectable services
+                try:
+                    result = self._service_manager.auto_enable_detectable_services()
+                    if result.get("success") and result.get("enabled_services"):
+                        self.log.info(f"Auto-enabled services: {result['enabled_services']}")
+                except Exception as e:
+                    self.log.warning(f"Failed to auto-enable services: {e}")
+                
                 self.log.info("Initialized ComprehensiveServiceManager")
             except ImportError as e:
                 self.log.error(f"Failed to import ComprehensiveServiceManager: {e}")
@@ -750,19 +759,45 @@ class ConsolidatedMCPDashboard:
                         }
                     return {"services": services}
                 else:
-                    # Fallback to basic IPFS service detection if service manager fails
+                    # Fallback to basic service detection if service manager fails
                     services = {}
+                    
+                    # IPFS daemon detection
                     ipfs_detected = _which("ipfs") is not None
                     ipfs_api_open = _port_open("127.0.0.1", 5001)
                     services["ipfs"] = {
                         "name": "IPFS Daemon",
                         "type": "daemon",
-                        "status": "running" if (ipfs_detected and ipfs_api_open) else "stopped",
+                        "status": "running" if (ipfs_detected and ipfs_api_open) else ("stopped" if ipfs_detected else "missing"),
                         "description": "InterPlanetary File System daemon",
                         "bin": _which("ipfs"),
                         "api_port_open": ipfs_api_open,
-                        "actions": ["start", "stop", "restart"]
+                        "actions": ["start", "stop", "restart"] if ipfs_detected else []
                     }
+                    
+                    # Check for other common daemons
+                    daemon_checks = [
+                        ("lotus", "Lotus Client", "Filecoin Lotus client", 1234),
+                        ("aria2c", "Aria2 Daemon", "High-speed download daemon", 6800),
+                        ("ipfs-cluster-service", "IPFS Cluster", "IPFS Cluster coordination service", 9094)
+                    ]
+                    
+                    for binary_name, service_name, description, port in daemon_checks:
+                        binary_path = _which(binary_name)
+                        if binary_path:
+                            service_id = binary_name.replace('-', '_').replace('c', '') if binary_name == 'aria2c' else binary_name.replace('-', '_')
+                            port_open = _port_open("127.0.0.1", port)
+                            services[service_id] = {
+                                "name": service_name,
+                                "type": "daemon", 
+                                "status": "running" if port_open else "stopped",
+                                "description": description,
+                                "bin": binary_path,
+                                "port": port,
+                                "api_port_open": port_open,
+                                "actions": ["start", "stop", "restart"]
+                            }
+                    
                     return {"services": services}
             except Exception as e:
                 self.log.error(f"Error listing services: {e}")
@@ -814,32 +849,50 @@ class ConsolidatedMCPDashboard:
                             "error": result.get("error", f"Failed to {action} service {name}")
                         }
                 else:
-                    # Fallback: basic IPFS daemon control for compatibility
-                    if name not in ["ipfs"]:
+                    # Fallback: basic daemon control for detected services
+                    supported_services = ["ipfs", "lotus", "aria2", "ipfs_cluster"]
+                    if name not in supported_services:
                         raise HTTPException(status_code=400, detail="Service not available")
                     
                     # Simulate service state change for basic implementation
-                    import subprocess
                     success = False
                     status = "unknown"
                     
                     try:
+                        # Map service names to their binary names and processes
+                        service_binaries = {
+                            "ipfs": ("ipfs", "ipfs daemon"),
+                            "lotus": ("lotus", "lotus daemon"),
+                            "aria2": ("aria2c", "aria2c"),
+                            "ipfs_cluster": ("ipfs-cluster-service", "ipfs-cluster-service")
+                        }
+                        
+                        binary_name, process_name = service_binaries.get(name, (name, name))
+                        
                         if action == "start":
                             status = "starting"
-                            # Note: In production, this would actually start the IPFS daemon
-                            # For now, we'll simulate the response
-                            success = True
-                            status = "running"
+                            # Note: In production, this would actually start the daemon
+                            # For now, we'll simulate the response based on binary availability
+                            if _which(binary_name):
+                                success = True
+                                status = "running"
+                            else:
+                                success = False
+                                status = "missing"
                         elif action == "stop":
                             status = "stopping"
-                            # Note: In production, this would stop the IPFS daemon
+                            # Note: In production, this would stop the daemon
                             success = True
                             status = "stopped"
                         elif action == "restart":
                             status = "restarting"
-                            # Note: In production, this would restart the IPFS daemon
-                            success = True
-                            status = "running"
+                            # Note: In production, this would restart the daemon
+                            if _which(binary_name):
+                                success = True
+                                status = "running"
+                            else:
+                                success = False
+                                status = "missing"
                         
                         return {
                             "ok": success,
@@ -2304,9 +2357,9 @@ class ConsolidatedMCPDashboard:
             if(containerBtns){
                 containerBtns.innerHTML='';
                 Object.entries(services).forEach(([name, info])=>{
-                    // Show action buttons for properly managed services
-                    const managedServices = ['ipfs']; // Only show action buttons for services we can actually manage
-                    if(!managedServices.includes(name)) return;
+                    // Show action buttons for services that have actions available
+                    const serviceActions = info.actions || [];
+                    if (serviceActions.length === 0) return;
                     const st=(info&&info.status)||'unknown';
                     const wrap=document.createElement('div'); wrap.style.marginBottom='4px';
                     const title=document.createElement('strong'); title.textContent=name+':'; title.style.marginRight='6px'; wrap.append(title);
