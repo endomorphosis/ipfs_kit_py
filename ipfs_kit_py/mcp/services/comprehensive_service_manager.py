@@ -171,6 +171,15 @@ class ComprehensiveServiceManager:
                     "config_dir": str(Path.home() / ".aria2"),
                     "enabled": False,
                     "auto_start": False
+                },
+                "ipfs_cluster": {
+                    "type": ServiceType.DAEMON.value,
+                    "name": "IPFS Cluster",
+                    "description": "IPFS Cluster daemon for coordinated pin management",
+                    "port": 9094,
+                    "config_dir": str(Path.home() / ".ipfs-cluster"),
+                    "enabled": False,
+                    "auto_start": False
                 }
             },
             "storage_backends": {
@@ -204,6 +213,46 @@ class ComprehensiveServiceManager:
                     "description": "Storacha decentralized storage service",
                     "requires_credentials": True,
                     "config_keys": ["api_key"],
+                    "enabled": False
+                },
+                "lotus": {
+                    "type": ServiceType.STORAGE.value,
+                    "name": "Lotus Storage",
+                    "description": "Filecoin Lotus storage provider integration",
+                    "requires_credentials": False,
+                    "config_keys": ["node_url", "token"],
+                    "enabled": False
+                },
+                "synapse": {
+                    "type": ServiceType.STORAGE.value,
+                    "name": "Synapse Matrix",
+                    "description": "Matrix Synapse server storage backend",
+                    "requires_credentials": True,
+                    "config_keys": ["homeserver_url", "access_token", "room_id"],
+                    "enabled": False
+                },
+                "gdrive": {
+                    "type": ServiceType.STORAGE.value,
+                    "name": "Google Drive",
+                    "description": "Google Drive cloud storage backend",
+                    "requires_credentials": True,
+                    "config_keys": ["client_id", "client_secret", "refresh_token"],
+                    "enabled": False
+                },
+                "ftp": {
+                    "type": ServiceType.STORAGE.value,
+                    "name": "FTP Server",
+                    "description": "File Transfer Protocol storage backend",
+                    "requires_credentials": True,
+                    "config_keys": ["host", "port", "username", "password"],
+                    "enabled": False
+                },
+                "sshfs": {
+                    "type": ServiceType.STORAGE.value,
+                    "name": "SSHFS",
+                    "description": "SSH Filesystem storage backend",
+                    "requires_credentials": True,
+                    "config_keys": ["host", "port", "username", "private_key_path"],
                     "enabled": False
                 }
             },
@@ -577,3 +626,42 @@ class ComprehensiveServiceManager:
         service_config["enabled"] = False
         self._save_services_config()
         return {"success": True, "message": f"Service {service_id} disabled"}
+    
+    def auto_enable_detectable_services(self) -> Dict[str, Any]:
+        """Auto-enable services that can be detected on the system."""
+        enabled_services = []
+        
+        # Check for IPFS daemon
+        if self._check_binary_available("ipfs"):
+            ipfs_config = self._find_service_config("ipfs")
+            if ipfs_config and not ipfs_config.get("enabled", False):
+                ipfs_config["enabled"] = True
+                enabled_services.append("ipfs")
+        
+        # Check for other daemons
+        daemon_checks = {
+            "lotus": "lotus",
+            "aria2": "aria2c",
+            "ipfs_cluster": "ipfs-cluster-service"
+        }
+        
+        for daemon_id, binary_name in daemon_checks.items():
+            if self._check_binary_available(binary_name):
+                daemon_config = self._find_service_config(daemon_id)
+                if daemon_config and not daemon_config.get("enabled", False):
+                    daemon_config["enabled"] = True
+                    enabled_services.append(daemon_id)
+        
+        if enabled_services:
+            self._save_services_config()
+        
+        return {
+            "success": True,
+            "enabled_services": enabled_services,
+            "message": f"Auto-enabled {len(enabled_services)} detectable services"
+        }
+    
+    def _check_binary_available(self, binary_name: str) -> bool:
+        """Check if a binary is available in the system PATH."""
+        import shutil
+        return shutil.which(binary_name) is not None
