@@ -1401,7 +1401,7 @@ class ConsolidatedMCPDashboard:
             return {"jsonrpc": "2.0", "error": {"code": -32000, "message": str(e)}, "id": None}
 
     # Domain handlers (return JSON-RPC dict or None if not applicable)
-    def _handle_system_services(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _handle_system_services(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if name == "get_system_status":
             result: Dict[str, Any] = {
                 "time": datetime.now(UTC).isoformat(),
@@ -1423,8 +1423,28 @@ class ConsolidatedMCPDashboard:
         if name == "service_control":
             svc = str(args.get("service", "")).strip()
             action = str(args.get("action", "")).strip().lower()
+            
+            # Try to use the comprehensive service manager first
+            service_manager = self._get_service_manager()
+            if service_manager:
+                try:
+                    if action == "status":
+                        # Get the service details for status
+                        result = await service_manager.get_service_details(svc)
+                        return {"jsonrpc": "2.0", "result": result, "id": None}
+                    elif action in ("start", "stop", "restart"):
+                        # Use the perform_service_action method
+                        result = await service_manager.perform_service_action(svc, action)
+                        return {"jsonrpc": "2.0", "result": result, "id": None}
+                    else:
+                        raise HTTPException(400, "Unsupported action")
+                except Exception as e:
+                    self.log.error(f"Service manager action failed: {e}")
+                    # Fall through to legacy IPFS handling
+            
+            # Legacy fallback for IPFS only
             if svc not in ("ipfs",):
-                raise HTTPException(400, "Unsupported service")
+                raise HTTPException(400, f"Service '{svc}' not supported by basic service control")
             ipfs_bin = _which("ipfs")
             if not ipfs_bin:
                 raise HTTPException(404, "ipfs binary not found")
@@ -2323,7 +2343,10 @@ class ConsolidatedMCPDashboard:
 
     async function loadServices(){
         const pre=document.getElementById('services-json'); if(pre) pre.textContent='Loading…';
-        try{ const r=await fetch('/api/services'); const js=await r.json(); const services=js.services||{}; 
+        try{ 
+            // Use MCP SDK instead of direct REST call
+            const result = await window.MCP.callTool('list_services', {});
+            const services = (result && result.result && result.result.services) || {}; 
             // Build table
             let html='';
             html += 'Service | Status | Actions\n';
@@ -2331,9 +2354,17 @@ class ConsolidatedMCPDashboard:
             Object.entries(services).forEach(([name, info])=>{
                 const st=(info&&info.status)||info.bin? (info.status||'detected'): 'missing';
                 html += `${name} | ${st} | `;
-                if(['ipfs','cars'].includes(name)){
+                // Show actions for all services that have actions available
+                const serviceActions = info.actions || [];
+                if (serviceActions.length > 0) {
                     const running = st==='running';
-                    html += running? `[stop] [restart]` : `[start]`;
+                    if (running) {
+                        html += `[stop] [restart]`;
+                    } else if (st==='stopped' || st==='detected') {
+                        html += `[start]`;
+                    } else {
+                        html += `[start]`;
+                    }
                 }
                 html += '\n';
             });
@@ -2374,7 +2405,13 @@ class ConsolidatedMCPDashboard:
         }catch(e){ if(pre) pre.textContent='Error'; }
     }
     async function serviceAction(name, action){
-        try{ await fetch(`/api/services/${name}/${action}`, {method:'POST', headers:{'x-api-token': (window.API_TOKEN||'')}}); loadServices(); }catch(e){}
+        try{ 
+            // Use MCP SDK service control instead of direct REST call
+            await window.MCP.callTool('service_control', { service: name, action: action }); 
+            loadServices(); 
+        }catch(e){
+            console.error('Service action failed:', e);
+        }
     }
     // Polling for services when services view active
     setInterval(()=>{ const sv=document.getElementById('view-services'); if(sv && sv.style.display==='block') loadServices(); }, 5000);
