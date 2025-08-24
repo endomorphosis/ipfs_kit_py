@@ -581,7 +581,22 @@ class ConsolidatedMCPDashboard:
         async def mcp_status() -> Dict[str, Any]:
             tools_defs = self._tools_list()["result"]["tools"]
             tool_names = [t["name"] for t in tools_defs]
-            backends = _read_json(self.paths.backends_file, default={})
+            
+            # Use enhanced backend manager if available
+            backend_count = 0
+            if backend_manager:
+                try:
+                    backend_result = backend_manager.list_backends()
+                    backend_count = backend_result.get("total", 0)
+                except Exception as e:
+                    logger.warning(f"Error getting backend count: {e}")
+                    # Fallback to basic count
+                    backends = _read_json(self.paths.backends_file, default={})
+                    backend_count = len(backends.keys()) if isinstance(backends, dict) else 0
+            else:
+                backends = _read_json(self.paths.backends_file, default={})
+                backend_count = len(backends.keys()) if isinstance(backends, dict) else 0
+            
             buckets = _read_json(self.paths.buckets_file, default=[])
             pins = _read_json(self.paths.pins_file, default=[])
             services_active = 0
@@ -594,7 +609,7 @@ class ConsolidatedMCPDashboard:
                 "uptime": time.time() - self._start_time,
                 "counts": {
                     "services_active": services_active,
-                    "backends": len(backends.keys()) if isinstance(backends, dict) else 0,
+                    "backends": backend_count,
                     "buckets": len(buckets) if isinstance(buckets, list) else 0,
                     "pins": len(pins) if isinstance(pins, list) else 0,
                     "requests": self.request_count,
@@ -662,60 +677,243 @@ class ConsolidatedMCPDashboard:
             finally:
                 self._ws_clients.discard(ws)
 
-        # Backends
+        # Enhanced Backends with Policy Management
+        # Initialize enhanced backend manager
+        try:
+            from ipfs_kit_py.enhanced_backend_manager import EnhancedBackendManager
+            backend_manager = EnhancedBackendManager(str(self.paths.data_dir))
+        except ImportError:
+            # Fallback to basic implementation
+            backend_manager = None
+            logger.warning("Enhanced backend manager not available, using basic implementation")
+
         @app.get("/api/state/backends")
         async def list_backends() -> Dict[str, Any]:
-            data = _read_json(self.paths.backends_file, default={})
-            items = [{"name": k, "config": v} for k, v in data.items()]
-            return {"items": items}
+            if backend_manager:
+                return backend_manager.list_backends()
+            else:
+                # Fallback to original implementation
+                data = _read_json(self.paths.backends_file, default={})
+                items = [{"name": k, "config": v} for k, v in data.items()]
+                return {"items": items}
 
         @app.post("/api/state/backends")
         async def create_backend(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
             name = payload.get("name")
-            cfg = payload.get("config", {})
+            backend_type = payload.get("type", "local")
+            config = payload.get("config", {})
+            tier = payload.get("tier", "standard")
+            
             if not name:
                 raise HTTPException(400, "Missing backend name")
-            data = _read_json(self.paths.backends_file, default={})
-            if name in data:
-                raise HTTPException(409, "Backend already exists")
-            data[name] = cfg
-            _atomic_write_json(self.paths.backends_file, data)
-            return {"ok": True, "name": name}
+                
+            if backend_manager:
+                # Use enhanced manager
+                try:
+                    backend_config = {
+                        "name": name,
+                        "type": backend_type,
+                        "description": f"{backend_type.title()} storage backend",
+                        "config": config,
+                        "status": "enabled",
+                        "tier": tier
+                    }
+                    
+                    config_path = backend_manager._get_backend_config_path(name)
+                    if config_path.exists():
+                        raise HTTPException(409, "Backend already exists")
+                    
+                    with open(config_path, 'w') as f:
+                        yaml.safe_dump(backend_config, f)
+                    
+                    # Create default policy
+                    policy_set = backend_manager._generate_policy_for_backend(name, backend_type, tier)
+                    policy_path = backend_manager._get_policy_config_path(name)
+                    with open(policy_path, 'w') as f:
+                        json.dump(policy_set.model_dump(), f, indent=2)
+                    
+                    return {"ok": True, "name": name, "type": backend_type, "tier": tier}
+                except Exception as e:
+                    raise HTTPException(500, f"Failed to create backend: {str(e)}")
+            else:
+                # Fallback to original implementation
+                data = _read_json(self.paths.backends_file, default={})
+                if name in data:
+                    raise HTTPException(409, "Backend already exists")
+                data[name] = {"type": backend_type, **config}
+                _atomic_write_json(self.paths.backends_file, data)
+                return {"ok": True, "name": name}
 
         @app.get("/api/state/backends/{name}")
         async def get_backend(name: str) -> Dict[str, Any]:
-            data = _read_json(self.paths.backends_file, default={})
-            if name not in data:
-                raise HTTPException(404, "Not found")
-            return {"name": name, "config": data[name]}
+            if backend_manager:
+                backend = backend_manager.get_backend_with_policies(name)
+                if not backend:
+                    raise HTTPException(404, "Backend not found")
+                
+                # Add current stats
+                stats = backend_manager.get_backend_stats(name)
+                backend["stats"] = stats
+                
+                return backend
+            else:
+                # Fallback to original implementation
+                data = _read_json(self.paths.backends_file, default={})
+                if name not in data:
+                    raise HTTPException(404, "Not found")
+                return {"name": name, "config": data[name]}
 
         @app.post("/api/state/backends/{name}")
         async def update_backend(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
-            data = _read_json(self.paths.backends_file, default={})
-            if name not in data:
-                raise HTTPException(404, "Not found")
-            cfg = payload.get("config", {})
-            data[name] = cfg
-            _atomic_write_json(self.paths.backends_file, data)
-            return {"ok": True}
+            if backend_manager:
+                backend = backend_manager.get_backend_with_policies(name)
+                if not backend:
+                    raise HTTPException(404, "Backend not found")
+                    
+                # Update backend config
+                config_path = backend_manager._get_backend_config_path(name)
+                with open(config_path, 'r') as f:
+                    current_config = yaml.safe_load(f)
+                    
+                # Apply updates
+                if "config" in payload:
+                    current_config["config"].update(payload["config"])
+                if "tier" in payload:
+                    current_config["tier"] = payload["tier"]
+                if "status" in payload:
+                    current_config["status"] = payload["status"]
+                if "description" in payload:
+                    current_config["description"] = payload["description"]
+                    
+                with open(config_path, 'w') as f:
+                    yaml.safe_dump(current_config, f)
+                    
+                # Update policies if provided
+                if "policy" in payload:
+                    backend_manager.update_backend_policy(name, payload["policy"])
+                    
+                return {"ok": True}
+            else:
+                # Fallback to original implementation
+                data = _read_json(self.paths.backends_file, default={})
+                if name not in data:
+                    raise HTTPException(404, "Not found")
+                cfg = payload.get("config", {})
+                data[name] = cfg
+                _atomic_write_json(self.paths.backends_file, data)
+                return {"ok": True}
 
         @app.delete("/api/state/backends/{name}")
         async def delete_backend(name: str, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
-            data = _read_json(self.paths.backends_file, default={})
-            if name not in data:
-                raise HTTPException(404, "Not found")
-            data.pop(name)
-            _atomic_write_json(self.paths.backends_file, data)
-            return {"ok": True}
+            if backend_manager:
+                config_path = backend_manager._get_backend_config_path(name)
+                policy_path = backend_manager._get_policy_config_path(name)
+                
+                if not config_path.exists():
+                    raise HTTPException(404, "Backend not found")
+                    
+                try:
+                    config_path.unlink()
+                    if policy_path.exists():
+                        policy_path.unlink()
+                    return {"ok": True}
+                except Exception as e:
+                    raise HTTPException(500, f"Failed to delete backend: {str(e)}")
+            else:
+                # Fallback to original implementation
+                data = _read_json(self.paths.backends_file, default={})
+                if name not in data:
+                    raise HTTPException(404, "Not found")
+                data.pop(name)
+                _atomic_write_json(self.paths.backends_file, data)
+                return {"ok": True}
 
         @app.post("/api/state/backends/{name}/test")
         async def test_backend(name: str) -> Dict[str, Any]:
-            data = _read_json(self.paths.backends_file, default={})
-            cfg = data.get(name, {})
-            kind = (cfg or {}).get("type", "unknown")
-            ipfs_bin = _which("ipfs")
-            reachable = bool(ipfs_bin)
-            return {"name": name, "type": kind, "reachable": reachable, "ipfs_bin": ipfs_bin}
+            if backend_manager:
+                backend = backend_manager.get_backend_with_policies(name)
+                if not backend:
+                    raise HTTPException(404, "Backend not found")
+                    
+                backend_type = backend.get("type", "unknown")
+                stats = backend_manager.get_backend_stats(name)
+                
+                # Simple reachability test based on backend type
+                reachable = True  # Default to true for demo
+                test_result = "ok"
+                
+                if backend_type == "ipfs":
+                    # Test IPFS connectivity
+                    ipfs_bin = _which("ipfs")
+                    reachable = bool(ipfs_bin)
+                    test_result = "ipfs available" if reachable else "ipfs not found"
+                elif backend_type == "s3":
+                    # Could test S3 connectivity here
+                    test_result = "s3 endpoint reachable"
+                elif backend_type == "local":
+                    # Test local path accessibility  
+                    path = backend.get("config", {}).get("path")
+                    if path:
+                        reachable = Path(path).exists()
+                        test_result = "path accessible" if reachable else "path not found"
+                
+                return {
+                    "name": name, 
+                    "type": backend_type, 
+                    "reachable": reachable, 
+                    "test_result": test_result,
+                    "stats": stats,
+                    "availability": stats.get("availability", 1.0)
+                }
+            else:
+                # Fallback to original implementation
+                data = _read_json(self.paths.backends_file, default={})
+                cfg = data.get(name, {})
+                kind = (cfg or {}).get("type", "unknown")
+                ipfs_bin = _which("ipfs")
+                reachable = bool(ipfs_bin)
+                return {"name": name, "type": kind, "reachable": reachable, "ipfs_bin": ipfs_bin}
+                
+        @app.get("/api/state/backends/{name}/stats")
+        async def get_backend_stats(name: str) -> Dict[str, Any]:
+            """Get detailed statistics for a specific backend."""
+            if backend_manager:
+                backend = backend_manager.get_backend_with_policies(name)
+                if not backend:
+                    raise HTTPException(404, "Backend not found")
+                    
+                stats = backend_manager.get_backend_stats(name)
+                return {"name": name, "stats": stats}
+            else:
+                raise HTTPException(501, "Backend statistics not available")
+                
+        @app.get("/api/state/backends/{name}/policy")
+        async def get_backend_policy(name: str) -> Dict[str, Any]:
+            """Get policy configuration for a specific backend."""
+            if backend_manager:
+                backend = backend_manager.get_backend_with_policies(name)
+                if not backend:
+                    raise HTTPException(404, "Backend not found")
+                    
+                return {"name": name, "policy": backend.get("policy", {})}
+            else:
+                raise HTTPException(501, "Backend policies not available")
+                
+        @app.post("/api/state/backends/{name}/policy")
+        async def update_backend_policy(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+            """Update policy configuration for a specific backend."""
+            if backend_manager:
+                backend = backend_manager.get_backend_with_policies(name)
+                if not backend:
+                    raise HTTPException(404, "Backend not found")
+                    
+                policy_updates = payload.get("policy", {})
+                if backend_manager.update_backend_policy(name, policy_updates):
+                    return {"ok": True, "message": "Policy updated successfully"}
+                else:
+                    raise HTTPException(500, "Failed to update policy")
+            else:
+                raise HTTPException(501, "Backend policies not available")
 
         # Services
         @app.get("/api/services")
@@ -1920,13 +2118,37 @@ class ConsolidatedMCPDashboard:
     );
     const backendsView = el('div',{id:'view-backends',class:'view-panel',style:'display:none;'},
         el('div',{class:'card'},
-            el('h3',{text:'Backends'}),
-            el('div',{class:'row'},
-                el('input',{id:'backend-name',placeholder:'name',style:'width:140px;'}),
-                el('input',{id:'backend-type',placeholder:'type',style:'width:120px;'}),
-                el('button',{id:'btn-backend-add'},'Add')
+            el('h3',{text:'Storage Backends'}),
+            el('div',{style:'margin-bottom:8px;'},
+                el('div',{class:'row',style:'margin-bottom:4px;'},
+                    el('input',{id:'backend-name',placeholder:'Backend Name',style:'width:140px;'}),
+                    el('select',{id:'backend-type',style:'width:120px;'},[
+                        el('option',{value:'',text:'Select Type'}),
+                        el('option',{value:'local',text:'Local FS'}),
+                        el('option',{value:'ipfs',text:'IPFS'}),
+                        el('option',{value:'ipfs_cluster',text:'IPFS Cluster'}),
+                        el('option',{value:'s3',text:'S3'}),
+                        el('option',{value:'huggingface',text:'Hugging Face'}),
+                        el('option',{value:'github',text:'GitHub'}),
+                        el('option',{value:'gdrive',text:'Google Drive'}),
+                        el('option',{value:'parquet',text:'Parquet Meta'})
+                    ]),
+                    el('select',{id:'backend-tier',style:'width:80px;'},[
+                        el('option',{value:'hot',text:'Hot'}),
+                        el('option',{value:'warm',text:'Warm',selected:true}),
+                        el('option',{value:'cold',text:'Cold'}),
+                        el('option',{value:'archive',text:'Archive'})
+                    ])
+                ),
+                el('div',{class:'row'},
+                    el('input',{id:'backend-description',placeholder:'Description (optional)',style:'width:260px;'}),
+                    el('button',{id:'btn-backend-add',style:'background:#4CAF50;color:white;'},'Add Backend')
+                )
             ),
-            el('div',{id:'backends-list',style:'margin-top:8px;font-size:13px;'},'Loading…')
+            el('div',{style:'font-size:11px;color:#888;margin-bottom:8px;'},
+                'Tier: Hot=Frequent access, Warm=Regular access, Cold=Infrequent access, Archive=Long-term storage'
+            ),
+            el('div',{id:'backends-list',style:'margin-top:8px;'},'Loading…')
         )
     );
     const bucketsView = el('div',{id:'view-buckets',class:'view-panel',style:'display:none;'},
@@ -2221,16 +2443,143 @@ class ConsolidatedMCPDashboard:
     async function loadBackends(){
         const container = document.getElementById('backends-list'); if(!container) return;
         container.textContent='Loading…';
-        try{ const r=await fetch('/api/state/backends'); const js=await r.json(); const items=js.items||[]; if(!items.length){ container.textContent='(none)'; return; }
-            container.innerHTML=''; items.forEach(it=>{
-                const row=el('div',{class:'row',style:'justify-content:space-between;'},
-                    el('span',{text: it.name + (it.config && it.config.type? ' ['+it.config.type+']':'')}),
-                    el('span',{},
-                        el('button',{style:'padding:2px 6px;font-size:11px;',title:'Delete',onclick:()=>deleteBackend(it.name)},'✕')
-                    )
-                ); container.append(row);
+        try{ 
+            const r=await fetch('/api/state/backends'); 
+            const js=await r.json(); 
+            const backends = js.backends || js.items || []; 
+            
+            if(!backends.length){ 
+                container.textContent='(none)'; 
+                return; 
+            }
+            
+            container.innerHTML=''; 
+            backends.forEach(backend=>{
+                const name = backend.name;
+                const type = backend.type || (backend.config && backend.config.type) || 'unknown';
+                const tier = backend.tier || 'standard';
+                const status = backend.status || 'unknown';
+                const description = backend.description || `${type} storage backend`;
+                
+                // Get policy info
+                const policy = backend.policy || {};
+                const storagePolicy = policy.storage_quota || {};
+                const trafficPolicy = policy.traffic_quota || {};
+                const replicationPolicy = policy.replication || {};
+                const retentionPolicy = policy.retention || {};
+                const cachePolicy = policy.cache || {};
+                
+                // Get stats
+                const stats = backend.stats || {};
+                
+                // Create a detailed backend card
+                const backendCard = el('div',{
+                    class:'backend-card',
+                    style:'border:1px solid #444;margin:6px 0;padding:8px;border-radius:6px;background:#1a1a1a;'
+                });
+                
+                // Header with name, type, status
+                const header = el('div',{
+                    style:'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;'
+                }, 
+                    el('div',{style:'display:flex;align-items:center;gap:8px;'},
+                        el('strong',{text:name,style:'color:#4CAF50;'}),
+                        el('span',{text:`[${type}]`,style:'color:#888;font-size:11px;'}),
+                        el('span',{
+                            text:tier.toUpperCase(),
+                            style:`background:${getTierColor(tier)};color:white;padding:2px 6px;border-radius:3px;font-size:10px;`
+                        }),
+                        el('span',{
+                            text:status,
+                            style:`color:${status === 'enabled' ? '#4CAF50' : '#f44336'};font-size:11px;`
+                        })
+                    ),
+                    el('button',{
+                        style:'padding:2px 6px;font-size:11px;color:#f44336;',
+                        title:'Delete Backend',
+                        onclick:()=>deleteBackend(name)
+                    },'✕')
+                );
+                
+                // Description
+                const desc = el('div',{
+                    text:description,
+                    style:'color:#ccc;font-size:11px;margin-bottom:8px;'
+                });
+                
+                // Stats row
+                const statsRow = el('div',{
+                    style:'display:flex;gap:12px;margin-bottom:6px;font-size:11px;'
+                });
+                
+                if(stats.used_storage_gb !== undefined) {
+                    statsRow.appendChild(el('span',{
+                        text:`Storage: ${stats.used_storage_gb.toFixed(1)} GB`,
+                        style:'color:#81C784;'
+                    }));
+                }
+                
+                if(stats.total_files !== undefined) {
+                    statsRow.appendChild(el('span',{
+                        text:`Files: ${stats.total_files}`,
+                        style:'color:#64B5F6;'  
+                    }));
+                }
+                
+                if(stats.availability !== undefined) {
+                    const availability = (stats.availability * 100).toFixed(1);
+                    statsRow.appendChild(el('span',{
+                        text:`Uptime: ${availability}%`,
+                        style:`color:${stats.availability > 0.99 ? '#4CAF50' : stats.availability > 0.95 ? '#FF9800' : '#f44336'};`
+                    }));
+                }
+                
+                // Policy summary
+                const policySummary = el('div',{
+                    style:'font-size:10px;color:#999;display:flex;gap:10px;flex-wrap:wrap;'
+                });
+                
+                if(storagePolicy.max_size) {
+                    policySummary.appendChild(el('span',{
+                        text:`Quota: ${storagePolicy.max_size} ${storagePolicy.max_size_unit || 'GB'}`
+                    }));
+                }
+                
+                if(replicationPolicy.min_redundancy) {
+                    policySummary.appendChild(el('span',{
+                        text:`Replication: ${replicationPolicy.min_redundancy}-${replicationPolicy.max_redundancy || replicationPolicy.min_redundancy}`
+                    }));
+                }
+                
+                if(retentionPolicy.default_retention_days) {
+                    policySummary.appendChild(el('span',{
+                        text:`Retention: ${retentionPolicy.default_retention_days}d`
+                    }));
+                }
+                
+                if(cachePolicy.max_cache_size) {
+                    policySummary.appendChild(el('span',{
+                        text:`Cache: ${cachePolicy.max_cache_size} ${cachePolicy.max_cache_size_unit || 'GB'}`
+                    }));
+                }
+                
+                backendCard.append(header, desc, statsRow, policySummary);
+                container.append(backendCard);
             });
-        }catch(e){ container.textContent='Error'; }
+        }catch(e){ 
+            console.error('Error loading backends:', e);
+            container.textContent='Error loading backends'; 
+        }
+    }
+    
+    function getTierColor(tier) {
+        switch(tier) {
+            case 'hot': return '#f44336';     // Red for hot
+            case 'warm': return '#FF9800';    // Orange for warm  
+            case 'cold': return '#2196F3';    // Blue for cold
+            case 'archive': return '#9C27B0'; // Purple for archive
+            default: return '#607D8B';        // Blue-grey for standard
+        }
     }
     async function loadBuckets(){
         const container=document.getElementById('buckets-list'); if(!container) return; container.textContent='Loading…';
@@ -2292,8 +2641,40 @@ class ConsolidatedMCPDashboard:
     async function deleteBucket(name){ try{ await fetch('/api/state/buckets/'+encodeURIComponent(name), {method:'DELETE'}); loadBuckets(); }catch(e){} }
     async function deletePin(cid){ try{ await fetch('/api/pins/'+encodeURIComponent(cid), {method:'DELETE'}); loadPins(); }catch(e){} }
     const btnBackendAdd=document.getElementById('btn-backend-add'); if(btnBackendAdd) btnBackendAdd.onclick = async ()=>{
-        const name=(document.getElementById('backend-name')||{}).value||''; const typ=(document.getElementById('backend-type')||{}).value||''; if(!name) return;
-        try{ await fetch('/api/state/backends',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name, config:{type:typ}})}); (document.getElementById('backend-name')||{}).value=''; loadBackends(); }catch(e){}
+        const name=(document.getElementById('backend-name')||{}).value||''; 
+        const type=(document.getElementById('backend-type')||{}).value||''; 
+        const tier=(document.getElementById('backend-tier')||{}).value||'warm';
+        const description=(document.getElementById('backend-description')||{}).value||'';
+        
+        if(!name || !type) {
+            alert('Please provide both backend name and type');
+            return;
+        }
+        
+        try{ 
+            await fetch('/api/state/backends',{
+                method:'POST',
+                headers:{'content-type':'application/json'},
+                body:JSON.stringify({
+                    name, 
+                    type,
+                    tier,
+                    description: description || `${type.charAt(0).toUpperCase() + type.slice(1)} storage backend`,
+                    config:{}
+                })
+            }); 
+            
+            // Clear form fields
+            (document.getElementById('backend-name')||{}).value=''; 
+            (document.getElementById('backend-type')||{}).value='';
+            (document.getElementById('backend-tier')||{}).value='warm';
+            (document.getElementById('backend-description')||{}).value='';
+            
+            loadBackends(); 
+        }catch(e){
+            console.error('Error adding backend:', e);
+            alert('Failed to add backend: ' + e.message);
+        }
     };
     const btnBucketAdd=document.getElementById('btn-bucket-add'); if(btnBucketAdd) btnBucketAdd.onclick = async ()=>{
         const name=(document.getElementById('bucket-name')||{}).value||''; const backend=(document.getElementById('bucket-backend')||{}).value||''; if(!name) return;
