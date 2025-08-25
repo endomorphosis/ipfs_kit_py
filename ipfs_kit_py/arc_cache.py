@@ -1975,8 +1975,10 @@ class ParquetCIDCache:
 
         logger.info(f"Initialized ParquetCIDCache with compression optimization: {compression_optimization}")
 
-    def _create_schema(self) -> pa.Schema:
+    def _create_schema(self):
         """Create the Arrow schema for CID cache data."""
+        if not HAS_PYARROW:
+            return None
         return pa.schema([
             # Core CID data
             pa.field('cid', pa.string()),  # The content identifier
@@ -2061,7 +2063,7 @@ class ParquetCIDCache:
         }
 
     @beta_api(since="0.19.0")
-    def _optimize_compression(self, table: pa.Table) -> Dict[str, Any]:
+    def _optimize_compression(self, table, compression_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Optimize compression and encoding settings based on table content.
 
         This method analyzes the table's content characteristics and selects
@@ -3251,7 +3253,7 @@ class ParquetCIDCache:
         self.last_sync_time = time.time()
 
     @beta_api(since="0.19.0")
-    def _partition_table_by_strategy(self, table: pa.Table) -> List[Tuple[str, pa.Table]]:
+    def _partition_table_by_strategy(self, table, partition_config: Optional[Dict[str, Any]] = None):
         """Partition a table according to the current strategy.
 
         Args:
@@ -3840,7 +3842,7 @@ class ParquetCIDCache:
             logger.error(f"Error querying CID cache: {e}")
             return {}
 
-    def _build_filter_expression(self, filters: List[Tuple[str, str, Any]] = None) -> Optional[pc.Expression]:
+    def _build_filter_expression(self, filters: List[Tuple[str, str, Any]] = None):
         """Build a PyArrow compute filter expression from a list of filter tuples.
 
         Args:
@@ -4070,8 +4072,8 @@ class ParquetCIDCache:
             logger.info(f"Parallel query failed: {result_stats}")
             return {}
 
-    def _process_partition(self, file_path: str, filter_expr: Optional[pc.Expression],
-                          columns: Optional[List[str]]) -> Tuple[Optional[pa.Table], Dict[str, Any]]:
+    def _process_partition(self, file_path: str, filter_expr,
+                          columns: Optional[List[str]]):
         """Process a single partition file for parallel query execution.
 
         Args:
@@ -4113,7 +4115,7 @@ class ParquetCIDCache:
             return None, stats
 
     @beta_api(since="0.19.0")
-    def _parallel_sort(self, table: pa.Table, sort_column: str, max_workers: int) -> pa.Array:
+    def _parallel_sort(self, table, sort_column: str, max_workers: int):
         """Perform efficient parallel sorting for large tables.
 
         This method implements a parallel merge sort algorithm specialized for
