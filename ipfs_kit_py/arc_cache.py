@@ -4073,7 +4073,7 @@ class ParquetCIDCache:
             return {}
 
     def _process_partition(self, file_path: str, filter_expr,
-                          columns: Optional[List[str]]) -> Tuple[Optional[pa.Table], Dict[str, Any]]:
+                          columns: Optional[List[str]]):
         """Process a single partition file for parallel query execution.
 
         Args:
