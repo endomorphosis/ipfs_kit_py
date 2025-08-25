@@ -133,19 +133,21 @@ class MonitoringDashboard:
     {% block head %}{% endblock %}
 </head>
 <body>
-    <header>
-        <div class="logo">
-            <h1>MCP Monitoring</h1>
+    <header class="dashboard-header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>MCP Server Dashboard</h1>
+            </div>
+            <nav class="main-navigation">
+                <ul class="nav-tabs">
+                    <li><a href="{{ url_for('dashboard_index') }}" class="nav-link">Overview</a></li>
+                    <li><a href="{{ url_for('dashboard_backends') }}" class="nav-link">Backends</a></li>
+                    <li><a href="{{ url_for('dashboard_services') }}" class="nav-link">Services</a></li>
+                    <li><a href="{{ url_for('dashboard_metrics') }}" class="nav-link">Metrics</a></li>
+                    <li><a href="{{ url_for('dashboard_health') }}" class="nav-link">Health</a></li>
+                </ul>
+            </nav>
         </div>
-        <nav>
-            <ul>
-                <li><a href="{{ url_for('dashboard_index') }}">Overview</a></li>
-                <li><a href="{{ url_for('dashboard_backends') }}">Backends</a></li>
-                <li><a href="{{ url_for('dashboard_services') }}">Services</a></li>
-                <li><a href="{{ url_for('dashboard_metrics') }}">Metrics</a></li>
-                <li><a href="{{ url_for('dashboard_health') }}">Health</a></li>
-            </ul>
-        </nav>
     </header>
 
     <main>
@@ -1264,12 +1266,15 @@ class MonitoringDashboard:
         # Services template
         services_template = """{% extends "base.html" %}
 
-{% block title %}Services - MCP Monitoring Dashboard{% endblock %}
+{% block title %}Services - MCP Server Dashboard{% endblock %}
 
 {% block content %}
-<section class="services-management">
+<div class="page-header">
     <h2>Storage Services Management</h2>
-    
+    <p class="page-description">Manage and monitor storage backend services through the MCP protocol using JSON-RPC API calls.</p>
+</div>
+
+<section class="services-management">
     <div class="services-stats" id="services-stats">
         <div class="stat-card">
             <h3>Running</h3>
@@ -1669,6 +1674,20 @@ class MonitoringDashboard:
         with open(os.path.join(templates_dir, "services.html"), "w") as f:
             f.write(services_template)
 
+        # Validate that templates were created correctly
+        required_templates = ["base.html", "index.html", "backends.html", "metrics.html", "health.html", "services.html"]
+        for template_name in required_templates:
+            template_path = os.path.join(templates_dir, template_name)
+            if not os.path.exists(template_path):
+                logger.error(f"Failed to create template: {template_name}")
+            else:
+                # Check if navigation is present in base template
+                if template_name == "base.html":
+                    with open(template_path, 'r') as f:
+                        content = f.read()
+                        if '<nav' not in content or 'nav-tabs' not in content:
+                            logger.warning(f"Navigation structure may be missing from {template_name}")
+
         logger.info(f"Created default templates in {templates_dir}")
 
     def _create_default_static_files(self, static_dir):
@@ -1703,39 +1722,54 @@ body {
     color: var(--text-color);
 }
 
-header {
+.dashboard-header {
     background-color: var(--secondary-color);
     color: white;
     padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-header h1 {
+.dashboard-header h1 {
     margin: 0;
     font-size: 1.5rem;
 }
 
-nav ul {
+.main-navigation .nav-tabs {
     list-style: none;
     display: flex;
     margin: 0;
     padding: 0;
+    gap: 0.5rem;
 }
 
-nav li {
-    margin-left: 1rem;
+.main-navigation .nav-tabs li {
+    margin: 0;
 }
 
-nav a {
+.main-navigation .nav-link {
     color: white;
     text-decoration: none;
-    padding: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    display: block;
 }
 
-nav a:hover {
-    text-decoration: underline;
+.main-navigation .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    text-decoration: none;
+}
+
+.main-navigation .nav-link.active {
+    background-color: var(--primary-color);
 }
 
 main {
@@ -2263,6 +2297,12 @@ footer {
         """
         # Store app reference
         self.app = app
+        
+        # Check for existing dashboard routes to avoid conflicts
+        existing_routes = [route.path for route in app.routes if hasattr(route, 'path')]
+        if self.path_prefix in existing_routes:
+            logger.warning(f"Route conflict detected: {self.path_prefix} already exists. This may cause missing navigation tabs.")
+            logger.warning("Consider using a different path_prefix or checking for route conflicts.")
 
         try:
             # Mount static files
@@ -2272,7 +2312,9 @@ footer {
             # Add routes
             @app.get(self.path_prefix, response_class=HTMLResponse, name="dashboard_index")
             async def dashboard_index(request: Request):
-                """Dashboard index page."""
+                """Dashboard index page with navigation."""
+                logger.info(f"Serving dashboard index at {self.path_prefix}")
+                # Ensure we're serving the main dashboard, not services-only content
                 return self.templates.TemplateResponse("index.html", {"request": request})
 
             @app.get(f"{self.path_prefix}/backends", response_class=HTMLResponse, name="dashboard_backends")
@@ -2293,6 +2335,7 @@ footer {
             @app.get(f"{self.path_prefix}/services", response_class=HTMLResponse, name="dashboard_services")
             async def dashboard_services(request: Request):
                 """Services management page."""
+                logger.info(f"Serving services page at {self.path_prefix}/services")
                 return self.templates.TemplateResponse("services.html", {"request": request})
 
             @app.get(f"{self.path_prefix}/data", name="dashboard_data")
@@ -2369,6 +2412,8 @@ footer {
                             self.active_connections.remove(websocket)
 
             logger.info(f"Configured dashboard routes at {self.path_prefix}")
+            logger.info(f"Available routes: Overview (/), Backends (/backends), Services (/services), Metrics (/metrics), Health (/health)")
+            logger.info("If you only see services content without navigation tabs, check for route conflicts or template issues.")
 
         except Exception as e:
             logger.error(f"Failed to configure dashboard routes: {e}")
