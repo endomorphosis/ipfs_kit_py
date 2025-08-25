@@ -16,6 +16,14 @@ from typing import Dict, Any, Optional, List, Union, Set, Callable
 # Configure logger
 logger = logging.getLogger(__name__)
 
+# Import service manager
+try:
+    from ..services.service_manager import ServiceManager, ServiceStatus, ServiceType
+    HAVE_SERVICE_MANAGER = True
+except ImportError:
+    logger.warning("ServiceManager not available")
+    HAVE_SERVICE_MANAGER = False
+
 # Import dependencies based on availability
 try:
     from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
@@ -60,6 +68,15 @@ class MonitoringDashboard:
         self.monitoring_manager = monitoring_manager
         self.path_prefix = path_prefix
         self.options = options or {}
+        
+        # Initialize service manager if available
+        self.service_manager = None
+        if HAVE_SERVICE_MANAGER:
+            try:
+                self.service_manager = ServiceManager()
+                logger.info("ServiceManager initialized for dashboard")
+            except Exception as e:
+                logger.error(f"Failed to initialize ServiceManager: {e}")
 
         # Websocket connections
         self.active_connections: Set[WebSocket] = set()
@@ -124,6 +141,7 @@ class MonitoringDashboard:
             <ul>
                 <li><a href="{{ url_for('dashboard_index') }}">Overview</a></li>
                 <li><a href="{{ url_for('dashboard_backends') }}">Backends</a></li>
+                <li><a href="{{ url_for('dashboard_services') }}">Services</a></li>
                 <li><a href="{{ url_for('dashboard_metrics') }}">Metrics</a></li>
                 <li><a href="{{ url_for('dashboard_health') }}">Health</a></li>
             </ul>
@@ -1243,6 +1261,314 @@ class MonitoringDashboard:
 {% endblock %}
 """
 
+        # Services template
+        services_template = """{% extends "base.html" %}
+
+{% block title %}Services - MCP Monitoring Dashboard{% endblock %}
+
+{% block content %}
+<section class="services-management">
+    <h2>Storage Services Management</h2>
+    
+    <div class="services-stats" id="services-stats">
+        <div class="stat-card">
+            <h3>Running</h3>
+            <span class="stat-number" id="running-count">0</span>
+        </div>
+        <div class="stat-card">
+            <h3>Stopped</h3>
+            <span class="stat-number" id="stopped-count">0</span>
+        </div>
+        <div class="stat-card">
+            <h3>Not Configured</h3>
+            <span class="stat-number" id="not-configured-count">0</span>
+        </div>
+        <div class="stat-card">
+            <h3>Error</h3>
+            <span class="stat-number" id="error-count">0</span>
+        </div>
+    </div>
+
+    <div class="services-table">
+        <table id="services-table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Status</th>
+                    <th>Description</th>
+                    <th>Endpoint</th>
+                    <th>Version</th>
+                    <th>Last Check</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="services-table-body">
+                <tr>
+                    <td colspan="7" class="loading">Loading services...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<div class="service-detail-modal" id="service-detail-modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="service-detail-title">Service Details</h3>
+            <button class="modal-close" onclick="closeServiceModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="service-detail-body">
+            <!-- Service details will be loaded here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Connect to WebSocket for real-time updates
+    const socket = new WebSocket(`ws://${window.location.host}{{ url_for('dashboard_ws') }}`);
+
+    socket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        updateServicesPage(data);
+    };
+
+    socket.onclose = function(event) {
+        console.log('WebSocket connection closed');
+        setTimeout(() => {
+            location.reload();
+        }, 5000);
+    };
+
+    function updateServicesPage(data) {
+        // Update services statistics
+        if (data.services && data.services.stats) {
+            updateServicesStats(data.services.stats);
+        }
+
+        // Update services table
+        if (data.services && data.services.services) {
+            updateServicesTable(data.services.services);
+        }
+    }
+
+    function updateServicesStats(stats) {
+        document.getElementById('running-count').textContent = stats.running || 0;
+        document.getElementById('stopped-count').textContent = stats.stopped || 0;
+        document.getElementById('not-configured-count').textContent = stats.not_configured || 0;
+        document.getElementById('error-count').textContent = stats.error || 0;
+    }
+
+    function updateServicesTable(services) {
+        const tableBody = document.getElementById('services-table-body');
+        tableBody.innerHTML = '';
+
+        if (Object.keys(services).length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="7" class="no-data">No services configured</td>';
+            tableBody.appendChild(row);
+            return;
+        }
+
+        for (const [serviceId, service] of Object.entries(services)) {
+            const row = document.createElement('tr');
+            row.className = `service-row service-${service.status}`;
+            
+            const statusClass = getStatusClass(service.status);
+            const actionsHtml = generateActionsHtml(serviceId, service.actions || []);
+            
+            row.innerHTML = `
+                <td>
+                    <div class="service-name">
+                        <strong>${service.name}</strong>
+                        <small>${service.service_type}</small>
+                    </div>
+                </td>
+                <td>
+                    <div class="status-indicator ${statusClass}">${service.status}</div>
+                    ${service.error_message ? `<div class="error-message">${service.error_message}</div>` : ''}
+                </td>
+                <td class="service-description">${service.description}</td>
+                <td>
+                    ${service.endpoint ? `<a href="${service.endpoint}" target="_blank">${service.endpoint}</a>` : 'N/A'}
+                    ${service.port ? `<div class="port">Port: ${service.port}</div>` : ''}
+                </td>
+                <td>${service.version || 'N/A'}</td>
+                <td>${formatTimestamp(service.last_check)}</td>
+                <td class="actions-column">
+                    ${actionsHtml}
+                    <button class="btn btn-info" onclick="showServiceDetails('${serviceId}')">Details</button>
+                </td>
+            `;
+            
+            tableBody.appendChild(row);
+        }
+    }
+
+    function getStatusClass(status) {
+        const statusClasses = {
+            'running': 'status-running',
+            'stopped': 'status-stopped',
+            'not_configured': 'status-not-configured',
+            'error': 'status-error',
+            'unknown': 'status-unknown',
+            'starting': 'status-starting',
+            'stopping': 'status-stopping'
+        };
+        return statusClasses[status] || 'status-unknown';
+    }
+
+    function generateActionsHtml(serviceId, actions) {
+        let html = '';
+        
+        if (actions.includes('start')) {
+            html += `<button class="btn btn-start" onclick="performServiceAction('${serviceId}', 'start')">Start</button>`;
+        }
+        if (actions.includes('stop')) {
+            html += `<button class="btn btn-stop" onclick="performServiceAction('${serviceId}', 'stop')">Stop</button>`;
+        }
+        if (actions.includes('restart')) {
+            html += `<button class="btn btn-restart" onclick="performServiceAction('${serviceId}', 'restart')">Restart</button>`;
+        }
+        if (actions.includes('configure')) {
+            html += `<button class="btn btn-configure" onclick="configureService('${serviceId}')">Configure</button>`;
+        }
+        
+        return html;
+    }
+
+    async function performServiceAction(serviceId, action) {
+        try {
+            const response = await fetch(`{{ url_for('dashboard_index') }}/services/${serviceId}/${action}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showNotification(`Service ${serviceId} ${action} successful`, 'success');
+                // Refresh services data
+                setTimeout(() => {
+                    fetch('{{ url_for("dashboard_data") }}')
+                        .then(response => response.json())
+                        .then(data => updateServicesPage(data));
+                }, 1000);
+            } else {
+                showNotification(`Failed to ${action} service ${serviceId}: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error(`Error performing ${action} on ${serviceId}:`, error);
+            showNotification(`Error performing ${action} on ${serviceId}`, 'error');
+        }
+    }
+
+    async function showServiceDetails(serviceId) {
+        try {
+            const response = await fetch(`{{ url_for('dashboard_index') }}/services/${serviceId}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const service = result.service;
+                document.getElementById('service-detail-title').textContent = `${service.name} Details`;
+                
+                const detailsHtml = `
+                    <div class="service-details">
+                        <div class="detail-section">
+                            <h4>Basic Information</h4>
+                            <p><strong>Name:</strong> ${service.name}</p>
+                            <p><strong>Type:</strong> ${service.service_type}</p>
+                            <p><strong>Status:</strong> <span class="status-indicator ${getStatusClass(service.status)}">${service.status}</span></p>
+                            <p><strong>Description:</strong> ${service.description}</p>
+                            ${service.version ? `<p><strong>Version:</strong> ${service.version}</p>` : ''}
+                        </div>
+                        
+                        ${service.endpoint || service.port ? `
+                        <div class="detail-section">
+                            <h4>Connection</h4>
+                            ${service.endpoint ? `<p><strong>Endpoint:</strong> <a href="${service.endpoint}" target="_blank">${service.endpoint}</a></p>` : ''}
+                            ${service.port ? `<p><strong>Port:</strong> ${service.port}</p>` : ''}
+                        </div>
+                        ` : ''}
+                        
+                        <div class="detail-section">
+                            <h4>Status Information</h4>
+                            <p><strong>Last Check:</strong> ${formatTimestamp(service.last_check)}</p>
+                            ${service.error_message ? `<p><strong>Error:</strong> <span class="error-message">${service.error_message}</span></p>` : ''}
+                        </div>
+                        
+                        ${service.config ? `
+                        <div class="detail-section">
+                            <h4>Configuration</h4>
+                            <pre class="config-display">${JSON.stringify(service.config, null, 2)}</pre>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                document.getElementById('service-detail-body').innerHTML = detailsHtml;
+                document.getElementById('service-detail-modal').style.display = 'block';
+                
+            } else {
+                showNotification(`Failed to load service details: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error loading service details:', error);
+            showNotification('Error loading service details', 'error');
+        }
+    }
+
+    function closeServiceModal() {
+        document.getElementById('service-detail-modal').style.display = 'none';
+    }
+
+    function configureService(serviceId) {
+        // TODO: Implement service configuration UI
+        showNotification(`Configuration UI for ${serviceId} not yet implemented`, 'info');
+    }
+
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+
+    function formatTimestamp(timestamp) {
+        if (!timestamp) return 'Never';
+        
+        const date = new Date(timestamp * 1000);
+        return date.toLocaleString();
+    }
+
+    // Initial request for data
+    fetch('{{ url_for("dashboard_data") }}')
+        .then(response => response.json())
+        .then(data => updateServicesPage(data))
+        .catch(error => console.error('Error fetching dashboard data:', error));
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('service-detail-modal');
+        if (event.target == modal) {
+            closeServiceModal();
+        }
+    }
+</script>
+{% endblock %}
+"""
+
         # Write templates to files
         with open(os.path.join(templates_dir, "base.html"), "w") as f:
             f.write(base_template)
@@ -1258,6 +1584,9 @@ class MonitoringDashboard:
 
         with open(os.path.join(templates_dir, "health.html"), "w") as f:
             f.write(health_template)
+
+        with open(os.path.join(templates_dir, "services.html"), "w") as f:
+            f.write(services_template)
 
         logger.info(f"Created default templates in {templates_dir}")
 
@@ -1529,6 +1858,289 @@ footer {
         margin-top: 1rem;
     }
 }
+
+/* Services Management Styles */
+.services-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    text-align: center;
+}
+
+.stat-card h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.services-table {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+}
+
+.services-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.services-table th,
+.services-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.services-table th {
+    background-color: var(--light-color);
+    font-weight: bold;
+    color: var(--secondary-color);
+}
+
+.service-row:hover {
+    background-color: #f8f9fa;
+}
+
+.service-name strong {
+    display: block;
+    font-size: 1rem;
+}
+
+.service-name small {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.service-description {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-running {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.status-stopped {
+    background-color: #6c757d;
+    color: white;
+}
+
+.status-not-configured {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.status-error {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.status-starting,
+.status-stopping {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.error-message {
+    font-size: 0.8rem;
+    color: var(--danger-color);
+    margin-top: 0.25rem;
+}
+
+.port {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.actions-column {
+    white-space: nowrap;
+}
+
+.btn {
+    padding: 0.25rem 0.5rem;
+    margin: 0 0.125rem;
+    border: none;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-start {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.btn-stop {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-restart {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-configure {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.btn-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.btn:hover {
+    opacity: 0.8;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Service Detail Modal */
+.service-detail-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 0;
+    width: 80%;
+    max-width: 800px;
+    max-height: 80%;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    overflow-y: auto;
+}
+
+.modal-header {
+    background-color: var(--secondary-color);
+    color: white;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: white;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: white;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 1rem;
+}
+
+.service-details {
+    margin-bottom: 1rem;
+}
+
+.detail-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.detail-section:last-child {
+    border-bottom: none;
+}
+
+.detail-section h4 {
+    color: var(--secondary-color);
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.config-display {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Notifications */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    color: white;
+    font-weight: bold;
+    z-index: 2000;
+    min-width: 300px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.notification-success {
+    background-color: var(--success-color);
+}
+
+.notification-error {
+    background-color: var(--danger-color);
+}
+
+.notification-info {
+    background-color: var(--primary-color);
+}
+
+.notification-warning {
+    background-color: var(--warning-color);
+}
+
+.loading {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
+
+.no-data {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
 """
 
         with open(os.path.join(css_dir, "styles.css"), "w") as f:
@@ -1596,11 +2208,85 @@ footer {
             async def dashboard_health(request: Request):
                 """Health page."""
                 return self.templates.TemplateResponse("health.html", {"request": request})
+            
+            @app.get(f"{self.path_prefix}/services", response_class=HTMLResponse, name="dashboard_services")
+            async def dashboard_services(request: Request):
+                """Services management page."""
+                return self.templates.TemplateResponse("services.html", {"request": request})
 
             @app.get(f"{self.path_prefix}/data", name="dashboard_data")
             async def dashboard_data():
                 """Get dashboard data."""
                 return await self._get_dashboard_data()
+            
+            @app.post(f"{self.path_prefix}/services/{{service_id}}/start", name="start_service")
+            async def start_service(service_id: str):
+                """Start a service."""
+                if not self.service_manager:
+                    return JSONResponse({"success": False, "error": "Service manager not available"}, status_code=503)
+                
+                success = await self.service_manager.start_service(service_id)
+                if success:
+                    return JSONResponse({"success": True, "message": f"Service {service_id} started successfully"})
+                else:
+                    service = self.service_manager.get_service_info(service_id)
+                    error = service.error_message if service else "Unknown error"
+                    return JSONResponse({"success": False, "error": error}, status_code=500)
+            
+            @app.post(f"{self.path_prefix}/services/{{service_id}}/stop", name="stop_service")
+            async def stop_service(service_id: str):
+                """Stop a service."""
+                if not self.service_manager:
+                    return JSONResponse({"success": False, "error": "Service manager not available"}, status_code=503)
+                
+                success = await self.service_manager.stop_service(service_id)
+                if success:
+                    return JSONResponse({"success": True, "message": f"Service {service_id} stopped successfully"})
+                else:
+                    service = self.service_manager.get_service_info(service_id)
+                    error = service.error_message if service else "Unknown error"
+                    return JSONResponse({"success": False, "error": error}, status_code=500)
+            
+            @app.post(f"{self.path_prefix}/services/{{service_id}}/restart", name="restart_service")
+            async def restart_service(service_id: str):
+                """Restart a service."""
+                if not self.service_manager:
+                    return JSONResponse({"success": False, "error": "Service manager not available"}, status_code=503)
+                
+                success = await self.service_manager.restart_service(service_id)
+                if success:
+                    return JSONResponse({"success": True, "message": f"Service {service_id} restarted successfully"})
+                else:
+                    service = self.service_manager.get_service_info(service_id)
+                    error = service.error_message if service else "Unknown error"
+                    return JSONResponse({"success": False, "error": error}, status_code=500)
+            
+            @app.get(f"{self.path_prefix}/services/{{service_id}}", name="get_service_info")
+            async def get_service_info(service_id: str):
+                """Get information about a specific service."""
+                if not self.service_manager:
+                    return JSONResponse({"success": False, "error": "Service manager not available"}, status_code=503)
+                
+                service = self.service_manager.get_service_info(service_id)
+                if service:
+                    return JSONResponse({
+                        "success": True,
+                        "service": {
+                            "name": service.name,
+                            "status": service.status.value,
+                            "description": service.description,
+                            "service_type": service.service_type.value,
+                            "port": service.port,
+                            "endpoint": service.endpoint,
+                            "version": service.version,
+                            "last_check": service.last_check,
+                            "error_message": service.error_message,
+                            "actions": service.actions,
+                            "config": service.config
+                        }
+                    })
+                else:
+                    return JSONResponse({"success": False, "error": f"Service {service_id} not found"}, status_code=404)
 
             @app.websocket(f"{self.path_prefix}/ws", name="dashboard_ws")
             async def dashboard_ws(websocket: WebSocket):
@@ -1686,6 +2372,49 @@ footer {
 
             except Exception as e:
                 logger.error(f"Error getting dashboard data from monitoring manager: {e}")
+        
+        # Get services data from service manager
+        if self.service_manager:
+            try:
+                # Detect and refresh service status
+                services = await self.service_manager.detect_services()
+                
+                # Convert services to dashboard format
+                services_data = {}
+                for service_id, service_info in services.items():
+                    services_data[service_id] = {
+                        "name": service_info.name,
+                        "status": service_info.status.value,
+                        "description": service_info.description,
+                        "service_type": service_info.service_type.value,
+                        "port": service_info.port,
+                        "endpoint": service_info.endpoint,
+                        "version": service_info.version,
+                        "last_check": service_info.last_check,
+                        "error_message": service_info.error_message,
+                        "actions": service_info.actions,
+                        "config": service_info.config
+                    }
+                
+                data["services"] = {
+                    "services": services_data,
+                    "stats": self.service_manager.get_service_stats()
+                }
+                
+            except Exception as e:
+                logger.error(f"Error getting services data: {e}")
+                # Provide fallback data so UI doesn't break
+                data["services"] = {
+                    "services": {},
+                    "stats": {
+                        "running": 0,
+                        "stopped": 0,
+                        "not_configured": 0,
+                        "error": 1,
+                        "unknown": 0
+                    },
+                    "error": str(e)
+                }
 
         # Fill with sample data for testing if needed
         if self.options.get("use_sample_data", False) and not data.get("backends"):
@@ -1725,6 +2454,95 @@ footer {
                     "ipfs": {"status": "healthy", "last_check": time.time()},
                     "s3": {"status": "healthy", "last_check": time.time()},
                     "filecoin": {"status": "healthy", "last_check": time.time()}
+                }
+            },
+            "services": {
+                "services": {
+                    "ipfs": {
+                        "name": "IPFS Daemon",
+                        "status": "running",
+                        "description": "InterPlanetary File System daemon",
+                        "service_type": "ipfs",
+                        "port": 5001,
+                        "endpoint": "http://127.0.0.1:5001",
+                        "version": "0.26.0",
+                        "last_check": time.time(),
+                        "error_message": None,
+                        "actions": ["start", "stop", "restart", "configure"],
+                        "config": {"ID": "12D3KooWSample", "Addresses": ["127.0.0.1"]}
+                    },
+                    "ipfs_cluster": {
+                        "name": "IPFS Cluster",
+                        "status": "stopped",
+                        "description": "IPFS Cluster service for coordinated pinning",
+                        "service_type": "ipfs_cluster", 
+                        "port": 9094,
+                        "endpoint": "http://127.0.0.1:9094",
+                        "version": None,
+                        "last_check": time.time(),
+                        "error_message": "Service not running",
+                        "actions": ["start", "stop", "restart", "configure"],
+                        "config": None
+                    },
+                    "s3": {
+                        "name": "S3 Storage",
+                        "status": "running",
+                        "description": "Amazon S3 or S3-compatible storage backend",
+                        "service_type": "s3",
+                        "port": None,
+                        "endpoint": None,
+                        "version": None,
+                        "last_check": time.time(),
+                        "error_message": None,
+                        "actions": ["configure", "test"],
+                        "config": {"has_credentials": True}
+                    },
+                    "huggingface": {
+                        "name": "HuggingFace Hub",
+                        "status": "not_configured",
+                        "description": "HuggingFace Hub integration for models and datasets",
+                        "service_type": "huggingface",
+                        "port": None,
+                        "endpoint": None,
+                        "version": None,
+                        "last_check": time.time(),
+                        "error_message": "No HuggingFace token found",
+                        "actions": ["configure", "test"],
+                        "config": None
+                    },
+                    "storacha": {
+                        "name": "Storacha (Web3.Storage)",
+                        "status": "not_configured", 
+                        "description": "Web3.Storage for decentralized file storage",
+                        "service_type": "storacha",
+                        "port": None,
+                        "endpoint": None,
+                        "version": None,
+                        "last_check": time.time(),
+                        "error_message": "No Web3.Storage token found",
+                        "actions": ["configure", "test"],
+                        "config": None
+                    },
+                    "lotus": {
+                        "name": "Lotus (Filecoin)",
+                        "status": "not_configured",
+                        "description": "Filecoin Lotus node for blockchain storage",
+                        "service_type": "lotus",
+                        "port": 1234,
+                        "endpoint": "http://127.0.0.1:1234/rpc/v0",
+                        "version": None,
+                        "last_check": time.time(),
+                        "error_message": "Lotus binary not found",
+                        "actions": ["start", "stop", "restart", "configure"],
+                        "config": None
+                    }
+                },
+                "stats": {
+                    "running": 2,
+                    "stopped": 1,
+                    "not_configured": 3,
+                    "error": 0,
+                    "unknown": 0
                 }
             },
             "metrics": {
