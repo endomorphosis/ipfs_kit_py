@@ -1342,15 +1342,9 @@ class MonitoringDashboard:
     };
 
     function updateServicesPage(data) {
-        // Update services statistics
-        if (data.services && data.services.stats) {
-            updateServicesStats(data.services.stats);
-        }
-
-        // Update services table
-        if (data.services && data.services.services) {
-            updateServicesTable(data.services.services);
-        }
+        // For services data, we'll refresh via JSON-RPC instead of using the WebSocket payload
+        // This ensures consistency with the JSON-RPC approach
+        refreshServicesData();
     }
 
     function updateServicesStats(stats) {
@@ -1440,25 +1434,40 @@ class MonitoringDashboard:
 
     async function performServiceAction(serviceId, action) {
         try {
-            const response = await fetch(`{{ url_for('dashboard_index') }}/services/${serviceId}/${action}`, {
+            // Create JSON-RPC 2.0 request
+            const rpcRequest = {
+                jsonrpc: "2.0",
+                method: `service.${action}`,
+                params: { service_id: serviceId },
+                id: Math.floor(Math.random() * 1000000)
+            };
+
+            const response = await fetch('{{ url_for("dashboard_index") }}/jsonrpc', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                }
+                },
+                body: JSON.stringify(rpcRequest)
             });
             
-            const result = await response.json();
+            const rpcResponse = await response.json();
             
-            if (result.success) {
+            if (rpcResponse.error) {
+                showNotification(`Failed to ${action} service ${serviceId}: ${rpcResponse.error.message}`, 'error');
+                return;
+            }
+
+            const result = rpcResponse.result;
+            
+            if (result && result.success) {
                 showNotification(`Service ${serviceId} ${action} successful`, 'success');
-                // Refresh services data
+                // Refresh services data using JSON-RPC
                 setTimeout(() => {
-                    fetch('{{ url_for("dashboard_data") }}')
-                        .then(response => response.json())
-                        .then(data => updateServicesPage(data));
+                    refreshServicesData();
                 }, 1000);
             } else {
-                showNotification(`Failed to ${action} service ${serviceId}: ${result.error}`, 'error');
+                const errorMsg = result?.error || 'Unknown error';
+                showNotification(`Failed to ${action} service ${serviceId}: ${errorMsg}`, 'error');
             }
         } catch (error) {
             console.error(`Error performing ${action} on ${serviceId}:`, error);
@@ -1468,10 +1477,32 @@ class MonitoringDashboard:
 
     async function showServiceDetails(serviceId) {
         try {
-            const response = await fetch(`{{ url_for('dashboard_index') }}/services/${serviceId}`);
-            const result = await response.json();
+            // Create JSON-RPC 2.0 request for getting service info
+            const rpcRequest = {
+                jsonrpc: "2.0",
+                method: "service.get_info",
+                params: { service_id: serviceId },
+                id: Math.floor(Math.random() * 1000000)
+            };
+
+            const response = await fetch('{{ url_for("dashboard_index") }}/jsonrpc', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(rpcRequest)
+            });
             
-            if (result.success) {
+            const rpcResponse = await response.json();
+            
+            if (rpcResponse.error) {
+                showNotification(`Failed to get service details: ${rpcResponse.error.message}`, 'error');
+                return;
+            }
+
+            const result = rpcResponse.result;
+            
+            if (result && result.success) {
                 const service = result.service;
                 document.getElementById('service-detail-title').textContent = `${service.name} Details`;
                 
@@ -1545,6 +1576,48 @@ class MonitoringDashboard:
         }, 5000);
     }
 
+    async function refreshServicesData() {
+        try {
+            // Use JSON-RPC to get services list
+            const rpcRequest = {
+                jsonrpc: "2.0",
+                method: "service.list",
+                params: {},
+                id: Math.floor(Math.random() * 1000000)
+            };
+
+            const response = await fetch('{{ url_for("dashboard_index") }}/jsonrpc', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(rpcRequest)
+            });
+            
+            const rpcResponse = await response.json();
+            
+            if (rpcResponse.error) {
+                console.error('Error fetching services data via JSON-RPC:', rpcResponse.error.message);
+                return;
+            }
+
+            const result = rpcResponse.result;
+            if (result && result.success) {
+                // Update services stats
+                if (result.stats) {
+                    updateServicesStats(result.stats);
+                }
+                
+                // Update services table
+                if (result.services) {
+                    updateServicesTable(result.services);
+                }
+            }
+        } catch (error) {
+            console.error('Error refreshing services data:', error);
+        }
+    }
+
     function formatTimestamp(timestamp) {
         if (!timestamp) return 'Never';
         
@@ -1552,11 +1625,19 @@ class MonitoringDashboard:
         return date.toLocaleString();
     }
 
-    // Initial request for data
-    fetch('{{ url_for("dashboard_data") }}')
-        .then(response => response.json())
-        .then(data => updateServicesPage(data))
-        .catch(error => console.error('Error fetching dashboard data:', error));
+    // Initial request for data - use JSON-RPC for services, fallback to dashboard_data for other info
+    Promise.all([
+        refreshServicesData(),
+        fetch('{{ url_for("dashboard_data") }}')
+            .then(response => response.json())
+            .then(data => {
+                // Only update non-services data from dashboard_data
+                if (data.health) {
+                    // Update any health-related UI if needed
+                }
+                // We use JSON-RPC for services data, so don't process data.services here
+            })
+    ]).catch(error => console.error('Error fetching initial dashboard data:', error));
 
     // Close modal when clicking outside
     window.onclick = function(event) {
@@ -2219,65 +2300,19 @@ footer {
                 """Get dashboard data."""
                 return await self._get_dashboard_data()
             
-            @app.post(f"{self.path_prefix}/services/{{service_id}}/start", name="start_service")
-            async def start_service(service_id: str):
-                """Start a service."""
-                if not self.service_manager:
-                    return JSONResponse({"success": False, "error": "Service manager not available"}, status_code=503)
-                
-                success = await self.service_manager.start_service(service_id)
-                if success:
-                    return JSONResponse({"success": True, "message": f"Service {service_id} started successfully"})
-                else:
-                    service = self.service_manager.get_service_info(service_id)
-                    error = service.error_message if service else "Unknown error"
-                    return JSONResponse({"success": False, "error": error}, status_code=500)
-            
-            @app.post(f"{self.path_prefix}/services/{{service_id}}/stop", name="stop_service")
-            async def stop_service(service_id: str):
-                """Stop a service."""
-                if not self.service_manager:
-                    return JSONResponse({"success": False, "error": "Service manager not available"}, status_code=503)
-                
-                success = await self.service_manager.stop_service(service_id)
-                if success:
-                    return JSONResponse({"success": True, "message": f"Service {service_id} stopped successfully"})
-                else:
-                    service = self.service_manager.get_service_info(service_id)
-                    error = service.error_message if service else "Unknown error"
-                    return JSONResponse({"success": False, "error": error}, status_code=500)
-            
-            @app.post(f"{self.path_prefix}/services/{{service_id}}/restart", name="restart_service")
-            async def restart_service(service_id: str):
-                """Restart a service."""
-                if not self.service_manager:
-                    return JSONResponse({"success": False, "error": "Service manager not available"}, status_code=503)
-                
-                success = await self.service_manager.restart_service(service_id)
-                if success:
-                    return JSONResponse({"success": True, "message": f"Service {service_id} restarted successfully"})
-                else:
-                    service = self.service_manager.get_service_info(service_id)
-                    error = service.error_message if service else "Unknown error"
-                    return JSONResponse({"success": False, "error": error}, status_code=500)
-            
-            @app.get(f"{self.path_prefix}/services/{{service_id}}", name="get_service_info")
-            async def get_service_info(service_id: str):
-                """Get information about a specific service."""
-                if not self.service_manager:
-                    return JSONResponse({"success": False, "error": "Service manager not available"}, status_code=503)
-                
-                service = self.service_manager.get_service_info(service_id)
-                if service:
+            @app.post(f"{self.path_prefix}/jsonrpc", name="dashboard_jsonrpc")
+            async def dashboard_jsonrpc(request: Request):
+                """Handle JSON-RPC requests for service management."""
+                try:
+                    body = await request.json()
+                    return await self._handle_jsonrpc_request(body)
+                except Exception as e:
+                    logger.error(f"Error processing JSON-RPC request: {e}")
                     return JSONResponse({
-                        "success": True,
-                        "service": {
-                            "name": service.name,
-                            "status": service.status.value,
-                            "description": service.description,
-                            "service_type": service.service_type.value,
-                            "port": service.port,
-                            "endpoint": service.endpoint,
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32603, "message": "Internal error"},
+                        "id": body.get("id") if "body" in locals() and isinstance(body, dict) else None
+                    }, status_code=500)
                             "version": service.version,
                             "last_check": service.last_check,
                             "error_message": service.error_message,
@@ -2337,6 +2372,177 @@ footer {
 
         except Exception as e:
             logger.error(f"Failed to configure dashboard routes: {e}")
+
+    async def _handle_jsonrpc_request(self, request_body: Dict[str, Any]) -> JSONResponse:
+        """
+        Handle JSON-RPC 2.0 requests for service management.
+        
+        This method processes JSON-RPC requests and calls the appropriate service management
+        methods, ensuring compatibility with MCP standards and shared code paths with CLI.
+        """
+        # Validate JSON-RPC 2.0 format
+        if not isinstance(request_body, dict):
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "error": {"code": -32700, "message": "Parse error"},
+                "id": None
+            }, status_code=400)
+
+        if request_body.get("jsonrpc") != "2.0":
+            return JSONResponse({
+                "jsonrpc": "2.0", 
+                "error": {"code": -32600, "message": "Invalid Request"},
+                "id": request_body.get("id")
+            }, status_code=400)
+
+        method = request_body.get("method")
+        params = request_body.get("params", {})
+        request_id = request_body.get("id")
+
+        if not self.service_manager:
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "error": {"code": -32603, "message": "Service manager not available"},
+                "id": request_id
+            }, status_code=503)
+
+        try:
+            # Handle different service management methods
+            if method == "service.start":
+                service_id = params.get("service_id")
+                if not service_id:
+                    return JSONResponse({
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32602, "message": "Missing service_id parameter"},
+                        "id": request_id
+                    }, status_code=400)
+                
+                success = await self.service_manager.start_service(service_id)
+                result = {
+                    "success": success,
+                    "message": f"Service {service_id} {'started' if success else 'failed to start'}"
+                }
+                if not success:
+                    service = self.service_manager.get_service_info(service_id)
+                    result["error"] = service.error_message if service else "Unknown error"
+
+            elif method == "service.stop":
+                service_id = params.get("service_id")
+                if not service_id:
+                    return JSONResponse({
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32602, "message": "Missing service_id parameter"},
+                        "id": request_id
+                    }, status_code=400)
+                
+                success = await self.service_manager.stop_service(service_id)
+                result = {
+                    "success": success,
+                    "message": f"Service {service_id} {'stopped' if success else 'failed to stop'}"
+                }
+                if not success:
+                    service = self.service_manager.get_service_info(service_id)
+                    result["error"] = service.error_message if service else "Unknown error"
+
+            elif method == "service.restart":
+                service_id = params.get("service_id")
+                if not service_id:
+                    return JSONResponse({
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32602, "message": "Missing service_id parameter"},
+                        "id": request_id
+                    }, status_code=400)
+                
+                success = await self.service_manager.restart_service(service_id)
+                result = {
+                    "success": success,
+                    "message": f"Service {service_id} {'restarted' if success else 'failed to restart'}"
+                }
+                if not success:
+                    service = self.service_manager.get_service_info(service_id)
+                    result["error"] = service.error_message if service else "Unknown error"
+
+            elif method == "service.get_info":
+                service_id = params.get("service_id")
+                if not service_id:
+                    return JSONResponse({
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32602, "message": "Missing service_id parameter"},
+                        "id": request_id
+                    }, status_code=400)
+                
+                service = self.service_manager.get_service_info(service_id)
+                if service:
+                    result = {
+                        "success": True,
+                        "service": {
+                            "name": service.name,
+                            "status": service.status.value,
+                            "description": service.description,
+                            "service_type": service.service_type.value,
+                            "port": service.port,
+                            "endpoint": service.endpoint,
+                            "pid": service.pid,
+                            "error_message": service.error_message,
+                            "configuration_path": service.configuration_path,
+                            "version": service.version,
+                        }
+                    }
+                else:
+                    result = {
+                        "success": False,
+                        "error": f"Service {service_id} not found"
+                    }
+
+            elif method == "service.list":
+                # List all services - useful for dashboard refresh
+                services = await self.service_manager.detect_services()
+                services_data = {}
+                for service_id, service_info in services.items():
+                    services_data[service_id] = {
+                        "name": service_info.name,
+                        "status": service_info.status.value,
+                        "description": service_info.description,
+                        "service_type": service_info.service_type.value,
+                        "port": service_info.port,
+                        "endpoint": service_info.endpoint,
+                        "pid": service_info.pid,
+                        "error_message": service_info.error_message,
+                        "version": service_info.version,
+                    }
+                
+                result = {
+                    "success": True,
+                    "services": services_data,
+                    "stats": {
+                        "running": sum(1 for s in services.values() if s.status.value == "running"),
+                        "stopped": sum(1 for s in services.values() if s.status.value == "stopped"),
+                        "not_configured": sum(1 for s in services.values() if s.status.value == "not_configured"),
+                        "error": sum(1 for s in services.values() if s.status.value == "error"),
+                        "total": len(services)
+                    }
+                }
+
+            else:
+                return JSONResponse({
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32601, "message": f"Method not found: {method}"},
+                    "id": request_id
+                }, status_code=404)
+
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "result": result,
+                "id": request_id
+            })
+
+        except Exception as e:
+            logger.error(f"Error in JSON-RPC method {method}: {e}")
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
+                "id": request_id
+            }, status_code=500)
 
     async def _get_dashboard_data(self):
         """
