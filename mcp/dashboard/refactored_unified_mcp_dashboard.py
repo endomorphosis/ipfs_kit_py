@@ -96,6 +96,9 @@ class RefactoredUnifiedMCPDashboard:
         self.debug = config.get('debug', False)
         self.update_interval = config.get('update_interval', 3)
         
+        # Track start time for uptime calculation
+        self.start_time = time.time()
+        
         # Initialize FastAPI app with both MCP and dashboard routes
         self.app = FastAPI(
             title="IPFS Kit - Refactored Unified MCP Server & Dashboard",
@@ -129,10 +132,34 @@ class RefactoredUnifiedMCPDashboard:
         
         # Import comprehensive service manager
         try:
-            from ipfs_kit_py.mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
-            self.service_manager = ComprehensiveServiceManager(data_dir=self.data_dir)
-            logger.info("Comprehensive Service Manager initialized successfully")
-        except ImportError as e:
+            # Try different import paths to be resilient to different execution contexts
+            self.service_manager = None
+            for import_path in [
+                "ipfs_kit_py.mcp.services.comprehensive_service_manager",  # Standard path
+                "mcp.services.comprehensive_service_manager",              # Relative from project root
+                "comprehensive_service_manager"                           # Direct import
+            ]:
+                try:
+                    if import_path == "comprehensive_service_manager":
+                        # Add the services directory to the path for direct import
+                        import sys
+                        sys.path.insert(0, str(self.data_dir.parent / "mcp" / "services"))
+                        from comprehensive_service_manager import ComprehensiveServiceManager
+                    else:
+                        module = __import__(import_path, fromlist=["ComprehensiveServiceManager"])
+                        ComprehensiveServiceManager = getattr(module, "ComprehensiveServiceManager")
+                    
+                    self.service_manager = ComprehensiveServiceManager(data_dir=self.data_dir)
+                    logger.info(f"Comprehensive Service Manager initialized successfully via {import_path}")
+                    break
+                except (ImportError, AttributeError) as e:
+                    logger.debug(f"Failed import attempt {import_path}: {e}")
+                    continue
+                    
+            if self.service_manager is None:
+                raise ImportError("All import attempts failed")
+                
+        except Exception as e:
             logger.warning(f"Could not import ComprehensiveServiceManager: {e}")
             self.service_manager = None
         
@@ -283,6 +310,121 @@ class RefactoredUnifiedMCPDashboard:
         async def api_system_overview():
             """Get system overview data."""
             return await self._get_system_overview()
+        
+        @self.app.get("/api/mcp/status")
+        async def api_mcp_status():
+            """Get MCP server status with service counts."""
+            try:
+                # Get comprehensive services data
+                if self.service_manager:
+                    services_data = await self.service_manager.list_all_services()
+                    services = services_data.get("services", [])
+                    services_active = sum(1 for s in services if s.get("status") == "running")
+                else:
+                    services = []
+                    services_active = 0
+                
+                # Get other counts
+                backends_data = await self._get_backends_data()
+                backends_count = len(backends_data.get("items", []))
+                
+                buckets_data = await self._get_buckets_data()
+                buckets_count = len(buckets_data.get("items", []))
+                
+                # Return MCP status format expected by frontend
+                return {
+                    "success": True,
+                    "data": {
+                        "protocol_version": "1.0",
+                        "total_tools": 46,  # This could be dynamic
+                        "uptime": time.time() - self.start_time,
+                        "counts": {
+                            "services_active": services_active,
+                            "backends": backends_count,
+                            "buckets": buckets_count,
+                            "pins": 0,  # TODO: implement pin counting
+                            "requests": 0  # TODO: implement request counting
+                        },
+                        "security": {
+                            "auth_enabled": False
+                        },
+                        "endpoints": {
+                            "tools_list": "/mcp/tools/list",
+                            "tools_call": "/mcp/tools/call",
+                            "sse_logs": "/api/logs/stream",
+                            "websocket": "/ws"
+                        }
+                    }
+                }
+            except Exception as e:
+                logger.error(f"Error getting MCP status: {e}")
+                return {"success": False, "error": str(e)}
+
+        @self.app.get("/api/metrics/system") 
+        async def api_metrics_system():
+            """Get system performance metrics."""
+            try:
+                import psutil
+                
+                # Get CPU, memory, and disk metrics
+                cpu_percent = psutil.cpu_percent(interval=0.1)
+                memory = psutil.virtual_memory()
+                disk = psutil.disk_usage('/')
+                
+                return {
+                    "cpu_percent": cpu_percent,
+                    "memory": {
+                        "total": memory.total,
+                        "used": memory.used,
+                        "available": memory.available,
+                        "percent": memory.percent
+                    },
+                    "disk": {
+                        "total": disk.total,
+                        "used": disk.used,
+                        "free": disk.free,
+                        "percent": (disk.used / disk.total) * 100
+                    }
+                }
+            except Exception as e:
+                logger.error(f"Error getting system metrics: {e}")
+                return {
+                    "cpu_percent": 0,
+                    "memory": {"total": 0, "used": 0, "available": 0, "percent": 0},
+                    "disk": {"total": 0, "used": 0, "free": 0, "percent": 0}
+                }
+
+        @self.app.get("/api/metrics/network")
+        async def api_metrics_network():
+            """Get network activity metrics."""
+            try:
+                import psutil
+                
+                # Get network I/O stats
+                net_io = psutil.net_io_counters()
+                current_time = time.time()
+                
+                # Simple network activity simulation
+                # In a real implementation, this would track historical data
+                points = []
+                for i in range(60):  # 60 points for the last minute
+                    points.append({
+                        "timestamp": current_time - (60 - i),
+                        "tx_bps": net_io.bytes_sent / 60,  # Simplified calculation
+                        "rx_bps": net_io.bytes_recv / 60   # Simplified calculation
+                    })
+                
+                return {
+                    "points": points,
+                    "summary": {
+                        "avg_tx_bps": net_io.bytes_sent / 60,
+                        "avg_rx_bps": net_io.bytes_recv / 60,
+                        "total_points": len(points)
+                    }
+                }
+            except Exception as e:
+                logger.error(f"Error getting network metrics: {e}")
+                return {"points": [], "summary": {"avg_tx_bps": 0, "avg_rx_bps": 0, "total_points": 0}}
         
         @self.app.get("/api/system/metrics")
         async def api_system_metrics():
