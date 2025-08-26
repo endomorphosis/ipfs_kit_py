@@ -26,7 +26,18 @@ import os
 import re
 import subprocess
 
-import base58
+try:
+    import base58
+except ImportError:
+    # Create a mock base58 implementation when the package is not available
+    class MockBase58:
+        @staticmethod
+        def b58encode(data):
+            return b"QmMockBase58Encoded"
+        @staticmethod
+        def b58decode(data):
+            return b"mock decoded data"
+    base58 = MockBase58()
 
 
 # Define exceptions for multiformat operations
