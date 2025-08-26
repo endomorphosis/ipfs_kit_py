@@ -494,6 +494,10 @@ class ComprehensiveServiceManager:
                 return await self._health_check_service(service_id, params)
             elif action == "view_logs":
                 return await self._view_service_logs(service_id, params)
+            elif action == "enable":
+                return self.enable_service(service_id)
+            elif action == "disable":
+                return self.disable_service(service_id)
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}
         except Exception as e:
@@ -665,3 +669,118 @@ class ComprehensiveServiceManager:
         """Check if a binary is available in the system PATH."""
         import shutil
         return shutil.which(binary_name) is not None
+
+    async def list_all_services(self) -> Dict[str, Any]:
+        """List ALL services (enabled and disabled) for comprehensive dashboard view."""
+        services = []
+        
+        # Add ALL daemon services (regardless of enabled status)
+        for daemon_id, config in self.services_config.get("daemons", {}).items():
+            if config.get("enabled", False):
+                status = await self._check_daemon_status(daemon_id, config)
+            else:
+                status = {
+                    "status": "not_enabled",
+                    "last_check": datetime.now().isoformat(),
+                    "details": {"enabled": False}
+                }
+            
+            services.append({
+                "id": daemon_id,
+                "name": config["name"],
+                "type": config["type"],
+                "description": config["description"],
+                "status": status["status"],
+                "enabled": config.get("enabled", False),
+                "port": config.get("port"),
+                "actions": self._get_available_actions_for_dashboard(daemon_id, status["status"], config.get("enabled", False)),
+                "last_check": status.get("last_check"),
+                "details": status.get("details", {})
+            })
+        
+        # Add ALL storage backend services (regardless of enabled status)  
+        for backend_id, config in self.services_config.get("storage_backends", {}).items():
+            if config.get("enabled", False):
+                status = await self._check_storage_backend_status(backend_id, config)
+            else:
+                # Check if it's configured but not enabled
+                credentials_file = self.data_dir / f"{backend_id}_credentials.json"
+                if config.get("requires_credentials", False) and not credentials_file.exists():
+                    status = {
+                        "status": "not_configured", 
+                        "last_check": datetime.now().isoformat(),
+                        "details": {"enabled": False, "configured": False}
+                    }
+                else:
+                    status = {
+                        "status": "not_enabled",
+                        "last_check": datetime.now().isoformat(), 
+                        "details": {"enabled": False, "configured": True}
+                    }
+                        
+            services.append({
+                "id": backend_id,
+                "name": config["name"],
+                "type": config["type"],
+                "description": config["description"],
+                "status": status["status"],
+                "enabled": config.get("enabled", False),
+                "requires_credentials": config.get("requires_credentials", False),
+                "config_keys": config.get("config_keys", []),
+                "actions": self._get_available_actions_for_dashboard(backend_id, status["status"], config.get("enabled", False)),
+                "last_check": status.get("last_check"),
+                "details": status.get("details", {})
+            })
+        
+        # Add network services
+        for service_id, config in self.services_config.get("network_services", {}).items():
+            status = await self._check_network_service_status(service_id, config)
+            services.append({
+                "id": service_id,
+                "name": config["name"], 
+                "type": config["type"],
+                "description": config["description"],
+                "status": status["status"],
+                "enabled": config.get("enabled", False),
+                "port": config.get("port"),
+                "actions": self._get_available_actions_for_dashboard(service_id, status["status"], config.get("enabled", False)),
+                "last_check": status.get("last_check"),
+                "details": status.get("details", {})
+            })
+        
+        return {
+            "services": services,
+            "total": len(services),
+            "summary": {
+                "running": len([s for s in services if s["status"] == "running"]),
+                "stopped": len([s for s in services if s["status"] == "stopped"]),
+                "not_enabled": len([s for s in services if s["status"] == "not_enabled"]),
+                "not_configured": len([s for s in services if s["status"] == "not_configured"]),
+                "error": len([s for s in services if s["status"] == "error"]),
+                "configured": len([s for s in services if s["status"] == "configured"])
+            }
+        }
+
+    def _get_available_actions_for_dashboard(self, service_id: str, status: str, enabled: bool) -> List[str]:
+        """Get available actions for a service in dashboard context."""
+        actions = []
+        
+        if not enabled:
+            actions.append("enable")
+            if status == "not_configured":
+                actions.append("configure")
+        else:
+            actions.append("disable") 
+            
+            if status == "running":
+                actions.extend(["stop", "restart", "health_check", "view_logs"])
+            elif status == "stopped":
+                actions.extend(["start", "configure"])
+            elif status == "error":
+                actions.extend(["restart", "configure", "view_logs"])
+            elif status == "configured":
+                actions.extend(["start", "configure"])
+            elif status == "not_configured":
+                actions.extend(["configure"])
+        
+        return actions

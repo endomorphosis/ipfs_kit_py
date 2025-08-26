@@ -127,6 +127,15 @@ class RefactoredUnifiedMCPDashboard:
             self.bucket_interface = None
             self.bucket_index = None
         
+        # Import comprehensive service manager
+        try:
+            from ipfs_kit_py.mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
+            self.service_manager = ComprehensiveServiceManager(data_dir=self.data_dir)
+            logger.info("Comprehensive Service Manager initialized successfully")
+        except ImportError as e:
+            logger.warning(f"Could not import ComprehensiveServiceManager: {e}")
+            self.service_manager = None
+        
         # Data caches for efficiency
         self.system_metrics_cache = {}
         self.backends_cache = {}
@@ -380,6 +389,59 @@ class RefactoredUnifiedMCPDashboard:
                 ]
             }
         
+        @self.app.post("/api/services/{service_id}/{action}")
+        async def api_service_action(service_id: str, action: str, request: Request):
+            """Perform an action on a service."""
+            try:
+                if not self.service_manager:
+                    raise HTTPException(status_code=500, detail="Service manager not available")
+                
+                # Get parameters from request body if provided
+                try:
+                    body = await request.json()
+                    params = body.get("params", {})
+                except:
+                    params = {}
+                
+                result = await self.service_manager.perform_service_action(service_id, action, params)
+                
+                if result.get("success", False):
+                    return result
+                else:
+                    raise HTTPException(status_code=400, detail=result.get("error", "Action failed"))
+                    
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error in service action API: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to perform action: {str(e)}")
+        
+        @self.app.post("/api/services/{service_id}/configure")
+        async def api_service_configure(service_id: str, request: Request):
+            """Configure a service with credentials."""
+            try:
+                if not self.service_manager:
+                    raise HTTPException(status_code=500, detail="Service manager not available")
+                
+                body = await request.json()
+                config_data = body.get("config", {})
+                
+                if not config_data:
+                    raise HTTPException(status_code=400, detail="Configuration data required")
+                
+                result = await self.service_manager.perform_service_action(service_id, "configure", config_data)
+                
+                if result.get("success", False):
+                    return result
+                else:
+                    raise HTTPException(status_code=400, detail=result.get("error", "Configuration failed"))
+                    
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error in service configuration API: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to configure service: {str(e)}")
+        
         @self.app.get("/api/config")
         async def api_config():
             """Get configuration data."""
@@ -627,21 +689,31 @@ class RefactoredUnifiedMCPDashboard:
         self.backends_cache = {"backends": backends_data}
     
     async def _update_services_cache(self):
-        """Update services cache."""
-        services = []
-        
-        # Mock services for demonstration
-        services.append({
-            "name": "IPFS Daemon",
-            "type": "core_service",
-            "status": "running",
-            "description": "Core IPFS daemon for distributed storage"
-        })
-        
-        self.services_cache = {
-            "services": services,
-            "summary": {"total": len(services)}
-        }
+        """Update services cache using comprehensive service manager."""
+        try:
+            if self.service_manager:
+                # Use the comprehensive service manager to get all services
+                services_data = await self.service_manager.list_all_services()
+                self.services_cache = services_data
+            else:
+                # Fallback to mock services for demonstration
+                services = [{
+                    "id": "ipfs",
+                    "name": "IPFS Daemon",
+                    "type": "daemon",
+                    "status": "stopped", 
+                    "description": "Core IPFS daemon for distributed storage",
+                    "actions": ["start", "configure"]
+                }]
+                
+                self.services_cache = {
+                    "services": services,
+                    "summary": {"total": len(services)}
+                }
+        except Exception as e:
+            logger.error(f"Error updating services cache: {e}")
+            # Fallback to empty cache on error
+            self.services_cache = {"services": [], "summary": {"total": 0}}
     
     async def _update_pins_cache(self):
         """Update pins cache."""
