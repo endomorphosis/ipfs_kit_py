@@ -29,6 +29,9 @@ node_modules/
 *.venv/
 mcp_credential.sh
 
+# Screenshot files
+*.png
+
 # SECURITY: Credential files - DO NOT COMMIT
 credentials.json
 **/credentials.json
