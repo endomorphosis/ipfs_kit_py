@@ -727,9 +727,22 @@ class ConsolidatedMCPDashboard:
             
             buckets = _read_json(self.paths.buckets_file, default=[])
             pins = _read_json(self.paths.pins_file, default=[])
+            
+            # Get comprehensive service count
             services_active = 0
-            if psutil:
-                services_active = sum(1 for name in ("ipfs",) if _which(name))
+            try:
+                service_manager = self._get_service_manager()
+                if service_manager:
+                    services_data = await service_manager.list_all_services()
+                    services_active = services_data.get("total", 0)
+                else:
+                    # Fallback to basic detection
+                    if psutil:
+                        services_active = sum(1 for name in ("ipfs",) if _which(name))
+            except Exception as e:
+                self.log.warning(f"Failed to get comprehensive service count: {e}")
+                if psutil:
+                    services_active = sum(1 for name in ("ipfs",) if _which(name))
             data = {
                 "protocol_version": "1.0",
                 "total_tools": len(tool_names),
@@ -1050,8 +1063,8 @@ class ConsolidatedMCPDashboard:
             try:
                 service_manager = self._get_service_manager()
                 if service_manager:
-                    # Use the comprehensive service manager
-                    services_data = await service_manager.list_services()
+                    # Use the comprehensive service manager to get ALL services
+                    services_data = await service_manager.list_all_services()
                     # Transform the data format to match the expected API response
                     services = {}
                     for service in services_data.get("services", []):
