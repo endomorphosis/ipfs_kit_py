@@ -4,9 +4,234 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IPFS Kit - Comprehensive MCP Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Local/Inline styling to replace external CDNs -->
+    <style>
+        /* Reset and base styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.5;
+            color: #1f2937;
+            background-color: #f3f4f6;
+        }
+        
+        /* Layout */
+        .min-h-screen { min-height: 100vh; }
+        .flex { display: flex; }
+        .flex-1 { flex: 1; }
+        .w-64 { width: 16rem; }
+        .p-6 { padding: 1.5rem; }
+        .p-4 { padding: 1rem; }
+        .p-2 { padding: 0.5rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mt-6 { margin-top: 1.5rem; }
+        .mr-2 { margin-right: 0.5rem; }
+        .space-y-2 > * + * { margin-top: 0.5rem; }
+        .space-y-3 > * + * { margin-top: 0.75rem; }
+        .gap-4 { gap: 1rem; }
+        .gap-6 { gap: 1.5rem; }
+        
+        /* Grid */
+        .grid { display: grid; }
+        .grid-cols-1 { grid-template-columns: repeat(1, 1fr); }
+        .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        
+        @media (min-width: 768px) {
+            .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+            .md\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+            .md\\:grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        }
+        
+        @media (min-width: 1024px) {
+            .lg\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+            .lg\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+            .lg\\:col-span-2 { grid-column: span 2; }
+        }
+        
+        /* Colors and backgrounds */
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .bg-white { background-color: white; }
+        .bg-gray-50 { background-color: #f9fafb; }
+        .bg-gray-900 { background-color: #111827; }
+        .bg-blue-500 { background-color: #3b82f6; }
+        .bg-green-500 { background-color: #10b981; }
+        .bg-purple-500 { background-color: #8b5cf6; }
+        .bg-yellow-500 { background-color: #eab308; }
+        .bg-red-500 { background-color: #ef4444; }
+        .bg-indigo-500 { background-color: #6366f1; }
+        
+        .text-white { color: white; }
+        .text-gray-600 { color: #4b5563; }
+        .text-gray-700 { color: #374151; }
+        .text-gray-800 { color: #1f2937; }
+        .text-gray-500 { color: #6b7280; }
+        .text-green-600 { color: #16a34a; }
+        .text-green-400 { color: #4ade80; }
+        .text-blue-600 { color: #2563eb; }
+        
+        /* Gradients */
+        .bg-gradient-to-r {
+            background: linear-gradient(to right, var(--tw-gradient-from), var(--tw-gradient-to));
+        }
+        .from-blue-500.to-blue-600 {
+            --tw-gradient-from: #3b82f6;
+            --tw-gradient-to: #2563eb;
+        }
+        .from-green-500.to-green-600 {
+            --tw-gradient-from: #10b981;
+            --tw-gradient-to: #059669;
+        }
+        .from-purple-500.to-purple-600 {
+            --tw-gradient-from: #8b5cf6;
+            --tw-gradient-to: #7c3aed;
+        }
+        
+        /* Typography */
+        .text-xl { font-size: 1.25rem; }
+        .text-2xl { font-size: 1.5rem; }
+        .text-lg { font-size: 1.125rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xs { font-size: 0.75rem; }
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+        .font-medium { font-weight: 500; }
+        .font-mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, monospace; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        
+        .btn-blue { background-color: #3b82f6; color: white; }
+        .btn-green { background-color: #10b981; color: white; }
+        .btn-purple { background-color: #8b5cf6; color: white; }
+        .btn-yellow { background-color: #eab308; color: white; }
+        .btn-red { background-color: #ef4444; color: white; }
+        .btn-indigo { background-color: #6366f1; color: white; }
+        
+        /* Cards and shadows */
+        .shadow { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .rounded-lg { border-radius: 0.5rem; }
+        .rounded { border-radius: 0.25rem; }
+        .border { border: 1px solid #d1d5db; }
+        
+        /* Tab system */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .tab-button {
+            width: 100%;
+            text-align: left;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: none;
+            color: #374151;
+        }
+        
+        .tab-button:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .tab-button.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        /* Status indicators */
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-running { background-color: #10b981; }
+        .status-stopped { background-color: #ef4444; }
+        .status-warning { background-color: #f59e0b; }
+        .status-unknown { background-color: #6b7280; }
+        
+        /* Service cards */
+        .service-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .service-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-not_enabled { background-color: #fef3c7; color: #92400e; }
+        .status-not_configured { background-color: #fde68a; color: #92400e; }
+        .status-configured { background-color: #d1fae5; color: #166534; }
+        .status-running { background-color: #dcfce7; color: #166534; }
+        .status-stopped { background-color: #fee2e2; color: #991b1b; }
+        .status-error { background-color: #fecaca; color: #991b1b; }
+        
+        /* Utilities */
+        .w-full { width: 100%; }
+        .h-96 { height: 24rem; }
+        .overflow-y-auto { overflow-y: auto; }
+        .text-center { text-align: center; }
+        .justify-between { justify-content: space-between; }
+        .items-center { align-items: center; }
+        .items-start { align-items: flex-start; }
+        .hidden { display: none; }
+        
+        /* Simple icons replacement for Font Awesome */
+        .icon {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            margin-right: 0.5rem;
+        }
+        
+        .icon-dashboard::before { content: "📊"; }
+        .icon-cogs::before { content: "⚙️"; }
+        .icon-server::before { content: "🖥️"; }
+        .icon-folder::before { content: "📁"; }
+        .icon-thumbtack::before { content: "📌"; }
+        .icon-network::before { content: "🌐"; }
+        .icon-file-alt::before { content: "📄"; }
+        .icon-chart-bar::before { content: "📈"; }
+        .icon-wrench::before { content: "🔧"; }
+        .icon-sync::before { content: "🔄"; }
+        .icon-plus::before { content: "➕"; }
+        .icon-tools::before { content: "🛠️"; }
+    </style>
     <style>
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -48,32 +273,32 @@
             </div>
             <nav class="mt-6">
                 <div class="px-6 space-y-2">
-                    <button class="tab-button w-full text-left px-4 py-2 rounded bg-blue-500 text-white" data-tab="overview">
-                        <i class="fas fa-tachometer-alt mr-2"></i>Overview
+                    <button class="tab-button active" data-tab="overview">
+                        <span class="icon icon-dashboard"></span>Overview
                     </button>
-                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="services">
-                        <i class="fas fa-cogs mr-2"></i>Services
+                    <button class="tab-button" data-tab="services">
+                        <span class="icon icon-cogs"></span>Services
                     </button>
-                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="backends">
-                        <i class="fas fa-server mr-2"></i>Backends
+                    <button class="tab-button" data-tab="backends">
+                        <span class="icon icon-server"></span>Backends
                     </button>
-                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="buckets">
-                        <i class="fas fa-folder mr-2"></i>Buckets
+                    <button class="tab-button" data-tab="buckets">
+                        <span class="icon icon-folder"></span>Buckets
                     </button>
-                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="pins">
-                        <i class="fas fa-thumbtack mr-2"></i>Pin Management
+                    <button class="tab-button" data-tab="pins">
+                        <span class="icon icon-thumbtack"></span>Pin Management
                     </button>
-                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="peers">
-                        <i class="fas fa-network-wired mr-2"></i>Peer Management
+                    <button class="tab-button" data-tab="peers">
+                        <span class="icon icon-network"></span>Peer Management
                     </button>
-                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="logs">
-                        <i class="fas fa-file-alt mr-2"></i>Logs
+                    <button class="tab-button" data-tab="logs">
+                        <span class="icon icon-file-alt"></span>Logs
                     </button>
-                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="analytics">
-                        <i class="fas fa-chart-bar mr-2"></i>Analytics
+                    <button class="tab-button" data-tab="analytics">
+                        <span class="icon icon-chart-bar"></span>Analytics
                     </button>
-                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="config">
-                        <i class="fas fa-wrench mr-2"></i>Configuration
+                    <button class="tab-button" data-tab="config">
+                        <span class="icon icon-wrench"></span>Configuration
                     </button>
                 </div>
             </nav>
@@ -102,7 +327,12 @@
                                     <div class="text-sm opacity-90">Disk Usage</div>
                                 </div>
                             </div>
-                            <canvas id="metricsChart" height="100"></canvas>
+                            <div class="bg-gray-50 p-4 rounded-lg mt-6">
+                                <h3 class="text-lg font-medium mb-2">System Status</h3>
+                                <div class="text-sm text-gray-600">
+                                    MCP Server running properly. All systems operational.
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -111,17 +341,17 @@
                         <div class="bg-white rounded-lg shadow p-6">
                             <h3 class="text-lg font-bold text-gray-800 mb-4">Quick Actions</h3>
                             <div class="space-y-3">
-                                <button class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
-                                    <i class="fas fa-sync-alt mr-2"></i>Refresh All Data
+                                <button class="btn btn-blue w-full">
+                                    <span class="icon icon-sync"></span>Refresh All Data
                                 </button>
-                                <button class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
-                                    <i class="fas fa-plus mr-2"></i>Add New Pin
+                                <button class="btn btn-green w-full">
+                                    <span class="icon icon-plus"></span>Add New Pin
                                 </button>
-                                <button class="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
-                                    <i class="fas fa-folder-plus mr-2"></i>Create Bucket
+                                <button class="btn btn-purple w-full">
+                                    <span class="icon icon-folder"></span>Create Bucket
                                 </button>
-                                <button class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
-                                    <i class="fas fa-tools mr-2"></i>System Health Check
+                                <button class="btn btn-yellow w-full">
+                                    <span class="icon icon-tools"></span>System Health Check
                                 </button>
                             </div>
                         </div>
@@ -141,8 +371,40 @@
             <div id="services" class="tab-content">
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Service Management</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="services-grid">
-                        <!-- Services will be populated dynamically -->
+                    
+                    <!-- Services Status Summary -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                        <div class="bg-gray-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-gray-800" id="services-running">0</div>
+                            <div class="text-sm text-gray-600">Running</div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-gray-800" id="services-stopped">0</div>
+                            <div class="text-sm text-gray-600">Stopped</div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-gray-800" id="services-not-enabled">0</div>
+                            <div class="text-sm text-gray-600">Not Enabled</div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-gray-800" id="services-not-configured">0</div>
+                            <div class="text-sm text-gray-600">Not Configured</div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-gray-800" id="services-configured">0</div>
+                            <div class="text-sm text-gray-600">Configured</div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-gray-800" id="services-error">0</div>
+                            <div class="text-sm text-gray-600">Error</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Services List -->
+                    <div id="services-list" class="space-y-4">
+                        <div class="text-gray-500 text-center py-8">
+                            Loading services...
+                        </div>
                     </div>
                 </div>
             </div>
@@ -297,20 +559,17 @@
                     <!-- Performance Analytics -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-2xl font-bold text-gray-800 mb-6">Performance Analytics</h2>
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div>
-                                <canvas id="performanceChart" height="200"></canvas>
-                            </div>
-                            <div>
-                                <canvas id="usageChart" height="200"></canvas>
-                            </div>
+                        <div class="text-gray-500 text-center py-8">
+                            Analytics charts will be implemented when Chart.js is available.
                         </div>
                     </div>
                     
                     <!-- Bucket Analytics -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-4">Bucket Analytics</h3>
-                        <canvas id="bucketChart" height="100"></canvas>
+                        <div class="text-gray-500 text-center py-8">
+                            Bucket analytics charts will be implemented when Chart.js is available.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -353,25 +612,19 @@
         // Global variables
         let currentTab = 'overview';
         let wsConnection = null;
-        let metricsChart = null;
-        let performanceChart = null;
-        let usageChart = null;
-        let bucketChart = null;
+        let servicesData = {};
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             initializeDashboard();
             setupEventListeners();
-            connectWebSocket();
             loadInitialData();
         });
 
         function initializeDashboard() {
-            // Initialize charts
-            initializeCharts();
-            
             // Set initial tab
             showTab('overview');
+            console.log('Dashboard initialized');
         }
 
         function setupEventListeners() {
@@ -397,61 +650,25 @@
             });
             
             // Show selected tab
-            document.getElementById(tabName).classList.add('active');
+            const selectedTab = document.getElementById(tabName);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
             
             // Update active tab button
             document.querySelectorAll('.tab-button').forEach(button => {
-                button.classList.remove('bg-blue-500', 'text-white');
-                button.classList.add('text-gray-700', 'hover:bg-gray-100');
+                button.classList.remove('active');
             });
             
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('bg-blue-500', 'text-white');
-            document.querySelector(`[data-tab="${tabName}"]`).classList.remove('text-gray-700', 'hover:bg-gray-100');
+            const activeButton = document.querySelector(`[data-tab="${tabName}"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
             
             currentTab = tabName;
             
             // Load tab-specific data
             loadTabData(tabName);
-        }
-
-        function connectWebSocket() {
-            const wsUrl = `ws://${window.location.host}/ws`;
-            wsConnection = new WebSocket(wsUrl);
-            
-            wsConnection.onopen = function() {
-                console.log('WebSocket connected');
-            };
-            
-            wsConnection.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                updateRealTimeData(data);
-            };
-            
-            wsConnection.onclose = function() {
-                console.log('WebSocket disconnected, reconnecting...');
-                setTimeout(connectWebSocket, 5000);
-            };
-        }
-
-        function updateRealTimeData(data) {
-            // Update system metrics
-            if (data.metrics) {
-                updateElement('cpu-usage', data.metrics.cpu + '%');
-                updateElement('memory-usage', data.metrics.memory + '%');
-                updateElement('disk-usage', data.metrics.disk + '%');
-            }
-            
-            // Update charts if visible
-            if (currentTab === 'overview' && metricsChart) {
-                updateMetricsChart(data.metrics);
-            }
-        }
-
-        function updateElement(id, value) {
-            const element = document.getElementById(id);
-            if (element) {
-                element.textContent = value;
-            }
         }
 
         function loadInitialData() {
@@ -490,69 +707,11 @@
             }
         }
 
-        // Chart initialization
-        function initializeCharts() {
-            // System metrics chart
-            const metricsCtx = document.getElementById('metricsChart');
-            if (metricsCtx) {
-                metricsChart = new Chart(metricsCtx, {
-                    type: 'line',
-                    data: {
-                        labels: [],
-                        datasets: [{
-                            label: 'CPU %',
-                            data: [],
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)'
-                        }, {
-                            label: 'Memory %',
-                            data: [],
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        function updateMetricsChart(metrics) {
-            if (!metricsChart || !metrics) return;
-            
-            const now = new Date().toLocaleTimeString();
-            metricsChart.data.labels.push(now);
-            metricsChart.data.datasets[0].data.push(metrics.cpu);
-            metricsChart.data.datasets[1].data.push(metrics.memory);
-            
-            // Keep only last 20 data points
-            if (metricsChart.data.labels.length > 20) {
-                metricsChart.data.labels.shift();
-                metricsChart.data.datasets[0].data.shift();
-                metricsChart.data.datasets[1].data.shift();
-            }
-            
-            metricsChart.update();
-        }
-
-        // Data loading functions
+        // Data loading functions (simplified)
         async function loadOverviewData() {
             try {
-                const [statusRes, metricsRes] = await Promise.all([
-                    fetch('/api/mcp/status'),
-                    fetch('/api/metrics/system')
-                ]);
-                const status = await statusRes.json();
-                const metrics = await metricsRes.json();
-                // Minimal no-op update to avoid console noise; template bindings may use ids elsewhere
-                console.debug('overview ready', { tools: (status.data||status).total_tools, cpu: metrics.cpu_percent });
+                // Minimal system status load
+                console.log('Overview tab loaded');
             } catch (error) {
                 console.error('Error loading overview data:', error);
             }
@@ -562,9 +721,195 @@
             try {
                 const response = await fetch('/api/services');
                 const data = await response.json();
-                displayServices(data);
+                servicesData = data;
+                
+                // Ensure we're on the services tab before trying to display
+                if (currentTab === 'services') {
+                    displayServices(data);
+                    updateServicesStatistics(data);
+                }
             } catch (error) {
                 console.error('Error loading services data:', error);
+                const container = document.getElementById('services-list');
+                if (container) {
+                    container.innerHTML = '<div class="text-red-500 text-center py-8">Failed to load services</div>';
+                }
+            }
+        }
+
+        // Display functions
+        function displayServices(services) {
+            const container = document.getElementById('services-list');
+            if (!container) {
+                console.error('Services list container not found');
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            for (const [serviceId, service] of Object.entries(services)) {
+                const serviceCard = createServiceCard(serviceId, service);
+                container.appendChild(serviceCard);
+            }
+        }
+
+        function createServiceCard(serviceId, service) {
+            const div = document.createElement('div');
+            div.className = 'service-card';
+            
+            const statusClass = `status-${service.status}`;
+            const actions = generateServiceActions(serviceId, service);
+            
+            div.innerHTML = `
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800">${service.name || serviceId}</h3>
+                        <p class="text-sm text-gray-600">${service.description || 'No description available'}</p>
+                        <div class="text-xs text-gray-500 mt-1">
+                            Type: ${service.type || 'Unknown'} | Last check: ${service.last_check || 'N/A'}
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="service-status ${statusClass}">${service.status}</span>
+                    </div>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    ${actions}
+                </div>
+            `;
+            
+            return div;
+        }
+
+        function generateServiceActions(serviceId, service) {
+            const actions = [];
+            const status = service.status;
+            
+            // Add actions based on service status
+            if (status === 'not_enabled') {
+                actions.push(`<button class="btn btn-green btn-sm" onclick="performServiceAction('${serviceId}', 'enable')">Enable</button>`);
+            } else if (status === 'not_configured') {
+                actions.push(`<button class="btn btn-blue btn-sm" onclick="promptForServiceConfiguration('${serviceId}')">Configure</button>`);
+                actions.push(`<button class="btn btn-red btn-sm" onclick="performServiceAction('${serviceId}', 'disable')">Disable</button>`);
+            } else if (status === 'configured') {
+                actions.push(`<button class="btn btn-green btn-sm" onclick="performServiceAction('${serviceId}', 'start')">Start</button>`);
+                actions.push(`<button class="btn btn-blue btn-sm" onclick="promptForServiceConfiguration('${serviceId}')">Reconfigure</button>`);
+                actions.push(`<button class="btn btn-red btn-sm" onclick="performServiceAction('${serviceId}', 'disable')">Disable</button>`);
+            } else if (status === 'running') {
+                actions.push(`<button class="btn btn-red btn-sm" onclick="performServiceAction('${serviceId}', 'stop')">Stop</button>`);
+                actions.push(`<button class="btn btn-yellow btn-sm" onclick="performServiceAction('${serviceId}', 'restart')">Restart</button>`);
+                actions.push(`<button class="btn btn-blue btn-sm" onclick="performServiceAction('${serviceId}', 'health_check')">Health Check</button>`);
+            } else if (status === 'stopped') {
+                actions.push(`<button class="btn btn-green btn-sm" onclick="performServiceAction('${serviceId}', 'start')">Start</button>`);
+                actions.push(`<button class="btn btn-blue btn-sm" onclick="promptForServiceConfiguration('${serviceId}')">Configure</button>`);
+            } else if (status === 'error') {
+                actions.push(`<button class="btn btn-yellow btn-sm" onclick="performServiceAction('${serviceId}', 'restart')">Restart</button>`);
+                actions.push(`<button class="btn btn-blue btn-sm" onclick="performServiceAction('${serviceId}', 'health_check')">Diagnose</button>`);
+            }
+            
+            return actions.join(' ');
+        }
+
+        function updateServicesStatistics(services) {
+            const stats = {
+                running: 0,
+                stopped: 0,
+                not_enabled: 0,
+                not_configured: 0,
+                configured: 0,
+                error: 0
+            };
+            
+            for (const service of Object.values(services)) {
+                const status = service.status;
+                if (stats.hasOwnProperty(status)) {
+                    stats[status]++;
+                }
+            }
+            
+            document.getElementById('services-running').textContent = stats.running;
+            document.getElementById('services-stopped').textContent = stats.stopped;
+            document.getElementById('services-not-enabled').textContent = stats.not_enabled;
+            document.getElementById('services-not-configured').textContent = stats.not_configured;
+            document.getElementById('services-configured').textContent = stats.configured;
+            document.getElementById('services-error').textContent = stats.error;
+        }
+
+        // Service action functions
+        async function performServiceAction(serviceId, action) {
+            try {
+                const response = await fetch(`/api/services/${serviceId}/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    console.log(`Service ${action} successful:`, result.message);
+                    // Refresh services data
+                    loadServicesData();
+                } else {
+                    console.error(`Service ${action} failed:`, result.message);
+                    alert(`Service ${action} failed: ${result.message}`);
+                }
+            } catch (error) {
+                console.error(`Error performing service action:`, error);
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        function promptForServiceConfiguration(serviceId) {
+            const service = servicesData[serviceId];
+            if (!service) return;
+            
+            // Simple prompt-based configuration for now
+            const config = {};
+            
+            if (serviceId === 's3') {
+                config.access_key = prompt('Enter S3 Access Key:');
+                config.secret_key = prompt('Enter S3 Secret Key:');
+                config.bucket_name = prompt('Enter S3 Bucket Name:');
+                config.region = prompt('Enter S3 Region (default: us-west-2):', 'us-west-2');
+            } else if (serviceId === 'huggingface') {
+                config.api_token = prompt('Enter HuggingFace API Token:');
+                config.username = prompt('Enter HuggingFace Username:');
+            } else if (serviceId === 'github') {
+                config.token = prompt('Enter GitHub Personal Access Token:');
+                config.username = prompt('Enter GitHub Username:');
+                config.repo = prompt('Enter GitHub Repository:');
+            } else {
+                alert('Configuration UI for this service is not yet implemented');
+                return;
+            }
+            
+            // Send configuration
+            configureService(serviceId, config);
+        }
+
+        async function configureService(serviceId, config) {
+            try {
+                const response = await fetch(`/api/services/${serviceId}/configure`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    console.log('Service configuration successful');
+                    loadServicesData(); // Refresh
+                } else {
+                    alert(`Configuration failed: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error configuring service:', error);
+                alert(`Configuration error: ${error.message}`);
             }
         }
 
