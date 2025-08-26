@@ -21,6 +21,14 @@ from typing import Any, Dict, List, Optional, Iterable
 from contextlib import suppress, asynccontextmanager
 from types import SimpleNamespace
 
+# Import comprehensive service manager
+try:
+    from ipfs_kit_py.mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
+    COMPREHENSIVE_SERVICE_MANAGER_AVAILABLE = True
+except ImportError:
+    COMPREHENSIVE_SERVICE_MANAGER_AVAILABLE = False
+    ComprehensiveServiceManager = None
+
 import uvicorn  # server
 try:
     import psutil  # type: ignore
@@ -207,6 +215,9 @@ class ConsolidatedMCPDashboard:
         self.endpoint_hits: Dict[str, int] = {}
         self._hits_file = self.paths.data_dir / "endpoint_hits.json"
 
+        # Initialize comprehensive service manager (will be lazily loaded)
+        self._service_manager = None  # Will be initialized on first use to avoid circular imports
+
         # Ensure graceful persistence on process signals (SIGTERM/SIGINT)
         def _persist_hits(*_a):  # pragma: no cover - signal handling is hard to unit test reliably
             try:
@@ -293,6 +304,104 @@ class ConsolidatedMCPDashboard:
                 self.log.error(f"Failed to import ComprehensiveServiceManager: {e}")
                 self._service_manager = None
         return self._service_manager
+    
+    async def _list_all_services(self, service_manager):
+        """List all services (enabled and disabled) for comprehensive dashboard view."""
+        services = []
+        
+        # Get all daemon services
+        for daemon_id, config in service_manager.services_config.get("daemons", {}).items():
+            if config.get("enabled", False):
+                status = await service_manager._check_daemon_status(daemon_id, config)
+                actions = service_manager._get_available_actions(daemon_id, status["status"])
+            else:
+                # For disabled services, show as "not_enabled" 
+                status = {
+                    "status": "not_enabled",
+                    "last_check": None,
+                    "details": {"reason": "Service not enabled"}
+                }
+                actions = ["configure", "enable"]  # Allow enabling and configuration
+            
+            services.append({
+                "id": daemon_id,
+                "name": config["name"],
+                "type": config["type"],
+                "description": config["description"],
+                "status": status["status"],
+                "port": config.get("port"),
+                "actions": actions,
+                "last_check": status.get("last_check"),
+                "details": status.get("details", {}),
+                "enabled": config.get("enabled", False)
+            })
+        
+        # Get all storage backend services  
+        for backend_id, config in service_manager.services_config.get("storage_backends", {}).items():
+            if config.get("enabled", False):
+                status = await service_manager._check_storage_backend_status(backend_id, config)
+                actions = service_manager._get_available_actions(backend_id, status["status"])
+            else:
+                # For disabled services, show as "not_configured" since most require credentials
+                status = {
+                    "status": "not_configured" if config.get("requires_credentials") else "not_enabled",
+                    "last_check": None,
+                    "details": {"reason": "Credentials not configured" if config.get("requires_credentials") else "Service not enabled"}
+                }
+                # Provide configure action for credentialed services, enable for others
+                actions = ["configure", "enable"] if config.get("requires_credentials") else ["enable", "configure"]
+            
+            services.append({
+                "id": backend_id,
+                "name": config["name"],
+                "type": config["type"],
+                "description": config["description"],
+                "status": status["status"],
+                "requires_credentials": config.get("requires_credentials", False),
+                "actions": actions,
+                "last_check": status.get("last_check"),
+                "details": status.get("details", {}),
+                "enabled": config.get("enabled", False)
+            })
+        
+        # Get all network services
+        for service_id, config in service_manager.services_config.get("network_services", {}).items():
+            if config.get("enabled", False):
+                status = await service_manager._check_network_service_status(service_id, config)
+                actions = service_manager._get_available_actions(service_id, status["status"])
+            else:
+                status = {
+                    "status": "not_enabled",
+                    "last_check": None,
+                    "details": {"reason": "Service not enabled"}
+                }
+                actions = ["configure", "enable"]
+            
+            services.append({
+                "id": service_id,
+                "name": config["name"],
+                "type": config["type"],
+                "description": config["description"],
+                "status": status["status"],
+                "port": config.get("port"),
+                "actions": actions,
+                "last_check": status.get("last_check"),
+                "details": status.get("details", {}),
+                "enabled": config.get("enabled", False)
+            })
+        
+        return {
+            "services": services,
+            "total": len(services),
+            "summary": {
+                "running": len([s for s in services if s["status"] == "running"]),
+                "stopped": len([s for s in services if s["status"] == "stopped"]),
+                "error": len([s for s in services if s["status"] == "error"]),
+                "configured": len([s for s in services if s["status"] == "configured"]),
+                "not_configured": len([s for s in services if s["status"] == "not_configured"]),
+                "not_enabled": len([s for s in services if s["status"] == "not_enabled"])
+            }
+        }
 
     # --- Run helpers (restored) ---
     async def run(self) -> None:
@@ -1940,6 +2049,43 @@ class ConsolidatedMCPDashboard:
                     result["cpu_percent"] = psutil.cpu_percent(interval=None)
             return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "list_services":
+            # Use comprehensive service manager if available
+            service_manager = self._get_service_manager()
+            if service_manager:
+                try:
+                    # Get all services (enabled and disabled) for comprehensive dashboard view
+                    services_data = await self._list_all_services(service_manager)
+                    # Transform the service manager format to match the expected dashboard format
+                    services = {"services": {}}
+                    
+                    for service in services_data.get("services", []):
+                        service_id = service.get("id")
+                        if service_id:
+                            services["services"][service_id] = {
+                                "name": service.get("name"),
+                                "type": service.get("type"),
+                                "status": service.get("status"),
+                                "description": service.get("description"),
+                                "port": service.get("port"),
+                                "requires_credentials": service.get("requires_credentials", False),
+                                "actions": service.get("actions", []),
+                                "last_check": service.get("last_check"),
+                                "details": service.get("details", {}),
+                                # Add compatibility fields for existing UI
+                                "bin": service.get("details", {}).get("binary_path") if service.get("type") == "daemon" else None,
+                                "api_port_open": service.get("details", {}).get("api_port_open", False) if service.get("type") == "daemon" else None
+                            }
+                    
+                    # Add summary information
+                    services["summary"] = services_data.get("summary", {})
+                    services["total"] = services_data.get("total", 0)
+                    
+                    return {"jsonrpc": "2.0", "result": services, "id": None}
+                except Exception as e:
+                    self.log.error(f"Error using service manager: {e}")
+                    # Fall back to the old implementation if service manager fails
+            
+            # Fallback to hardcoded services if service manager is not available or fails
             services = {
                 "services": {
                     "ipfs": {"bin": _which("ipfs"), "api_port_open": _port_open("127.0.0.1", 5001)},
@@ -1960,22 +2106,37 @@ class ConsolidatedMCPDashboard:
                         # Get the service details for status
                         result = await service_manager.get_service_details(svc)
                         return {"jsonrpc": "2.0", "result": result, "id": None}
-                    elif action in ("start", "stop", "restart"):
-                        # Use the perform_service_action method
-                        result = await service_manager.perform_service_action(svc, action)
+                    elif action in ("start", "stop", "restart", "configure", "health_check", "view_logs", "enable"):
+                        # Handle enable action separately
+                        if action == "enable":
+                            result = service_manager.enable_service(svc)
+                        else:
+                            # Use the perform_service_action method
+                            result = await service_manager.perform_service_action(svc, action, args)
                         return {"jsonrpc": "2.0", "result": result, "id": None}
                     else:
-                        raise HTTPException(400, "Unsupported action")
+                        return {"jsonrpc": "2.0", "error": {"code": 400, "message": f"Unsupported action: {action}"}, "id": None}
                 except Exception as e:
-                    self.log.error(f"Service manager action failed: {e}")
-                    # Fall through to legacy IPFS handling
+                    self.log.error(f"Service manager action failed for {svc}.{action}: {e}")
+                    # For configuration actions, provide a helpful response instead of falling through
+                    if action == "configure":
+                        return {
+                            "jsonrpc": "2.0", 
+                            "result": {
+                                "success": False,
+                                "error": f"Configuration for {svc} requires manual setup. See service documentation.",
+                                "message": f"Service {svc} configuration is not yet fully automated."
+                            }, 
+                            "id": None
+                        }
+                    # Fall through to legacy IPFS handling for other actions
             
             # Legacy fallback for IPFS only
             if svc not in ("ipfs",):
-                raise HTTPException(400, f"Service '{svc}' not supported by basic service control")
+                return {"jsonrpc": "2.0", "error": {"code": 400, "message": f"Service '{svc}' is managed by the comprehensive service manager but encountered an error. Check logs for details."}, "id": None}
             ipfs_bin = _which("ipfs")
             if not ipfs_bin:
-                raise HTTPException(404, "ipfs binary not found")
+                return {"jsonrpc": "2.0", "error": {"code": 404, "message": "ipfs binary not found"}, "id": None}
             if action == "status":
                 ok = _port_open("127.0.0.1", 5001)
                 return {"jsonrpc": "2.0", "result": {"ok": ok, "api_port_open": ok}, "id": None}
@@ -1988,7 +2149,7 @@ class ConsolidatedMCPDashboard:
                     res = _run_cmd(cmd, timeout=25.0)
                 return {"jsonrpc": "2.0", "result": res, "id": None}
             else:
-                raise HTTPException(400, "Unsupported action")
+                return {"jsonrpc": "2.0", "error": {"code": 400, "message": "Unsupported action"}, "id": None}
         if name == "service_status":
             svc = str(args.get("service", "")).strip()
             if svc == "ipfs":
