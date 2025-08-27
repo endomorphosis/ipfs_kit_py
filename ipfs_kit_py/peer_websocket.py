@@ -28,6 +28,14 @@ try:
     WEBSOCKET_AVAILABLE = True
 except ImportError:
     WEBSOCKET_AVAILABLE = False
+    # Create placeholder classes when websockets is not available
+    class WebSocketServerProtocol:
+        """Placeholder WebSocketServerProtocol when websockets is not available."""
+        pass
+    
+    class WebSocketClientProtocol:
+        """Placeholder WebSocketClientProtocol when websockets is not available."""
+        pass
 
 # FastAPI imports for server integration
 try:
@@ -1056,7 +1064,7 @@ class PeerWebSocketClient:
             return False
 
 # Function to integrate with FastAPI
-def register_peer_websocket(app: FastAPI,
+def register_peer_websocket(app,  # Type hint removed to avoid import error
                            local_peer_info: PeerInfo,
                            path: str = "/api/v0/peer/ws"):
     """
