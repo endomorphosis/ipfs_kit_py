@@ -184,7 +184,7 @@ def create_app(config_path=None):
         # Add comprehensive dashboard endpoints
         try:
             from fastapi.responses import HTMLResponse
-            from mcp_dashboard_enhanced import (
+            from .mcp_dashboard_enhanced import (
                 create_comprehensive_dashboard_html, 
                 handle_dashboard_jsonrpc,
                 create_sse_endpoint
