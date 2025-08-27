@@ -184,55 +184,427 @@ async function loadNetworkActivity() {
 
 async function loadServices() {
     try {
-        const response = await fetch('/api/services');
-        const data = await response.json();
+        // Try to load from comprehensive service manager first
+        let response;
+        let data;
+        
+        try {
+            response = await fetch('/api/services/comprehensive');
+            data = await response.json();
+        } catch (error) {
+            // Fallback to basic services API
+            console.warn('Comprehensive services API not available, using fallback');
+            response = await fetch('/api/services');
+            data = await response.json();
+            data = convertLegacyServicesData(data);
+        }
+        
         const servicesList = document.getElementById('services-list');
-        const totalBadge = document.getElementById('services-total-badge');
         servicesList.innerHTML = '';
         
-        // Convert services object to array format
         const services = data.services || {};
-        const servicesArray = Object.entries(services).map(([name, service]) => ({
-            name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize first letter
-            status: service.status || 'unknown',
-            description: `${name.charAt(0).toUpperCase() + name.slice(1)} service`
-        }));
+        updateServicesStatusCounts(services);
         
-        totalBadge.textContent = servicesArray.length;
-
-        if (servicesArray.length > 0) {
-            servicesArray.forEach(service => {
-                let statusClass = 'bg-gray-500';
-                let statusIcon = 'fa-question-circle';
-                if (service.status === 'running') {
-                    statusClass = 'bg-green-500';
-                    statusIcon = 'fa-check-circle';
-                } else if (service.status === 'stopped' || service.status === 'error') {
-                    statusClass = 'bg-red-500';
-                    statusIcon = 'fa-times-circle';
-                } else if (service.status === 'configured' || service.status === 'available') {
-                    statusClass = 'bg-blue-500';
-                    statusIcon = 'fa-cog';
-                }
-
-                const item = `
-                    <div class="service-item p-6 rounded-xl flex items-center justify-between">
-                        <div>
-                            <h4 class="text-lg font-semibold text-gray-800">${service.name}</h4>
-                            <p class="text-sm text-gray-600">${service.description}</p>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <span class="text-sm font-medium text-gray-500">${service.type}</span>
-                            <div class="flex items-center px-3 py-1 rounded-full text-white text-sm font-medium ${statusClass}">
-                                <i class="fas ${statusIcon} mr-2"></i>
-                                <span>${service.status}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                servicesList.innerHTML += item;
-            });
+        if (Object.keys(services).length > 0) {
+            renderComprehensiveServices(services);
         } else {
+            servicesList.innerHTML = `
+                <div class="text-center py-12 col-span-full">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
+                        <i class="fas fa-exclamation-triangle text-2xl text-gray-500"></i>
+                    </div>
+                    <p class="text-gray-500 font-medium">No services available</p>
+                </div>
+            `;
+        }
+        
+    } catch (error) {
+        console.error('Error loading services:', error);
+        document.getElementById('services-list').innerHTML = `
+            <div class="text-center py-12 col-span-full">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-red-100 to-red-200 rounded-full mb-4">
+                    <i class="fas fa-exclamation-triangle text-2xl text-red-500"></i>
+                </div>
+                <p class="text-red-500 font-medium">Error loading services</p>
+                <p class="text-gray-500 text-sm mt-2">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function convertLegacyServicesData(legacyData) {
+    // Convert legacy services data to comprehensive format
+    const services = legacyData.services || {};
+    const converted = {};
+    
+    for (const [name, service] of Object.entries(services)) {
+        converted[name] = {
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            type: 'daemon',
+            description: `${name.charAt(0).toUpperCase() + name.slice(1)} service`,
+            status: service.status || 'unknown',
+            enabled: service.status === 'running',
+            requires_credentials: false,
+            actions: ['start', 'stop', 'configure']
+        };
+    }
+    
+    return { services: converted };
+}
+
+function updateServicesStatusCounts(services) {
+    const counts = {
+        running: 0,
+        stopped: 0,
+        not_enabled: 0,
+        not_configured: 0,
+        configured: 0,
+        error: 0
+    };
+    
+    for (const service of Object.values(services)) {
+        const status = service.status || 'unknown';
+        if (counts.hasOwnProperty(status)) {
+            counts[status]++;
+        } else if (status === 'running') {
+            counts.running++;
+        } else if (status === 'stopped') {
+            counts.stopped++;
+        } else {
+            counts.error++;
+        }
+    }
+    
+    document.getElementById('services-running-count').textContent = counts.running;
+    document.getElementById('services-stopped-count').textContent = counts.stopped;
+    document.getElementById('services-not-enabled-count').textContent = counts.not_enabled;
+    document.getElementById('services-not-configured-count').textContent = counts.not_configured;
+    document.getElementById('services-configured-count').textContent = counts.configured;
+    document.getElementById('services-error-count').textContent = counts.error;
+}
+
+function renderComprehensiveServices(services) {
+    const servicesList = document.getElementById('services-list');
+    servicesList.innerHTML = '';
+    
+    for (const [serviceId, service] of Object.entries(services)) {
+        const serviceCard = createServiceCard(serviceId, service);
+        servicesList.appendChild(serviceCard);
+    }
+}
+
+function createServiceCard(serviceId, service) {
+    const card = document.createElement('div');
+    card.className = `service-card bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border-l-4 ${getServiceBorderColor(service.status)} service-type-${service.type}`;
+    
+    const statusInfo = getServiceStatusInfo(service.status);
+    const typeIcon = getServiceTypeIcon(service.type);
+    
+    card.innerHTML = `
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center">
+                <div class="p-2 rounded-lg ${getServiceIconBg(service.type)} mr-3">
+                    <i class="fas ${typeIcon} text-white"></i>
+                </div>
+                <div>
+                    <h4 class="text-lg font-bold text-gray-800">${service.name}</h4>
+                    <p class="text-sm text-gray-500">${getServiceCategoryLabel(service.type)}</p>
+                </div>
+            </div>
+            <div class="flex items-center px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.class}">
+                ${statusInfo.icon} ${statusInfo.label}
+            </div>
+        </div>
+        
+        <p class="text-gray-600 text-sm mb-4">${service.description}</p>
+        
+        <div class="flex flex-wrap gap-2">
+            ${createServiceActionButtons(serviceId, service)}
+        </div>
+        
+        ${service.requires_credentials ? '<div class="mt-3 text-xs text-amber-600 flex items-center"><i class="fas fa-key mr-1"></i> Requires credentials</div>' : ''}
+    `;
+    
+    return card;
+}
+
+function getServiceStatusInfo(status) {
+    const statusMap = {
+        'running': { icon: '🟢', label: 'Running', class: 'bg-green-100 text-green-800' },
+        'stopped': { icon: '🔴', label: 'Stopped', class: 'bg-red-100 text-red-800' },
+        'not_enabled': { icon: '⚫', label: 'Not Enabled', class: 'bg-gray-100 text-gray-800' },
+        'not_configured': { icon: '🟡', label: 'Not Configured', class: 'bg-yellow-100 text-yellow-800' },
+        'configured': { icon: '🔵', label: 'Configured', class: 'bg-blue-100 text-blue-800' },
+        'error': { icon: '🟣', label: 'Error', class: 'bg-purple-100 text-purple-800' }
+    };
+    
+    return statusMap[status] || { icon: '❓', label: 'Unknown', class: 'bg-gray-100 text-gray-600' };
+}
+
+function getServiceTypeIcon(type) {
+    const typeIcons = {
+        'daemon': 'fa-cogs',
+        'storage': 'fa-database',
+        'network': 'fa-network-wired',
+        'index': 'fa-search',
+        'credential': 'fa-key'
+    };
+    return typeIcons[type] || 'fa-question-circle';
+}
+
+function getServiceIconBg(type) {
+    const bgColors = {
+        'daemon': 'bg-gradient-to-r from-blue-500 to-blue-600',
+        'storage': 'bg-gradient-to-r from-green-500 to-green-600',
+        'network': 'bg-gradient-to-r from-purple-500 to-purple-600',
+        'index': 'bg-gradient-to-r from-yellow-500 to-yellow-600',
+        'credential': 'bg-gradient-to-r from-red-500 to-red-600'
+    };
+    return bgColors[type] || 'bg-gradient-to-r from-gray-500 to-gray-600';
+}
+
+function getServiceBorderColor(status) {
+    const borderColors = {
+        'running': 'border-green-500',
+        'stopped': 'border-red-500',
+        'not_enabled': 'border-gray-400',
+        'not_configured': 'border-yellow-500',
+        'configured': 'border-blue-500',
+        'error': 'border-purple-500'
+    };
+    return borderColors[status] || 'border-gray-300';
+}
+
+function getServiceCategoryLabel(type) {
+    const labels = {
+        'daemon': '🛠️ Daemon Service',
+        'storage': '📦 Storage Backend',
+        'network': '🌐 Network Service',
+        'index': '🔍 Index Service',
+        'credential': '🔑 Credential Service'
+    };
+    return labels[type] || '❓ Unknown Service';
+}
+
+function createServiceActionButtons(serviceId, service) {
+    const status = service.status || 'unknown';
+    const actions = service.actions || [];
+    let buttons = '';
+    
+    // Determine available actions based on status
+    if (status === 'running') {
+        if (actions.includes('stop')) {
+            buttons += `<button onclick="performServiceAction('${serviceId}', 'stop')" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-medium transition">Stop</button>`;
+        }
+        if (actions.includes('restart')) {
+            buttons += `<button onclick="performServiceAction('${serviceId}', 'restart')" class="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded-lg text-xs font-medium transition">Restart</button>`;
+        }
+        if (actions.includes('health_check')) {
+            buttons += `<button onclick="performServiceAction('${serviceId}', 'health_check')" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-xs font-medium transition">Health Check</button>`;
+        }
+        if (actions.includes('view_logs')) {
+            buttons += `<button onclick="performServiceAction('${serviceId}', 'view_logs')" class="px-3 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-xs font-medium transition">View Logs</button>`;
+        }
+        if (actions.includes('disable')) {
+            buttons += `<button onclick="performServiceAction('${serviceId}', 'disable')" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition">Disable</button>`;
+        }
+    } else if (status === 'stopped') {
+        if (actions.includes('start')) {
+            buttons += `<button onclick="performServiceAction('${serviceId}', 'start')" class="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-xs font-medium transition">Start</button>`;
+        }
+        if (actions.includes('disable')) {
+            buttons += `<button onclick="performServiceAction('${serviceId}', 'disable')" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition">Disable</button>`;
+        }
+        if (actions.includes('configure')) {
+            buttons += `<button onclick="configureService('${serviceId}')" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-xs font-medium transition">Configure</button>`;
+        }
+    } else if (status === 'not_enabled') {
+        if (actions.includes('enable')) {
+            buttons += `<button onclick="performServiceAction('${serviceId}', 'enable')" class="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-xs font-medium transition">Enable</button>`;
+        }
+    } else if (status === 'not_configured') {
+        if (actions.includes('configure')) {
+            buttons += `<button onclick="configureService('${serviceId}')" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-xs font-medium transition">Configure</button>`;
+        }
+        if (actions.includes('enable')) {
+            buttons += `<button onclick="performServiceAction('${serviceId}', 'enable')" class="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-xs font-medium transition">Enable</button>`;
+        }
+    }
+    
+    return buttons;
+}
+
+// Service filtering
+function filterServices(category) {
+    const cards = document.querySelectorAll('.service-card');
+    const buttons = document.querySelectorAll('.service-filter-btn');
+    
+    // Update active button
+    buttons.forEach(btn => btn.classList.remove('active', 'bg-blue-500', 'text-white'));
+    buttons.forEach(btn => btn.classList.add('bg-gray-200', 'text-gray-700'));
+    
+    const activeBtn = document.querySelector(`button[onclick="filterServices('${category}')"]`);
+    activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
+    activeBtn.classList.add('active', 'bg-blue-500', 'text-white');
+    
+    // Filter cards
+    cards.forEach(card => {
+        if (category === 'all') {
+            card.style.display = 'block';
+        } else {
+            const hasCategory = card.classList.contains(`service-type-${category}`);
+            card.style.display = hasCategory ? 'block' : 'none';
+        }
+    });
+}
+
+// Service actions
+async function performServiceAction(serviceId, action) {
+    try {
+        const response = await fetch(`/api/services/${serviceId}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showNotification(`Service ${action} completed successfully`, 'success');
+            // Reload services to update status
+            setTimeout(() => loadServices(), 1000);
+        } else {
+            showNotification(`Failed to ${action} service: ${result.error || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error(`Error performing ${action} on ${serviceId}:`, error);
+        showNotification(`Error performing ${action}: ${error.message}`, 'error');
+    }
+}
+
+function configureService(serviceId) {
+    // Open configuration modal
+    const modal = document.getElementById('service-config-modal');
+    const title = document.getElementById('modal-title');
+    const content = document.getElementById('modal-content');
+    
+    // Find the service data
+    // This would typically come from the loaded services data
+    title.textContent = `Configure ${serviceId.charAt(0).toUpperCase() + serviceId.slice(1)}`;
+    
+    // Generate configuration form based on service type
+    content.innerHTML = generateServiceConfigForm(serviceId);
+    
+    // Show modal
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.querySelector('.transform').classList.remove('scale-95');
+    }, 10);
+}
+
+function generateServiceConfigForm(serviceId) {
+    // Service-specific configuration forms
+    const configForms = {
+        's3': `
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Access Key</label>
+                    <input type="text" id="s3-access-key" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="AWS Access Key">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Secret Key</label>
+                    <input type="password" id="s3-secret-key" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="AWS Secret Key">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Region</label>
+                    <input type="text" id="s3-region" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="us-east-1">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Bucket Name</label>
+                    <input type="text" id="s3-bucket" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="your-bucket-name">
+                </div>
+            </div>
+        `,
+        'huggingface': `
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">API Token</label>
+                    <input type="password" id="hf-api-token" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="hf_your_token_here">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                    <input type="text" id="hf-username" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="your-username">
+                </div>
+            </div>
+        `,
+        'github': `
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Access Token</label>
+                    <input type="password" id="github-token" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="github_pat_your_token">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                    <input type="text" id="github-username" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="your-username">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Repository</label>
+                    <input type="text" id="github-repo" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="repository-name">
+                </div>
+            </div>
+        `
+    };
+    
+    return configForms[serviceId] || `
+        <div class="space-y-4">
+            <div class="text-center py-8">
+                <i class="fas fa-cog text-4xl text-gray-400 mb-4"></i>
+                <p class="text-gray-600">Configuration form for ${serviceId} will be available soon.</p>
+            </div>
+        </div>
+    `;
+}
+
+function closeServiceModal() {
+    const modal = document.getElementById('service-config-modal');
+    modal.classList.add('opacity-0');
+    modal.querySelector('.transform').classList.add('scale-95');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+}
+
+function saveServiceConfig() {
+    // This would save the configuration
+    showNotification('Service configuration saved successfully', 'success');
+    closeServiceModal();
+    // Reload services
+    setTimeout(() => loadServices(), 500);
+}
+
+function showNotification(message, type = 'info') {
+    // Simple notification system
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-500 text-white' :
+        type === 'error' ? 'bg-red-500 text-white' :
+        'bg-blue-500 text-white'
+    }`;
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle'} mr-2"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
             servicesList.innerHTML = '<p class="text-center text-gray-500">No services found.</p>';
         }
     } catch (error) {

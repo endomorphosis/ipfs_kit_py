@@ -3,29 +3,1121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPFS Kit - Unified Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Suppress Tailwind development warning
-        if (typeof tailwind !== 'undefined') {
-            tailwind.config = {
-                theme: {
-                    extend: {
-                        fontFamily: {
-                            'inter': ['Inter', 'sans-serif'],
-                        }
-                    }
-                }
-            };
+    <title>IPFS Kit - Enhanced Services Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-    </script>
-    <script>
-        const API_BASE_URL = `http://127.0.0.1:{{ port }}/api`;
-    </script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link href="/static/css/dashboard.css" rel="stylesheet">
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: rgba(25, 30, 45, 0.95);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 2rem;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 2rem;
+        }
+        
+        .sidebar h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .sidebar h2::before {
+            content: '🚀';
+            margin-right: 0.5rem;
+        }
+        
+        .nav-link {
+            display: block;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 0.75rem;
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.8);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .nav-link:hover,
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: translateX(4px);
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .services-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .services-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1rem;
+        }
+        
+        .status-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .status-card {
+            padding: 1.5rem;
+            border-radius: 1rem;
+            text-align: center;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-card.running {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .status-card.stopped {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        
+        .status-card.not-enabled {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+        }
+        
+        .status-card.not-configured {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+        
+        .status-card.configured {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+        
+        .status-card.error {
+            background: linear-gradient(135deg, #a855f7, #9333ea);
+        }
+        
+        .status-count {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+        
+        .status-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            justify-content: center;
+        }
+        
+        .filter-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            backdrop-filter: blur(5px);
+        }
+        
+        .filter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .filter-btn.active {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .service-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #e5e7eb;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .service-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .service-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 25px -5px rgba(0, 0, 0, 0.15);
+        }
+        
+        .service-card.running {
+            border-left-color: #10b981;
+        }
+        
+        .service-card.stopped {
+            border-left-color: #ef4444;
+        }
+        
+        .service-card.not-enabled {
+            border-left-color: #6b7280;
+        }
+        
+        .service-card.not-configured {
+            border-left-color: #f59e0b;
+        }
+        
+        .service-card.configured {
+            border-left-color: #3b82f6;
+        }
+        
+        .service-card.error {
+            border-left-color: #a855f7;
+        }
+        
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .service-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+            margin-right: 1rem;
+        }
+        
+        .service-icon.daemon {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+        
+        .service-icon.storage {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .service-icon.network {
+            background: linear-gradient(135deg, #a855f7, #9333ea);
+        }
+        
+        .service-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+        
+        .service-category {
+            font-size: 0.75rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .service-status {
+            padding: 0.375rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-align: center;
+            min-width: 80px;
+        }
+        
+        .service-status.running {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .service-status.stopped {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .service-status.not-enabled {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .service-status.not-configured {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .service-status.configured {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .service-status.error {
+            background: #f3e8ff;
+            color: #7c2d12;
+        }
+        
+        .service-description {
+            color: #6b7280;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+        
+        .service-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: capitalize;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+        
+        .action-btn.start {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .action-btn.start:hover {
+            background: #bbf7d0;
+        }
+        
+        .action-btn.stop {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .action-btn.stop:hover {
+            background: #fecaca;
+        }
+        
+        .action-btn.configure {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .action-btn.configure:hover {
+            background: #bfdbfe;
+        }
+        
+        .action-btn.enable {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .action-btn.enable:hover {
+            background: #bbf7d0;
+        }
+        
+        .action-btn.disable {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .action-btn.disable:hover {
+            background: #e5e7eb;
+        }
+        
+        .credentials-note {
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background: #fef3c7;
+            color: #92400e;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .credentials-note::before {
+            content: '🔑';
+            margin-right: 0.5rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            transition: color 0.2s ease;
+        }
+        
+        .modal-close:hover {
+            color: #374151;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: border-color 0.2s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 600;
+            z-index: 100;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: #10b981;
+        }
+        
+        .notification.error {
+            background: #ef4444;
+        }
+        
+        .notification.info {
+            background: #3b82f6;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+            }
+            
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .status-overview {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
 </head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2>IPFS Kit</h2>
+            <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.875rem; margin-bottom: 2rem;">v4.0.0</p>
+            
+            <nav>
+                <a href="#" onclick="showTab('overview')" class="nav-link">📊 Overview</a>
+                <a href="#" onclick="showTab('services')" class="nav-link active">⚙️ Services</a>
+                <a href="#" onclick="showTab('backends')" class="nav-link">💾 Backends</a>
+                <a href="#" onclick="showTab('buckets')" class="nav-link">📁 Buckets</a>
+                <a href="#" onclick="showTab('pins')" class="nav-link">📌 Pins</a>
+            </nav>
+            
+            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.2);">
+                <h3 style="font-size: 0.875rem; margin-bottom: 1rem; opacity: 0.8;">System Status</h3>
+                <div style="font-size: 0.75rem; opacity: 0.7;">
+                    <div style="margin-bottom: 0.5rem;">🟢 MCP Server Running</div>
+                    <div style="margin-bottom: 0.5rem;">📡 Port 8004</div>
+                    <div>⏱️ Live Dashboard</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Services Tab -->
+            <div id="services-tab" class="tab-content active">
+                <div class="services-header">
+                    <h1 class="services-title">🔧 Service Management Dashboard</h1>
+                    <p style="color: rgba(255, 255, 255, 0.8); font-size: 1.125rem;">Comprehensive control of all IPFS Kit storage services and daemons</p>
+                </div>
+                
+                <!-- Status Overview -->
+                <div class="status-overview">
+                    <div class="status-card running">
+                        <div class="status-count" id="running-count">2</div>
+                        <div class="status-label">🟢 Running</div>
+                    </div>
+                    <div class="status-card stopped">
+                        <div class="status-count" id="stopped-count">0</div>
+                        <div class="status-label">🔴 Stopped</div>
+                    </div>
+                    <div class="status-card not-enabled">
+                        <div class="status-count" id="not-enabled-count">6</div>
+                        <div class="status-label">⚫ Not Enabled</div>
+                    </div>
+                    <div class="status-card not-configured">
+                        <div class="status-count" id="not-configured-count">8</div>
+                        <div class="status-label">🟡 Not Configured</div>
+                    </div>
+                    <div class="status-card configured">
+                        <div class="status-count" id="configured-count">0</div>
+                        <div class="status-label">🔵 Configured</div>
+                    </div>
+                    <div class="status-card error">
+                        <div class="status-count" id="error-count">0</div>
+                        <div class="status-label">🟣 Error</div>
+                    </div>
+                </div>
+                
+                <!-- Filter Buttons -->
+                <div class="filter-buttons">
+                    <button onclick="filterServices('all')" class="filter-btn active">All Services</button>
+                    <button onclick="filterServices('daemon')" class="filter-btn">🛠️ Daemon Services</button>
+                    <button onclick="filterServices('storage')" class="filter-btn">📦 Storage Services</button>
+                    <button onclick="filterServices('network')" class="filter-btn">🌐 Network Services</button>
+                </div>
+                
+                <!-- Services Grid -->
+                <div class="services-grid" id="services-grid">
+                    <div class="loading">
+                        <div class="loading-spinner">⚙️</div>
+                        <p style="color: rgba(255, 255, 255, 0.8);">Loading comprehensive services...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Configuration Modal -->
+    <div id="service-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Configure Service</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div id="modal-body">
+                <!-- Configuration form will be inserted here -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveConfiguration()">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock services data - this represents the comprehensive services from the MCP server
+        const mockServices = {
+            ipfs: {
+                name: 'IPFS Daemon',
+                type: 'daemon',
+                status: 'running',
+                description: 'InterPlanetary File System daemon for distributed storage',
+                actions: ['stop', 'restart', 'health_check', 'view_logs', 'disable']
+            },
+            mcp_server: {
+                name: 'MCP Server',
+                type: 'network',
+                status: 'running',
+                description: 'Multi-Content Protocol server for managing all services',
+                actions: ['stop', 'restart', 'health_check', 'view_logs', 'disable']
+            },
+            lotus: {
+                name: 'Lotus Storage',
+                type: 'daemon',
+                status: 'not_enabled',
+                description: 'Filecoin Lotus storage provider integration',
+                actions: ['enable']
+            },
+            aria2: {
+                name: 'Aria2 Daemon',
+                type: 'daemon',
+                status: 'not_enabled',
+                description: 'High-speed download daemon for content retrieval',
+                actions: ['enable']
+            },
+            ipfs_cluster: {
+                name: 'IPFS Cluster',
+                type: 'daemon',
+                status: 'not_enabled',
+                description: 'IPFS Cluster daemon for coordinated pin management',
+                actions: ['enable']
+            },
+            ipfs_cluster_follow: {
+                name: 'IPFS Cluster Follow',
+                type: 'daemon',
+                status: 'not_enabled',
+                description: 'IPFS Cluster Follow service for remote cluster synchronization',
+                actions: ['enable']
+            },
+            lassie: {
+                name: 'Lassie Retrieval Client',
+                type: 'daemon',
+                status: 'not_enabled',
+                description: 'High-performance Filecoin retrieval client for IPFS content',
+                actions: ['enable']
+            },
+            apache_arrow: {
+                name: 'Apache Arrow',
+                type: 'storage',
+                status: 'not_enabled',
+                description: 'In-memory columnar data format for analytics and data processing',
+                actions: ['enable']
+            },
+            parquet: {
+                name: 'Parquet Storage',
+                type: 'storage',
+                status: 'not_enabled',
+                description: 'Columnar storage format optimized for analytics workloads',
+                actions: ['enable']
+            },
+            s3: {
+                name: 'Amazon S3',
+                type: 'storage',
+                status: 'not_configured',
+                description: 'Amazon Simple Storage Service backend',
+                requires_credentials: true,
+                actions: ['configure', 'enable']
+            },
+            huggingface: {
+                name: 'HuggingFace Hub',
+                type: 'storage',
+                status: 'not_configured',
+                description: 'HuggingFace model and dataset repository',
+                requires_credentials: true,
+                actions: ['configure', 'enable']
+            },
+            github: {
+                name: 'GitHub Storage',
+                type: 'storage',
+                status: 'not_configured',
+                description: 'GitHub repository storage backend',
+                requires_credentials: true,
+                actions: ['configure', 'enable']
+            },
+            storacha: {
+                name: 'Storacha',
+                type: 'storage',
+                status: 'not_configured',
+                description: 'Storacha decentralized storage service',
+                requires_credentials: true,
+                actions: ['configure', 'enable']
+            },
+            synapse: {
+                name: 'Synapse Matrix',
+                type: 'storage',
+                status: 'not_configured',
+                description: 'Matrix Synapse server storage backend',
+                requires_credentials: true,
+                actions: ['configure', 'enable']
+            },
+            gdrive: {
+                name: 'Google Drive',
+                type: 'storage',
+                status: 'not_configured',
+                description: 'Google Drive cloud storage backend',
+                requires_credentials: true,
+                actions: ['configure', 'enable']
+            },
+            ftp: {
+                name: 'FTP Server',
+                type: 'storage',
+                status: 'not_configured',
+                description: 'File Transfer Protocol storage backend',
+                requires_credentials: true,
+                actions: ['configure', 'enable']
+            },
+            sshfs: {
+                name: 'SSHFS',
+                type: 'storage',
+                status: 'not_configured',
+                description: 'SSH Filesystem storage backend',
+                requires_credentials: true,
+                actions: ['configure', 'enable']
+            }
+        };
+        
+        let currentFilter = 'all';
+        let currentConfigService = null;
+        
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            const selectedTab = document.getElementById(tabName + '-tab');
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+            
+            // Update nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            if (tabName === 'services') {
+                loadServices();
+            }
+        }
+        
+        function loadServices() {
+            updateServiceCounts();
+            renderServices();
+        }
+        
+        function updateServiceCounts() {
+            const counts = {
+                running: 0,
+                stopped: 0,
+                not_enabled: 0,
+                not_configured: 0,
+                configured: 0,
+                error: 0
+            };
+            
+            Object.values(mockServices).forEach(service => {
+                const status = service.status.replace(/-/g, '_');
+                if (counts.hasOwnProperty(status)) {
+                    counts[status]++;
+                }
+            });
+            
+            document.getElementById('running-count').textContent = counts.running;
+            document.getElementById('stopped-count').textContent = counts.stopped;
+            document.getElementById('not-enabled-count').textContent = counts.not_enabled;
+            document.getElementById('not-configured-count').textContent = counts.not_configured;
+            document.getElementById('configured-count').textContent = counts.configured;
+            document.getElementById('error-count').textContent = counts.error;
+        }
+        
+        function renderServices() {
+            const grid = document.getElementById('services-grid');
+            grid.innerHTML = '';
+            
+            Object.entries(mockServices).forEach(([id, service]) => {
+                if (currentFilter !== 'all' && service.type !== currentFilter) {
+                    return;
+                }
+                
+                const card = createServiceCard(id, service);
+                grid.appendChild(card);
+            });
+        }
+        
+        function createServiceCard(id, service) {
+            const card = document.createElement('div');
+            card.className = `service-card ${service.status.replace(/-/g, '-')} service-type-${service.type}`;
+            
+            const iconClass = {
+                daemon: 'daemon',
+                storage: 'storage',
+                network: 'network'
+            }[service.type] || 'daemon';
+            
+            const iconSymbol = {
+                daemon: '⚙️',
+                storage: '💾',
+                network: '🌐'
+            }[service.type] || '⚙️';
+            
+            const statusClass = service.status.replace(/_/g, '-');
+            const statusLabel = service.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            
+            const categoryLabel = {
+                daemon: '🛠️ Daemon Service',
+                storage: '📦 Storage Backend',
+                network: '🌐 Network Service'
+            }[service.type] || '🔧 Service';
+            
+            card.innerHTML = `
+                <div class="service-header">
+                    <div style="display: flex; align-items: center;">
+                        <div class="service-icon ${iconClass}">${iconSymbol}</div>
+                        <div>
+                            <div class="service-name">${service.name}</div>
+                            <div class="service-category">${categoryLabel}</div>
+                        </div>
+                    </div>
+                    <div class="service-status ${statusClass}">${statusLabel}</div>
+                </div>
+                
+                <p class="service-description">${service.description}</p>
+                
+                <div class="service-actions">
+                    ${service.actions.map(action => `
+                        <button class="action-btn ${action}" onclick="performAction('${id}', '${action}')">
+                            ${action.replace(/_/g, ' ')}
+                        </button>
+                    `).join('')}
+                </div>
+                
+                ${service.requires_credentials ? '<div class="credentials-note">Requires credentials configuration</div>' : ''}
+            `;
+            
+            return card;
+        }
+        
+        function filterServices(type) {
+            currentFilter = type;
+            
+            // Update filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            renderServices();
+        }
+        
+        async function performAction(serviceId, action) {
+            if (action === 'configure') {
+                openConfigModal(serviceId);
+                return;
+            }
+            
+            showNotification(`Performing ${action} on ${mockServices[serviceId].name}...`, 'info');
+            
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Update service status based on action
+                if (action === 'start') {
+                    mockServices[serviceId].status = 'running';
+                } else if (action === 'stop') {
+                    mockServices[serviceId].status = 'stopped';
+                } else if (action === 'enable') {
+                    mockServices[serviceId].status = mockServices[serviceId].requires_credentials ? 'not_configured' : 'stopped';
+                } else if (action === 'disable') {
+                    mockServices[serviceId].status = 'not_enabled';
+                }
+                
+                showNotification(`${action} completed successfully for ${mockServices[serviceId].name}`, 'success');
+                loadServices();
+                
+            } catch (error) {
+                showNotification(`Failed to ${action} service: ${error.message}`, 'error');
+            }
+        }
+        
+        function openConfigModal(serviceId) {
+            currentConfigService = serviceId;
+            const service = mockServices[serviceId];
+            const modal = document.getElementById('service-modal');
+            const title = document.getElementById('modal-title');
+            const body = document.getElementById('modal-body');
+            
+            title.textContent = `Configure ${service.name}`;
+            
+            // Create configuration form based on service type
+            const forms = {
+                s3: `
+                    <div class="form-group">
+                        <label class="form-label">Access Key ID</label>
+                        <input type="text" class="form-input" placeholder="AKIAIOSFODNN7EXAMPLE" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Secret Access Key</label>
+                        <input type="password" class="form-input" placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Region</label>
+                        <input type="text" class="form-input" placeholder="us-east-1" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bucket Name</label>
+                        <input type="text" class="form-input" placeholder="your-bucket-name" required>
+                    </div>
+                `,
+                huggingface: `
+                    <div class="form-group">
+                        <label class="form-label">API Token</label>
+                        <input type="password" class="form-input" placeholder="hf_your_token_here" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-input" placeholder="your-username" required>
+                    </div>
+                `,
+                github: `
+                    <div class="form-group">
+                        <label class="form-label">Personal Access Token</label>
+                        <input type="password" class="form-input" placeholder="github_pat_your_token" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-input" placeholder="your-username" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Repository</label>
+                        <input type="text" class="form-input" placeholder="repository-name" required>
+                    </div>
+                `
+            };
+            
+            body.innerHTML = forms[serviceId] || `
+                <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">⚙️</div>
+                    <p>Configuration form for ${service.name} will be available soon.</p>
+                    <p style="font-size: 0.875rem; margin-top: 0.5rem;">This service is ready to be configured with proper credentials.</p>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('service-modal').classList.remove('active');
+            currentConfigService = null;
+        }
+        
+        function saveConfiguration() {
+            if (!currentConfigService) return;
+            
+            const service = mockServices[currentConfigService];
+            showNotification(`Configuration saved for ${service.name}`, 'success');
+            
+            // Update service status to configured
+            mockServices[currentConfigService].status = 'configured';
+            mockServices[currentConfigService].actions = ['start', 'disable', 'configure'];
+            
+            closeModal();
+            loadServices();
+        }
+        
+        function showNotification(message, type = 'info') {
+            // Remove any existing notifications
+            document.querySelectorAll('.notification').forEach(n => n.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Trigger animation
+            setTimeout(() => notification.classList.add('show'), 10);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadServices();
+        });
+        
+        // Load services immediately for demo
+        setTimeout(loadServices, 100);
+    </script>
+</body>
+</html>
 <body>
     <!-- Mobile Menu Button -->
     <div class="lg:hidden fixed top-6 left-6 z-50">
@@ -373,19 +1465,67 @@
             <!-- Services Tab -->
             <div id="services-tab" class="tab-content">
                 <div class="card p-8 rounded-2xl">
-                    <h3 class="text-2xl font-bold mb-6 flex items-center">
-                        <div class="p-2 rounded-lg bg-gradient-to-r from-green-500 to-teal-600 mr-4">
-                            <i class="fas fa-cogs text-white"></i>
-                        </div>
-                        Services Status
-                        <span id="services-total-badge" class="ml-4 text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">0</span>
-                    </h3>
-                    <div id="services-list" class="space-y-6">
-                        <div class="text-center py-12">
-                            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
-                                <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+                    <!-- Services Header -->
+                    <div class="mb-8">
+                        <h3 class="text-3xl font-bold mb-4 flex items-center">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 mr-4">
+                                <i class="fas fa-tools text-white text-xl"></i>
                             </div>
-                            <p class="text-gray-500 font-medium">Loading services...</p>
+                            🔧 Service Management Dashboard
+                        </h3>
+                        
+                        <!-- Service Status Overview -->
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                            <div class="bg-gradient-to-r from-green-400 to-green-500 text-white p-4 rounded-xl text-center">
+                                <div id="services-running-count" class="text-2xl font-bold">2</div>
+                                <div class="text-sm opacity-90">🟢 Running</div>
+                            </div>
+                            <div class="bg-gradient-to-r from-red-400 to-red-500 text-white p-4 rounded-xl text-center">
+                                <div id="services-stopped-count" class="text-2xl font-bold">0</div>
+                                <div class="text-sm opacity-90">🔴 Stopped</div>
+                            </div>
+                            <div class="bg-gradient-to-r from-gray-400 to-gray-500 text-white p-4 rounded-xl text-center">
+                                <div id="services-not-enabled-count" class="text-2xl font-bold">0</div>
+                                <div class="text-sm opacity-90">⚫ Not Enabled</div>
+                            </div>
+                            <div class="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white p-4 rounded-xl text-center">
+                                <div id="services-not-configured-count" class="text-2xl font-bold">0</div>
+                                <div class="text-sm opacity-90">🟡 Not Configured</div>
+                            </div>
+                            <div class="bg-gradient-to-r from-blue-400 to-blue-500 text-white p-4 rounded-xl text-center">
+                                <div id="services-configured-count" class="text-2xl font-bold">0</div>
+                                <div class="text-sm opacity-90">🔵 Configured</div>
+                            </div>
+                            <div class="bg-gradient-to-r from-purple-400 to-purple-500 text-white p-4 rounded-xl text-center">
+                                <div id="services-error-count" class="text-2xl font-bold">0</div>
+                                <div class="text-sm opacity-90">🟣 Error</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Service Category Filters -->
+                        <div class="flex flex-wrap gap-2 mb-6">
+                            <button onclick="filterServices('all')" class="service-filter-btn active bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                                All Services
+                            </button>
+                            <button onclick="filterServices('daemon')" class="service-filter-btn bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition">
+                                🛠️ Daemon Services
+                            </button>
+                            <button onclick="filterServices('storage')" class="service-filter-btn bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition">
+                                📦 Storage Services
+                            </button>
+                            <button onclick="filterServices('network')" class="service-filter-btn bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition">
+                                🌐 Network Services
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Services Grid -->
+                    <div id="services-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="text-center py-12 col-span-full">
+                            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full mb-4">
+                                <i class="fas fa-spinner fa-spin text-2xl text-white"></i>
+                            </div>
+                            <p class="text-gray-500 font-medium">Loading comprehensive services...</p>
                         </div>
                     </div>
                 </div>
@@ -511,6 +1651,33 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Configuration Modal -->
+    <div id="service-config-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full transform scale-95 transition-transform duration-300">
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 id="modal-title" class="text-2xl font-bold text-gray-800">Configure Service</h3>
+                        <button onclick="closeServiceModal()" class="text-gray-400 hover:text-gray-600 transition">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div id="modal-content">
+                        <!-- Configuration form will be loaded here -->
+                    </div>
+                    <div class="flex justify-end space-x-4 mt-8">
+                        <button onclick="closeServiceModal()" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-medium transition">
+                            Cancel
+                        </button>
+                        <button onclick="saveServiceConfig()" class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition">
+                            Save Configuration
+                        </button>
                     </div>
                 </div>
             </div>
