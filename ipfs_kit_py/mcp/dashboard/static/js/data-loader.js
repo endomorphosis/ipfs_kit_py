@@ -712,17 +712,8 @@ async function loadMetrics() {
 }
 
 async function loadMcpDetails() {
-    // Load comprehensive MCP details using the new MCP tools manager
-    if (typeof window.loadMcpDetails === 'function') {
-        await window.loadMcpDetails();
-    } else {
-        // Fallback if MCP tools manager isn't loaded
-        console.warn('MCP tools manager not loaded, using fallback');
-        const mcpContent = document.getElementById('mcp-content');
-        if (mcpContent) {
-            mcpContent.innerHTML = '<p class="text-center text-gray-500">Loading MCP server details...</p>';
-        }
-    }
+    // Placeholder for MCP details loading logic
+    document.getElementById('mcp-content').innerHTML = '<p class="text-center text-gray-500">MCP server details coming soon.</p>';
 }
 
 // Backend Management Functions
