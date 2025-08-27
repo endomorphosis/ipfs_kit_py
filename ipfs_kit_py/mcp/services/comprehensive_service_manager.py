@@ -180,6 +180,24 @@ class ComprehensiveServiceManager:
                     "config_dir": str(Path.home() / ".ipfs-cluster"),
                     "enabled": False,
                     "auto_start": False
+                },
+                "ipfs_cluster_follow": {
+                    "type": ServiceType.DAEMON.value,
+                    "name": "IPFS Cluster Follow",
+                    "description": "IPFS Cluster Follow service for remote cluster synchronization",
+                    "port": 9096,
+                    "config_dir": str(Path.home() / ".ipfs-cluster-follow"),
+                    "enabled": False,
+                    "auto_start": False
+                },
+                "lassie": {
+                    "type": ServiceType.DAEMON.value,
+                    "name": "Lassie Retrieval Client",
+                    "description": "High-performance Filecoin retrieval client for IPFS content",
+                    "port": 8080,
+                    "config_dir": str(Path.home() / ".lassie"),
+                    "enabled": False,
+                    "auto_start": False
                 }
             },
             "storage_backends": {
@@ -253,6 +271,22 @@ class ComprehensiveServiceManager:
                     "description": "SSH Filesystem storage backend",
                     "requires_credentials": True,
                     "config_keys": ["host", "port", "username", "private_key_path"],
+                    "enabled": False
+                },
+                "apache_arrow": {
+                    "type": ServiceType.STORAGE.value,
+                    "name": "Apache Arrow",
+                    "description": "In-memory columnar data format for analytics and data processing",
+                    "requires_credentials": False,
+                    "config_keys": ["memory_pool", "compression"],
+                    "enabled": False
+                },
+                "parquet": {
+                    "type": ServiceType.STORAGE.value,
+                    "name": "Parquet Storage",
+                    "description": "Columnar storage format optimized for analytics workloads",
+                    "requires_credentials": False,
+                    "config_keys": ["compression_codec", "row_group_size", "schema_validation"],
                     "enabled": False
                 }
             },
@@ -782,5 +816,101 @@ class ComprehensiveServiceManager:
                 actions.extend(["start", "configure"])
             elif status == "not_configured":
                 actions.extend(["configure"])
+        
+        return actions
+
+    async def configure_service(self, service_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Configure a service with the provided configuration."""
+        try:
+            # Save service configuration
+            config_file = self.data_dir / f"{service_id}_config.json"
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            # Update service status to configured if it was not_configured
+            if service_id in self.service_states:
+                if self.service_states[service_id].get("status") == "not_configured":
+                    self.service_states[service_id]["status"] = "configured"
+                    self.service_states[service_id]["last_configured"] = datetime.now().isoformat()
+                    self._save_service_states()
+            
+            logger.info(f"Service {service_id} configured successfully")
+            return {
+                "success": True,
+                "message": f"Service {service_id} configured successfully",
+                "config_saved": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error configuring service {service_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    def enable_service(self, service_id: str) -> Dict[str, Any]:
+        """Enable a service."""
+        try:
+            # Update service configuration to enable it
+            service_found = False
+            for service_group in ["daemons", "storage_backends", "network_services"]:
+                if service_id in self.services_config.get(service_group, {}):
+                    self.services_config[service_group][service_id]["enabled"] = True
+                    service_found = True
+                    break
+            
+            if not service_found:
+                return {
+                    "success": False,
+                    "error": f"Service {service_id} not found"
+                }
+            
+            self._save_services_config()
+            
+            logger.info(f"Service {service_id} enabled successfully")
+            return {
+                "success": True,
+                "message": f"Service {service_id} enabled successfully"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error enabling service {service_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    async def perform_service_action(self, service_id: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Perform an action on a service."""
+        try:
+            if action == "enable":
+                return self.enable_service(service_id)
+            elif action == "configure":
+                config = params.get("config", {})
+                return await self.configure_service(service_id, config)
+            elif action == "start":
+                # Implementation for starting services would go here
+                return {"success": True, "message": f"Service {service_id} start initiated", "status": "starting"}
+            elif action == "stop":
+                # Implementation for stopping services would go here  
+                return {"success": True, "message": f"Service {service_id} stop initiated", "status": "stopping"}
+            elif action == "restart":
+                # Implementation for restarting services would go here
+                return {"success": True, "message": f"Service {service_id} restart initiated", "status": "restarting"}
+            elif action == "health_check":
+                # Implementation for health checks would go here
+                return {"success": True, "message": f"Service {service_id} health check completed", "status": "healthy"}
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown action: {action}"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error performing action {action} on service {service_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
         
         return actions

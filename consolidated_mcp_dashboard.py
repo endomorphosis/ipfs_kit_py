@@ -1144,7 +1144,7 @@ class ConsolidatedMCPDashboard:
             except HTTPException:
                 raise
             
-            if action not in ("start", "stop", "restart"):
+            if action not in ("start", "stop", "restart", "enable", "disable", "health_check"):
                 raise HTTPException(status_code=400, detail="Invalid action")
             
             try:
@@ -1240,6 +1240,59 @@ class ConsolidatedMCPDashboard:
                     "success": False,
                     "service": name,
                     "action": action,
+                    "error": str(e)
+                }
+
+        @app.post("/api/services/{name}/configure")
+        async def configure_service(name: str, request: Request) -> Dict[str, Any]:
+            """Configure a service with credentials/settings."""
+            try:
+                _auth_dep(request)
+            except HTTPException:
+                raise
+            
+            try:
+                data = await request.json()
+                config = data.get("config", {})
+                
+                service_manager = self._get_service_manager()
+                if service_manager:
+                    # Use comprehensive service manager for service configuration
+                    result = await service_manager.configure_service(name, config)
+                    if result.get("success", False):
+                        return {
+                            "success": True,
+                            "service": name,
+                            "message": f"Service {name} configured successfully",
+                            "config_saved": True
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "service": name,
+                            "error": result.get("error", f"Failed to configure service {name}")
+                        }
+                else:
+                    # Fallback: save configuration to file for basic services
+                    config_dir = self.paths.data_dir / "service_configs"
+                    config_dir.mkdir(exist_ok=True)
+                    config_file = config_dir / f"{name}_config.json"
+                    
+                    with open(config_file, 'w') as f:
+                        json.dump(config, f, indent=2)
+                    
+                    return {
+                        "success": True,
+                        "service": name,
+                        "message": f"Service {name} configured successfully",
+                        "config_saved": True
+                    }
+                    
+            except Exception as e:
+                self.log.error(f"Error configuring service {name}: {e}")
+                return {
+                    "success": False,
+                    "service": name,
                     "error": str(e)
                 }
 
@@ -2682,6 +2735,16 @@ class ConsolidatedMCPDashboard:
 
     # ---- assets ----
     def _html(self) -> str:
+        # Return the enhanced dashboard HTML template
+        try:
+            template_path = Path(__file__).parent / "templates" / "enhanced_dashboard.html"
+            if template_path.exists():
+                with open(template_path, 'r', encoding='utf-8') as f:
+                    return f.read()
+        except Exception as e:
+            self.log.warning(f"Could not load enhanced template: {e}")
+        
+        # Fallback to basic template
         return """
 <!doctype html>
 <html>
