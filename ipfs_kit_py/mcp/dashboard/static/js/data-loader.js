@@ -712,8 +712,11 @@ async function loadMetrics() {
 }
 
 async function loadMcpDetails() {
-    // Placeholder for MCP details loading logic
-    document.getElementById('mcp-content').innerHTML = '<p class="text-center text-gray-500">MCP server details coming soon.</p>';
+    // Placeholder for MCP details loading logic - simple placeholder as intended
+    const mcpContent = document.getElementById('mcp-content') || document.getElementById('mcp-tools-content');
+    if (mcpContent) {
+        mcpContent.innerHTML = '<p class="text-center text-gray-500">MCP server details coming soon.</p>';
+    }
 }
 
 // Backend Management Functions

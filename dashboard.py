@@ -2186,7 +2186,7 @@ async function loadAnalyticsData() {
             <div class="tab-content" id="mcp">
                 <h1 class="card-title">MCP Tools</h1>
                 <div class="card">
-                    <div id="mcp-tools-content">Loading...</div>
+                    <div id="mcp-tools-content">MCP server details coming soon.</div>
                 </div>
             </div>
 
