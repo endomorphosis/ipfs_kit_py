@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-button.active { background-color: #3b82f6; color: white; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen flex">
+        <!-- Sidebar -->
+        <div class="w-64 bg-white shadow-lg">
+            <div class="p-6">
+                <h1 class="text-xl font-bold text-gray-800">🔧 MCP Tools</h1>
+                <p class="text-sm text-gray-600">Iterative Development</p>
+            </div>
+            <nav class="mt-6">
+                <div class="px-6 space-y-2">
+                    <button class="tab-button w-full text-left px-4 py-2 rounded bg-blue-500 text-white active" data-tab="overview">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Overview
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="server">
+                        <i class="fas fa-server mr-2"></i>MCP Server
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="tools">
+                        <i class="fas fa-tools mr-2"></i>Tools Registry
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="integration">
+                        <i class="fas fa-plug mr-2"></i>IPFS Integration
+                    </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="protocol">
+                        <i class="fas fa-search mr-2"></i>Protocol Inspector
+                    </button>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-6">
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">MCP Dashboard Overview</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <!-- Server Status Card -->
+                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-blue-100">MCP Server</p>
+                                    <p class="text-2xl font-bold" id="server-status">Loading...</p>
+                                </div>
+                                <i class="fas fa-server text-3xl text-blue-200"></i>
+                            </div>
+                        </div>
+
+                        <!-- Tools Count Card -->
+                        <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-green-100">Available Tools</p>
+                                    <p class="text-2xl font-bold" id="tools-count">Loading...</p>
+                                </div>
+                                <i class="fas fa-tools text-3xl text-green-200"></i>
+                            </div>
+                        </div>
+
+                        <!-- Protocol Metrics Card -->
+                        <div class="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-purple-100">Avg Response</p>
+                                    <p class="text-2xl font-bold" id="avg-response">Loading...</p>
+                                </div>
+                                <i class="fas fa-clock text-3xl text-purple-200"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold mb-3">Iterative Development Progress</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-center">
+                                <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                                <span>MCP Server Control Interface</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                                <span>Tools Registry Management</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-cog text-yellow-500 mr-2"></i>
+                                <span>IPFS Kit Integration (In Progress)</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-cog text-yellow-500 mr-2"></i>
+                                <span>Protocol Inspector (In Progress)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MCP Server Tab -->
+            <div id="server" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">MCP Server Control</h2>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Server Control Panel -->
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-semibold">Server Lifecycle</h3>
+                            <div class="flex space-x-2">
+                                <button id="start-server" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-play mr-2"></i>Start
+                                </button>
+                                <button id="stop-server" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-stop mr-2"></i>Stop
+                                </button>
+                                <button id="restart-server" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-redo mr-2"></i>Restart
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Server Status Display -->
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-semibold">Server Information</h3>
+                            <div class="bg-gray-50 p-4 rounded">
+                                <div class="space-y-2">
+                                    <div class="flex justify-between">
+                                        <span class="font-medium">Status:</span>
+                                        <span id="detailed-status" class="px-2 py-1 rounded text-sm">Loading...</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="font-medium">Protocol Version:</span>
+                                        <span>2024-11-05</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="font-medium">Connections:</span>
+                                        <span id="connections-count">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tools Registry Tab -->
+            <div id="tools" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">MCP Tools Registry</h2>
+                    
+                    <div id="tools-list" class="space-y-4">
+                        <!-- Tools will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- IPFS Integration Tab -->
+            <div id="integration" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">IPFS Kit Integration</h2>
+                    
+                    <div class="bg-blue-50 border border-blue-200 p-4 rounded mb-6">
+                        <h3 class="text-lg font-semibold text-blue-800 mb-2">MCP-Enabled IPFS Operations</h3>
+                        <p class="text-blue-700">Execute IPFS Kit operations through the MCP protocol for better integration and control.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-semibold">Quick Actions</h3>
+                            <button class="tool-execute w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded" data-tool="ipfs_pin_tool" data-action="pin_list">
+                                <i class="fas fa-thumbtack mr-2"></i>List Pins via MCP
+                            </button>
+                            <button class="tool-execute w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded" data-tool="bucket_management_tool" data-action="list_buckets">
+                                <i class="fas fa-bucket mr-2"></i>List Buckets via MCP
+                            </button>
+                            <button class="tool-execute w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded" data-tool="ipfs_kit_control_tool" data-action="status_check">
+                                <i class="fas fa-heartbeat mr-2"></i>System Status via MCP
+                            </button>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-semibold">Execution Results</h3>
+                            <div id="execution-results" class="bg-gray-50 p-4 rounded min-h-32">
+                                <p class="text-gray-500">Execute a tool to see results here...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Protocol Inspector Tab -->
+            <div id="protocol" class="tab-content">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">MCP Protocol Inspector</h2>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Protocol Metrics -->
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-semibold">Protocol Metrics</h3>
+                            <div class="bg-gray-50 p-4 rounded space-y-2">
+                                <div class="flex justify-between">
+                                    <span>Messages Sent:</span>
+                                    <span id="messages-sent" class="font-mono">-</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Messages Received:</span>
+                                    <span id="messages-received" class="font-mono">-</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Errors:</span>
+                                    <span id="protocol-errors" class="font-mono text-red-600">-</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Avg Response Time:</span>
+                                    <span id="protocol-response-time" class="font-mono">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Messages -->
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-semibold">Recent Messages</h3>
+                            <div id="recent-messages" class="bg-gray-50 p-4 rounded min-h-48 font-mono text-sm overflow-y-auto">
+                                <p class="text-gray-500">No recent messages...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const targetTab = e.target.getAttribute('data-tab');
+                
+                // Remove active class from all tabs and buttons
+                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                
+                // Add active class to selected tab and button
+                document.getElementById(targetTab).classList.add('active');
+                e.target.classList.add('active');
+            });
+        });
+
+        // API functions
+        async function loadOverviewData() {
+            try {
+                const [statusResponse, toolsResponse, metricsResponse] = await Promise.all([
+                    fetch('/api/mcp/status'),
+                    fetch('/api/mcp/tools'),
+                    fetch('/api/mcp/metrics')
+                ]);
+
+                const status = await statusResponse.json();
+                const tools = await toolsResponse.json();
+                const metrics = await metricsResponse.json();
+
+                // Update overview cards
+                document.getElementById('server-status').textContent = status.server_status;
+                document.getElementById('tools-count').textContent = tools.total;
+                document.getElementById('avg-response').textContent = metrics.avg_response_time + 'ms';
+
+                // Update detailed status
+                const statusElement = document.getElementById('detailed-status');
+                statusElement.textContent = status.server_status;
+                statusElement.className = `px-2 py-1 rounded text-sm ${
+                    status.server_status === 'running' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`;
+
+                document.getElementById('connections-count').textContent = status.connections_count;
+
+                // Update protocol metrics
+                document.getElementById('messages-sent').textContent = metrics.messages_sent;
+                document.getElementById('messages-received').textContent = metrics.messages_received;
+                document.getElementById('protocol-errors').textContent = metrics.errors;
+                document.getElementById('protocol-response-time').textContent = metrics.avg_response_time + 'ms';
+
+                // Load tools list
+                loadToolsList(tools.tools);
+
+            } catch (error) {
+                console.error('Error loading overview data:', error);
+            }
+        }
+
+        function loadToolsList(tools) {
+            const toolsList = document.getElementById('tools-list');
+            toolsList.innerHTML = tools.map(tool => `
+                <div class="border rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-lg font-semibold">${tool.name}</h3>
+                        <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">${tool.status}</span>
+                    </div>
+                    <p class="text-gray-600 mb-3">${tool.description}</p>
+                    <div class="flex flex-wrap gap-2">
+                        ${tool.capabilities.map(cap => `
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">${cap}</span>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Server control functions
+        async function controlServer(action) {
+            try {
+                const response = await fetch(`/api/mcp/server/${action}`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`Server ${action} successful:`, result.message);
+                    loadOverviewData(); // Refresh data
+                } else {
+                    console.error(`Server ${action} failed:`, result.message);
+                }
+            } catch (error) {
+                console.error(`Error ${action} server:`, error);
+            }
+        }
+
+        // Tool execution
+        async function executeTool(toolName, action) {
+            try {
+                const response = await fetch(`/api/mcp/tools/${toolName}/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                });
+                
+                const result = await response.json();
+                const resultsDiv = document.getElementById('execution-results');
+                
+                resultsDiv.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="font-semibold text-green-600">✓ ${toolName} executed successfully</div>
+                        <div class="text-sm text-gray-600">Action: ${action}</div>
+                        <div class="text-sm text-gray-600">Time: ${result.execution_time}s</div>
+                        <div class="mt-2 p-2 bg-white rounded border">${result.result}</div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Error executing tool:', error);
+                document.getElementById('execution-results').innerHTML = `
+                    <div class="text-red-600">Error executing ${toolName}: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Event listeners
+        document.getElementById('start-server').addEventListener('click', () => controlServer('start'));
+        document.getElementById('stop-server').addEventListener('click', () => controlServer('stop'));
+        document.getElementById('restart-server').addEventListener('click', () => controlServer('restart'));
+
+        document.querySelectorAll('.tool-execute').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const tool = e.target.getAttribute('data-tool');
+                const action = e.target.getAttribute('data-action');
+                executeTool(tool, action);
+            });
+        });
+
+        // Load initial data
+        loadOverviewData();
+        
+        // Refresh data every 30 seconds
+        setInterval(loadOverviewData, 30000);
+    </script>
+</body>
+</html>
