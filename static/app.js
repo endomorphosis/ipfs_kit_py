@@ -157,3 +157,488 @@
     }catch(e){ console.warn('MCP not ready', e); }
   })();
 })();
+// Enhanced Services JavaScript for the improved MCP services interface
+
+// Service configuration templates for different service types
+const SERVICE_CONFIG_TEMPLATES = {
+  's3': {
+    title: 'Configure Amazon S3 Storage',
+    description: 'Connect to Amazon S3 for distributed file storage',
+    fields: [
+      { name: 'access_key_id', label: 'Access Key ID', type: 'text', required: true, help: 'Your AWS Access Key ID' },
+      { name: 'secret_access_key', label: 'Secret Access Key', type: 'password', required: true, help: 'Your AWS Secret Access Key' },
+      { name: 'bucket_name', label: 'Bucket Name', type: 'text', required: true, help: 'S3 bucket name for storage' },
+      { name: 'region', label: 'AWS Region', type: 'text', required: true, help: 'e.g., us-east-1, eu-west-1', default: 'us-east-1' },
+      { name: 'endpoint_url', label: 'Custom Endpoint', type: 'text', required: false, help: 'Optional custom S3-compatible endpoint' }
+    ]
+  },
+  'huggingface': {
+    title: 'Configure HuggingFace Hub',
+    description: 'Connect to HuggingFace Hub for model and dataset storage',
+    fields: [
+      { name: 'api_token', label: 'API Token', type: 'password', required: true, help: 'Your HuggingFace API token' },
+      { name: 'repo_id', label: 'Repository ID', type: 'text', required: true, help: 'e.g., username/repository-name' },
+      { name: 'repo_type', label: 'Repository Type', type: 'select', required: true, options: ['model', 'dataset', 'space'], default: 'dataset', help: 'Type of HuggingFace repository' }
+    ]
+  },
+  'github': {
+    title: 'Configure GitHub Storage',
+    description: 'Use GitHub repositories for distributed storage',
+    fields: [
+      { name: 'access_token', label: 'Access Token', type: 'password', required: true, help: 'GitHub Personal Access Token' },
+      { name: 'repository', label: 'Repository', type: 'text', required: true, help: 'e.g., username/repository-name' },
+      { name: 'branch', label: 'Branch', type: 'text', required: false, help: 'Git branch (default: main)', default: 'main' }
+    ]
+  },
+  'gdrive': {
+    title: 'Configure Google Drive',
+    description: 'Connect to Google Drive for cloud storage',
+    fields: [
+      { name: 'credentials_json', label: 'Service Account JSON', type: 'textarea', required: true, help: 'Paste your Google Service Account credentials JSON here' },
+      { name: 'folder_id', label: 'Folder ID', type: 'text', required: false, help: 'Optional Google Drive folder ID for organization' }
+    ]
+  },
+  'ftp': {
+    title: 'Configure FTP Server',
+    description: 'Connect to FTP server for file transfer',
+    fields: [
+      { name: 'host', label: 'FTP Host', type: 'text', required: true, help: 'FTP server hostname or IP' },
+      { name: 'port', label: 'Port', type: 'number', required: false, help: 'FTP port (default: 21)', default: '21' },
+      { name: 'username', label: 'Username', type: 'text', required: true, help: 'FTP username' },
+      { name: 'password', label: 'Password', type: 'password', required: true, help: 'FTP password' },
+      { name: 'passive', label: 'Passive Mode', type: 'checkbox', required: false, help: 'Enable passive FTP mode' }
+    ]
+  },
+  'sshfs': {
+    title: 'Configure SSHFS',
+    description: 'Mount remote filesystems over SSH',
+    fields: [
+      { name: 'host', label: 'SSH Host', type: 'text', required: true, help: 'SSH server hostname or IP' },
+      { name: 'port', label: 'Port', type: 'number', required: false, help: 'SSH port (default: 22)', default: '22' },
+      { name: 'username', label: 'Username', type: 'text', required: true, help: 'SSH username' },
+      { name: 'private_key_path', label: 'Private Key Path', type: 'text', required: false, help: 'Path to SSH private key file' },
+      { name: 'password', label: 'Password', type: 'password', required: false, help: 'SSH password (if not using key)' },
+      { name: 'remote_path', label: 'Remote Path', type: 'text', required: false, help: 'Remote directory path', default: '/home' }
+    ]
+  },
+  'storacha': {
+    title: 'Configure Storacha',
+    description: 'Connect to Storacha decentralized storage network',
+    fields: [
+      { name: 'api_key', label: 'API Key', type: 'password', required: true, help: 'Your Storacha API key' },
+      { name: 'space', label: 'Space ID', type: 'text', required: true, help: 'Storacha space identifier' }
+    ]
+  },
+  'synapse': {
+    title: 'Configure Synapse Matrix',
+    description: 'Connect to Matrix Synapse for distributed messaging storage',
+    fields: [
+      { name: 'homeserver_url', label: 'Homeserver URL', type: 'text', required: true, help: 'Matrix homeserver URL (e.g., https://matrix.org)' },
+      { name: 'username', label: 'Username', type: 'text', required: true, help: 'Matrix username' },
+      { name: 'password', label: 'Password', type: 'password', required: true, help: 'Matrix password or access token' }
+    ]
+  }
+};
+
+// Service metadata for display
+const SERVICE_METADATA = {
+  // Storage Services
+  's3': { icon: '🪣', category: 'storage', description: 'Amazon S3 compatible storage for distributed file management' },
+  'huggingface': { icon: '🤗', category: 'storage', description: 'HuggingFace Hub for AI models and datasets' },
+  'github': { icon: '📁', category: 'storage', description: 'GitHub repositories as distributed storage backends' },
+  'storacha': { icon: '🌍', category: 'storage', description: 'Decentralized storage network' },
+  'synapse': { icon: '💬', category: 'storage', description: 'Matrix Synapse messaging and storage' },
+  'gdrive': { icon: '📂', category: 'storage', description: 'Google Drive cloud storage integration' },
+  'ftp': { icon: '📤', category: 'storage', description: 'File Transfer Protocol server connection' },
+  'sshfs': { icon: '🔐', category: 'storage', description: 'SSH filesystem mounting for secure file access' },
+  
+  // Daemon Services
+  'ipfs': { icon: '🌐', category: 'daemon', description: 'IPFS node for distributed file system' },
+  'lotus': { icon: '🪙', category: 'daemon', description: 'Filecoin Lotus node for blockchain storage' },
+  'aria2': { icon: '⬇️', category: 'daemon', description: 'High-speed download manager daemon' },
+  'ipfs_cluster': { icon: '🔗', category: 'daemon', description: 'IPFS Cluster for coordinated IPFS nodes' },
+  
+  // Network Services  
+  'mcp_server': { icon: '🖥️', category: 'network', description: 'Model Context Protocol server' }
+};
+
+// Enhanced service loading function
+async function loadServices() {
+  try {
+    const response = await fetch('/api/services');
+    const data = await response.json();
+    
+    if (!data.services) {
+      console.warn('No services data received');
+      return;
+    }
+    
+    // Update service statistics
+    updateServiceStats(data.services);
+    
+    // Organize services by category
+    const servicesByCategory = organizeServicesByCategory(data.services);
+    
+    // Render services in their respective categories
+    renderServiceCategory('storage', servicesByCategory.storage || {});
+    renderServiceCategory('daemon', servicesByCategory.daemon || {});
+    renderServiceCategory('network', servicesByCategory.network || {});
+    
+  } catch (error) {
+    console.error('Error loading services:', error);
+    showServiceError('Failed to load services. Please try again.');
+  }
+}
+
+function updateServiceStats(services) {
+  const stats = {
+    running: 0,
+    stopped: 0,
+    configured: 0,
+    unconfigured: 0
+  };
+  
+  Object.values(services).forEach(service => {
+    if (service.status === 'running') {
+      stats.running++;
+    } else if (service.status === 'stopped') {
+      stats.stopped++;
+    }
+    
+    if (service.status === 'configured' || service.status === 'running') {
+      stats.configured++;
+    } else if (service.status === 'not_configured' || service.status === 'not_enabled') {
+      stats.unconfigured++;
+    }
+  });
+  
+  // Update stat displays
+  const runningEl = document.getElementById('running-services-count');
+  const stoppedEl = document.getElementById('stopped-services-count');
+  const configuredEl = document.getElementById('configured-services-count');
+  const unconfiguredEl = document.getElementById('unconfigured-services-count');
+  
+  if (runningEl) runningEl.textContent = stats.running;
+  if (stoppedEl) stoppedEl.textContent = stats.stopped;
+  if (configuredEl) configuredEl.textContent = stats.configured;
+  if (unconfiguredEl) unconfiguredEl.textContent = stats.unconfigured;
+}
+
+function organizeServicesByCategory(services) {
+  const categorized = {
+    storage: {},
+    daemon: {},
+    network: {}
+  };
+  
+  Object.entries(services).forEach(([serviceId, service]) => {
+    const metadata = SERVICE_METADATA[serviceId] || { category: 'network' };
+    const category = metadata.category;
+    categorized[category][serviceId] = service;
+  });
+  
+  return categorized;
+}
+
+function renderServiceCategory(categoryName, services) {
+  const container = document.getElementById(`${categoryName}-services`);
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (Object.keys(services).length === 0) {
+    container.innerHTML = '<div class="text-center" style="grid-column: 1 / -1; padding: 2rem; color: #64748b;">No ' + categoryName + ' services configured</div>';
+    return;
+  }
+  
+  Object.entries(services).forEach(([serviceId, service]) => {
+    const serviceCard = createServiceCard(serviceId, service);
+    container.appendChild(serviceCard);
+  });
+}
+
+function createServiceCard(serviceId, service) {
+  const metadata = SERVICE_METADATA[serviceId] || { icon: '⚙️', description: 'Service component' };
+  
+  const card = document.createElement('div');
+  card.className = 'service-card';
+  
+  const statusClass = getStatusClass(service.status);
+  const actions = generateServiceActions(serviceId, service);
+  
+  card.innerHTML = `
+    <div class="service-card-header">
+      <div class="service-info">
+        <h3>${metadata.icon} ${service.name || serviceId}</h3>
+        <div class="service-description">${metadata.description}</div>
+        <div class="service-meta">Type: ${service.type || 'Unknown'} | Last check: ${service.last_check || 'N/A'}</div>
+      </div>
+      <span class="service-status ${statusClass}">${formatStatus(service.status)}</span>
+    </div>
+    <div class="service-actions">
+      ${actions}
+    </div>
+  `;
+  
+  return card;
+}
+
+function getStatusClass(status) {
+  const statusMap = {
+    'running': 'running',
+    'stopped': 'stopped',
+    'not_enabled': 'not-enabled',
+    'not_configured': 'not-configured',
+    'configured': 'configured',
+    'error': 'error'
+  };
+  return statusMap[status] || 'not-configured';
+}
+
+function formatStatus(status) {
+  const statusMap = {
+    'running': 'Running',
+    'stopped': 'Stopped',
+    'not_enabled': 'Not Enabled',
+    'not_configured': 'Setup Needed',
+    'configured': 'Ready',
+    'error': 'Error'
+  };
+  return statusMap[status] || status;
+}
+
+function generateServiceActions(serviceId, service) {
+  const actions = [];
+  const status = service.status;
+  
+  if (status === 'not_enabled') {
+    actions.push(`<button class="service-btn btn-enable" onclick="enableService('${serviceId}')">✅ Enable</button>`);
+  } else if (status === 'not_configured') {
+    actions.push(`<button class="service-btn btn-configure" onclick="configureService('${serviceId}')">⚙️ Configure</button>`);
+    actions.push(`<button class="service-btn btn-stop" onclick="disableService('${serviceId}')">❌ Disable</button>`);
+  } else if (status === 'configured') {
+    actions.push(`<button class="service-btn btn-start" onclick="startService('${serviceId}')">▶️ Start</button>`);
+    actions.push(`<button class="service-btn btn-configure" onclick="configureService('${serviceId}')">⚙️ Reconfigure</button>`);
+  } else if (status === 'running') {
+    actions.push(`<button class="service-btn btn-stop" onclick="stopService('${serviceId}')">⏹️ Stop</button>`);
+    actions.push(`<button class="service-btn btn-restart" onclick="restartService('${serviceId}')">🔄 Restart</button>`);
+    actions.push(`<button class="service-btn btn-configure" onclick="viewServiceLogs('${serviceId}')">📋 Logs</button>`);
+  } else if (status === 'stopped') {
+    actions.push(`<button class="service-btn btn-start" onclick="startService('${serviceId}')">▶️ Start</button>`);
+    actions.push(`<button class="service-btn btn-configure" onclick="configureService('${serviceId}')">⚙️ Configure</button>`);
+  } else if (status === 'error') {
+    actions.push(`<button class="service-btn btn-restart" onclick="restartService('${serviceId}')">🔄 Restart</button>`);
+    actions.push(`<button class="service-btn btn-configure" onclick="diagnoseService('${serviceId}')">🔍 Diagnose</button>`);
+  }
+  
+  return actions.join(' ');
+}
+
+// Service action handlers
+async function enableService(serviceId) {
+  try {
+    await performServiceAction(serviceId, 'enable');
+    await loadServices(); // Refresh the interface
+  } catch (error) {
+    alert('Failed to enable service: ' + error.message);
+  }
+}
+
+async function startService(serviceId) {
+  try {
+    await performServiceAction(serviceId, 'start');
+    await loadServices();
+  } catch (error) {
+    alert('Failed to start service: ' + error.message);
+  }
+}
+
+async function stopService(serviceId) {
+  try {
+    await performServiceAction(serviceId, 'stop');
+    await loadServices();
+  } catch (error) {
+    alert('Failed to stop service: ' + error.message);
+  }
+}
+
+async function restartService(serviceId) {
+  try {
+    await performServiceAction(serviceId, 'restart');
+    await loadServices();
+  } catch (error) {
+    alert('Failed to restart service: ' + error.message);
+  }
+}
+
+async function disableService(serviceId) {
+  if (confirm(`Are you sure you want to disable the ${serviceId} service?`)) {
+    try {
+      await performServiceAction(serviceId, 'disable');
+      await loadServices();
+    } catch (error) {
+      alert('Failed to disable service: ' + error.message);
+    }
+  }
+}
+
+async function performServiceAction(serviceId, action) {
+  const response = await fetch(`/api/services/${serviceId}/${action}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || `Failed to ${action} service`);
+  }
+  
+  return response.json();
+}
+
+// Configuration modal functions
+function configureService(serviceId) {
+  const template = SERVICE_CONFIG_TEMPLATES[serviceId];
+  if (!template) {
+    alert('Configuration not available for this service type.');
+    return;
+  }
+  
+  showConfigModal(serviceId, template);
+}
+
+function showConfigModal(serviceId, template) {
+  const modal = document.getElementById('service-config-modal');
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+  
+  title.textContent = template.title;
+  
+  body.innerHTML = `
+    <p style="margin-bottom: 1.5rem; color: #64748b;">${template.description}</p>
+    <form id="service-config-form">
+      ${template.fields.map(field => createFormField(field)).join('')}
+      <div class="btn-group">
+        <button type="button" class="btn btn-secondary" onclick="closeConfigModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Configuration</button>
+      </div>
+    </form>
+  `;
+  
+  // Add form submission handler
+  const form = document.getElementById('service-config-form');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveServiceConfiguration(serviceId, template.fields);
+  });
+  
+  modal.classList.add('show');
+}
+
+function createFormField(field) {
+  const fieldId = `config-${field.name}`;
+  
+  let inputHtml = '';
+  
+  switch (field.type) {
+    case 'text':
+    case 'password':
+    case 'number':
+      inputHtml = `<input type="${field.type}" class="form-input" id="${fieldId}" name="${field.name}" ${field.required ? 'required' : ''} value="${field.default || ''}" placeholder="${field.help || ''}">`;
+      break;
+    case 'textarea':
+      inputHtml = `<textarea class="form-input" id="${fieldId}" name="${field.name}" rows="4" ${field.required ? 'required' : ''} placeholder="${field.help || ''}">${field.default || ''}</textarea>`;
+      break;
+    case 'select':
+      const options = field.options.map(opt => 
+        `<option value="${opt}" ${opt === field.default ? 'selected' : ''}>${opt}</option>`
+      ).join('');
+      inputHtml = `<select class="form-input" id="${fieldId}" name="${field.name}" ${field.required ? 'required' : ''}>${options}</select>`;
+      break;
+    case 'checkbox':
+      inputHtml = `<input type="checkbox" id="${fieldId}" name="${field.name}" ${field.default ? 'checked' : ''}> <label for="${fieldId}">${field.label}</label>`;
+      break;
+  }
+  
+  return `
+    <div class="form-group">
+      ${field.type !== 'checkbox' ? `<label class="form-label" for="${fieldId}">${field.label}${field.required ? ' *' : ''}</label>` : ''}
+      ${inputHtml}
+      ${field.help && field.type !== 'checkbox' ? `<div class="form-help">${field.help}</div>` : ''}
+    </div>
+  `;
+}
+
+async function saveServiceConfiguration(serviceId, fields) {
+  try {
+    const form = document.getElementById('service-config-form');
+    const formData = new FormData(form);
+    const config = {};
+    
+    fields.forEach(field => {
+      if (field.type === 'checkbox') {
+        config[field.name] = formData.has(field.name);
+      } else {
+        config[field.name] = formData.get(field.name) || field.default || '';
+      }
+    });
+    
+    const response = await fetch(`/api/services/${serviceId}/configure`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(config)
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to save configuration');
+    }
+    
+    closeConfigModal();
+    await loadServices(); // Refresh the interface
+    
+    alert('Configuration saved successfully!');
+    
+  } catch (error) {
+    alert('Failed to save configuration: ' + error.message);
+  }
+}
+
+function closeConfigModal() {
+  const modal = document.getElementById('service-config-modal');
+  modal.classList.remove('show');
+}
+
+function viewServiceLogs(serviceId) {
+  // Switch to logs tab and filter for this service
+  showTab('logs');
+  // Could add service-specific log filtering here
+}
+
+function diagnoseService(serviceId) {
+  alert(`Diagnostic information for ${serviceId} service will be displayed here.`);
+  // Could add service diagnostic functionality
+}
+
+function showServiceError(message) {
+  const container = document.getElementById('storage-services');
+  if (container) {
+    container.innerHTML = `<div class="text-center text-error" style="grid-column: 1 / -1; padding: 2rem;">${message}</div>`;
+  }
+}
+
+// Add to window object for global access
+window.loadServices = loadServices;
+window.enableService = enableService;
+window.startService = startService;
+window.stopService = stopService;
+window.restartService = restartService;
+window.disableService = disableService;
+window.configureService = configureService;
+window.closeConfigModal = closeConfigModal;
+window.viewServiceLogs = viewServiceLogs;
+window.diagnoseService = diagnoseService;
