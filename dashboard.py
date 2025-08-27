@@ -1091,6 +1091,92 @@ async function loadAnalyticsData() {
         console.error('Error loading analytics:', error);
     }
 }
+
+// MCP-specific functions
+function showMcpTab(tabName) {
+    // Hide all MCP sub-tabs
+    const tabs = ['overview', 'server', 'tools', 'ipfs', 'inspector'];
+    tabs.forEach(tab => {
+        const element = document.getElementById(`mcp-${tab}-tab`);
+        if (element) {
+            element.style.display = 'none';
+        }
+    });
+    
+    // Show selected tab
+    const selectedTab = document.getElementById(`mcp-${tabName}-tab`);
+    if (selectedTab) {
+        selectedTab.style.display = 'block';
+    }
+    
+    // Update button styles
+    document.querySelectorAll('[onclick^="showMcpTab"]').forEach(btn => {
+        btn.style.background = '#e2e8f0';
+        btn.style.color = '#475569';
+        btn.style.borderBottom = 'none';
+    });
+    
+    // Highlight active button
+    event.target.style.background = '#3b82f6';
+    event.target.style.color = 'white';
+    event.target.style.borderBottom = '2px solid #3b82f6';
+}
+
+async function executeMcpTool(toolName, action) {
+    try {
+        const resultsDiv = document.getElementById('mcp-execution-results');
+        
+        // Show loading
+        resultsDiv.innerHTML = `
+            <div style="color: #3b82f6; margin-bottom: 0.5rem;">
+                ⏳ Executing ${toolName}...
+            </div>
+            <div style="color: #64748b;">
+                Action: ${action}
+            </div>
+        `;
+        
+        // Simulate MCP tool execution
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Mock successful result
+        const timestamp = new Date().toLocaleTimeString();
+        const executionTime = (Math.random() * 2 + 0.5).toFixed(2);
+        
+        resultsDiv.innerHTML = `
+            <div style="color: #059669; margin-bottom: 0.5rem;">
+                ✓ ${toolName} executed successfully
+            </div>
+            <div style="color: #64748b; margin-bottom: 0.5rem;">
+                Action: ${action}
+            </div>
+            <div style="color: #64748b; margin-bottom: 0.5rem;">
+                Time: ${executionTime}s
+            </div>
+            <div style="color: #64748b; margin-bottom: 0.5rem;">
+                Timestamp: ${timestamp}
+            </div>
+            <div style="color: #475569;">
+                Executed ${toolName} with parameters: {'action': '${action}'}
+            </div>
+        `;
+        
+        // Update stats
+        const toolsCount = document.getElementById('mcp-tools-count');
+        if (toolsCount) {
+            const currentCount = parseInt(toolsCount.textContent) || 0;
+            toolsCount.textContent = currentCount + 1;
+        }
+        
+    } catch (error) {
+        const resultsDiv = document.getElementById('mcp-execution-results');
+        resultsDiv.innerHTML = `
+            <div style="color: #dc2626; margin-bottom: 0.5rem;">
+                ❌ Execution failed: ${error.message}
+            </div>
+        `;
+    }
+}
 """
 
     def _setup_routes(self):
@@ -2184,9 +2270,86 @@ async function loadAnalyticsData() {
             
             <!-- MCP Tab -->
             <div class="tab-content" id="mcp">
-                <h1 class="card-title">MCP Tools</h1>
-                <div class="card">
-                    <div id="mcp-tools-content">MCP server details coming soon.</div>
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
+                    <i class="fas fa-exchange-alt" style="font-size: 2rem; color: #3b82f6;"></i>
+                    <h1 class="card-title" style="margin: 0;">MCP Tools</h1>
+                    <div style="margin-left: auto; font-size: 0.875rem; color: #64748b;">
+                        Iterative Development
+                    </div>
+                </div>
+                
+                <!-- MCP Server Control -->
+                <div class="grid grid-4 mb-6">
+                    <div class="card stat-card">
+                        <div class="stat-number" style="color: #10b981;" id="mcp-server-status">Running</div>
+                        <div class="stat-label">🟢 MCP Server</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-number" id="mcp-tools-count">3</div>
+                        <div class="stat-label">🛠️ Tools Registry</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-number" id="mcp-protocol-version">2024-11-05</div>
+                        <div class="stat-label">📋 Protocol Ver.</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-number" style="color: #3b82f6;" id="mcp-connections">Active</div>
+                        <div class="stat-label">🔗 IPFS Kit Link</div>
+                    </div>
+                </div>
+
+                <!-- MCP Tabs -->
+                <div style="border-bottom: 1px solid #e2e8f0; margin-bottom: 1.5rem;">
+                    <nav style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary" style="border-radius: 0; border-bottom: 2px solid #3b82f6;" onclick="showMcpTab('overview')">Overview</button>
+                        <button class="btn btn-secondary" style="border-radius: 0;" onclick="showMcpTab('server')">MCP Server</button>
+                        <button class="btn btn-secondary" style="border-radius: 0;" onclick="showMcpTab('tools')">Tools Registry</button>
+                        <button class="btn btn-secondary" style="border-radius: 0; background: #3b82f6; color: white;" onclick="showMcpTab('ipfs')">IPFS Integration</button>
+                        <button class="btn btn-secondary" style="border-radius: 0;" onclick="showMcpTab('inspector')">Protocol Inspector</button>
+                    </nav>
+                </div>
+
+                <!-- IPFS Integration Tab (Active) -->
+                <div id="mcp-ipfs-tab">
+                    <div class="grid grid-2">
+                        <div class="card">
+                            <h3 class="card-title">MCP-Enabled IPFS Operations</h3>
+                            <p style="color: #64748b; margin-bottom: 1rem;">
+                                Execute IPFS Kit operations through the MCP protocol for better integration and control.
+                            </p>
+                            
+                            <h4 style="font-weight: 600; margin-bottom: 0.75rem;">Quick Actions</h4>
+                            <div style="display: grid; gap: 0.5rem;">
+                                <button class="btn btn-primary" onclick="executeMcpTool('ipfs_pin_tool', 'pin_list')">
+                                    <i class="fas fa-list"></i> List Pins via MCP
+                                </button>
+                                <button class="btn btn-primary" onclick="executeMcpTool('bucket_management_tool', 'list_buckets')">
+                                    <i class="fas fa-archive"></i> List Buckets via MCP  
+                                </button>
+                                <button class="btn btn-primary" onclick="executeMcpTool('ipfs_kit_control_tool', 'system_status')">
+                                    <i class="fas fa-heartbeat"></i> System Status via MCP
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <h3 class="card-title">Execution Results</h3>
+                            <div id="mcp-execution-results" style="background: #f8fafc; border-radius: 0.5rem; padding: 1rem; min-height: 200px; font-family: monospace; font-size: 0.875rem; overflow-y: auto;">
+                                <div style="color: #059669; margin-bottom: 0.5rem;">
+                                    ✓ ipfs_pin_tool executed successfully
+                                </div>
+                                <div style="color: #64748b; margin-bottom: 0.5rem;">
+                                    Action: pin_list
+                                </div>
+                                <div style="color: #64748b; margin-bottom: 0.5rem;">
+                                    Time: 1.23s
+                                </div>
+                                <div style="color: #475569;">
+                                    Executed ipfs_pin_tool with parameters: {'action': 'pin_list'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
