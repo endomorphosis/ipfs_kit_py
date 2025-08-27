@@ -236,22 +236,38 @@ async def handle_dashboard_jsonrpc(request: dict):
                 {
                     "name": "ipfs_add",
                     "description": "Add file to IPFS",
-                    "category": "ipfs"
+                    "category": "ipfs",
+                    "status": "available"
                 },
                 {
                     "name": "ipfs_cat", 
                     "description": "Get file from IPFS",
-                    "category": "ipfs"
+                    "category": "ipfs",
+                    "status": "available"
                 },
                 {
                     "name": "storage_transfer",
                     "description": "Transfer between storage backends", 
-                    "category": "storage"
+                    "category": "storage",
+                    "status": "available"
                 },
                 {
                     "name": "pin_sync",
                     "description": "Synchronize pins across cluster",
-                    "category": "cluster"
+                    "category": "cluster",
+                    "status": "available"
+                },
+                {
+                    "name": "file_indexer",
+                    "description": "Index files for search and discovery",
+                    "category": "indexing",
+                    "status": "available"
+                },
+                {
+                    "name": "garbage_collector",
+                    "description": "Clean up unused data blocks",
+                    "category": "maintenance",
+                    "status": "available"
                 }
             ]
         elif method == "filesystem.buckets.list":
@@ -259,20 +275,34 @@ async def handle_dashboard_jsonrpc(request: dict):
                 {
                     "name": "default-ipfs",
                     "type": "ipfs",
-                    "item_count": 42,
-                    "size": 1048576000
+                    "item_count": 142,
+                    "size": 1048576000,
+                    "status": "active",
+                    "backend": "IPFS Node"
                 },
                 {
                     "name": "s3-backup", 
                     "type": "s3",
-                    "item_count": 15,
-                    "size": 524288000
+                    "item_count": 85,
+                    "size": 524288000,
+                    "status": "active", 
+                    "backend": "AWS S3"
                 },
                 {
                     "name": "huggingface-models",
                     "type": "huggingface", 
-                    "item_count": 5,
-                    "size": 2097152000
+                    "item_count": 12,
+                    "size": 2097152000,
+                    "status": "active",
+                    "backend": "HuggingFace Hub"
+                },
+                {
+                    "name": "github-repos",
+                    "type": "github",
+                    "item_count": 8,
+                    "size": 157286400,
+                    "status": "active",
+                    "backend": "GitHub Storage"
                 }
             ]
         elif method == "config.get":
@@ -281,45 +311,89 @@ async def handle_dashboard_jsonrpc(request: dict):
                     "config.yaml": {
                         "ipfs": {
                             "api": "127.0.0.1:5001",
-                            "gateway": "127.0.0.1:8080"
+                            "gateway": "127.0.0.1:8080",
+                            "datastore_path": "~/.ipfs-kit/datastore"
                         },
                         "storage_backends": {
-                            "ipfs": {"enabled": True},
-                            "s3": {"enabled": True, "bucket": "my-bucket"},
-                            "huggingface": {"enabled": False}
+                            "ipfs": {"enabled": True, "priority": 1},
+                            "s3": {"enabled": True, "bucket": "my-ipfs-backup", "priority": 2},
+                            "huggingface": {"enabled": True, "organization": "my-org", "priority": 3},
+                            "github": {"enabled": True, "username": "user", "priority": 4}
+                        },
+                        "daemon_settings": {
+                            "file_indexer": {"enabled": True, "interval": 3600},
+                            "pin_syncer": {"enabled": True, "interval": 1800},
+                            "garbage_collector": {"enabled": True, "interval": 7200}
                         }
                     },
                     "peers.json": {
-                        "bootstrap_peers": [],
-                        "trusted_peers": []
+                        "bootstrap_peers": [
+                            "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"
+                        ],
+                        "trusted_peers": [],
+                        "blocked_peers": []
+                    },
+                    "keys.json": {
+                        "peer_id": "QmYourPeerIdHere",
+                        "private_key_path": "~/.ipfs-kit/private.key"
                     }
                 }
             }
         elif method == "daemon.status":
             result = {
-                "ipfs": {"status": "running", "pid": 1234},
-                "ipfs-cluster": {"status": "stopped", "pid": None},
-                "file-indexer": {"status": "running", "pid": 1235},
-                "pin-syncer": {"status": "running", "pid": 1236},
-                "garbage-collector": {"status": "idle", "pid": 1237}
+                "ipfs": {"status": "running", "pid": 1234, "uptime": "2h 15m"},
+                "ipfs-cluster": {"status": "stopped", "pid": None, "uptime": None},
+                "file-indexer": {"status": "running", "pid": 1235, "uptime": "2h 10m", "last_run": "5m ago"},
+                "pin-syncer": {"status": "running", "pid": 1236, "uptime": "2h 5m", "last_sync": "15m ago"},
+                "garbage-collector": {"status": "idle", "pid": 1237, "uptime": "2h 0m", "last_gc": "1h ago"}
             }
         elif method == "storage.backends.list":
             result = [
-                {"name": "ipfs", "status": "running", "version": "0.20.0"},
-                {"name": "s3", "status": "running", "version": "1.0.0"},
-                {"name": "huggingface", "status": "not_configured", "version": "0.16.0"},
-                {"name": "github", "status": "running", "version": "1.0.0"},
-                {"name": "storacha", "status": "not_configured", "version": "1.0.0"},
-                {"name": "filecoin", "status": "not_configured", "version": "1.0.0"}
+                {"name": "ipfs", "status": "running", "version": "0.20.0", "health": "healthy"},
+                {"name": "s3", "status": "running", "version": "1.0.0", "health": "healthy"},
+                {"name": "huggingface", "status": "configured", "version": "0.16.0", "health": "healthy"},
+                {"name": "github", "status": "running", "version": "1.0.0", "health": "healthy"},
+                {"name": "storacha", "status": "not_configured", "version": "1.0.0", "health": "unknown"},
+                {"name": "filecoin", "status": "not_configured", "version": "1.0.0", "health": "unknown"}
             ]
         elif method == "metrics.get":
             result = {
-                "cpu_usage": 25.4,
-                "memory_usage": 68.2,
-                "disk_usage": 45.1,
-                "network_io": {"in": 1024000, "out": 512000},
-                "ipfs_stats": {"pins": 150, "blocks": 5000}
+                "system": {
+                    "cpu_usage": 25.4,
+                    "memory_usage": 68.2,
+                    "disk_usage": 45.1,
+                    "network_io": {"in_bytes": 1024000, "out_bytes": 512000}
+                },
+                "ipfs": {
+                    "pins": 150,
+                    "blocks": 5000,
+                    "peers": 25,
+                    "data_stored": "2.1 GB"
+                },
+                "operations": {
+                    "files_indexed": 1247,
+                    "pins_synced": 89,
+                    "gc_runs": 5,
+                    "active_transfers": 3
+                }
             }
+        # Additional method handlers for daemon operations
+        elif method == "files.index":
+            result = {"status": "started", "message": "File indexing process started"}
+        elif method == "pins.sync":
+            result = {"status": "started", "message": "Pin synchronization started"}
+        elif method == "gc.run":
+            result = {"status": "started", "message": "Garbage collection started"}
+        elif method == "tools.execute":
+            tool_name = params.get("tool", "unknown")
+            result = {"status": "executed", "tool": tool_name, "message": f"Tool {tool_name} executed successfully"}
+        elif method == "filesystem.buckets.create":
+            bucket_name = params.get("name", "new-bucket")
+            bucket_type = params.get("type", "ipfs")
+            result = {"status": "created", "bucket": bucket_name, "type": bucket_type}
+        elif method == "config.file.update":
+            filename = params.get("filename", "config.yaml")
+            result = {"status": "updated", "filename": filename, "message": f"Configuration file {filename} updated successfully"}
         else:
             return {
                 "jsonrpc": "2.0",
