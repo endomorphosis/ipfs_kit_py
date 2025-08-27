@@ -143,42 +143,119 @@ async function loadServices() {
         const totalBadge = document.getElementById('services-total-badge');
         servicesList.innerHTML = '';
         
-        // Convert services object to array format
-        const services = data.services || {};
-        const servicesArray = Object.entries(services).map(([name, service]) => ({
-            name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize first letter
-            status: service.status || 'unknown',
-            description: `${name.charAt(0).toUpperCase() + name.slice(1)} service`
-        }));
+        const services = data.services || [];
+        const summary = data.summary || {};
         
-        totalBadge.textContent = servicesArray.length;
+        totalBadge.textContent = services.length;
 
-        if (servicesArray.length > 0) {
-            servicesArray.forEach(service => {
+        if (services.length > 0) {
+            services.forEach(service => {
                 let statusClass = 'bg-gray-500';
                 let statusIcon = 'fa-question-circle';
-                if (service.status === 'running') {
-                    statusClass = 'bg-green-500';
-                    statusIcon = 'fa-check-circle';
-                } else if (service.status === 'stopped' || service.status === 'error') {
-                    statusClass = 'bg-red-500';
-                    statusIcon = 'fa-times-circle';
-                } else if (service.status === 'configured' || service.status === 'available') {
-                    statusClass = 'bg-blue-500';
-                    statusIcon = 'fa-cog';
+                
+                switch(service.status) {
+                    case 'running':
+                        statusClass = 'bg-green-500';
+                        statusIcon = 'fa-check-circle';
+                        break;
+                    case 'stopped':
+                        statusClass = 'bg-red-500';
+                        statusIcon = 'fa-stop-circle';
+                        break;
+                    case 'not_enabled':
+                        statusClass = 'bg-gray-500';
+                        statusIcon = 'fa-power-off';
+                        break;
+                    case 'not_configured':
+                        statusClass = 'bg-orange-500';
+                        statusIcon = 'fa-cog';
+                        break;
+                    case 'configured':
+                        statusClass = 'bg-blue-500';
+                        statusIcon = 'fa-check';
+                        break;
+                    case 'error':
+                        statusClass = 'bg-red-600';
+                        statusIcon = 'fa-exclamation-triangle';
+                        break;
+                    default:
+                        statusClass = 'bg-gray-500';
+                        statusIcon = 'fa-question-circle';
                 }
 
+                const actions = service.actions || [];
+                const actionsHtml = actions.map(action => {
+                    let buttonClass = 'bg-blue-500 hover:bg-blue-600';
+                    let buttonIcon = 'fa-play';
+                    
+                    switch(action) {
+                        case 'start':
+                            buttonClass = 'bg-green-500 hover:bg-green-600';
+                            buttonIcon = 'fa-play';
+                            break;
+                        case 'stop':
+                            buttonClass = 'bg-red-500 hover:bg-red-600';
+                            buttonIcon = 'fa-stop';
+                            break;
+                        case 'restart':
+                            buttonClass = 'bg-yellow-500 hover:bg-yellow-600';
+                            buttonIcon = 'fa-redo';
+                            break;
+                        case 'configure':
+                            buttonClass = 'bg-blue-500 hover:bg-blue-600';
+                            buttonIcon = 'fa-cog';
+                            break;
+                        case 'enable':
+                            buttonClass = 'bg-purple-500 hover:bg-purple-600';
+                            buttonIcon = 'fa-power-off';
+                            break;
+                        case 'disable':
+                            buttonClass = 'bg-gray-500 hover:bg-gray-600';
+                            buttonIcon = 'fa-power-off';
+                            break;
+                        case 'health_check':
+                            buttonClass = 'bg-cyan-500 hover:bg-cyan-600';
+                            buttonIcon = 'fa-heart';
+                            break;
+                        case 'view_logs':
+                            buttonClass = 'bg-indigo-500 hover:bg-indigo-600';
+                            buttonIcon = 'fa-file-alt';
+                            break;
+                    }
+                    
+                    return `<button onclick="performServiceAction('${service.id}', '${action}')" class="px-3 py-1 rounded text-xs text-white font-medium ${buttonClass} transition-colors" title="${action.replace('_', ' ')}">
+                        <i class="fas ${buttonIcon} mr-1"></i>${action.replace('_', ' ')}
+                    </button>`;
+                }).join(' ');
+
+                const credentialsInfo = service.requires_credentials ? 
+                    `<span class="text-xs text-orange-600"><i class="fas fa-key mr-1"></i>Requires credentials</span>` : '';
+
                 const item = `
-                    <div class="service-item p-6 rounded-xl flex items-center justify-between">
-                        <div>
-                            <h4 class="text-lg font-semibold text-gray-800">${service.name}</h4>
-                            <p class="text-sm text-gray-600">${service.description}</p>
+                    <div class="service-item p-6 rounded-xl border hover:shadow-lg transition-all">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex-grow">
+                                <h4 class="text-lg font-semibold text-gray-800 mb-1">${service.name}</h4>
+                                <p class="text-sm text-gray-600 mb-2">${service.description}</p>
+                                <div class="flex items-center space-x-4 text-xs text-gray-500">
+                                    <span class="px-2 py-1 bg-gray-100 rounded">${service.type}</span>
+                                    ${service.port ? `<span>Port: ${service.port}</span>` : ''}
+                                    ${credentialsInfo}
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <div class="flex items-center px-3 py-2 rounded-full text-white text-sm font-medium ${statusClass}">
+                                    <i class="fas ${statusIcon} mr-2"></i>
+                                    <span>${service.status.replace('_', ' ')}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex items-center space-x-4">
-                            <span class="text-sm font-medium text-gray-500">${service.type}</span>
-                            <div class="flex items-center px-3 py-1 rounded-full text-white text-sm font-medium ${statusClass}">
-                                <i class="fas ${statusIcon} mr-2"></i>
-                                <span>${service.status}</span>
+                        <div class="flex items-center justify-between">
+                            <div class="text-xs text-gray-500">
+                                Last check: ${service.last_check ? new Date(service.last_check).toLocaleString() : 'N/A'}
+                            </div>
+                            <div class="flex space-x-2">
+                                ${actionsHtml}
                             </div>
                         </div>
                     </div>
@@ -188,9 +265,147 @@ async function loadServices() {
         } else {
             servicesList.innerHTML = '<p class="text-center text-gray-500">No services found.</p>';
         }
+        
+        // Update summary display if exists
+        const summaryEl = document.getElementById('services-summary');
+        if (summaryEl && summary) {
+            summaryEl.innerHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-600">${summary.running || 0}</div>
+                        <div class="text-xs text-gray-600">Running</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-red-600">${summary.stopped || 0}</div>
+                        <div class="text-xs text-gray-600">Stopped</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-gray-600">${summary.not_enabled || 0}</div>
+                        <div class="text-xs text-gray-600">Not Enabled</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-orange-600">${summary.not_configured || 0}</div>
+                        <div class="text-xs text-gray-600">Not Configured</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-600">${summary.configured || 0}</div>
+                        <div class="text-xs text-gray-600">Configured</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-red-700">${summary.error || 0}</div>
+                        <div class="text-xs text-gray-600">Error</div>
+                    </div>
+                </div>
+            `;
+        }
     } catch (error) {
         console.error('Error loading services:', error);
         document.getElementById('services-list').innerHTML = '<p class="text-red-500">Failed to load services.</p>';
+    }
+}
+
+/**
+ * Perform an action on a service
+ */
+async function performServiceAction(serviceId, action) {
+    try {
+        let requestBody = {};
+        
+        // For configure action, prompt for configuration data
+        if (action === 'configure') {
+            const configData = await promptForServiceConfiguration(serviceId);
+            if (!configData) return; // User cancelled
+            
+            requestBody = { config: configData };
+            
+            // Use the dedicated configure endpoint
+            const response = await fetch(`/api/services/${serviceId}/configure`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert(`Service ${serviceId} configured successfully: ${result.message}`);
+            } else {
+                alert(`Failed to configure service ${serviceId}: ${result.error || 'Unknown error'}`);
+            }
+        } else {
+            // For other actions, use the generic action endpoint
+            const response = await fetch(`/api/services/${serviceId}/${action}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert(`Action '${action}' completed successfully: ${result.message}`);
+            } else {
+                alert(`Action '${action}' failed: ${result.error || 'Unknown error'}`);
+            }
+        }
+        
+        // Reload services to reflect changes
+        await loadServices();
+        
+    } catch (error) {
+        console.error(`Error performing action ${action} on service ${serviceId}:`, error);
+        alert(`Failed to perform action: ${error.message}`);
+    }
+}
+
+/**
+ * Prompt user for service configuration data
+ */
+async function promptForServiceConfiguration(serviceId) {
+    // Get service info first to know what configuration is needed
+    try {
+        const response = await fetch('/api/services');
+        const data = await response.json();
+        const service = data.services.find(s => s.id === serviceId);
+        
+        if (!service) {
+            alert(`Service ${serviceId} not found`);
+            return null;
+        }
+        
+        const configKeys = service.config_keys || [];
+        const configData = {};
+        
+        if (configKeys.length === 0) {
+            // No specific configuration needed
+            return {};
+        }
+        
+        // Prompt for each required configuration key
+        for (const key of configKeys) {
+            const value = prompt(`Enter ${key.replace('_', ' ')} for ${service.name}:`);
+            if (value === null) {
+                return null; // User cancelled
+            }
+            configData[key] = value;
+        }
+        
+        return configData;
+        
+    } catch (error) {
+        console.error('Error getting service configuration requirements:', error);
+        // Fallback to simple configuration prompt
+        const config = prompt(`Enter configuration data for ${serviceId} (JSON format):`);
+        if (config === null) return null;
+        
+        try {
+            return JSON.parse(config);
+        } catch (e) {
+            alert('Invalid JSON format');
+            return null;
+        }
     }
 }
 

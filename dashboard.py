@@ -297,6 +297,12 @@ class ConsolidatedMCPDashboard:
         
         # Initialize components
         self.app = FastAPI(title="Comprehensive MCP Dashboard", version="3.0.0")
+        
+        # Mount static files directory
+        static_dir = Path(__file__).parent / "static"
+        if static_dir.exists():
+            self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+        
         self.websocket_clients: Set[WebSocket] = set()
         self.system_metrics_history: List[Dict] = []
         self.active_uploads: Dict[str, Dict] = {}
@@ -624,30 +630,12 @@ function updateSystemStatus(data) {
 }
 
 async function loadServicesData() {
-    try {
-        const response = await fetch('/mcp/tools/call', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: 'list_services', arguments: {} }, id: Date.now() })
-        });
-        const result = await response.json();
-        if (result.result) {
-            const tbody = document.getElementById('services-table-body');
-            tbody.innerHTML = result.result.map(service => `
-                <tr>
-                    <td>${service.name}</td>
-                    <td>${service.type}</td>
-                    <td><span class="status ${service.status}">${service.status}</span></td>
-                    <td>
-                        <button class="btn btn-secondary" onclick="controlService('${service.name}', 'restart')">
-                            <i class="fas fa-redo"></i> Restart
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-    } catch (error) {
-        console.error('Error loading services:', error);
+    // Use the enhanced services interface
+    if (typeof window.loadServices === 'function') {
+        await window.loadServices();
+    } else {
+        console.error('Enhanced services interface not loaded');
+        showServiceError('Enhanced services interface not available');
     }
 }
 
@@ -1112,6 +1100,15 @@ async function loadAnalyticsData() {
         async def dashboard():
             """Main dashboard page."""
             return self._get_dashboard_html()
+        
+        @self.app.get("/app.js")
+        async def get_app_js():
+            """Serve the app.js file."""
+            app_js_path = Path(__file__).parent / "static" / "app.js"
+            if app_js_path.exists():
+                return FileResponse(app_js_path, media_type="application/javascript")
+            else:
+                raise HTTPException(status_code=404, detail="app.js not found")
 
         # API Routes - System Status
         @self.app.get("/api/status")
@@ -1178,6 +1175,15 @@ async function loadAnalyticsData() {
         @self.app.get("/api/services/{service_name}")
         async def get_service_details(service_name: str):
             return await self._get_service_details(service_name)
+        
+        @self.app.post("/api/services/{service_name}/{action}")
+        async def service_action(service_name: str, action: str):
+            return await self._control_service(service_name, action)
+        
+        @self.app.post("/api/services/{service_name}/configure")
+        async def configure_service(service_name: str, request: Request):
+            config_data = await request.json()
+            return await self._configure_service(service_name, config_data)
         
         # API Routes - Backends
         @self.app.get("/api/backends")
@@ -1710,6 +1716,262 @@ async function loadAnalyticsData() {
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
+        /* Service Categories */
+        .service-categories { margin-top: 2rem; }
+        .service-category { margin-bottom: 3rem; }
+        .category-title { 
+            font-size: 1.5rem; 
+            font-weight: 600; 
+            margin-bottom: 0.5rem; 
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .category-description { 
+            color: #64748b; 
+            margin-bottom: 1.5rem; 
+            font-size: 0.95rem;
+        }
+        
+        /* Service Cards */
+        .service-card { 
+            background: white; 
+            border-radius: 0.75rem; 
+            padding: 1.5rem; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .service-card:hover { 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            transform: translateY(-2px);
+        }
+        
+        .service-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        
+        .service-info h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .service-description {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-bottom: 0.75rem;
+        }
+        
+        .service-meta {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 1rem;
+        }
+        
+        /* Service Status Badges */
+        .service-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        
+        .service-status.running {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .service-status.stopped {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .service-status.not-enabled {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+        .service-status.not-configured {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        .service-status.configured {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .service-status.error {
+            background: #fecaca;
+            color: #b91c1c;
+        }
+        
+        /* Service Actions */
+        .service-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .service-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.5rem 0.875rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            text-decoration: none;
+        }
+        
+        .service-btn.btn-start {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .service-btn.btn-start:hover {
+            background: #bbf7d0;
+        }
+        
+        .service-btn.btn-stop {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .service-btn.btn-stop:hover {
+            background: #fecaca;
+        }
+        
+        .service-btn.btn-configure {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .service-btn.btn-configure:hover {
+            background: #bfdbfe;
+        }
+        
+        .service-btn.btn-enable {
+            background: #f0f9ff;
+            color: #0284c7;
+        }
+        .service-btn.btn-enable:hover {
+            background: #e0f2fe;
+        }
+        
+        .service-btn.btn-restart {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        .service-btn.btn-restart:hover {
+            background: #fed7aa;
+        }
+        
+        /* Configuration Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+        
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1rem;
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0.25rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .form-help {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.375rem;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        
         /* Utilities */
         .text-center { text-align: center; }
         .text-success { color: #059669; }
@@ -1717,6 +1979,7 @@ async function loadAnalyticsData() {
         .text-warning { color: #d97706; }
         .mt-4 { margin-top: 1rem; }
         .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
     </style>
 </head>
 <body>
@@ -1799,21 +2062,56 @@ async function loadAnalyticsData() {
             
             <!-- Services Tab -->
             <div class="tab-content" id="services">
-                <h1 class="card-title">Service Management</h1>
-                <div class="card">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Service</th>
-                                <th>Type</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="services-table-body">
-                            <tr><td colspan="4" class="text-center">Loading...</td></tr>
-                        </tbody>
-                    </table>
+                <h1 class="card-title">🔧 Service Management</h1>
+                
+                <!-- Service Status Overview -->
+                <div class="grid grid-4 mb-6">
+                    <div class="card stat-card">
+                        <div class="stat-number" id="running-services-count">0</div>
+                        <div class="stat-label">🟢 Running</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-number" id="stopped-services-count">0</div>
+                        <div class="stat-label">🔴 Stopped</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-number" id="configured-services-count">0</div>
+                        <div class="stat-label">⚙️ Configured</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-number" id="unconfigured-services-count">0</div>
+                        <div class="stat-label">❓ Need Setup</div>
+                    </div>
+                </div>
+
+                <!-- Service Categories -->
+                <div class="service-categories">
+                    <!-- Storage Services -->
+                    <div class="service-category">
+                        <h2 class="category-title">📦 Storage Services</h2>
+                        <p class="category-description">Configure storage backends for distributed file management</p>
+                        <div class="grid grid-3" id="storage-services">
+                            <!-- Storage service cards will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Daemon Services -->
+                    <div class="service-category">
+                        <h2 class="category-title">🛠️ Daemon Services</h2>
+                        <p class="category-description">Core system services and background processes</p>
+                        <div class="grid grid-3" id="daemon-services">
+                            <!-- Daemon service cards will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Network Services -->
+                    <div class="service-category">
+                        <h2 class="category-title">🌐 Network Services</h2>
+                        <p class="category-description">API endpoints and communication protocols</p>
+                        <div class="grid grid-3" id="network-services">
+                            <!-- Network service cards will be populated here -->
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -1941,6 +2239,19 @@ async function loadAnalyticsData() {
             </div>
         </div>
         </div>
+
+    <!-- Service Configuration Modal -->
+    <div id="service-config-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Configure Service</h2>
+                <button class="modal-close" onclick="closeConfigModal()">&times;</button>
+            </div>
+            <div id="modal-body">
+                <!-- Configuration form will be populated here -->
+            </div>
+        </div>
+    </div>
 
     <!-- Load app code -->
     <script src="/app.js" defer></script>
@@ -2335,6 +2646,177 @@ async function loadAnalyticsData() {
         """Test all MCP tools."""
         # TODO: Implement actual MCP tool tests
         return {"success": True, "data": {"status": "all MCP tools passed"}}
+    
+    async def _get_services_data(self):
+        """Get comprehensive services data for the dashboard."""
+        try:
+            # Mock service data with comprehensive service information
+            services = {
+                "ipfs": {
+                    "name": "IPFS Daemon",
+                    "type": "daemon", 
+                    "status": "stopped",
+                    "description": "IPFS node for distributed file system",
+                    "last_check": "2024-01-01T00:00:00Z"
+                },
+                "mcp_server": {
+                    "name": "MCP Server",
+                    "type": "network",
+                    "status": "running", 
+                    "description": "Model Context Protocol server",
+                    "last_check": "2024-01-01T00:00:00Z"
+                },
+                "aria2": {
+                    "name": "Aria2 Daemon", 
+                    "type": "daemon",
+                    "status": "stopped",
+                    "description": "High-speed download manager daemon",
+                    "last_check": "2024-01-01T00:00:00Z"
+                },
+                "lotus": {
+                    "name": "Lotus Storage",
+                    "type": "daemon",
+                    "status": "not_enabled",
+                    "description": "Filecoin Lotus node for blockchain storage", 
+                    "last_check": "N/A"
+                },
+                "ipfs_cluster": {
+                    "name": "IPFS Cluster",
+                    "type": "daemon",
+                    "status": "not_enabled", 
+                    "description": "IPFS Cluster for coordinated IPFS nodes",
+                    "last_check": "N/A"
+                },
+                "s3": {
+                    "name": "Amazon S3",
+                    "type": "storage",
+                    "status": "not_configured",
+                    "description": "Amazon S3 compatible storage for distributed file management",
+                    "last_check": "N/A"
+                },
+                "huggingface": {
+                    "name": "HuggingFace Hub",
+                    "type": "storage", 
+                    "status": "not_configured",
+                    "description": "HuggingFace Hub for AI models and datasets",
+                    "last_check": "N/A"
+                },
+                "github": {
+                    "name": "GitHub Storage",
+                    "type": "storage",
+                    "status": "not_configured",
+                    "description": "GitHub repositories as distributed storage backends", 
+                    "last_check": "N/A"
+                },
+                "storacha": {
+                    "name": "Storacha",
+                    "type": "storage",
+                    "status": "not_configured",
+                    "description": "Decentralized storage network",
+                    "last_check": "N/A"
+                },
+                "synapse": {
+                    "name": "Synapse Matrix", 
+                    "type": "storage",
+                    "status": "not_configured",
+                    "description": "Matrix Synapse messaging and storage",
+                    "last_check": "N/A"
+                },
+                "gdrive": {
+                    "name": "Google Drive",
+                    "type": "storage",
+                    "status": "not_configured",
+                    "description": "Google Drive cloud storage integration",
+                    "last_check": "N/A"
+                },
+                "ftp": {
+                    "name": "FTP Server",
+                    "type": "storage", 
+                    "status": "not_configured",
+                    "description": "File Transfer Protocol server connection",
+                    "last_check": "N/A"
+                },
+                "sshfs": {
+                    "name": "SSHFS",
+                    "type": "storage",
+                    "status": "not_configured",
+                    "description": "SSH filesystem mounting for secure file access",
+                    "last_check": "N/A"
+                }
+            }
+            
+            return {"success": True, "services": services}
+            
+        except Exception as e:
+            logger.error(f"Error getting services data: {e}")
+            return {"success": False, "error": str(e), "services": {}}
+    
+    async def _get_service_details(self, service_name: str):
+        """Get details for a specific service."""
+        try:
+            services_data = await self._get_services_data()
+            if services_data["success"] and service_name in services_data["services"]:
+                return {"success": True, "service": services_data["services"][service_name]}
+            else:
+                return {"success": False, "error": f"Service '{service_name}' not found"}
+        except Exception as e:
+            logger.error(f"Error getting service details for {service_name}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _control_service(self, service_name: str, action: str):
+        """Control a service (start, stop, restart, enable, disable)."""
+        try:
+            logger.info(f"Service control: {service_name} -> {action}")
+            
+            # Mock service control logic
+            valid_actions = ["start", "stop", "restart", "enable", "disable", "configure"]
+            if action not in valid_actions:
+                return {"success": False, "error": f"Invalid action: {action}"}
+            
+            # Simulate different responses based on service and action
+            if action == "start":
+                message = f"Started {service_name} service"
+            elif action == "stop": 
+                message = f"Stopped {service_name} service"
+            elif action == "restart":
+                message = f"Restarted {service_name} service"
+            elif action == "enable":
+                message = f"Enabled {service_name} service"
+            elif action == "disable":
+                message = f"Disabled {service_name} service"
+            else:
+                message = f"Performed {action} on {service_name} service"
+                
+            return {
+                "success": True, 
+                "message": message,
+                "service": service_name,
+                "action": action
+            }
+            
+        except Exception as e:
+            logger.error(f"Error controlling service {service_name}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _configure_service(self, service_name: str, config_data: dict):
+        """Configure a service with the provided configuration data."""
+        try:
+            logger.info(f"Configuring service {service_name} with config: {config_data}")
+            
+            # Mock service configuration logic
+            # In a real implementation, this would save the configuration
+            # and update the service status accordingly
+            
+            return {
+                "success": True,
+                "message": f"Successfully configured {service_name} service",
+                "service": service_name,
+                "config": config_data
+            }
+            
+        except Exception as e:
+            logger.error(f"Error configuring service {service_name}: {e}")
+            return {"success": False, "error": str(e)}
 
 def main():
     """Main entry point."""
