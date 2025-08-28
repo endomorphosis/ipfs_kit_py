@@ -40,6 +40,12 @@ function showTab(tabName) {
         loadMcpDetails();
     } else if (tabName === 'pins') {
         loadPins();
+    } else if (tabName === 'peers') {
+        loadPeers();
+    } else if (tabName === 'logs') {
+        loadLogs();
+    } else if (tabName === 'analytics') {
+        loadAnalytics();
     }
     
     // Close mobile sidebar on tab selection

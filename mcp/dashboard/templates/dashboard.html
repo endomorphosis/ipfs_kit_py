@@ -77,6 +77,18 @@
                     <i class="fas fa-thumbtack mr-4 text-lg"></i> 
                     <span class="font-medium">Pins</span>
                 </a>
+                <a href="#" onclick="showTab('peers')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-network-wired mr-4 text-lg"></i> 
+                    <span class="font-medium">Peers</span>
+                </a>
+                <a href="#" onclick="showTab('logs')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-file-alt mr-4 text-lg"></i> 
+                    <span class="font-medium">Logs</span>
+                </a>
+                <a href="#" onclick="showTab('analytics')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-chart-bar mr-4 text-lg"></i> 
+                    <span class="font-medium">Analytics</span>
+                </a>
             </nav>
         </div>
         
@@ -239,6 +251,22 @@
                         <p class="text-sm text-gray-600 flex items-center">
                             <i class="fas fa-database mr-2 text-orange-500"></i>
                             Total Buckets
+                        </p>
+                    </div>
+                    
+                    <div class="card metric-card p-8 rounded-2xl fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-green-500 to-teal-600">
+                                <i class="fas fa-thumbtack text-white text-xl"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Pins</div>
+                            </div>
+                        </div>
+                        <div id="pins-count" class="metric-value mb-2">0</div>
+                        <p class="text-sm text-gray-600 flex items-center">
+                            <i class="fas fa-pin mr-2 text-green-500"></i>
+                            Active Pins
                         </p>
                     </div>
                 </div>
@@ -523,6 +551,51 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Peers Tab -->
+            <div id="peers-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 mr-4">
+                            <i class="fas fa-network-wired text-white"></i>
+                        </div>
+                        Peer Management
+                    </h3>
+                    <div id="peers-container">
+                        <!-- Peers will be loaded here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Logs Tab -->
+            <div id="logs-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-gray-500 to-gray-600 mr-4">
+                            <i class="fas fa-file-alt text-white"></i>
+                        </div>
+                        System Logs
+                    </h3>
+                    <div id="logs-container">
+                        <!-- Logs will be loaded here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analytics Tab -->
+            <div id="analytics-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 mr-4">
+                            <i class="fas fa-chart-bar text-white"></i>
+                        </div>
+                        Analytics
+                    </h3>
+                    <div id="analytics-container">
+                        <!-- Analytics will be loaded here -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -534,5 +607,360 @@
     <script src="{{ url_for('static', path='/js/data-loader.js') }}"></script>
     <script src="{{ url_for('static', path='/js/config-manager.js') }}"></script>
     <script src="{{ url_for('static', path='/js/pins-manager.js') }}"></script>
+    
+    <!-- Additional JavaScript functions to fix console errors -->
+    <script>
+    // Global variables for MCP client
+    let mcpClient = null;
+    
+    // Initialize MCP Client
+    async function initializeMCPClient() {
+        try {
+            if (typeof MCPClient !== 'undefined') {
+                mcpClient = new MCPClient({ debug: true });
+                console.log('🔗 MCP Client initialized successfully');
+                return mcpClient;
+            } else {
+                console.log('MCP SDK not available, falling back to direct API calls');
+                return null;
+            }
+        } catch (error) {
+            console.error('Failed to initialize MCP client:', error);
+            return null;
+        }
+    }
+    
+    // Helper function for updating elements
+    function updateElement(elementId, content) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.innerHTML = content;
+        } else {
+            console.warn(`Element not found: ${elementId}`);
+        }
+    }
+    
+    // System metrics functions
+    let systemMetrics = { cpu_percent: 'N/A', memory_percent: 'N/A', disk_percent: 'N/A' };
+    let componentCounts = { services: 0, backends: 0, pins: 0, buckets: 0 };
+    
+    function updateSystemMetrics(metrics) {
+        systemMetrics = { ...systemMetrics, ...metrics };
+        console.log('System metrics updated:', systemMetrics);
+        
+        // Update UI elements
+        if (document.getElementById('cpu-usage')) {
+            document.getElementById('cpu-usage').textContent = 
+                typeof metrics.cpu_percent === 'number' ? `${metrics.cpu_percent.toFixed(1)}%` : 'N/A';
+        }
+        if (document.getElementById('memory-usage')) {
+            document.getElementById('memory-usage').textContent = 
+                typeof metrics.memory_percent === 'number' ? `${metrics.memory_percent.toFixed(1)}%` : 'N/A';
+        }
+        if (document.getElementById('disk-usage')) {
+            document.getElementById('disk-usage').textContent = 
+                typeof metrics.disk_percent === 'number' ? `${metrics.disk_percent.toFixed(1)}%` : 'N/A';
+        }
+    }
+    
+    function updateComponentCounts(counts) {
+        componentCounts = { ...componentCounts, ...counts };
+        console.log('Component counts updated:', componentCounts);
+        
+        // Update UI elements
+        if (document.getElementById('services-count')) {
+            document.getElementById('services-count').textContent = counts.services || 0;
+        }
+        if (document.getElementById('backends-count')) {
+            document.getElementById('backends-count').textContent = counts.backends || 0;
+        }
+        if (document.getElementById('pins-count')) {
+            document.getElementById('pins-count').textContent = counts.pins || 0;
+        }
+        if (document.getElementById('buckets-count')) {
+            document.getElementById('buckets-count').textContent = counts.buckets || 0;
+        }
+    }
+    
+    // Tab and data loading functions
+    async function loadTabData(tabName) {
+        console.log(`Loading data for tab: ${tabName}`);
+        try {
+            switch (tabName) {
+                case 'overview':
+                    await loadOverviewData();
+                    break;
+                case 'backends':
+                    await loadBackendsData();
+                    break;
+                case 'buckets':
+                    await loadBucketsData();
+                    break;
+                case 'pins':
+                    await loadPinsData();
+                    break;
+                case 'peers':
+                    await loadPeersData();
+                    break;
+                case 'logs':
+                    await loadLogsData();
+                    break;
+                case 'analytics':
+                    await loadAnalyticsData();
+                    break;
+                default:
+                    console.log(`No data loader for tab: ${tabName}`);
+            }
+        } catch (error) {
+            console.error(`Error loading data for ${tabName}:`, error);
+        }
+    }
+    
+    async function loadOverviewData() {
+        try {
+            // Load system metrics
+            const metricsResponse = await fetch('/api/metrics/system');
+            const metrics = await metricsResponse.json();
+            updateSystemMetrics(metrics);
+            
+            // Load component counts
+            await loadComponentCounts();
+            
+            console.log('Overview tab loaded with system metrics and component counts');
+        } catch (error) {
+            console.error('Error loading overview data:', error);
+        }
+    }
+    
+    async function loadComponentCounts() {
+        try {
+            const [backendsRes, bucketsRes] = await Promise.all([
+                fetch('/api/backends').catch(() => ({ json: () => ({ backends: [] }) })),
+                fetch('/api/buckets').catch(() => ({ json: () => ({ buckets: [] }) }))
+            ]);
+            
+            const backendsData = await backendsRes.json();
+            const bucketsData = await bucketsRes.json();
+            
+            const counts = {
+                services: 30, // Mock value
+                backends: Array.isArray(backendsData.backends) ? backendsData.backends.length : 0,
+                pins: 0, // Will be updated by pins data
+                buckets: Array.isArray(bucketsData.buckets) ? bucketsData.buckets.length : 0
+            };
+            
+            updateComponentCounts(counts);
+        } catch (error) {
+            console.error('Error loading component counts:', error);
+            updateComponentCounts({ services: 0, backends: 0, pins: 0, buckets: 0 });
+        }
+    }
+    
+    async function loadBackendsData() {
+        try {
+            const response = await fetch('/api/backends');
+            const data = await response.json();
+            const backends = data.backends || data || [];
+            
+            console.log('🗄️ backends loaded via API', data);
+            displayBackends(backends);
+        } catch (error) {
+            console.error('Error loading backends data:', error);
+        }
+    }
+    
+    async function loadBucketsData() {
+        try {
+            const response = await fetch('/api/buckets');
+            const data = await response.json();
+            const buckets = data.buckets || data || [];
+            
+            console.log('📦 buckets loaded via API', data);
+            displayBuckets(buckets);
+        } catch (error) {
+            console.error('Error loading buckets data:', error);
+        }
+    }
+    
+    async function loadPinsData() {
+        try {
+            const response = await fetch('/api/pins');
+            const data = await response.json();
+            displayPins(data);
+        } catch (error) {
+            console.error('Error loading pins data:', error);
+        }
+    }
+    
+    async function loadPeersData() {
+        try {
+            const response = await fetch('/api/peers');
+            const data = await response.json();
+            displayPeers(data);
+        } catch (error) {
+            console.error('Error loading peers data:', error);
+        }
+    }
+    
+    async function loadLogsData() {
+        try {
+            const response = await fetch('/api/logs?component=all&level=all&limit=100');
+            const data = await response.json();
+            displayLogs(data.logs || []);
+        } catch (error) {
+            console.error('Error loading logs data:', error);
+        }
+    }
+    
+    async function loadAnalyticsData() {
+        try {
+            const response = await fetch('/api/analytics/summary');
+            const data = await response.json();
+            displayAnalytics(data);
+        } catch (error) {
+            console.error('Error loading analytics data:', error);
+        }
+    }
+    
+    // Display functions that handle the data properly
+    function displayBackends(backends) {
+        if (!Array.isArray(backends)) {
+            console.warn('displayBackends: Expected array but got:', typeof backends, backends);
+            backends = [];
+        }
+        
+        const container = document.getElementById('backends-list') || document.getElementById('backends-container');
+        if (!container) {
+            console.warn('Backends container not found');
+            return;
+        }
+        
+        container.innerHTML = backends.map(backend => `
+            <div class="bg-white p-4 rounded-lg shadow mb-4">
+                <h3 class="font-bold">${backend.name || 'Unknown Backend'}</h3>
+                <p class="text-sm text-gray-600">Type: ${backend.type || 'unknown'}</p>
+                <p class="text-sm text-gray-600">Status: ${backend.status || 'unknown'}</p>
+            </div>
+        `).join('');
+    }
+    
+    function displayBuckets(buckets) {
+        if (!Array.isArray(buckets)) {
+            console.warn('displayBuckets: Expected array but got:', typeof buckets, buckets);
+            buckets = [];
+        }
+        
+        const container = document.getElementById('buckets-list') || document.getElementById('buckets-container');
+        if (!container) {
+            console.warn('Buckets container not found');
+            return;
+        }
+        
+        container.innerHTML = buckets.map(bucket => `
+            <div class="bg-white p-4 rounded-lg shadow mb-4">
+                <h3 class="font-bold">${bucket.name || 'Unknown Bucket'}</h3>
+                <p class="text-sm text-gray-600">Type: ${bucket.type || 'unknown'}</p>
+                <p class="text-sm text-gray-600">Size: ${bucket.size_gb || 0} GB</p>
+                <p class="text-sm text-gray-600">Files: ${bucket.files || 0}</p>
+            </div>
+        `).join('');
+    }
+    
+    function displayPins(data) {
+        updateElement('pins-container', `
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="font-bold">Pin Management</h3>
+                <p class="text-sm text-gray-600">Total pins: ${data.total || 0}</p>
+                <p class="text-sm text-gray-600">Active: ${data.active || 0}</p>
+                <p class="text-sm text-gray-600">Pending: ${data.pending || 0}</p>
+            </div>
+        `);
+    }
+    
+    function displayPeers(data) {
+        updateElement('peers-container', `
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="font-bold">Peer Management</h3>
+                <p class="text-sm text-gray-600">Connected peers: ${data.connected || 0}</p>
+                <p class="text-sm text-gray-600">Total discovered: ${data.total || 0}</p>
+            </div>
+        `);
+    }
+    
+    function displayLogs(logs) {
+        if (!Array.isArray(logs)) {
+            console.warn('displayLogs: Expected array but got:', typeof logs, logs);
+            logs = [];
+        }
+        
+        const container = document.getElementById('logs-container') || document.getElementById('logs-list');
+        if (!container) {
+            console.warn('Logs container not found');
+            return;
+        }
+        
+        container.innerHTML = `
+            <div class="bg-black text-green-400 p-4 rounded-lg font-mono text-sm max-h-96 overflow-y-auto">
+                ${logs.map(log => `
+                    <div class="mb-1">
+                        <span class="text-gray-400">[${log.timestamp || 'N/A'}]</span>
+                        <span class="text-yellow-400">[${log.level || 'INFO'}]</span>
+                        <span class="text-blue-400">[${log.component || 'system'}]</span>
+                        <span>${log.message || 'No message'}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    function displayAnalytics(data) {
+        updateElement('analytics-container', `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="font-bold">Requests</h3>
+                    <p class="text-2xl font-bold text-blue-600">${data.analytics?.requests?.total || 0}</p>
+                    <p class="text-sm text-gray-600">Success rate: ${data.analytics?.requests?.success_rate || 0}%</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="font-bold">Storage</h3>
+                    <p class="text-2xl font-bold text-green-600">${data.analytics?.storage?.total_size || 'N/A'}</p>
+                    <p class="text-sm text-gray-600">Files: ${data.analytics?.storage?.total_files || 0}</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="font-bold">Performance</h3>
+                    <p class="text-2xl font-bold text-purple-600">${data.analytics?.performance?.avg_response_time || 'N/A'}</p>
+                    <p class="text-sm text-gray-600">Uptime: ${data.analytics?.performance?.uptime || 'N/A'}</p>
+                </div>
+            </div>
+        `);
+    }
+    
+    // Dashboard initialization
+    async function initializeDashboard() {
+        console.log('Dashboard initialized');
+        
+        // Initialize MCP client
+        await initializeMCPClient();
+        
+        // Load initial data
+        await loadTabData('overview');
+        
+        // Set up periodic updates
+        setInterval(async () => {
+            const activeTab = document.querySelector('.nav-link.active')?.getAttribute('onclick')?.match(/'(\w+)'/)?.[1];
+            if (activeTab) {
+                await loadTabData(activeTab);
+            }
+        }, 30000); // Update every 30 seconds
+    }
+    
+    async function loadInitialData() {
+        await loadOverviewData();
+    }
+    
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', initializeDashboard);
+    document.addEventListener('DOMContentLoaded', loadInitialData);
+    </script>
 </body>
 </html>

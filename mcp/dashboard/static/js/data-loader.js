@@ -765,3 +765,325 @@ async function uploadToBucket(bucketName) {
     
     fileInput.click();
 }
+
+// Additional load functions for new tabs
+async function loadPins() {
+    try {
+        const response = await fetch('/api/pins');
+        const data = await response.json();
+        
+        // Update the pin list table if it exists
+        const pinsList = document.getElementById('pins-list');
+        if (pinsList) {
+            const pins = data.pins || [];
+            pinsList.innerHTML = pins.map(pin => `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-4 text-sm font-mono text-gray-800">${pin.cid || 'N/A'}</td>
+                    <td class="p-4 text-sm text-gray-600">${pin.name || 'Unnamed'}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="removePin('${pin.cid}')" class="text-red-600 hover:text-red-800 text-sm">
+                            <i class="fas fa-trash mr-1"></i>Remove
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // Update pins count
+        const pinsCount = document.getElementById('pins-count');
+        if (pinsCount) {
+            pinsCount.textContent = (data.pins || []).length;
+        }
+        
+        console.log('Pins loaded:', data);
+    } catch (error) {
+        console.error('Error loading pins:', error);
+        const pinsList = document.getElementById('pins-list');
+        if (pinsList) {
+            pinsList.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-500">Failed to load pins</td></tr>';
+        }
+    }
+}
+
+async function loadPeers() {
+    try {
+        const response = await fetch('/api/peers');
+        const data = await response.json();
+        
+        const peersContainer = document.getElementById('peers-container');
+        if (peersContainer) {
+            const peers = data.peers || [];
+            peersContainer.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h4 class="font-bold text-lg mb-2">Connected Peers</h4>
+                        <p class="text-3xl font-bold text-green-600">${data.connected || 0}</p>
+                        <p class="text-sm text-gray-600">Currently active connections</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h4 class="font-bold text-lg mb-2">Total Discovered</h4>
+                        <p class="text-3xl font-bold text-blue-600">${data.total || 0}</p>
+                        <p class="text-sm text-gray-600">Peers discovered in network</p>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <h4 class="font-bold text-lg mb-4">Peer List</h4>
+                    <div class="bg-white rounded-lg shadow overflow-hidden">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-4 text-left text-sm font-semibold text-gray-600">Peer ID</th>
+                                    <th class="p-4 text-left text-sm font-semibold text-gray-600">Address</th>
+                                    <th class="p-4 text-left text-sm font-semibold text-gray-600">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                ${peers.map(peer => `
+                                    <tr>
+                                        <td class="p-4 text-sm font-mono">${peer.id || 'N/A'}</td>
+                                        <td class="p-4 text-sm">${peer.address || 'N/A'}</td>
+                                        <td class="p-4 text-sm">
+                                            <span class="px-2 py-1 text-xs rounded ${peer.connected ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                                                ${peer.connected ? 'Connected' : 'Disconnected'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `).join('') || '<tr><td colspan="3" class="p-4 text-center text-gray-500">No peers found</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        console.log('Peers loaded:', data);
+    } catch (error) {
+        console.error('Error loading peers:', error);
+        const peersContainer = document.getElementById('peers-container');
+        if (peersContainer) {
+            peersContainer.innerHTML = '<p class="text-red-500">Failed to load peers data</p>';
+        }
+    }
+}
+
+async function loadLogs() {
+    try {
+        const response = await fetch('/api/logs?component=all&level=all&limit=100');
+        const data = await response.json();
+        
+        const logsContainer = document.getElementById('logs-container');
+        if (logsContainer) {
+            const logs = data.logs || [];
+            logsContainer.innerHTML = `
+                <div class="mb-4 flex space-x-4">
+                    <select id="log-component-filter" class="px-3 py-2 border rounded">
+                        <option value="all">All Components</option>
+                        <option value="ipfs-kit">IPFS Kit</option>
+                        <option value="mcp-server">MCP Server</option>
+                        <option value="bucket-manager">Bucket Manager</option>
+                        <option value="backend-monitor">Backend Monitor</option>
+                    </select>
+                    <select id="log-level-filter" class="px-3 py-2 border rounded">
+                        <option value="all">All Levels</option>
+                        <option value="ERROR">Error</option>
+                        <option value="WARN">Warning</option>
+                        <option value="INFO">Info</option>
+                        <option value="DEBUG">Debug</option>
+                    </select>
+                    <button onclick="loadLogs()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Refresh Logs
+                    </button>
+                </div>
+                <div class="bg-black text-green-400 p-4 rounded-lg font-mono text-sm max-h-96 overflow-y-auto">
+                    ${logs.map(log => {
+                        const levelColor = {
+                            'ERROR': 'text-red-400',
+                            'WARN': 'text-yellow-400',
+                            'INFO': 'text-blue-400',
+                            'DEBUG': 'text-gray-400'
+                        }[log.level] || 'text-green-400';
+                        
+                        return `
+                            <div class="mb-1">
+                                <span class="text-gray-400">[${log.timestamp || 'N/A'}]</span>
+                                <span class="${levelColor}">[${log.level || 'INFO'}]</span>
+                                <span class="text-cyan-400">[${log.component || 'system'}]</span>
+                                <span>${log.message || 'No message'}</span>
+                            </div>
+                        `;
+                    }).join('') || '<div>No logs available</div>'}
+                </div>
+            `;
+        }
+        
+        console.log('Logs loaded:', data);
+    } catch (error) {
+        console.error('Error loading logs:', error);
+        const logsContainer = document.getElementById('logs-container');
+        if (logsContainer) {
+            logsContainer.innerHTML = '<p class="text-red-500">Failed to load logs data</p>';
+        }
+    }
+}
+
+async function loadAnalytics() {
+    try {
+        const response = await fetch('/api/analytics/summary');
+        const data = await response.json();
+        
+        const analyticsContainer = document.getElementById('analytics-container');
+        if (analyticsContainer) {
+            const analytics = data.analytics || {};
+            analyticsContainer.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- Requests Section -->
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h4 class="font-bold text-lg mb-4 text-blue-600">Requests</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Total:</span>
+                                <span class="font-bold">${analytics.requests?.total || 0}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Today:</span>
+                                <span class="font-bold">${analytics.requests?.today || 0}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Success Rate:</span>
+                                <span class="font-bold text-green-600">${analytics.requests?.success_rate || 0}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Storage Section -->
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h4 class="font-bold text-lg mb-4 text-green-600">Storage</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Total Size:</span>
+                                <span class="font-bold">${analytics.storage?.total_size || 'N/A'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Total Files:</span>
+                                <span class="font-bold">${analytics.storage?.total_files || 0}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Growth Rate:</span>
+                                <span class="font-bold text-blue-600">${analytics.storage?.growth_rate || '0%'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Section -->
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h4 class="font-bold text-lg mb-4 text-purple-600">Performance</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Avg Response:</span>
+                                <span class="font-bold">${analytics.performance?.avg_response_time || 'N/A'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Cache Hit Rate:</span>
+                                <span class="font-bold">${analytics.performance?.cache_hit_rate || '0%'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Uptime:</span>
+                                <span class="font-bold text-green-600">${analytics.performance?.uptime || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top Operations -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h4 class="font-bold text-lg mb-4">Top Operations</h4>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-3 text-left text-sm font-semibold text-gray-600">Operation</th>
+                                    <th class="p-3 text-right text-sm font-semibold text-gray-600">Count</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                ${(analytics.top_operations || []).map(op => `
+                                    <tr>
+                                        <td class="p-3 text-sm">${op.operation || 'Unknown'}</td>
+                                        <td class="p-3 text-sm text-right font-bold">${op.count || 0}</td>
+                                    </tr>
+                                `).join('') || '<tr><td colspan="2" class="p-3 text-center text-gray-500">No operations data</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        console.log('Analytics loaded:', data);
+    } catch (error) {
+        console.error('Error loading analytics:', error);
+        const analyticsContainer = document.getElementById('analytics-container');
+        if (analyticsContainer) {
+            analyticsContainer.innerHTML = '<p class="text-red-500">Failed to load analytics data</p>';
+        }
+    }
+}
+
+
+// Pin management functions
+async function addPin() {
+    const cidInput = document.getElementById('pin-cid-input');
+    const nameInput = document.getElementById('pin-name-input');
+    
+        alert('Please enter a valid CID');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/pins', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                cid: cidInput.value.trim(),
+                name: nameInput.value.trim() || null
+            })
+        });
+        
+        const result = await response.json();
+        if (response.ok && result.success) {
+            cidInput.value = '';
+            nameInput.value = '';
+            await loadPins();
+            alert('Pin added successfully');
+        } else {
+            alert('Failed to add pin: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error adding pin:', error);
+        alert('Failed to add pin: ' + error.message);
+    }
+}
+
+async function removePin(cid) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/pins/${cid}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        if (response.ok && result.success) {
+            await loadPins();
+            alert('Pin removed successfully');
+        } else {
+            alert('Failed to remove pin: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error removing pin:', error);
+        alert('Failed to remove pin: ' + error.message);
+    }
+}
