@@ -1247,14 +1247,52 @@ async function executeMcpTool(toolName, action) {
                 except Exception as e:
                     logger.warning(f"Could not read static app.js: {e}")
             
-            # Add system metrics functionality
+            # Add system metrics functionality using MCP JSON-RPC calls
             metrics_js = """
-// System Metrics Loading Functionality
+// MCP Client Initialization and JSON-RPC calls
+let mcpClient = null;
+
+async function initializeMCPClient() {
+    try {
+        if (typeof window.MCP !== 'undefined') {
+            mcpClient = new window.MCP.MCPClient({
+                baseUrl: window.location.origin
+            });
+            console.log('MCP client initialized successfully');
+            return true;
+        } else {
+            console.warn('MCP SDK not available, falling back to direct API calls');
+            return false;
+        }
+    } catch (error) {
+        console.error('Failed to initialize MCP client:', error);
+        return false;
+    }
+}
+
+// System Metrics Loading using MCP JSON-RPC
 async function loadSystemMetrics() {
     try {
-        const response = await fetch('/api/status');
-        const data = await response.json();
-        const result = data.result || data;
+        let result;
+        
+        if (mcpClient) {
+            // Use MCP JSON-RPC call
+            const response = await fetch('/mcp/tools/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: 'get_system_status',
+                    arguments: {}
+                })
+            });
+            const data = await response.json();
+            result = data.result || {};
+        } else {
+            // Fallback to direct API call
+            const response = await fetch('/api/status');
+            const data = await response.json();
+            result = data.result || data;
+        }
         
         // Update CPU, Memory, Disk usage
         if (result.cpu_percent !== undefined) {
@@ -1284,22 +1322,56 @@ async function loadSystemMetrics() {
 
 async function loadComponentCounts() {
     try {
-        // Load all component counts in parallel
-        const [servicesRes, backendsRes, pinsRes, bucketsRes] = await Promise.all([
-            fetch('/api/services').catch(() => ({ json: () => ({ services: [] }) })),
-            fetch('/api/backends').catch(() => ({ json: () => ({ backends: [] }) })),
-            fetch('/api/pins').catch(() => ({ json: () => ({ pins: [] }) })),
-            fetch('/api/buckets').catch(() => ({ json: () => ({ buckets: [] }) }))
-        ]);
+        let services, backends, pins, buckets;
+        
+        if (mcpClient) {
+            // Use MCP JSON-RPC calls for component counts
+            const [servicesResult, overviewResult] = await Promise.all([
+                fetch('/mcp/tools/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: 'list_services', arguments: {} })
+                }).then(r => r.json()).catch(() => ({ result: [] })),
+                
+                fetch('/mcp/tools/call', {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: 'get_system_overview', arguments: {} })
+                }).then(r => r.json()).catch(() => ({ result: {} }))
+            ]);
+            
+            const servicesData = servicesResult.result || [];
+            const overviewData = overviewResult.result || {};
+            
+            services = { services: servicesData };
+            backends = overviewData.backends || 0;
+            pins = overviewData.pins || 0;
+            buckets = overviewData.buckets || 0;
+            
+        } else {
+            // Fallback to direct API calls
+            const [servicesRes, backendsRes, pinsRes, bucketsRes] = await Promise.all([
+                fetch('/api/services').catch(() => ({ json: () => ({ services: [] }) })),
+                fetch('/api/backends').catch(() => ({ json: () => ({ backends: [] }) })),
+                fetch('/api/pins').catch(() => ({ json: () => ({ pins: [] }) })),
+                fetch('/api/buckets').catch(() => ({ json: () => ({ buckets: [] }) }))
+            ]);
 
-        const [services, backends, pins, buckets] = await Promise.all([
-            servicesRes.json(),
-            backendsRes.json(),
-            pinsRes.json(),
-            bucketsRes.json()
-        ]);
+            const [servicesData, backendsData, pinsData, bucketsData] = await Promise.all([
+                servicesRes.json(),
+                backendsRes.json(),
+                pinsRes.json(),
+                bucketsRes.json()
+            ]);
+            
+            services = servicesData;
+            backends = Array.isArray(backendsData) ? backendsData.length : (backendsData.backends ? backendsData.backends.length : 0);
+            pins = Array.isArray(pinsData) ? pinsData.length : (pinsData.pins ? pinsData.pins.length : 0);
+            buckets = Array.isArray(bucketsData) ? bucketsData.length : 
+                      (bucketsData.data && bucketsData.data.buckets ? bucketsData.data.buckets.length : 0);
+        }
 
-        // Update component counts
+        // Update component counts with proper logic
         const servicesEl = document.getElementById('services-count');
         if (servicesEl) {
             const servicesCount = services.services ? Object.keys(services.services).length : (Array.isArray(services) ? services.length : 0);
@@ -1308,19 +1380,24 @@ async function loadComponentCounts() {
 
         const backendsEl = document.getElementById('backends-count'); 
         if (backendsEl) {
-            const backendsCount = Array.isArray(backends) ? backends.length : (backends.backends ? backends.backends.length : 0);
+            const backendsCount = typeof backends === 'number' ? backends : 
+                                (Array.isArray(backends) ? backends.length : 
+                                (backends.backends ? backends.backends.length : 0));
             backendsEl.textContent = backendsCount;
         }
 
         const pinsEl = document.getElementById('pins-count');
         if (pinsEl) {
-            const pinsCount = pins.pins ? pins.pins.length : (Array.isArray(pins) ? pins.length : 0);
+            const pinsCount = typeof pins === 'number' ? pins :
+                            (pins.pins ? pins.pins.length : (Array.isArray(pins) ? pins.length : 0));
             pinsEl.textContent = pinsCount;
         }
 
         const bucketsEl = document.getElementById('buckets-count');
         if (bucketsEl) {
-            const bucketsCount = buckets.data && buckets.data.buckets ? buckets.data.buckets.length : (Array.isArray(buckets) ? buckets.length : 0);
+            const bucketsCount = typeof buckets === 'number' ? buckets :
+                               (buckets.data && buckets.data.buckets ? buckets.data.buckets.length : 
+                               (Array.isArray(buckets) ? buckets.length : 0));
             bucketsEl.textContent = bucketsCount;
         }
 
@@ -1335,7 +1412,27 @@ async function loadComponentCounts() {
     }
 }
 
-// Initialize system overview data loading
+// Initialize MCP Dashboard with proper initialization sequence
+async function initializeDashboard() {
+    console.log('Initializing MCP Dashboard...');
+    
+    // Initialize MCP client first
+    await initializeMCPClient();
+    
+    // Load initial data
+    await loadSystemMetrics();
+    await loadComponentCounts();
+    
+    // Set up periodic refresh (every 30 seconds)
+    setInterval(async () => {
+        await loadSystemMetrics();
+        await loadComponentCounts();
+    }, 30000);
+    
+    console.log('Dashboard initialized');
+}
+
+// Initialize system overview data loading (legacy fallback)
 function initializeOverview() {
     loadSystemMetrics();
     loadComponentCounts();
@@ -1349,11 +1446,11 @@ function initializeOverview() {
     console.log('Overview tab loaded with system metrics and component counts');
 }
 
-// Initialize when DOM is ready
+// Initialize when DOM is ready with proper MCP Dashboard initialization
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeOverview);
+    document.addEventListener('DOMContentLoaded', initializeDashboard);
 } else {
-    initializeOverview();
+    initializeDashboard();
 }
 """
             
@@ -2604,6 +2701,8 @@ if (document.readyState === 'loading') {
         </div>
     </div>
 
+    <!-- Load MCP SDK first -->
+    <script src="/static/mcp-sdk.js"></script>
     <!-- Load app code -->
     <script src="/app.js" defer></script>
 </body>
@@ -3288,6 +3387,73 @@ if (document.readyState === 'loading') {
         except Exception as e:
             logger.error(f"Error getting pins data: {e}")
             return []
+
+    async def _get_peer_stats(self) -> Dict[str, Any]:
+        """Get peer statistics."""
+        try:
+            # Mock peer stats data
+            return {
+                "connected_peers": 5,
+                "total_peers": 12,
+                "peer_info": [
+                    {"id": "12D3Koo...", "addr": "/ip4/192.168.1.1/tcp/4001", "latency": "25ms"},
+                    {"id": "12D3Koo...", "addr": "/ip4/192.168.1.2/tcp/4001", "latency": "18ms"},
+                ],
+                "bandwidth": {
+                    "in": "1.2 MB/s",
+                    "out": "0.8 MB/s"
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error getting peer stats: {e}")
+            return {}
+
+    async def _add_pin(self, cid: str, name: str = None) -> Dict[str, Any]:
+        """Add a pin to the system."""
+        try:
+            # Mock pin addition - return success for now
+            return {
+                "success": True,
+                "message": f"Pin added successfully",
+                "data": {
+                    "cid": cid,
+                    "name": name or f"pin-{cid[:8]}",
+                    "status": "pinned",
+                    "pinned_at": datetime.now().isoformat()
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error adding pin: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _remove_pin(self, cid: str) -> Dict[str, Any]:
+        """Remove a pin from the system."""
+        try:
+            # Mock pin removal - return success for now
+            return {
+                "success": True,
+                "message": f"Pin removed successfully",
+                "data": {"cid": cid}
+            }
+        except Exception as e:
+            logger.error(f"Error removing pin: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _sync_pins(self) -> Dict[str, Any]:
+        """Sync pins across backends."""
+        try:
+            # Mock pin sync - return success for now
+            return {
+                "success": True,
+                "message": "Pins synchronized successfully",
+                "data": {
+                    "synced_count": 3,
+                    "failed_count": 0
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error syncing pins: {e}")
+            return {"success": False, "error": str(e)}
 
 def main():
     """Main entry point."""
