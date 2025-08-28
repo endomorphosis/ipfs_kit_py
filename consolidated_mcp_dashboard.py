@@ -838,6 +838,11 @@ class ConsolidatedMCPDashboard:
                 items = [{"name": k, "config": v} for k, v in data.items()]
                 return {"items": items}
 
+        # Alias for JavaScript compatibility
+        @app.get("/api/backends")
+        async def list_backends_alias() -> Dict[str, Any]:
+            return await list_backends()
+
         @app.post("/api/state/backends")
         async def create_backend(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
             name = payload.get("name")
@@ -1301,6 +1306,11 @@ class ConsolidatedMCPDashboard:
         async def list_buckets() -> Dict[str, Any]:
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             return {"items": items}
+
+        # Alias for JavaScript compatibility
+        @app.get("/api/buckets")
+        async def list_buckets_alias() -> Dict[str, Any]:
+            return await list_buckets()
 
         @app.post("/api/state/buckets")
         async def create_bucket(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
@@ -1981,6 +1991,19 @@ class ConsolidatedMCPDashboard:
                 })
             
             return stats
+
+        # Peers endpoint for JavaScript compatibility
+        @app.get("/api/peers")
+        async def list_peers() -> Dict[str, Any]:
+            """List IPFS peers - basic implementation"""
+            # In a real implementation, this would query IPFS for peer connections
+            # For now, return a basic structure that matches what the frontend expects
+            return {
+                "peers": [],
+                "total": 0,
+                "connected": 0,
+                "status": "No IPFS peers connected"
+            }
 
         # Tools (JSON-RPC wrappers)
         @app.post("/mcp/tools/list")

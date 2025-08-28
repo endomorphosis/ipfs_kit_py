@@ -43,15 +43,16 @@
         .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
         
         @media (min-width: 768px) {
-            .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
-            .md\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
-            .md\\:grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+            .md-grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+            .md-grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+            .md-grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
         }
         
         @media (min-width: 1024px) {
-            .lg\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
-            .lg\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
-            .lg\\:col-span-2 { grid-column: span 2; }
+            .lg-grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+            .lg-grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+            .lg-grid-cols-6 { grid-template-columns: repeat(6, 1fr); }
+            .lg-col-span-2 { grid-column: span 2; }
         }
         
         /* Colors and backgrounds */
@@ -467,12 +468,12 @@
         <div class="flex-1 p-6">
             <!-- Overview Tab -->
             <div id="overview" class="tab-content active">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 lg-grid-cols-3 gap-6">
                     <!-- System Metrics -->
-                    <div class="lg:col-span-2">
+                    <div class="lg-col-span-2">
                         <div class="bg-white rounded-lg shadow p-6">
                             <h2 class="text-xl font-bold text-gray-800 mb-4">System Overview</h2>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="grid grid-cols-1 md-grid-cols-3 gap-4 mb-6">
                                 <!-- Row 1 - System Resources -->
                                 <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
                                     <div class="text-2xl font-bold" id="cpu-usage">-</div>
@@ -551,7 +552,7 @@
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">🔧 Service Management Dashboard</h2>
                     
                     <!-- Services Status Summary -->
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                    <div class="grid grid-cols-2 md-grid-cols-3 lg-grid-cols-6 gap-4 mb-6">
                         <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg text-center">
                             <div class="text-2xl font-bold" id="services-running">0</div>
                             <div class="text-sm opacity-90">🟢 Running</div>
@@ -589,7 +590,7 @@
                     </div>
                     
                     <!-- Services Grid -->
-                    <div id="services-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div id="services-list" class="grid grid-cols-1 md-grid-cols-2 lg-grid-cols-3 gap-6">
                         <div class="text-gray-500 text-center py-8 col-span-full">
                             <div class="text-4xl mb-4">⚙️</div>
                             <div>Loading comprehensive services...</div>
@@ -642,7 +643,7 @@
                             <i class="fas fa-plus mr-2"></i>Create Bucket
                         </button>
                     </div>
-                    <div id="buckets-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div id="buckets-list" class="grid grid-cols-1 md-grid-cols-2 lg-grid-cols-3 gap-4">
                         <!-- Buckets will be populated dynamically -->
                     </div>
                 </div>
@@ -670,7 +671,7 @@
                     </div>
                     
                     <!-- Pin Statistics -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="grid grid-cols-1 md-grid-cols-4 gap-4 mb-6">
                         <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
                             <div class="text-2xl font-bold" id="total-pins">-</div>
                             <div class="text-sm opacity-90">Total Pins</div>
@@ -782,7 +783,7 @@
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Configuration Management</h2>
                     
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 lg-grid-cols-3 gap-6">
                         <!-- Config Files List -->
                         <div>
                             <h3 class="text-lg font-bold text-gray-800 mb-4">Configuration Files</h3>
@@ -792,7 +793,7 @@
                         </div>
                         
                         <!-- Config Editor -->
-                        <div class="lg:col-span-2">
+                        <div class="lg-col-span-2">
                             <h3 class="text-lg font-bold text-gray-800 mb-4">Configuration Editor</h3>
                             <div class="mb-4">
                                 <button id="save-config" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded mr-2">
