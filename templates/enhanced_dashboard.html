@@ -1098,9 +1098,9 @@
                 // Update component counts
                 updateComponentCounts({
                     services: services.services ? services.services.length : (services.length || 0),
-                    backends: backends.backends ? backends.backends.length : (backends.length || 0),
+                    backends: Array.isArray(backends) ? backends.length : (backends.backends ? backends.backends.length : 0),
                     pins: pins.pins ? pins.pins.length : (pins.length || 0),
-                    buckets: buckets.buckets ? buckets.buckets.length : (buckets.length || 0)
+                    buckets: buckets.data && buckets.data.buckets ? buckets.data.buckets.length : (buckets.buckets ? buckets.buckets.length : (buckets.length || 0))
                 });
 
             } catch (error) {
