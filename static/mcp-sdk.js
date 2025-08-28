@@ -125,3 +125,13 @@ window.mcpLogger = {
     warn: (message, data) => console.warn(`[MCP] ${message}`, data || ''),
     error: (message, data) => console.error(`[MCP] ${message}`, data || '')
 };
+
+// Helper function that was missing from the enhanced dashboard template
+function updateElement(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = value;
+    } else {
+        console.warn(`Element with id '${elementId}' not found`);
+    }
+}

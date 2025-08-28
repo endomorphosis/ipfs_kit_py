@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
@@ -55,7 +56,7 @@ class UnifiedMCPDashboard:
         """Initialize the unified MCP server and dashboard."""
         self.config = config or {}
         self.host = self.config.get('host', '127.0.0.1')
-        self.port = self.config.get('port', 8080)
+        self.port = self.config.get('port', 8004)
         self.debug = self.config.get('debug', False)
         self.data_dir = Path(self.config.get('data_dir', '.'))
         
@@ -73,6 +74,7 @@ class UnifiedMCPDashboard:
         
         # Setup the server
         self._setup_middleware()
+        self._setup_static_files()
         self._register_mcp_tools()
         self._setup_routes()
         
@@ -90,6 +92,17 @@ class UnifiedMCPDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+    def _setup_static_files(self):
+        """Setup static file serving."""
+        # Mount static files directory
+        static_dir = Path(__file__).parent / "static"
+        if static_dir.exists():
+            self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+            logging.info(f"Static files mounted from {static_dir}")
+        else:
+            logging.warning(f"Static directory not found: {static_dir}")
+    
 
     def _register_mcp_tools(self):
         """Register MCP tools for VS Code integration."""
@@ -231,7 +244,16 @@ class UnifiedMCPDashboard:
         @self.app.get("/api/pins")
         async def get_pins():
             """Get pins list."""
-            return await self._get_all_pins()
+            pins_list = await self._get_all_pins()
+            
+            # Return in the structure expected by the frontend JavaScript
+            return {
+                "total": len(pins_list),
+                "active": len([p for p in pins_list if p.get("status") == "pinned"]),
+                "pending": len([p for p in pins_list if p.get("status") == "pending"]),
+                "total_size": "N/A",  # TODO: Calculate actual total size
+                "pins": pins_list
+            }
 
         @self.app.get("/api/config")
         async def get_config():

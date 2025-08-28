@@ -1493,7 +1493,11 @@
             try {
                 const response = await fetch('/api/backends');
                 const data = await response.json();
-                displayBackends(data);
+                console.log('🗄️ backends loaded via API', data);
+                
+                // Fix data structure - API returns {backends: [...]} but function expects array
+                const backends = data.backends || data || [];
+                displayBackends(backends);
             } catch (error) {
                 console.error('Error loading backends data:', error);
             }
@@ -1503,7 +1507,11 @@
             try {
                 const response = await fetch('/api/buckets');
                 const data = await response.json();
-                displayBuckets(data);
+                console.log('📦 buckets loaded via API', data);
+                
+                // Fix data structure - API returns {buckets: [...]} but function expects array
+                const buckets = data.buckets || data || [];
+                displayBuckets(buckets);
             } catch (error) {
                 console.error('Error loading buckets data:', error);
             }
@@ -1566,6 +1574,12 @@
             const list = document.getElementById('backends-list');
             list.innerHTML = '';
             
+            // Ensure backends is an array
+            if (!Array.isArray(backends)) {
+                console.warn('displayBackends: Expected array but got:', typeof backends, backends);
+                backends = [];
+            }
+            
             backends.forEach(backend => {
                 const backendCard = createBackendCard(backend);
                 list.appendChild(backendCard);
@@ -1593,6 +1607,12 @@
         function displayBuckets(buckets) {
             const list = document.getElementById('buckets-list');
             list.innerHTML = '';
+            
+            // Ensure buckets is an array
+            if (!Array.isArray(buckets)) {
+                console.warn('displayBuckets: Expected array but got:', typeof buckets, buckets);
+                buckets = [];
+            }
             
             buckets.forEach(bucket => {
                 const bucketCard = createBucketCard(bucket);
