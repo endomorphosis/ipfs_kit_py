@@ -564,48 +564,53 @@ async function loadTabData(tab) {
 
 async function loadOverviewData() {
     try {
-        // Use direct API endpoints instead of MCP tools
-        const [overviewRes, statusRes] = await Promise.all([
-            fetch('/api/status').then(r => r.json()),
-            fetch('/api/status').then(r => r.json())
+        // Fetch system data from all relevant APIs
+        const [statusRes, servicesRes, backendsRes, bucketsRes, pinsRes] = await Promise.all([
+            fetch('/api/status').catch(() => ({ json: () => ({}) })),
+            fetch('/api/services').catch(() => ({ json: () => ({ services: [] }) })),
+            fetch('/api/backends').catch(() => ({ json: () => ({ backends: [] }) })),
+            fetch('/api/buckets').catch(() => ({ json: () => ({ buckets: [] }) })),
+            fetch('/api/pins').catch(() => ({ json: () => ({ pins: [] }) }))
         ]);
 
-        if (overviewRes.result) {
-            // Extract overview data from status response
-            const overviewData = {
-                services: 3, // Default count
-                backends: 0, // Default count  
-                buckets: 0,  // Default count
-                pins: 0      // Default count
-            };
-            updateOverviewData(overviewData);
-            updateSystemStatus(overviewRes.result);
-        } else if (overviewRes) {
-            // Handle direct API response format
-            const overviewData = {
-                services: 3,
-                backends: 0,
-                buckets: 0, 
-                pins: 0
-            };
-            updateOverviewData(overviewData);
-            updateSystemStatus(overviewRes);
-        }
+        const [status, services, backends, buckets, pins] = await Promise.all([
+            statusRes.json(),
+            servicesRes.json(), 
+            backendsRes.json(),
+            bucketsRes.json(),
+            pinsRes.json()
+        ]);
+
+        // Prepare overview data combining system metrics and counts
+        const overviewData = {
+            // System resources from status API
+            cpu_percent: status.result?.cpu_percent || status.cpu_percent,
+            memory_percent: status.result?.memory_percent || status.memory_percent,
+            disk_percent: status.result?.disk_percent || status.disk_percent,
+            
+            // Component counts
+            services: services.services ? services.services.length : (Array.isArray(services) ? services.length : 3),
+            backends: backends.backends ? backends.backends.length : (Array.isArray(backends) ? backends.length : 0),
+            buckets: buckets.buckets ? buckets.buckets.length : (Array.isArray(buckets) ? buckets.length : 0),
+            pins: pins.pins ? pins.pins.length : (Array.isArray(pins) ? pins.length : 0)
+        };
+
+        updateOverviewData(overviewData);
+        updateSystemStatus(status.result || status);
+        
     } catch (error) {
         console.error('Error loading overview data:', error);
         // Show fallback data
         const fallbackData = {
-            services: 3,
-            backends: 0,
-            buckets: 0,
-            pins: 0
+            cpu_percent: 'N/A',
+            memory_percent: 'N/A', 
+            disk_percent: 'N/A',
+            services: 'N/A',
+            backends: 'N/A',
+            buckets: 'N/A',
+            pins: 'N/A'
         };
         updateOverviewData(fallbackData);
-        updateSystemStatus({
-            cpu_percent: null,
-            memory_percent: null,
-            disk_percent: null
-        });
     }
 }
     } catch (error) {
@@ -614,6 +619,18 @@ async function loadOverviewData() {
 }
 
 function updateOverviewData(data) {
+    // Update system resources
+    document.getElementById('cpu-usage').textContent = data.cpu_percent !== undefined 
+        ? (typeof data.cpu_percent === 'number' ? `${data.cpu_percent.toFixed(1)}%` : data.cpu_percent)
+        : '-';
+    document.getElementById('memory-usage').textContent = data.memory_percent !== undefined
+        ? (typeof data.memory_percent === 'number' ? `${data.memory_percent.toFixed(1)}%` : data.memory_percent)
+        : '-';
+    document.getElementById('disk-usage').textContent = data.disk_percent !== undefined
+        ? (typeof data.disk_percent === 'number' ? `${data.disk_percent.toFixed(1)}%` : data.disk_percent) 
+        : '-';
+    
+    // Update component counts
     document.getElementById('services-count').textContent = data.services || 0;
     document.getElementById('backends-count').textContent = data.backends || 0;
     document.getElementById('buckets-count').textContent = data.buckets || 0;
@@ -2149,7 +2166,23 @@ async function executeMcpTool(toolName, action) {
             <div class="tab-content active" id="overview">
                 <h1 class="card-title">System Overview</h1>
                 
-                <div class="grid grid-4">
+                <!-- System Metrics Grid (2 rows x 3 columns) -->
+                <div class="grid grid-3">
+                    <!-- Row 1: System Resources -->
+                    <div class="card stat-card">
+                        <div class="stat-number" id="cpu-usage">-</div>
+                        <div class="stat-label">CPU Usage</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-number" id="memory-usage">-</div>
+                        <div class="stat-label">Memory Usage</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-number" id="disk-usage">-</div>
+                        <div class="stat-label">Disk Usage</div>
+                    </div>
+                    
+                    <!-- Row 2: System Components -->
                     <div class="card stat-card">
                         <div class="stat-number" id="services-count">-</div>
                         <div class="stat-label">Services</div>
@@ -2159,12 +2192,12 @@ async function executeMcpTool(toolName, action) {
                         <div class="stat-label">Backends</div>
                     </div>
                     <div class="card stat-card">
-                        <div class="stat-number" id="buckets-count">-</div>
-                        <div class="stat-label">Buckets</div>
-                    </div>
-                    <div class="card stat-card">
                         <div class="stat-number" id="pins-count">-</div>
                         <div class="stat-label">Pins</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-number" id="buckets-count">-</div>
+                        <div class="stat-label">Buckets</div>
                     </div>
                 </div>
                 

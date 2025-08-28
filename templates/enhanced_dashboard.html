@@ -91,6 +91,22 @@
             --tw-gradient-from: #8b5cf6;
             --tw-gradient-to: #7c3aed;
         }
+        .from-yellow-500.to-yellow-600 {
+            --tw-gradient-from: #eab308;
+            --tw-gradient-to: #ca8a04;
+        }
+        .from-indigo-500.to-indigo-600 {
+            --tw-gradient-from: #6366f1;
+            --tw-gradient-to: #4f46e5;
+        }
+        .from-pink-500.to-pink-600 {
+            --tw-gradient-from: #ec4899;
+            --tw-gradient-to: #db2777;
+        }
+        .from-teal-500.to-teal-600 {
+            --tw-gradient-from: #14b8a6;
+            --tw-gradient-to: #0d9488;
+        }
         
         /* Typography */
         .text-xl { font-size: 1.25rem; }
@@ -455,8 +471,9 @@
                     <!-- System Metrics -->
                     <div class="lg:col-span-2">
                         <div class="bg-white rounded-lg shadow p-6">
-                            <h2 class="text-xl font-bold text-gray-800 mb-4">System Metrics</h2>
+                            <h2 class="text-xl font-bold text-gray-800 mb-4">System Overview</h2>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                <!-- Row 1 - System Resources -->
                                 <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
                                     <div class="text-2xl font-bold" id="cpu-usage">-</div>
                                     <div class="text-sm opacity-90">CPU Usage</div>
@@ -468,6 +485,24 @@
                                 <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg">
                                     <div class="text-2xl font-bold" id="disk-usage">-</div>
                                     <div class="text-sm opacity-90">Disk Usage</div>
+                                </div>
+                                
+                                <!-- Row 2 - System Components -->
+                                <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white p-4 rounded-lg">
+                                    <div class="text-2xl font-bold" id="services-count">-</div>
+                                    <div class="text-sm opacity-90">Services</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-4 rounded-lg">
+                                    <div class="text-2xl font-bold" id="backends-count">-</div>
+                                    <div class="text-sm opacity-90">Backends</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-pink-500 to-pink-600 text-white p-4 rounded-lg">
+                                    <div class="text-2xl font-bold" id="pins-count">-</div>
+                                    <div class="text-sm opacity-90">Pins</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-teal-500 to-teal-600 text-white p-4 rounded-lg">
+                                    <div class="text-2xl font-bold" id="buckets-count">-</div>
+                                    <div class="text-sm opacity-90">Buckets</div>
                                 </div>
                             </div>
                             <div class="bg-gray-50 p-4 rounded-lg mt-6">
@@ -911,7 +946,9 @@
             try {
                 // Load system metrics via MCP tools
                 await loadSystemMetrics();
-                console.log('Overview tab loaded with system metrics');
+                // Load component counts
+                await loadComponentCounts();
+                console.log('Overview tab loaded with system metrics and component counts');
             } catch (error) {
                 console.error('Error loading overview data:', error);
             }
@@ -1039,6 +1076,65 @@
             }
 
             console.log('System metrics updated:', metrics);
+        }
+
+        async function loadComponentCounts() {
+            try {
+                // Load all component counts in parallel
+                const [servicesRes, backendsRes, pinsRes, bucketsRes] = await Promise.all([
+                    fetch('/api/services').catch(() => ({ json: () => ({ services: [] }) })),
+                    fetch('/api/backends').catch(() => ({ json: () => ({ backends: [] }) })),
+                    fetch('/api/pins').catch(() => ({ json: () => ({ pins: [] }) })),
+                    fetch('/api/buckets').catch(() => ({ json: () => ({ buckets: [] }) }))
+                ]);
+
+                const [services, backends, pins, buckets] = await Promise.all([
+                    servicesRes.json(),
+                    backendsRes.json(),
+                    pinsRes.json(),
+                    bucketsRes.json()
+                ]);
+
+                // Update component counts
+                updateComponentCounts({
+                    services: services.services ? services.services.length : (services.length || 0),
+                    backends: backends.backends ? backends.backends.length : (backends.length || 0),
+                    pins: pins.pins ? pins.pins.length : (pins.length || 0),
+                    buckets: buckets.buckets ? buckets.buckets.length : (buckets.length || 0)
+                });
+
+            } catch (error) {
+                console.error('Error loading component counts:', error);
+                updateComponentCounts({ services: 'N/A', backends: 'N/A', pins: 'N/A', buckets: 'N/A' });
+            }
+        }
+
+        function updateComponentCounts(counts) {
+            // Update Services count
+            const servicesElement = document.getElementById('services-count');
+            if (servicesElement) {
+                servicesElement.textContent = counts.services;
+            }
+
+            // Update Backends count
+            const backendsElement = document.getElementById('backends-count');
+            if (backendsElement) {
+                backendsElement.textContent = counts.backends;
+            }
+
+            // Update Pins count
+            const pinsElement = document.getElementById('pins-count');
+            if (pinsElement) {
+                pinsElement.textContent = counts.pins;
+            }
+
+            // Update Buckets count - this should be the total buckets not just one bucket
+            const bucketsElement = document.getElementById('buckets-count');
+            if (bucketsElement) {
+                bucketsElement.textContent = counts.buckets;
+            }
+
+            console.log('Component counts updated:', counts);
         }
 
         async function loadServicesData() {
