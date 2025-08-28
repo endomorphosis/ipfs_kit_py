@@ -961,6 +961,18 @@
     // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', initializeDashboard);
     document.addEventListener('DOMContentLoaded', loadInitialData);
+    
+    // Add aliases for backward compatibility with dashboard-core.js
+    window.loadBackends = loadBackendsData;
+    window.loadBuckets = loadBucketsData; 
+    window.loadPins = loadPinsData;
+    window.loadPeers = loadPeersData;
+    window.loadLogs = loadLogsData;
+    window.loadAnalytics = loadAnalyticsData;
+    window.loadServices = function() { console.log('Services loading not implemented'); };
+    window.loadMetrics = function() { console.log('Metrics loading not implemented'); };
+    window.loadConfig = function() { console.log('Config loading not implemented'); };
+    window.loadMcpDetails = function() { console.log('MCP details loading not implemented'); };
     </script>
 </body>
 </html>
