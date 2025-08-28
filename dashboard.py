@@ -1013,17 +1013,24 @@ window.mcpLogger = {
         // Initialize MCP client with enhanced connection tracking
         async function initializeMCPClient() {
             try {
-                mcpClient = new MCPClient();
+                // Check if MCP SDK is available
+                if (typeof MCP === 'undefined') {
+                    throw new Error('MCP SDK not loaded');
+                }
+                
+                mcpClient = new MCP.MCPClient();
                 
                 // Wait a moment for connection test
                 setTimeout(async () => {
-                    const status = mcpClient.getConnectionStatus();
-                    mcpConnectionStatus = status.connected ? 'connected' : 'fallback';
-                    updateMCPStatus(status);
-                    
-                    if (status.connected) {
+                    try {
+                        // Test MCP connection by trying to list tools
+                        await mcpClient.toolsList();
+                        mcpConnectionStatus = 'connected';
+                        updateMCPStatus({ connected: true, status: 'Connected' });
                         console.log('✅ MCP JSON-RPC connection established');
-                    } else {
+                    } catch (error) {
+                        mcpConnectionStatus = 'fallback';
+                        updateMCPStatus({ connected: false, status: 'API Fallback' });
                         console.warn('⚠️ Using API fallback mode');
                     }
                 }, 2000);
@@ -1061,7 +1068,7 @@ window.mcpLogger = {
                 
                 if (mcpClient && mcpConnectionStatus === 'connected') {
                     try {
-                        data = await mcpClient.callTool('get_system_status');
+                        data = await mcpClient.toolsCall('get_system_status');
                         console.log('📊 System metrics loaded via MCP JSON-RPC');
                     } catch (mcpError) {
                         console.warn('MCP system metrics failed, using API fallback:', mcpError.message);
@@ -1095,7 +1102,7 @@ window.mcpLogger = {
                 
                 if (mcpClient && mcpConnectionStatus === 'connected') {
                     try {
-                        data = await mcpClient.callTool('get_system_overview');
+                        data = await mcpClient.toolsCall('get_system_overview');
                         console.log('📈 Component counts loaded via MCP JSON-RPC');
                     } catch (mcpError) {
                         console.warn('MCP component counts failed, using API fallback:', mcpError.message);
@@ -1247,7 +1254,7 @@ window.mcpLogger = {
                     case 'backends':
                         if (mcpClient && mcpConnectionStatus === 'connected') {
                             try {
-                                data = await mcpClient.callTool('list_backends');
+                                data = await mcpClient.toolsCall('list_backends');
                                 console.log(`🗄️ ${tabName} loaded via MCP JSON-RPC`);
                             } catch (mcpError) {
                                 console.warn(`MCP ${tabName} call failed, using API fallback:`, mcpError.message);
@@ -1266,7 +1273,7 @@ window.mcpLogger = {
                     case 'buckets':
                         if (mcpClient && mcpConnectionStatus === 'connected') {
                             try {
-                                data = await mcpClient.callTool('list_buckets');
+                                data = await mcpClient.toolsCall('list_buckets');
                                 console.log(`📦 ${tabName} loaded via MCP JSON-RPC`);
                             } catch (mcpError) {
                                 console.warn(`MCP ${tabName} call failed, using API fallback:`, mcpError.message);
@@ -1285,7 +1292,7 @@ window.mcpLogger = {
                     case 'peers':
                         if (mcpClient && mcpConnectionStatus === 'connected') {
                             try {
-                                data = await mcpClient.callTool('list_peers');
+                                data = await mcpClient.toolsCall('list_peers');
                                 console.log(`🌐 ${tabName} loaded via MCP JSON-RPC`);
                             } catch (mcpError) {
                                 console.warn(`MCP ${tabName} call failed, using API fallback:`, mcpError.message);
@@ -1304,7 +1311,7 @@ window.mcpLogger = {
                     case 'logs':
                         if (mcpClient && mcpConnectionStatus === 'connected') {
                             try {
-                                data = await mcpClient.callTool('get_logs', { component: 'all', level: 'all', limit: 100 });
+                                data = await mcpClient.toolsCall('get_logs', { component: 'all', level: 'all', limit: 100 });
                                 console.log(`📋 ${tabName} loaded via MCP JSON-RPC`);
                             } catch (mcpError) {
                                 console.warn(`MCP ${tabName} call failed, using API fallback:`, mcpError.message);
@@ -1678,7 +1685,7 @@ window.mcpLogger = {
                 // Try MCP first, fallback to direct API
                 if (mcpClient) {
                     try {
-                        data = await mcpClient.callTool('get_system_status');
+                        data = await mcpClient.toolsCall('get_system_status');
                     } catch (mcpError) {
                         console.warn('MCP call failed, falling back to API:', mcpError);
                         const response = await fetch('/api/status');
@@ -1710,7 +1717,7 @@ window.mcpLogger = {
                 // Try MCP first, fallback to direct API
                 if (mcpClient) {
                     try {
-                        data = await mcpClient.callTool('get_system_overview');
+                        data = await mcpClient.toolsCall('get_system_overview');
                     } catch (mcpError) {
                         console.warn('MCP call failed, falling back to API:', mcpError);
                         // Fallback to individual API calls
@@ -1868,7 +1875,7 @@ window.mcpLogger = {
                         let backends;
                         if (mcpClient) {
                             try {
-                                backends = await mcpClient.callTool('list_backends');
+                                backends = await mcpClient.toolsCall('list_backends');
                             } catch (mcpError) {
                                 console.warn('MCP call failed, falling back to API:', mcpError);
                                 const response = await fetch('/api/backends');
@@ -1885,7 +1892,7 @@ window.mcpLogger = {
                         let buckets;
                         if (mcpClient) {
                             try {
-                                buckets = await mcpClient.callTool('list_buckets');
+                                buckets = await mcpClient.toolsCall('list_buckets');
                             } catch (mcpError) {
                                 console.warn('MCP call failed, falling back to API:', mcpError);
                                 const response = await fetch('/api/buckets');
@@ -1902,7 +1909,7 @@ window.mcpLogger = {
                         let peers;
                         if (mcpClient) {
                             try {
-                                peers = await mcpClient.callTool('list_peers');
+                                peers = await mcpClient.toolsCall('list_peers');
                             } catch (mcpError) {
                                 console.warn('MCP call failed, falling back to API:', mcpError);
                                 const response = await fetch('/api/peers');
@@ -1919,7 +1926,7 @@ window.mcpLogger = {
                         let logs;
                         if (mcpClient) {
                             try {
-                                logs = await mcpClient.callTool('get_logs', { component: 'all', level: 'all', limit: 100 });
+                                logs = await mcpClient.toolsCall('get_logs', { component: 'all', level: 'all', limit: 100 });
                             } catch (mcpError) {
                                 console.warn('MCP call failed, falling back to API:', mcpError);
                                 const response = await fetch('/api/logs?component=all&level=all&limit=100');
