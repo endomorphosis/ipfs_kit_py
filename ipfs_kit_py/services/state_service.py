@@ -68,6 +68,19 @@ class StateService:
     def get_system_status(self) -> Dict[str, Any]:
         uptime = datetime.now() - (self.start_time or datetime.now())
         mem = psutil.virtual_memory()
+        
+        # Get disk usage for the data directory's filesystem
+        try:
+            disk = psutil.disk_usage(self.data_dir)
+            disk_percent = (disk.used / disk.total) * 100
+        except Exception:
+            # Fallback to root filesystem
+            try:
+                disk = psutil.disk_usage('/')
+                disk_percent = (disk.used / disk.total) * 100
+            except Exception:
+                disk_percent = None
+        
         status = {
             "timestamp": datetime.now().isoformat(),
             "uptime": str(uptime),
@@ -89,6 +102,7 @@ class StateService:
             "memory_percent": mem.percent,
             "memory_available": mem.available,
             "memory_total": mem.total,
+            "disk_percent": disk_percent,
         }
         return status
 
