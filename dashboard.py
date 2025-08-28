@@ -542,7 +542,7 @@ async function loadTabData(tab) {
                 await loadPinsData();
                 break;
             case 'logs':
-                await loadLogs();
+                await loadLogsData();
                 break;
             case 'mcp':
                 await loadMcpData();
@@ -558,6 +558,10 @@ async function loadTabData(tab) {
                 break;
             case 'analytics':
                 await loadAnalyticsData();
+                break;
+            case 'configuration':
+            case 'config':
+                await loadConfigData();
                 break;
         }
     } catch (error) {
@@ -690,103 +694,114 @@ async function loadServicesData() {
 
 async function loadBackendsData() {
     try {
-        const response = await fetch('/mcp/tools/call', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: 'list_backends', arguments: {} }, id: Date.now() })
-        });
-        const result = await response.json();
-        if (result.result) {
-            const tbody = document.getElementById('backends-table-body');
-            tbody.innerHTML = result.result.map(backend => `
-                <tr>
-                    <td>${backend.name}</td>
-                    <td>${backend.type}</td>
-                    <td><span class="status ${backend.status}">${backend.status}</span></td>
-                    <td title="${backend.config_file}">${backend.config_file.split('/').pop()}</td>
-                </tr>
-            `).join('');
+        let backends = [];
+        
+        // First try MCP JSON-RPC call
+        try {
+            const response = await fetch('/mcp/tools/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: 'list_backends', arguments: {} }, id: Date.now() })
+            });
+            const result = await response.json();
+            if (result.result && Array.isArray(result.result)) {
+                backends = result.result;
+            } else {
+                throw new Error('MCP call failed or returned invalid data');
+            }
+        } catch (mcpError) {
+            console.warn('MCP call failed, trying direct API:', mcpError);
+            // Fallback to direct API call
+            const response = await fetch('/api/backends');
+            if (response.ok) {
+                const data = await response.json();
+                backends = Array.isArray(data) ? data : (data.backends || data.data || []);
+            } else {
+                throw new Error(`API call failed: ${response.status}`);
+            }
         }
+        
+        displayBackends(backends);
+        
     } catch (error) {
-        console.error('Error loading backends:', error);
+        console.error('Error loading backends data:', error);
+        displayBackends([]);
     }
 }
 
 async function loadBucketsData() {
     try {
-        const response = await fetch('/mcp/tools/call', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: 'list_buckets', arguments: {} }, id: Date.now() })
-        });
-        const result = await response.json();
-        if (result.result) {
-            const content = document.getElementById('buckets-content');
-            const data = result.result;
-            const buckets = (data && (data.buckets || data)) || [];
-            if (buckets.length === 0) {
-                content.innerHTML = '<div class="text-center" style="padding: 2rem; color: #64748b;">No buckets found</div>';
+        let buckets = [];
+        
+        // First try MCP JSON-RPC call
+        try {
+            const response = await fetch('/mcp/tools/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: 'list_buckets', arguments: {} }, id: Date.now() })
+            });
+            const result = await response.json();
+            if (result.result) {
+                const data = result.result;
+                buckets = Array.isArray(data) ? data : (data.buckets || data.data || []);
             } else {
-                content.innerHTML = `
-                    <table class="table">
-                        <thead>
-                            <tr><th>Name</th><th>Backend</th><th>Created</th><th>Actions</th></tr>
-                        </thead>
-                        <tbody>
-                            ${buckets.map(bucket => `
-                                <tr>
-                                    <td>${bucket.name || 'Unknown'}</td>
-                                    <td>${bucket.backend || 'Unknown'}</td>
-                                    <td>${bucket.created_at || 'Unknown'}</td>
-                                    <td><button class="btn btn-secondary">View</button></td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
+                throw new Error('MCP call failed or returned invalid data');
+            }
+        } catch (mcpError) {
+            console.warn('MCP call failed, trying direct API:', mcpError);
+            // Fallback to direct API call
+            const response = await fetch('/api/buckets');
+            if (response.ok) {
+                const data = await response.json();
+                buckets = Array.isArray(data) ? data : (data.buckets || data.data || []);
+            } else {
+                throw new Error(`API call failed: ${response.status}`);
             }
         }
+        
+        displayBuckets(buckets);
+        
     } catch (error) {
-        console.error('Error loading buckets:', error);
+        console.error('Error loading buckets data:', error);
+        displayBuckets([]);
     }
 }
 
 async function loadPinsData() {
     try {
-        const response = await fetch('/mcp/tools/call', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: 'list_pins', arguments: {} }, id: Date.now() })
-        });
-        const result = await response.json();
-        if (result.result) {
-            const content = document.getElementById('pins-content');
-            const data = result.result;
-            const pins = (data && (data.pins || data)) || [];
-            if (pins.length === 0) {
-                content.innerHTML = '<div class="text-center" style="padding: 2rem; color: #64748b;">No pins found</div>';
+        let pins = [];
+        
+        // First try MCP JSON-RPC call
+        try {
+            const response = await fetch('/mcp/tools/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: 'list_pins', arguments: {} }, id: Date.now() })
+            });
+            const result = await response.json();
+            if (result.result) {
+                const data = result.result;
+                pins = Array.isArray(data) ? data : (data.pins || data.data || []);
             } else {
-                content.innerHTML = `
-                    <table class="table">
-                        <thead>
-                            <tr><th>CID</th><th>Name</th><th>Pinned At</th><th>Actions</th></tr>
-                        </thead>
-                        <tbody>
-                            ${pins.map(pin => `
-                                <tr>
-                                    <td title="${pin.cid}">${pin.cid ? pin.cid.substring(0, 20) + '...' : 'Unknown'}</td>
-                                    <td>${pin.name || 'Unnamed'}</td>
-                                    <td>${pin.pinned_at || 'Unknown'}</td>
-                                    <td><button class="btn btn-secondary">Unpin</button></td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
+                throw new Error('MCP call failed or returned invalid data');
+            }
+        } catch (mcpError) {
+            console.warn('MCP call failed, trying direct API:', mcpError);
+            // Fallback to direct API call
+            const response = await fetch('/api/pins');
+            if (response.ok) {
+                const data = await response.json();
+                pins = Array.isArray(data) ? data : (data.pins || data.data || []);
+            } else {
+                throw new Error(`API call failed: ${response.status}`);
             }
         }
+        
+        displayPins(pins);
+        
     } catch (error) {
-        console.error('Error loading pins:', error);
+        console.error('Error loading pins data:', error);
+        displayPins([]);
     }
 }
 
@@ -1141,6 +1156,92 @@ async function loadAnalyticsData() {
     }
 }
 
+async function loadConfigData() {
+    try {
+        let configFiles = [];
+        
+        // First try MCP JSON-RPC call
+        try {
+            const response = await fetch('/mcp/tools/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    method: 'tools/call',
+                    params: { name: 'list_config_files', arguments: {} },
+                    id: Date.now()
+                })
+            });
+            const result = await response.json();
+            if (result.result) {
+                const data = result.result;
+                configFiles = Array.isArray(data) ? data : (data.files || data.data || []);
+            } else {
+                throw new Error('MCP call failed or returned invalid data');
+            }
+        } catch (mcpError) {
+            console.warn('MCP call failed, trying direct API:', mcpError);
+            // Fallback to direct API call
+            const response = await fetch('/api/config/files');
+            if (response.ok) {
+                const data = await response.json();
+                configFiles = Array.isArray(data) ? data : (data.files || data.data || []);
+            } else {
+                throw new Error(`API call failed: ${response.status}`);
+            }
+        }
+        
+        displayConfigFiles(configFiles);
+        
+    } catch (error) {
+        console.error('Error loading config data:', error);
+        displayConfigFiles([]);
+    }
+}
+
+async function loadLogsData() {
+    try {
+        let logs = [];
+        
+        // First try MCP JSON-RPC call
+        try {
+            const response = await fetch('/mcp/tools/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    method: 'tools/call',
+                    params: { name: 'get_logs', arguments: { limit: 100 } },
+                    id: Date.now()
+                })
+            });
+            const result = await response.json();
+            if (result.result) {
+                const data = result.result;
+                logs = Array.isArray(data) ? data : (data.logs || data.data || []);
+            } else {
+                throw new Error('MCP call failed or returned invalid data');
+            }
+        } catch (mcpError) {
+            console.warn('MCP call failed, trying direct API:', mcpError);
+            // Fallback to direct API call
+            const response = await fetch('/api/logs?component=all&level=all&limit=100');
+            if (response.ok) {
+                const data = await response.json();
+                logs = Array.isArray(data) ? data : (data.logs || data.data || []);
+            } else {
+                throw new Error(`API call failed: ${response.status}`);
+            }
+        }
+        
+        displayLogs(logs);
+        
+    } catch (error) {
+        console.error('Error loading logs data:', error);
+        displayLogs([]);
+    }
+}
+
 // MCP-specific functions
 function showMcpTab(tabName) {
     // Hide all MCP sub-tabs
@@ -1433,6 +1534,169 @@ async function initializeDashboard() {
     }, 30000);
     
     console.log('Dashboard initialized');
+}
+
+// Helper function for updating elements (fixes the missing updateElement error)
+function updateElement(id, content) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.innerHTML = content;
+    } else {
+        console.warn(`Element with id '${id}' not found`);
+    }
+}
+
+// Display functions to handle tab content rendering
+function displayBackends(backends) {
+    const content = document.getElementById('backends-content');
+    if (!content) {
+        console.warn('Backends content container not found');
+        return;
+    }
+    
+    if (!Array.isArray(backends) || backends.length === 0) {
+        content.innerHTML = '<div class="text-center" style="padding: 2rem; color: #64748b;">No backends found</div>';
+        return;
+    }
+    
+    content.innerHTML = `
+        <table class="table">
+            <thead>
+                <tr><th>Name</th><th>Type</th><th>Status</th><th>Description</th></tr>
+            </thead>
+            <tbody id="backends-table-body">
+                ${backends.map(backend => `
+                    <tr>
+                        <td>${backend.name || 'Unknown'}</td>
+                        <td>${backend.type || 'Unknown'}</td>
+                        <td><span class="status ${backend.status || 'unknown'}">${backend.status || 'Unknown'}</span></td>
+                        <td>${backend.description || 'No description'}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function displayBuckets(buckets) {
+    const content = document.getElementById('buckets-content');
+    if (!content) {
+        console.warn('Buckets content container not found');
+        return;
+    }
+    
+    if (!Array.isArray(buckets) || buckets.length === 0) {
+        content.innerHTML = '<div class="text-center" style="padding: 2rem; color: #64748b;">No buckets found</div>';
+        return;
+    }
+    
+    content.innerHTML = `
+        <table class="table">
+            <thead>
+                <tr><th>Name</th><th>Type</th><th>Created</th><th>Files</th><th>Size</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                ${buckets.map(bucket => `
+                    <tr>
+                        <td>${bucket.name || 'Unknown'}</td>
+                        <td>${bucket.type || 'Unknown'}</td>
+                        <td>${bucket.created_at || 'Unknown'}</td>
+                        <td>${bucket.file_count || 0}</td>
+                        <td>${bucket.total_size || '0 B'}</td>
+                        <td><span class="status ${bucket.status || 'unknown'}">${bucket.status || 'Unknown'}</span></td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function displayPins(pins) {
+    const content = document.getElementById('pins-content');
+    if (!content) {
+        console.warn('Pins content container not found');
+        return;
+    }
+    
+    if (!Array.isArray(pins) || pins.length === 0) {
+        updateElement('pins-content', '<div class="text-center" style="padding: 2rem; color: #64748b;">No pins found</div>');
+        return;
+    }
+    
+    updateElement('pins-content', `
+        <table class="table">
+            <thead>
+                <tr><th>CID</th><th>Name</th><th>Type</th><th>Size</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                ${pins.map(pin => `
+                    <tr>
+                        <td title="${pin.cid || 'Unknown'}">${(pin.cid || 'Unknown').substring(0, 20)}...</td>
+                        <td>${pin.name || 'Unknown'}</td>
+                        <td>${pin.type || 'Unknown'}</td>
+                        <td>${pin.size || '0 B'}</td>
+                        <td><span class="status ${pin.status || 'unknown'}">${pin.status || 'Unknown'}</span></td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `);
+}
+
+function displayLogs(logs) {
+    const content = document.getElementById('logs-content');
+    if (!content) {
+        console.warn('Logs content container not found');
+        return;
+    }
+    
+    if (!Array.isArray(logs) || logs.length === 0) {
+        content.innerHTML = '<div class="text-center" style="padding: 2rem; color: #64748b;">No logs found</div>';
+        return;
+    }
+    
+    content.innerHTML = `
+        <div class="logs-container" style="font-family: monospace; background: #f8f9fa; padding: 1rem; border-radius: 0.375rem; max-height: 400px; overflow-y: auto;">
+            ${logs.map(log => `
+                <div class="log-entry" style="margin-bottom: 0.5rem;">
+                    <span style="color: #64748b;">[${log.timestamp || 'Unknown'}]</span>
+                    <span style="color: #059669; font-weight: 600;">(${log.component || 'Unknown'})</span>
+                    <span style="color: #1e293b;">${log.message || 'No message'}</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function displayConfigFiles(files) {
+    const content = document.getElementById('config-content');
+    if (!content) {
+        console.warn('Config content container not found');
+        return;
+    }
+    
+    if (!Array.isArray(files) || files.length === 0) {
+        content.innerHTML = '<div class="text-center" style="padding: 2rem; color: #64748b;">No config files found</div>';
+        return;
+    }
+    
+    content.innerHTML = `
+        <table class="table">
+            <thead>
+                <tr><th>Name</th><th>Path</th><th>Size</th><th>Modified</th></tr>
+            </thead>
+            <tbody>
+                ${files.map(file => `
+                    <tr>
+                        <td>${file.name || 'Unknown'}</td>
+                        <td>${file.path || 'Unknown'}</td>
+                        <td>${file.size || '0 B'}</td>
+                        <td>${file.modified || 'Unknown'}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
 }
 
 // Initialize system overview data loading (legacy fallback)
@@ -2009,6 +2273,23 @@ if (document.readyState === 'loading') {
         @self.app.post("/api/pins/sync")
         async def sync_pins():
             return await self._sync_pins()
+        
+        # API Routes - Missing endpoints from error logs
+        @self.app.get("/api/peers")
+        async def get_peers():
+            return await self._get_peer_stats()
+        
+        @self.app.get("/api/logs")
+        async def get_logs(component: str = "all", level: str = "all", limit: int = 100):
+            return await self._get_logs(component, level, limit)
+        
+        @self.app.get("/api/analytics/summary")
+        async def get_analytics_summary():
+            return await self._get_analytics_summary()
+        
+        @self.app.get("/api/config/files")
+        async def get_config_files():
+            return await self._get_config_files()
 
     def _get_dashboard_html(self):
         """Generate the dashboard HTML."""
@@ -2754,6 +3035,8 @@ if (document.readyState === 'loading') {
                 return await self._handle_list_peers(arguments)
             elif tool_name == "get_system_analytics":
                 return await self._handle_get_system_analytics(arguments)
+            elif tool_name == "list_config_files":
+                return await self._handle_list_config_files(arguments)
             elif tool_name == "create_bucket":
                 return await self._handle_create_bucket(arguments)
             elif tool_name == "create_pin":
@@ -2765,7 +3048,7 @@ if (document.readyState === 'loading') {
                         "list_services", "control_service", "list_backends", "list_buckets", 
                         "list_pins", "get_system_overview", "get_system_status", "get_logs",
                         "list_files", "ipfs_add", "ipfs_get", "list_peers", "get_system_analytics",
-                        "create_bucket", "create_pin"
+                        "list_config_files", "create_bucket", "create_pin"
                     ]
                 }
         except Exception as e:
@@ -2889,7 +3172,7 @@ if (document.readyState === 'loading') {
         """Handle list_buckets tool call."""
         try:
             buckets = await self._get_buckets_data()
-            return {"result": {"buckets": buckets}}
+            return {"result": buckets}  # Return direct array for consistency
         except Exception as e:
             logger.error(f"Error listing buckets: {e}")
             return {"error": str(e)}
@@ -2898,7 +3181,7 @@ if (document.readyState === 'loading') {
         """Handle list_pins tool call."""
         try:
             pins = await self._get_pins_data()
-            return {"result": {"pins": pins}}
+            return {"result": pins}  # Return direct array for consistency
         except Exception as e:
             logger.error(f"Error listing pins: {e}")
             return {"error": str(e)}
@@ -3034,6 +3317,16 @@ if (document.readyState === 'loading') {
             return {"result": analytics}
         except Exception as e:
             logger.error(f"Error handling get_system_analytics: {e}")
+            return {"error": str(e)}
+    
+    async def _handle_list_config_files(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle list_config_files tool call."""
+        try:
+            config_files = await self._get_config_files()
+            files = config_files.get("data", {}).get("files", [])
+            return {"result": files}
+        except Exception as e:
+            logger.error(f"Error listing config files: {e}")
             return {"error": str(e)}
     
     async def _handle_create_bucket(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
@@ -3446,6 +3739,63 @@ if (document.readyState === 'loading') {
             }
         except Exception as e:
             logger.error(f"Error syncing pins: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _get_logs(self, component: str = "all", level: str = "all", limit: int = 100) -> Dict[str, Any]:
+        """Get system logs."""
+        try:
+            # Mock logs data
+            logs = [
+                {"timestamp": "2024-08-28T04:05:00Z", "level": "INFO", "component": "mcp", "message": "MCP server started"},
+                {"timestamp": "2024-08-28T04:05:01Z", "level": "DEBUG", "component": "backend", "message": "Backend health check completed"},
+                {"timestamp": "2024-08-28T04:05:02Z", "level": "INFO", "component": "dashboard", "message": "Dashboard initialized"},
+                {"timestamp": "2024-08-28T04:05:03Z", "level": "DEBUG", "component": "api", "message": "API endpoints registered"},
+                {"timestamp": "2024-08-28T04:05:04Z", "level": "INFO", "component": "system", "message": "System metrics updated"}
+            ][:limit]
+            
+            return {
+                "success": True,
+                "data": {"logs": logs}
+            }
+        except Exception as e:
+            logger.error(f"Error getting logs: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _get_analytics_summary(self) -> Dict[str, Any]:
+        """Get analytics summary."""
+        try:
+            # Mock analytics data
+            return {
+                "success": True,
+                "data": {
+                    "requests_per_hour": 45,
+                    "average_response_time": "120ms",
+                    "error_rate": "0.2%",
+                    "uptime": "99.8%",
+                    "active_connections": 8,
+                    "total_data_processed": "2.4 GB"
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error getting analytics: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _get_config_files(self) -> Dict[str, Any]:
+        """Get configuration files."""
+        try:
+            # Mock config files data
+            config_files = [
+                {"name": "ipfs_kit.yaml", "path": "/config/ipfs_kit.yaml", "size": "2.1 KB", "modified": "2024-08-28T04:00:00Z"},
+                {"name": "backends.yaml", "path": "/config/backends.yaml", "size": "1.8 KB", "modified": "2024-08-27T10:30:00Z"},
+                {"name": "services.json", "path": "/config/services.json", "size": "3.2 KB", "modified": "2024-08-26T15:45:00Z"}
+            ]
+            
+            return {
+                "success": True,
+                "data": {"files": config_files}
+            }
+        except Exception as e:
+            logger.error(f"Error getting config files: {e}")
             return {"success": False, "error": str(e)}
 
 def main():
