@@ -411,12 +411,12 @@ async function promptForServiceConfiguration(serviceId) {
 
 async function loadBackends() {
     try {
-        const response = await fetch('/api/state/backends');
+        const response = await fetch('/api/backends');
         const data = await response.json();
         const backendsList = document.getElementById('backends-list');
         backendsList.innerHTML = '';
 
-        const items = (data.items || []);
+        const items = (data.backends || []);
         if (items.length > 0) {
             items.forEach(backend => {
                 const item = `
