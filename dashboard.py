@@ -281,6 +281,9 @@ class ConsolidatedMCPDashboard:
         self.debug = config.get('debug', False)
         self.update_interval = config.get('update_interval', 5)
         
+        # Initialize start time for uptime calculation
+        self.start_time = datetime.now()
+        
         # Initialize StateService for enhanced service management
         logger.info("🔧 Initializing enhanced StateService...")
         try:
@@ -2876,13 +2879,7 @@ if (document.readyState === 'loading') {
     async def _handle_list_backends(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Handle list_backends tool call.""" 
         try:
-            if hasattr(self, 'state_service') and self.state_service:
-                backends = self.state_service.list_backends()
-            else:
-                from ipfs_kit_py.services.state_service import StateService
-                state_service = StateService(self.data_dir)
-                backends = state_service.list_backends()
-            
+            backends = await self._get_backends_data()
             return {"result": backends}
         except Exception as e:
             logger.error(f"Error listing backends: {e}")
@@ -2891,14 +2888,8 @@ if (document.readyState === 'loading') {
     async def _handle_list_buckets(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Handle list_buckets tool call."""
         try:
-            if hasattr(self, 'state_service') and self.state_service:
-                buckets = self.state_service.list_buckets()
-            else:
-                from ipfs_kit_py.services.state_service import StateService
-                state_service = StateService(self.data_dir)
-                buckets = state_service.list_buckets()
-            
-            return {"result": buckets}
+            buckets = await self._get_buckets_data()
+            return {"result": {"buckets": buckets}}
         except Exception as e:
             logger.error(f"Error listing buckets: {e}")
             return {"error": str(e)}
@@ -2906,14 +2897,8 @@ if (document.readyState === 'loading') {
     async def _handle_list_pins(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Handle list_pins tool call."""
         try:
-            if hasattr(self, 'state_service') and self.state_service:
-                pins = self.state_service.list_pins()
-            else:
-                from ipfs_kit_py.services.state_service import StateService
-                state_service = StateService(self.data_dir)
-                pins = state_service.list_pins()
-            
-            return {"result": pins}
+            pins = await self._get_pins_data()
+            return {"result": {"pins": pins}}
         except Exception as e:
             logger.error(f"Error listing pins: {e}")
             return {"error": str(e)}
@@ -2921,12 +2906,20 @@ if (document.readyState === 'loading') {
     async def _handle_get_system_overview(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Handle get_system_overview tool call."""
         try:
-            if hasattr(self, 'state_service') and self.state_service:
-                overview = self.state_service.get_system_overview()
-            else:
-                from ipfs_kit_py.services.state_service import StateService
-                state_service = StateService(self.data_dir)
-                overview = state_service.get_system_overview()
+            # Get data from the same sources as the API endpoints
+            backends_data = await self._get_backends_data()
+            buckets_data = await self._get_buckets_data()
+            pins_data = await self._get_pins_data()
+            services_data = await self._get_services_data()
+            
+            overview = {
+                "services": len(services_data.get("services", {})),
+                "backends": len(backends_data),
+                "buckets": len(buckets_data),
+                "pins": len(pins_data),
+                "uptime": str(datetime.now() - self.start_time),
+                "status": "running"
+            }
             
             return {"result": overview}
         except Exception as e:
