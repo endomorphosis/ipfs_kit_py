@@ -1235,12 +1235,133 @@ async function executeMcpTool(toolName, action) {
         
         @self.app.get("/app.js")
         async def get_app_js():
-            """Serve the app.js file."""
+            """Serve the app.js file with system metrics functionality."""
+            # First try to serve the static file
             app_js_path = Path(__file__).parent / "static" / "app.js"
+            
+            # Read static app.js if it exists
+            base_js = ""
             if app_js_path.exists():
-                return FileResponse(app_js_path, media_type="application/javascript")
-            else:
-                raise HTTPException(status_code=404, detail="app.js not found")
+                try:
+                    base_js = app_js_path.read_text()
+                except Exception as e:
+                    logger.warning(f"Could not read static app.js: {e}")
+            
+            # Add system metrics functionality
+            metrics_js = """
+// System Metrics Loading Functionality
+async function loadSystemMetrics() {
+    try {
+        const response = await fetch('/api/status');
+        const data = await response.json();
+        const result = data.result || data;
+        
+        // Update CPU, Memory, Disk usage
+        if (result.cpu_percent !== undefined) {
+            const cpuEl = document.getElementById('cpu-usage');
+            if (cpuEl) cpuEl.textContent = result.cpu_percent.toFixed(1) + '%';
+        }
+        
+        if (result.memory_percent !== undefined) {
+            const memEl = document.getElementById('memory-usage');
+            if (memEl) memEl.textContent = result.memory_percent.toFixed(1) + '%';
+        }
+        
+        if (result.disk_percent !== undefined) {
+            const diskEl = document.getElementById('disk-usage');
+            if (diskEl) diskEl.textContent = result.disk_percent.toFixed(1) + '%';
+        }
+        
+        console.log('System metrics updated:', {
+            cpu: result.cpu_percent,
+            memory: result.memory_percent,
+            disk: result.disk_percent
+        });
+    } catch (error) {
+        console.error('Error loading system metrics:', error);
+    }
+}
+
+async function loadComponentCounts() {
+    try {
+        // Load all component counts in parallel
+        const [servicesRes, backendsRes, pinsRes, bucketsRes] = await Promise.all([
+            fetch('/api/services').catch(() => ({ json: () => ({ services: [] }) })),
+            fetch('/api/backends').catch(() => ({ json: () => ({ backends: [] }) })),
+            fetch('/api/pins').catch(() => ({ json: () => ({ pins: [] }) })),
+            fetch('/api/buckets').catch(() => ({ json: () => ({ buckets: [] }) }))
+        ]);
+
+        const [services, backends, pins, buckets] = await Promise.all([
+            servicesRes.json(),
+            backendsRes.json(),
+            pinsRes.json(),
+            bucketsRes.json()
+        ]);
+
+        // Update component counts
+        const servicesEl = document.getElementById('services-count');
+        if (servicesEl) {
+            const servicesCount = services.services ? Object.keys(services.services).length : (Array.isArray(services) ? services.length : 0);
+            servicesEl.textContent = servicesCount;
+        }
+
+        const backendsEl = document.getElementById('backends-count'); 
+        if (backendsEl) {
+            const backendsCount = Array.isArray(backends) ? backends.length : (backends.backends ? backends.backends.length : 0);
+            backendsEl.textContent = backendsCount;
+        }
+
+        const pinsEl = document.getElementById('pins-count');
+        if (pinsEl) {
+            const pinsCount = pins.pins ? pins.pins.length : (Array.isArray(pins) ? pins.length : 0);
+            pinsEl.textContent = pinsCount;
+        }
+
+        const bucketsEl = document.getElementById('buckets-count');
+        if (bucketsEl) {
+            const bucketsCount = buckets.data && buckets.data.buckets ? buckets.data.buckets.length : (Array.isArray(buckets) ? buckets.length : 0);
+            bucketsEl.textContent = bucketsCount;
+        }
+
+        console.log('Component counts updated:', {
+            services: servicesEl?.textContent,
+            backends: backendsEl?.textContent,
+            pins: pinsEl?.textContent,
+            buckets: bucketsEl?.textContent
+        });
+    } catch (error) {
+        console.error('Error loading component counts:', error);
+    }
+}
+
+// Initialize system overview data loading
+function initializeOverview() {
+    loadSystemMetrics();
+    loadComponentCounts();
+    
+    // Refresh metrics every 30 seconds
+    setInterval(() => {
+        loadSystemMetrics();
+        loadComponentCounts();
+    }, 30000);
+    
+    console.log('Overview tab loaded with system metrics and component counts');
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeOverview);
+} else {
+    initializeOverview();
+}
+"""
+            
+            # Combine both JavaScript files
+            combined_js = base_js + "\n" + metrics_js
+            
+            from fastapi.responses import Response
+            return Response(content=combined_js, media_type="application/javascript")
 
         # API Routes - System Status
         @self.app.get("/api/status")
@@ -3047,6 +3168,126 @@ async function executeMcpTool(toolName, action) {
         except Exception as e:
             logger.error(f"Error configuring service {service_name}: {e}")
             return {"success": False, "error": str(e)}
+
+    async def _get_backends_data(self):
+        """Get comprehensive backends data for the dashboard."""
+        try:
+            # Mock backend data with comprehensive backend information
+            backends = {
+                "ipfs": {
+                    "name": "IPFS Storage",
+                    "type": "filesystem",
+                    "status": "active",
+                    "description": "Distributed IPFS file system backend",
+                    "health": "healthy",
+                    "storage_used": "2.1 GB",
+                    "files_count": 156
+                },
+                "s3": {
+                    "name": "Amazon S3", 
+                    "type": "cloud_storage",
+                    "status": "inactive",
+                    "description": "Amazon S3 cloud storage backend",
+                    "health": "unknown",
+                    "storage_used": "0 GB",
+                    "files_count": 0
+                },
+                "local": {
+                    "name": "Local Storage",
+                    "type": "filesystem", 
+                    "status": "active",
+                    "description": "Local filesystem backend",
+                    "health": "healthy",
+                    "storage_used": "5.7 GB", 
+                    "files_count": 342
+                }
+            }
+            
+            return list(backends.values())
+            
+        except Exception as e:
+            logger.error(f"Error getting backends data: {e}")
+            return []
+
+    async def _get_buckets_data(self):
+        """Get comprehensive buckets data for the dashboard."""
+        try:
+            # Mock bucket data with comprehensive bucket information
+            buckets = {
+                "default": {
+                    "name": "default",
+                    "type": "mixed",
+                    "created_at": "2024-01-01T00:00:00Z",
+                    "file_count": 45,
+                    "total_size": "1.2 GB",
+                    "backends": ["ipfs", "local"],
+                    "status": "active"
+                },
+                "media": {
+                    "name": "media",
+                    "type": "multimedia",
+                    "created_at": "2024-01-15T10:30:00Z", 
+                    "file_count": 23,
+                    "total_size": "850 MB",
+                    "backends": ["ipfs", "s3"],
+                    "status": "active"
+                },
+                "documents": {
+                    "name": "documents",
+                    "type": "documents",
+                    "created_at": "2024-02-01T14:20:00Z",
+                    "file_count": 67,
+                    "total_size": "234 MB", 
+                    "backends": ["local"],
+                    "status": "active"
+                }
+            }
+            
+            return list(buckets.values())
+            
+        except Exception as e:
+            logger.error(f"Error getting buckets data: {e}")
+            return []
+
+    async def _get_pins_data(self):
+        """Get comprehensive pins data for the dashboard."""
+        try:
+            # Mock pins data with comprehensive pin information
+            pins = {
+                "QmRJzaM2U1A4DJCWW7F6DHJdzhnep5sz1FhdvGp1xn8VkW": {
+                    "cid": "QmRJzaM2U1A4DJCWW7F6DHJdzhnep5sz1FhdvGp1xn8VkW", 
+                    "name": "example-document.pdf",
+                    "type": "document",
+                    "size": "2.3 MB",
+                    "pinned_at": "2024-01-10T08:30:00Z",
+                    "backends": ["ipfs", "local"],
+                    "status": "pinned"
+                },
+                "QmPUjLZrEpNfPJxb5pExLmh4DhJd9yTbxQPhTfzR8PXqHk": {
+                    "cid": "QmPUjLZrEpNfPJxb5pExLmh4DhJd9yTbxQPhTfzR8PXqHk",
+                    "name": "config.yaml", 
+                    "type": "configuration",
+                    "size": "1.1 KB",
+                    "pinned_at": "2024-01-05T14:15:00Z",
+                    "backends": ["ipfs"],
+                    "status": "pinned"
+                },
+                "QmXwPdMXpUCZ8UBMBWxYaLJMx9Q8NhF6T2VxE3KYzMvKdg": {
+                    "cid": "QmXwPdMXpUCZ8UBMBWxYaLJMx9Q8NhF6T2VxE3KYzMvKdg",
+                    "name": "image.png",
+                    "type": "image", 
+                    "size": "456 KB",
+                    "pinned_at": "2024-01-20T11:45:00Z",
+                    "backends": ["ipfs", "local"],
+                    "status": "pinned"
+                }
+            }
+            
+            return list(pins.values())
+            
+        except Exception as e:
+            logger.error(f"Error getting pins data: {e}")
+            return []
 
 def main():
     """Main entry point."""
