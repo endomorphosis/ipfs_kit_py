@@ -600,6 +600,37 @@ class ConsolidatedMCPDashboard:
         async def static_mcp_sdk_js() -> Response:
             return await mcp_client_js()
 
+        # General static file handler for CSS, JS, and other assets
+        @app.get("/static/{file_path:path}")
+        async def serve_static_files(file_path: str) -> Response:
+            """Serve static files from the static directory."""
+            try:
+                # Try to find the static file in multiple locations
+                static_locations = [
+                    Path(__file__).parent / "static" / file_path,
+                    Path(__file__).parent / "mcp" / "dashboard" / "static" / file_path,
+                    Path(__file__).parent.parent / "static" / file_path,
+                ]
+                
+                for static_path in static_locations:
+                    if static_path.exists() and static_path.is_file():
+                        # Determine content type
+                        content_type, _ = mimetypes.guess_type(str(static_path))
+                        if not content_type:
+                            content_type = "application/octet-stream"
+                        
+                        return FileResponse(
+                            path=str(static_path),
+                            media_type=content_type,
+                            headers={"Cache-Control": "no-store"}
+                        )
+                
+                # If file not found, return 404
+                raise HTTPException(status_code=404, detail=f"Static file not found: {file_path}")
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Error serving static file: {str(e)}")
+
         # Explicit HEAD handlers for common endpoints (avoid 405s from probes)
         @app.head("/")
         async def index_head() -> Response:  # type: ignore
