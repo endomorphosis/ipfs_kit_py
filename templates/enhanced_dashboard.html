@@ -985,12 +985,19 @@
                 }
             } catch (error) {
                 console.error('Error loading system metrics:', error);
-                // Show error state
-                updateSystemMetrics({
-                    cpu_percent: 'Error',
-                    memory_percent: 'Error',
-                    disk_percent: 'Error'
-                });
+                // Try fallback API instead of showing error
+                try {
+                    const fallbackMetrics = await getFallbackSystemMetrics();
+                    updateSystemMetrics(fallbackMetrics);
+                } catch (fallbackError) {
+                    console.error('Fallback system metrics also failed:', fallbackError);
+                    // Only show error state if both MCP and API fail
+                    updateSystemMetrics({
+                        cpu_percent: 'Error',
+                        memory_percent: 'Error',
+                        disk_percent: 'Error'
+                    });
+                }
             }
         }
 
@@ -1043,11 +1050,26 @@
         }
 
         async function getFallbackSystemMetrics() {
-            // Provide reasonable fallback metrics when MCP tools are unavailable
+            // Use real system metrics from API when MCP tools are unavailable
+            try {
+                const response = await fetch('/api/metrics/system');
+                if (response.ok) {
+                    const data = await response.json();
+                    return {
+                        cpu_percent: data.cpu_percent || 0,
+                        memory_percent: data.memory && data.memory.percent ? data.memory.percent : 0,
+                        disk_percent: data.disk && data.disk.percent ? data.disk.percent : 0
+                    };
+                }
+            } catch (error) {
+                console.warn('Failed to fetch system metrics from API:', error);
+            }
+            
+            // Final fallback to reasonable default values if API fails
             return {
-                cpu_percent: Math.floor(Math.random() * 50 + 10), // 10-60%
-                memory_percent: Math.floor(Math.random() * 40 + 30), // 30-70%
-                disk_percent: await getDiskUsage()
+                cpu_percent: 0,
+                memory_percent: 0,
+                disk_percent: 0
             };
         }
 

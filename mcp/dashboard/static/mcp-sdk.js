@@ -215,6 +215,23 @@ window.MCP = {
     }
 };
 
+// Helper function for dashboard UI
+function updateElement(selector, content) {
+    const element = document.querySelector(selector);
+    if (element) {
+        if (typeof content === 'string') {
+            element.textContent = content;
+        } else if (typeof content === 'object' && content !== null) {
+            element.textContent = JSON.stringify(content);
+        } else {
+            element.textContent = String(content || 'N/A');
+        }
+    }
+}
+
+// Make updateElement globally available
+window.updateElement = updateElement;
+
 // Auto-initialize MCP client with debug mode in development
 document.addEventListener('DOMContentLoaded', () => {
     try {

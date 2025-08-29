@@ -595,6 +595,11 @@ class ConsolidatedMCPDashboard:
                 source = "inline"
             return Response(body, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "X-MCP-SDK-Source": source})
 
+        # Add route for /static/mcp-sdk.js to fix dashboard loading
+        @app.get("/static/mcp-sdk.js", response_class=PlainTextResponse)
+        async def static_mcp_sdk_js() -> Response:
+            return await mcp_client_js()
+
         # Explicit HEAD handlers for common endpoints (avoid 405s from probes)
         @app.head("/")
         async def index_head() -> Response:  # type: ignore
@@ -705,6 +710,116 @@ class ConsolidatedMCPDashboard:
                 pts = [p for p in pts if p.get('ts', 0) >= cutoff]
             return {"interval": 1.0, "points": pts}
 
+        @app.get("/api/analytics/summary")
+        async def analytics_summary() -> Dict[str, Any]:
+            """Get analytics summary for dashboard."""
+            # Get current metrics
+            system_metrics = await metrics_system()
+            
+            # Get service counts
+            service_manager = self._get_service_manager()
+            services_count = 0
+            active_services = 0
+            if service_manager:
+                services = await self._list_all_services(service_manager)
+                services_count = len(services)
+                active_services = len([s for s in services if s["status"] in ["running", "healthy"]])
+            
+            # Get backend and bucket counts
+            backends = _read_json(self.paths.backends_file, {})
+            backends_count = len(backends.get("backends", []) if isinstance(backends, dict) else backends) if backends else 0
+            
+            buckets = _read_json(self.paths.buckets_file, [])
+            buckets_count = len(buckets) if isinstance(buckets, list) else len(buckets.get("items", [])) if isinstance(buckets, dict) else 0
+            
+            pins = _read_json(self.paths.pins_file, [])
+            pins_count = len(pins) if isinstance(pins, list) else 0
+            
+            # Calculate request metrics
+            total_requests = self.request_count
+            popular_endpoints = sorted(self.endpoint_hits.items(), key=lambda x: x[1], reverse=True)[:10]
+            
+            return {
+                "system": {
+                    "cpu_percent": system_metrics.get("cpu_percent", 0),
+                    "memory_percent": system_metrics.get("memory", {}).get("percent", 0),
+                    "disk_percent": system_metrics.get("disk", {}).get("percent", 0),
+                    "uptime_hours": system_metrics.get("uptime_sec", 0) / 3600
+                },
+                "services": {
+                    "total": services_count,
+                    "active": active_services,
+                    "inactive": services_count - active_services
+                },
+                "storage": {
+                    "backends": backends_count,
+                    "buckets": buckets_count,
+                    "pins": pins_count
+                },
+                "requests": {
+                    "total": total_requests,
+                    "popular_endpoints": popular_endpoints
+                },
+                "logs": {
+                    "total": len(self.memlog.get(limit=0)),
+                    "recent": len(self.memlog.get(limit=100))
+                }
+            }
+
+        @app.get("/api/config/files")
+        async def config_files() -> Dict[str, Any]:
+            """Get configuration files information."""
+            config_files = []
+            
+            # Check main config files
+            config_paths = [
+                ("backends.json", self.paths.backends_file),
+                ("buckets.json", self.paths.buckets_file), 
+                ("pins.json", self.paths.pins_file)
+            ]
+            
+            for name, path in config_paths:
+                try:
+                    if path.exists():
+                        stat_info = path.stat()
+                        with path.open('r') as f:
+                            content = json.load(f)
+                        
+                        config_files.append({
+                            "name": name,
+                            "path": str(path),
+                            "size": stat_info.st_size,
+                            "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                            "entries": len(content) if isinstance(content, (list, dict)) else 0,
+                            "readable": True
+                        })
+                    else:
+                        config_files.append({
+                            "name": name,
+                            "path": str(path),
+                            "size": 0,
+                            "modified": None,
+                            "entries": 0,
+                            "readable": False,
+                            "status": "missing"
+                        })
+                except Exception as e:
+                    config_files.append({
+                        "name": name,
+                        "path": str(path),
+                        "size": 0,
+                        "modified": None,
+                        "entries": 0,
+                        "readable": False,
+                        "error": str(e)
+                    })
+            
+            return {
+                "files": config_files,
+                "data_dir": str(self.paths.data_dir),
+                "total_files": len(config_files)
+            }
+
         @app.get("/api/mcp/status")
         async def mcp_status() -> Dict[str, Any]:
             tools_defs = self._tools_list()["result"]["tools"]
@@ -781,6 +896,31 @@ class ConsolidatedMCPDashboard:
                         last = len(logs)
                     await asyncio.sleep(0.5)
             return StreamingResponse(event_gen(), media_type="text/event-stream")
+
+        # Logs API endpoint for dashboard
+        @app.get("/api/logs")
+        async def api_logs(component: str = "all", level: str = "all", limit: int = 100) -> Dict[str, Any]:
+            """Get logs with filtering options."""
+            logs = self.memlog.get(limit=limit)
+            
+            # Filter by component if specified
+            if component != "all":
+                logs = [log for log in logs if component.lower() in log.get("logger", "").lower()]
+            
+            # Filter by level if specified
+            if level != "all":
+                level_filter = level.upper()
+                logs = [log for log in logs if log.get("level", "").upper() == level_filter]
+            
+            return {
+                "logs": logs,
+                "total": len(logs),
+                "filters": {
+                    "component": component,
+                    "level": level,
+                    "limit": limit
+                }
+            }
 
         # WebSocket realtime
         @app.websocket("/ws")
@@ -1305,7 +1445,7 @@ class ConsolidatedMCPDashboard:
         @app.get("/api/state/buckets")
         async def list_buckets() -> Dict[str, Any]:
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
-            return {"items": items}
+            return {"buckets": items, "total": len(items)}
 
         # Alias for JavaScript compatibility
         @app.get("/api/buckets")
@@ -4510,6 +4650,20 @@ class ConsolidatedMCPDashboard:
         }
     };
 
+    // Helper function used by dashboard UI
+    function updateElement(selector, content) {
+        const element = document.querySelector(selector);
+        if (element) {
+            if (typeof content === 'string') {
+                element.textContent = content;
+            } else if (typeof content === 'object' && content !== null) {
+                element.textContent = JSON.stringify(content);
+            } else {
+                element.textContent = String(content || 'N/A');
+            }
+        }
+    }
+
     const MCP = {
         // Core
         listTools: rpcList,
@@ -4521,8 +4675,14 @@ class ConsolidatedMCPDashboard:
         Schema,
     };
 
-    if (typeof window !== 'undefined') window.MCP = MCP;
-    else if (typeof globalThis !== 'undefined') globalThis.MCP = MCP;
+    // Make updateElement globally available for dashboard UI
+    if (typeof window !== 'undefined') {
+        window.MCP = MCP;
+        window.updateElement = updateElement;
+    } else if (typeof globalThis !== 'undefined') {
+        globalThis.MCP = MCP;
+        globalThis.updateElement = updateElement;
+    }
 })(this);
 """
 
