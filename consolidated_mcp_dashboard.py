@@ -744,58 +744,85 @@ class ConsolidatedMCPDashboard:
         @app.get("/api/analytics/summary")
         async def analytics_summary() -> Dict[str, Any]:
             """Get analytics summary for dashboard."""
-            # Get current metrics
-            system_metrics = await metrics_system()
-            
-            # Get service counts
-            service_manager = self._get_service_manager()
-            services_count = 0
-            active_services = 0
-            if service_manager:
-                services = await self._list_all_services(service_manager)
-                services_count = len(services)
-                active_services = len([s for s in services if s["status"] in ["running", "healthy"]])
-            
-            # Get backend and bucket counts
-            backends = _read_json(self.paths.backends_file, {})
-            backends_count = len(backends.get("backends", []) if isinstance(backends, dict) else backends) if backends else 0
-            
-            buckets = _read_json(self.paths.buckets_file, [])
-            buckets_count = len(buckets) if isinstance(buckets, list) else len(buckets.get("items", [])) if isinstance(buckets, dict) else 0
-            
-            pins = _read_json(self.paths.pins_file, [])
-            pins_count = len(pins) if isinstance(pins, list) else 0
-            
-            # Calculate request metrics
-            total_requests = self.request_count
-            popular_endpoints = sorted(self.endpoint_hits.items(), key=lambda x: x[1], reverse=True)[:10]
-            
-            return {
-                "system": {
-                    "cpu_percent": system_metrics.get("cpu_percent", 0),
-                    "memory_percent": system_metrics.get("memory", {}).get("percent", 0),
-                    "disk_percent": system_metrics.get("disk", {}).get("percent", 0),
-                    "uptime_hours": system_metrics.get("uptime_sec", 0) / 3600
-                },
-                "services": {
-                    "total": services_count,
-                    "active": active_services,
-                    "inactive": services_count - active_services
-                },
-                "storage": {
-                    "backends": backends_count,
-                    "buckets": buckets_count,
-                    "pins": pins_count
-                },
-                "requests": {
-                    "total": total_requests,
-                    "popular_endpoints": popular_endpoints
-                },
-                "logs": {
-                    "total": len(self.memlog.get(limit=0)),
-                    "recent": len(self.memlog.get(limit=100))
+            try:
+                # Get current metrics with error handling
+                system_metrics = {}
+                with suppress(Exception):
+                    system_metrics = await metrics_system()
+                
+                # Get service counts with error handling
+                services_count = 0
+                active_services = 0
+                with suppress(Exception):
+                    service_manager = self._get_service_manager()
+                    if service_manager:
+                        services = await self._list_all_services(service_manager)
+                        services_count = len(services)
+                        active_services = len([s for s in services if s["status"] in ["running", "healthy"]])
+                
+                # Get backend and bucket counts with error handling
+                backends_count = 0
+                with suppress(Exception):
+                    backends = _read_json(self.paths.backends_file, {})
+                    backends_count = len(backends.get("backends", []) if isinstance(backends, dict) else backends) if backends else 0
+                
+                buckets_count = 0
+                with suppress(Exception):
+                    buckets = _read_json(self.paths.buckets_file, [])
+                    buckets_count = len(buckets) if isinstance(buckets, list) else len(buckets.get("items", [])) if isinstance(buckets, dict) else 0
+                
+                pins_count = 0
+                with suppress(Exception):
+                    pins = _read_json(self.paths.pins_file, [])
+                    pins_count = len(pins) if isinstance(pins, list) else 0
+                
+                # Calculate request metrics with error handling
+                total_requests = getattr(self, 'request_count', 0)
+                popular_endpoints = []
+                with suppress(Exception):
+                    endpoint_hits = getattr(self, 'endpoint_hits', {})
+                    popular_endpoints = sorted(endpoint_hits.items(), key=lambda x: x[1], reverse=True)[:10]
+                
+                # Build response with safe defaults
+                response_data = {
+                    "system": {
+                        "cpu_percent": system_metrics.get("cpu_percent", 0.0),
+                        "memory_percent": system_metrics.get("memory", {}).get("percent", 0.0),
+                        "disk_percent": system_metrics.get("disk", {}).get("percent", 0.0),
+                        "uptime_hours": system_metrics.get("uptime_sec", 0) / 3600.0
+                    },
+                    "services": {
+                        "total": services_count,
+                        "active": active_services,
+                        "inactive": max(0, services_count - active_services)
+                    },
+                    "storage": {
+                        "backends": backends_count,
+                        "buckets": buckets_count,
+                        "pins": pins_count
+                    },
+                    "requests": {
+                        "total": total_requests,
+                        "popular_endpoints": popular_endpoints
+                    },
+                    "logs": {
+                        "total": len(self.memlog.get(limit=0)) if hasattr(self, 'memlog') else 0,
+                        "recent": len(self.memlog.get(limit=100)) if hasattr(self, 'memlog') else 0
+                    }
                 }
-            }
+                
+                return response_data
+                
+            except Exception as e:
+                self.log.error(f"Error in analytics summary: {e}")
+                # Return safe default structure to prevent frontend errors
+                return {
+                    "system": {"cpu_percent": 0.0, "memory_percent": 0.0, "disk_percent": 0.0, "uptime_hours": 0.0},
+                    "services": {"total": 0, "active": 0, "inactive": 0},
+                    "storage": {"backends": 0, "buckets": 0, "pins": 0},
+                    "requests": {"total": 0, "popular_endpoints": []},
+                    "logs": {"total": 0, "recent": 0}
+                }
 
         @app.get("/api/config/files")
         async def config_files() -> Dict[str, Any]:
@@ -3992,6 +4019,103 @@ class ConsolidatedMCPDashboard:
         return modal;
     }
 
+    // MCP-based bucket file browser with metadata-first architecture
+    function showMCPBucketBrowser(bucketName) {
+        const modal = createModal('MCP Bucket File Browser: ' + bucketName, async (modalBody) => {
+            modalBody.innerHTML = '<div style="text-align:center;padding:20px;">Loading bucket via MCP SDK...</div>';
+            
+            try {
+                await waitForMCP();
+                
+                // Create comprehensive file browser interface
+                modalBody.innerHTML = `
+                    <div style="margin-bottom:15px;">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                            <strong>Bucket:</strong> <span style="color:#6b8cff;">${bucketName}</span>
+                            <div style="flex:1;"></div>
+                            <button id="sync-replicas-btn" onclick="syncBucketReplicas('${bucketName}')" 
+                                    style="background:#2a5cb8;color:white;padding:4px 8px;border:none;border-radius:3px;cursor:pointer;font-size:11px;">
+                                🔄 Sync Replicas
+                            </button>
+                            <button onclick="showBucketPolicySettings('${bucketName}')" 
+                                    style="background:#555;color:white;padding:4px 8px;border:none;border-radius:3px;cursor:pointer;font-size:11px;">
+                                📋 Policy
+                            </button>
+                        </div>
+                        
+                        <!-- Navigation breadcrumbs -->
+                        <div style="background:#0a0a0a;padding:8px;border-radius:4px;margin-bottom:10px;">
+                            <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">
+                                <span style="color:#888;font-size:11px;">Path:</span>
+                                <input type="text" id="current-path" value="." 
+                                       style="flex:1;background:#111;border:1px solid #333;color:white;padding:4px;border-radius:3px;font-size:11px;">
+                                <button onclick="navigateToPath('${bucketName}')" 
+                                        style="background:#555;color:white;padding:4px 8px;border:none;border-radius:3px;cursor:pointer;font-size:11px;">
+                                    Go
+                                </button>
+                                <button onclick="goUpDirectory('${bucketName}')" 
+                                        style="background:#555;color:white;padding:4px 8px;border:none;border-radius:3px;cursor:pointer;font-size:11px;">
+                                    ⬆️ Up
+                                </button>
+                            </div>
+                            <div id="breadcrumb-nav" style="font-size:10px;color:#666;"></div>
+                        </div>
+                        
+                        <!-- File operations toolbar -->
+                        <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;">
+                            <input type="file" id="upload-files-${bucketName}" multiple style="display:none;">
+                            <button onclick="document.getElementById('upload-files-${bucketName}').click()" 
+                                    style="background:#2a5cb8;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:11px;">
+                                📤 Upload Files
+                            </button>
+                            <button onclick="showCreateFolderDialog('${bucketName}')" 
+                                    style="background:#555;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:11px;">
+                                📁 New Folder
+                            </button>
+                            <button onclick="refreshBucketFilesMCP('${bucketName}')" 
+                                    style="background:#555;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:11px;">
+                                🔄 Refresh
+                            </button>
+                            <div style="flex:1;"></div>
+                            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#aaa;">
+                                <input type="checkbox" id="show-metadata" checked> Show Metadata
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- File list container -->
+                    <div id="mcp-file-list" style="max-height:450px;overflow-y:auto;border:1px solid #333;background:#0f0f0f;">
+                        <div style="text-align:center;padding:20px;color:#888;">Loading files...</div>
+                    </div>
+                    
+                    <!-- File details panel -->
+                    <div id="file-details-panel" style="display:none;margin-top:10px;padding:10px;background:#0a0a0a;border-radius:4px;font-size:11px;">
+                        <div style="font-weight:bold;margin-bottom:5px;">File Details</div>
+                        <div id="file-metadata-content"></div>
+                    </div>
+                `;
+                
+                // Setup event handlers
+                const fileInput = document.getElementById('upload-files-' + bucketName);
+                if (fileInput) {
+                    fileInput.onchange = (e) => uploadFilesMCP(bucketName, e.target.files);
+                }
+                
+                const showMetaCheckbox = document.getElementById('show-metadata');
+                if (showMetaCheckbox) {
+                    showMetaCheckbox.onchange = () => refreshBucketFilesMCP(bucketName);
+                }
+                
+                // Load initial file list
+                await refreshBucketFilesMCP(bucketName);
+                
+            } catch (e) {
+                console.error('Error loading MCP bucket browser:', e);
+                modalBody.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Error loading bucket: ' + e.message + '</div>';
+            }
+        });
+    }
+
     // Enhanced bucket details view
     function showBucketDetails(bucketName) {
         const modal = createModal('Bucket File Manager: ' + bucketName, async (modalBody) => {
@@ -4271,8 +4395,9 @@ class ConsolidatedMCPDashboard:
                         el('span',{style:'color:#888;margin-left:6px;',text: it.backend? ('→ '+it.backend):''})
                     ),
                     el('div',{},
-                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'View Files',onclick:(e)=>{ e.stopPropagation(); showBucketDetails(it.name); }},'📁'),
-                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Settings',onclick:(e)=>{ e.stopPropagation(); showBucketSettings(it.name); }},'⚙️'),
+                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'File Browser (MCP)',onclick:(e)=>{ e.stopPropagation(); showMCPBucketBrowser(it.name); }},'🗂️'),
+                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Policy Settings',onclick:(e)=>{ e.stopPropagation(); showBucketPolicySettings(it.name); }},'📋'),
+                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Sync Replicas',onclick:(e)=>{ e.stopPropagation(); syncBucketReplicas(it.name); }},'🔄'),
                         el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Expand/Collapse',onclick:(e)=>{ e.stopPropagation(); toggle(); }},'▾'),
                         el('button',{style:'padding:2px 6px;font-size:11px;',title:'Delete',onclick:(e)=>{ e.stopPropagation(); if(confirm('Delete bucket '+it.name+'?')) deleteBucket(it.name); }},'✕')
                     )
@@ -5011,8 +5136,17 @@ class ConsolidatedMCPDashboard:
         create: (name, backend) => rpcCall('create_bucket', {name, backend}),
         update: (name, patch) => rpcCall('update_bucket', {name, patch}),
         delete: (name) => rpcCall('delete_bucket', {name}),
-    getPolicy: (name) => rpcCall('get_bucket_policy', {name}),
-    updatePolicy: (name, policy) => rpcCall('update_bucket_policy', {name, policy}),
+        getPolicy: (name) => rpcCall('get_bucket_policy', {name}),
+        updatePolicy: (name, policy) => rpcCall('update_bucket_policy', {name, policy}),
+        // Comprehensive bucket file management functions
+        listFiles: (bucket, path, showMetadata) => rpcCall('bucket_list_files', {bucket, path: path || '.', show_metadata: !!showMetadata}),
+        uploadFile: (bucket, path, content, mode, applyPolicy) => rpcCall('bucket_upload_file', {bucket, path, content, mode: mode || 'text', apply_policy: !!applyPolicy}),
+        downloadFile: (bucket, path, format) => rpcCall('bucket_download_file', {bucket, path, format: format || 'text'}),
+        deleteFile: (bucket, path, removeReplicas) => rpcCall('bucket_delete_file', {bucket, path, remove_replicas: !!removeReplicas}),
+        renameFile: (bucket, src, dst, updateReplicas) => rpcCall('bucket_rename_file', {bucket, src, dst, update_replicas: !!updateReplicas}),
+        mkdir: (bucket, path, createParents) => rpcCall('bucket_mkdir', {bucket, path, create_parents: !!createParents}),
+        syncReplicas: (bucket, forceSync) => rpcCall('bucket_sync_replicas', {bucket, force_sync: !!forceSync}),
+        getMetadata: (bucket, path, includeReplicas) => rpcCall('bucket_get_metadata', {bucket, path, include_replicas: !!includeReplicas})
     };
 
     const Pins = {
@@ -5105,6 +5239,451 @@ class ConsolidatedMCPDashboard:
         // Utils
         Schema,
     };
+
+    // Comprehensive bucket file management helper functions
+    async function refreshBucketFilesMCP(bucketName) {
+        const fileList = document.getElementById('mcp-file-list');
+        const pathInput = document.getElementById('current-path');
+        const showMeta = document.getElementById('show-metadata');
+        
+        if (!fileList || !pathInput) return;
+        
+        const currentPath = pathInput.value || '.';
+        const showMetadata = showMeta ? showMeta.checked : true;
+        
+        try {
+            fileList.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">Loading files via MCP...</div>';
+            
+            await waitForMCP();
+            const result = await MCP.Buckets.listFiles(bucketName, currentPath, showMetadata);
+            const files = result.files || [];
+            
+            if (files.length === 0) {
+                fileList.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No files in this directory</div>';
+                return;
+            }
+            
+            // Create file table
+            let tableHTML = `
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#222;border-bottom:1px solid #333;">
+                            <th style="text-align:left;padding:6px;font-size:11px;width:40px;">Type</th>
+                            <th style="text-align:left;padding:6px;font-size:11px;">Name</th>
+                            <th style="text-align:right;padding:6px;font-size:11px;width:80px;">Size</th>
+                            <th style="text-align:center;padding:6px;font-size:11px;width:100px;">Modified</th>
+                            ${showMetadata ? '<th style="text-align:center;padding:6px;font-size:11px;width:80px;">Replicas</th>' : ''}
+                            <th style="text-align:center;padding:6px;font-size:11px;width:120px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            
+            files.forEach(file => {
+                const isDir = file.is_dir;
+                const icon = isDir ? '📁' : '📄';
+                const size = isDir ? '—' : formatBytes(file.size || 0);
+                const modified = file.modified ? new Date(file.modified).toLocaleDateString() : '—';
+                const replicas = showMetadata && file.replicas ? file.replicas.length : 0;
+                const cached = showMetadata && file.cached ? '💾' : '';
+                
+                tableHTML += `
+                    <tr style="border-bottom:1px solid #222;cursor:pointer;" 
+                        onclick="handleFileClick('${bucketName}', '${file.path}', ${isDir})"
+                        onmouseover="this.style.backgroundColor='#1a1a1a'" 
+                        onmouseout="this.style.backgroundColor='transparent'">
+                        <td style="padding:4px;text-align:center;">${icon}</td>
+                        <td style="padding:4px;${isDir ? 'color:#6b8cff;font-weight:bold;' : ''}">${file.name}</td>
+                        <td style="padding:4px;text-align:right;font-family:monospace;font-size:10px;">${size}</td>
+                        <td style="padding:4px;text-align:center;font-family:monospace;font-size:10px;">${modified}</td>
+                        ${showMetadata ? `<td style="padding:4px;text-align:center;font-size:10px;">${replicas}${cached}</td>` : ''}
+                        <td style="padding:4px;text-align:center;">
+                            <div style="display:flex;gap:2px;justify-content:center;">
+                                ${!isDir ? `
+                                    <button onclick="event.stopPropagation(); downloadFileMCP('${bucketName}', '${file.path}')" 
+                                            style="background:#2a5cb8;color:white;border:none;padding:2px 6px;border-radius:3px;cursor:pointer;font-size:10px;">⬇</button>
+                                    <button onclick="event.stopPropagation(); showRenameDialog('${bucketName}', '${file.path}')" 
+                                            style="background:#555;color:white;border:none;padding:2px 6px;border-radius:3px;cursor:pointer;font-size:10px;">✏️</button>
+                                ` : ''}
+                                <button onclick="event.stopPropagation(); deleteFileMCP('${bucketName}', '${file.path}')" 
+                                        style="background:#b52a2a;color:white;border:none;padding:2px 6px;border-radius:3px;cursor:pointer;font-size:10px;">🗑</button>
+                                ${showMetadata ? `
+                                    <button onclick="event.stopPropagation(); showFileMetadata('${bucketName}', '${file.path}')" 
+                                            style="background:#666;color:white;border:none;padding:2px 6px;border-radius:3px;cursor:pointer;font-size:10px;">ℹ️</button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+            
+            tableHTML += '</tbody></table>';
+            fileList.innerHTML = tableHTML;
+            
+            // Update breadcrumbs
+            updateBreadcrumbNav(bucketName, currentPath);
+            
+        } catch (e) {
+            console.error('Error refreshing files:', e);
+            fileList.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Error loading files: ' + e.message + '</div>';
+        }
+    }
+
+    // Handle file click (navigate to directory or show file details)
+    function handleFileClick(bucketName, filePath, isDir) {
+        if (isDir) {
+            // Navigate to directory
+            const pathInput = document.getElementById('current-path');
+            if (pathInput) {
+                const currentPath = pathInput.value || '.';
+                const newPath = currentPath === '.' ? filePath : `${currentPath}/${filePath}`;
+                pathInput.value = newPath;
+                refreshBucketFilesMCP(bucketName);
+            }
+        } else {
+            // Show file metadata
+            showFileMetadata(bucketName, filePath);
+        }
+    }
+
+    // Update breadcrumb navigation
+    function updateBreadcrumbNav(bucketName, currentPath) {
+        const breadcrumbNav = document.getElementById('breadcrumb-nav');
+        if (!breadcrumbNav) return;
+        
+        const pathParts = currentPath === '.' ? [] : currentPath.split('/');
+        const breadcrumbs = ['Root'];
+        
+        pathParts.forEach((part, index) => {
+            breadcrumbs.push(part);
+        });
+        
+        breadcrumbNav.innerHTML = breadcrumbs.map((crumb, index) => {
+            const pathToHere = index === 0 ? '.' : pathParts.slice(0, index).join('/');
+            return `<span onclick="navigateToBreadcrumb('${bucketName}', '${pathToHere}')" 
+                          style="color:#6b8cff;cursor:pointer;text-decoration:underline;">${crumb}</span>`;
+        }).join(' / ');
+    }
+
+    // Navigation and file operation functions
+    window.navigateToBreadcrumb = function(bucketName, path) {
+        const pathInput = document.getElementById('current-path');
+        if (pathInput) {
+            pathInput.value = path;
+            refreshBucketFilesMCP(bucketName);
+        }
+    };
+
+    window.navigateToPath = function(bucketName) {
+        refreshBucketFilesMCP(bucketName);
+    };
+
+    window.goUpDirectory = function(bucketName) {
+        const pathInput = document.getElementById('current-path');
+        if (pathInput) {
+            const currentPath = pathInput.value || '.';
+            if (currentPath !== '.') {
+                const pathParts = currentPath.split('/');
+                pathParts.pop();
+                pathInput.value = pathParts.length > 0 ? pathParts.join('/') : '.';
+                refreshBucketFilesMCP(bucketName);
+            }
+        }
+    };
+
+    // File operation functions
+    window.uploadFilesMCP = async function(bucketName, files) {
+        if (!files || files.length === 0) return;
+        
+        const pathInput = document.getElementById('current-path');
+        const currentPath = pathInput ? pathInput.value || '.' : '.';
+        
+        try {
+            await waitForMCP();
+            
+            for (const file of files) {
+                const reader = new FileReader();
+                const fileContent = await new Promise((resolve, reject) => {
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsText(file);
+                });
+                
+                const filePath = currentPath === '.' ? file.name : `${currentPath}/${file.name}`;
+                await MCP.Buckets.uploadFile(bucketName, filePath, fileContent, 'text', true);
+            }
+            
+            // Refresh file list
+            await refreshBucketFilesMCP(bucketName);
+            alert(`Successfully uploaded ${files.length} file(s)`);
+            
+        } catch (e) {
+            console.error('Error uploading files:', e);
+            alert('Error uploading files: ' + e.message);
+        }
+    };
+
+    window.downloadFileMCP = async function(bucketName, filePath) {
+        try {
+            await waitForMCP();
+            const result = await MCP.Buckets.downloadFile(bucketName, filePath, 'text');
+            
+            // Create download link
+            const blob = new Blob([result.content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filePath.split('/').pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+        } catch (e) {
+            console.error('Error downloading file:', e);
+            alert('Error downloading file: ' + e.message);
+        }
+    };
+
+    window.deleteFileMCP = async function(bucketName, filePath) {
+        if (!confirm(`Delete ${filePath}?`)) return;
+        
+        try {
+            await waitForMCP();
+            await MCP.Buckets.deleteFile(bucketName, filePath, true);
+            await refreshBucketFilesMCP(bucketName);
+            
+        } catch (e) {
+            console.error('Error deleting file:', e);
+            alert('Error deleting file: ' + e.message);
+        }
+    };
+
+    window.showFileMetadata = async function(bucketName, filePath) {
+        const detailsPanel = document.getElementById('file-details-panel');
+        const metadataContent = document.getElementById('file-metadata-content');
+        
+        if (!detailsPanel || !metadataContent) return;
+        
+        try {
+            await waitForMCP();
+            const result = await MCP.Buckets.getMetadata(bucketName, filePath, true);
+            
+            let metadataHTML = `<div style="font-size:10px;color:#aaa;margin-bottom:5px;">Path: ${filePath}</div>`;
+            metadataHTML += `<div style="display:grid;grid-template-columns:auto 1fr;gap:5px;font-size:11px;">`;
+            
+            if (result.size) metadataHTML += `<span>Size:</span><span>${formatBytes(result.size)}</span>`;
+            if (result.modified) metadataHTML += `<span>Modified:</span><span>${new Date(result.modified).toLocaleString()}</span>`;
+            if (result.created) metadataHTML += `<span>Created:</span><span>${new Date(result.created).toLocaleString()}</span>`;
+            if (result.replicas) metadataHTML += `<span>Replicas:</span><span>${result.replicas.length}</span>`;
+            if (result.cached !== undefined) metadataHTML += `<span>Cached:</span><span>${result.cached ? 'Yes' : 'No'}</span>`;
+            if (result.cache_type) metadataHTML += `<span>Cache Type:</span><span>${result.cache_type}</span>`;
+            
+            metadataHTML += '</div>';
+            
+            if (result.replicas && result.replicas.length > 0) {
+                metadataHTML += '<div style="margin-top:8px;"><strong>Replicas:</strong></div>';
+                metadataHTML += '<div style="font-size:10px;">';
+                result.replicas.forEach(replica => {
+                    metadataHTML += `<div style="margin:2px 0;">• ${replica.backend || 'Unknown'} (${replica.status || 'unknown'})</div>`;
+                });
+                metadataHTML += '</div>';
+            }
+            
+            metadataContent.innerHTML = metadataHTML;
+            detailsPanel.style.display = 'block';
+            
+        } catch (e) {
+            console.error('Error loading file metadata:', e);
+            metadataContent.innerHTML = '<div style="color:red;">Error loading metadata: ' + e.message + '</div>';
+            detailsPanel.style.display = 'block';
+        }
+    };
+
+    window.showCreateFolderDialog = function(bucketName) {
+        const folderName = prompt('Enter folder name:');
+        if (!folderName) return;
+        
+        const pathInput = document.getElementById('current-path');
+        const currentPath = pathInput ? pathInput.value || '.' : '.';
+        const folderPath = currentPath === '.' ? folderName : `${currentPath}/${folderName}`;
+        
+        createFolderMCP(bucketName, folderPath);
+    };
+
+    async function createFolderMCP(bucketName, folderPath) {
+        try {
+            await waitForMCP();
+            await MCP.Buckets.mkdir(bucketName, folderPath, true);
+            await refreshBucketFilesMCP(bucketName);
+            
+        } catch (e) {
+            console.error('Error creating folder:', e);
+            alert('Error creating folder: ' + e.message);
+        }
+    }
+
+    window.showRenameDialog = function(bucketName, oldPath) {
+        const fileName = oldPath.split('/').pop();
+        const newName = prompt('Rename to:', fileName);
+        if (!newName || newName === fileName) return;
+        
+        const pathParts = oldPath.split('/');
+        pathParts.pop();
+        const newPath = pathParts.length > 0 ? `${pathParts.join('/')}/${newName}` : newName;
+        
+        renameFileMCP(bucketName, oldPath, newPath);
+    };
+
+    async function renameFileMCP(bucketName, oldPath, newPath) {
+        try {
+            await waitForMCP();
+            await MCP.Buckets.renameFile(bucketName, oldPath, newPath, true);
+            await refreshBucketFilesMCP(bucketName);
+            
+        } catch (e) {
+            console.error('Error renaming file:', e);
+            alert('Error renaming file: ' + e.message);
+        }
+    }
+
+    window.syncBucketReplicas = async function(bucketName) {
+        const btn = document.getElementById('sync-replicas-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '🔄 Syncing...';
+        }
+        
+        try {
+            await waitForMCP();
+            const result = await MCP.Buckets.syncReplicas(bucketName, false);
+            alert(`Replica sync completed. ${result.synced_files || 0} files synced.`);
+            
+        } catch (e) {
+            console.error('Error syncing replicas:', e);
+            alert('Error syncing replicas: ' + e.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🔄 Sync Replicas';
+            }
+        }
+    };
+
+    window.showBucketPolicySettings = async function(bucketName) {
+        const modal = createModal('Bucket Policy: ' + bucketName, async (modalBody) => {
+            modalBody.innerHTML = '<div style="text-align:center;padding:20px;">Loading policy...</div>';
+            
+            try {
+                await waitForMCP();
+                const policy = await MCP.Buckets.getPolicy(bucketName);
+                
+                modalBody.innerHTML = `
+                    <div style="display:grid;gap:15px;">
+                        <div>
+                            <label style="display:block;margin-bottom:5px;font-size:12px;">
+                                <strong>Replication Factor:</strong>
+                            </label>
+                            <input type="number" id="replication_factor" min="1" max="10" 
+                                   value="${policy.replication_factor || 1}" 
+                                   style="width:100px;background:#111;border:1px solid #333;color:white;padding:4px;">
+                            <small style="color:#888;margin-left:10px;">Number of replica copies</small>
+                        </div>
+                        
+                        <div>
+                            <label style="display:block;margin-bottom:5px;font-size:12px;">
+                                <strong>Cache Policy:</strong>
+                            </label>
+                            <select id="cache_policy" style="width:150px;background:#111;border:1px solid #333;color:white;padding:4px;">
+                                <option value="none" ${(policy.cache_policy === 'none') ? 'selected' : ''}>None</option>
+                                <option value="memory" ${(policy.cache_policy === 'memory') ? 'selected' : ''}>Memory</option>
+                                <option value="disk" ${(policy.cache_policy === 'disk') ? 'selected' : ''}>Disk</option>
+                            </select>
+                            <small style="color:#888;margin-left:10px;">Caching strategy for files</small>
+                        </div>
+                        
+                        <div>
+                            <label style="display:block;margin-bottom:5px;font-size:12px;">
+                                <strong>Retention Days:</strong>
+                            </label>
+                            <input type="number" id="retention_days" min="0" 
+                                   value="${policy.retention_days || 0}" 
+                                   style="width:100px;background:#111;border:1px solid #333;color:white;padding:4px;">
+                            <small style="color:#888;margin-left:10px;">0 = no expiration</small>
+                        </div>
+                        
+                        <div style="margin-top:20px;">
+                            <button onclick="saveBucketPolicy('${bucketName}')" 
+                                    style="background:#2a5cb8;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
+                                💾 Save Policy
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (e) {
+                console.error('Error loading bucket policy:', e);
+                modalBody.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Error loading policy: ' + e.message + '</div>';
+            }
+        });
+    };
+
+    window.saveBucketPolicy = async function(bucketName) {
+        const replicationFactor = document.getElementById('replication_factor');
+        const cachePolicy = document.getElementById('cache_policy');
+        const retentionDays = document.getElementById('retention_days');
+        
+        if (!replicationFactor || !cachePolicy || !retentionDays) return;
+        
+        try {
+            await waitForMCP();
+            await MCP.Buckets.updatePolicy(bucketName, {
+                replication_factor: parseInt(replicationFactor.value),
+                cache_policy: cachePolicy.value,
+                retention_days: parseInt(retentionDays.value)
+            });
+            
+            alert('Bucket policy updated successfully');
+            
+        } catch (e) {
+            console.error('Error saving bucket policy:', e);
+            alert('Error saving policy: ' + e.message);
+        }
+    };
+
+    window.createNewBucket = function() {
+        const bucketName = prompt('Enter bucket name:');
+        if (!bucketName) return;
+        
+        createBucketMCP(bucketName);
+    };
+
+    async function createBucketMCP(bucketName) {
+        try {
+            await waitForMCP();
+            await MCP.Buckets.create(bucketName);
+            await loadBuckets(); // Refresh bucket list
+            
+        } catch (e) {
+            console.error('Error creating bucket:', e);
+            alert('Error creating bucket: ' + e.message);
+        }
+    }
+
+    window.deleteBucketMCP = async function(bucketName) {
+        if (!confirm(`Delete bucket "${bucketName}" and all its contents?`)) return;
+        
+        try {
+            await waitForMCP();
+            await MCP.Buckets.delete(bucketName);
+            await loadBuckets(); // Refresh bucket list
+            
+        } catch (e) {
+            console.error('Error deleting bucket:', e);
+            alert('Error deleting bucket: ' + e.message);
+        }
+    };
+
+    // Make functions globally available
+    window.refreshBucketFilesMCP = refreshBucketFilesMCP;
 
     // Make updateElement globally available for dashboard UI
     if (typeof window !== 'undefined') {
