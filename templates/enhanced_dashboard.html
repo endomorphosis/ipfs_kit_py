@@ -108,6 +108,14 @@
             --tw-gradient-from: #14b8a6;
             --tw-gradient-to: #0d9488;
         }
+        .from-red-500.to-red-600 {
+            --tw-gradient-from: #ef4444;
+            --tw-gradient-to: #dc2626;
+        }
+        .from-gray-500.to-gray-600 {
+            --tw-gradient-from: #6b7280;
+            --tw-gradient-to: #4b5563;
+        }
         
         /* Typography */
         .text-xl { font-size: 1.25rem; }
@@ -217,6 +225,24 @@
         .status-running { background-color: #dcfce7; color: #166534; }
         .status-stopped { background-color: #fee2e2; color: #991b1b; }
         .status-error { background-color: #fecaca; color: #991b1b; }
+        
+        /* Enhanced button styles */
+        .btn-pink { background-color: #ec4899; color: white; }
+        .btn-pink:hover { background-color: #db2777; }
+        .btn-purple { background-color: #8b5cf6; color: white; }
+        .btn-purple:hover { background-color: #7c3aed; }
+        .btn-sm { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
+        
+        /* Service group styles */
+        .service-group { 
+            border-left: 4px solid #e5e7eb;
+            padding-left: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        .service-group[data-group="daemon"] { border-left-color: #10b981; }
+        .service-group[data-group="storage"] { border-left-color: #f59e0b; }
+        .service-group[data-group="network"] { border-left-color: #8b5cf6; }
+        .service-group[data-group="ai"] { border-left-color: #ec4899; }
         
         /* Utilities */
         .w-full { width: 100%; }
@@ -549,7 +575,17 @@
             <!-- Services Tab -->
             <div id="services" class="tab-content">
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6">🔧 Service Management Dashboard</h2>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">🔧 Enhanced Service Management</h2>
+                        <div class="flex gap-2">
+                            <button id="refresh-services" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-sync-alt mr-2"></i>Refresh
+                            </button>
+                            <button id="add-service-instance" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-2"></i>Add Instance
+                            </button>
+                        </div>
+                    </div>
                     
                     <!-- Services Status Summary -->
                     <div class="grid grid-cols-2 md-grid-cols-3 lg-grid-cols-6 gap-4 mb-6">
@@ -558,7 +594,7 @@
                             <div class="text-sm opacity-90">🟢 Running</div>
                         </div>
                         <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-4 rounded-lg text-center">
-                            <div class="text-2xl font-bold" id="services-stopped">0</div>
+                            <div class="text-2xl font-bold" id="services-stopped">1</div>
                             <div class="text-sm opacity-90">🔴 Stopped</div>
                         </div>
                         <div class="bg-gradient-to-r from-gray-500 to-gray-600 text-white p-4 rounded-lg text-center">
@@ -579,34 +615,95 @@
                         </div>
                     </div>
                     
-                    <!-- Service Categories -->
-                    <div class="mb-6">
+                    <!-- Service Categories and Multi-Instance Support -->
+                    <div class="mb-6 bg-gray-50 p-4 rounded-lg">
                         <div class="flex flex-wrap gap-2 mb-4">
                             <button id="filter-all" class="btn btn-blue btn-sm filter-btn active">All Services</button>
-                            <button id="filter-daemon" class="btn btn-green btn-sm filter-btn">🛠️ Daemon Services</button>
-                            <button id="filter-storage" class="btn btn-yellow btn-sm filter-btn">📦 Storage Services</button>
+                            <button id="filter-daemon" class="btn btn-green btn-sm filter-btn">🛠️ System Daemons</button>
+                            <button id="filter-storage" class="btn btn-yellow btn-sm filter-btn">📦 Storage Backends</button>
                             <button id="filter-network" class="btn btn-purple btn-sm filter-btn">🌐 Network Services</button>
+                            <button id="filter-ai" class="btn btn-pink btn-sm filter-btn">🧠 AI/ML Services</button>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            💡 <strong>Multi-Instance Support:</strong> Add multiple S3 buckets, GitHub accounts, IPFS clusters, and more. Each service type supports unlimited configured instances.
                         </div>
                     </div>
                     
-                    <!-- Services Grid -->
-                    <div id="services-list" class="grid grid-cols-1 md-grid-cols-2 lg-grid-cols-3 gap-6">
-                        <div class="text-gray-500 text-center py-8 col-span-full">
+                    <!-- Enhanced Services Grid with Grouped Instances -->
+                    <div id="services-list" class="space-y-6">
+                        <div class="text-gray-500 text-center py-12">
                             <div class="text-4xl mb-4">⚙️</div>
-                            <div>Loading comprehensive services...</div>
+                            <div class="text-lg mb-2">Loading enhanced service management...</div>
+                            <div class="text-sm">Scanning for multiple backend instances...</div>
                         </div>
                     </div>
                     
-                    <!-- Configuration Modal -->
+                    <!-- Enhanced Configuration Modal -->
                     <div id="service-config-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" style="z-index: 1000;">
-                        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                            <h3 class="text-lg font-bold mb-4">Configure Service</h3>
-                            <div id="config-form-content">
-                                <!-- Dynamic configuration form will be inserted here -->
+                        <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-90vh overflow-auto">
+                            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
+                                <div class="flex justify-between items-center">
+                                    <h3 class="text-xl font-bold" id="config-modal-title">Configure Service Instance</h3>
+                                    <button id="close-config-modal" class="text-white hover:text-gray-200">
+                                        <i class="fas fa-times text-xl"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="flex gap-2 mt-4">
-                                <button id="save-config-btn" class="btn btn-green">Save Configuration</button>
-                                <button id="cancel-config-btn" class="btn btn-gray">Cancel</button>
+                            <div class="p-6">
+                                <div id="config-form-content">
+                                    <!-- Dynamic configuration form will be inserted here -->
+                                </div>
+                                <div class="flex gap-2 mt-6 pt-4 border-t">
+                                    <button id="save-config-btn" class="btn btn-green flex-1">
+                                        <i class="fas fa-save mr-2"></i>Save Configuration
+                                    </button>
+                                    <button id="test-config-btn" class="btn btn-yellow">
+                                        <i class="fas fa-vial mr-2"></i>Test
+                                    </button>
+                                    <button id="cancel-config-btn" class="btn btn-gray">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Add Service Instance Modal -->
+                    <div id="add-service-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" style="z-index: 1000;">
+                        <div class="bg-white rounded-lg max-w-lg w-full mx-4">
+                            <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-6">
+                                <h3 class="text-xl font-bold">Add New Service Instance</h3>
+                            </div>
+                            <div class="p-6">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Service Type</label>
+                                    <select id="new-service-type" class="w-full p-3 border border-gray-300 rounded-lg">
+                                        <option value="">Select service type...</option>
+                                        <optgroup label="Storage Backends">
+                                            <option value="s3">🗄️ Amazon S3 / S3-Compatible</option>
+                                            <option value="github">📚 GitHub Repository</option>
+                                            <option value="huggingface">🤗 HuggingFace Hub</option>
+                                            <option value="gdrive">📁 Google Drive</option>
+                                        </optgroup>
+                                        <optgroup label="IPFS Networks">
+                                            <option value="ipfs">📡 IPFS Node</option>
+                                            <option value="ipfs_cluster">🌐 IPFS Cluster</option>
+                                        </optgroup>
+                                        <optgroup label="Specialized Services">
+                                            <option value="lotus">💎 Filecoin Lotus</option>
+                                            <option value="storacha">☁️ Storacha/Web3.Storage</option>
+                                            <option value="synapse">🧠 Bittensor Synapse</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Instance Name</label>
+                                    <input type="text" id="new-service-name" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="e.g., my-s3-bucket-prod, github-backups">
+                                </div>
+                                <div class="flex gap-2 mt-6">
+                                    <button id="create-service-btn" class="btn btn-green flex-1">
+                                        <i class="fas fa-plus mr-2"></i>Create & Configure
+                                    </button>
+                                    <button id="cancel-add-service-btn" class="btn btn-gray">Cancel</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1487,21 +1584,524 @@
 
         async function loadServicesData() {
             try {
-                const response = await fetch('/api/services');
-                const data = await response.json();
-                servicesData = data.services || data; // Handle both formats
+                // Use MCP SDK for service data with metadata-first approach
+                let servicesData = {};
+                
+                // First try to get services via MCP SDK
+                try {
+                    const mcpResult = await window.MCP?.callTool('list_services', {});
+                    servicesData = mcpResult?.result?.services || {};
+                } catch (mcpError) {
+                    console.log('MCP service call not available, falling back to REST API');
+                }
+                
+                // Fallback to REST API if MCP is not available
+                if (Object.keys(servicesData).length === 0) {
+                    const response = await fetch('/api/services');
+                    const data = await response.json();
+                    servicesData = data.services || data;
+                }
+                
+                // Load ~/.ipfs_kit/ metadata if available
+                try {
+                    const metadataResponse = await fetch('/api/metadata/services');
+                    if (metadataResponse.ok) {
+                        const metadataData = await metadataResponse.json();
+                        // Merge metadata with service data, giving priority to metadata
+                        servicesData = { ...servicesData, ...metadataData.services };
+                    }
+                } catch (metadataError) {
+                    console.log('Service metadata not available:', metadataError);
+                }
+                
+                window.servicesData = servicesData;
                 
                 // Ensure we're on the services tab before trying to display
                 if (currentTab === 'services') {
-                    displayServices(servicesData);
+                    displayEnhancedServices(servicesData);
                     updateServicesStatistics(servicesData);
                 }
             } catch (error) {
                 console.error('Error loading services data:', error);
                 const container = document.getElementById('services-list');
                 if (container) {
-                    container.innerHTML = '<div class="text-red-500 text-center py-8 col-span-full">Failed to load services: ' + error.message + '</div>';
+                    container.innerHTML = `
+                        <div class="text-red-500 text-center py-12 col-span-full">
+                            <div class="text-4xl mb-4">❌</div>
+                            <div class="text-lg mb-2">Failed to load services</div>
+                            <div class="text-sm">${error.message}</div>
+                        </div>
+                    `;
                 }
+            }
+        }
+
+        // Enhanced display function with multi-instance support
+        function displayEnhancedServices(services) {
+            const container = document.getElementById('services-list');
+            if (!container) {
+                console.error('Services list container not found');
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            // Group services by type and support multiple instances
+            const serviceGroups = {
+                'daemon': { name: '🛠️ System Daemons', services: [] },
+                'storage': { name: '📦 Storage Backends', services: [] },
+                'network': { name: '🌐 Network Services', services: [] },
+                'ai': { name: '🧠 AI/ML Services', services: [] }
+            };
+            
+            // Process services and group by type, supporting multiple instances
+            for (const [serviceId, service] of Object.entries(services)) {
+                const serviceType = determineServiceType(service.type || serviceId);
+                if (!serviceGroups[serviceType]) {
+                    serviceGroups[serviceType] = { name: serviceType.toUpperCase(), services: [] };
+                }
+                serviceGroups[serviceType].services.push({ id: serviceId, ...service });
+            }
+            
+            // Create service group sections
+            Object.entries(serviceGroups).forEach(([groupKey, group]) => {
+                if (group.services.length === 0) return;
+                
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'service-group mb-8';
+                groupDiv.setAttribute('data-group', groupKey);
+                
+                groupDiv.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">${group.name} (${group.services.length})</h3>
+                        <button class="btn btn-sm btn-green" onclick="showAddInstanceModal('${groupKey}')">
+                            <i class="fas fa-plus mr-1"></i> Add Instance
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md-grid-cols-2 lg-grid-cols-3 gap-4" id="${groupKey}-services">
+                    </div>
+                `;
+                
+                container.appendChild(groupDiv);
+                
+                // Add service cards for this group
+                const servicesGrid = groupDiv.querySelector(`#${groupKey}-services`);
+                group.services.forEach(service => {
+                    const serviceCard = createEnhancedServiceCard(service.id, service, groupKey);
+                    servicesGrid.appendChild(serviceCard);
+                });
+            });
+            
+            // Show empty state if no services
+            if (Object.values(serviceGroups).every(group => group.services.length === 0)) {
+                container.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-6xl mb-4">⚙️</div>
+                        <h3 class="text-xl font-bold text-gray-700 mb-2">No Services Configured</h3>
+                        <p class="text-gray-500 mb-6">Add your first service instance to get started</p>
+                        <button class="btn btn-green" onclick="showAddServiceModal()">
+                            <i class="fas fa-plus mr-2"></i> Add Service Instance
+                        </button>
+                    </div>
+                `;
+            }
+            
+            // Initialize enhanced filter functionality
+            initializeEnhancedFilters();
+        }
+
+        function determineServiceType(serviceType) {
+            const typeMap = {
+                'ipfs': 'network',
+                'ipfs_cluster': 'network', 
+                'aria2': 'daemon',
+                's3': 'storage',
+                'github': 'storage',
+                'huggingface': 'ai',
+                'gdrive': 'storage',
+                'lotus': 'storage',
+                'storacha': 'storage',
+                'synapse': 'ai',
+                'daemon': 'daemon'
+            };
+            return typeMap[serviceType] || 'network';
+        }
+
+        function createEnhancedServiceCard(serviceId, service, groupKey) {
+            const div = document.createElement('div');
+            div.className = 'service-card bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow';
+            div.setAttribute('data-service-id', serviceId);
+            div.setAttribute('data-service-type', groupKey);
+            
+            const status = service.status || 'unknown';
+            const statusColor = {
+                'running': 'text-green-600 bg-green-100',
+                'stopped': 'text-red-600 bg-red-100', 
+                'missing': 'text-gray-600 bg-gray-100',
+                'configured': 'text-blue-600 bg-blue-100',
+                'error': 'text-purple-600 bg-purple-100'
+            }[status] || 'text-gray-600 bg-gray-100';
+            
+            const typeIcon = {
+                'daemon': '🛠️',
+                'storage': '📦', 
+                'network': '🌐',
+                'ai': '🧠'
+            }[groupKey] || '⚙️';
+            
+            // Generate instance indicators for multi-instance services
+            const instanceInfo = service.instances ? 
+                `<div class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded mb-2">
+                    <i class="fas fa-layer-group mr-1"></i> ${service.instances} instances
+                 </div>` : '';
+            
+            div.innerHTML = `
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">${typeIcon}</span>
+                        <div>
+                            <h4 class="font-bold text-gray-800">${service.name || serviceId}</h4>
+                            <p class="text-sm text-gray-600">${service.description || 'No description'}</p>
+                        </div>
+                    </div>
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColor}">
+                        ${status.toUpperCase()}
+                    </span>
+                </div>
+                
+                ${instanceInfo}
+                
+                <div class="space-y-1 text-xs text-gray-600 mb-4">
+                    <div><strong>Type:</strong> ${service.type || 'unknown'}</div>
+                    ${service.port ? `<div><strong>Port:</strong> ${service.port}</div>` : ''}
+                    ${service.endpoint ? `<div><strong>Endpoint:</strong> ${service.endpoint}</div>` : ''}
+                    <div><strong>Last Check:</strong> ${service.last_check || 'Never'}</div>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                    ${generateEnhancedServiceActions(serviceId, service, groupKey)}
+                </div>
+            `;
+            
+            return div;
+        }
+
+        function generateEnhancedServiceActions(serviceId, service, groupKey) {
+            const status = service.status || 'unknown';
+            const actions = [];
+            
+            // Always show configure button
+            actions.push(`<button class="btn btn-blue btn-sm" onclick="openEnhancedConfigModal('${serviceId}', '${groupKey}')">
+                <i class="fas fa-cog mr-1"></i> Configure
+            </button>`);
+            
+            // Status-specific actions
+            if (status === 'running') {
+                actions.push(`<button class="btn btn-red btn-sm" onclick="performEnhancedServiceAction('${serviceId}', 'stop')">
+                    <i class="fas fa-stop mr-1"></i> Stop
+                </button>`);
+                actions.push(`<button class="btn btn-yellow btn-sm" onclick="performEnhancedServiceAction('${serviceId}', 'restart')">
+                    <i class="fas fa-redo mr-1"></i> Restart
+                </button>`);
+            } else if (status === 'stopped' || status === 'configured') {
+                actions.push(`<button class="btn btn-green btn-sm" onclick="performEnhancedServiceAction('${serviceId}', 'start')">
+                    <i class="fas fa-play mr-1"></i> Start
+                </button>`);
+            }
+            
+            // Test connection for storage/network services
+            if (['storage', 'network', 'ai'].includes(groupKey)) {
+                actions.push(`<button class="btn btn-purple btn-sm" onclick="testServiceConnection('${serviceId}')">
+                    <i class="fas fa-vial mr-1"></i> Test
+                </button>`);
+            }
+            
+            // Clone/duplicate for multi-instance services
+            if (['storage', 'ai'].includes(groupKey)) {
+                actions.push(`<button class="btn btn-gray btn-sm" onclick="cloneService('${serviceId}', '${groupKey}')">
+                    <i class="fas fa-copy mr-1"></i> Clone
+                </button>`);
+            }
+            
+            return actions.join('');
+        }
+
+        function initializeEnhancedFilters() {
+            // Enhanced filter functionality with multi-instance support
+            document.getElementById('filter-all')?.addEventListener('click', () => filterEnhancedServices('all'));
+            document.getElementById('filter-daemon')?.addEventListener('click', () => filterEnhancedServices('daemon'));
+            document.getElementById('filter-storage')?.addEventListener('click', () => filterEnhancedServices('storage'));
+            document.getElementById('filter-network')?.addEventListener('click', () => filterEnhancedServices('network'));
+            document.getElementById('filter-ai')?.addEventListener('click', () => filterEnhancedServices('ai'));
+        }
+
+        function filterEnhancedServices(type) {
+            const groups = document.querySelectorAll('.service-group');
+            const buttons = document.querySelectorAll('.filter-btn');
+            
+            // Update active button
+            buttons.forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`filter-${type}`)?.classList.add('active');
+            
+            // Filter service groups
+            groups.forEach(group => {
+                if (type === 'all' || group.getAttribute('data-group') === type) {
+                    group.style.display = 'block';
+                } else {
+                    group.style.display = 'none';
+                }
+            });
+        }
+
+        // Enhanced MCP SDK service actions
+        async function performEnhancedServiceAction(serviceId, action) {
+            try {
+                // Use MCP SDK for service control
+                const result = await window.MCP?.callTool('service_control', { 
+                    service: serviceId, 
+                    action: action 
+                });
+                
+                if (result?.result?.status === 'success') {
+                    console.log(`Service ${action} successful:`, result.result.message);
+                    // Refresh services data
+                    await loadServicesData();
+                } else {
+                    throw new Error(result?.result?.message || 'Service action failed');
+                }
+            } catch (error) {
+                console.error(`Error performing service action:`, error);
+                alert(`Error ${action} service ${serviceId}: ${error.message}`);
+            }
+        }
+
+        async function testServiceConnection(serviceId) {
+            try {
+                const result = await window.MCP?.callTool('test_service_connection', { 
+                    service: serviceId 
+                });
+                
+                if (result?.result?.success) {
+                    alert(`✅ Service ${serviceId} connection test successful!\n\nDetails: ${result.result.message}`);
+                } else {
+                    alert(`❌ Service ${serviceId} connection test failed!\n\nError: ${result.result?.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error testing service connection:', error);
+                alert(`❌ Connection test failed: ${error.message}`);
+            }
+        }
+
+        function cloneService(serviceId, groupKey) {
+            const service = window.servicesData[serviceId];
+            if (!service) return;
+            
+            const newName = prompt(`Clone ${serviceId}.\n\nEnter name for the new instance:`, `${serviceId}-clone`);
+            if (!newName) return;
+            
+            // Open configuration modal for the cloned service
+            showAddServiceModal(service.type, newName, service);
+        }
+
+        function openEnhancedConfigModal(serviceId, groupKey) {
+            const service = window.servicesData[serviceId];
+            if (!service) return;
+            
+            const modal = document.getElementById('service-config-modal');
+            const title = document.getElementById('config-modal-title');
+            const content = document.getElementById('config-form-content');
+            
+            title.textContent = `Configure ${service.name || serviceId}`;
+            content.innerHTML = generateEnhancedConfigForm(serviceId, service, groupKey);
+            modal.classList.remove('hidden');
+            
+            // Set up modal event handlers
+            document.getElementById('save-config-btn').onclick = () => saveEnhancedServiceConfig(serviceId);
+            document.getElementById('test-config-btn').onclick = () => testServiceConnection(serviceId);
+            document.getElementById('cancel-config-btn').onclick = () => modal.classList.add('hidden');
+            document.getElementById('close-config-modal').onclick = () => modal.classList.add('hidden');
+        }
+
+        function generateEnhancedConfigForm(serviceId, service, groupKey) {
+            const configForms = {
+                's3': `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Access Key ID</label>
+                                <input type="text" id="config-access-key" class="w-full p-3 border rounded-lg" value="${service.access_key || ''}" placeholder="AKIA...">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Secret Access Key</label>
+                                <input type="password" id="config-secret-key" class="w-full p-3 border rounded-lg" value="${service.secret_key || ''}" placeholder="Secret key">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Region</label>
+                                <input type="text" id="config-region" class="w-full p-3 border rounded-lg" value="${service.region || 'us-east-1'}" placeholder="us-east-1">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Bucket Name</label>
+                                <input type="text" id="config-bucket" class="w-full p-3 border rounded-lg" value="${service.bucket || ''}" placeholder="my-bucket">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Endpoint URL (Optional - for S3-compatible services)</label>
+                            <input type="url" id="config-endpoint" class="w-full p-3 border rounded-lg" value="${service.endpoint || ''}" placeholder="https://s3.amazonaws.com">
+                        </div>
+                    </div>
+                `,
+                'github': `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Personal Access Token</label>
+                            <input type="password" id="config-token" class="w-full p-3 border rounded-lg" value="${service.token || ''}" placeholder="ghp_...">
+                        </div>
+                        <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Username/Organization</label>
+                                <input type="text" id="config-username" class="w-full p-3 border rounded-lg" value="${service.username || ''}" placeholder="octocat">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Repository</label>
+                                <input type="text" id="config-repo" class="w-full p-3 border rounded-lg" value="${service.repo || ''}" placeholder="my-repo">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Branch</label>
+                            <input type="text" id="config-branch" class="w-full p-3 border rounded-lg" value="${service.branch || 'main'}" placeholder="main">
+                        </div>
+                    </div>
+                `,
+                'huggingface': `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">HuggingFace API Token</label>
+                            <input type="password" id="config-token" class="w-full p-3 border rounded-lg" value="${service.token || ''}" placeholder="hf_...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Username</label>
+                            <input type="text" id="config-username" class="w-full p-3 border rounded-lg" value="${service.username || ''}" placeholder="your-username">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Default Model/Dataset</label>
+                            <input type="text" id="config-model" class="w-full p-3 border rounded-lg" value="${service.model || ''}" placeholder="sentence-transformers/all-MiniLM-L6-v2">
+                        </div>
+                    </div>
+                `
+            };
+            
+            return configForms[service.type] || `
+                <div class="space-y-4">
+                    <div class="p-4 bg-yellow-50 rounded-lg">
+                        <p class="text-sm text-yellow-800">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Configuration form for <strong>${service.type}</strong> services is not yet implemented.
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Raw Configuration (JSON)</label>
+                        <textarea id="config-raw" class="w-full p-3 border rounded-lg font-mono text-sm" rows="8" placeholder='{"key": "value"}'>${JSON.stringify(service.config || {}, null, 2)}</textarea>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function saveEnhancedServiceConfig(serviceId) {
+            try {
+                const service = window.servicesData[serviceId];
+                const config = {};
+                
+                // Collect configuration based on service type
+                if (service.type === 's3') {
+                    config.access_key = document.getElementById('config-access-key')?.value;
+                    config.secret_key = document.getElementById('config-secret-key')?.value;
+                    config.region = document.getElementById('config-region')?.value;
+                    config.bucket = document.getElementById('config-bucket')?.value;
+                    config.endpoint = document.getElementById('config-endpoint')?.value;
+                } else if (service.type === 'github') {
+                    config.token = document.getElementById('config-token')?.value;
+                    config.username = document.getElementById('config-username')?.value;
+                    config.repo = document.getElementById('config-repo')?.value;
+                    config.branch = document.getElementById('config-branch')?.value;
+                } else if (service.type === 'huggingface') {
+                    config.token = document.getElementById('config-token')?.value;
+                    config.username = document.getElementById('config-username')?.value;
+                    config.model = document.getElementById('config-model')?.value;
+                } else {
+                    // Raw JSON configuration
+                    const rawConfig = document.getElementById('config-raw')?.value;
+                    if (rawConfig) {
+                        Object.assign(config, JSON.parse(rawConfig));
+                    }
+                }
+                
+                // Save via MCP SDK
+                const result = await window.MCP?.callTool('configure_service', {
+                    service: serviceId,
+                    config: config
+                });
+                
+                if (result?.result?.success) {
+                    document.getElementById('service-config-modal').classList.add('hidden');
+                    await loadServicesData(); // Refresh
+                    alert(`✅ Service ${serviceId} configured successfully!`);
+                } else {
+                    throw new Error(result?.result?.message || 'Configuration failed');
+                }
+            } catch (error) {
+                console.error('Error saving service configuration:', error);
+                alert(`❌ Configuration failed: ${error.message}`);
+            }
+        }
+
+        function showAddServiceModal(preselectedType = '', preselectedName = '', templateService = null) {
+            const modal = document.getElementById('add-service-modal');
+            const typeSelect = document.getElementById('new-service-type');
+            const nameInput = document.getElementById('new-service-name');
+            
+            if (preselectedType) typeSelect.value = preselectedType;
+            if (preselectedName) nameInput.value = preselectedName;
+            
+            modal.classList.remove('hidden');
+            
+            document.getElementById('create-service-btn').onclick = () => createNewServiceInstance(templateService);
+            document.getElementById('cancel-add-service-btn').onclick = () => modal.classList.add('hidden');
+        }
+
+        async function createNewServiceInstance(templateService = null) {
+            const type = document.getElementById('new-service-type').value;
+            const name = document.getElementById('new-service-name').value;
+            
+            if (!type || !name) {
+                alert('Please select a service type and enter a name.');
+                return;
+            }
+            
+            try {
+                const config = templateService ? { ...templateService.config } : {};
+                
+                const result = await window.MCP?.callTool('create_service_instance', {
+                    type: type,
+                    name: name,
+                    config: config
+                });
+                
+                if (result?.result?.success) {
+                    document.getElementById('add-service-modal').classList.add('hidden');
+                    await loadServicesData(); // Refresh
+                    
+                    // Open configuration modal for the new service
+                    setTimeout(() => {
+                        openEnhancedConfigModal(name, determineServiceType(type));
+                    }, 500);
+                } else {
+                    throw new Error(result?.result?.message || 'Failed to create service instance');
+                }
+            } catch (error) {
+                console.error('Error creating service instance:', error);
+                alert(`❌ Failed to create service: ${error.message}`);
             }
         }
 
@@ -2150,6 +2750,22 @@
 
         // Setup action buttons
         function setupActionButtons() {
+            // Enhanced Services Management buttons
+            const refreshServicesBtn = document.getElementById('refresh-services');
+            if (refreshServicesBtn) {
+                refreshServicesBtn.addEventListener('click', async () => {
+                    console.log('Refreshing services...');
+                    await loadServicesData();
+                });
+            }
+
+            const addServiceBtn = document.getElementById('add-service-instance');
+            if (addServiceBtn) {
+                addServiceBtn.addEventListener('click', () => {
+                    showAddServiceModal();
+                });
+            }
+
             // Refresh All Data button
             const refreshBtn = document.querySelector('.btn-blue');
             if (refreshBtn && refreshBtn.textContent.includes('Refresh All Data')) {
