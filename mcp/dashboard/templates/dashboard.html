@@ -600,7 +600,7 @@
     </div>
 
     <!-- MCP Client SDK -->
-    <script src="{{ url_for('static', path='/mcp-client.js') }}"></script>
+    <script src="{{ url_for('static', path='/mcp-sdk.js') }}"></script>
     
     <!-- JavaScript imports -->
     <script src="{{ url_for('static', path='/js/dashboard-core.js') }}"></script>
@@ -616,9 +616,16 @@
     // Initialize MCP Client
     async function initializeMCPClient() {
         try {
+            // Wait a short time to ensure MCP SDK is loaded
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             if (typeof MCPClient !== 'undefined') {
                 mcpClient = new MCPClient({ debug: true });
                 console.log('🔗 MCP Client initialized successfully');
+                return mcpClient;
+            } else if (typeof window.MCP !== 'undefined' && window.MCP.Client) {
+                mcpClient = new window.MCP.Client({ debug: true });
+                console.log('🔗 MCP Client initialized successfully via MCP namespace');
                 return mcpClient;
             } else {
                 console.log('MCP SDK not available, falling back to direct API calls');
@@ -626,6 +633,7 @@
             }
         } catch (error) {
             console.error('Failed to initialize MCP client:', error);
+            console.log('Falling back to direct API calls');
             return null;
         }
     }
@@ -645,21 +653,28 @@
     let componentCounts = { services: 0, backends: 0, pins: 0, buckets: 0 };
     
     function updateSystemMetrics(metrics) {
-        systemMetrics = { ...systemMetrics, ...metrics };
+        // Transform the nested metrics structure to flat structure
+        const flatMetrics = {
+            cpu_percent: metrics.cpu_percent || metrics.cpu?.usage || 0,
+            memory_percent: metrics.memory?.percent || 0,
+            disk_percent: metrics.disk?.percent || 0
+        };
+        
+        systemMetrics = { ...systemMetrics, ...flatMetrics };
         console.log('System metrics updated:', systemMetrics);
         
         // Update UI elements
         if (document.getElementById('cpu-usage')) {
             document.getElementById('cpu-usage').textContent = 
-                typeof metrics.cpu_percent === 'number' ? `${metrics.cpu_percent.toFixed(1)}%` : 'N/A';
+                typeof flatMetrics.cpu_percent === 'number' ? `${flatMetrics.cpu_percent.toFixed(1)}%` : 'N/A';
         }
         if (document.getElementById('memory-usage')) {
             document.getElementById('memory-usage').textContent = 
-                typeof metrics.memory_percent === 'number' ? `${metrics.memory_percent.toFixed(1)}%` : 'N/A';
+                typeof flatMetrics.memory_percent === 'number' ? `${flatMetrics.memory_percent.toFixed(1)}%` : 'N/A';
         }
         if (document.getElementById('disk-usage')) {
             document.getElementById('disk-usage').textContent = 
-                typeof metrics.disk_percent === 'number' ? `${metrics.disk_percent.toFixed(1)}%` : 'N/A';
+                typeof flatMetrics.disk_percent === 'number' ? `${flatMetrics.disk_percent.toFixed(1)}%` : 'N/A';
         }
     }
     
@@ -735,18 +750,34 @@
     async function loadComponentCounts() {
         try {
             const [backendsRes, bucketsRes] = await Promise.all([
-                fetch('/api/backends').catch(() => ({ json: () => ({ backends: [] }) })),
-                fetch('/api/buckets').catch(() => ({ json: () => ({ buckets: [] }) }))
+                fetch('/api/backends').catch(err => {
+                    console.warn('Backends API failed:', err);
+                    return { 
+                        ok: true, 
+                        json: async () => ({ backends: [] }) 
+                    };
+                }),
+                fetch('/api/buckets').catch(err => {
+                    console.warn('Buckets API failed:', err);
+                    return { 
+                        ok: true, 
+                        json: async () => ({ buckets: [] }) 
+                    };
+                })
             ]);
             
             const backendsData = await backendsRes.json();
             const bucketsData = await bucketsRes.json();
             
+            // More robust data extraction
+            const backends = backendsData.backends || backendsData || [];
+            const buckets = bucketsData.buckets || bucketsData || [];
+            
             const counts = {
-                services: 30, // Mock value
-                backends: Array.isArray(backendsData.backends) ? backendsData.backends.length : 0,
+                services: 30, // Mock value  
+                backends: Array.isArray(backends) ? backends.length : 0,
                 pins: 0, // Will be updated by pins data
-                buckets: Array.isArray(bucketsData.buckets) ? bucketsData.buckets.length : 0
+                buckets: Array.isArray(buckets) ? buckets.length : 0
             };
             
             updateComponentCounts(counts);
@@ -759,6 +790,9 @@
     async function loadBackendsData() {
         try {
             const response = await fetch('/api/backends');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             const data = await response.json();
             const backends = data.backends || data || [];
             
@@ -766,12 +800,16 @@
             displayBackends(backends);
         } catch (error) {
             console.error('Error loading backends data:', error);
+            displayBackends([]); // Show empty array on error
         }
     }
     
     async function loadBucketsData() {
         try {
             const response = await fetch('/api/buckets');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             const data = await response.json();
             const buckets = data.buckets || data || [];
             
@@ -779,6 +817,7 @@
             displayBuckets(buckets);
         } catch (error) {
             console.error('Error loading buckets data:', error);
+            displayBuckets([]); // Show empty array on error
         }
     }
     
@@ -805,20 +844,29 @@
     async function loadLogsData() {
         try {
             const response = await fetch('/api/logs?component=all&level=all&limit=100');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             const data = await response.json();
-            displayLogs(data.logs || []);
+            const logs = data.logs || data || [];
+            displayLogs(logs);
         } catch (error) {
             console.error('Error loading logs data:', error);
+            displayLogs([]); // Show empty array on error
         }
     }
     
     async function loadAnalyticsData() {
         try {
             const response = await fetch('/api/analytics/summary');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             const data = await response.json();
             displayAnalytics(data);
         } catch (error) {
             console.error('Error loading analytics data:', error);
+            displayAnalytics({}); // Show empty object on error
         }
     }
     
@@ -888,6 +936,7 @@
     }
     
     function displayLogs(logs) {
+        // Ensure logs is always an array
         if (!Array.isArray(logs)) {
             console.warn('displayLogs: Expected array but got:', typeof logs, logs);
             logs = [];
@@ -899,11 +948,21 @@
             return;
         }
         
+        if (logs.length === 0) {
+            container.innerHTML = `
+                <div class="bg-gray-100 p-4 rounded-lg text-center text-gray-500">
+                    <i class="fas fa-info-circle mb-2"></i>
+                    <p>No log entries available</p>
+                </div>
+            `;
+            return;
+        }
+        
         container.innerHTML = `
             <div class="bg-black text-green-400 p-4 rounded-lg font-mono text-sm max-h-96 overflow-y-auto">
-                ${logs.map(log => `
+                ${logs.map((log, index) => `
                     <div class="mb-1">
-                        <span class="text-gray-400">[${log.timestamp || 'N/A'}]</span>
+                        <span class="text-gray-400">[${log.timestamp || `Entry ${index + 1}`}]</span>
                         <span class="text-yellow-400">[${log.level || 'INFO'}]</span>
                         <span class="text-blue-400">[${log.component || 'system'}]</span>
                         <span>${log.message || 'No message'}</span>

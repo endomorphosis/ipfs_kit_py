@@ -54,7 +54,7 @@ class MCPClient {
             this.log(`✅ ${toolName} via MCP JSON-RPC`, mcpResponse);
             return mcpResponse;
         } catch (mcpError) {
-            this.log(`MCP JSON-RPC failed for ${toolName}, falling back to API`, mcpError);
+            this.log(`MCP JSON-RPC failed for ${toolName}: ${mcpError.message}, falling back to API`, mcpError);
             
             // Fallback to direct API calls
             try {
@@ -62,7 +62,7 @@ class MCPClient {
                 this.log(`📡 ${toolName} via API fallback`, apiResponse);
                 return apiResponse;
             } catch (apiError) {
-                this.error(`Both MCP and API failed for ${toolName}`, { mcpError, apiError });
+                this.error(`Both MCP and API failed for ${toolName}`, { mcpError: mcpError.message, apiError: apiError.message });
                 throw apiError;
             }
         }
