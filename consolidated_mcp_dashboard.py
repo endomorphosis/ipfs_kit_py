@@ -2152,9 +2152,34 @@ class ConsolidatedMCPDashboard:
 
         @app.post("/mcp/tools/call")
         async def mcp_tools_call(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
-            name = payload.get("name") or payload.get("tool")
-            args = payload.get("args") or payload.get("params") or {}
-            return await self._tools_call(name, args)
+            # Handle both JSON-RPC and direct formats
+            if "params" in payload and isinstance(payload["params"], dict):
+                # JSON-RPC format: {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "tool_name", "arguments": {...}}, "id": 1}
+                name = payload["params"].get("name")
+                args = payload["params"].get("arguments", {})
+                request_id = payload.get("id")
+            else:
+                # Direct format: {"name": "tool_name", "args": {...}}
+                name = payload.get("name") or payload.get("tool")
+                args = payload.get("args") or payload.get("params") or {}
+                request_id = None
+            
+            result = await self._tools_call(name, args)
+            
+            # If this was a JSON-RPC request and we have a request_id, ensure proper JSON-RPC response format
+            if request_id is not None and isinstance(result, dict):
+                if result.get("jsonrpc") == "2.0":
+                    # Already in JSON-RPC format, just update the ID
+                    result["id"] = request_id
+                    return result
+                else:
+                    # Convert to JSON-RPC format
+                    if "error" in result:
+                        return {"jsonrpc": "2.0", "error": result["error"], "id": request_id}
+                    else:
+                        return {"jsonrpc": "2.0", "result": result, "id": request_id}
+            
+            return result
 
     # --- PID helpers ---
     def _pid_file_path(self) -> Path:
@@ -2189,6 +2214,7 @@ class ConsolidatedMCPDashboard:
     # ---- tools ----
     def _tools_list(self) -> Dict[str, Any]:
         tools = [
+            {"name": "health_check", "description": "Simple health check for MCP connection", "inputSchema": {}},
             {"name": "get_system_status", "description": "System health and versions", "inputSchema": {}},
             {"name": "list_services", "description": "List local services and probes", "inputSchema": {}},
             {"name": "service_control", "description": "Control a local service (start/stop/restart/status)", "inputSchema": {"service": "string", "action": "string"}},
@@ -2268,6 +2294,12 @@ class ConsolidatedMCPDashboard:
 
     # Domain handlers (return JSON-RPC dict or None if not applicable)
     async def _handle_system_services(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if name == "health_check":
+            result = {
+                "status": "healthy",
+                "timestamp": datetime.now(UTC).isoformat()
+            }
+            return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "get_system_status":
             result: Dict[str, Any] = {
                 "time": datetime.now(UTC).isoformat(),
@@ -2275,7 +2307,28 @@ class ConsolidatedMCPDashboard:
             }
             if psutil:
                 with suppress(Exception):
-                    result["cpu_percent"] = psutil.cpu_percent(interval=None)
+                    # Get comprehensive system metrics
+                    result["cpu_percent"] = round(psutil.cpu_percent(interval=1), 1)
+                    memory = psutil.virtual_memory()
+                    result["memory_percent"] = round(memory.percent, 1)
+                    
+                    # Get disk usage for root filesystem
+                    try:
+                        disk = psutil.disk_usage('/')
+                        result["disk_percent"] = round((disk.used / disk.total) * 100, 1)
+                    except Exception:
+                        result["disk_percent"] = 0.0
+                    
+                    result["status"] = "running"
+                    result["uptime"] = str(datetime.now(UTC) - datetime.fromtimestamp(psutil.boot_time(), UTC))
+            else:
+                # Fallback when psutil is not available
+                result.update({
+                    "cpu_percent": "N/A",
+                    "memory_percent": "N/A",
+                    "disk_percent": "N/A",
+                    "status": "running"
+                })
             return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "list_services":
             # Use comprehensive service manager if available
