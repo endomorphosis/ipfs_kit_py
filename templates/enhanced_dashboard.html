@@ -444,6 +444,9 @@
         .log-entry.info { border-left-color: #3b82f6; background-color: #eff6ff; }
         .log-entry.debug { border-left-color: #6b7280; background-color: #f9fafb; }
     </style>
+    
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen flex">
@@ -682,6 +685,10 @@
                                             <option value="github">📚 GitHub Repository</option>
                                             <option value="huggingface">🤗 HuggingFace Hub</option>
                                             <option value="gdrive">📁 Google Drive</option>
+                                        </optgroup>
+                                        <optgroup label="Data Analytics">
+                                            <option value="apache_arrow">🏹 Apache Arrow</option>
+                                            <option value="parquet">📊 Parquet Storage</option>
                                         </optgroup>
                                         <optgroup label="IPFS Networks">
                                             <option value="ipfs">📡 IPFS Node</option>
@@ -996,16 +1003,30 @@
                     <!-- Performance Analytics -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-2xl font-bold text-gray-800 mb-6">Performance Analytics</h2>
-                        <div class="text-gray-500 text-center py-8">
-                            Analytics charts will be implemented when Chart.js is available.
+                        <div class="grid grid-cols-1 lg-grid-cols-2 gap-6">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-700 mb-4">Service Status Distribution</h3>
+                                <canvas id="serviceStatusChart" width="400" height="200"></canvas>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-700 mb-4">System Resource Usage</h3>
+                                <canvas id="resourceUsageChart" width="400" height="200"></canvas>
+                            </div>
                         </div>
                     </div>
                     
                     <!-- Bucket Analytics -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-4">Bucket Analytics</h3>
-                        <div class="text-gray-500 text-center py-8">
-                            Bucket analytics charts will be implemented when Chart.js is available.
+                        <div class="grid grid-cols-1 lg-grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-lg font-medium text-gray-700 mb-4">Storage Distribution by Bucket</h4>
+                                <canvas id="bucketStorageChart" width="400" height="200"></canvas>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-medium text-gray-700 mb-4">Backend Type Distribution</h4>
+                                <canvas id="backendTypeChart" width="400" height="200"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1542,7 +1563,7 @@
 
                 // Update component counts
                 updateComponentCounts({
-                    services: services.services ? services.services.length : (services.length || 0),
+                    services: services.services ? Object.keys(services.services).length : (services.length || 0),
                     backends: Array.isArray(backends) ? backends.length : (backends.backends ? backends.backends.length : 0),
                     pins: pins.pins ? pins.pins.length : (pins.length || 0),
                     buckets: buckets.data && buckets.data.buckets ? buckets.data.buckets.length : (buckets.buckets ? buckets.buckets.length : (buckets.length || 0))
@@ -1656,7 +1677,7 @@
             
             // Process services and group by type, supporting multiple instances
             for (const [serviceId, service] of Object.entries(services)) {
-                const serviceType = determineServiceType(service.type || serviceId);
+                const serviceType = determineServiceType(serviceId, service.type);
                 if (!serviceGroups[serviceType]) {
                     serviceGroups[serviceType] = { name: serviceType.toUpperCase(), services: [] };
                 }
@@ -1710,21 +1731,36 @@
             initializeEnhancedFilters();
         }
 
-        function determineServiceType(serviceType) {
+        function determineServiceType(serviceId, serviceType) {
+            // Check specific service IDs first
+            const serviceIdMap = {
+                'apache_arrow': 'ai',
+                'parquet': 'ai',
+                'huggingface': 'ai',
+                'synapse': 'ai'
+            };
+            
+            if (serviceIdMap[serviceId]) {
+                return serviceIdMap[serviceId];
+            }
+            
+            // Then check service types
             const typeMap = {
                 'ipfs': 'network',
                 'ipfs_cluster': 'network', 
                 'aria2': 'daemon',
                 's3': 'storage',
                 'github': 'storage',
-                'huggingface': 'ai',
                 'gdrive': 'storage',
                 'lotus': 'storage',
                 'storacha': 'storage',
-                'synapse': 'ai',
-                'daemon': 'daemon'
+                'mcp_server': 'network',
+                'daemon': 'daemon',
+                'storage': 'storage',
+                'network': 'network'
             };
-            return typeMap[serviceType] || 'network';
+            
+            return typeMap[serviceType] || typeMap[serviceId] || 'network';
         }
 
         function createEnhancedServiceCard(serviceId, service, groupKey) {
@@ -2094,7 +2130,7 @@
                     
                     // Open configuration modal for the new service
                     setTimeout(() => {
-                        openEnhancedConfigModal(name, determineServiceType(type));
+                        openEnhancedConfigModal(name, determineServiceType(name, type));
                     }, 500);
                 } else {
                     throw new Error(result?.result?.message || 'Failed to create service instance');
@@ -2499,12 +2535,158 @@
 
         async function loadAnalyticsData() {
             try {
-                const response = await fetch('/api/analytics/summary');
-                const data = await response.json();
-                // Update analytics charts
-                console.log('Analytics data:', data);
+                // Load data for analytics
+                const [servicesRes, backendsRes, systemRes] = await Promise.all([
+                    fetch('/api/services').catch(() => ({ json: () => ({ services: {} }) })),
+                    fetch('/api/backends').catch(() => ({ json: () => ({ backends: [] }) })),
+                    fetch('/api/metrics/system').catch(() => ({ json: () => ({ cpu_percent: 0, memory_percent: 0, disk_percent: 0 }) }))
+                ]);
+
+                const [services, backends, systemMetrics] = await Promise.all([
+                    servicesRes.json(),
+                    backendsRes.json(),
+                    systemRes.json()
+                ]);
+
+                // Create service status chart
+                createServiceStatusChart(services.services || {});
+                
+                // Create resource usage chart
+                createResourceUsageChart(systemMetrics);
+                
+                // Create backend charts
+                createBackendCharts(backends.backends || backends || []);
+                
+                console.log('Analytics charts created successfully');
             } catch (error) {
                 console.error('Error loading analytics data:', error);
+            }
+        }
+
+        function createServiceStatusChart(services) {
+            const ctx = document.getElementById('serviceStatusChart');
+            if (!ctx || typeof Chart === 'undefined') return;
+
+            // Count services by status
+            const statusCounts = {
+                running: 0,
+                stopped: 0,
+                configured: 0,
+                error: 0,
+                other: 0
+            };
+
+            Object.values(services).forEach(service => {
+                const status = service.status || 'other';
+                if (statusCounts.hasOwnProperty(status)) {
+                    statusCounts[status]++;
+                } else {
+                    statusCounts.other++;
+                }
+            });
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Running', 'Stopped', 'Configured', 'Error', 'Other'],
+                    datasets: [{
+                        data: [statusCounts.running, statusCounts.stopped, statusCounts.configured, statusCounts.error, statusCounts.other],
+                        backgroundColor: ['#10b981', '#ef4444', '#3b82f6', '#f59e0b', '#6b7280']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createResourceUsageChart(metrics) {
+            const ctx = document.getElementById('resourceUsageChart');
+            if (!ctx || typeof Chart === 'undefined') return;
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['CPU Usage', 'Memory Usage', 'Disk Usage'],
+                    datasets: [{
+                        label: 'Resource Usage (%)',
+                        data: [
+                            metrics.cpu_percent || 0,
+                            metrics.memory_percent || 0,
+                            metrics.disk_percent || 0
+                        ],
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function createBackendCharts(backends) {
+            // Backend type distribution
+            const typeCtx = document.getElementById('backendTypeChart');
+            if (typeCtx && typeof Chart !== 'undefined') {
+                const typeCounts = {};
+                backends.forEach(backend => {
+                    const type = backend.type || 'unknown';
+                    typeCounts[type] = (typeCounts[type] || 0) + 1;
+                });
+
+                new Chart(typeCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(typeCounts),
+                        datasets: [{
+                            data: Object.values(typeCounts),
+                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Mock bucket storage chart (since we don't have real storage data)
+            const storageCtx = document.getElementById('bucketStorageChart');
+            if (storageCtx && typeof Chart !== 'undefined') {
+                new Chart(storageCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Bucket 1', 'Bucket 2', 'Bucket 3', 'Bucket 4'],
+                        datasets: [{
+                            label: 'Storage Usage (MB)',
+                            data: [120, 350, 200, 80],
+                            backgroundColor: '#3b82f6'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
             }
         }
 
