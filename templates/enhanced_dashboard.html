@@ -634,17 +634,89 @@
             <!-- Buckets Tab -->
             <div id="buckets" class="tab-content">
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Bucket Management</h2>
-                    <div class="mb-4">
-                        <button id="refresh-buckets" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Bucket File Management</h2>
+                    
+                    <!-- Bucket Controls -->
+                    <div class="flex flex-wrap gap-2 mb-6 p-4 bg-gray-50 rounded-lg">
+                        <button id="refresh-buckets" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
                             <i class="fas fa-sync-alt mr-2"></i>Refresh
                         </button>
                         <button id="create-bucket" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
                             <i class="fas fa-plus mr-2"></i>Create Bucket
                         </button>
+                        <button id="upload-file" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-upload mr-2"></i>Upload File
+                        </button>
+                        <button id="create-folder" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-folder-plus mr-2"></i>New Folder
+                        </button>
+                        <button id="sync-replicas" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-sync mr-2"></i>Sync Replicas
+                        </button>
                     </div>
-                    <div id="buckets-list" class="grid grid-cols-1 md-grid-cols-2 lg-grid-cols-3 gap-4">
-                        <!-- Buckets will be populated dynamically -->
+
+                    <!-- Bucket Selection -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Selected Bucket:</label>
+                        <div class="flex gap-2">
+                            <select id="bucket-selector" class="flex-1 border border-gray-300 rounded px-3 py-2">
+                                <option value="">Select a bucket...</option>
+                            </select>
+                            <button id="manage-policies" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                                <i class="fas fa-cogs mr-2"></i>Policies
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- File Navigation Breadcrumb -->
+                    <div class="mb-4 p-3 bg-gray-100 rounded" id="file-breadcrumb" style="display: none;">
+                        <div class="flex items-center gap-2 text-sm">
+                            <i class="fas fa-folder-open"></i>
+                            <span id="current-path">/</span>
+                        </div>
+                    </div>
+
+                    <!-- File Browser Grid -->
+                    <div class="grid grid-cols-1 lg-grid-cols-2 gap-6" id="bucket-content" style="display: none;">
+                        
+                        <!-- File List -->
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-semibold">Files & Folders</h3>
+                            <div id="files-list" class="border border-gray-200 rounded-lg max-h-96 overflow-y-auto">
+                                <!-- Files will be populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- File Details & Actions -->
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-semibold">File Details</h3>
+                            <div id="file-details" class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                <p class="text-gray-500">Select a file to view details</p>
+                            </div>
+                            
+                            <!-- File Actions -->
+                            <div id="file-actions" class="space-y-2" style="display: none;">
+                                <button id="download-file" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-download mr-2"></i>Download
+                                </button>
+                                <button id="rename-file" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-edit mr-2"></i>Rename
+                                </button>
+                                <button id="delete-file" class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-trash mr-2"></i>Delete
+                                </button>
+                                <button id="view-metadata" class="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                                    <i class="fas fa-info-circle mr-2"></i>Metadata
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Buckets Overview (when no bucket selected) -->
+                    <div id="buckets-overview">
+                        <div id="buckets-list" class="grid grid-cols-1 md-grid-cols-2 lg-grid-cols-3 gap-4">
+                            <!-- Buckets will be populated dynamically -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1891,22 +1963,441 @@
             }
         }
 
+        // Enhanced bucket and file management using MCP SDK
+        let currentBucket = null;
+        let currentPath = '.';
+        let selectedFile = null;
+
         async function createBucket(name) {
             try {
-                const response = await fetch('/api/buckets', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ name: name })
-                });
-                const result = await response.json();
+                // Use MCP SDK for bucket creation
+                const result = await callMCPTool('create_bucket', { name: name });
                 console.log('Create bucket result:', result);
-                loadBucketsData();
+                await loadBucketsData();
+                await updateBucketSelector();
             } catch (error) {
                 console.error('Error creating bucket:', error);
             }
         }
+
+        async function updateBucketSelector() {
+            try {
+                const buckets = await callMCPTool('list_buckets', {});
+                const selector = document.getElementById('bucket-selector');
+                if (!selector) return;
+
+                selector.innerHTML = '<option value="">Select a bucket...</option>';
+                
+                if (buckets.result && buckets.result.items) {
+                    buckets.result.items.forEach(bucket => {
+                        const option = document.createElement('option');
+                        option.value = bucket.name;
+                        option.textContent = bucket.name;
+                        selector.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error updating bucket selector:', error);
+            }
+        }
+
+        async function selectBucket(bucketName) {
+            currentBucket = bucketName;
+            currentPath = '.';
+            selectedFile = null;
+            
+            const overview = document.getElementById('buckets-overview');
+            const content = document.getElementById('bucket-content');
+            const breadcrumb = document.getElementById('file-breadcrumb');
+            
+            if (bucketName) {
+                overview.style.display = 'none';
+                content.style.display = 'block';
+                breadcrumb.style.display = 'block';
+                await loadBucketFiles(bucketName, currentPath);
+            } else {
+                overview.style.display = 'block';
+                content.style.display = 'none';
+                breadcrumb.style.display = 'none';
+                await loadBucketsData();
+            }
+        }
+
+        async function loadBucketFiles(bucket, path) {
+            try {
+                const result = await callMCPTool('bucket_list_files', {
+                    bucket: bucket,
+                    path: path,
+                    show_metadata: true
+                });
+
+                console.log('Loaded bucket files:', result);
+                displayFileList(result.result.files);
+                updateBreadcrumb(bucket, path);
+            } catch (error) {
+                console.error('Error loading bucket files:', error);
+            }
+        }
+
+        function displayFileList(files) {
+            const filesList = document.getElementById('files-list');
+            if (!filesList) return;
+
+            filesList.innerHTML = '';
+
+            // Add back navigation if not in root
+            if (currentPath !== '.') {
+                const backItem = createFileItem({
+                    name: '..',
+                    is_dir: true,
+                    path: getParentPath(currentPath)
+                }, true);
+                filesList.appendChild(backItem);
+            }
+
+            files.forEach(file => {
+                const fileItem = createFileItem(file);
+                filesList.appendChild(fileItem);
+            });
+        }
+
+        function createFileItem(file, isBackNav = false) {
+            const item = document.createElement('div');
+            item.className = 'flex items-center justify-between p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer';
+            
+            const iconClass = isBackNav ? 'fas fa-level-up-alt' : 
+                             file.is_dir ? 'fas fa-folder text-blue-500' : 'fas fa-file text-gray-500';
+            
+            const sizeText = file.is_dir ? '' : formatFileSize(file.size || 0);
+            const replicaCount = file.replicas ? file.replicas.length : 0;
+            const replicaText = replicaCount > 0 ? `(${replicaCount} replicas)` : '';
+            const cacheText = file.cached ? '📋' : '';
+
+            item.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <i class="${iconClass}"></i>
+                    <div>
+                        <div class="font-medium">${file.name}</div>
+                        <div class="text-sm text-gray-500">
+                            ${sizeText} ${replicaText} ${cacheText}
+                            ${file.modified ? new Date(file.modified).toLocaleDateString() : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    ${!file.is_dir && !isBackNav ? '<i class="fas fa-info-circle text-gray-400 hover:text-blue-500" title="View details"></i>' : ''}
+                </div>
+            `;
+
+            item.addEventListener('click', () => {
+                if (isBackNav) {
+                    navigateToPath(file.path);
+                } else if (file.is_dir) {
+                    navigateToPath(file.path);
+                } else {
+                    selectFile(file);
+                }
+            });
+
+            return item;
+        }
+
+        function selectFile(file) {
+            selectedFile = file;
+            displayFileDetails(file);
+            document.getElementById('file-actions').style.display = 'block';
+        }
+
+        function displayFileDetails(file) {
+            const details = document.getElementById('file-details');
+            if (!details) return;
+
+            const sizeText = formatFileSize(file.size || 0);
+            const replicaCount = file.replicas ? file.replicas.length : 0;
+            const targetReplicas = file.metadata ? file.metadata.target_replicas || 1 : 1;
+
+            details.innerHTML = `
+                <div class="space-y-3">
+                    <h4 class="font-medium text-lg">${file.name}</h4>
+                    <div class="text-sm space-y-1">
+                        <div><strong>Path:</strong> ${file.path}</div>
+                        <div><strong>Size:</strong> ${sizeText}</div>
+                        <div><strong>Modified:</strong> ${file.modified ? new Date(file.modified).toLocaleString() : 'Unknown'}</div>
+                        <div><strong>Cached:</strong> ${file.cached ? 'Yes' : 'No'}</div>
+                        <div><strong>Replicas:</strong> ${replicaCount}/${targetReplicas}</div>
+                    </div>
+                    ${file.replicas && file.replicas.length > 0 ? `
+                        <div class="mt-3">
+                            <strong>Replica Status:</strong>
+                            <div class="mt-1 space-y-1">
+                                ${file.replicas.map(replica => `
+                                    <div class="text-xs bg-gray-100 p-2 rounded">
+                                        ${replica.backend}: <span class="status-${replica.status}">${replica.status}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        async function navigateToPath(path) {
+            currentPath = path;
+            await loadBucketFiles(currentBucket, path);
+        }
+
+        function updateBreadcrumb(bucket, path) {
+            const breadcrumb = document.getElementById('current-path');
+            if (!breadcrumb) return;
+
+            const parts = path === '.' ? [] : path.split('/').filter(p => p);
+            breadcrumb.innerHTML = `/${bucket}/${parts.join('/')}`;
+        }
+
+        function getParentPath(path) {
+            if (path === '.') return '.';
+            const parts = path.split('/').filter(p => p);
+            return parts.length <= 1 ? '.' : parts.slice(0, -1).join('/');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // File operations using MCP SDK
+        async function uploadFileToBucket() {
+            if (!currentBucket) {
+                alert('Please select a bucket first');
+                return;
+            }
+
+            const fileName = prompt('Enter file name:');
+            const content = prompt('Enter file content:');
+            
+            if (fileName && content) {
+                try {
+                    const filePath = currentPath === '.' ? fileName : `${currentPath}/${fileName}`;
+                    const result = await callMCPTool('bucket_upload_file', {
+                        bucket: currentBucket,
+                        path: filePath,
+                        content: content,
+                        mode: 'text',
+                        apply_policy: true
+                    });
+                    
+                    console.log('Upload result:', result);
+                    await loadBucketFiles(currentBucket, currentPath);
+                } catch (error) {
+                    console.error('Error uploading file:', error);
+                    alert('Failed to upload file');
+                }
+            }
+        }
+
+        async function downloadSelectedFile() {
+            if (!selectedFile || !currentBucket) return;
+
+            try {
+                const result = await callMCPTool('bucket_download_file', {
+                    bucket: currentBucket,
+                    path: selectedFile.path,
+                    format: 'text'
+                });
+
+                console.log('Download result:', result);
+                
+                // Create and trigger download
+                const blob = new Blob([result.result.content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = selectedFile.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error downloading file:', error);
+                alert('Failed to download file');
+            }
+        }
+
+        async function deleteSelectedFile() {
+            if (!selectedFile || !currentBucket) return;
+
+            if (confirm(`Delete ${selectedFile.name}? This cannot be undone.`)) {
+                try {
+                    const result = await callMCPTool('bucket_delete_file', {
+                        bucket: currentBucket,
+                        path: selectedFile.path,
+                        remove_replicas: true
+                    });
+
+                    console.log('Delete result:', result);
+                    selectedFile = null;
+                    document.getElementById('file-actions').style.display = 'none';
+                    document.getElementById('file-details').innerHTML = '<p class="text-gray-500">Select a file to view details</p>';
+                    await loadBucketFiles(currentBucket, currentPath);
+                } catch (error) {
+                    console.error('Error deleting file:', error);
+                    alert('Failed to delete file');
+                }
+            }
+        }
+
+        async function renameSelectedFile() {
+            if (!selectedFile || !currentBucket) return;
+
+            const newName = prompt('Enter new name:', selectedFile.name);
+            if (newName && newName !== selectedFile.name) {
+                try {
+                    const newPath = selectedFile.path.replace(/[^/]*$/, newName);
+                    const result = await callMCPTool('bucket_rename_file', {
+                        bucket: currentBucket,
+                        src: selectedFile.path,
+                        dst: newPath,
+                        update_replicas: true
+                    });
+
+                    console.log('Rename result:', result);
+                    selectedFile = null;
+                    document.getElementById('file-actions').style.display = 'none';
+                    document.getElementById('file-details').innerHTML = '<p class="text-gray-500">Select a file to view details</p>';
+                    await loadBucketFiles(currentBucket, currentPath);
+                } catch (error) {
+                    console.error('Error renaming file:', error);
+                    alert('Failed to rename file');
+                }
+            }
+        }
+
+        async function createFolder() {
+            if (!currentBucket) {
+                alert('Please select a bucket first');
+                return;
+            }
+
+            const folderName = prompt('Enter folder name:');
+            if (folderName) {
+                try {
+                    const folderPath = currentPath === '.' ? folderName : `${currentPath}/${folderName}`;
+                    const result = await callMCPTool('bucket_mkdir', {
+                        bucket: currentBucket,
+                        path: folderPath,
+                        create_parents: true
+                    });
+
+                    console.log('Create folder result:', result);
+                    await loadBucketFiles(currentBucket, currentPath);
+                } catch (error) {
+                    console.error('Error creating folder:', error);
+                    alert('Failed to create folder');
+                }
+            }
+        }
+
+        async function syncBucketReplicas() {
+            if (!currentBucket) {
+                alert('Please select a bucket first');
+                return;
+            }
+
+            try {
+                const result = await callMCPTool('bucket_sync_replicas', {
+                    bucket: currentBucket,
+                    force_sync: false
+                });
+
+                console.log('Sync replicas result:', result);
+                alert(`Synced ${result.result.synced_files} files`);
+                await loadBucketFiles(currentBucket, currentPath);
+            } catch (error) {
+                console.error('Error syncing replicas:', error);
+                alert('Failed to sync replicas');
+            }
+        }
+
+        async function viewFileMetadata() {
+            if (!selectedFile || !currentBucket) return;
+
+            try {
+                const result = await callMCPTool('bucket_get_metadata', {
+                    bucket: currentBucket,
+                    path: selectedFile.path,
+                    include_replicas: true
+                });
+
+                console.log('File metadata:', result);
+                alert(`Metadata for ${selectedFile.name}:\n\n${JSON.stringify(result.result, null, 2)}`);
+            } catch (error) {
+                console.error('Error getting metadata:', error);
+                alert('Failed to get file metadata');
+            }
+        }
+
+        // Set up enhanced bucket management event listeners
+        function setupEnhancedBucketManagement() {
+            // Bucket selector
+            const bucketSelector = document.getElementById('bucket-selector');
+            if (bucketSelector) {
+                bucketSelector.addEventListener('change', (e) => {
+                    selectBucket(e.target.value);
+                });
+            }
+
+            // File action buttons
+            const uploadBtn = document.getElementById('upload-file');
+            if (uploadBtn) uploadBtn.addEventListener('click', uploadFileToBucket);
+
+            const createFolderBtn = document.getElementById('create-folder');
+            if (createFolderBtn) createFolderBtn.addEventListener('click', createFolder);
+
+            const syncReplicasBtn = document.getElementById('sync-replicas');
+            if (syncReplicasBtn) syncReplicasBtn.addEventListener('click', syncBucketReplicas);
+
+            const downloadBtn = document.getElementById('download-file');
+            if (downloadBtn) downloadBtn.addEventListener('click', downloadSelectedFile);
+
+            const renameBtn = document.getElementById('rename-file');
+            if (renameBtn) renameBtn.addEventListener('click', renameSelectedFile);
+
+            const deleteBtn = document.getElementById('delete-file');
+            if (deleteBtn) deleteBtn.addEventListener('click', deleteSelectedFile);
+
+            const metadataBtn = document.getElementById('view-metadata');
+            if (metadataBtn) metadataBtn.addEventListener('click', viewFileMetadata);
+        }
+
+        // Enhanced loadBucketsData that also updates selector
+        async function loadBucketsDataEnhanced() {
+            await loadBucketsData();
+            await updateBucketSelector();
+        }
+
+        // Override the original bucket creation handler
+        const createBucketBtn = document.getElementById('create-bucket');
+        if (createBucketBtn) {
+            // Remove existing listeners
+            createBucketBtn.replaceWith(createBucketBtn.cloneNode(true));
+            const newCreateBtn = document.getElementById('create-bucket');
+            newCreateBtn.addEventListener('click', () => {
+                const name = prompt('Enter bucket name:');
+                if (name) {
+                    createBucket(name);
+                }
+            });
+        }
+
+        // Initialize enhanced bucket management after DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEnhancedBucketManagement();
+            updateBucketSelector();
+        });
     </script>
 </body>
 </html>

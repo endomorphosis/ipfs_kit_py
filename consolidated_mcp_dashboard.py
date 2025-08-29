@@ -572,7 +572,7 @@ class ConsolidatedMCPDashboard:
                    "    function ensureNS(ns, obj){ if (!g.MCP[ns]) g.MCP[ns] = obj; }\n" \
                    "    ensureNS('Services', { control:(s,a)=>rpcCall('service_control',{service:s, action:a}), status:(s)=>rpcCall('service_status',{service:s}) });\n" \
                    "    ensureNS('Backends', { list:()=>rpcCall('list_backends',{}), get:(n)=>rpcCall('get_backend',{name:n}), create:(n,c)=>rpcCall('create_backend',{name:n, config:c}), update:(n,c)=>rpcCall('update_backend',{name:n, config:c}), delete:(n)=>rpcCall('delete_backend',{name:n}), test:(n)=>rpcCall('test_backend',{name:n}) });\n" \
-                   "    ensureNS('Buckets', { list:()=>rpcCall('list_buckets',{}), get:(n)=>rpcCall('get_bucket',{name:n}), create:(n,b)=>rpcCall('create_bucket',{name:n, backend:b}), update:(n,p)=>rpcCall('update_bucket',{name:n, patch:p}), delete:(n)=>rpcCall('delete_bucket',{name:n}), getPolicy:(n)=>rpcCall('get_bucket_policy',{name:n}), updatePolicy:(n,pol)=>rpcCall('update_bucket_policy',{name:n, policy:pol}) });\n" \
+                   "    ensureNS('Buckets', { list:()=>rpcCall('list_buckets',{}), get:(n)=>rpcCall('get_bucket',{name:n}), create:(n,b)=>rpcCall('create_bucket',{name:n, backend:b}), update:(n,p)=>rpcCall('update_bucket',{name:n, patch:p}), delete:(n)=>rpcCall('delete_bucket',{name:n}), getPolicy:(n)=>rpcCall('get_bucket_policy',{name:n}), updatePolicy:(n,pol)=>rpcCall('update_bucket_policy',{name:n, policy:pol}), listFiles:(bucket,path,meta)=>rpcCall('bucket_list_files',{bucket,path:(path||'.'),show_metadata:!!meta}), uploadFile:(bucket,path,content,mode,policy)=>rpcCall('bucket_upload_file',{bucket,path,content,mode:(mode||'text'),apply_policy:!!policy}), downloadFile:(bucket,path,format)=>rpcCall('bucket_download_file',{bucket,path,format:(format||'text')}), deleteFile:(bucket,path,replicas)=>rpcCall('bucket_delete_file',{bucket,path,remove_replicas:!!replicas}), renameFile:(bucket,src,dst,replicas)=>rpcCall('bucket_rename_file',{bucket,src,dst,update_replicas:!!replicas}), mkdir:(bucket,path,parents)=>rpcCall('bucket_mkdir',{bucket,path,create_parents:!!parents}), syncReplicas:(bucket,force)=>rpcCall('bucket_sync_replicas',{bucket,force_sync:!!force}), getMetadata:(bucket,path,replicas)=>rpcCall('bucket_get_metadata',{bucket,path,include_replicas:!!replicas}) });\n" \
                    "    ensureNS('Pins', { list:()=>rpcCall('list_pins',{}), create:(cid,name)=>rpcCall('create_pin',{cid, name}), delete:(cid)=>rpcCall('delete_pin',{cid}), export:()=>rpcCall('pins_export',{}), import:(items)=>rpcCall('pins_import',{items}) });\n" \
                    "    ensureNS('Files', { list:(p)=>rpcCall('files_list',{path:(p==null?'.':p)}), read:(p)=>rpcCall('files_read',{path:p}), write:(p,c,m)=>rpcCall('files_write',{path:p, content:c, mode:(m||'text')}), mkdir:(p)=>rpcCall('files_mkdir',{path:p}), rm:(p,rec)=>rpcCall('files_rm',{path:p, recursive:!!rec}), mv:(s,d)=>rpcCall('files_mv',{src:s, dst:d}), stat:(p)=>rpcCall('files_stat',{path:p}), copy:(s,d,rec)=>rpcCall('files_copy',{src:s, dst:d, recursive:!!rec}), touch:(p)=>rpcCall('files_touch',{path:p}), tree:(p,d)=>rpcCall('files_tree',{path:(p==null?'.':p), depth:(d==null?2:d)}) });\n" \
                    "    ensureNS('IPFS', { version:()=>rpcCall('ipfs_version',{}), add:(p)=>rpcCall('ipfs_add',{path:p}), pin:(cid,name)=>rpcCall('ipfs_pin',{cid, name}), cat:(cid)=>rpcCall('ipfs_cat',{cid}), ls:(cid)=>rpcCall('ipfs_ls',{cid}) });\n" \
@@ -2263,6 +2263,16 @@ class ConsolidatedMCPDashboard:
             {"name": "update_bucket", "description": "Update bucket (merge fields)", "inputSchema": {"type":"object", "required":["name","patch"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "patch": {"type":"object", "title":"Patch"}}}},
             {"name": "get_bucket_policy", "description": "Get bucket policy", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
             {"name": "update_bucket_policy", "description": "Update bucket policy", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "replication_factor": {"type":"number", "title":"Replication", "default":1}, "cache_policy": {"type":"string", "title":"Cache", "enum":["none","memory","disk"], "default":"none"}, "retention_days": {"type":"number", "title":"Retention Days", "default":0}}}},
+            # Comprehensive bucket file management tools
+            {"name": "bucket_list_files", "description": "List files in bucket with metadata priority", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"Path", "default":"."}, "show_metadata": {"type":"boolean", "title":"Show Metadata", "default":True}}}},
+            {"name": "bucket_upload_file", "description": "Upload file to bucket with replication policy", "inputSchema": {"type":"object", "required":["bucket","path","content"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "content": {"type":"string", "title":"Content", "ui": {"widget":"textarea", "rows":6}}, "mode": {"type":"string", "title":"Mode", "enum":["text","hex","base64"], "default":"text"}, "apply_policy": {"type":"boolean", "title":"Apply Bucket Policy", "default":True}}}},
+            {"name": "bucket_download_file", "description": "Download file from bucket", "inputSchema": {"type":"object", "required":["bucket","path"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "format": {"type":"string", "title":"Format", "enum":["text","hex","base64"], "default":"text"}}}},
+            {"name": "bucket_delete_file", "description": "Delete file from bucket", "inputSchema": {"type":"object", "required":["bucket","path"], "confirm": {"message":"This will delete the file from the bucket. Continue?"}, "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "remove_replicas": {"type":"boolean", "title":"Remove Replicas", "default":True}}}},
+            {"name": "bucket_rename_file", "description": "Rename/move file in bucket", "inputSchema": {"type":"object", "required":["bucket","src","dst"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "src": {"type":"string", "title":"Source Path"}, "dst": {"type":"string", "title":"Destination Path"}, "update_replicas": {"type":"boolean", "title":"Update Replicas", "default":True}}}},
+            {"name": "bucket_mkdir", "description": "Create directory in bucket", "inputSchema": {"type":"object", "required":["bucket","path"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"Directory Path"}, "create_parents": {"type":"boolean", "title":"Create Parents", "default":True}}}},
+            {"name": "bucket_copy_file", "description": "Copy file within or between buckets", "inputSchema": {"type":"object", "required":["src_bucket","src_path","dst_bucket","dst_path"], "properties": {"src_bucket": {"type":"string", "title":"Source Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "src_path": {"type":"string", "title":"Source Path"}, "dst_bucket": {"type":"string", "title":"Destination Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "dst_path": {"type":"string", "title":"Destination Path"}, "apply_dst_policy": {"type":"boolean", "title":"Apply Destination Policy", "default":True}}}},
+            {"name": "bucket_sync_replicas", "description": "Sync bucket files to replicas according to policy", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "force_sync": {"type":"boolean", "title":"Force Full Sync", "default":False}}}},
+            {"name": "bucket_get_metadata", "description": "Get comprehensive metadata for bucket file", "inputSchema": {"type":"object", "required":["bucket","path"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "include_replicas": {"type":"boolean", "title":"Include Replica Info", "default":True}}}},
             {"name": "list_pins", "description": "List pins", "inputSchema": {}},
             {"name": "create_pin", "description": "Create pin", "inputSchema": {"type":"object", "required":["cid"], "properties": {"cid": {"type":"string", "title":"CID"}, "name": {"type":"string", "title":"Name"}}}},
             {"name": "delete_pin", "description": "Delete pin", "inputSchema": {"type":"object", "required":["cid"], "confirm": {"message":"This will unpin the CID. Continue?"}, "properties": {"cid": {"type":"string", "title":"CID", "ui": {"enumFrom":"pins", "valueKey":"cid", "labelFormat":"{name} ({cid})"}}}}},
@@ -2574,6 +2584,343 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(404, "Not found")
             _atomic_write_json(self.paths.buckets_file, items)
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
+        
+        # Enhanced bucket file management with metadata priority
+        if name == "bucket_list_files":
+            bucket = args.get("bucket")
+            path = args.get("path", ".")
+            show_metadata = args.get("show_metadata", True)
+            if not bucket:
+                raise HTTPException(400, "Missing bucket")
+            
+            # First check ~/.ipfs_kit/ metadata
+            metadata_file = self.paths.data_dir / "bucket_files.json"
+            metadata = _read_json(metadata_file, {})
+            
+            # Get VFS path
+            bucket_path = self.paths.vfs_root / bucket
+            if not bucket_path.exists():
+                bucket_path.mkdir(parents=True, exist_ok=True)
+            
+            vfs_path = _safe_vfs_path(bucket_path, path)
+            files = []
+            
+            if vfs_path.is_file():
+                stat_info = vfs_path.stat()
+                file_key = f"{bucket}:{path}"
+                meta = metadata.get(file_key, {})
+                files.append({
+                    "name": vfs_path.name,
+                    "path": path,
+                    "is_dir": False,
+                    "size": stat_info.st_size,
+                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                    "metadata": meta if show_metadata else None,
+                    "replicas": meta.get("replicas", []) if show_metadata else None,
+                    "cached": meta.get("cached", False) if show_metadata else None
+                })
+            elif vfs_path.is_dir():
+                for item in sorted(vfs_path.iterdir()):
+                    rel_path = str(item.relative_to(bucket_path))
+                    file_key = f"{bucket}:{rel_path}"
+                    meta = metadata.get(file_key, {})
+                    
+                    file_info = {
+                        "name": item.name,
+                        "path": rel_path,
+                        "is_dir": item.is_dir(),
+                        "modified": datetime.fromtimestamp(item.stat().st_mtime, UTC).isoformat()
+                    }
+                    
+                    if not item.is_dir():
+                        file_info["size"] = item.stat().st_size
+                    
+                    if show_metadata:
+                        file_info.update({
+                            "metadata": meta,
+                            "replicas": meta.get("replicas", []),
+                            "cached": meta.get("cached", False)
+                        })
+                    
+                    files.append(file_info)
+            
+            return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "files": files}, "id": None}
+
+        if name == "bucket_upload_file":
+            bucket = args.get("bucket")
+            path = args.get("path")
+            content = args.get("content")
+            mode = args.get("mode", "text")
+            apply_policy = args.get("apply_policy", True)
+            
+            if not bucket or not path or content is None:
+                raise HTTPException(400, "Missing bucket, path, or content")
+            
+            # Ensure bucket exists
+            buckets_data = _read_json(self.paths.buckets_file, [])
+            bucket_config = None
+            for b in buckets_data:
+                if b.get("name") == bucket:
+                    bucket_config = b
+                    break
+            
+            if not bucket_config:
+                raise HTTPException(404, "Bucket not found")
+            
+            # Create bucket directory if needed
+            bucket_path = self.paths.vfs_root / bucket
+            bucket_path.mkdir(parents=True, exist_ok=True)
+            
+            # Write file
+            file_path = _safe_vfs_path(bucket_path, path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            if mode == "hex":
+                file_path.write_bytes(bytes.fromhex(content))
+            elif mode == "base64":
+                import base64
+                file_path.write_bytes(base64.b64decode(content))
+            else:  # text
+                file_path.write_text(str(content), encoding="utf-8")
+            
+            # Update metadata with bucket policy
+            metadata_file = self.paths.data_dir / "bucket_files.json"
+            metadata = _read_json(metadata_file, {})
+            file_key = f"{bucket}:{path}"
+            stat_info = file_path.stat()
+            
+            file_meta = {
+                "path": path,
+                "bucket": bucket,
+                "size": stat_info.st_size,
+                "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
+                "operation": "upload",
+                "timestamp": datetime.now(UTC).isoformat(),
+                "cached": False,
+                "replicas": []
+            }
+            
+            # Apply bucket policy if requested
+            if apply_policy and bucket_config.get("policy"):
+                policy = bucket_config["policy"]
+                replication_factor = policy.get("replication_factor", 1)
+                cache_policy = policy.get("cache_policy", "none")
+                
+                file_meta["target_replicas"] = replication_factor
+                file_meta["cache_policy"] = cache_policy
+                
+                # Simulate replication (in real implementation, would sync to backends)
+                for i in range(min(replication_factor, 3)):  # Cap at 3 for demo
+                    replica_info = {
+                        "backend": f"backend_{i}",
+                        "status": "syncing",
+                        "timestamp": datetime.now(UTC).isoformat()
+                    }
+                    file_meta["replicas"].append(replica_info)
+                
+                if cache_policy in ("memory", "disk"):
+                    file_meta["cached"] = True
+                    file_meta["cache_type"] = cache_policy
+            
+            metadata[file_key] = file_meta
+            _atomic_write_json(metadata_file, metadata)
+            
+            return {"jsonrpc": "2.0", "result": {"ok": True, "path": path, "bucket": bucket, "metadata": file_meta}, "id": None}
+
+        if name == "bucket_download_file":
+            bucket = args.get("bucket")
+            path = args.get("path")
+            format = args.get("format", "text")
+            
+            if not bucket or not path:
+                raise HTTPException(400, "Missing bucket or path")
+            
+            # Check metadata first
+            metadata_file = self.paths.data_dir / "bucket_files.json"
+            metadata = _read_json(metadata_file, {})
+            file_key = f"{bucket}:{path}"
+            file_meta = metadata.get(file_key, {})
+            
+            bucket_path = self.paths.vfs_root / bucket
+            file_path = _safe_vfs_path(bucket_path, path)
+            
+            if not file_path.exists():
+                raise HTTPException(404, "File not found")
+            
+            if file_path.is_dir():
+                raise HTTPException(400, "Path is a directory")
+            
+            try:
+                if format == "hex":
+                    content = file_path.read_bytes().hex()
+                elif format == "base64":
+                    import base64
+                    content = base64.b64encode(file_path.read_bytes()).decode('ascii')
+                else:  # text
+                    content = file_path.read_text(encoding="utf-8")
+                
+                return {"jsonrpc": "2.0", "result": {"content": content, "format": format, "metadata": file_meta}, "id": None}
+            except Exception as e:
+                raise HTTPException(500, f"Failed to read file: {str(e)}")
+
+        if name == "bucket_delete_file":
+            bucket = args.get("bucket")
+            path = args.get("path")
+            remove_replicas = args.get("remove_replicas", True)
+            
+            if not bucket or not path:
+                raise HTTPException(400, "Missing bucket or path")
+            
+            bucket_path = self.paths.vfs_root / bucket
+            file_path = _safe_vfs_path(bucket_path, path)
+            
+            if not file_path.exists():
+                raise HTTPException(404, "File not found")
+            
+            # Remove file
+            if file_path.is_file():
+                file_path.unlink()
+            else:
+                import shutil
+                shutil.rmtree(file_path)
+            
+            # Update metadata
+            metadata_file = self.paths.data_dir / "bucket_files.json"
+            metadata = _read_json(metadata_file, {})
+            file_key = f"{bucket}:{path}"
+            
+            deleted_meta = {}
+            if file_key in metadata:
+                deleted_meta = metadata[file_key]
+                if remove_replicas and "replicas" in deleted_meta:
+                    # In real implementation, would remove from backend replicas
+                    deleted_meta["replicas_removed"] = len(deleted_meta.get("replicas", []))
+                del metadata[file_key]
+            
+            _atomic_write_json(metadata_file, metadata)
+            
+            return {"jsonrpc": "2.0", "result": {"ok": True, "path": path, "bucket": bucket, "removed_metadata": deleted_meta}, "id": None}
+
+        if name == "bucket_rename_file":
+            bucket = args.get("bucket")
+            src = args.get("src")
+            dst = args.get("dst")
+            update_replicas = args.get("update_replicas", True)
+            
+            if not bucket or not src or not dst:
+                raise HTTPException(400, "Missing bucket, src, or dst")
+            
+            bucket_path = self.paths.vfs_root / bucket
+            src_path = _safe_vfs_path(bucket_path, src)
+            dst_path = _safe_vfs_path(bucket_path, dst)
+            
+            if not src_path.exists():
+                raise HTTPException(404, "Source file not found")
+            
+            # Move file
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
+            src_path.rename(dst_path)
+            
+            # Update metadata
+            metadata_file = self.paths.data_dir / "bucket_files.json"
+            metadata = _read_json(metadata_file, {})
+            src_key = f"{bucket}:{src}"
+            dst_key = f"{bucket}:{dst}"
+            
+            if src_key in metadata:
+                file_meta = metadata[src_key]
+                file_meta["path"] = dst
+                file_meta["renamed_from"] = src
+                file_meta["rename_timestamp"] = datetime.now(UTC).isoformat()
+                
+                if update_replicas and "replicas" in file_meta:
+                    for replica in file_meta["replicas"]:
+                        replica["status"] = "sync_pending"
+                        replica["update_needed"] = True
+                
+                metadata[dst_key] = file_meta
+                del metadata[src_key]
+            
+            _atomic_write_json(metadata_file, metadata)
+            
+            return {"jsonrpc": "2.0", "result": {"ok": True, "src": src, "dst": dst, "bucket": bucket}, "id": None}
+
+        if name == "bucket_mkdir":
+            bucket = args.get("bucket")
+            path = args.get("path")
+            create_parents = args.get("create_parents", True)
+            
+            if not bucket or not path:
+                raise HTTPException(400, "Missing bucket or path")
+            
+            bucket_path = self.paths.vfs_root / bucket
+            bucket_path.mkdir(parents=True, exist_ok=True)
+            
+            dir_path = _safe_vfs_path(bucket_path, path)
+            dir_path.mkdir(parents=create_parents, exist_ok=True)
+            
+            return {"jsonrpc": "2.0", "result": {"ok": True, "path": path, "bucket": bucket, "created": True}, "id": None}
+
+        if name == "bucket_sync_replicas":
+            bucket = args.get("bucket")
+            force_sync = args.get("force_sync", False)
+            
+            if not bucket:
+                raise HTTPException(400, "Missing bucket")
+            
+            # Get bucket policy
+            buckets_data = _read_json(self.paths.buckets_file, [])
+            bucket_config = None
+            for b in buckets_data:
+                if b.get("name") == bucket:
+                    bucket_config = b
+                    break
+            
+            if not bucket_config:
+                raise HTTPException(404, "Bucket not found")
+            
+            # Get metadata for all files in bucket
+            metadata_file = self.paths.data_dir / "bucket_files.json"
+            metadata = _read_json(metadata_file, {})
+            
+            synced_files = 0
+            for file_key, file_meta in metadata.items():
+                if file_meta.get("bucket") == bucket:
+                    # Simulate sync process
+                    if "replicas" in file_meta:
+                        for replica in file_meta["replicas"]:
+                            if replica.get("status") == "syncing" or force_sync:
+                                replica["status"] = "synced"
+                                replica["last_sync"] = datetime.now(UTC).isoformat()
+                        synced_files += 1
+            
+            _atomic_write_json(metadata_file, metadata)
+            
+            return {"jsonrpc": "2.0", "result": {"ok": True, "bucket": bucket, "synced_files": synced_files, "force_sync": force_sync}, "id": None}
+
+        if name == "bucket_get_metadata":
+            bucket = args.get("bucket")
+            path = args.get("path")
+            include_replicas = args.get("include_replicas", True)
+            
+            if not bucket or not path:
+                raise HTTPException(400, "Missing bucket or path")
+            
+            metadata_file = self.paths.data_dir / "bucket_files.json"
+            metadata = _read_json(metadata_file, {})
+            file_key = f"{bucket}:{path}"
+            file_meta = metadata.get(file_key, {})
+            
+            if not file_meta:
+                raise HTTPException(404, "File metadata not found")
+            
+            result = dict(file_meta)
+            if not include_replicas:
+                result.pop("replicas", None)
+            
+            return {"jsonrpc": "2.0", "result": result, "id": None}
+
         return None
 
     def _handle_pins(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
