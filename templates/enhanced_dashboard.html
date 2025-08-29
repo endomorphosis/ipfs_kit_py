@@ -1003,13 +1003,17 @@
 
         async function callMCPTool(toolName, args) {
             try {
-                if (window.mcpClient && typeof window.mcpClient.toolsCall === 'function') {
-                    return await window.mcpClient.toolsCall(toolName, args);
-                } else if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
+                // Validate inputs
+                if (!toolName) {
+                    throw new Error('Tool name is required');
+                }
+
+                // Use the correct callTool method from MCP SDK
+                if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
                     return await window.mcpClient.callTool(toolName, args);
                 } else {
                     // Fallback to direct API call
-                    const response = await fetch('/api/mcp/tools/call', {
+                    const response = await fetch('/mcp/tools/call', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -1019,7 +1023,17 @@
                             id: Date.now()
                         })
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
                     const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(`MCP Error: ${data.error.message || 'Unknown error'}`);
+                    }
+                    
                     return data.result;
                 }
             } catch (error) {

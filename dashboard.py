@@ -591,8 +591,21 @@ window.mcpLogger = {
             
             logger.info(f"MCP call: {tool_name} with params: {arguments}")
             
+            # Validate tool_name is provided
+            if not tool_name:
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32602,
+                        "message": "Missing tool name"
+                    },
+                    "id": data.get("id")
+                }
+            
             # Handle different MCP tools
-            if tool_name == "get_system_status":
+            if tool_name == "health_check":
+                result = {"status": "healthy", "timestamp": datetime.now().isoformat()}
+            elif tool_name == "get_system_status":
                 result = await self._get_system_status()
             elif tool_name == "list_backends":
                 result = await self._get_backends()
