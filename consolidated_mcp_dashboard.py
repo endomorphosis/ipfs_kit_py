@@ -2549,6 +2549,11 @@ class ConsolidatedMCPDashboard:
             {"name": "test_backend_config", "description": "Test backend configuration without saving", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Backend Name"}, "config": {"type":"object", "title":"Configuration to Test"}}}},
             {"name": "apply_backend_policy", "description": "Apply policy to backend with replication sync", "inputSchema": {"type":"object", "required":["name", "policy"], "properties": {"name": {"type":"string", "title":"Backend Name"}, "policy": {"type":"object", "title":"Policy Configuration"}, "force_sync": {"type":"boolean", "title":"Force Sync", "default":false}}}},
             {"name": "update_backend_policy", "description": "Update backend policy configuration", "inputSchema": {"type":"object", "required":["name", "policy"], "properties": {"name": {"type":"string", "title":"Backend Name"}, "policy": {"type":"object", "title":"Policy Updates"}}}},
+            # Configuration management tools with metadata-first approach  
+            {"name": "list_config_files", "description": "List configuration files with metadata-first approach", "inputSchema": {}},
+            {"name": "read_config_file", "description": "Read configuration file with metadata-first approach", "inputSchema": {"type":"object", "required":["filename"], "properties": {"filename": {"type":"string", "title":"Configuration File"}}}},
+            {"name": "write_config_file", "description": "Write configuration file with metadata-first approach", "inputSchema": {"type":"object", "required":["filename","content"], "properties": {"filename": {"type":"string", "title":"Configuration File"}, "content": {"type":"string", "title":"File Content", "ui": {"widget":"textarea", "rows":10}}}}},
+            {"name": "get_config_metadata", "description": "Get configuration file metadata", "inputSchema": {"type":"object", "required":["filename"], "properties": {"filename": {"type":"string", "title":"Configuration File"}}}},
         ]
         return {"jsonrpc": "2.0", "result": {"tools": tools}, "id": None}
 
@@ -2568,6 +2573,7 @@ class ConsolidatedMCPDashboard:
                 self._handle_cars,
                 self._handle_state,
                 self._handle_logs_server,
+                self._handle_config,
             ):
                 maybe = handler(name, args)  # type: ignore
                 if inspect.isawaitable(maybe):
@@ -4000,6 +4006,176 @@ class ConsolidatedMCPDashboard:
                 pass
             return {"jsonrpc": "2.0", "result": {"ok": True, "message": "Shutting down"}, "id": None}
         return None
+
+    def _handle_config(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Handle configuration management tools with metadata-first approach."""
+        if name == "list_config_files":
+            return self._handle_list_config_files()
+        elif name == "read_config_file":
+            filename = args.get("filename")
+            if not filename:
+                return {"jsonrpc": "2.0", "error": {"code": 400, "message": "filename parameter is required"}, "id": None}
+            return self._handle_read_config_file(filename)
+        elif name == "write_config_file":
+            filename = args.get("filename")
+            content = args.get("content")
+            if not filename or content is None:
+                return {"jsonrpc": "2.0", "error": {"code": 400, "message": "filename and content parameters are required"}, "id": None}
+            return self._handle_write_config_file(filename, content)
+        elif name == "get_config_metadata":
+            filename = args.get("filename")
+            if not filename:
+                return {"jsonrpc": "2.0", "error": {"code": 400, "message": "filename parameter is required"}, "id": None}
+            return self._handle_get_config_metadata(filename)
+        return None
+
+    def _handle_list_config_files(self) -> Dict[str, Any]:
+        """List all configuration files with metadata-first approach."""
+        config_files = ["pins.json", "buckets.json", "backends.json"]
+        files_info = []
+        
+        for filename in config_files:
+            try:
+                file_info = self._read_config_file_internal(filename)
+                files_info.append({
+                    "filename": filename,
+                    "source": file_info["source"],
+                    "size": file_info["size"],
+                    "modified": file_info["modified"],
+                    "exists": True
+                })
+            except Exception as e:
+                files_info.append({
+                    "filename": filename,
+                    "source": "none",
+                    "size": 0,
+                    "modified": None,
+                    "exists": False,
+                    "error": str(e)
+                })
+        
+        result = {
+            "files": files_info,
+            "metadata_dir": str(self.paths.data_dir),
+            "total_files": len([f for f in files_info if f["exists"]])
+        }
+        return {"jsonrpc": "2.0", "result": result, "id": None}
+
+    def _handle_read_config_file(self, filename: str) -> Dict[str, Any]:
+        """Read configuration file using metadata-first approach."""
+        try:
+            file_info = self._read_config_file_internal(filename)
+            return {"jsonrpc": "2.0", "result": file_info, "id": None}
+        except Exception as e:
+            return {"jsonrpc": "2.0", "error": {"code": 500, "message": str(e)}, "id": None}
+
+    def _handle_write_config_file(self, filename: str, content: str) -> Dict[str, Any]:
+        """Write configuration file using metadata-first approach."""
+        try:
+            # Always write to metadata location (metadata-first approach)
+            metadata_path = self.paths.data_dir / filename
+            metadata_path.parent.mkdir(parents=True, exist_ok=True)
+            metadata_path.write_text(content)
+            
+            result = {
+                "success": True,
+                "filename": filename,
+                "source": "metadata",
+                "path": str(metadata_path),
+                "size": len(content.encode()),
+                "modified": datetime.now().isoformat()
+            }
+            return {"jsonrpc": "2.0", "result": result, "id": None}
+            
+        except Exception as e:
+            return {"jsonrpc": "2.0", "error": {"code": 500, "message": str(e)}, "id": None}
+
+    def _handle_get_config_metadata(self, filename: str) -> Dict[str, Any]:
+        """Get configuration file metadata."""
+        try:
+            file_info = self._read_config_file_internal(filename)
+            result = {
+                "filename": filename,
+                "source": file_info["source"],
+                "size": file_info["size"],
+                "modified": file_info["modified"],
+                "path": file_info["path"],
+                "metadata_first": True
+            }
+            return {"jsonrpc": "2.0", "result": result, "id": None}
+        except Exception as e:
+            return {"jsonrpc": "2.0", "error": {"code": 500, "message": str(e)}, "id": None}
+
+    def _read_config_file_internal(self, filename: str) -> Dict[str, Any]:
+        """Internal method to read configuration file using metadata-first approach."""
+        # Metadata-first approach: check ~/.ipfs_kit/ first
+        metadata_path = self.paths.data_dir / filename
+        fallback_path = Path("ipfs_kit_py") / filename
+        
+        try:
+            if metadata_path.exists():
+                content = metadata_path.read_text()
+                source = "metadata"
+                size = metadata_path.stat().st_size
+                modified = datetime.fromtimestamp(metadata_path.stat().st_mtime).isoformat()
+                path = str(metadata_path)
+            elif fallback_path.exists():
+                content = fallback_path.read_text()
+                source = "ipfs_kit_py"
+                size = fallback_path.stat().st_size
+                modified = datetime.fromtimestamp(fallback_path.stat().st_mtime).isoformat()
+                path = str(fallback_path)
+            else:
+                # Create default content in metadata location
+                default_content = self._get_default_config_content(filename)
+                metadata_path.parent.mkdir(parents=True, exist_ok=True)
+                metadata_path.write_text(default_content)
+                content = default_content
+                source = "metadata"
+                size = len(default_content.encode())
+                modified = datetime.now().isoformat()
+                path = str(metadata_path)
+            
+            return {
+                "content": content,
+                "source": source,
+                "size": size,
+                "modified": modified,
+                "path": path,
+                "metadata_first": True
+            }
+            
+        except Exception as e:
+            raise e
+
+    def _get_default_config_content(self, filename: str) -> str:
+        """Get default content for configuration files."""
+        if filename == "pins.json":
+            return json.dumps({
+                "pins": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "replication_factor": 1,
+                "cache_policy": "memory"
+            }, indent=2)
+        elif filename == "buckets.json":
+            return json.dumps({
+                "buckets": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "default_replication_factor": 1,
+                "default_cache_policy": "disk"
+            }, indent=2)
+        elif filename == "backends.json":
+            return json.dumps({
+                "backends": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "default_backend": "ipfs",
+                "health_check_interval": 30
+            }, indent=2)
+        else:
+            return "{}"
 
     # helpers used by tools
     async def _call_files_list(self, path: str) -> Dict[str, Any]:

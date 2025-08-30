@@ -454,6 +454,55 @@ class MCPServer:
                 )
             ]
         
+        # Configuration management tools (mirror CLI config commands)
+        @self.server.list_tools()
+        async def list_config_tools() -> List[types.Tool]:
+            """List available configuration management tools."""
+            return [
+                types.Tool(
+                    name="list_config_files",
+                    description="List configuration files with metadata-first approach",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {}
+                    }
+                ),
+                types.Tool(
+                    name="read_config_file",
+                    description="Read configuration file with metadata-first approach",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filename": {"type": "string", "description": "Configuration filename to read"}
+                        },
+                        "required": ["filename"]
+                    }
+                ),
+                types.Tool(
+                    name="write_config_file",
+                    description="Write configuration file with metadata-first approach",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filename": {"type": "string", "description": "Configuration filename to write"},
+                            "content": {"type": "string", "description": "File content to write"}
+                        },
+                        "required": ["filename", "content"]
+                    }
+                ),
+                types.Tool(
+                    name="get_config_metadata",
+                    description="Get configuration file metadata",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filename": {"type": "string", "description": "Configuration filename"}
+                        },
+                        "required": ["filename"]
+                    }
+                )
+            ]
+        
         # Register tool call handlers
         self._register_tool_handlers()
     
@@ -477,6 +526,8 @@ class MCPServer:
                     result = await self.cli_controller.handle_pin_tool_call(name, arguments)
                 elif name.startswith("bucket_"):
                     result = await self.cli_controller.handle_bucket_tool_call(name, arguments)
+                elif name in ["list_config_files", "read_config_file", "write_config_file", "get_config_metadata"]:
+                    result = await self._handle_config_tool_call(name, arguments)
                 else:
                     result = {"error": f"Unknown tool: {name}"}
                 
@@ -491,6 +542,177 @@ class MCPServer:
             except Exception as e:
                 logger.error(f"Error handling tool call {name}: {e}")
                 return [types.TextContent(type="text", text=f"Error executing {name}: {str(e)}")]
+    
+    async def _handle_config_tool_call(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle configuration management tool calls with metadata-first approach."""
+        try:
+            if name == "list_config_files":
+                return await self._list_config_files()
+            elif name == "read_config_file":
+                filename = arguments.get("filename")
+                if not filename:
+                    return {"error": "filename parameter is required"}
+                return await self._read_config_file(filename)
+            elif name == "write_config_file":
+                filename = arguments.get("filename")
+                content = arguments.get("content")
+                if not filename or content is None:
+                    return {"error": "filename and content parameters are required"}
+                return await self._write_config_file(filename, content)
+            elif name == "get_config_metadata":
+                filename = arguments.get("filename")
+                if not filename:
+                    return {"error": "filename parameter is required"}
+                return await self._get_config_metadata(filename)
+            else:
+                return {"error": f"Unknown configuration tool: {name}"}
+                
+        except Exception as e:
+            logger.error(f"Error in config tool {name}: {e}")
+            return {"error": str(e)}
+    
+    async def _list_config_files(self) -> Dict[str, Any]:
+        """List all configuration files with metadata-first approach."""
+        config_files = ["pins.json", "buckets.json", "backends.json"]
+        files_info = []
+        
+        for filename in config_files:
+            try:
+                file_info = await self._read_config_file(filename)
+                files_info.append({
+                    "filename": filename,
+                    "source": file_info["source"],
+                    "size": file_info["size"],
+                    "modified": file_info["modified"],
+                    "exists": True
+                })
+            except Exception as e:
+                files_info.append({
+                    "filename": filename,
+                    "source": "none",
+                    "size": 0,
+                    "modified": None,
+                    "exists": False,
+                    "error": str(e)
+                })
+        
+        return {
+            "files": files_info,
+            "metadata_dir": str(self.config.data_dir),
+            "total_files": len([f for f in files_info if f["exists"]])
+        }
+    
+    async def _read_config_file(self, filename: str) -> Dict[str, Any]:
+        """Read configuration file using metadata-first approach."""
+        # Metadata-first approach: check ~/.ipfs_kit/ first
+        metadata_path = self.config.data_dir / filename
+        fallback_path = Path("ipfs_kit_py") / filename
+        
+        try:
+            if metadata_path.exists():
+                content = metadata_path.read_text()
+                source = "metadata"
+                size = metadata_path.stat().st_size
+                modified = datetime.fromtimestamp(metadata_path.stat().st_mtime).isoformat()
+                path = str(metadata_path)
+            elif fallback_path.exists():
+                content = fallback_path.read_text()
+                source = "ipfs_kit_py"
+                size = fallback_path.stat().st_size
+                modified = datetime.fromtimestamp(fallback_path.stat().st_mtime).isoformat()
+                path = str(fallback_path)
+            else:
+                # Create default content in metadata location
+                default_content = self._get_default_config_content(filename)
+                metadata_path.parent.mkdir(parents=True, exist_ok=True)
+                metadata_path.write_text(default_content)
+                content = default_content
+                source = "metadata"
+                size = len(default_content.encode())
+                modified = datetime.now().isoformat()
+                path = str(metadata_path)
+            
+            return {
+                "content": content,
+                "source": source,
+                "size": size,
+                "modified": modified,
+                "path": path,
+                "metadata_first": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error reading config file {filename}: {e}")
+            raise e
+    
+    async def _write_config_file(self, filename: str, content: str) -> Dict[str, Any]:
+        """Write configuration file using metadata-first approach."""
+        try:
+            # Always write to metadata location (metadata-first approach)
+            metadata_path = self.config.data_dir / filename
+            metadata_path.parent.mkdir(parents=True, exist_ok=True)
+            metadata_path.write_text(content)
+            
+            return {
+                "success": True,
+                "filename": filename,
+                "source": "metadata",
+                "path": str(metadata_path),
+                "size": len(content.encode()),
+                "modified": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error writing config file {filename}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _get_config_metadata(self, filename: str) -> Dict[str, Any]:
+        """Get configuration file metadata."""
+        try:
+            file_info = await self._read_config_file(filename)
+            return {
+                "filename": filename,
+                "source": file_info["source"],
+                "size": file_info["size"],
+                "modified": file_info["modified"],
+                "path": file_info["path"],
+                "metadata_first": True
+            }
+        except Exception as e:
+            return {
+                "filename": filename,
+                "error": str(e),
+                "exists": False
+            }
+    
+    def _get_default_config_content(self, filename: str) -> str:
+        """Get default content for configuration files."""
+        if filename == "pins.json":
+            return json.dumps({
+                "pins": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "replication_factor": 1,
+                "cache_policy": "memory"
+            }, indent=2)
+        elif filename == "buckets.json":
+            return json.dumps({
+                "buckets": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "default_replication_factor": 1,
+                "default_cache_policy": "disk"
+            }, indent=2)
+        elif filename == "backends.json":
+            return json.dumps({
+                "backends": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "default_backend": "ipfs",
+                "health_check_interval": 30
+            }, indent=2)
+        else:
+            return "{}"
     
     def _setup_signal_handlers(self) -> None:
         """Set up signal handlers for graceful shutdown."""
