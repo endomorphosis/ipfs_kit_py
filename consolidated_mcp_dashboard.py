@@ -167,6 +167,35 @@ def _normalize_pins(items):
         out.append({"cid": cid, "name": it.get('name')})
     return out
 
+def _normalize_backends(items):
+    """Normalize backend items ensuring required fields are present."""
+    if not isinstance(items, list):
+        return []
+    out = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        name = it.get("name")
+        if name:
+            # Ensure all backends have required fields with defaults
+            backend = {
+                "name": name,
+                "type": it.get("type", "unknown"),
+                "tier": it.get("tier", "standard"),
+                "description": it.get("description", f"{it.get('type', 'unknown')} backend"),
+                "config": it.get("config", {}),
+                "policy": it.get("policy", {
+                    "replication_factor": 1,
+                    "cache_policy": "none", 
+                    "retention_days": 0
+                }),
+                "enabled": it.get("enabled", False),
+                "created_at": it.get("created_at"),
+                "last_updated": it.get("last_updated")
+            }
+            out.append(backend)
+    return out
+
 def _safe_vfs_path(root: Path, user_path: str) -> Path:
     # prevent directory traversal
     p = (root / user_path).resolve()
@@ -571,7 +600,7 @@ class ConsolidatedMCPDashboard:
                    "    }\n" \
                    "    function ensureNS(ns, obj){ if (!g.MCP[ns]) g.MCP[ns] = obj; }\n" \
                    "    ensureNS('Services', { control:(s,a)=>rpcCall('service_control',{service:s, action:a}), status:(s)=>rpcCall('service_status',{service:s}) });\n" \
-                   "    ensureNS('Backends', { list:()=>rpcCall('list_backends',{}), get:(n)=>rpcCall('get_backend',{name:n}), create:(n,c)=>rpcCall('create_backend',{name:n, config:c}), update:(n,c)=>rpcCall('update_backend',{name:n, config:c}), delete:(n)=>rpcCall('delete_backend',{name:n}), test:(n)=>rpcCall('test_backend',{name:n}) });\n" \
+                   "    ensureNS('Backends', { list:()=>rpcCall('list_backends',{}), get:(n)=>rpcCall('get_backend',{name:n}), create:(n,c)=>rpcCall('create_backend',{name:n, config:c}), update:(n,c)=>rpcCall('update_backend',{name:n, config:c}), delete:(n)=>rpcCall('delete_backend',{name:n}), test:(n)=>rpcCall('test_backend',{name:n}), listInstances:()=>rpcCall('list_backend_instances',{}), createInstance:(type,name,desc)=>rpcCall('create_backend_instance',{service_type:type, instance_name:name, description:desc}), configureInstance:(name,type,config)=>rpcCall('configure_backend_instance',{instance_name:name, service_type:type, config:config}) });\n" \
                    "    ensureNS('Buckets', { list:()=>rpcCall('list_buckets',{}), get:(n)=>rpcCall('get_bucket',{name:n}), create:(n,b)=>rpcCall('create_bucket',{name:n, backend:b}), update:(n,p)=>rpcCall('update_bucket',{name:n, patch:p}), delete:(n)=>rpcCall('delete_bucket',{name:n}), getPolicy:(n)=>rpcCall('get_bucket_policy',{name:n}), updatePolicy:(n,pol)=>rpcCall('update_bucket_policy',{name:n, policy:pol}), listFiles:(bucket,path,meta)=>rpcCall('bucket_list_files',{bucket,path:(path||'.'),show_metadata:!!meta}), uploadFile:(bucket,path,content,mode,policy)=>rpcCall('bucket_upload_file',{bucket,path,content,mode:(mode||'text'),apply_policy:!!policy}), downloadFile:(bucket,path,format)=>rpcCall('bucket_download_file',{bucket,path,format:(format||'text')}), deleteFile:(bucket,path,replicas)=>rpcCall('bucket_delete_file',{bucket,path,remove_replicas:!!replicas}), renameFile:(bucket,src,dst,replicas)=>rpcCall('bucket_rename_file',{bucket,src,dst,update_replicas:!!replicas}), mkdir:(bucket,path,parents)=>rpcCall('bucket_mkdir',{bucket,path,create_parents:!!parents}), syncReplicas:(bucket,force)=>rpcCall('bucket_sync_replicas',{bucket,force_sync:!!force}), getMetadata:(bucket,path,replicas)=>rpcCall('bucket_get_metadata',{bucket,path,include_replicas:!!replicas}) });\n" \
                    "    ensureNS('Pins', { list:()=>rpcCall('list_pins',{}), create:(cid,name)=>rpcCall('create_pin',{cid, name}), delete:(cid)=>rpcCall('delete_pin',{cid}), export:()=>rpcCall('pins_export',{}), import:(items)=>rpcCall('pins_import',{items}) });\n" \
                    "    ensureNS('Files', { list:(p)=>rpcCall('files_list',{path:(p==null?'.':p)}), read:(p)=>rpcCall('files_read',{path:p}), write:(p,c,m)=>rpcCall('files_write',{path:p, content:c, mode:(m||'text')}), mkdir:(p)=>rpcCall('files_mkdir',{path:p}), rm:(p,rec)=>rpcCall('files_rm',{path:p, recursive:!!rec}), mv:(s,d)=>rpcCall('files_mv',{src:s, dst:d}), stat:(p)=>rpcCall('files_stat',{path:p}), copy:(s,d,rec)=>rpcCall('files_copy',{src:s, dst:d, recursive:!!rec}), touch:(p)=>rpcCall('files_touch',{path:p}), tree:(p,d)=>rpcCall('files_tree',{path:(p==null?'.':p), depth:(d==null?2:d)}) });\n" \
@@ -1448,7 +1477,7 @@ class ConsolidatedMCPDashboard:
 
         @app.post("/api/services/{name}/configure")
         async def configure_service(name: str, request: Request) -> Dict[str, Any]:
-            """Configure a service with credentials/settings."""
+            """Configure a service with enhanced multi-instance support and backend settings."""
             try:
                 _auth_dep(request)
             except HTTPException:
@@ -1458,16 +1487,47 @@ class ConsolidatedMCPDashboard:
                 data = await request.json()
                 config = data.get("config", {})
                 
+                # Enhanced configuration with multi-instance support
+                enhanced_config = {
+                    "basic": {
+                        "instance_name": config.get("instance_name", name),
+                        "service_type": config.get("service_type", name),
+                        "description": config.get("description", f"Instance of {name}"),
+                        "enabled": config.get("enabled", True)
+                    },
+                    "cache": {
+                        "cache_policy": config.get("cache_policy", "none"),
+                        "cache_size_mb": int(config.get("cache_size_mb", 1024)),
+                        "cache_ttl_seconds": int(config.get("cache_ttl_seconds", 3600))
+                    },
+                    "storage": {
+                        "storage_quota_gb": float(config.get("storage_quota_gb", 100)),
+                        "max_files": int(config.get("max_files", 10000)),
+                        "max_file_size_mb": int(config.get("max_file_size_mb", 500))
+                    },
+                    "retention": {
+                        "retention_days": int(config.get("retention_days", 365)),
+                        "auto_cleanup": config.get("auto_cleanup", False),
+                        "versioning": config.get("versioning", False)
+                    },
+                    "replication": {
+                        "replication_factor": int(config.get("replication_factor", 3)),
+                        "sync_strategy": config.get("sync_strategy", "immediate")
+                    },
+                    "service_specific": config.get("service_specific", {})
+                }
+                
                 service_manager = self._get_service_manager()
                 if service_manager:
                     # Use comprehensive service manager for service configuration
-                    result = await service_manager.configure_service(name, config)
+                    result = await service_manager.configure_service(name, enhanced_config)
                     if result.get("success", False):
                         return {
                             "success": True,
                             "service": name,
-                            "message": f"Service {name} configured successfully",
-                            "config_saved": True
+                            "message": f"Service {name} configured successfully with enhanced settings",
+                            "config_saved": True,
+                            "config": enhanced_config
                         }
                     else:
                         return {
@@ -1476,19 +1536,68 @@ class ConsolidatedMCPDashboard:
                             "error": result.get("error", f"Failed to configure service {name}")
                         }
                 else:
-                    # Fallback: save configuration to file for basic services
+                    # Enhanced fallback with backend configuration support
                     config_dir = self.paths.data_dir / "service_configs"
                     config_dir.mkdir(exist_ok=True)
-                    config_file = config_dir / f"{name}_config.json"
+                    
+                    # Save instance-specific configuration
+                    instance_name = enhanced_config["basic"]["instance_name"]
+                    config_file = config_dir / f"{instance_name}_config.json"
                     
                     with open(config_file, 'w') as f:
-                        json.dump(config, f, indent=2)
+                        json.dump(enhanced_config, f, indent=2)
+                    
+                    # Update backends configuration for storage services
+                    if enhanced_config["basic"]["service_type"] in ["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]:
+                        backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
+                        
+                        # Update or create backend entry
+                        backend_found = False
+                        for i, backend in enumerate(backends):
+                            if backend.get("name") == instance_name:
+                                backends[i] = {
+                                    "name": instance_name,
+                                    "type": enhanced_config["basic"]["service_type"],
+                                    "tier": "standard",
+                                    "description": enhanced_config["basic"]["description"],
+                                    "config": enhanced_config,
+                                    "policy": {
+                                        "replication_factor": enhanced_config["replication"]["replication_factor"],
+                                        "cache_policy": enhanced_config["cache"]["cache_policy"],
+                                        "retention_days": enhanced_config["retention"]["retention_days"]
+                                    },
+                                    "enabled": enhanced_config["basic"]["enabled"],
+                                    "last_updated": datetime.now(UTC).isoformat()
+                                }
+                                backend_found = True
+                                break
+                        
+                        if not backend_found:
+                            backends.append({
+                                "name": instance_name,
+                                "type": enhanced_config["basic"]["service_type"],
+                                "tier": "standard", 
+                                "description": enhanced_config["basic"]["description"],
+                                "config": enhanced_config,
+                                "policy": {
+                                    "replication_factor": enhanced_config["replication"]["replication_factor"],
+                                    "cache_policy": enhanced_config["cache"]["cache_policy"],
+                                    "retention_days": enhanced_config["retention"]["retention_days"]
+                                },
+                                "enabled": enhanced_config["basic"]["enabled"],
+                                "created_at": datetime.now(UTC).isoformat(),
+                                "last_updated": datetime.now(UTC).isoformat()
+                            })
+                        
+                        _atomic_write_json(self.paths.backends_file, backends)
                     
                     return {
                         "success": True,
                         "service": name,
-                        "message": f"Service {name} configured successfully",
-                        "config_saved": True
+                        "instance_name": instance_name,
+                        "message": f"Service {instance_name} configured successfully with enhanced backend settings",
+                        "config_saved": True,
+                        "config": enhanced_config
                     }
                     
             except Exception as e:
@@ -1496,6 +1605,105 @@ class ConsolidatedMCPDashboard:
                 return {
                     "success": False,
                     "service": name,
+                    "error": str(e)
+                }
+
+        @app.post("/api/services/instances")
+        async def create_service_instance(request: Request) -> Dict[str, Any]:
+            """Create a new service instance with multi-backend support."""
+            try:
+                _auth_dep(request)
+            except HTTPException:
+                raise
+            
+            try:
+                data = await request.json()
+                service_type = data.get("service_type")
+                instance_name = data.get("instance_name")
+                
+                if not service_type or not instance_name:
+                    return {
+                        "success": False,
+                        "error": "Missing service_type or instance_name"
+                    }
+                
+                # Check if instance already exists
+                config_dir = self.paths.data_dir / "service_configs"
+                config_file = config_dir / f"{instance_name}_config.json"
+                
+                if config_file.exists():
+                    return {
+                        "success": False,
+                        "error": f"Instance '{instance_name}' already exists"
+                    }
+                
+                # Create new instance configuration
+                new_config = {
+                    "basic": {
+                        "instance_name": instance_name,
+                        "service_type": service_type,
+                        "description": data.get("description", f"Instance of {service_type}"),
+                        "enabled": True
+                    },
+                    "cache": {
+                        "cache_policy": "none",
+                        "cache_size_mb": 1024,
+                        "cache_ttl_seconds": 3600
+                    },
+                    "storage": {
+                        "storage_quota_gb": 100.0,
+                        "max_files": 10000,
+                        "max_file_size_mb": 500
+                    },
+                    "retention": {
+                        "retention_days": 365,
+                        "auto_cleanup": False,
+                        "versioning": False
+                    },
+                    "replication": {
+                        "replication_factor": 3,
+                        "sync_strategy": "immediate"
+                    },
+                    "service_specific": {}
+                }
+                
+                # Save configuration
+                config_dir.mkdir(exist_ok=True)
+                with open(config_file, 'w') as f:
+                    json.dump(new_config, f, indent=2)
+                
+                # Add to backends if it's a storage service
+                if service_type in ["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]:
+                    backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
+                    backends.append({
+                        "name": instance_name,
+                        "type": service_type,
+                        "tier": "standard",
+                        "description": new_config["basic"]["description"],
+                        "config": new_config,
+                        "policy": {
+                            "replication_factor": new_config["replication"]["replication_factor"],
+                            "cache_policy": new_config["cache"]["cache_policy"],
+                            "retention_days": new_config["retention"]["retention_days"]
+                        },
+                        "enabled": True,
+                        "created_at": datetime.now(UTC).isoformat(),
+                        "last_updated": datetime.now(UTC).isoformat()
+                    })
+                    _atomic_write_json(self.paths.backends_file, backends)
+                
+                return {
+                    "success": True,
+                    "instance_name": instance_name,
+                    "service_type": service_type,
+                    "message": f"Service instance '{instance_name}' created successfully",
+                    "config": new_config
+                }
+                
+            except Exception as e:
+                self.log.error(f"Error creating service instance: {e}")
+                return {
+                    "success": False,
                     "error": str(e)
                 }
 
@@ -2329,6 +2537,10 @@ class ConsolidatedMCPDashboard:
             {"name": "get_logs", "description": "Get recent logs", "inputSchema": {"limit": "number"}},
             {"name": "clear_logs", "description": "Clear logs", "inputSchema": {}},
             {"name": "server_shutdown", "description": "Shutdown this MCP server", "inputSchema": {}},
+            # Enhanced backend configuration tools for multi-instance support
+            {"name": "configure_backend_instance", "description": "Configure backend instance with advanced settings", "inputSchema": {"type":"object", "required":["instance_name", "service_type"], "properties": {"instance_name": {"type":"string", "title":"Instance Name"}, "service_type": {"type":"string", "title":"Service Type", "enum":["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]}, "config": {"type":"object", "title":"Configuration", "properties": {"description": {"type":"string", "title":"Description"}, "cache_policy": {"type":"string", "title":"Cache Policy", "enum":["none", "memory", "disk", "hybrid"], "default":"none"}, "cache_size_mb": {"type":"number", "title":"Cache Size (MB)", "default":1024}, "cache_ttl_seconds": {"type":"number", "title":"Cache TTL (seconds)", "default":3600}, "storage_quota_gb": {"type":"number", "title":"Storage Quota (GB)", "default":100}, "max_files": {"type":"number", "title":"Max Files", "default":10000}, "max_file_size_mb": {"type":"number", "title":"Max File Size (MB)", "default":500}, "retention_days": {"type":"number", "title":"Retention Days", "default":365}, "auto_cleanup": {"type":"boolean", "title":"Auto Cleanup", "default":false}, "versioning": {"type":"boolean", "title":"Versioning", "default":false}, "replication_factor": {"type":"number", "title":"Replication Factor", "enum":[1,2,3,5,10], "default":3}, "sync_strategy": {"type":"string", "title":"Sync Strategy", "enum":["immediate", "scheduled", "manual"], "default":"immediate"}}}}}},
+            {"name": "create_backend_instance", "description": "Create new backend instance", "inputSchema": {"type":"object", "required":["service_type", "instance_name"], "properties": {"service_type": {"type":"string", "title":"Service Type", "enum":["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]}, "instance_name": {"type":"string", "title":"Instance Name"}, "description": {"type":"string", "title":"Description"}}}},
+            {"name": "list_backend_instances", "description": "List all backend instances with configurations", "inputSchema": {}},
         ]
         return {"jsonrpc": "2.0", "result": {"tools": tools}, "id": None}
 
@@ -3156,6 +3368,235 @@ class ConsolidatedMCPDashboard:
                 if b.get("name") == bname:
                     return {"jsonrpc": "2.0", "result": {"name": bname, "policy": b.get("policy")}, "id": None}
             raise HTTPException(404, "Not found")
+        
+        # Enhanced backend configuration tools for multi-instance support
+        if name == "configure_backend_instance":
+            instance_name = args.get("instance_name")
+            service_type = args.get("service_type")
+            config = args.get("config", {})
+            
+            if not instance_name or not service_type:
+                raise HTTPException(400, "Missing instance_name or service_type")
+            
+            # Enhanced configuration with multi-instance support
+            enhanced_config = {
+                "basic": {
+                    "instance_name": instance_name,
+                    "service_type": service_type,
+                    "description": config.get("description", f"Instance of {service_type}"),
+                    "enabled": config.get("enabled", True)
+                },
+                "cache": {
+                    "cache_policy": config.get("cache_policy", "none"),
+                    "cache_size_mb": int(config.get("cache_size_mb", 1024)),
+                    "cache_ttl_seconds": int(config.get("cache_ttl_seconds", 3600))
+                },
+                "storage": {
+                    "storage_quota_gb": float(config.get("storage_quota_gb", 100)),
+                    "max_files": int(config.get("max_files", 10000)),
+                    "max_file_size_mb": int(config.get("max_file_size_mb", 500))
+                },
+                "retention": {
+                    "retention_days": int(config.get("retention_days", 365)),
+                    "auto_cleanup": config.get("auto_cleanup", False),
+                    "versioning": config.get("versioning", False)
+                },
+                "replication": {
+                    "replication_factor": int(config.get("replication_factor", 3)),
+                    "sync_strategy": config.get("sync_strategy", "immediate")
+                },
+                "service_specific": config.get("service_specific", {})
+            }
+            
+            # Save enhanced configuration
+            config_dir = self.paths.data_dir / "service_configs"
+            config_dir.mkdir(exist_ok=True)
+            config_file = config_dir / f"{instance_name}_config.json"
+            
+            with open(config_file, 'w') as f:
+                json.dump(enhanced_config, f, indent=2)
+            
+            # Update backends if it's a storage service
+            if service_type in ["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]:
+                backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
+                
+                # Update or create backend entry
+                backend_found = False
+                for i, backend in enumerate(backends):
+                    if backend.get("name") == instance_name:
+                        backends[i] = {
+                            "name": instance_name,
+                            "type": service_type,
+                            "tier": "standard",
+                            "description": enhanced_config["basic"]["description"],
+                            "config": enhanced_config,
+                            "policy": {
+                                "replication_factor": enhanced_config["replication"]["replication_factor"],
+                                "cache_policy": enhanced_config["cache"]["cache_policy"],
+                                "retention_days": enhanced_config["retention"]["retention_days"]
+                            },
+                            "enabled": enhanced_config["basic"]["enabled"],
+                            "last_updated": datetime.now(UTC).isoformat()
+                        }
+                        backend_found = True
+                        break
+                
+                if not backend_found:
+                    backends.append({
+                        "name": instance_name,
+                        "type": service_type,
+                        "tier": "standard",
+                        "description": enhanced_config["basic"]["description"],
+                        "config": enhanced_config,
+                        "policy": {
+                            "replication_factor": enhanced_config["replication"]["replication_factor"],
+                            "cache_policy": enhanced_config["cache"]["cache_policy"],
+                            "retention_days": enhanced_config["retention"]["retention_days"]
+                        },
+                        "enabled": enhanced_config["basic"]["enabled"],
+                        "created_at": datetime.now(UTC).isoformat(),
+                        "last_updated": datetime.now(UTC).isoformat()
+                    })
+                
+                _atomic_write_json(self.paths.backends_file, backends)
+            
+            return {"jsonrpc": "2.0", "result": {
+                "success": True,
+                "instance_name": instance_name,
+                "service_type": service_type,
+                "message": f"Backend instance '{instance_name}' configured successfully",
+                "config": enhanced_config
+            }, "id": None}
+        
+        if name == "create_backend_instance":
+            service_type = args.get("service_type")
+            instance_name = args.get("instance_name")
+            description = args.get("description", f"Instance of {service_type}")
+            
+            if not service_type or not instance_name:
+                raise HTTPException(400, "Missing service_type or instance_name")
+            
+            # Check if instance already exists
+            config_dir = self.paths.data_dir / "service_configs"
+            config_file = config_dir / f"{instance_name}_config.json"
+            
+            if config_file.exists():
+                raise HTTPException(409, f"Instance '{instance_name}' already exists")
+            
+            # Create new instance configuration with defaults
+            new_config = {
+                "basic": {
+                    "instance_name": instance_name,
+                    "service_type": service_type,
+                    "description": description,
+                    "enabled": True
+                },
+                "cache": {
+                    "cache_policy": "none",
+                    "cache_size_mb": 1024,
+                    "cache_ttl_seconds": 3600
+                },
+                "storage": {
+                    "storage_quota_gb": 100.0,
+                    "max_files": 10000,
+                    "max_file_size_mb": 500
+                },
+                "retention": {
+                    "retention_days": 365,
+                    "auto_cleanup": False,
+                    "versioning": False
+                },
+                "replication": {
+                    "replication_factor": 3,
+                    "sync_strategy": "immediate"
+                },
+                "service_specific": {}
+            }
+            
+            # Save configuration
+            config_dir.mkdir(exist_ok=True)
+            with open(config_file, 'w') as f:
+                json.dump(new_config, f, indent=2)
+            
+            # Add to backends if it's a storage service
+            if service_type in ["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]:
+                backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
+                backends.append({
+                    "name": instance_name,
+                    "type": service_type,
+                    "tier": "standard",
+                    "description": description,
+                    "config": new_config,
+                    "policy": {
+                        "replication_factor": new_config["replication"]["replication_factor"],
+                        "cache_policy": new_config["cache"]["cache_policy"],
+                        "retention_days": new_config["retention"]["retention_days"]
+                    },
+                    "enabled": True,
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "last_updated": datetime.now(UTC).isoformat()
+                })
+                _atomic_write_json(self.paths.backends_file, backends)
+            
+            return {"jsonrpc": "2.0", "result": {
+                "success": True,
+                "instance_name": instance_name,
+                "service_type": service_type,
+                "message": f"Backend instance '{instance_name}' created successfully",
+                "config": new_config
+            }, "id": None}
+        
+        if name == "list_backend_instances":
+            # List all configured backend instances with their enhanced settings
+            config_dir = self.paths.data_dir / "service_configs"
+            backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
+            
+            instances = []
+            for backend in backends:
+                config_file = config_dir / f"{backend['name']}_config.json"
+                if config_file.exists():
+                    try:
+                        with open(config_file, 'r') as f:
+                            config = json.load(f)
+                        instances.append({
+                            "name": backend["name"],
+                            "type": backend["type"],
+                            "description": backend.get("description", ""),
+                            "enabled": backend.get("enabled", False),
+                            "config": config,
+                            "policy": backend.get("policy", {}),
+                            "created_at": backend.get("created_at"),
+                            "last_updated": backend.get("last_updated")
+                        })
+                    except Exception as e:
+                        self.log.warning(f"Failed to load config for {backend['name']}: {e}")
+                        instances.append({
+                            "name": backend["name"],
+                            "type": backend["type"],
+                            "description": backend.get("description", ""),
+                            "enabled": backend.get("enabled", False),
+                            "config": {},
+                            "policy": backend.get("policy", {}),
+                            "created_at": backend.get("created_at"),
+                            "last_updated": backend.get("last_updated")
+                        })
+                else:
+                    # Legacy backend without enhanced config
+                    instances.append({
+                        "name": backend["name"],
+                        "type": backend["type"],
+                        "description": backend.get("description", ""),
+                        "enabled": backend.get("enabled", False),
+                        "config": {},
+                        "policy": backend.get("policy", {}),
+                        "created_at": backend.get("created_at"),
+                        "last_updated": backend.get("last_updated")
+                    })
+            
+            return {"jsonrpc": "2.0", "result": {
+                "instances": instances,
+                "total": len(instances)
+            }, "id": None}
         if name == "update_bucket_policy":
             bname = args.get("name")
             if not bname:
