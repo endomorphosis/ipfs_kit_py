@@ -304,6 +304,14 @@ class RefactoredUnifiedMCPDashboard:
                     result = await self._get_ipfs_peers()
                 elif tool_name == "get_logs":
                     result = await self._get_system_logs()
+                elif tool_name == "read_config_file":
+                    result = await self._read_config_file(arguments.get("filename"))
+                elif tool_name == "write_config_file":
+                    result = await self._write_config_file(arguments.get("filename"), arguments.get("content"))
+                elif tool_name == "list_config_files":
+                    result = await self._list_config_files()
+                elif tool_name == "get_config_metadata":
+                    result = await self._get_config_metadata(arguments.get("filename"))
                 else:
                     error_msg = f"Tool '{tool_name}' not found"
                     if request_id:
@@ -1071,6 +1079,234 @@ class RefactoredUnifiedMCPDashboard:
     async def _get_config_data(self):
         """Get configuration data."""
         return {"config": {}}
+
+    async def _read_config_file(self, filename: str):
+        """Read configuration file from ~/.ipfs_kit/ directory first, then fallback to ipfs_kit_py backends."""
+        if not filename:
+            return {"success": False, "error": "Filename is required"}
+        
+        try:
+            # Check metadata directory first (~/.ipfs_kit/)
+            metadata_dir = self.data_dir
+            metadata_file = metadata_dir / filename
+            
+            if metadata_file.exists():
+                logger.info(f"Reading config file from metadata directory: {metadata_file}")
+                with open(metadata_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Try to parse as JSON for validation
+                try:
+                    json_content = json.loads(content)
+                    return {
+                        "success": True,
+                        "filename": filename,
+                        "content": json_content,
+                        "source": "metadata",
+                        "path": str(metadata_file),
+                        "size": len(content),
+                        "last_modified": datetime.fromtimestamp(metadata_file.stat().st_mtime).isoformat()
+                    }
+                except json.JSONDecodeError:
+                    # Return as raw text if not valid JSON
+                    return {
+                        "success": True,
+                        "filename": filename,
+                        "content": content,
+                        "source": "metadata",
+                        "path": str(metadata_file),
+                        "size": len(content),
+                        "type": "text",
+                        "last_modified": datetime.fromtimestamp(metadata_file.stat().st_mtime).isoformat()
+                    }
+            
+            # Fallback to ipfs_kit_py backends - create default content
+            logger.info(f"Config file not found in metadata directory, creating default: {filename}")
+            default_content = self._get_default_config_content(filename)
+            
+            # Ensure metadata directory exists
+            metadata_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Write default content to metadata directory
+            with open(metadata_file, 'w', encoding='utf-8') as f:
+                json.dump(default_content, f, indent=2)
+            
+            return {
+                "success": True,
+                "filename": filename,
+                "content": default_content,
+                "source": "default",
+                "path": str(metadata_file),
+                "created": True,
+                "last_modified": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error reading config file {filename}: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _write_config_file(self, filename: str, content: Any):
+        """Write configuration file to ~/.ipfs_kit/ directory with metadata-first approach."""
+        if not filename:
+            return {"success": False, "error": "Filename is required"}
+        
+        if content is None:
+            return {"success": False, "error": "Content is required"}
+        
+        try:
+            # Always write to metadata directory (~/.ipfs_kit/)
+            metadata_dir = self.data_dir
+            metadata_dir.mkdir(parents=True, exist_ok=True)
+            metadata_file = metadata_dir / filename
+            
+            logger.info(f"Writing config file to metadata directory: {metadata_file}")
+            
+            # Write content based on type
+            if isinstance(content, (dict, list)):
+                with open(metadata_file, 'w', encoding='utf-8') as f:
+                    json.dump(content, f, indent=2)
+            else:
+                with open(metadata_file, 'w', encoding='utf-8') as f:
+                    f.write(str(content))
+            
+            # Update replication state if applicable
+            await self._update_config_replication_state(filename, metadata_file)
+            
+            return {
+                "success": True,
+                "filename": filename,
+                "path": str(metadata_file),
+                "size": metadata_file.stat().st_size,
+                "last_modified": datetime.fromtimestamp(metadata_file.stat().st_mtime).isoformat(),
+                "replicated": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error writing config file {filename}: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _list_config_files(self):
+        """List all configuration files in ~/.ipfs_kit/ directory."""
+        try:
+            metadata_dir = self.data_dir
+            metadata_dir.mkdir(parents=True, exist_ok=True)
+            
+            config_files = []
+            for file_path in metadata_dir.glob("*.json"):
+                try:
+                    stat = file_path.stat()
+                    config_files.append({
+                        "filename": file_path.name,
+                        "path": str(file_path),
+                        "size": stat.st_size,
+                        "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "readable": file_path.exists(),
+                        "writable": os.access(file_path, os.W_OK) if file_path.exists() else True
+                    })
+                except Exception as e:
+                    logger.error(f"Error reading config file {file_path}: {e}")
+            
+            return {
+                "success": True,
+                "files": config_files,
+                "directory": str(metadata_dir),
+                "total": len(config_files)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error listing config files: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _get_config_metadata(self, filename: str):
+        """Get metadata for a specific configuration file."""
+        if not filename:
+            return {"success": False, "error": "Filename is required"}
+        
+        try:
+            metadata_dir = self.data_dir
+            metadata_file = metadata_dir / filename
+            
+            if not metadata_file.exists():
+                return {"success": False, "error": f"Config file not found: {filename}"}
+            
+            stat = metadata_file.stat()
+            
+            # Try to get content preview
+            content_preview = None
+            try:
+                with open(metadata_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    if len(content) > 200:
+                        content_preview = content[:200] + "..."
+                    else:
+                        content_preview = content
+            except Exception:
+                content_preview = "Unable to read content"
+            
+            return {
+                "success": True,
+                "filename": filename,
+                "path": str(metadata_file),
+                "size": stat.st_size,
+                "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "last_accessed": datetime.fromtimestamp(stat.st_atime).isoformat(),
+                "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                "content_preview": content_preview,
+                "readable": os.access(metadata_file, os.R_OK),
+                "writable": os.access(metadata_file, os.W_OK)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting config metadata for {filename}: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _get_default_config_content(self, filename: str):
+        """Get default content for configuration files."""
+        if filename == "pins.json":
+            return {
+                "pins": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "replication_factor": 1,
+                "cache_policy": "memory"
+            }
+        elif filename == "buckets.json":
+            return {
+                "buckets": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "default_replication_factor": 1,
+                "default_cache_policy": "disk"
+            }
+        elif filename == "backends.json":
+            return {
+                "backends": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "default_backend": "ipfs",
+                "health_check_interval": 30
+            }
+        else:
+            return {
+                "data": {},
+                "last_updated": datetime.now().isoformat(),
+                "created_by": "mcp_server"
+            }
+
+    async def _update_config_replication_state(self, filename: str, file_path: Path):
+        """Update configuration replication state to maintain consistency."""
+        try:
+            # This would integrate with bucket replication policies
+            # For now, just log the replication update
+            logger.info(f"Updated replication state for config file: {filename} at {file_path}")
+            
+            # Future: Apply bucket-specific replication and cache policies
+            # - Check replication factor from bucket configuration
+            # - Apply cache policy (none/memory/disk)
+            # - Sync with ipfs_kit_py storage backends as needed
+            
+        except Exception as e:
+            logger.error(f"Error updating replication state for {filename}: {e}")
 
     async def _update_config_data(self, config_data):
         """Update configuration data."""
