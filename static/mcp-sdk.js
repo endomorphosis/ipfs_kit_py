@@ -1,5 +1,5 @@
 
-// Enhanced MCP SDK for JSON-RPC calls with comprehensive error handling
+// Enhanced MCP SDK for comprehensive JSON-RPC service management with comprehensive error handling
 class MCPClient {
     constructor(baseUrl = '') {
         this.baseUrl = baseUrl;
@@ -111,9 +111,125 @@ class MCPClient {
     }
 }
 
-// Export MCP client class and create global instances
+// Export MCP client class and create global instances with comprehensive service management
 window.MCP = {
-    MCPClient: MCPClient
+    MCPClient: MCPClient,
+    
+    // Comprehensive Service Management namespace
+    Services: {
+        async list(includeMetadata = true) {
+            return await window.mcpClient.callTool('list_services', { include_metadata: includeMetadata });
+        },
+        
+        async configure(serviceType, instanceName, config) {
+            return await window.mcpClient.callTool('configure_service', {
+                service_type: serviceType,
+                instance_name: instanceName,
+                config: config
+            });
+        },
+        
+        async getStatus() {
+            return await window.mcpClient.callTool('get_system_status');
+        }
+    },
+    
+    // Comprehensive Backend Management namespace  
+    Backends: {
+        async list(includeMetadata = true) {
+            return await window.mcpClient.callTool('list_backends', { include_metadata: includeMetadata });
+        },
+        
+        async configure(backendType, instanceName, config) {
+            return await window.mcpClient.callTool('configure_service', {
+                service_type: backendType,
+                instance_name: instanceName,
+                config: config
+            });
+        }
+    },
+    
+    // Comprehensive Bucket Management namespace
+    Buckets: {
+        async list(includeMetadata = true) {
+            return await window.mcpClient.callTool('list_buckets', { include_metadata: includeMetadata });
+        },
+        
+        async listFiles(bucket, path = '/', showMetadata = false) {
+            return await window.mcpClient.callTool('bucket_list_files', {
+                bucket: bucket,
+                path: path,
+                show_metadata: showMetadata
+            });
+        },
+        
+        async uploadFile(bucket, path, content, mode = 'create', applyPolicy = true) {
+            return await window.mcpClient.callTool('bucket_upload_file', {
+                bucket: bucket,
+                path: path,
+                content: content,
+                mode: mode,
+                apply_policy: applyPolicy
+            });
+        },
+        
+        async downloadFile(bucket, path, format = 'text') {
+            return await window.mcpClient.callTool('bucket_download_file', {
+                bucket: bucket,
+                path: path,
+                format: format
+            });
+        },
+        
+        async deleteFile(bucket, path, removeReplicas = false) {
+            return await window.mcpClient.callTool('bucket_delete_file', {
+                bucket: bucket,
+                path: path,
+                remove_replicas: removeReplicas
+            });
+        },
+        
+        async createFolder(bucket, path) {
+            return await window.mcpClient.callTool('bucket_create_folder', {
+                bucket: bucket,
+                path: path
+            });
+        },
+        
+        async renameFile(bucket, oldPath, newPath) {
+            return await window.mcpClient.callTool('bucket_rename_file', {
+                bucket: bucket,
+                old_path: oldPath,
+                new_path: newPath
+            });
+        },
+        
+        async syncReplicas(bucket, forceSync = false) {
+            return await window.mcpClient.callTool('bucket_sync_replicas', {
+                bucket: bucket,
+                force_sync: forceSync
+            });
+        },
+        
+        async configure(bucketName, config) {
+            return await window.mcpClient.callTool('configure_service', {
+                service_type: 'bucket',
+                instance_name: bucketName,
+                config: config
+            });
+        }
+    },
+    
+    // System Health namespace
+    System: {
+        async healthCheck() {
+            return await window.mcpClient.callTool('health_check');
+        },
+        
+        async getStatus() {
+            return await window.mcpClient.callTool('get_system_status');
+        }
+    }
 };
 
 // Global MCP client instance
