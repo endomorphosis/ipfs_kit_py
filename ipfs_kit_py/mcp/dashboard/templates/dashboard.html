@@ -4,21 +4,70 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IPFS Kit - Unified Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fallback System - CDN -> Local -> Base CSS -->
+    <script src="/static/js/fallback-system.js"></script>
+    
+    <!-- Local Tailwind CSS (fallback ready) -->
+    <link href="/static/css/tailwind.css" rel="stylesheet">
+    
+    <!-- FontAwesome Emoji Icons as Fallback -->
+    <style>
+        /* FontAwesome Icon Fallbacks */
+        .fa-rocket::before, .fas.fa-rocket::before { content: "🚀"; }
+        .fa-tachometer-alt::before, .fas.fa-tachometer-alt::before { content: "📊"; }
+        .fa-cogs::before, .fas.fa-cogs::before { content: "⚙️"; }
+        .fa-server::before, .fas.fa-server::before { content: "🖥️"; }
+        .fa-folder::before, .fas.fa-folder::before { content: "📁"; }
+        .fa-chart-line::before, .fas.fa-chart-line::before { content: "📈"; }
+        .fa-cog::before, .fas.fa-cog::before { content: "⚙️"; }
+        .fa-broadcast-tower::before, .fas.fa-broadcast-tower::before { content: "📡"; }
+        .fa-thumbtack::before, .fas.fa-thumbtack::before { content: "📌"; }
+        .fa-network-wired::before, .fas.fa-network-wired::before { content: "🌐"; }
+        .fa-file-alt::before, .fas.fa-file-alt::before { content: "📄"; }
+        .fa-chart-bar::before, .fas.fa-chart-bar::before { content: "📊"; }
+        .fa-heartbeat::before, .fas.fa-heartbeat::before { content: "💓"; }
+        .fa-bars::before, .fas.fa-bars::before { content: "☰"; }
+        .fa-times::before, .fas.fa-times::before { content: "✕"; }
+        .fa-plus::before, .fas.fa-plus::before { content: "➕"; }
+        .fa-edit::before, .fas.fa-edit::before { content: "✏️"; }
+        .fa-trash::before, .fas.fa-trash::before { content: "🗑️"; }
+        .fa-download::before, .fas.fa-download::before { content: "⬇️"; }
+        .fa-upload::before, .fas.fa-upload::before { content: "⬆️"; }
+        .fa-sync::before, .fas.fa-sync::before { content: "🔄"; }
+        .fa-play::before, .fas.fa-play::before { content: "▶️"; }
+        .fa-pause::before, .fas.fa-pause::before { content: "⏸️"; }
+        .fa-stop::before, .fas.fa-stop::before { content: "⏹️"; }
+        .fa-check::before, .fas.fa-check::before { content: "✓"; }
+        .fa-minus::before, .fas.fa-minus::before { content: "➖"; }
+    </style>
+    
+    <!-- Tailwind Configuration for fallback system -->
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        'inter': ['Inter', 'sans-serif'],
+        // Tailwind config fallback
+        window.tailwind = window.tailwind || {
+            config: function(configObj) {
+                console.log('Tailwind config loaded via fallback:', configObj);
+                window.tailwindConfig = configObj;
+            }
+        };
+        
+        // Initialize Tailwind config
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            'inter': ['Inter', 'system-ui', 'sans-serif'],
+                        }
                     }
                 }
-            }
+            };
         }
     </script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link href="{{ url_for('static', path='/css/dashboard.css') }}" rel="stylesheet">
+    
+    <!-- Dashboard-specific CSS -->
+    <link href="{{ url_for('static', path='/css/dashboard.css') }}" rel="stylesheet" onerror="console.warn('Dashboard CSS not found, using fallback')")
 </head>
 <body>
     <!-- Mobile Menu Button -->
