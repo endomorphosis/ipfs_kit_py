@@ -3,8 +3,8 @@ class PinDashboard {
     constructor() {
         this.init();
         this.setupEventListeners();
-        // Initialize MCP client
-        this.mcp = new window.MCP.MCPClient({ baseUrl: '' });
+        // Use the global MCP client instance
+        this.mcp = window.mcpClient;
     }
 
     init() {
@@ -35,9 +35,9 @@ class PinDashboard {
     }
 
     async jsonRpcCall(method, params = {}) {
-        // Use MCP SDK instead of direct JSON-RPC calls
+        // Use MCP SDK callTool method for all calls
         try {
-            return await this.mcp.rpc(method, params);
+            return await this.mcp.callTool(method, params);
         } catch (error) {
             console.error('MCP call failed:', error);
             this.showNotification('Error: ' + error.message, 'error');
@@ -48,40 +48,31 @@ class PinDashboard {
     // Bucket management methods using MCP SDK
     async loadBuckets() {
         try {
-            const result = await this.mcp.rpc('get', { url: '/api/v0/buckets' });
-            if (result.success) {
-                this.bucketData = result.buckets || [];
+            const result = await this.mcp.callTool('list_buckets');
+            if (result && result.items) {
+                this.bucketData = result.items || [];
                 this.updateBucketsList();
                 this.updateBucketStatistics();
                 this.showNotification('Buckets loaded successfully', 'success');
             } else {
-                throw new Error(result.error || 'Failed to load buckets');
+                this.bucketData = [];
+                console.warn('No buckets data received');
             }
         } catch (error) {
             console.error('Failed to load buckets:', error);
+            this.bucketData = [];
         }
     }
 
     async createBucket(bucketData) {
         try {
-            const formData = new FormData();
-            Object.keys(bucketData).forEach(key => {
-                if (bucketData[key] !== null && bucketData[key] !== undefined) {
-                    formData.append(key, bucketData[key]);
-                }
-            });
-            
-            const result = await this.mcp.rpc('post', { 
-                url: '/api/v0/buckets', 
-                data: formData 
-            });
-            
-            if (result.status === 'success') {
+            const result = await this.mcp.callTool('create_bucket', bucketData);
+            if (result && result.success) {
                 this.showNotification('Bucket created successfully', 'success');
                 this.loadBuckets(); // Refresh the list
                 return true;
             } else {
-                throw new Error(result.message || 'Failed to create bucket');
+                throw new Error(result.error || 'Failed to create bucket');
             }
         } catch (error) {
             console.error('Failed to create bucket:', error);
@@ -92,24 +83,17 @@ class PinDashboard {
 
     async updateBucket(bucketName, updateData) {
         try {
-            const formData = new FormData();
-            Object.keys(updateData).forEach(key => {
-                if (updateData[key] !== null && updateData[key] !== undefined) {
-                    formData.append(key, updateData[key]);
-                }
+            const result = await this.mcp.callTool('update_bucket', {
+                bucket_name: bucketName,
+                ...updateData
             });
             
-            const result = await this.mcp.rpc('put', { 
-                url: `/api/v0/buckets/${bucketName}`, 
-                data: formData 
-            });
-            
-            if (result.status === 'success') {
+            if (result && result.success) {
                 this.showNotification('Bucket updated successfully', 'success');
                 this.loadBuckets(); // Refresh the list
                 return true;
             } else {
-                throw new Error(result.message || 'Failed to update bucket');
+                throw new Error(result.error || 'Failed to update bucket');
             }
         } catch (error) {
             console.error('Failed to update bucket:', error);
@@ -120,16 +104,17 @@ class PinDashboard {
 
     async deleteBucket(bucketName, force = false) {
         try {
-            const result = await this.mcp.rpc('delete', { 
-                url: `/api/v0/buckets/${bucketName}${force ? '?force=true' : ''}` 
+            const result = await this.mcp.callTool('delete_bucket', {
+                bucket_name: bucketName,
+                force: force
             });
             
-            if (result.status === 'success') {
+            if (result && result.success) {
                 this.showNotification('Bucket deleted successfully', 'success');
                 this.loadBuckets(); // Refresh the list
                 return true;
             } else {
-                throw new Error(result.message || 'Failed to delete bucket');
+                throw new Error(result.error || 'Failed to delete bucket');
             }
         } catch (error) {
             console.error('Failed to delete bucket:', error);
@@ -140,14 +125,14 @@ class PinDashboard {
 
     async getBucketStats(bucketName) {
         try {
-            const result = await this.mcp.rpc('get', { 
-                url: `/api/v0/buckets/${bucketName}/stats` 
+            const result = await this.mcp.callTool('get_bucket_stats', {
+                bucket_name: bucketName
             });
             
-            if (result.success) {
-                return result.stats;
+            if (result) {
+                return result;
             } else {
-                throw new Error(result.error || 'Failed to get bucket stats');
+                throw new Error('Failed to get bucket stats');
             }
         } catch (error) {
             console.error('Failed to get bucket stats:', error);
@@ -158,11 +143,11 @@ class PinDashboard {
     // Metadata management using MCP SDK
     async getMetadata(key) {
         try {
-            const result = await this.mcp.rpc('get', { 
-                url: `/api/v0/config/metadata/${key}` 
+            const result = await this.mcp.callTool('get_metadata', {
+                key: key
             });
             
-            if (result.success) {
+            if (result) {
                 return result.value;
             } else {
                 return null;
@@ -175,15 +160,12 @@ class PinDashboard {
 
     async setMetadata(key, value) {
         try {
-            const formData = new FormData();
-            formData.append('value', typeof value === 'object' ? JSON.stringify(value) : value);
-            
-            const result = await this.mcp.rpc('post', { 
-                url: `/api/v0/config/metadata/${key}`, 
-                data: formData 
+            const result = await this.mcp.callTool('set_metadata', {
+                key: key,
+                value: value
             });
             
-            if (result.success) {
+            if (result && result.success) {
                 return true;
             } else {
                 throw new Error(result.error || 'Failed to set metadata');
@@ -403,15 +385,20 @@ class PinDashboard {
                 filename: filename 
             });
             
-            if (result && result.success) {
-                const config = result.data;
-                const metadata = result.metadata || {};
+            if (result && result.filename) {
+                // Result contains the file data directly
+                const content = JSON.parse(result.content);
                 
                 // Update UI elements for this config file
                 const fileKey = filename.replace('.json', '');
-                this.updateConfigUI(fileKey, config, metadata);
+                this.updateConfigUI(fileKey, content, {
+                    source: result.source,
+                    size: result.size,
+                    modified: result.modified,
+                    path: result.path
+                });
             } else {
-                this.updateConfigError(filename, result.error || 'Failed to load');
+                this.updateConfigError(filename, 'Invalid response format');
             }
         } catch (error) {
             console.error(`Error loading ${filename}:`, error);
@@ -610,5 +597,15 @@ async function syncReplicas() {
 // Initialize dashboard
 let dashboard;
 document.addEventListener('DOMContentLoaded', () => {
-    dashboard = new PinDashboard();
+    // Wait for MCP client to be available, then initialize dashboard
+    function initDashboard() {
+        if (window.mcpClient) {
+            dashboard = new PinDashboard();
+            console.log('🚀 Simple IPFS Kit Dashboard initialized @', window.location.href);
+        } else {
+            // Retry in 100ms if MCP client isn't ready yet
+            setTimeout(initDashboard, 100);
+        }
+    }
+    initDashboard();
 });

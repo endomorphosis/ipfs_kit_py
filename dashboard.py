@@ -54,6 +54,9 @@ class SimpleMCPDashboard:
     def setup_routes(self):
         """Setup all API routes."""
         
+        # Mount static files
+        self.app.mount("/static", StaticFiles(directory="static"), name="static")
+        
         # Main dashboard route
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard():
@@ -246,6 +249,10 @@ class SimpleMCPDashboard:
         try:
             # Ensure metadata directory exists
             metadata_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Convert content to string if it's a dict/object
+            if isinstance(content, (dict, list)):
+                content = json.dumps(content, indent=2)
             
             # Validate JSON content
             if filename.endswith('.json'):
