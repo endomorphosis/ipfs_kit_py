@@ -29,10 +29,15 @@ class MCPClient {
         
         for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
             try {
-                // Use the simplified format that our MCP server expects
+                // Use the JSON-RPC format that our MCP server expects
                 const payload = {
-                    method: toolName,
-                    params: params
+                    jsonrpc: "2.0",
+                    method: "tools/call",
+                    params: {
+                        name: toolName,
+                        arguments: params
+                    },
+                    id: requestId
                 };
                 
                 console.log(`MCP call attempt ${attempt + 1}:`, toolName, params);
@@ -54,23 +59,40 @@ class MCPClient {
                 const data = await response.json();
                 
                 if (data.error) {
-                    throw new Error(`MCP Error: ${data.error}`);
+                    // Handle different error formats
+                    let errorMessage = "Unknown error";
+                    if (typeof data.error === 'string') {
+                        errorMessage = data.error;
+                    } else if (data.error.message) {
+                        errorMessage = data.error.message;
+                    } else if (data.error.code) {
+                        errorMessage = `Error ${data.error.code}: ${data.error.message || 'Unknown error'}`;
+                    } else {
+                        errorMessage = JSON.stringify(data.error);
+                    }
+                    throw new Error(`MCP Error: ${errorMessage}`);
                 }
                 
-                console.log(`MCP call successful:`, toolName, data.result);
+                console.log(`MCP call successful:`, toolName, data.result || data);
                 this.isConnected = true;
                 this.retryCount = 0;
                 
-                return data.result;
+                return data.result || data;
                 
             } catch (error) {
-                console.warn(`MCP call attempt ${attempt + 1} failed:`, error.message);
+                console.error(`MCP call attempt ${attempt + 1} failed:`, {
+                    toolName: toolName,
+                    params: params,
+                    error: error.message,
+                    stack: error.stack
+                });
                 
                 if (attempt < this.maxRetries) {
                     await new Promise(resolve => setTimeout(resolve, this.retryDelay * (attempt + 1)));
                 } else {
                     this.isConnected = false;
                     this.retryCount++;
+                    console.error(`All MCP call attempts failed for ${toolName}:`, error.message);
                     throw error;
                 }
             }

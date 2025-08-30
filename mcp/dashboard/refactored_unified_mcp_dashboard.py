@@ -247,6 +247,108 @@ class RefactoredUnifiedMCPDashboard:
                     "properties": {},
                     "required": []
                 }
+            ),
+            Tool(
+                name="get_system_status",
+                description="Get current system status and metrics",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            ),
+            Tool(
+                name="get_system_overview",
+                description="Get system overview information",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            ),
+            Tool(
+                name="list_services",
+                description="List all available services with metadata",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "include_metadata": {"type": "boolean", "description": "Include service metadata"}
+                    },
+                    "required": []
+                }
+            ),
+            Tool(
+                name="get_peers",
+                description="Get IPFS network peers information",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            ),
+            Tool(
+                name="get_logs",
+                description="Get system logs and events",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "level": {"type": "string", "description": "Log level filter"},
+                        "limit": {"type": "integer", "description": "Maximum number of log entries"}
+                    },
+                    "required": []
+                }
+            ),
+            Tool(
+                name="read_config_file",
+                description="Read configuration file with metadata-first approach (checks ~/.ipfs_kit/ before ipfs_kit_py backends)",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string", "description": "Configuration filename (e.g., pins.json, buckets.json, backends.json)"}
+                    },
+                    "required": ["filename"]
+                }
+            ),
+            Tool(
+                name="write_config_file",
+                description="Write configuration file to ~/.ipfs_kit/ directory with automatic JSON validation",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string", "description": "Configuration filename"},
+                        "content": {"type": "object", "description": "Configuration content (will be JSON-serialized)"}
+                    },
+                    "required": ["filename", "content"]
+                }
+            ),
+            Tool(
+                name="list_config_files",
+                description="List all configuration files in ~/.ipfs_kit/ directory with metadata",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            ),
+            Tool(
+                name="get_config_metadata",
+                description="Get detailed metadata for a specific configuration file",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string", "description": "Configuration filename"}
+                    },
+                    "required": ["filename"]
+                }
+            ),
+            Tool(
+                name="health_check",
+                description="Perform comprehensive health check of all system components",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             )
         ]
         
@@ -312,6 +414,8 @@ class RefactoredUnifiedMCPDashboard:
                     result = await self._list_config_files()
                 elif tool_name == "get_config_metadata":
                     result = await self._get_config_metadata(arguments.get("filename"))
+                elif tool_name == "health_check":
+                    result = await self._health_check()
                 else:
                     error_msg = f"Tool '{tool_name}' not found"
                     if request_id:
@@ -1291,6 +1395,117 @@ class RefactoredUnifiedMCPDashboard:
                 "data": {},
                 "last_updated": datetime.now().isoformat(),
                 "created_by": "mcp_server"
+            }
+
+    async def _health_check(self):
+        """Perform comprehensive health check of all system components."""
+        try:
+            health_status = {
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "components": {},
+                "summary": {}
+            }
+            
+            # Check MCP server status
+            health_status["components"]["mcp_server"] = {
+                "status": "healthy",
+                "message": "MCP server is running",
+                "last_check": datetime.now().isoformat()
+            }
+            
+            # Check data directory
+            try:
+                metadata_dir = self.data_dir
+                if metadata_dir.exists() and metadata_dir.is_dir():
+                    health_status["components"]["data_directory"] = {
+                        "status": "healthy",
+                        "path": str(metadata_dir),
+                        "writable": os.access(metadata_dir, os.W_OK),
+                        "readable": os.access(metadata_dir, os.R_OK)
+                    }
+                else:
+                    health_status["components"]["data_directory"] = {
+                        "status": "warning",
+                        "message": "Data directory does not exist"
+                    }
+            except Exception as e:
+                health_status["components"]["data_directory"] = {
+                    "status": "error",
+                    "error": str(e)
+                }
+            
+            # Check configuration files
+            config_files_status = []
+            for filename in ["pins.json", "buckets.json", "backends.json"]:
+                try:
+                    result = await self._read_config_file(filename)
+                    if result.get("success"):
+                        config_files_status.append({
+                            "filename": filename,
+                            "status": "healthy",
+                            "size": result.get("size", 0)
+                        })
+                    else:
+                        config_files_status.append({
+                            "filename": filename,
+                            "status": "warning",
+                            "message": result.get("error", "Unknown error")
+                        })
+                except Exception as e:
+                    config_files_status.append({
+                        "filename": filename,
+                        "status": "error",
+                        "error": str(e)
+                    })
+            
+            health_status["components"]["config_files"] = {
+                "status": "healthy" if all(f["status"] == "healthy" for f in config_files_status) else "warning",
+                "files": config_files_status
+            }
+            
+            # Check system resources
+            try:
+                cpu_percent = psutil.cpu_percent(interval=1)
+                memory = psutil.virtual_memory()
+                disk = psutil.disk_usage('/')
+                
+                health_status["components"]["system_resources"] = {
+                    "status": "healthy" if cpu_percent < 80 and memory.percent < 80 and disk.percent < 90 else "warning",
+                    "cpu_percent": cpu_percent,
+                    "memory_percent": memory.percent,
+                    "disk_percent": disk.percent
+                }
+            except Exception as e:
+                health_status["components"]["system_resources"] = {
+                    "status": "error",
+                    "error": str(e)
+                }
+            
+            # Calculate overall health
+            component_statuses = [comp["status"] for comp in health_status["components"].values()]
+            if all(status == "healthy" for status in component_statuses):
+                health_status["status"] = "healthy"
+            elif any(status == "error" for status in component_statuses):
+                health_status["status"] = "unhealthy"
+            else:
+                health_status["status"] = "warning"
+            
+            health_status["summary"] = {
+                "total_components": len(health_status["components"]),
+                "healthy_components": sum(1 for status in component_statuses if status == "healthy"),
+                "warning_components": sum(1 for status in component_statuses if status == "warning"),
+                "error_components": sum(1 for status in component_statuses if status == "error")
+            }
+            
+            return health_status
+            
+        except Exception as e:
+            logger.error(f"Error performing health check: {e}")
+            return {
+                "status": "error",
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
             }
 
     async def _update_config_replication_state(self, filename: str, file_path: Path):
