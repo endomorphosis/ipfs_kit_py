@@ -167,6 +167,49 @@ class UnifiedMCPDashboard:
                     "required": ["service_type", "instance_name", "config"]
                 }
             },
+            # Configuration Management Tools
+            "read_config_file": {
+                "name": "read_config_file",
+                "description": "Read configuration file from ~/.ipfs_kit/ directory",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string", "description": "Configuration file name (e.g., pins.json, buckets.json)"}
+                    },
+                    "required": ["filename"]
+                }
+            },
+            "write_config_file": {
+                "name": "write_config_file",
+                "description": "Write configuration file to ~/.ipfs_kit/ directory with metadata-first approach",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string", "description": "Configuration file name"},
+                        "content": {"type": "string", "description": "JSON content to write"}
+                    },
+                    "required": ["filename", "content"]
+                }
+            },
+            "list_config_files": {
+                "name": "list_config_files",
+                "description": "List all configuration files in ~/.ipfs_kit/ directory",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            "get_config_metadata": {
+                "name": "get_config_metadata",
+                "description": "Get metadata about configuration files including source and status",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string", "description": "Configuration file name"}
+                    },
+                    "required": ["filename"]
+                }
+            },
             # File Management Tools
             "list_files": {
                 "name": "list_files",
@@ -258,6 +301,15 @@ class UnifiedMCPDashboard:
                     result = await self._read_file(params.get("path"))
                 elif tool_name == "write_file":
                     result = await self._write_file(params.get("path"), params.get("content"))
+                # Configuration management tools
+                elif tool_name == "read_config_file":
+                    result = await self._read_config_file(params.get("filename"))
+                elif tool_name == "write_config_file":
+                    result = await self._write_config_file(params.get("filename"), params.get("content"))
+                elif tool_name == "list_config_files":
+                    result = await self._list_config_files()
+                elif tool_name == "get_config_metadata":
+                    result = await self._get_config_metadata(params.get("filename"))
                 else:
                     raise HTTPException(status_code=404, detail=f"Tool {tool_name} not found")
                 
@@ -390,6 +442,199 @@ class UnifiedMCPDashboard:
             path_obj.parent.mkdir(parents=True, exist_ok=True)
             path_obj.write_text(content, encoding='utf-8')
             return f"Successfully wrote {len(content)} characters to {path}"
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    # Configuration Management Methods (MCP Tools)
+    async def _read_config_file(self, filename: str) -> Dict[str, Any]:
+        """Read configuration file from ~/.ipfs_kit/ directory (metadata-first approach)."""
+        try:
+            # Always check ~/.ipfs_kit/ first for configuration files
+            ipfs_kit_dir = Path.home() / ".ipfs_kit"
+            ipfs_kit_dir.mkdir(exist_ok=True)
+            
+            config_file = ipfs_kit_dir / filename
+            
+            if config_file.exists():
+                content = config_file.read_text(encoding='utf-8')
+                try:
+                    # Validate JSON
+                    json.loads(content)
+                    return {
+                        "content": content,
+                        "source": "metadata",
+                        "path": str(config_file),
+                        "size": len(content),
+                        "modified": datetime.fromtimestamp(config_file.stat().st_mtime).isoformat()
+                    }
+                except json.JSONDecodeError:
+                    return {
+                        "content": content,
+                        "source": "metadata",
+                        "path": str(config_file),
+                        "size": len(content),
+                        "modified": datetime.fromtimestamp(config_file.stat().st_mtime).isoformat(),
+                        "warning": "Invalid JSON format"
+                    }
+            else:
+                # Create default configuration if it doesn't exist
+                default_configs = {
+                    "pins.json": {
+                        "pins": [],
+                        "total_count": 0,
+                        "last_updated": datetime.now().isoformat(),
+                        "replication_factor": 1,
+                        "cache_policy": "memory"
+                    },
+                    "buckets.json": {
+                        "buckets": [],
+                        "total_count": 0,
+                        "last_updated": datetime.now().isoformat(),
+                        "default_replication_factor": 1,
+                        "default_cache_policy": "disk"
+                    },
+                    "backends.json": {
+                        "backends": [],
+                        "total_count": 0,
+                        "last_updated": datetime.now().isoformat(),
+                        "default_backend": "ipfs",
+                        "health_check_interval": 30
+                    }
+                }
+                
+                if filename in default_configs:
+                    default_content = json.dumps(default_configs[filename], indent=2)
+                    config_file.write_text(default_content, encoding='utf-8')
+                    return {
+                        "content": default_content,
+                        "source": "metadata",
+                        "path": str(config_file),
+                        "size": len(default_content),
+                        "created": True,
+                        "modified": datetime.now().isoformat()
+                    }
+                else:
+                    raise FileNotFoundError(f"Configuration file {filename} not found and no default available")
+                    
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    async def _write_config_file(self, filename: str, content: str) -> Dict[str, Any]:
+        """Write configuration file to ~/.ipfs_kit/ directory (metadata-first approach)."""
+        try:
+            # Always write to ~/.ipfs_kit/ directory first
+            ipfs_kit_dir = Path.home() / ".ipfs_kit"
+            ipfs_kit_dir.mkdir(exist_ok=True)
+            
+            config_file = ipfs_kit_dir / filename
+            
+            # Validate JSON content
+            try:
+                parsed_content = json.loads(content)
+                # Add metadata to the configuration
+                parsed_content["last_updated"] = datetime.now().isoformat()
+                content = json.dumps(parsed_content, indent=2)
+            except json.JSONDecodeError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid JSON content: {str(e)}")
+            
+            config_file.write_text(content, encoding='utf-8')
+            
+            return {
+                "success": True,
+                "path": str(config_file),
+                "size": len(content),
+                "modified": datetime.now().isoformat(),
+                "source": "metadata",
+                "message": f"Configuration file {filename} updated in ~/.ipfs_kit/ directory"
+            }
+            
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    async def _list_config_files(self) -> Dict[str, Any]:
+        """List all configuration files in ~/.ipfs_kit/ directory."""
+        try:
+            ipfs_kit_dir = Path.home() / ".ipfs_kit"
+            ipfs_kit_dir.mkdir(exist_ok=True)
+            
+            config_files = []
+            default_configs = ["pins.json", "buckets.json", "backends.json"]
+            
+            for config_name in default_configs:
+                config_file = ipfs_kit_dir / config_name
+                if config_file.exists():
+                    stat = config_file.stat()
+                    config_files.append({
+                        "name": config_name,
+                        "path": str(config_file),
+                        "size": stat.st_size,
+                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "source": "metadata",
+                        "exists": True
+                    })
+                else:
+                    config_files.append({
+                        "name": config_name,
+                        "path": str(config_file),
+                        "size": 0,
+                        "modified": None,
+                        "source": "default",
+                        "exists": False
+                    })
+            
+            return {
+                "files": config_files,
+                "total_count": len(config_files),
+                "directory": str(ipfs_kit_dir),
+                "approach": "metadata-first (~/.ipfs_kit/ before ipfs_kit_py backends)"
+            }
+            
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    async def _get_config_metadata(self, filename: str) -> Dict[str, Any]:
+        """Get metadata about a specific configuration file."""
+        try:
+            ipfs_kit_dir = Path.home() / ".ipfs_kit"
+            config_file = ipfs_kit_dir / filename
+            
+            if config_file.exists():
+                stat = config_file.stat()
+                try:
+                    content = config_file.read_text(encoding='utf-8')
+                    parsed = json.loads(content)
+                    return {
+                        "filename": filename,
+                        "path": str(config_file),
+                        "size": stat.st_size,
+                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "source": "metadata",
+                        "exists": True,
+                        "valid_json": True,
+                        "entries": len(parsed.get("pins", parsed.get("buckets", parsed.get("backends", []))))
+                    }
+                except json.JSONDecodeError:
+                    return {
+                        "filename": filename,
+                        "path": str(config_file),
+                        "size": stat.st_size,
+                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "source": "metadata",
+                        "exists": True,
+                        "valid_json": False,
+                        "error": "Invalid JSON format"
+                    }
+            else:
+                return {
+                    "filename": filename,
+                    "path": str(config_file),
+                    "size": 0,
+                    "modified": None,
+                    "source": "default",
+                    "exists": False,
+                    "can_create": filename in ["pins.json", "buckets.json", "backends.json"]
+                }
+                
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 

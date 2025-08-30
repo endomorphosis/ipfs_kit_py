@@ -1494,6 +1494,76 @@
             
             // Action buttons
             setupActionButtons();
+            
+            // Configuration Management buttons
+            setupConfigurationButtons();
+        }
+        
+        function setupConfigurationButtons() {
+            // Save configuration button
+            const saveConfigBtn = document.getElementById('save-config');
+            if (saveConfigBtn) {
+                saveConfigBtn.addEventListener('click', async () => {
+                    await saveConfigurationFile();
+                });
+            }
+            
+            // Reload configuration button
+            const reloadConfigBtn = document.getElementById('reload-config');
+            if (reloadConfigBtn) {
+                reloadConfigBtn.addEventListener('click', async () => {
+                    // Get current filename and reload it
+                    const activeConfigFile = document.querySelector('.config-file-item.active');
+                    if (activeConfigFile) {
+                        const filename = activeConfigFile.dataset.filename;
+                        await loadConfigFile(filename);
+                    } else {
+                        alert('Please select a configuration file first');
+                    }
+                });
+            }
+        }
+        
+        let currentConfigFilename = null;
+        
+        async function saveConfigurationFile() {
+            try {
+                if (!currentConfigFilename) {
+                    alert('Please select a configuration file first');
+                    return;
+                }
+                
+                const content = document.getElementById('config-editor').value;
+                if (!content.trim()) {
+                    alert('Configuration content cannot be empty');
+                    return;
+                }
+                
+                // Use MCP JSON-RPC call to save the configuration
+                const result = await window.mcpClient.callTool('write_config_file', {
+                    filename: currentConfigFilename,
+                    content: content
+                });
+                
+                if (result && result.success) {
+                    alert(`✅ Configuration saved successfully!\n${result.message}`);
+                    
+                    // Update source info
+                    const editorContainer = document.getElementById('config-editor').parentElement;
+                    let sourceInfo = editorContainer.querySelector('.source-info');
+                    if (sourceInfo) {
+                        sourceInfo.textContent = `📁 Saved to ~/.ipfs_kit/ (${result.size} bytes, modified: ${result.modified})`;
+                        sourceInfo.className = 'source-info text-sm text-green-600 mt-2';
+                    }
+                    
+                    console.log(`Configuration file ${currentConfigFilename} saved via MCP SDK`);
+                } else {
+                    alert(`❌ Failed to save configuration: ${result?.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error saving configuration file via MCP:', error);
+                alert(`Error saving configuration: ${error.message}`);
+            }
         }
 
         function showTab(tabName) {
@@ -3221,11 +3291,23 @@
 
         async function loadConfigData() {
             try {
-                const response = await fetch('/api/config/files');
-                const data = await response.json();
-                displayConfigFiles(data.files);
+                // Use MCP JSON-RPC call instead of REST API
+                const data = await window.mcpClient.callTool('list_config_files', {});
+                if (data && data.files) {
+                    displayConfigFiles(data.files);
+                    
+                    // Show metadata-first approach info
+                    if (data.approach) {
+                        console.log('Configuration Management loaded via MCP SDK:', data.approach);
+                    }
+                } else {
+                    console.warn('No configuration files data received from MCP');
+                    displayConfigFiles([]);
+                }
             } catch (error) {
-                console.error('Error loading config data:', error);
+                console.error('Error loading config data via MCP:', error);
+                // Fallback to empty list
+                displayConfigFiles([]);
             }
         }
 
@@ -3577,14 +3659,50 @@
             const list = document.getElementById('config-files-list');
             list.innerHTML = '';
             
+            if (!files || files.length === 0) {
+                list.innerHTML = '<div class="text-gray-500 text-center py-4">No configuration files found</div>';
+                return;
+            }
+            
             files.forEach(file => {
                 const fileItem = document.createElement('div');
-                fileItem.className = 'cursor-pointer p-2 hover:bg-gray-100 rounded border';
+                fileItem.className = 'config-file-item cursor-pointer p-3 hover:bg-gray-100 rounded border transition-colors';
+                fileItem.dataset.filename = file.name;
+                
+                const statusIcon = file.exists ? '📁' : '📝';
+                const sizeText = file.exists ? `${file.size} bytes` : 'Default template';
+                const sourceText = file.source === 'metadata' ? 'In ~/.ipfs_kit/' : 'Default config';
+                
                 fileItem.innerHTML = `
-                    <div class="font-medium">${file.name}</div>
-                    <div class="text-xs text-gray-500">${file.size} bytes</div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-medium flex items-center gap-2">
+                                <span>${statusIcon}</span>
+                                <span>${file.name}</span>
+                            </div>
+                            <div class="text-xs text-gray-500">${sizeText}</div>
+                            <div class="text-xs text-blue-600">${sourceText}</div>
+                        </div>
+                        <div class="text-xs text-gray-400">
+                            ${file.modified ? new Date(file.modified).toLocaleDateString() : 'Not created'}
+                        </div>
+                    </div>
                 `;
-                fileItem.onclick = () => loadConfigFile(file.name);
+                
+                fileItem.onclick = () => {
+                    // Remove active class from all items
+                    document.querySelectorAll('.config-file-item').forEach(item => {
+                        item.classList.remove('active', 'bg-blue-50', 'border-blue-300');
+                    });
+                    
+                    // Add active class to clicked item
+                    fileItem.classList.add('active', 'bg-blue-50', 'border-blue-300');
+                    
+                    // Set current config filename and load the file
+                    currentConfigFilename = file.name;
+                    loadConfigFile(file.name);
+                };
+                
                 list.appendChild(fileItem);
             });
         }
@@ -3624,11 +3742,37 @@
 
         async function loadConfigFile(filename) {
             try {
-                const response = await fetch(`/api/config/file/${filename}`);
-                const data = await response.json();
-                document.getElementById('config-editor').value = data.content;
+                // Use MCP JSON-RPC call instead of REST API
+                const data = await window.mcpClient.callTool('read_config_file', { filename: filename });
+                if (data && data.content) {
+                    document.getElementById('config-editor').value = data.content;
+                    
+                    // Show source information (metadata vs default)
+                    const editorContainer = document.getElementById('config-editor').parentElement;
+                    let sourceInfo = editorContainer.querySelector('.source-info');
+                    if (!sourceInfo) {
+                        sourceInfo = document.createElement('div');
+                        sourceInfo.className = 'source-info text-sm text-gray-600 mt-2';
+                        editorContainer.appendChild(sourceInfo);
+                    }
+                    
+                    const sourceText = data.source === 'metadata' ? 
+                        `📁 Loaded from ~/.ipfs_kit/ (${data.size} bytes, modified: ${data.modified})` :
+                        `📝 Using default configuration`;
+                    sourceInfo.textContent = sourceText;
+                    
+                    if (data.created) {
+                        sourceInfo.textContent += ' - File created automatically';
+                        sourceInfo.className += ' text-green-600';
+                    }
+                    
+                    console.log(`Configuration file ${filename} loaded via MCP SDK from ${data.source}`);
+                } else {
+                    console.warn('No content received for config file:', filename);
+                }
             } catch (error) {
-                console.error('Error loading config file:', error);
+                console.error('Error loading config file via MCP:', error);
+                document.getElementById('config-editor').value = `Error loading ${filename}: ${error.message}`;
             }
         }
 

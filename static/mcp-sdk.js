@@ -29,14 +29,10 @@ class MCPClient {
         
         for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
             try {
+                // Use the simplified format that our MCP server expects
                 const payload = {
-                    jsonrpc: '2.0',
-                    method: 'tools/call',
-                    params: {
-                        name: toolName,
-                        arguments: params
-                    },
-                    id: requestId
+                    method: toolName,
+                    params: params
                 };
                 
                 console.log(`MCP call attempt ${attempt + 1}:`, toolName, params);
@@ -58,7 +54,7 @@ class MCPClient {
                 const data = await response.json();
                 
                 if (data.error) {
-                    throw new Error(`MCP Error: ${data.error.message || 'Unknown error'}`);
+                    throw new Error(`MCP Error: ${data.error}`);
                 }
                 
                 console.log(`MCP call successful:`, toolName, data.result);
