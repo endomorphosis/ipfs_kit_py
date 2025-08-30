@@ -3,8 +3,8 @@ class PinDashboard {
     constructor() {
         this.init();
         this.setupEventListeners();
-        // Initialize MCP client
-        this.mcp = new window.MCP.MCPClient({ baseUrl: '' });
+        // Initialize MCP client  
+        this.mcp = null;
     }
 
     init() {
@@ -22,22 +22,37 @@ class PinDashboard {
         });
 
         // Pin management
-        document.getElementById('refresh-pins')?.addEventListener('click', () => this.loadPins());
-        document.getElementById('add-pin')?.addEventListener('click', () => this.showAddPinModal());
-        document.getElementById('bulk-operations')?.addEventListener('click', () => this.showBulkModal());
-        document.getElementById('verify-pins')?.addEventListener('click', () => this.verifyPins());
-        document.getElementById('cleanup-pins')?.addEventListener('click', () => this.cleanupPins());
-        document.getElementById('export-metadata')?.addEventListener('click', () => this.exportMetadata());
+        const refreshPinsBtn = document.getElementById('refresh-pins');
+        if (refreshPinsBtn) refreshPinsBtn.addEventListener('click', () => this.loadPins());
+        
+        const addPinBtn = document.getElementById('add-pin');
+        if (addPinBtn) addPinBtn.addEventListener('click', () => this.showAddPinModal());
+        
+        const bulkOpsBtn = document.getElementById('bulk-operations');
+        if (bulkOpsBtn) bulkOpsBtn.addEventListener('click', () => this.showBulkModal());
+        
+        const verifyPinsBtn = document.getElementById('verify-pins');
+        if (verifyPinsBtn) verifyPinsBtn.addEventListener('click', () => this.verifyPins());
+        
+        const cleanupPinsBtn = document.getElementById('cleanup-pins');
+        if (cleanupPinsBtn) cleanupPinsBtn.addEventListener('click', () => this.cleanupPins());
+        
+        const exportBtn = document.getElementById('export-metadata');
+        if (exportBtn) exportBtn.addEventListener('click', () => this.exportMetadata());
 
         // Modal events
-        document.getElementById('cancel-add-pin')?.addEventListener('click', () => this.hideAddPinModal());
-        document.getElementById('add-pin-form')?.addEventListener('submit', (e) => this.submitAddPin(e));
+        const cancelBtn = document.getElementById('cancel-add-pin');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => this.hideAddPinModal());
+        
+        const formEl = document.getElementById('add-pin-form');
+        if (formEl) formEl.addEventListener('submit', (e) => this.submitAddPin(e));
     }
 
     async jsonRpcCall(method, params = {}) {
         // Use MCP SDK instead of direct JSON-RPC calls
         try {
-            return await this.mcp.rpc(method, params);
+            const client = window.MCP.client || window.MCP.init();
+            return await client.callTool(method, params);
         } catch (error) {
             console.error('MCP call failed:', error);
             this.showNotification('Error: ' + error.message, 'error');
@@ -242,10 +257,17 @@ class PinDashboard {
         const totalFiles = this.bucketData.reduce((sum, bucket) => sum + bucket.files, 0);
         const activeBuckets = this.bucketData.filter(bucket => bucket.status === 'active').length;
 
-        document.getElementById('total-buckets')?.textContent = totalBuckets;
-        document.getElementById('total-bucket-size')?.textContent = this.formatBytes(totalSize);
-        document.getElementById('total-bucket-files')?.textContent = totalFiles;
-        document.getElementById('active-buckets')?.textContent = activeBuckets;
+        const totalBucketsEl = document.getElementById('total-buckets');
+        if (totalBucketsEl) totalBucketsEl.textContent = totalBuckets;
+        
+        const totalSizeEl = document.getElementById('total-bucket-size');
+        if (totalSizeEl) totalSizeEl.textContent = this.formatBytes(totalSize);
+        
+        const totalFilesEl = document.getElementById('total-bucket-files');
+        if (totalFilesEl) totalFilesEl.textContent = totalFiles;
+        
+        const activeBucketsEl = document.getElementById('active-buckets');
+        if (activeBucketsEl) activeBucketsEl.textContent = activeBuckets;
     }
 
     formatBytes(bytes, decimals = 2) {
@@ -399,12 +421,15 @@ class PinDashboard {
             console.log(`Loading config file: ${filename}`);
             
             // Use MCP JSON-RPC to read config file
-            const result = await this.mcp.callTool('read_config_file', { 
+            const client = window.MCP.client || window.MCP.init();
+            const result = await client.callTool('read_config_file', { 
                 filename: filename 
             });
             
+            console.log(`MCP result for ${filename}:`, result);
+            
             if (result && result.success) {
-                const config = result.data;
+                const config = result.data || result.content;
                 const metadata = result.metadata || {};
                 
                 // Update UI elements for this config file
@@ -429,7 +454,7 @@ class PinDashboard {
         if (sourceEl) sourceEl.textContent = metadata.source || 'metadata';
         
         const sizeEl = document.getElementById(`${fileKey}-size`);
-        if (sizeEl) sizeEl.textContent = metadata.size || '-';
+        if (sizeEl) sizeEl.textContent = metadata.size || (config ? JSON.stringify(config).length : '-');
         
         const modifiedEl = document.getElementById(`${fileKey}-modified`);
         if (modifiedEl) {
@@ -439,9 +464,9 @@ class PinDashboard {
         
         // Update preview
         const previewEl = document.getElementById(`${fileKey}-preview`);
-        if (previewEl) {
+        if (previewEl && config) {
             const preview = JSON.stringify(config, null, 2);
-            previewEl.textContent = preview.length > 200 ? preview.substring(0, 200) + '...' : preview;
+            previewEl.textContent = preview && preview.length > 200 ? preview.substring(0, 200) + '...' : preview;
         }
     }
 
@@ -515,7 +540,8 @@ async function editConfig(filename) {
     if (newContent !== null) {
         try {
             const parsed = JSON.parse(newContent);
-            const result = await dashboard.mcp.callTool('write_config_file', {
+            const client = window.MCP.client || window.MCP.init();
+            const result = await client.callTool('write_config_file', {
                 filename: filename,
                 content: parsed
             });
@@ -548,7 +574,8 @@ async function createNewConfig() {
         if (content !== null) {
             try {
                 const parsed = JSON.parse(content);
-                const result = await dashboard.mcp.callTool('write_config_file', {
+                const client = window.MCP.client || window.MCP.init();
+                const result = await client.callTool('write_config_file', {
                     filename: filename,
                     content: parsed
                 });
@@ -569,11 +596,12 @@ async function createNewConfig() {
 
 async function exportConfigs() {
     try {
-        const result = await dashboard.mcp.callTool('list_config_files', {});
+        const client = window.MCP.client || window.MCP.init();
+        const result = await client.callTool('list_config_files', {});
         if (result && result.files) {
             const exportData = {};
             for (const file of result.files) {
-                const fileResult = await dashboard.mcp.callTool('read_config_file', { 
+                const fileResult = await client.callTool('read_config_file', { 
                     filename: file.name 
                 });
                 if (fileResult.success) {
