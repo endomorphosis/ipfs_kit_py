@@ -443,6 +443,61 @@
         .log-entry.warning { border-left-color: #f59e0b; background-color: #fffbeb; }
         .log-entry.info { border-left-color: #3b82f6; background-color: #eff6ff; }
         .log-entry.debug { border-left-color: #6b7280; background-color: #f9fafb; }
+
+        /* Backend Management Styles */
+        .backend-category-section {
+            margin-bottom: 2rem;
+        }
+
+        .backend-filter-btn.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .backend-filter-btn {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .backend-filter-btn:hover {
+            background-color: #1d4ed8;
+            color: white;
+        }
+
+        .max-h-90vh {
+            max-height: 90vh;
+        }
+
+        /* Enhanced modal styling */
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
+        }
+
+        /* Status indicator improvements */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.status-running,
+        .status-indicator.status-healthy {
+            background-color: #10b981;
+        }
+
+        .status-indicator.status-stopped,
+        .status-indicator.status-unhealthy {
+            background-color: #ef4444;
+        }
+
+        .status-indicator.status-configured {
+            background-color: #3b82f6;
+        }
+
+        .status-indicator.status-unknown {
+            background-color: #6b7280;
+        }
     </style>
     
     <!-- Chart.js for analytics -->
@@ -721,16 +776,150 @@
             <div id="backends" class="tab-content">
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Backend Health & Management</h2>
-                    <div class="mb-4">
-                        <button id="refresh-backends" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2">
-                            <i class="fas fa-sync-alt mr-2"></i>Refresh
-                        </button>
-                        <button id="test-all-backends" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-vial mr-2"></i>Test All
-                        </button>
+                    
+                    <!-- Enhanced Backend Controls with Multi-Instance Support -->
+                    <div class="mb-6 bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <button id="refresh-backends" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors">
+                                <i class="fas fa-sync-alt mr-2"></i>Refresh All
+                            </button>
+                            <button id="test-all-backends" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition-colors">
+                                <i class="fas fa-vial mr-2"></i>Test All
+                            </button>
+                            <button id="add-backend-instance" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition-colors">
+                                <i class="fas fa-plus mr-2"></i>Add Instance
+                            </button>
+                            <button id="sync-all-backends" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded transition-colors">
+                                <i class="fas fa-sync mr-2"></i>Sync All
+                            </button>
+                            <button id="backend-health-check" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded transition-colors">
+                                <i class="fas fa-heartbeat mr-2"></i>Health Check
+                            </button>
+                        </div>
+                        <div class="text-sm text-blue-700">
+                            💡 <strong>Multi-Backend Support:</strong> Manage multiple S3 buckets, GitHub accounts, IPFS clusters with individual cache/storage/retention policies. Uses ~/.ipfs_kit/ metadata-first approach.
+                        </div>
                     </div>
-                    <div id="backends-list" class="space-y-4">
-                        <!-- Backends will be populated dynamically -->
+
+                    <!-- Backend Categories Filter -->
+                    <div class="mb-6 bg-gray-50 p-4 rounded-lg">
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <button id="filter-all-backends" class="btn btn-blue btn-sm backend-filter-btn active">All Backends</button>
+                            <button id="filter-storage-backends" class="btn btn-green btn-sm backend-filter-btn">🗄️ Storage</button>
+                            <button id="filter-network-backends" class="btn btn-purple btn-sm backend-filter-btn">🌐 Network</button>
+                            <button id="filter-compute-backends" class="btn btn-yellow btn-sm backend-filter-btn">⚡ Compute</button>
+                            <button id="filter-analytics-backends" class="btn btn-pink btn-sm backend-filter-btn">📊 Analytics</button>
+                        </div>
+                        <div class="grid grid-cols-2 md-grid-cols-4 gap-4" id="backend-stats-summary">
+                            <div class="bg-green-100 p-3 rounded text-center">
+                                <div class="text-2xl font-bold text-green-700" id="healthy-backends-count">0</div>
+                                <div class="text-sm text-green-600">Healthy</div>
+                            </div>
+                            <div class="bg-red-100 p-3 rounded text-center">
+                                <div class="text-2xl font-bold text-red-700" id="unhealthy-backends-count">0</div>
+                                <div class="text-sm text-red-600">Unhealthy</div>
+                            </div>
+                            <div class="bg-yellow-100 p-3 rounded text-center">
+                                <div class="text-2xl font-bold text-yellow-700" id="configured-backends-count">0</div>
+                                <div class="text-sm text-yellow-600">Configured</div>
+                            </div>
+                            <div class="bg-blue-100 p-3 rounded text-center">
+                                <div class="text-2xl font-bold text-blue-700" id="total-backends-count">0</div>
+                                <div class="text-sm text-blue-600">Total</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Enhanced Backends Grid with Grouping -->
+                    <div id="backends-list" class="space-y-6">
+                        <div class="text-gray-500 text-center py-12">
+                            <div class="text-4xl mb-4">🖥️</div>
+                            <div class="text-lg mb-2">Loading backend health information...</div>
+                            <div class="text-sm">Scanning multi-instance configurations...</div>
+                        </div>
+                    </div>
+
+                    <!-- Backend Configuration Modal -->
+                    <div id="backend-config-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" style="z-index: 1000;">
+                        <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-90vh overflow-auto">
+                            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
+                                <div class="flex justify-between items-center">
+                                    <h3 class="text-xl font-bold" id="backend-config-modal-title">Configure Backend Instance</h3>
+                                    <button id="close-backend-config-modal" class="text-white hover:text-gray-200">
+                                        <i class="fas fa-times text-xl"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <div id="backend-config-form" class="space-y-6">
+                                    <!-- Dynamic configuration form will be inserted here -->
+                                </div>
+                                <div class="flex gap-2 mt-6 pt-4 border-t">
+                                    <button id="save-backend-config-btn" class="btn btn-green flex-1">
+                                        <i class="fas fa-save mr-2"></i>Save Configuration
+                                    </button>
+                                    <button id="test-backend-config-btn" class="btn btn-yellow">
+                                        <i class="fas fa-vial mr-2"></i>Test Connection
+                                    </button>
+                                    <button id="apply-backend-policy-btn" class="btn btn-purple">
+                                        <i class="fas fa-cogs mr-2"></i>Apply Policy
+                                    </button>
+                                    <button id="cancel-backend-config-btn" class="btn btn-gray">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add Backend Instance Modal -->
+                    <div id="add-backend-instance-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" style="z-index: 1000;">
+                        <div class="bg-white rounded-lg max-w-lg w-full mx-4">
+                            <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6">
+                                <h3 class="text-xl font-bold">Add New Backend Instance</h3>
+                            </div>
+                            <div class="p-6">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Backend Type</label>
+                                    <select id="new-backend-type" class="w-full p-3 border border-gray-300 rounded-lg">
+                                        <option value="">Select backend type...</option>
+                                        <optgroup label="🗄️ Storage Backends">
+                                            <option value="s3">Amazon S3 / S3-Compatible</option>
+                                            <option value="github">GitHub Repository</option>
+                                            <option value="huggingface">HuggingFace Hub</option>
+                                            <option value="gdrive">Google Drive</option>
+                                            <option value="lotus">Filecoin Lotus</option>
+                                            <option value="storacha">Storacha/Web3.Storage</option>
+                                        </optgroup>
+                                        <optgroup label="🌐 Network Backends">
+                                            <option value="ipfs">IPFS Node</option>
+                                            <option value="ipfs_cluster">IPFS Cluster</option>
+                                            <option value="ipfs_cluster_follow">IPFS Cluster Follow</option>
+                                        </optgroup>
+                                        <optgroup label="📊 Analytics Backends">
+                                            <option value="apache_arrow">Apache Arrow</option>
+                                            <option value="parquet">Parquet Storage</option>
+                                        </optgroup>
+                                        <optgroup label="⚡ Compute Backends">
+                                            <option value="synapse">Bittensor Synapse</option>
+                                            <option value="local">Local Filesystem</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Instance Name</label>
+                                    <input type="text" id="new-backend-name" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="e.g., production-s3, backup-github, analytics-cluster">
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Description</label>
+                                    <input type="text" id="new-backend-description" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Brief description of this backend instance">
+                                </div>
+                                <div class="flex gap-2 mt-6">
+                                    <button id="create-backend-instance-btn" class="btn btn-purple flex-1">
+                                        <i class="fas fa-plus mr-2"></i>Create & Configure
+                                    </button>
+                                    <button id="cancel-add-backend-btn" class="btn btn-gray">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2475,16 +2664,327 @@
 
         async function loadBackendsData() {
             try {
-                const response = await fetch('/api/backends');
-                const data = await response.json();
-                console.log('🗄️ backends loaded via API', data);
-                
-                // Fix data structure - API returns {backends: [...]} but function expects array
-                const backends = data.backends || data || [];
-                displayBackends(backends);
+                // Use MCP SDK for backend operations - metadata-first approach
+                if (window.MCP && window.MCP.Backends) {
+                    console.log('🗄️ Loading backends via MCP SDK...');
+                    const result = await window.MCP.Backends.list();
+                    console.log('🗄️ MCP backends result:', result);
+                    
+                    // Handle both direct result and JSON-RPC wrapped result
+                    const backends = result?.result?.items || result?.items || result || [];
+                    displayBackends(backends);
+                } else {
+                    // Fallback to REST API
+                    const response = await fetch('/api/backends');
+                    const data = await response.json();
+                    console.log('🗄️ backends loaded via API', data);
+                    
+                    // Fix data structure - API returns {backends: [...]} but function expects array
+                    const backends = data.backends || data || [];
+                    displayBackends(backends);
+                }
             } catch (error) {
                 console.error('Error loading backends data:', error);
+                // Show error state in UI
+                const list = document.getElementById('backends-list');
+                list.innerHTML = `
+                    <div class="text-center py-12 text-red-500">
+                        <div class="text-4xl mb-4">⚠️</div>
+                        <h3 class="text-lg font-medium mb-2">Error Loading Backends</h3>
+                        <p class="text-sm mb-4">${error.message}</p>
+                        <button onclick="loadBackendsData()" class="btn btn-blue">
+                            <i class="fas fa-sync mr-2"></i>Retry
+                        </button>
+                    </div>
+                `;
             }
+        }
+
+        // Enhanced Backend Management Functions using MCP SDK
+        async function configureBackend(name, type) {
+            try {
+                currentBackendInstance = { name, type };
+                
+                // Get current backend configuration via MCP SDK
+                const backend = await callMCPTool('get_backend', { name });
+                console.log('Backend details for configuration:', backend);
+                
+                showBackendConfigModal(name, type, backend?.result || backend);
+            } catch (error) {
+                console.error('Error getting backend configuration:', error);
+                alert(`Error getting backend configuration: ${error.message}`);
+            }
+        }
+
+        async function testBackend(name) {
+            try {
+                console.log(`Testing backend: ${name}`);
+                const result = await callMCPTool('test_backend', { name });
+                
+                if (result?.result?.reachable || result?.reachable) {
+                    alert(`✅ Backend "${name}" is reachable and healthy`);
+                } else {
+                    alert(`❌ Backend "${name}" test failed: ${result?.error || 'Unknown error'}`);
+                }
+                
+                // Refresh the backends list to show updated status
+                await loadBackendsData();
+            } catch (error) {
+                console.error('Error testing backend:', error);
+                alert(`Error testing backend: ${error.message}`);
+            }
+        }
+
+        async function syncBackend(name) {
+            try {
+                console.log(`Syncing backend replicas: ${name}`);
+                // Use metadata-first sync approach
+                const result = await callMCPTool('sync_backend_replicas', { name, use_metadata_first: true });
+                
+                if (result?.result?.ok || result?.ok) {
+                    alert(`✅ Backend "${name}" replicas synced successfully`);
+                } else {
+                    alert(`❌ Backend sync failed: ${result?.error || 'Unknown error'}`);
+                }
+                
+                await loadBackendsData();
+            } catch (error) {
+                console.error('Error syncing backend:', error);
+                alert(`Error syncing backend: ${error.message}`);
+            }
+        }
+
+        async function deleteBackend(name) {
+            if (!confirm(`Are you sure you want to delete backend "${name}"? This action cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                console.log(`Deleting backend: ${name}`);
+                const result = await callMCPTool('delete_backend', { name });
+                
+                if (result?.result?.ok || result?.ok) {
+                    alert(`✅ Backend "${name}" deleted successfully`);
+                    await loadBackendsData();
+                } else {
+                    alert(`❌ Failed to delete backend: ${result?.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error deleting backend:', error);
+                alert(`Error deleting backend: ${error.message}`);
+            }
+        }
+
+        function showAddBackendModal() {
+            document.getElementById('add-backend-instance-modal').classList.remove('hidden');
+        }
+
+        function showBackendConfigModal(name, type, backendData = {}) {
+            const modal = document.getElementById('backend-config-modal');
+            const title = document.getElementById('backend-config-modal-title');
+            const form = document.getElementById('backend-config-form');
+            
+            title.textContent = `Configure ${name} (${type})`;
+            
+            // Build configuration form based on backend type
+            form.innerHTML = createBackendConfigForm(type, backendData);
+            
+            modal.classList.remove('hidden');
+        }
+
+        function createBackendConfigForm(type, backendData = {}) {
+            const config = backendData.config || {};
+            const policy = backendData.policy || {};
+            
+            let html = `
+                <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                    <!-- Basic Configuration -->
+                    <div class="space-y-4">
+                        <h4 class="text-lg font-semibold text-gray-800 border-b pb-2">Basic Configuration</h4>
+                        ${createBasicConfigFields(type, config)}
+                    </div>
+                    
+                    <!-- Advanced Policy Configuration -->
+                    <div class="space-y-4">
+                        <h4 class="text-lg font-semibold text-gray-800 border-b pb-2">Cache & Storage Policy</h4>
+                        ${createPolicyConfigFields(policy)}
+                    </div>
+                </div>
+                
+                <!-- Replication & Retention Configuration -->
+                <div class="mt-6 space-y-4">
+                    <h4 class="text-lg font-semibold text-gray-800 border-b pb-2">Replication & Retention Settings</h4>
+                    ${createReplicationConfigFields(policy)}
+                </div>
+            `;
+            
+            return html;
+        }
+
+        function createBasicConfigFields(type, config) {
+            let fields = '';
+            
+            switch(type) {
+                case 's3':
+                    fields = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Endpoint URL</label>
+                            <input type="text" id="config-endpoint" value="${config.endpoint || ''}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg" 
+                                   placeholder="https://s3.amazonaws.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Access Key ID</label>
+                            <input type="text" id="config-access-key" value="${config.access_key || ''}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Secret Access Key</label>
+                            <input type="password" id="config-secret-key" value="${config.secret_key || ''}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Bucket Name</label>
+                            <input type="text" id="config-bucket" value="${config.bucket || ''}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Region</label>
+                            <input type="text" id="config-region" value="${config.region || 'us-east-1'}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                    `;
+                    break;
+                case 'github':
+                    fields = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">GitHub Token</label>
+                            <input type="password" id="config-token" value="${config.token || ''}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Repository Owner</label>
+                            <input type="text" id="config-owner" value="${config.owner || ''}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Repository Name</label>
+                            <input type="text" id="config-repo" value="${config.repo || ''}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+                            <input type="text" id="config-branch" value="${config.branch || 'main'}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                    `;
+                    break;
+                case 'ipfs':
+                    fields = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">IPFS API URL</label>
+                            <input type="text" id="config-api-url" value="${config.api_url || 'http://127.0.0.1:5001'}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Gateway URL</label>
+                            <input type="text" id="config-gateway-url" value="${config.gateway_url || 'http://127.0.0.1:8080'}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Timeout (seconds)</label>
+                            <input type="number" id="config-timeout" value="${config.timeout || 30}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                    `;
+                    break;
+                default:
+                    fields = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Base URL</label>
+                            <input type="text" id="config-base-url" value="${config.base_url || ''}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                            <input type="password" id="config-api-key" value="${config.api_key || ''}" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                    `;
+            }
+            
+            return fields;
+        }
+
+        function createPolicyConfigFields(policy) {
+            return `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cache Policy</label>
+                    <select id="policy-cache-policy" class="w-full p-3 border border-gray-300 rounded-lg">
+                        <option value="none" ${policy.cache_policy === 'none' ? 'selected' : ''}>None</option>
+                        <option value="memory" ${policy.cache_policy === 'memory' ? 'selected' : ''}>Memory Only</option>
+                        <option value="disk" ${policy.cache_policy === 'disk' ? 'selected' : ''}>Disk Only</option>
+                        <option value="hybrid" ${policy.cache_policy === 'hybrid' ? 'selected' : ''}>Memory + Disk</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cache Size (MB)</label>
+                    <input type="number" id="policy-cache-size" value="${policy.cache_size_mb || 1024}" 
+                           class="w-full p-3 border border-gray-300 rounded-lg" min="0" max="10240">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Storage Quota (GB)</label>
+                    <input type="number" id="policy-storage-quota" value="${policy.storage_quota_gb || 100}" 
+                           class="w-full p-3 border border-gray-300 rounded-lg" min="1" max="1000">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Max Files</label>
+                    <input type="number" id="policy-max-files" value="${policy.max_files || 10000}" 
+                           class="w-full p-3 border border-gray-300 rounded-lg" min="1">
+                </div>
+            `;
+        }
+
+        function createReplicationConfigFields(policy) {
+            return `
+                <div class="grid grid-cols-1 md-grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Replication Factor</label>
+                        <select id="policy-replication-factor" class="w-full p-3 border border-gray-300 rounded-lg">
+                            ${[1,2,3,4,5,6,7,8,9,10].map(n => 
+                                `<option value="${n}" ${policy.replication_factor === n ? 'selected' : ''}>${n}x</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Retention Days</label>
+                        <input type="number" id="policy-retention-days" value="${policy.retention_days || 30}" 
+                               class="w-full p-3 border border-gray-300 rounded-lg" min="1" max="365">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Sync Strategy</label>
+                        <select id="policy-sync-strategy" class="w-full p-3 border border-gray-300 rounded-lg">
+                            <option value="immediate" ${policy.sync_strategy === 'immediate' ? 'selected' : ''}>Immediate</option>
+                            <option value="scheduled" ${policy.sync_strategy === 'scheduled' ? 'selected' : ''}>Scheduled</option>
+                            <option value="manual" ${policy.sync_strategy === 'manual' ? 'selected' : ''}>Manual</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="policy-auto-cleanup" ${policy.auto_cleanup ? 'checked' : ''} 
+                               class="mr-2">
+                        <span class="text-sm text-gray-700">Enable automatic cleanup of expired files</span>
+                    </label>
+                </div>
+                <div class="mt-2">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="policy-versioning" ${policy.versioning ? 'checked' : ''} 
+                               class="mr-2">
+                        <span class="text-sm text-gray-700">Enable file versioning support</span>
+                    </label>
+                </div>
+            `;
         }
 
         async function loadBucketsData() {
@@ -2710,28 +3210,218 @@
                 backends = [];
             }
             
-            backends.forEach(backend => {
-                const backendCard = createBackendCard(backend);
-                list.appendChild(backendCard);
+            // Group backends by type for better organization
+            const groupedBackends = groupBackendsByType(backends);
+            updateBackendStats(backends);
+            
+            if (backends.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <div class="text-4xl mb-4">🔧</div>
+                        <h3 class="text-lg font-medium mb-2">No Backend Instances</h3>
+                        <p class="text-sm mb-4">Create your first backend instance to get started.</p>
+                        <button onclick="showAddBackendModal()" class="btn btn-purple">
+                            <i class="fas fa-plus mr-2"></i>Add Backend Instance
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Render grouped backends
+            Object.entries(groupedBackends).forEach(([category, categoryBackends]) => {
+                if (categoryBackends.length === 0) return;
+                
+                const categorySection = document.createElement('div');
+                categorySection.className = 'backend-category-section';
+                categorySection.innerHTML = `
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                            ${getCategoryIcon(category)} ${category} (${categoryBackends.length})
+                        </h3>
+                        <div class="grid grid-cols-1 md-grid-cols-2 lg-grid-cols-3 gap-4" id="backends-${category.toLowerCase().replace(/\s+/g, '-')}">
+                        </div>
+                    </div>
+                `;
+                list.appendChild(categorySection);
+                
+                const grid = categorySection.querySelector(`#backends-${category.toLowerCase().replace(/\s+/g, '-')}`);
+                categoryBackends.forEach(backend => {
+                    const backendCard = createEnhancedBackendCard(backend);
+                    grid.appendChild(backendCard);
+                });
             });
         }
 
-        function createBackendCard(backend) {
+        function groupBackendsByType(backends) {
+            const groups = {
+                'Storage Backends': [],
+                'Network Backends': [],
+                'Analytics Backends': [],
+                'Compute Backends': []
+            };
+            
+            backends.forEach(backend => {
+                const type = backend.type || 'unknown';
+                if (['s3', 'github', 'huggingface', 'gdrive', 'lotus', 'storacha'].includes(type)) {
+                    groups['Storage Backends'].push(backend);
+                } else if (['ipfs', 'ipfs_cluster', 'ipfs_cluster_follow'].includes(type)) {
+                    groups['Network Backends'].push(backend);
+                } else if (['apache_arrow', 'parquet'].includes(type)) {
+                    groups['Analytics Backends'].push(backend);
+                } else if (['synapse', 'local'].includes(type)) {
+                    groups['Compute Backends'].push(backend);
+                } else {
+                    groups['Storage Backends'].push(backend); // Default category
+                }
+            });
+            
+            return groups;
+        }
+
+        function getCategoryIcon(category) {
+            const icons = {
+                'Storage Backends': '🗄️',
+                'Network Backends': '🌐',
+                'Analytics Backends': '📊',
+                'Compute Backends': '⚡'
+            };
+            return icons[category] || '🔧';
+        }
+
+        function updateBackendStats(backends) {
+            const healthy = backends.filter(b => b.status === 'healthy' || b.status === 'running').length;
+            const unhealthy = backends.filter(b => b.status === 'unhealthy' || b.status === 'error').length;
+            const configured = backends.filter(b => b.status === 'configured').length;
+            const total = backends.length;
+            
+            document.getElementById('healthy-backends-count').textContent = healthy;
+            document.getElementById('unhealthy-backends-count').textContent = unhealthy;
+            document.getElementById('configured-backends-count').textContent = configured;
+            document.getElementById('total-backends-count').textContent = total;
+        }
+
+        function createEnhancedBackendCard(backend) {
             const div = document.createElement('div');
-            div.className = 'bg-gray-50 p-4 rounded-lg border';
+            const statusClass = getBackendStatusClass(backend.status);
+            const typeIcon = getBackendTypeIcon(backend.type);
+            
+            div.className = `bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow ${statusClass}`;
             div.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="font-medium">${backend.name}</h3>
-                        <p class="text-sm text-gray-600">${backend.type}</p>
+                <div class="p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">${typeIcon}</span>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">${backend.name}</h4>
+                                <p class="text-sm text-gray-600">${backend.type}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="service-status status-${backend.status || 'unknown'}">${backend.status || 'Unknown'}</span>
+                        </div>
                     </div>
-                    <div class="text-right">
-                        <span class="status-indicator status-${backend.status || 'unknown'}"></span>
-                        <span class="text-sm">${backend.status || 'Unknown'}</span>
+                    
+                    <!-- Backend Metadata -->
+                    <div class="mb-3 text-xs text-gray-500">
+                        <div class="flex justify-between mb-1">
+                            <span>Last Check:</span>
+                            <span>${backend.last_check ? new Date(backend.last_check).toLocaleString() : 'Never'}</span>
+                        </div>
+                        ${backend.instances ? `
+                        <div class="flex justify-between mb-1">
+                            <span>Instances:</span>
+                            <span>${backend.instances} active</span>
+                        </div>
+                        ` : ''}
+                        ${backend.policy ? `
+                        <div class="flex justify-between mb-1">
+                            <span>Cache Policy:</span>
+                            <span>${backend.policy.cache_policy || 'none'}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Configuration Status -->
+                    ${backend.config_status ? `
+                    <div class="mb-3 p-2 bg-gray-50 rounded text-xs">
+                        <div class="flex items-center justify-between">
+                            <span>Configuration:</span>
+                            <span class="text-green-600">✓ Ready</span>
+                        </div>
+                        ${backend.policy?.replication_factor ? `
+                        <div class="flex items-center justify-between">
+                            <span>Replication:</span>
+                            <span>${backend.policy.replication_factor}x</span>
+                        </div>
+                        ` : ''}
+                        ${backend.policy?.storage_quota_gb ? `
+                        <div class="flex items-center justify-between">
+                            <span>Storage Quota:</span>
+                            <span>${backend.policy.storage_quota_gb}GB</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex gap-2">
+                        <button onclick="configureBackend('${backend.name}', '${backend.type}')" 
+                                class="btn btn-blue btn-sm flex-1">
+                            <i class="fas fa-cogs mr-1"></i>Configure
+                        </button>
+                        <button onclick="testBackend('${backend.name}')" 
+                                class="btn btn-green btn-sm">
+                            <i class="fas fa-vial mr-1"></i>Test
+                        </button>
+                        <button onclick="syncBackend('${backend.name}')" 
+                                class="btn btn-purple btn-sm">
+                            <i class="fas fa-sync mr-1"></i>Sync
+                        </button>
+                        <button onclick="deleteBackend('${backend.name}')" 
+                                class="btn btn-red btn-sm">
+                            <i class="fas fa-trash mr-1"></i>Delete
+                        </button>
                     </div>
                 </div>
             `;
             return div;
+        }
+
+        function getBackendStatusClass(status) {
+            switch(status) {
+                case 'healthy':
+                case 'running':
+                    return 'border-l-4 border-green-500';
+                case 'unhealthy':
+                case 'error':
+                    return 'border-l-4 border-red-500';
+                case 'configured':
+                    return 'border-l-4 border-blue-500';
+                case 'stopped':
+                    return 'border-l-4 border-yellow-500';
+                default:
+                    return 'border-l-4 border-gray-400';
+            }
+        }
+
+        function getBackendTypeIcon(type) {
+            const icons = {
+                's3': '🗄️',
+                'github': '📚',
+                'huggingface': '🤗',
+                'gdrive': '📁',
+                'lotus': '💎',
+                'storacha': '☁️',
+                'ipfs': '📡',
+                'ipfs_cluster': '🌐',
+                'ipfs_cluster_follow': '🔗',
+                'apache_arrow': '🏹',
+                'parquet': '📊',
+                'synapse': '🧠',
+                'local': '💻'
+            };
+            return icons[type] || '🔧';
         }
 
         function displayBuckets(buckets) {
@@ -2947,6 +3637,49 @@
                     showAddServiceModal();
                 });
             }
+
+            // Backend Management buttons
+            const refreshBackendsBtn = document.getElementById('refresh-backends');
+            if (refreshBackendsBtn) {
+                refreshBackendsBtn.addEventListener('click', async () => {
+                    console.log('Refreshing backends...');
+                    await loadBackendsData();
+                });
+            }
+
+            const testAllBackendsBtn = document.getElementById('test-all-backends');
+            if (testAllBackendsBtn) {
+                testAllBackendsBtn.addEventListener('click', async () => {
+                    console.log('Testing all backends...');
+                    await testAllBackends();
+                });
+            }
+
+            const addBackendInstanceBtn = document.getElementById('add-backend-instance');
+            if (addBackendInstanceBtn) {
+                addBackendInstanceBtn.addEventListener('click', () => {
+                    showAddBackendModal();
+                });
+            }
+
+            const syncAllBackendsBtn = document.getElementById('sync-all-backends');
+            if (syncAllBackendsBtn) {
+                syncAllBackendsBtn.addEventListener('click', async () => {
+                    console.log('Syncing all backends...');
+                    await syncAllBackends();
+                });
+            }
+
+            const backendHealthCheckBtn = document.getElementById('backend-health-check');
+            if (backendHealthCheckBtn) {
+                backendHealthCheckBtn.addEventListener('click', async () => {
+                    console.log('Running backend health check...');
+                    await runBackendHealthCheck();
+                });
+            }
+
+            // Backend modal event listeners
+            setupBackendModalEventListeners();
 
             // Refresh All Data button
             const refreshBtn = document.querySelector('.btn-blue');
@@ -4026,6 +4759,337 @@
             setupEnhancedBucketManagement();
             updateBucketSelector();
         });
+
+        // Additional Backend Management Functions
+        let currentBackendInstance = null;
+
+        function setupBackendModalEventListeners() {
+            // Backend configuration modal
+            const closeBackendConfigModal = document.getElementById('close-backend-config-modal');
+            if (closeBackendConfigModal) {
+                closeBackendConfigModal.addEventListener('click', () => {
+                    document.getElementById('backend-config-modal').classList.add('hidden');
+                });
+            }
+
+            const cancelBackendConfigBtn = document.getElementById('cancel-backend-config-btn');
+            if (cancelBackendConfigBtn) {
+                cancelBackendConfigBtn.addEventListener('click', () => {
+                    document.getElementById('backend-config-modal').classList.add('hidden');
+                });
+            }
+
+            const saveBackendConfigBtn = document.getElementById('save-backend-config-btn');
+            if (saveBackendConfigBtn) {
+                saveBackendConfigBtn.addEventListener('click', async () => {
+                    await saveBackendConfiguration();
+                });
+            }
+
+            const testBackendConfigBtn = document.getElementById('test-backend-config-btn');
+            if (testBackendConfigBtn) {
+                testBackendConfigBtn.addEventListener('click', async () => {
+                    await testBackendConfiguration();
+                });
+            }
+
+            const applyBackendPolicyBtn = document.getElementById('apply-backend-policy-btn');
+            if (applyBackendPolicyBtn) {
+                applyBackendPolicyBtn.addEventListener('click', async () => {
+                    await applyBackendPolicy();
+                });
+            }
+
+            // Add backend instance modal
+            const closeAddBackendModal = document.getElementById('add-backend-instance-modal');
+            if (closeAddBackendModal) {
+                closeAddBackendModal.addEventListener('click', (e) => {
+                    if (e.target === closeAddBackendModal) {
+                        closeAddBackendModal.classList.add('hidden');
+                    }
+                });
+            }
+
+            const cancelAddBackendBtn = document.getElementById('cancel-add-backend-btn');
+            if (cancelAddBackendBtn) {
+                cancelAddBackendBtn.addEventListener('click', () => {
+                    document.getElementById('add-backend-instance-modal').classList.add('hidden');
+                });
+            }
+
+            const createBackendInstanceBtn = document.getElementById('create-backend-instance-btn');
+            if (createBackendInstanceBtn) {
+                createBackendInstanceBtn.addEventListener('click', async () => {
+                    await createBackendInstance();
+                });
+            }
+
+            // Backend filter buttons
+            document.querySelectorAll('.backend-filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.backend-filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    filterBackendsByCategory(e.target.id.replace('filter-', '').replace('-backends', ''));
+                });
+            });
+        }
+
+        async function testAllBackends() {
+            try {
+                const backendsResult = await callMCPTool('list_backends', {});
+                const backends = backendsResult?.result?.items || backendsResult?.items || [];
+                
+                const results = [];
+                for (const backend of backends) {
+                    try {
+                        const testResult = await testBackend(backend.name);
+                        results.push({ name: backend.name, success: true, result: testResult });
+                    } catch (error) {
+                        results.push({ name: backend.name, success: false, error: error.message });
+                    }
+                }
+                
+                const successCount = results.filter(r => r.success).length;
+                alert(`Backend Test Results: ${successCount}/${results.length} backends passed health checks`);
+                
+                await loadBackendsData();
+            } catch (error) {
+                console.error('Error testing all backends:', error);
+                alert(`Error testing backends: ${error.message}`);
+            }
+        }
+
+        async function syncAllBackends() {
+            try {
+                const backendsResult = await callMCPTool('list_backends', {});
+                const backends = backendsResult?.result?.items || backendsResult?.items || [];
+                
+                const results = [];
+                for (const backend of backends) {
+                    try {
+                        await syncBackend(backend.name);
+                        results.push({ name: backend.name, success: true });
+                    } catch (error) {
+                        results.push({ name: backend.name, success: false, error: error.message });
+                    }
+                }
+                
+                const successCount = results.filter(r => r.success).length;
+                alert(`Sync Results: ${successCount}/${results.length} backends synced successfully`);
+                
+                await loadBackendsData();
+            } catch (error) {
+                console.error('Error syncing all backends:', error);
+                alert(`Error syncing backends: ${error.message}`);
+            }
+        }
+
+        async function runBackendHealthCheck() {
+            try {
+                const result = await callMCPTool('backend_health_check', { detailed: true });
+                
+                if (result?.result) {
+                    const { healthy, total, details } = result.result;
+                    alert(`Health Check Complete\n\nHealthy: ${healthy}/${total} backends\n\nDetails:\n${details.map(d => `${d.name}: ${d.status}`).join('\n')}`);
+                } else {
+                    alert('Health check completed - see backend list for details');
+                }
+                
+                await loadBackendsData();
+            } catch (error) {
+                console.error('Error running health check:', error);
+                alert(`Error running health check: ${error.message}`);
+            }
+        }
+
+        async function createBackendInstance() {
+            try {
+                const type = document.getElementById('new-backend-type').value;
+                const name = document.getElementById('new-backend-name').value;
+                const description = document.getElementById('new-backend-description').value;
+                
+                if (!type || !name) {
+                    alert('Please provide both backend type and instance name');
+                    return;
+                }
+                
+                console.log(`Creating backend instance: ${name} (${type})`);
+                const result = await callMCPTool('create_backend_instance', {
+                    service_type: type,
+                    instance_name: name,
+                    description: description
+                });
+                
+                if (result?.result?.ok || result?.ok) {
+                    alert(`✅ Backend instance "${name}" created successfully`);
+                    document.getElementById('add-backend-instance-modal').classList.add('hidden');
+                    
+                    // Clear form
+                    document.getElementById('new-backend-type').value = '';
+                    document.getElementById('new-backend-name').value = '';
+                    document.getElementById('new-backend-description').value = '';
+                    
+                    await loadBackendsData();
+                    
+                    // Automatically open configuration modal
+                    setTimeout(() => configureBackend(name, type), 500);
+                } else {
+                    alert(`❌ Failed to create backend: ${result?.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error creating backend instance:', error);
+                alert(`Error creating backend instance: ${error.message}`);
+            }
+        }
+
+        async function saveBackendConfiguration() {
+            if (!currentBackendInstance) {
+                alert('No backend instance selected for configuration');
+                return;
+            }
+            
+            try {
+                const config = collectBackendConfigFromForm();
+                const policy = collectBackendPolicyFromForm();
+                
+                console.log(`Saving configuration for ${currentBackendInstance.name}:`, { config, policy });
+                
+                // Save configuration using MCP SDK
+                const configResult = await callMCPTool('update_backend', {
+                    name: currentBackendInstance.name,
+                    config: config
+                });
+                
+                // Save policy separately
+                const policyResult = await callMCPTool('update_backend_policy', {
+                    name: currentBackendInstance.name,
+                    policy: policy
+                });
+                
+                if ((configResult?.result?.ok || configResult?.ok) && 
+                    (policyResult?.result?.ok || policyResult?.ok)) {
+                    alert(`✅ Configuration saved successfully for "${currentBackendInstance.name}"`);
+                    document.getElementById('backend-config-modal').classList.add('hidden');
+                    await loadBackendsData();
+                } else {
+                    alert(`❌ Failed to save configuration: ${configResult?.error || policyResult?.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error saving backend configuration:', error);
+                alert(`Error saving configuration: ${error.message}`);
+            }
+        }
+
+        async function testBackendConfiguration() {
+            if (!currentBackendInstance) {
+                alert('No backend instance selected for testing');
+                return;
+            }
+            
+            try {
+                const config = collectBackendConfigFromForm();
+                
+                console.log(`Testing configuration for ${currentBackendInstance.name}:`, config);
+                
+                // Test with current configuration
+                const result = await callMCPTool('test_backend_config', {
+                    name: currentBackendInstance.name,
+                    config: config
+                });
+                
+                if (result?.result?.reachable || result?.reachable) {
+                    alert(`✅ Configuration test passed for "${currentBackendInstance.name}"`);
+                } else {
+                    alert(`❌ Configuration test failed: ${result?.error || 'Connection failed'}`);
+                }
+            } catch (error) {
+                console.error('Error testing backend configuration:', error);
+                alert(`Error testing configuration: ${error.message}`);
+            }
+        }
+
+        async function applyBackendPolicy() {
+            if (!currentBackendInstance) {
+                alert('No backend instance selected for policy application');
+                return;
+            }
+            
+            try {
+                const policy = collectBackendPolicyFromForm();
+                
+                console.log(`Applying policy for ${currentBackendInstance.name}:`, policy);
+                
+                const result = await callMCPTool('apply_backend_policy', {
+                    name: currentBackendInstance.name,
+                    policy: policy,
+                    force_sync: true
+                });
+                
+                if (result?.result?.ok || result?.ok) {
+                    alert(`✅ Policy applied successfully for "${currentBackendInstance.name}"`);
+                } else {
+                    alert(`❌ Failed to apply policy: ${result?.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error applying backend policy:', error);
+                alert(`Error applying policy: ${error.message}`);
+            }
+        }
+
+        function collectBackendConfigFromForm() {
+            const config = {};
+            
+            // Collect all configuration inputs based on backend type
+            const inputs = document.querySelectorAll('#backend-config-form input, #backend-config-form select');
+            inputs.forEach(input => {
+                if (input.id.startsWith('config-')) {
+                    const key = input.id.replace('config-', '').replace(/-/g, '_');
+                    config[key] = input.type === 'checkbox' ? input.checked : input.value;
+                }
+            });
+            
+            return config;
+        }
+
+        function collectBackendPolicyFromForm() {
+            const policy = {};
+            
+            // Collect all policy inputs
+            const inputs = document.querySelectorAll('#backend-config-form input, #backend-config-form select');
+            inputs.forEach(input => {
+                if (input.id.startsWith('policy-')) {
+                    const key = input.id.replace('policy-', '').replace(/-/g, '_');
+                    if (input.type === 'checkbox') {
+                        policy[key] = input.checked;
+                    } else if (input.type === 'number') {
+                        policy[key] = parseInt(input.value) || 0;
+                    } else {
+                        policy[key] = input.value;
+                    }
+                }
+            });
+            
+            return policy;
+        }
+
+        function filterBackendsByCategory(category) {
+            const sections = document.querySelectorAll('.backend-category-section');
+            
+            if (category === 'all') {
+                sections.forEach(section => section.style.display = 'block');
+            } else {
+                sections.forEach(section => {
+                    const sectionTitle = section.querySelector('h3').textContent.toLowerCase();
+                    const shouldShow = sectionTitle.includes(category.toLowerCase()) || 
+                                      (category === 'storage' && sectionTitle.includes('storage')) ||
+                                      (category === 'network' && sectionTitle.includes('network')) ||
+                                      (category === 'compute' && sectionTitle.includes('compute')) ||
+                                      (category === 'analytics' && sectionTitle.includes('analytics'));
+                    
+                    section.style.display = shouldShow ? 'block' : 'none';
+                });
+            }
+        }
     </script>
 </body>
 </html>
