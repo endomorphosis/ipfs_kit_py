@@ -332,6 +332,9 @@ class ConsolidatedMCPDashboard:
             except ImportError as e:
                 self.log.error(f"Failed to import ComprehensiveServiceManager: {e}")
                 self._service_manager = None
+            except Exception as e:
+                self.log.error(f"Failed to initialize ComprehensiveServiceManager: {e}")
+                self._service_manager = None
         return self._service_manager
     
     async def _list_all_services(self, service_manager):
