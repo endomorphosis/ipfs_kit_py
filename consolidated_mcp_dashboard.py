@@ -3065,6 +3065,7 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(404, "Backend not found")
             
             # Create backup
+            import time
             backup_id = f"backup_{backend_name}_{int(time.time())}"
             backup_dir = self.paths.data_dir / "backups" / "backends"
             backup_dir.mkdir(parents=True, exist_ok=True)
