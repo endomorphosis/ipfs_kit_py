@@ -1791,34 +1791,68 @@
                     throw new Error('Tool name is required');
                 }
 
-                // Use the correct callTool method from MCP SDK
-                if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
-                    return await window.mcpClient.callTool(toolName, args);
-                } else {
-                    // Fallback to direct API call
-                    const response = await fetch('/mcp/tools/call', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            jsonrpc: '2.0',
-                            method: 'tools/call',
-                            params: { name: toolName, arguments: args },
-                            id: Date.now()
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (data.error) {
-                        throw new Error(`MCP Error: ${data.error.message || 'Unknown error'}`);
-                    }
-                    
-                    return data.result;
+                // Map MCP tool names to REST API endpoints
+                const endpointMap = {
+                    'list_backends': '/api/backends',
+                    'get_backend': `/api/backends/${args?.name || ''}`,
+                    'test_backend_config': `/api/backends/${args?.name || ''}/test`,
+                    'apply_backend_policy': `/api/backends/${args?.name || ''}/policy`,
+                    'update_backend_policy': `/api/backends/${args?.name || ''}`,
+                    'create_backend_instance': '/api/backends/create',
+                    'get_system_status': '/api/health',
+                    'list_services': '/api/services',
+                    'list_buckets': '/api/buckets',
+                    'list_pins': '/api/pins'
+                };
+
+                const endpoint = endpointMap[toolName];
+                if (!endpoint) {
+                    throw new Error(`Unknown MCP tool: ${toolName}`);
                 }
+
+                // Use appropriate HTTP method based on tool type
+                const method = ['test_backend_config', 'apply_backend_policy', 'update_backend_policy', 'create_backend_instance'].includes(toolName) ? 'POST' : 'GET';
+                
+                // Handle special endpoint structures
+                let finalEndpoint = endpoint;
+                if (toolName === 'test_backend_config' || toolName === 'apply_backend_policy') {
+                    finalEndpoint = finalEndpoint.replace('undefined', args?.name || '');
+                } else if (toolName === 'update_backend_policy' && args?.name) {
+                    finalEndpoint = `/api/backends/${args.name}`;
+                    method = 'PUT';
+                }
+                
+                const fetchOptions = {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+
+                if (method === 'POST' && args) {
+                    if (toolName === 'test_backend_config') {
+                        fetchOptions.body = JSON.stringify({ config: args.config });
+                    } else if (toolName === 'apply_backend_policy') {
+                        fetchOptions.body = JSON.stringify({ policy: args.policy, force_sync: args.force_sync });
+                    } else {
+                        fetchOptions.body = JSON.stringify(args);
+                    }
+                } else if (method === 'PUT' && args) {
+                    fetchOptions.body = JSON.stringify(args);
+                }
+
+                const response = await fetch(finalEndpoint, fetchOptions);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(`API Error: ${data.error}`);
+                }
+                
+                // Return data in MCP-compatible format
+                return { result: data };
             } catch (error) {
                 console.error(`Error calling MCP tool ${toolName}:`, error);
                 throw error;
@@ -2847,38 +2881,37 @@
 
         async function loadBackendsData() {
             try {
-                // Use MCP SDK for backend operations - metadata-first approach (no REST API fallback)
-                console.log('🗄️ Loading backends via MCP SDK (metadata-first)...');
-                const result = await MCP.Backends.list(true);
-                console.log('🗄️ MCP backends result:', result);
+                // Use direct API call for backend operations - metadata-first approach
+                console.log('🗄️ Loading backends via REST API (metadata-first)...');
+                const response = await fetch('/api/backends');
                 
-                // Handle MCP result structure
-                const backends = result?.backends || result?.items || result || [];
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('🗄️ Backends result:', data);
+                
+                // Handle API result structure
+                const backends = data?.items || data || [];
                 displayBackends(backends);
+                updateBackendStats(backends);
                 
             } catch (error) {
-                console.error('Error loading backends data via MCP:', error);
-                // Try fallback MCP call method if namespace failed
-                try {
-                    const fallbackResult = await callMCPTool('list_backends', { include_metadata: true });
-                    const backends = fallbackResult?.backends || fallbackResult?.items || [];
-                    displayBackends(backends);
-                } catch (fallbackError) {
-                    console.error('Fallback MCP call also failed:', fallbackError);
-                    // Show error state in UI
-                    const list = document.getElementById('backends-list');
-                    if (list) {
-                        list.innerHTML = `
-                            <div class="text-center py-12 text-red-500">
-                                <div class="text-4xl mb-4">⚠️</div>
-                                <h3 class="text-lg font-medium mb-2">Error Loading Backends</h3>
-                                <p class="text-sm mb-4">MCP service unavailable: ${error.message}</p>
-                                <button onclick="loadBackendsData()" class="btn btn-blue">
-                                    <i class="fas fa-sync mr-2"></i>Retry
-                                </button>
-                            </div>
-                        `;
-                    }
+                console.error('Error loading backends data:', error);
+                // Show error state in UI
+                const list = document.getElementById('backends-list');
+                if (list) {
+                    list.innerHTML = `
+                        <div class="text-center py-12 text-red-500">
+                            <div class="text-4xl mb-4">⚠️</div>
+                            <h3 class="text-lg font-medium mb-2">Error Loading Backends</h3>
+                            <p class="text-sm mb-4">API service unavailable: ${error.message}</p>
+                            <button onclick="loadBackendsData()" class="btn btn-blue">
+                                <i class="fas fa-sync mr-2"></i>Retry
+                            </button>
+                        </div>
+                    `;
                 }
             }
         }
@@ -3496,9 +3529,9 @@
         }
 
         function updateBackendStats(backends) {
-            const healthy = backends.filter(b => b.status === 'healthy' || b.status === 'running').length;
-            const unhealthy = backends.filter(b => b.status === 'unhealthy' || b.status === 'error').length;
-            const configured = backends.filter(b => b.status === 'configured').length;
+            const healthy = backends.filter(b => b.health === 'healthy' || b.status === 'enabled').length;
+            const unhealthy = backends.filter(b => b.health === 'unknown' && b.status === 'disabled').length;
+            const configured = backends.filter(b => b.status === 'enabled' || b.status === 'disabled').length;
             const total = backends.length;
             
             document.getElementById('healthy-backends-count').textContent = healthy;
