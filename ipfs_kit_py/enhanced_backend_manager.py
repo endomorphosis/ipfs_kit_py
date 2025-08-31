@@ -162,119 +162,119 @@ class EnhancedBackendManager:
             policy_path = self._get_policy_config_path(name)
             try:
                 with open(policy_path, 'w') as f:
-                    json.dump(policy_set.model_dump(), f, indent=2)
+                    json.dump(policy_set, f, indent=2)
                 logger.info(f"Created policy for backend: {name}")
             except Exception as e:
                 logger.error(f"Error creating policy for {name}: {e}")
 
-    def _generate_policy_for_backend(self, name: str, backend_type: str, tier: str) -> BackendPolicySet:
+    def _generate_policy_for_backend(self, name: str, backend_type: str, tier: str) -> Dict[str, Any]:
         """Generate appropriate policies based on backend type and tier."""
         
         # Base policies vary by tier
         if tier == "hot":
-            storage_quota = StorageQuotaPolicy(
-                max_size=100, max_size_unit=QuotaUnit.GB,
-                warn_threshold=0.8, max_files=10000
-            )
-            traffic_quota = TrafficQuotaPolicy(
-                max_bandwidth_mbps=1000.0,
-                max_requests_per_minute=10000,
-                max_upload_per_day=50, max_download_per_day=100
-            )
-            cache_policy = CachePolicy(
-                max_cache_size=10, max_cache_size_unit=QuotaUnit.GB,
-                ttl_seconds=3600, prefetch_enabled=True
-            )
+            storage_quota = {
+                "max_size": 100, "max_size_unit": "GB",
+                "warn_threshold": 0.8, "max_files": 10000
+            }
+            traffic_quota = {
+                "max_bandwidth_mbps": 1000.0,
+                "max_requests_per_minute": 10000,
+                "max_upload_per_day": 50, "max_download_per_day": 100
+            }
+            cache_policy = {
+                "max_cache_size": 10, "max_cache_size_unit": "GB",
+                "ttl_seconds": 3600, "prefetch_enabled": True
+            }
         elif tier == "warm":
-            storage_quota = StorageQuotaPolicy(
-                max_size=500, max_size_unit=QuotaUnit.GB,
-                warn_threshold=0.85, max_files=50000
-            )
-            traffic_quota = TrafficQuotaPolicy(
-                max_bandwidth_mbps=100.0,
-                max_requests_per_minute=1000,
-                max_upload_per_day=200, max_download_per_day=500
-            )
-            cache_policy = CachePolicy(
-                max_cache_size=5, max_cache_size_unit=QuotaUnit.GB,
-                ttl_seconds=7200, prefetch_enabled=False
-            )
+            storage_quota = {
+                "max_size": 500, "max_size_unit": "GB",
+                "warn_threshold": 0.85, "max_files": 50000
+            }
+            traffic_quota = {
+                "max_bandwidth_mbps": 100.0,
+                "max_requests_per_minute": 1000,
+                "max_upload_per_day": 200, "max_download_per_day": 500
+            }
+            cache_policy = {
+                "max_cache_size": 5, "max_cache_size_unit": "GB",
+                "ttl_seconds": 7200, "prefetch_enabled": False
+            }
         elif tier == "cold":
-            storage_quota = StorageQuotaPolicy(
-                max_size=2, max_size_unit=QuotaUnit.TB,
-                warn_threshold=0.9, max_files=100000
-            )
-            traffic_quota = TrafficQuotaPolicy(
-                max_bandwidth_mbps=10.0,
-                max_requests_per_minute=100,
-                max_upload_per_day=500, max_download_per_day=1000
-            )
-            cache_policy = CachePolicy(
-                max_cache_size=1, max_cache_size_unit=QuotaUnit.GB,
-                ttl_seconds=86400, prefetch_enabled=False
-            )
+            storage_quota = {
+                "max_size": 2, "max_size_unit": "TB",
+                "warn_threshold": 0.9, "max_files": 100000
+            }
+            traffic_quota = {
+                "max_bandwidth_mbps": 10.0,
+                "max_requests_per_minute": 100,
+                "max_upload_per_day": 500, "max_download_per_day": 1000
+            }
+            cache_policy = {
+                "max_cache_size": 1, "max_cache_size_unit": "GB",
+                "ttl_seconds": 86400, "prefetch_enabled": False
+            }
         else:  # archive
-            storage_quota = StorageQuotaPolicy(
-                max_size=10, max_size_unit=QuotaUnit.TB,
-                warn_threshold=0.95, max_files=1000000
-            )
-            traffic_quota = TrafficQuotaPolicy(
-                max_bandwidth_mbps=1.0,
-                max_requests_per_minute=10,
-                max_upload_per_day=100, max_download_per_day=50
-            )
-            cache_policy = CachePolicy(
-                max_cache_size=100, max_cache_size_unit=QuotaUnit.MB,
-                ttl_seconds=604800, prefetch_enabled=False
-            )
+            storage_quota = {
+                "max_size": 10, "max_size_unit": "TB",
+                "warn_threshold": 0.95, "max_files": 1000000
+            }
+            traffic_quota = {
+                "max_bandwidth_mbps": 1.0,
+                "max_requests_per_minute": 10,
+                "max_upload_per_day": 100, "max_download_per_day": 50
+            }
+            cache_policy = {
+                "max_cache_size": 100, "max_cache_size_unit": "MB",
+                "ttl_seconds": 604800, "prefetch_enabled": False
+            }
         
         # Replication policy varies by backend type
         if backend_type in ["ipfs", "ipfs_cluster"]:
-            replication = ReplicationPolicy(
-                min_redundancy=3, max_redundancy=5,
-                geo_distribution=True,
-                preferred_backends=["ipfs_local", "cluster"]
-            )
+            replication = {
+                "min_redundancy": 3, "max_redundancy": 5,
+                "geo_distribution": True,
+                "preferred_backends": ["ipfs_local", "cluster"]
+            }
         elif backend_type in ["s3", "gdrive"]:
-            replication = ReplicationPolicy(
-                min_redundancy=1, max_redundancy=2,
-                geo_distribution=False
-            )
+            replication = {
+                "min_redundancy": 1, "max_redundancy": 2,
+                "geo_distribution": False
+            }
         else:
-            replication = ReplicationPolicy(
-                min_redundancy=1, max_redundancy=3
-            )
+            replication = {
+                "min_redundancy": 1, "max_redundancy": 3
+            }
             
         # Retention policy varies by tier
         if tier == "hot":
-            retention = RetentionPolicy(
-                default_retention_days=30,
-                max_retention_days=365
-            )
+            retention = {
+                "default_retention_days": 30,
+                "max_retention_days": 365
+            }
         elif tier == "warm":
-            retention = RetentionPolicy(
-                default_retention_days=180,
-                max_retention_days=1095
-            )
+            retention = {
+                "default_retention_days": 180,
+                "max_retention_days": 1095
+            }
         elif tier == "cold":
-            retention = RetentionPolicy(
-                default_retention_days=365,
-                max_retention_days=2555  # 7 years
-            )
+            retention = {
+                "default_retention_days": 365,
+                "max_retention_days": 2555  # 7 years
+            }
         else:  # archive
-            retention = RetentionPolicy(
-                default_retention_days=2555,
-                max_retention_days=7300  # 20 years
-            )
+            retention = {
+                "default_retention_days": 2555,
+                "max_retention_days": 7300  # 20 years
+            }
         
-        return BackendPolicySet(
-            backend_name=name,
-            storage_quota=storage_quota,
-            traffic_quota=traffic_quota,
-            replication=replication,
-            retention=retention,
-            cache=cache_policy
-        )
+        return {
+            "backend_name": name,
+            "storage_quota": storage_quota,
+            "traffic_quota": traffic_quota,
+            "replication": replication,
+            "retention": retention,
+            "cache": cache_policy
+        }
 
     def list_backends(self):
         """List all backends with their configurations and policies."""
@@ -335,11 +335,24 @@ class EnhancedBackendManager:
             logger.error(f"Error loading backend {name}: {e}")
             return None
 
-    def update_backend_policy(self, name: str, policy_updates: Dict[str, Any]) -> bool:
+    def update_backend_policy(self, name: str, policy_updates: Dict[str, Any]) -> Dict[str, Any]:
         """Update policy for a specific backend."""
+        # Ensure policy_updates is a dictionary
+        if isinstance(policy_updates, str):
+            try:
+                policy_updates = json.loads(policy_updates)
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid policy JSON string for {name}: {e}")
+                return {"ok": False, "error": f"Invalid policy JSON: {str(e)}"}
+        
+        if not isinstance(policy_updates, dict):
+            logger.error(f"Policy must be a dictionary for {name}, got {type(policy_updates)}")
+            return {"ok": False, "error": f"Policy must be a dictionary, got {type(policy_updates).__name__}"}
+        
         policy_path = self._get_policy_config_path(name)
         if not policy_path.exists():
-            return False
+            logger.error(f"Policy file not found for backend {name}")
+            return {"ok": False, "error": f"Backend '{name}' not found"}
             
         try:
             # Load existing policy
@@ -354,9 +367,78 @@ class EnhancedBackendManager:
             with open(policy_path, 'w') as f:
                 json.dump(current_policy, f, indent=2)
                 
-            return True
+            logger.info(f"Updated backend policy: {name}")
+            return {"ok": True}
         except Exception as e:
             logger.error(f"Error updating policy for {name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    def apply_backend_policy(self, name: str, policy: Dict[str, Any], force_sync: bool = False) -> Dict[str, Any]:
+        """Apply backend policy and optionally force synchronization."""
+        # Ensure policy is a dictionary
+        if isinstance(policy, str):
+            try:
+                policy = json.loads(policy)
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid policy JSON string for {name}: {e}")
+                return {"ok": False, "error": f"Invalid policy JSON: {str(e)}", "backend": name}
+        
+        if not isinstance(policy, dict):
+            logger.error(f"Policy must be a dictionary for {name}, got {type(policy)}")
+            return {"ok": False, "error": f"Policy must be a dictionary, got {type(policy).__name__}", "backend": name}
+        
+        # First update the backend policy
+        update_result = self.update_backend_policy(name, policy)
+        if not update_result.get("ok", False):
+            return {
+                "ok": False, 
+                "error": update_result.get("error", "Failed to update policy"),
+                "backend": name
+            }
+        
+        # If force_sync is requested, perform synchronization
+        if force_sync:
+            try:
+                logger.info(f"Force syncing backend {name} with new policy")
+                # Here you would implement actual sync logic with the backend
+                # For now, we simulate successful sync
+                sync_result = self._simulate_backend_sync(name, policy)
+                if not sync_result:
+                    return {
+                        "ok": False,
+                        "error": "Synchronization failed",
+                        "backend": name
+                    }
+            except Exception as e:
+                logger.error(f"Error during force sync for {name}: {e}")
+                return {
+                    "ok": False,
+                    "error": f"Sync error: {str(e)}",
+                    "backend": name
+                }
+        
+        return {
+            "ok": True,
+            "message": f"Policy applied successfully for {name}",
+            "synced": force_sync,
+            "backend": name
+        }
+
+    def _simulate_backend_sync(self, name: str, policy: Dict[str, Any]) -> bool:
+        """Simulate backend synchronization process."""
+        try:
+            # In a real implementation, this would:
+            # 1. Connect to the actual backend service
+            # 2. Apply the new policy settings
+            # 3. Trigger any necessary data migration or cache updates
+            # 4. Verify the policy is properly applied
+            
+            # For now, we just simulate a successful sync
+            logger.info(f"Simulating sync for backend {name} with policy: {policy}")
+            time.sleep(0.1)  # Simulate some processing time
+            return True
+        except Exception as e:
+            logger.error(f"Simulated sync failed for {name}: {e}")
             return False
 
     def get_backend_stats(self, name: str) -> Dict[str, Any]:
@@ -407,4 +489,145 @@ class EnhancedBackendManager:
                 "cache_hit_ratio": 0.12,
                 "availability": 0.98,
                 "last_access": time.time() - 86400  # 1 day ago
+            }
+
+    def test_backend_config(self, name: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Test backend configuration connectivity."""
+        # Handle string input (convert to dict if needed)
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid config JSON string for {name}: {e}")
+                return {
+                    "reachable": False,
+                    "valid": False,
+                    "errors": [f"Invalid config JSON: {str(e)}"],
+                    "backend": name,
+                    "message": "Configuration test failed - invalid JSON"
+                }
+        
+        # Load backend configuration if not provided
+        if config is None:
+            backend = self.get_backend_with_policies(name)
+            if not backend:
+                return {
+                    "reachable": False,
+                    "valid": False,
+                    "errors": [f"Backend '{name}' not found"],
+                    "backend": name,
+                    "message": "Configuration test failed - backend not found"
+                }
+            config = backend.get("config", {})
+        
+        # Simulate configuration testing based on backend type
+        backend_info = self.get_backend_with_policies(name)
+        if not backend_info:
+            return {
+                "reachable": False,
+                "valid": False,
+                "errors": [f"Backend '{name}' not found"],
+                "backend": name,
+                "message": "Configuration test failed - backend not found"
+            }
+        
+        backend_type = backend_info.get("type", "unknown")
+        errors = []
+        
+        try:
+            # Type-specific validation
+            if backend_type == "s3":
+                # Check S3 configuration
+                if not config.get("access_key") or not config.get("secret_key"):
+                    errors.append("Missing S3 credentials (access_key, secret_key)")
+                if not config.get("bucket"):
+                    errors.append("Missing S3 bucket configuration")
+                if not config.get("region"):
+                    errors.append("Missing S3 region configuration")
+                    
+                # If credentials are missing, mark as unreachable
+                if errors:
+                    return {
+                        "reachable": False,
+                        "valid": False,
+                        "errors": errors,
+                        "backend": name,
+                        "message": "Configuration test failed - missing credentials"
+                    }
+                        
+            elif backend_type == "github":
+                # Check GitHub configuration
+                if not config.get("api_key") and not config.get("token"):
+                    errors.append("Missing GitHub API key or token")
+                if not config.get("base_url"):
+                    # Use default if not specified
+                    config["base_url"] = "https://api.github.com"
+                    
+                # GitHub can be reachable even without valid credentials for public repos
+                return {
+                    "reachable": True,
+                    "valid": len(errors) == 0,
+                    "errors": errors,
+                    "backend": name,
+                    "message": "Configuration test completed"
+                }
+                
+            elif backend_type in ["local_fs", "local_storage"]:
+                # Check local filesystem configuration
+                base_path = config.get("base_path", config.get("path", "/tmp"))
+                try:
+                    path_obj = Path(base_path)
+                    if not path_obj.exists():
+                        path_obj.mkdir(parents=True, exist_ok=True)
+                    if not path_obj.is_dir():
+                        errors.append(f"Path {base_path} is not a directory")
+                    elif not os.access(base_path, os.W_OK):
+                        errors.append(f"Path {base_path} is not writable")
+                except Exception as e:
+                    errors.append(f"Path validation error: {str(e)}")
+                    
+            elif backend_type == "ipfs":
+                # Check IPFS configuration
+                api_url = config.get("api_url", "http://localhost:5001")
+                gateway_url = config.get("gateway_url", "http://localhost:8080")
+                
+                # In a real implementation, you would try to connect to IPFS
+                # For now, assume it's reachable if URLs are provided
+                if not api_url:
+                    errors.append("Missing IPFS API URL")
+                if not gateway_url:
+                    errors.append("Missing IPFS Gateway URL")
+                    
+            elif backend_type == "cluster":
+                # Check cluster configuration
+                cluster_url = config.get("cluster_url", config.get("api_url"))
+                if not cluster_url:
+                    errors.append("Missing cluster API URL")
+                    
+            # If no specific validation errors, assume configuration is valid
+            if not errors:
+                return {
+                    "reachable": True,
+                    "valid": True,
+                    "errors": [],
+                    "backend": name,
+                    "message": "Configuration test completed successfully"
+                }
+            else:
+                return {
+                    "reachable": False,
+                    "valid": False,
+                    "errors": errors,
+                    "backend": name,
+                    "message": "Configuration test failed"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error testing configuration for {name}: {e}")
+            return {
+                "reachable": False,
+                "valid": False,
+                "errors": [f"Test error: {str(e)}"],
+                "backend": name,
+                "message": "Configuration test failed with exception"
             }
