@@ -2081,13 +2081,12 @@ class EnhancedUnifiedMCPServer:
             version="2.0.0"
         )
         
-        # Setup templates
-        templates_dir = Path(__file__).parent / "templates"
-        templates_dir.mkdir(exist_ok=True)
-        
-        # Always recreate the template to ensure it's up to date
-        self._create_dashboard_template(templates_dir)
-        
+        # Setup templates - use the external enhanced dashboard
+        templates_dir = Path(__file__).parent.parent / "templates"
+        if not templates_dir.exists():
+            templates_dir = Path(__file__).parent / "templates"
+            templates_dir.mkdir(exist_ok=True)
+            
         self.templates = Jinja2Templates(directory=str(templates_dir))
         
         # Setup routes
@@ -3683,7 +3682,7 @@ class EnhancedUnifiedMCPServer:
         
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard(request: Request):
-            return self.templates.TemplateResponse("index.html", {"request": request})
+            return self.templates.TemplateResponse("enhanced_dashboard.html", {"request": request})
         
         @self.app.get("/api/health")
         async def health_check():
@@ -3710,11 +3709,67 @@ class EnhancedUnifiedMCPServer:
         
         @self.app.get("/api/backends")
         async def get_backends():
-            return await self.backend_monitor.check_all_backends()
+            # Use enhanced backend manager instead of the old backend monitor
+            result = await self.backend_manager.list_backends(include_metadata=True)
+            return result
         
         @self.app.get("/api/backends/{backend_name}")
         async def get_backend_status(backend_name: str):
+            # First try enhanced backend manager, then fall back to monitor
+            backends = await self.backend_manager.list_backends(include_metadata=True)
+            for backend in backends.get("items", []):
+                if backend["name"] == backend_name:
+                    return backend
+            
+            # Fallback to old monitor
             return await self.backend_monitor.check_backend_health(backend_name)
+        
+        @self.app.post("/api/backends/{backend_name}/test")
+        async def test_backend(backend_name: str, request: Request):
+            """Test backend configuration."""
+            try:
+                data = await request.json()
+                config = data.get("config")
+                result = await self.backend_manager.test_backend_config(backend_name, config)
+                return {"jsonrpc": "2.0", "result": result, "id": "1"}
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
+        
+        @self.app.post("/api/backends/{backend_name}/update")
+        async def update_backend_config(backend_name: str, request: Request):
+            """Update backend configuration."""
+            try:
+                data = await request.json()
+                config = data.get("config", {})
+                result = await self.backend_manager.update_backend(backend_name, config)
+                return {"jsonrpc": "2.0", "result": result, "id": "1"}
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
+        
+        @self.app.post("/api/backends/{backend_name}/policy")
+        async def apply_backend_policy_endpoint(backend_name: str, request: Request):
+            """Apply backend policy."""
+            try:
+                data = await request.json()
+                policy = data.get("policy", {})
+                force_sync = data.get("force_sync", False)
+                result = await self.backend_manager.apply_backend_policy(backend_name, policy, force_sync)
+                return {"jsonrpc": "2.0", "result": result, "id": "1"}
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
+
+        @self.app.post("/api/backends/create")
+        async def create_backend_instance_endpoint(request: Request):
+            """Create a new backend instance."""
+            try:
+                data = await request.json()
+                name = data.get("name")
+                backend_type = data.get("type")
+                config = data.get("config", {})
+                result = await self.backend_manager.create_backend_instance(name, backend_type, config)
+                return {"jsonrpc": "2.0", "result": result, "id": "1"}
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
         
         @self.app.get("/api/metrics/{backend_name}")
         async def get_metrics_history(backend_name: str, limit: int = 10):
@@ -4001,18 +4056,6 @@ class EnhancedUnifiedMCPServer:
             "cost_estimate_usd": 12.45
         }
         
-        @self.app.get("/api/logs")
-        async def get_all_logs():
-            """Get logs from all backends."""
-            all_logs = {}
-            for backend_name in self.backend_monitor.backends.keys():
-                all_logs[backend_name] = await self.backend_monitor.get_backend_logs(backend_name)
-                
-            return {
-                "timestamp": datetime.now().isoformat(),
-                "logs": all_logs
-            }
-        
         @self.app.post("/api/backends/{backend_name}/restart")
         async def restart_backend_daemon(backend_name: str):
             """Restart a backend daemon."""
@@ -4068,6 +4111,68 @@ class EnhancedUnifiedMCPServer:
                 return {"logs": log_lines, "source": "system"}
             except Exception as e:
                 return {"error": str(e), "logs": []}
+
+        # Simple direct API endpoints for MCP compatibility
+        @self.app.post("/api/call_mcp_tool")  
+        async def call_mcp_tool_direct(request: Request):
+            """Direct MCP tool call endpoint."""
+            try:
+                data = await request.json()
+                tool_name = data.get("tool_name")
+                arguments = data.get("arguments", {})
+                
+                result = await self.handle_mcp_request(tool_name, arguments)
+                
+                return {
+                    "jsonrpc": "2.0", 
+                    "result": result,
+                    "id": data.get("id", "1")
+                }
+            except Exception as e:
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -1, "message": str(e)},
+                    "id": "1"
+                }
+
+        @self.app.get("/api/list_backends")
+        async def list_backends_direct():
+            """Direct backends list endpoint."""
+            try:
+                result = await self.handle_mcp_request("list_backends", {"include_metadata": True})
+                return {"result": result}
+            except Exception as e:
+                return {"error": str(e)}
+
+        @self.app.post("/api/test_backend_config")
+        async def test_backend_config_direct(request: Request):
+            """Direct backend test endpoint."""
+            try:
+                data = await request.json()
+                result = await self.handle_mcp_request("test_backend_config", data)
+                return {"result": result}
+            except Exception as e:
+                return {"error": str(e)}
+
+        @self.app.post("/api/update_backend")
+        async def update_backend_direct(request: Request):
+            """Direct backend update endpoint."""
+            try:
+                data = await request.json()
+                result = await self.handle_mcp_request("update_backend", data)
+                return {"result": result}
+            except Exception as e:
+                return {"error": str(e)}
+
+        @self.app.post("/api/apply_backend_policy")
+        async def apply_backend_policy_direct(request: Request):
+            """Direct backend policy endpoint."""
+            try:
+                data = await request.json()
+                result = await self.handle_mcp_request("apply_backend_policy", data)
+                return {"result": result}
+            except Exception as e:
+                return {"error": str(e)}
     
     def _generate_development_insights(self, backend_health: Dict[str, Any]) -> str:
         """Generate development insights based on backend status."""
