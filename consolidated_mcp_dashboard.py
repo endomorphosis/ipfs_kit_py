@@ -4528,14 +4528,86 @@ class ConsolidatedMCPDashboard:
     );
     const bucketsView = el('div',{id:'view-buckets',class:'view-panel',style:'display:none;'},
         el('div',{class:'card'},
-            el('h3',{text:'Buckets'}),
-            el('div',{class:'row'},
-                el('input',{id:'bucket-name',placeholder:'name',style:'width:140px;'}),
-                el('input',{id:'bucket-backend',placeholder:'backend',style:'width:140px;'}),
-                el('button',{id:'btn-bucket-add'},'Add')
+            el('h3',{text:'Bucket File Management'}),
+            
+            // Bucket Creation Row
+            el('div',{class:'row',style:'margin-bottom:12px;border-bottom:1px solid #333;padding-bottom:8px;'},
+                el('input',{id:'bucket-name',placeholder:'bucket name',style:'width:140px;margin-right:8px;'}),
+                el('input',{id:'bucket-backend',placeholder:'backend (optional)',style:'width:140px;margin-right:8px;'}),
+                el('button',{id:'btn-bucket-add',style:'background:#4CAF50;color:white;margin-right:8px;'},'Create Bucket'),
+                el('button',{id:'btn-refresh-buckets',style:'background:#2196F3;color:white;'},'Refresh')
             ),
-            el('div',{id:'buckets-list',style:'margin-top:8px;font-size:13px;'},'Loading…'),
-            el('div',{style:'margin-top:10px;font-size:11px;opacity:.65;'},'Click a bucket row to expand policy editor (replication/cache/retention).')
+            
+            // Bucket Selection and Toolbar
+            el('div',{class:'row',style:'margin-bottom:12px;'},
+                el('label',{style:'margin-right:8px;font-weight:bold;',text:'Selected Bucket:'}),
+                el('select',{id:'bucket-selector',style:'width:200px;margin-right:12px;'}),
+                el('button',{id:'btn-bucket-configure',style:'margin-right:4px;background:#FF9800;color:white;',disabled:true},'Configure'),
+                el('button',{id:'btn-bucket-advanced',style:'margin-right:4px;background:#9C27B0;color:white;',disabled:true},'Advanced Settings'),
+                el('button',{id:'btn-bucket-quota',style:'margin-right:4px;background:#607D8B;color:white;',disabled:true},'Quota'),
+                el('button',{id:'btn-bucket-share',style:'margin-right:4px;background:#795548;color:white;',disabled:true},'Share'),
+                el('button',{id:'btn-force-sync',style:'margin-right:4px;background:#E91E63;color:white;',disabled:true},'Force Sync')
+            ),
+            
+            // Status Bar
+            el('div',{id:'bucket-status-bar',class:'status-bar',style:'background:#1a1a1a;border:1px solid #333;border-radius:4px;padding:8px;margin-bottom:12px;font-size:12px;display:none;'},
+                el('div',{class:'status-row',style:'display:flex;justify-content:space-between;align-items:center;'},
+                    el('div',{class:'status-left',style:'display:flex;gap:16px;'},
+                        el('span',{id:'status-quota',style:'color:#4CAF50;'},'Quota: N/A'),
+                        el('span',{id:'status-files',style:'color:#2196F3;'},'Files: 0'),
+                        el('span',{id:'status-cache',style:'color:#FF9800;'},'Cache: None')
+                    ),
+                    el('div',{class:'status-right'},
+                        el('span',{id:'status-retention',style:'color:#9C27B0;'},'Retention: N/A')
+                    )
+                )
+            ),
+            
+            // Drag & Drop Upload Zone
+            el('div',{id:'drop-zone',class:'drop-zone',style:'border:2px dashed #666;border-radius:8px;padding:20px;text-align:center;margin-bottom:12px;background:#0a0a0a;display:none;'},
+                el('div',{class:'drop-zone-content'},
+                    el('div',{style:'font-size:48px;color:#666;margin-bottom:8px;'},'📁'),
+                    el('p',{style:'margin:0;color:#ccc;font-size:16px;'},'Drag & drop files here or click to browse'),
+                    el('p',{style:'margin:4px 0 0 0;color:#888;font-size:12px;'},'Multiple files supported'),
+                    el('input',{id:'file-input',type:'file',multiple:true,style:'display:none;'})
+                )
+            ),
+            
+            // File Operations Toolbar
+            el('div',{id:'file-toolbar',class:'row',style:'margin-bottom:8px;display:none;'},
+                el('button',{id:'btn-upload-file',style:'margin-right:4px;background:#4CAF50;color:white;'},'📤 Upload'),
+                el('button',{id:'btn-new-folder',style:'margin-right:4px;background:#2196F3;color:white;'},'📁 New Folder'),
+                el('button',{id:'btn-selective-sync',style:'margin-right:4px;background:#FF5722;color:white;',disabled:true},'🔄 Selective Sync'),
+                el('button',{id:'btn-download-selected',style:'margin-right:4px;background:#673AB7;color:white;',disabled:true},'💾 Download'),
+                el('button',{id:'btn-delete-selected',style:'margin-right:4px;background:#F44336;color:white;',disabled:true},'🗑️ Delete'),
+                el('span',{style:'margin-left:12px;color:#888;font-size:11px;',id:'selection-info'},'Select files to enable operations')
+            ),
+            
+            // File List Container
+            el('div',{id:'file-list-container',style:'border:1px solid #333;border-radius:4px;background:#0a0a0a;min-height:300px;max-height:400px;overflow-y:auto;display:none;'},
+                el('div',{id:'file-list-header',style:'background:#1a1a1a;padding:8px;border-bottom:1px solid #333;font-size:12px;font-weight:bold;color:#ccc;'},
+                    el('div',{style:'display:grid;grid-template-columns:30px 1fr 100px 120px 80px;gap:8px;align-items:center;'},
+                        el('span',{}),
+                        el('span',{text:'Name'}),
+                        el('span',{text:'Size'}),
+                        el('span',{text:'Modified'}),
+                        el('span',{text:'Actions'})
+                    )
+                ),
+                el('div',{id:'file-list-body',style:'padding:4px;'},'Loading...')
+            ),
+            
+            // Upload Progress
+            el('div',{id:'upload-progress',style:'margin-top:8px;display:none;'},
+                el('div',{style:'color:#ccc;font-size:12px;margin-bottom:4px;'},'Uploading files...'),
+                el('div',{class:'progress-bar',style:'background:#333;border-radius:4px;height:20px;overflow:hidden;'},
+                    el('div',{id:'progress-fill',style:'background:linear-gradient(90deg,#4CAF50,#8BC34A);height:100%;width:0%;transition:width 0.3s;'})
+                ),
+                el('div',{id:'progress-text',style:'color:#888;font-size:11px;margin-top:4px;'},'0% complete')
+            ),
+            
+            // Bucket List (for non-selected view)
+            el('div',{id:'buckets-list',style:'margin-top:8px;font-size:13px;'},'Loading…')
         )
     );
     const pinsView = el('div',{id:'view-pins',class:'view-panel',style:'display:none;'},
@@ -5028,6 +5100,205 @@ class ConsolidatedMCPDashboard:
         return modal;
     }
 
+    // Modal functions for bucket management
+    
+    // Show bucket configuration modal
+    function showBucketConfigModal(bucketName) {
+        if(!bucketName) return;
+        
+        const modal = createModal('Bucket Configuration: ' + bucketName, async (modalBody) => {
+            modalBody.innerHTML = `
+                <div style="margin-bottom:16px;">
+                    <h4 style="margin:0 0 12px 0;color:#4CAF50;">Basic Settings</h4>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <label style="display:flex;flex-direction:column;">
+                            Replication Factor
+                            <input type="number" id="config-replication" min="1" max="10" value="1" style="margin-top:4px;"/>
+                        </label>
+                        <label style="display:flex;flex-direction:column;">
+                            Cache Policy
+                            <select id="config-cache" style="margin-top:4px;">
+                                <option value="none">None</option>
+                                <option value="memory">Memory</option>
+                                <option value="disk">Disk</option>
+                                <option value="hybrid">Hybrid</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <h4 style="margin:0 0 12px 0;color:#FF9800;">Retention Policy</h4>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <label style="display:flex;flex-direction:column;">
+                            Retention Days (0 = infinite)
+                            <input type="number" id="config-retention" min="0" value="0" style="margin-top:4px;"/>
+                        </label>
+                        <label style="display:flex;flex-direction:column;">
+                            Auto Cleanup
+                            <select id="config-cleanup" style="margin-top:4px;">
+                                <option value="false">Disabled</option>
+                                <option value="true">Enabled</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+                <div style="margin-bottom:20px;">
+                    <h4 style="margin:0 0 12px 0;color:#2196F3;">Sync Settings</h4>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <label style="display:flex;flex-direction:column;">
+                            Sync Interval (minutes)
+                            <input type="number" id="config-sync-interval" min="1" value="60" style="margin-top:4px;"/>
+                        </label>
+                        <label style="display:flex;flex-direction:column;">
+                            Versioning
+                            <select id="config-versioning" style="margin-top:4px;">
+                                <option value="false">Disabled</option>
+                                <option value="true">Enabled</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button onclick="saveBucketConfig('${bucketName}')" style="background:#4CAF50;color:white;padding:8px 16px;border:none;border-radius:4px;">Save Settings</button>
+                    <button onclick="closeModal()" style="background:#666;color:white;padding:8px 16px;border:none;border-radius:4px;">Cancel</button>
+                </div>
+            `;
+            
+            // Load current settings
+            try {
+                await waitForMCP();
+                const bucket = await MCP.Buckets.get(bucketName);
+                const policy = bucket.policy || {};
+                
+                document.getElementById('config-replication').value = policy.replication_factor || 1;
+                document.getElementById('config-cache').value = policy.cache_policy || 'none';
+                document.getElementById('config-retention').value = policy.retention_days || 0;
+                document.getElementById('config-cleanup').value = policy.auto_cleanup || 'false';
+                document.getElementById('config-sync-interval').value = policy.sync_interval || 60;
+                document.getElementById('config-versioning').value = policy.versioning || 'false';
+            } catch(e) {
+                console.error('Error loading bucket config:', e);
+            }
+        });
+        
+        modal.show();
+    }
+    
+    // Show bucket share modal
+    function showBucketShareModal(bucketName) {
+        if(!bucketName) return;
+        
+        const modal = createModal('Share Bucket: ' + bucketName, async (modalBody) => {
+            modalBody.innerHTML = `
+                <div style="margin-bottom:16px;">
+                    <h4 style="margin:0 0 12px 0;color:#795548;">Create Share Link</h4>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <label style="display:flex;flex-direction:column;">
+                            Access Type
+                            <select id="share-access" style="margin-top:4px;">
+                                <option value="read_only">Read Only</option>
+                                <option value="read_write">Read & Write</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </label>
+                        <label style="display:flex;flex-direction:column;">
+                            Expiration
+                            <select id="share-expiration" style="margin-top:4px;">
+                                <option value="1h">1 Hour</option>
+                                <option value="24h">24 Hours</option>
+                                <option value="7d">7 Days</option>
+                                <option value="30d">30 Days</option>
+                                <option value="never">Never</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <h4 style="margin:0 0 12px 0;color:#4CAF50;">Generated Link</h4>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" id="share-link" readonly style="flex:1;background:#0a0a0a;border:1px solid #333;padding:8px;border-radius:4px;color:#ccc;" placeholder="Click 'Generate Link' to create share link"/>
+                        <button onclick="copyShareLink()" id="btn-copy-link" disabled style="background:#2196F3;color:white;padding:8px 12px;border:none;border-radius:4px;">Copy</button>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button onclick="generateShareLink('${bucketName}')" style="background:#795548;color:white;padding:8px 16px;border:none;border-radius:4px;">Generate Link</button>
+                    <button onclick="closeModal()" style="background:#666;color:white;padding:8px 16px;border:none;border-radius:4px;">Close</button>
+                </div>
+            `;
+        });
+        
+        modal.show();
+    }
+    
+    // Generate share link for bucket
+    async function generateShareLink(bucketName) {
+        try {
+            await waitForMCP();
+            const accessType = document.getElementById('share-access').value;
+            const expiration = document.getElementById('share-expiration').value;
+            
+            const result = await MCP.Buckets.generateShareLink(bucketName, accessType, expiration);
+            const shareLink = window.location.origin + result.share_link;
+            
+            document.getElementById('share-link').value = shareLink;
+            document.getElementById('btn-copy-link').disabled = false;
+            
+        } catch(e) {
+            console.error('Error generating share link:', e);
+            alert('Error generating share link: ' + e.message);
+        }
+    }
+    
+    // Copy share link to clipboard
+    function copyShareLink() {
+        const linkInput = document.getElementById('share-link');
+        if(linkInput && linkInput.value) {
+            linkInput.select();
+            navigator.clipboard.writeText(linkInput.value).then(() => {
+                alert('Share link copied to clipboard!');
+            }).catch(() => {
+                // Fallback for older browsers
+                document.execCommand('copy');
+                alert('Share link copied to clipboard!');
+            });
+        }
+    }
+    
+    // Save bucket configuration
+    async function saveBucketConfig(bucketName) {
+        try {
+            await waitForMCP();
+            
+            const replicationFactor = parseInt(document.getElementById('config-replication').value);
+            const cachePolicy = document.getElementById('config-cache').value;
+            const retentionDays = parseInt(document.getElementById('config-retention').value);
+            
+            await MCP.Buckets.updatePolicy(bucketName, {
+                replication_factor: replicationFactor,
+                cache_policy: cachePolicy,
+                retention_days: retentionDays
+            });
+            
+            alert('Bucket configuration saved successfully!');
+            closeModal();
+            
+            // Refresh status if this is the selected bucket
+            if(bucketName === selectedBucket) {
+                await updateBucketStatus();
+            }
+            
+        } catch(e) {
+            console.error('Error saving bucket config:', e);
+            alert('Error saving configuration: ' + e.message);
+        }
+    }
+    
+    // Close modal helper
+    function closeModal() {
+        const modal = document.querySelector('.modal-overlay');
+        if(modal) modal.remove();
+    }
+
     // MCP-based bucket file browser with metadata-first architecture
     function showMCPBucketBrowser(bucketName) {
         const modal = createModal('MCP Bucket File Browser: ' + bucketName, async (modalBody) => {
@@ -5384,27 +5655,49 @@ class ConsolidatedMCPDashboard:
 
     // ---- End Enhanced Bucket Management Helper Functions ----
 
+    // Enhanced Bucket File Management Variables
+    let selectedBucket = null;
+    let selectedFiles = [];
+    let bucketUsageData = {};
+    
+    // Comprehensive Bucket File Management Functions
     async function loadBuckets(){
-        const container=document.getElementById('buckets-list'); if(!container) return; container.textContent='Loading…';
+        const container=document.getElementById('buckets-list'); 
+        const selector=document.getElementById('bucket-selector');
+        
+        if(container) container.textContent='Loading…';
+        
         try{ 
-            const r=await fetch('/api/state/buckets'); 
-            const js=await r.json(); 
-            const items=js.items||[]; 
-            if(!items.length){ 
-                container.textContent='(none)'; 
+            await waitForMCP();
+            const result = await MCP.Buckets.list();
+            const items = result.items || []; 
+            
+            // Update bucket selector
+            if(selector) {
+                selector.innerHTML = '<option value="">Select a bucket...</option>';
+                items.forEach(bucket => {
+                    const option = el('option', {value: bucket.name, text: bucket.name});
+                    selector.appendChild(option);
+                });
+            }
+            
+            if(!items.length && container){ 
+                container.innerHTML = '<div style="color:#888;padding:8px;">No buckets created yet. Create your first bucket above!</div>'; 
                 return; 
             }
             
-            container.innerHTML=''; 
-            items.forEach(it=>{
-                const wrap=el('div',{class:'bucket-wrap',style:'border:1px solid #333;margin:4px 0;padding:4px;border-radius:4px;background:#111;'});
-                const header=el('div',{style:'display:flex;align-items:center;justify-content:space-between;cursor:pointer;'},
-                    el('div',{}, 
-                        el('strong',{text:it.name}), 
-                        el('span',{style:'color:#888;margin-left:6px;',text: it.backend? ('→ '+it.backend):''})
-                    ),
-                    el('div',{},
-                        el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'File Browser (MCP)',onclick:(e)=>{ e.stopPropagation(); showMCPBucketBrowser(it.name); }},'🗂️'),
+            if(container) {
+                container.innerHTML=''; 
+                items.forEach(it=>{
+                    const wrap=el('div',{class:'bucket-wrap',style:'border:1px solid #333;margin:4px 0;padding:6px;border-radius:4px;background:#111;'});
+                    const header=el('div',{style:'display:flex;align-items:center;justify-content:space-between;cursor:pointer;'},
+                        el('div',{}, 
+                            el('strong',{text:it.name,style:'color:#4CAF50;'}), 
+                            el('span',{style:'color:#888;margin-left:6px;',text: it.backend? ('→ '+it.backend):''}),
+                            el('span',{style:'color:#666;margin-left:8px;font-size:11px;',text: it.created_at ? new Date(it.created_at).toLocaleDateString() : ''})
+                        ),
+                        el('div',{},
+                            el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;background:#4CAF50;color:white;border:none;border-radius:3px;',title:'Select & Manage Files',onclick:(e)=>{ e.stopPropagation(); selectBucket(it.name); }},'📁 Manage'),
                         el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Policy Settings',onclick:(e)=>{ e.stopPropagation(); showBucketPolicySettings(it.name); }},'📋'),
                         el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Sync Replicas',onclick:(e)=>{ e.stopPropagation(); syncBucketReplicas(it.name); }},'🔄'),
                         el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Expand/Collapse',onclick:(e)=>{ e.stopPropagation(); toggle(); }},'▾'),
@@ -5561,19 +5854,553 @@ class ConsolidatedMCPDashboard:
         }
     };
     const btnBucketAdd=document.getElementById('btn-bucket-add'); if(btnBucketAdd) btnBucketAdd.onclick = async ()=>{
-        const name=(document.getElementById('bucket-name')||{}).value||''; const backend=(document.getElementById('bucket-backend')||{}).value||''; if(!name) return;
-        try{ await fetch('/api/state/buckets',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name, backend})}); (document.getElementById('bucket-name')||{}).value=''; loadBuckets(); }catch(e){}
+        const name=(document.getElementById('bucket-name')||{}).value||''; 
+        const backend=(document.getElementById('bucket-backend')||{}).value||''; 
+        if(!name) return;
+        try{ 
+            await waitForMCP();
+            await MCP.Buckets.create(name, backend); 
+            (document.getElementById('bucket-name')||{}).value=''; 
+            (document.getElementById('bucket-backend')||{}).value=''; 
+            loadBuckets(); 
+        }catch(e){
+            console.error('Error creating bucket:', e);
+            alert('Error creating bucket: ' + e.message);
+        }
     };
+    
+    // Enhanced Bucket File Management Variables
+    let selectedBucket = null;
+    let selectedFiles = [];
+    let bucketUsageData = {};
+    
+    // Event handlers for new bucket management features
+    const bucketSelector = document.getElementById('bucket-selector');
+    if(bucketSelector) {
+        bucketSelector.onchange = (e) => {
+            if(e.target.value) {
+                selectBucket(e.target.value);
+            } else {
+                showBucketFileInterface(false);
+                selectedBucket = null;
+                updateBucketToolbar();
+            }
+        };
+    }
+    
+    const refreshBucketsBtn = document.getElementById('btn-refresh-buckets');
+    if(refreshBucketsBtn) refreshBucketsBtn.onclick = loadBuckets;
+    
+    // Bucket configuration buttons
+    const btnBucketConfigure = document.getElementById('btn-bucket-configure');
+    if(btnBucketConfigure) btnBucketConfigure.onclick = () => showBucketConfigModal(selectedBucket);
+    
+    const btnBucketAdvanced = document.getElementById('btn-bucket-advanced');
+    if(btnBucketAdvanced) btnBucketAdvanced.onclick = () => showBucketAdvancedModal(selectedBucket);
+    
+    const btnBucketQuota = document.getElementById('btn-bucket-quota');
+    if(btnBucketQuota) btnBucketQuota.onclick = () => showBucketQuotaModal(selectedBucket);
+    
+    const btnBucketShare = document.getElementById('btn-bucket-share');
+    if(btnBucketShare) btnBucketShare.onclick = () => showBucketShareModal(selectedBucket);
+    
+    const btnForceSync = document.getElementById('btn-force-sync');
+    if(btnForceSync) btnForceSync.onclick = () => forceBucketSync(selectedBucket);
+    
+    // File operation buttons
+    const btnUploadFile = document.getElementById('btn-upload-file');
+    if(btnUploadFile) btnUploadFile.onclick = () => document.getElementById('file-input').click();
+    
+    const btnNewFolder = document.getElementById('btn-new-folder');
+    if(btnNewFolder) btnNewFolder.onclick = () => createNewFolder();
+    
+    const btnSelectiveSync = document.getElementById('btn-selective-sync');
+    if(btnSelectiveSync) btnSelectiveSync.onclick = () => performSelectiveSync();
+    
+    const btnDownloadSelected = document.getElementById('btn-download-selected');
+    if(btnDownloadSelected) btnDownloadSelected.onclick = () => downloadSelectedFiles();
+    
+    const btnDeleteSelected = document.getElementById('btn-delete-selected');
+    if(btnDeleteSelected) btnDeleteSelected.onclick = () => deleteSelectedFiles();
+    
+    // Drag & Drop functionality
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    
+    if(dropZone && fileInput) {
+        // Make drop zone clickable
+        dropZone.onclick = () => fileInput.click();
+        
+        // Drag and drop events
+        dropZone.ondragover = (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#4CAF50';
+            dropZone.style.backgroundColor = '#0a2a0a';
+        };
+        
+        dropZone.ondragleave = (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#666';
+            dropZone.style.backgroundColor = '#0a0a0a';
+        };
+        
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#666';
+            dropZone.style.backgroundColor = '#0a0a0a';
+            
+            const files = Array.from(e.dataTransfer.files);
+            uploadFiles(files);
+        };
+        
+        // File input change event
+        fileInput.onchange = (e) => {
+            const files = Array.from(e.target.files);
+            uploadFiles(files);
+        };
+    }
+    
+    // Select bucket and show file management interface
+    async function selectBucket(bucketName) {
+        selectedBucket = bucketName;
+        selectedFiles = []; // Clear file selection
+        
+        // Update UI visibility
+        showBucketFileInterface(true);
+        updateBucketToolbar();
+        
+        // Load bucket usage and files
+        await updateBucketStatus();
+        await loadBucketFiles();
+    }
+    
+    // Show/hide bucket file interface
+    function showBucketFileInterface(show) {
+        const elements = [
+            'bucket-status-bar',
+            'drop-zone', 
+            'file-toolbar',
+            'file-list-container'
+        ];
+        
+        elements.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = show ? 'block' : 'none';
+        });
+        
+        // Hide bucket list when file interface is shown
+        const bucketsList = document.getElementById('buckets-list');
+        if(bucketsList) bucketsList.style.display = show ? 'none' : 'block';
+    }
+    
+    // Update bucket toolbar button states
+    function updateBucketToolbar() {
+        const hasSelection = selectedBucket !== null;
+        const hasFileSelection = selectedFiles.length > 0;
+        
+        const buttons = [
+            'btn-bucket-configure',
+            'btn-bucket-advanced', 
+            'btn-bucket-quota',
+            'btn-bucket-share',
+            'btn-force-sync'
+        ];
+        
+        buttons.forEach(id => {
+            const btn = document.getElementById(id);
+            if(btn) btn.disabled = !hasSelection;
+        });
+        
+        const fileButtons = [
+            'btn-selective-sync',
+            'btn-download-selected',
+            'btn-delete-selected'
+        ];
+        
+        fileButtons.forEach(id => {
+            const btn = document.getElementById(id);
+            if(btn) btn.disabled = !hasFileSelection;
+        });
+        
+        // Update selection info
+        const selectionInfo = document.getElementById('selection-info');
+        if(selectionInfo) {
+            if(hasFileSelection) {
+                selectionInfo.textContent = `${selectedFiles.length} file(s) selected`;
+                selectionInfo.style.color = '#4CAF50';
+            } else {
+                selectionInfo.textContent = 'Select files to enable operations';
+                selectionInfo.style.color = '#888';
+            }
+        }
+    }
     const btnPinAdd=document.getElementById('btn-pin-add'); if(btnPinAdd) btnPinAdd.onclick = async ()=>{
         const cid=(document.getElementById('pin-cid')||{}).value||''; const name=(document.getElementById('pin-name')||{}).value||''; if(!cid) return;
         try{ await fetch('/api/pins',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cid, name})}); (document.getElementById('pin-cid')||{}).value=''; loadPins(); }catch(e){}
     };
+    
+    // Update bucket status bar
+    async function updateBucketStatus() {
+        if(!selectedBucket) return;
+        
+        try {
+            await waitForMCP();
+            const usage = await MCP.Buckets.getUsage(selectedBucket);
+            bucketUsageData[selectedBucket] = usage;
+            
+            const statusQuota = document.getElementById('status-quota');
+            const statusFiles = document.getElementById('status-files');
+            const statusCache = document.getElementById('status-cache');
+            const statusRetention = document.getElementById('status-retention');
+            
+            if(statusFiles) {
+                statusFiles.textContent = `Files: ${usage.file_count || 0}`;
+                statusFiles.style.color = usage.file_count > 1000 ? '#FF9800' : '#2196F3';
+            }
+            
+            if(statusQuota) {
+                const sizeGB = usage.total_size_gb || 0;
+                statusQuota.textContent = `Usage: ${sizeGB.toFixed(2)} GB`;
+                statusQuota.style.color = sizeGB > 10 ? '#F44336' : '#4CAF50';
+            }
+            
+            // Load bucket config for cache and retention info
+            const bucket = await MCP.Buckets.get(selectedBucket);
+            const policy = bucket.policy || {};
+            
+            if(statusCache) {
+                const cachePolicy = policy.cache_policy || 'none';
+                statusCache.textContent = `Cache: ${cachePolicy}`;
+                statusCache.style.color = cachePolicy === 'none' ? '#888' : '#FF9800';
+            }
+            
+            if(statusRetention) {
+                const retentionDays = policy.retention_days || 0;
+                statusRetention.textContent = retentionDays > 0 ? `Retention: ${retentionDays}d` : 'Retention: None';
+                statusRetention.style.color = retentionDays > 0 ? '#9C27B0' : '#888';
+            }
+            
+        } catch(e) {
+            console.error('Error updating bucket status:', e);
+        }
+    }
+    
+    // Load bucket files
+    async function loadBucketFiles() {
+        if(!selectedBucket) return;
+        
+        const fileListBody = document.getElementById('file-list-body');
+        if(!fileListBody) return;
+        
+        fileListBody.innerHTML = 'Loading files...';
+        
+        try {
+            await waitForMCP();
+            const result = await MCP.Buckets.listFiles(selectedBucket, '.', true);
+            const files = result.files || [];
+            
+            if(files.length === 0) {
+                fileListBody.innerHTML = '<div style="color:#888;padding:12px;text-align:center;">No files in this bucket. Upload some files to get started!</div>';
+                return;
+            }
+            
+            fileListBody.innerHTML = '';
+            
+            files.forEach(file => {
+                const row = el('div', {
+                    class: 'file-row',
+                    style: 'display:grid;grid-template-columns:30px 1fr 100px 120px 80px;gap:8px;align-items:center;padding:6px;border-bottom:1px solid #333;cursor:pointer;',
+                    onclick: () => toggleFileSelection(file.path)
+                });
+                
+                const checkbox = el('input', {
+                    type: 'checkbox',
+                    style: 'margin:0;',
+                    onchange: (e) => {
+                        e.stopPropagation();
+                        if(e.target.checked) {
+                            if(!selectedFiles.includes(file.path)) {
+                                selectedFiles.push(file.path);
+                            }
+                        } else {
+                            selectedFiles = selectedFiles.filter(f => f !== file.path);
+                        }
+                        updateBucketToolbar();
+                    }
+                });
+                
+                const nameEl = el('div', {
+                    style: 'display:flex;align-items:center;',
+                }, 
+                    el('span', {text: file.is_dir ? '📁' : '📄', style: 'margin-right:6px;'}),
+                    el('span', {text: file.name, style: 'color:' + (file.is_dir ? '#4CAF50' : '#ccc')})
+                );
+                
+                const sizeEl = el('span', {
+                    text: file.is_dir ? '-' : formatFileSize(file.size || 0),
+                    style: 'font-size:11px;color:#888;font-family:monospace;'
+                });
+                
+                const modifiedEl = el('span', {
+                    text: file.modified ? new Date(file.modified).toLocaleDateString() : '-',
+                    style: 'font-size:11px;color:#888;'
+                });
+                
+                const actionsEl = el('div', {},
+                    el('button', {
+                        text: '↓',
+                        title: 'Download',
+                        style: 'padding:2px 6px;font-size:10px;margin-right:2px;background:#673AB7;color:white;border:none;border-radius:2px;',
+                        onclick: (e) => {
+                            e.stopPropagation();
+                            downloadFile(file.path);
+                        }
+                    }),
+                    el('button', {
+                        text: '🗑️',
+                        title: 'Delete',
+                        style: 'padding:2px 6px;font-size:10px;background:#F44336;color:white;border:none;border-radius:2px;',
+                        onclick: (e) => {
+                            e.stopPropagation();
+                            deleteFile(file.path);
+                        }
+                    })
+                );
+                
+                row.appendChild(checkbox);
+                row.appendChild(nameEl);
+                row.appendChild(sizeEl);
+                row.appendChild(modifiedEl);
+                row.appendChild(actionsEl);
+                
+                fileListBody.appendChild(row);
+            });
+            
+        } catch(e) {
+            console.error('Error loading bucket files:', e);
+            fileListBody.innerHTML = '<div style="color:#F44336;padding:12px;">Error loading files: ' + e.message + '</div>';
+        }
+    }
     let logSource=null; let logsInited=false; function initLogs(){
         if(logsInited) return; logsInited=true;
         try{ logSource = new EventSource('/api/logs/stream');
             logSource.onmessage = (ev)=>{ try{ const data=JSON.parse(ev.data); const pre=document.getElementById('logs-pre'); if(!pre) return; pre.textContent += '\n'+data.timestamp+' '+data.level+' '+data.message; pre.scrollTop = pre.scrollHeight; }catch(e){} };
         }catch(e){ console.warn('SSE logs failed', e); }
         const clr=document.getElementById('btn-clear-logs'); if(clr) clr.onclick = ()=>{ if(window.MCP){ window.MCP.callTool('clear_logs',{}).then(()=>{ const pre=document.getElementById('logs-pre'); if(pre) pre.textContent='(cleared)'; }); } };
+    }
+    
+    // Toggle file selection
+    function toggleFileSelection(filePath) {
+        if(selectedFiles.includes(filePath)) {
+            selectedFiles = selectedFiles.filter(f => f !== filePath);
+        } else {
+            selectedFiles.push(filePath);
+        }
+        updateBucketToolbar();
+        
+        // Update checkbox state
+        const rows = document.querySelectorAll('.file-row');
+        rows.forEach(row => {
+            const checkbox = row.querySelector('input[type="checkbox"]');
+            const nameEl = row.children[1];
+            if(nameEl && checkbox) {
+                const fileName = nameEl.textContent.trim();
+                checkbox.checked = selectedFiles.some(f => f.endsWith(fileName));
+            }
+        });
+    }
+    
+    // Format file size
+    function formatFileSize(bytes) {
+        if(bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+    
+    // Upload files with progress tracking
+    async function uploadFiles(files) {
+        if(!selectedBucket || !files.length) return;
+        
+        const progressDiv = document.getElementById('upload-progress');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        
+        if(progressDiv) progressDiv.style.display = 'block';
+        
+        try {
+            await waitForMCP();
+            
+            for(let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const progress = ((i + 1) / files.length) * 100;
+                
+                if(progressFill) progressFill.style.width = progress + '%';
+                if(progressText) progressText.textContent = `Uploading ${file.name}... ${Math.round(progress)}% complete`;
+                
+                // Read file content
+                const content = await readFileAsText(file);
+                
+                // Upload via MCP
+                await MCP.Buckets.uploadFile(selectedBucket, file.name, content, 'text', true);
+            }
+            
+            // Hide progress and reload files
+            if(progressDiv) progressDiv.style.display = 'none';
+            await loadBucketFiles();
+            await updateBucketStatus();
+            
+            alert(`Successfully uploaded ${files.length} file(s)!`);
+            
+        } catch(e) {
+            console.error('Error uploading files:', e);
+            alert('Error uploading files: ' + e.message);
+            if(progressDiv) progressDiv.style.display = 'none';
+        }
+    }
+    
+    // Read file as text
+    function readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsText(file);
+        });
+    }
+    
+    // Create new folder
+    async function createNewFolder() {
+        if(!selectedBucket) return;
+        
+        const folderName = prompt('Enter folder name:');
+        if(!folderName) return;
+        
+        try {
+            await waitForMCP();
+            await MCP.Buckets.mkdir(selectedBucket, folderName, true);
+            await loadBucketFiles();
+        } catch(e) {
+            console.error('Error creating folder:', e);
+            alert('Error creating folder: ' + e.message);
+        }
+    }
+    
+    // Download file
+    async function downloadFile(filePath) {
+        if(!selectedBucket) return;
+        
+        try {
+            await waitForMCP();
+            const result = await MCP.Buckets.downloadFile(selectedBucket, filePath, 'text');
+            
+            // Create download link
+            const blob = new Blob([result.content], {type: 'text/plain'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filePath.split('/').pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+        } catch(e) {
+            console.error('Error downloading file:', e);
+            alert('Error downloading file: ' + e.message);
+        }
+    }
+    
+    // Delete file
+    async function deleteFile(filePath) {
+        if(!selectedBucket) return;
+        if(!confirm(`Delete file "${filePath}"?`)) return;
+        
+        try {
+            await waitForMCP();
+            await MCP.Buckets.deleteFile(selectedBucket, filePath, true);
+            await loadBucketFiles();
+            await updateBucketStatus();
+        } catch(e) {
+            console.error('Error deleting file:', e);
+            alert('Error deleting file: ' + e.message);
+        }
+    }
+    
+    // Download selected files
+    async function downloadSelectedFiles() {
+        if(!selectedBucket || !selectedFiles.length) return;
+        
+        for(const filePath of selectedFiles) {
+            await downloadFile(filePath);
+        }
+    }
+    
+    // Delete selected files
+    async function deleteSelectedFiles() {
+        if(!selectedBucket || !selectedFiles.length) return;
+        if(!confirm(`Delete ${selectedFiles.length} selected file(s)?`)) return;
+        
+        try {
+            await waitForMCP();
+            
+            for(const filePath of selectedFiles) {
+                await MCP.Buckets.deleteFile(selectedBucket, filePath, true);
+            }
+            
+            selectedFiles = [];
+            await loadBucketFiles();
+            await updateBucketStatus();
+            updateBucketToolbar();
+            
+        } catch(e) {
+            console.error('Error deleting files:', e);
+            alert('Error deleting files: ' + e.message);
+        }
+    }
+    
+    // Perform selective sync
+    async function performSelectiveSync() {
+        if(!selectedBucket || !selectedFiles.length) return;
+        
+        try {
+            await waitForMCP();
+            const options = {
+                force_update: confirm('Force update existing files?'),
+                verify_checksums: true,
+                create_backup: confirm('Create backup before sync?')
+            };
+            
+            const result = await MCP.Buckets.selectiveSync(selectedBucket, selectedFiles, options);
+            alert(`Selective sync completed. ${result.synced_files?.length || 0} files synced.`);
+            
+            await loadBucketFiles();
+            await updateBucketStatus();
+            
+        } catch(e) {
+            console.error('Error performing selective sync:', e);
+            alert('Error performing selective sync: ' + e.message);
+        }
+    }
+    
+    // Force bucket sync
+    async function forceBucketSync(bucketName) {
+        if(!bucketName) return;
+        
+        try {
+            await waitForMCP();
+            await MCP.Buckets.syncReplicas(bucketName, true);
+            alert('Force sync completed successfully!');
+            
+            if(bucketName === selectedBucket) {
+                await updateBucketStatus();
+            }
+            
+        } catch(e) {
+            console.error('Error performing force sync:', e);
+            alert('Error performing force sync: ' + e.message);
+        }
     }
     async function loadFiles(){
         const pathEl = document.getElementById('files-path');
