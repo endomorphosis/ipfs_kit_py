@@ -6124,10 +6124,25 @@ class ConsolidatedMCPDashboard:
             const configuredEl = document.getElementById('configured-count');
             const totalEl = document.getElementById('total-backends-count');
             
-            if (healthyEl) healthyEl.textContent = healthyCount;
-            if (unhealthyEl) unhealthyEl.textContent = unhealthyCount;
-            if (configuredEl) configuredEl.textContent = configuredCount;
-            if (totalEl) totalEl.textContent = totalCount;
+            console.log('🔢 Updating health counters:', {healthyCount, unhealthyCount, configuredCount, totalCount});
+            console.log('🔢 Elements found:', {healthyEl, unhealthyEl, configuredEl, totalEl});
+            
+            if (healthyEl) {
+                healthyEl.textContent = healthyCount;
+                console.log('✅ Updated healthy count to', healthyCount);
+            }
+            if (unhealthyEl) {
+                unhealthyEl.textContent = unhealthyCount;
+                console.log('✅ Updated unhealthy count to', unhealthyCount);
+            }
+            if (configuredEl) {
+                configuredEl.textContent = configuredCount;
+                console.log('✅ Updated configured count to', configuredCount);
+            }
+            if (totalEl) {
+                totalEl.textContent = totalCount;
+                console.log('✅ Updated total count to', totalCount);
+            }
             
             if(!backends.length){ 
                 container.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">No backends configured</div>'; 
