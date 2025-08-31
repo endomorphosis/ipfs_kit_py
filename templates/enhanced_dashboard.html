@@ -4026,13 +4026,22 @@
 
                 selector.innerHTML = '<option value="">Select a bucket...</option>';
                 
-                if (buckets.result && buckets.result.items) {
-                    buckets.result.items.forEach(bucket => {
+                // Handle both buckets.result.items and buckets.items response structures
+                const bucketList = buckets?.result?.items || buckets?.items || [];
+                if (bucketList && bucketList.length > 0) {
+                    bucketList.forEach(bucket => {
                         const option = document.createElement('option');
                         option.value = bucket.name;
                         option.textContent = `${bucket.name} (${bucket.backend || 'unknown'})`;
                         selector.appendChild(option);
                     });
+                    
+                    // Auto-select first bucket if only one exists (for better UX)
+                    if (bucketList.length === 1) {
+                        const firstBucket = bucketList[0];
+                        selector.value = firstBucket.name;
+                        await selectBucket(firstBucket.name);
+                    }
                 }
                 
                 // If we have a current bucket, select it

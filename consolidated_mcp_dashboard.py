@@ -5679,6 +5679,12 @@ class ConsolidatedMCPDashboard:
                     const option = el('option', {value: bucket.name, text: bucket.name});
                     selector.appendChild(option);
                 });
+                
+                // Auto-select first bucket if only one exists (for testing/demo)
+                if(items.length === 1) {
+                    selector.value = items[0].name;
+                    selectBucket(items[0].name);
+                }
             }
             
             if(!items.length && container){ 
