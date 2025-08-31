@@ -4422,6 +4422,19 @@ class ConsolidatedMCPDashboard:
             .dash-nav .nav-btn.active{background:#4b5d78;color:#fff;}
             .view-panel{animation:fade .25s ease;}
             @keyframes fade{from{opacity:0}to{opacity:1}}
+            .loading-spinner {
+                border: 3px solid #f3f3f3;
+                border-top: 3px solid #2196F3;
+                border-radius: 50%;
+                width: 30px;
+                height: 30px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
         `;
         const styleEl = document.createElement('style'); styleEl.id='mcp-dashboard-css'; styleEl.textContent = css; document.head.append(styleEl);
     }
@@ -4908,26 +4921,46 @@ class ConsolidatedMCPDashboard:
     setInterval(()=>{ const sv=document.getElementById('view-services'); if(sv && sv.style.display==='block') loadServices(); }, 5000);
     async function loadBackends(){
         const container = document.getElementById('backends-list'); if(!container) return;
-        container.textContent='Loading…';
+        
+        // Show proper loading state
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:#666;"><div class="loading-spinner"></div><br>Loading backends...</div>';
+        
         try{ 
-            const r=await fetch('/api/state/backends'); 
-            const js=await r.json(); 
+            console.log('🔄 Loading backends from API...');
+            const r = await fetch('/api/state/backends'); 
+            
+            if (!r.ok) {
+                throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            }
+            
+            const js = await r.json(); 
             const backends = js.backends || js.items || []; 
             
+            console.log(`✅ Loaded ${backends.length} backends:`, backends);
+            
             if(!backends.length){ 
-                container.textContent='(none)'; 
+                container.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">No backends configured</div>'; 
                 return; 
             }
             
             container.innerHTML=''; 
-            backends.forEach(backend=>{
-                const name = backend.name;
-                const type = backend.type || (backend.config && backend.config.type) || 'unknown';
+            backends.forEach((backend, index) => {
+                // Enhanced data validation and processing
+                const name = backend.name || `backend_${index}`;
+                const type = backend.type || (backend.config && backend.config.type) || 'local';
                 const tier = backend.tier || 'standard';
-                const status = backend.status || 'unknown';
+                const status = backend.status || 'enabled';
                 const description = backend.description || `${type} storage backend`;
                 
-                // Get policy info
+                // Validate required fields and log any issues
+                if (!backend.name) {
+                    console.warn(`⚠️ Backend ${index} missing name:`, backend);
+                }
+                if (!backend.type && !(backend.config && backend.config.type)) {
+                    console.warn(`⚠️ Backend ${name} missing type:`, backend);
+                }
+                
+                // Get policy info with proper defaults
                 const policy = backend.policy || {};
                 const storagePolicy = policy.storage_quota || {};
                 const trafficPolicy = policy.traffic_quota || {};
@@ -4938,44 +4971,73 @@ class ConsolidatedMCPDashboard:
                 // Get stats
                 const stats = backend.stats || {};
                 
-                // Create a detailed backend card
+                // Create a comprehensive backend card
                 const backendCard = el('div',{
                     class:'backend-card',
-                    style:'border:1px solid #444;margin:6px 0;padding:8px;border-radius:6px;background:#1a1a1a;'
+                    style:'border:1px solid #e0e0e0;margin:8px 0;padding:12px;border-radius:8px;background:white;box-shadow:0 2px 4px rgba(0,0,0,0.1);'
                 });
                 
                 // Header with name, type, status
                 const header = el('div',{
-                    style:'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;'
+                    style:'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;'
                 }, 
                     el('div',{style:'display:flex;align-items:center;gap:8px;'},
-                        el('strong',{text:name,style:'color:#4CAF50;'}),
-                        el('span',{text:`[${type}]`,style:'color:#888;font-size:11px;'}),
+                        el('strong',{text:name,style:'color:#2196F3;font-size:16px;'}),
+                        el('span',{text:`[${type}]`,style:'color:#666;font-size:12px;background:#f5f5f5;padding:2px 6px;border-radius:3px;'}),
                         el('span',{
                             text:tier.toUpperCase(),
-                            style:`background:${getTierColor(tier)};color:white;padding:2px 6px;border-radius:3px;font-size:10px;`
+                            style:`background:${getTierColor(tier)};color:white;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:bold;`
                         }),
                         el('span',{
-                            text:status,
-                            style:`color:${status === 'enabled' ? '#4CAF50' : '#f44336'};font-size:11px;`
+                            text:getStatusDisplay(status),
+                            style:`color:${getStatusColor(status)};font-size:12px;font-weight:bold;padding:2px 6px;background:${getStatusBackground(status)};border-radius:3px;`
                         })
                     ),
-                    el('button',{
-                        style:'padding:2px 6px;font-size:11px;color:#f44336;',
-                        title:'Delete Backend',
-                        onclick:()=>deleteBackend(name)
-                    },'✕')
+                    el('div',{style:'display:flex;gap:4px;'},
+                        el('button',{
+                            style:'padding:4px 8px;font-size:11px;background:#4CAF50;color:white;border:none;border-radius:3px;cursor:pointer;',
+                            title:'Test Backend Connection',
+                            onclick:()=>testBackend(name)
+                        },'Test'),
+                        el('button',{
+                            style:'padding:4px 8px;font-size:11px;background:#2196F3;color:white;border:none;border-radius:3px;cursor:pointer;',
+                            title:'Edit Backend Configuration',
+                            onclick:()=>editBackend(name)
+                        },'Edit'),
+                        el('button',{
+                            style:'padding:4px 8px;font-size:11px;background:#f44336;color:white;border:none;border-radius:3px;cursor:pointer;',
+                            title:'Delete Backend',
+                            onclick:()=>deleteBackend(name)
+                        },'Delete')
+                    )
                 );
                 
                 // Description
                 const desc = el('div',{
                     text:description,
-                    style:'color:#ccc;font-size:11px;margin-bottom:8px;'
+                    style:'color:#666;font-size:12px;margin-bottom:10px;'
                 });
+                
+                // Configuration details  
+                const configRow = el('div',{
+                    style:'display:flex;gap:15px;margin-bottom:8px;font-size:11px;flex-wrap:wrap;'
+                });
+                
+                if(backend.config) {
+                    const config = backend.config;
+                    Object.keys(config).slice(0, 4).forEach(key => {
+                        if(key !== 'type' && typeof config[key] === 'string') {
+                            configRow.appendChild(el('span',{
+                                text:`${key}: ${config[key].length > 20 ? config[key].substring(0, 20) + '...' : config[key]}`,
+                                style:'color:#777;background:#f9f9f9;padding:2px 4px;border-radius:2px;'
+                            }));
+                        }
+                    });
+                }
                 
                 // Stats row
                 const statsRow = el('div',{
-                    style:'display:flex;gap:12px;margin-bottom:6px;font-size:11px;'
+                    style:'display:flex;gap:15px;margin-bottom:8px;font-size:11px;flex-wrap:wrap;'
                 });
                 
                 if(stats.used_storage_gb !== undefined) {
@@ -5000,41 +5062,56 @@ class ConsolidatedMCPDashboard:
                     }));
                 }
                 
-                // Policy summary
+                // Policy summary with better formatting
                 const policySummary = el('div',{
-                    style:'font-size:10px;color:#999;display:flex;gap:10px;flex-wrap:wrap;'
+                    style:'font-size:10px;color:#888;display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #eee;padding-top:8px;'
                 });
                 
                 if(storagePolicy.max_size) {
                     policySummary.appendChild(el('span',{
-                        text:`Quota: ${storagePolicy.max_size} ${storagePolicy.max_size_unit || 'GB'}`
+                        text:`📦 Quota: ${storagePolicy.max_size} ${storagePolicy.max_size_unit || 'GB'}`,
+                        style:'background:#E3F2FD;color:#1976D2;padding:2px 6px;border-radius:3px;'
                     }));
                 }
                 
                 if(replicationPolicy.min_redundancy) {
+                    const replicationText = replicationPolicy.max_redundancy && replicationPolicy.max_redundancy !== replicationPolicy.min_redundancy 
+                        ? `${replicationPolicy.min_redundancy}-${replicationPolicy.max_redundancy}` 
+                        : `${replicationPolicy.min_redundancy}`;
                     policySummary.appendChild(el('span',{
-                        text:`Replication: ${replicationPolicy.min_redundancy}-${replicationPolicy.max_redundancy || replicationPolicy.min_redundancy}`
+                        text:`🔄 Replication: ${replicationText}`,
+                        style:'background:#F3E5F5;color:#7B1FA2;padding:2px 6px;border-radius:3px;'
                     }));
                 }
                 
                 if(retentionPolicy.default_retention_days) {
                     policySummary.appendChild(el('span',{
-                        text:`Retention: ${retentionPolicy.default_retention_days}d`
+                        text:`⏰ Retention: ${retentionPolicy.default_retention_days}d`,
+                        style:'background:#FFF3E0;color:#F57C00;padding:2px 6px;border-radius:3px;'
                     }));
                 }
                 
                 if(cachePolicy.max_cache_size) {
                     policySummary.appendChild(el('span',{
-                        text:`Cache: ${cachePolicy.max_cache_size} ${cachePolicy.max_cache_size_unit || 'GB'}`
+                        text:`💾 Cache: ${cachePolicy.max_cache_size} ${cachePolicy.max_cache_size_unit || 'GB'}`,
+                        style:'background:#E8F5E8;color:#388E3C;padding:2px 6px;border-radius:3px;'
                     }));
                 }
                 
-                backendCard.append(header, desc, statsRow, policySummary);
+                backendCard.append(header, desc, configRow, statsRow, policySummary);
                 container.append(backendCard);
             });
         }catch(e){ 
-            console.error('Error loading backends:', e);
-            container.textContent='Error loading backends'; 
+            console.error('❌ Error loading backends:', e);
+            container.innerHTML = `
+                <div style="text-align:center;padding:20px;border:1px solid #f44336;border-radius:8px;background:#ffebee;color:#c62828;">
+                    <strong>⚠️ Failed to Load Backends</strong><br>
+                    <small style="color:#666;margin-top:8px;display:block;">${e.message}</small>
+                    <button onclick="loadBackends()" style="margin-top:10px;padding:6px 12px;background:#2196F3;color:white;border:none;border-radius:4px;cursor:pointer;">
+                        🔄 Retry
+                    </button>
+                </div>
+            `;
         }
     }
     
@@ -5045,6 +5122,95 @@ class ConsolidatedMCPDashboard:
             case 'cold': return '#2196F3';    // Blue for cold
             case 'archive': return '#9C27B0'; // Purple for archive
             default: return '#607D8B';        // Blue-grey for standard
+        }
+    }
+    
+    function getStatusDisplay(status) {
+        switch(status) {
+            case 'enabled': return '✅ Enabled';
+            case 'disabled': return '❌ Disabled';
+            case 'error': return '🔥 Error';
+            case 'maintenance': return '🔧 Maintenance';
+            case 'testing': return '🧪 Testing';
+            default: return `📊 ${status}`;
+        }
+    }
+    
+    function getStatusColor(status) {
+        switch(status) {
+            case 'enabled': return '#4CAF50';
+            case 'disabled': return '#f44336';
+            case 'error': return '#f44336';
+            case 'maintenance': return '#FF9800';
+            case 'testing': return '#2196F3';
+            default: return '#607D8B';
+        }
+    }
+    
+    function getStatusBackground(status) {
+        switch(status) {
+            case 'enabled': return '#E8F5E8';
+            case 'disabled': return '#FFEBEE';
+            case 'error': return '#FFEBEE';
+            case 'maintenance': return '#FFF3E0';
+            case 'testing': return '#E3F2FD';
+            default: return '#F5F5F5';
+        }
+    }
+    
+    async function testBackend(name) {
+        try {
+            console.log(`🧪 Testing backend: ${name}`);
+            const response = await fetch(`/api/backends/${encodeURIComponent(name)}/test`, {
+                method: 'POST'
+            });
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert(`✅ Backend "${name}" test successful!\n\nDetails: ${JSON.stringify(result, null, 2)}`);
+            } else {
+                alert(`❌ Backend "${name}" test failed!\n\nError: ${result.detail || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error(`Error testing backend ${name}:`, error);
+            alert(`❌ Failed to test backend "${name}"\n\nError: ${error.message}`);
+        }
+    }
+    
+    async function editBackend(name) {
+        const newName = prompt('Backend name:', name);
+        if (!newName || newName === name) return;
+        
+        try {
+            // Get current backend config
+            const response = await fetch(`/api/backends/${encodeURIComponent(name)}`);
+            const backend = await response.json();
+            
+            const newConfig = prompt('Backend configuration (JSON):', JSON.stringify(backend.config || {}, null, 2));
+            if (!newConfig) return;
+            
+            const config = JSON.parse(newConfig);
+            
+            // Update backend
+            const updateResponse = await fetch(`/api/backends/${encodeURIComponent(name)}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: newName,
+                    config: config
+                })
+            });
+            
+            if (updateResponse.ok) {
+                alert(`✅ Backend "${name}" updated successfully!`);
+                loadBackends();
+            } else {
+                const error = await updateResponse.json();
+                alert(`❌ Failed to update backend "${name}"\n\nError: ${error.detail || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error(`Error editing backend ${name}:`, error);
+            alert(`❌ Failed to edit backend "${name}"\n\nError: ${error.message}`);
         }
     }
 
