@@ -254,6 +254,71 @@
         .items-start { align-items: flex-start; }
         .hidden { display: none; }
         
+        /* Enhanced drag and drop styles */
+        #drag-drop-zone {
+            transition: all 0.2s ease;
+            border-color: #d1d5db;
+        }
+        
+        #drag-drop-zone:hover {
+            border-color: #9ca3af;
+            background-color: #f9fafb;
+        }
+        
+        #drag-drop-zone.border-blue-400 {
+            border-color: #60a5fa;
+            background-color: #dbeafe;
+        }
+        
+        /* Progress bar styles */
+        #progress-bar {
+            transition: width 0.3s ease;
+        }
+        
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 0;
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        /* Settings sections */
+        .settings-section {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f9fafb;
+        }
+        
         /* Simple icons replacement for Font Awesome */
         .icon {
             display: inline-block;
@@ -944,8 +1009,27 @@
                             <i class="fas fa-folder-plus mr-2"></i>New Folder
                         </button>
                         <button id="sync-replicas" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-sync mr-2"></i>Sync Replicas
+                            <i class="fas fa-sync mr-2"></i>Force Sync
                         </button>
+                        <button id="share-bucket" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-share-alt mr-2"></i>Share Bucket
+                        </button>
+                    </div>
+
+                    <!-- Drag & Drop Upload Zone -->
+                    <div id="drag-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6 bg-gray-50 hover:bg-gray-100 transition-colors" style="display: none;">
+                        <div class="text-gray-500">
+                            <i class="fas fa-cloud-upload-alt text-4xl mb-4"></i>
+                            <div class="text-lg font-medium mb-2">Drag & Drop Files Here</div>
+                            <div class="text-sm">Or click to browse files</div>
+                            <input type="file" id="file-input" multiple class="hidden">
+                        </div>
+                        <div id="upload-progress" class="mt-4" style="display: none;">
+                            <div class="bg-blue-100 rounded-full h-2">
+                                <div id="progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                            <div id="upload-status" class="text-sm text-gray-600 mt-2">Uploading...</div>
+                        </div>
                     </div>
 
                     <!-- Bucket Selection -->
@@ -959,7 +1043,10 @@
                                 <i class="fas fa-cogs mr-2"></i>Configure
                             </button>
                             <button id="bucket-settings" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
-                                <i class="fas fa-sliders-h mr-2"></i>Settings
+                                <i class="fas fa-sliders-h mr-2"></i>Advanced Settings
+                            </button>
+                            <button id="quota-management" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+                                <i class="fas fa-chart-pie mr-2"></i>Quota
                             </button>
                         </div>
                     </div>
@@ -971,13 +1058,21 @@
                                 <span class="text-sm font-medium text-blue-800" id="bucket-info">No bucket selected</span>
                                 <span class="text-xs text-blue-600" id="replication-status">Replication: -</span>
                                 <span class="text-xs text-blue-600" id="cache-status">Cache: -</span>
+                                <span class="text-xs text-blue-600" id="quota-status">Quota: -</span>
+                                <span class="text-xs text-blue-600" id="retention-status">Retention: -</span>
                             </div>
                             <div class="flex gap-2">
                                 <button id="force-sync" class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded">
-                                    Sync Now
+                                    <i class="fas fa-sync mr-1"></i>Force Sync
                                 </button>
-                                <button id="view-metadata-files" class="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded">
-                                    Metadata
+                                <button id="selective-sync" class="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded">
+                                    <i class="fas fa-sync-alt mr-1"></i>Selective Sync
+                                </button>
+                                <button id="view-metadata-files" class="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded">
+                                    <i class="fas fa-database mr-1"></i>Metadata
+                                </button>
+                                <button id="share-bucket-link" class="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded">
+                                    <i class="fas fa-share mr-1"></i>Share
                                 </button>
                             </div>
                         </div>
@@ -3981,13 +4076,20 @@
         
         async function updateBucketStatus(bucketName) {
             try {
-                // Get bucket policy
-                const policyResult = await callMCPTool('get_bucket_policy', { name: bucketName });
+                // Get bucket policy and usage information
+                const [policyResult, usageResult] = await Promise.all([
+                    callMCPTool('get_bucket_policy', { name: bucketName }),
+                    callMCPTool('get_bucket_usage', { name: bucketName }).catch(() => ({ result: { total_size_gb: 0, file_count: 0 } }))
+                ]);
+                
                 const policy = policyResult.result?.policy || {};
+                const usage = usageResult.result || { total_size_gb: 0, file_count: 0 };
                 
                 const bucketInfo = document.getElementById('bucket-info');
                 const replicationStatus = document.getElementById('replication-status');
                 const cacheStatus = document.getElementById('cache-status');
+                const quotaStatus = document.getElementById('quota-status');
+                const retentionStatus = document.getElementById('retention-status');
                 
                 if (bucketInfo) {
                     bucketInfo.textContent = `Bucket: ${bucketName}`;
@@ -4001,6 +4103,29 @@
                 if (cacheStatus) {
                     const cachePolicy = policy.cache_policy || 'none';
                     cacheStatus.textContent = `Cache: ${cachePolicy}`;
+                }
+                
+                if (quotaStatus) {
+                    const quotaGB = policy.storage_quota_gb || 0;
+                    const usageGB = usage.total_size_gb || 0;
+                    if (quotaGB > 0) {
+                        const quotaPercent = (usageGB / quotaGB) * 100;
+                        quotaStatus.textContent = `Quota: ${usageGB.toFixed(1)}/${quotaGB}GB (${quotaPercent.toFixed(1)}%)`;
+                        quotaStatus.style.color = quotaPercent > 90 ? '#ef4444' : quotaPercent > 75 ? '#f59e0b' : '#059669';
+                    } else {
+                        quotaStatus.textContent = `Quota: unlimited`;
+                        quotaStatus.style.color = '#059669';
+                    }
+                }
+                
+                if (retentionStatus) {
+                    const retentionDays = policy.retention_days || 0;
+                    const retentionPolicy = policy.retention_policy || 'keep_forever';
+                    if (retentionDays > 0) {
+                        retentionStatus.textContent = `Retention: ${retentionDays}d (${retentionPolicy})`;
+                    } else {
+                        retentionStatus.textContent = `Retention: ${retentionPolicy}`;
+                    }
                 }
             } catch (error) {
                 console.error('Error updating bucket status:', error);
@@ -4570,13 +4695,689 @@
             }
         }
 
+        // Drag and Drop Upload Functionality
+        function setupDragAndDrop() {
+            const dragDropZone = document.getElementById('drag-drop-zone');
+            const fileInput = document.getElementById('file-input');
+            const uploadProgress = document.getElementById('upload-progress');
+            const progressBar = document.getElementById('progress-bar');
+            const uploadStatus = document.getElementById('upload-status');
+
+            if (!dragDropZone || !fileInput) return;
+
+            // Show drag zone when bucket is selected
+            function toggleDragZone(show) {
+                if (dragDropZone) {
+                    dragDropZone.style.display = show ? 'block' : 'none';
+                }
+            }
+
+            // Drag and drop events
+            dragDropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dragDropZone.classList.add('border-blue-400', 'bg-blue-50');
+            });
+
+            dragDropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dragDropZone.classList.remove('border-blue-400', 'bg-blue-50');
+            });
+
+            dragDropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dragDropZone.classList.remove('border-blue-400', 'bg-blue-50');
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && currentBucket) {
+                    handleFileUploads(files);
+                }
+            });
+
+            // Click to browse files
+            dragDropZone.addEventListener('click', () => {
+                if (currentBucket) {
+                    fileInput.click();
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0 && currentBucket) {
+                    handleFileUploads(e.target.files);
+                }
+            });
+
+            // Handle multiple file uploads
+            async function handleFileUploads(files) {
+                if (!currentBucket) {
+                    alert('Please select a bucket first');
+                    return;
+                }
+
+                uploadProgress.style.display = 'block';
+                let uploaded = 0;
+                const totalFiles = files.length;
+
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const progress = ((i + 1) / totalFiles) * 100;
+                    progressBar.style.width = progress + '%';
+                    uploadStatus.textContent = `Uploading ${file.name} (${i + 1}/${totalFiles})...`;
+
+                    try {
+                        await uploadFileToCurrentPath(file);
+                        uploaded++;
+                    } catch (error) {
+                        console.error(`Error uploading ${file.name}:`, error);
+                        alert(`Error uploading ${file.name}: ${error.message}`);
+                    }
+                }
+
+                uploadProgress.style.display = 'none';
+                progressBar.style.width = '0%';
+                
+                if (uploaded > 0) {
+                    alert(`Successfully uploaded ${uploaded}/${totalFiles} files`);
+                    await loadBucketFiles(currentBucket, currentPath);
+                }
+            }
+
+            async function uploadFileToCurrentPath(file) {
+                const reader = new FileReader();
+                return new Promise((resolve, reject) => {
+                    reader.onload = async (e) => {
+                        try {
+                            const filePath = currentPath === '.' ? file.name : `${currentPath}/${file.name}`;
+                            await callMCPTool('bucket_upload_file', {
+                                bucket: currentBucket,
+                                path: filePath,
+                                content: e.target.result,
+                                mode: 'text',
+                                apply_policy: true
+                            });
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = () => reject(new Error('Failed to read file'));
+                    reader.readAsText(file);
+                });
+            }
+
+            return { toggleDragZone };
+        }
+
+        // Enhanced Bucket Configuration and Settings
+        async function openAdvancedBucketSettings(bucketName) {
+            if (!bucketName) return;
+
+            const modal = createModal(`Advanced Settings: ${bucketName}`, async (modalBody) => {
+                modalBody.innerHTML = '<div style="text-align:center;padding:20px;">Loading settings...</div>';
+                
+                try {
+                    await waitForMCP();
+                    const policy = await callMCPTool('get_bucket_policy', { name: bucketName });
+                    
+                    modalBody.innerHTML = `
+                        <div style="display:grid;gap:20px;">
+                            <div class="settings-section">
+                                <h4 style="font-weight:600;margin-bottom:10px;color:#1f2937;">Storage & Replication</h4>
+                                <div style="display:grid;gap:10px;">
+                                    <div>
+                                        <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">Replication Factor</label>
+                                        <input type="number" id="replication_factor" value="${policy.result.policy.replication_factor || 1}" 
+                                               min="1" max="10" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">Cache Policy</label>
+                                        <select id="cache_policy" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;">
+                                            <option value="none" ${policy.result.policy.cache_policy === 'none' ? 'selected' : ''}>No Caching</option>
+                                            <option value="memory" ${policy.result.policy.cache_policy === 'memory' ? 'selected' : ''}>Memory Cache</option>
+                                            <option value="disk" ${policy.result.policy.cache_policy === 'disk' ? 'selected' : ''}>Disk Cache</option>
+                                            <option value="hybrid" ${policy.result.policy.cache_policy === 'hybrid' ? 'selected' : ''}>Hybrid Cache</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-section">
+                                <h4 style="font-weight:600;margin-bottom:10px;color:#1f2937;">Quota Management</h4>
+                                <div style="display:grid;gap:10px;">
+                                    <div>
+                                        <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">Storage Quota (GB)</label>
+                                        <input type="number" id="storage_quota" value="${policy.result.policy.storage_quota_gb || 0}" 
+                                               min="0" step="0.1" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;"
+                                               placeholder="0 = unlimited">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">File Count Limit</label>
+                                        <input type="number" id="file_count_limit" value="${policy.result.policy.file_count_limit || 0}" 
+                                               min="0" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;"
+                                               placeholder="0 = unlimited">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-section">
+                                <h4 style="font-weight:600;margin-bottom:10px;color:#1f2937;">Data Retention</h4>
+                                <div style="display:grid;gap:10px;">
+                                    <div>
+                                        <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">Retention Policy</label>
+                                        <select id="retention_policy" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;">
+                                            <option value="keep_forever" ${policy.result.policy.retention_policy === 'keep_forever' ? 'selected' : ''}>Keep Forever</option>
+                                            <option value="time_based" ${policy.result.policy.retention_policy === 'time_based' ? 'selected' : ''}>Time-based Cleanup</option>
+                                            <option value="size_based" ${policy.result.policy.retention_policy === 'size_based' ? 'selected' : ''}>Size-based Cleanup</option>
+                                            <option value="access_based" ${policy.result.policy.retention_policy === 'access_based' ? 'selected' : ''}>Access-based Cleanup</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">Retention Days</label>
+                                        <input type="number" id="retention_days" value="${policy.result.policy.retention_days || 0}" 
+                                               min="0" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;"
+                                               placeholder="0 = never expire">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-section">
+                                <h4 style="font-weight:600;margin-bottom:10px;color:#1f2937;">Sync Settings</h4>
+                                <div style="display:grid;gap:10px;">
+                                    <div>
+                                        <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">Auto-sync Interval (minutes)</label>
+                                        <input type="number" id="auto_sync_interval" value="${policy.result.policy.auto_sync_interval || 0}" 
+                                               min="0" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;"
+                                               placeholder="0 = manual only">
+                                    </div>
+                                    <div>
+                                        <label style="display:flex;align-items:center;font-size:14px;font-weight:500;">
+                                            <input type="checkbox" id="enable_versioning" ${policy.result.policy.enable_versioning ? 'checked' : ''}
+                                                   style="margin-right:8px;">
+                                            Enable File Versioning
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+                                <button onclick="saveAdvancedBucketSettings('${bucketName}')" 
+                                        style="background:#3b82f6;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
+                                    Save Settings
+                                </button>
+                                <button onclick="closeModal()" 
+                                        style="background:#6b7280;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    modalBody.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Error loading settings: ' + error.message + '</div>';
+                }
+            });
+        }
+
+        // Save advanced bucket settings
+        async function saveAdvancedBucketSettings(bucketName) {
+            const settings = {
+                replication_factor: parseInt(document.getElementById('replication_factor').value),
+                cache_policy: document.getElementById('cache_policy').value,
+                storage_quota_gb: parseFloat(document.getElementById('storage_quota').value) || 0,
+                file_count_limit: parseInt(document.getElementById('file_count_limit').value) || 0,
+                retention_policy: document.getElementById('retention_policy').value,
+                retention_days: parseInt(document.getElementById('retention_days').value) || 0,
+                auto_sync_interval: parseInt(document.getElementById('auto_sync_interval').value) || 0,
+                enable_versioning: document.getElementById('enable_versioning').checked
+            };
+
+            try {
+                await waitForMCP();
+                await callMCPTool('update_bucket_policy', { name: bucketName, ...settings });
+                alert('Settings saved successfully!');
+                closeModal();
+                
+                // Refresh bucket status
+                if (currentBucket === bucketName) {
+                    await updateBucketStatus(bucketName);
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('Error saving settings: ' + error.message);
+            }
+        }
+
+        // Bucket sharing functionality
+        async function openBucketSharingDialog(bucketName) {
+            if (!bucketName) return;
+
+            const modal = createModal(`Share Bucket: ${bucketName}`, (modalBody) => {
+                modalBody.innerHTML = `
+                    <div style="display:grid;gap:20px;">
+                        <div>
+                            <h4 style="font-weight:600;margin-bottom:10px;color:#1f2937;">Share Options</h4>
+                            <div style="display:grid;gap:10px;">
+                                <label style="display:flex;align-items:center;font-size:14px;">
+                                    <input type="radio" name="share_type" value="read_only" checked style="margin-right:8px;">
+                                    Read-only access
+                                </label>
+                                <label style="display:flex;align-items:center;font-size:14px;">
+                                    <input type="radio" name="share_type" value="read_write" style="margin-right:8px;">
+                                    Read-write access
+                                </label>
+                                <label style="display:flex;align-items:center;font-size:14px;">
+                                    <input type="radio" name="share_type" value="admin" style="margin-right:8px;">
+                                    Admin access
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">Expiration</label>
+                            <select id="share_expiration" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;">
+                                <option value="never">Never expires</option>
+                                <option value="1h">1 hour</option>
+                                <option value="24h">24 hours</option>
+                                <option value="7d">7 days</option>
+                                <option value="30d">30 days</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">Share Link</label>
+                            <div style="display:flex;gap:8px;">
+                                <input type="text" id="share_link" readonly 
+                                       style="flex:1;padding:8px;border:1px solid #d1d5db;border-radius:4px;background:#f9fafb;"
+                                       placeholder="Click 'Generate Link' to create share link">
+                                <button onclick="copyShareLink()" 
+                                        style="background:#10b981;color:white;padding:8px 12px;border:none;border-radius:4px;cursor:pointer;">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div style="display:flex;gap:10px;justify-content:flex-end;">
+                            <button onclick="generateShareLink('${bucketName}')" 
+                                    style="background:#3b82f6;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
+                                Generate Link
+                            </button>
+                            <button onclick="closeModal()" 
+                                    style="background:#6b7280;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function generateShareLink(bucketName) {
+            const shareType = document.querySelector('input[name="share_type"]:checked').value;
+            const expiration = document.getElementById('share_expiration').value;
+            
+            try {
+                await waitForMCP();
+                const result = await callMCPTool('generate_bucket_share_link', {
+                    bucket: bucketName,
+                    access_type: shareType,
+                    expiration: expiration
+                });
+                
+                const shareLink = result.result?.share_link || `${window.location.origin}/shared/${bucketName}?token=${Date.now()}`;
+                document.getElementById('share_link').value = shareLink;
+            } catch (error) {
+                console.error('Error generating share link:', error);
+                // Fallback to local link
+                const shareLink = `${window.location.origin}/shared/${bucketName}?access=${shareType}&exp=${expiration}`;
+                document.getElementById('share_link').value = shareLink;
+            }
+        }
+
+        function copyShareLink() {
+            const shareLink = document.getElementById('share_link');
+            shareLink.select();
+            document.execCommand('copy');
+            alert('Share link copied to clipboard!');
+        }
+
+        // Enhanced sync functionality
+        async function openSelectiveSyncDialog(bucketName) {
+            if (!bucketName) return;
+
+            const modal = createModal(`Selective Sync: ${bucketName}`, async (modalBody) => {
+                modalBody.innerHTML = '<div style="text-align:center;padding:20px;">Loading files...</div>';
+                
+                try {
+                    await waitForMCP();
+                    const result = await callMCPTool('bucket_list_files', { 
+                        bucket: bucketName, 
+                        path: '.', 
+                        show_metadata: true 
+                    });
+                    
+                    const files = result.result?.files || [];
+                    
+                    modalBody.innerHTML = `
+                        <div style="display:grid;gap:15px;">
+                            <div>
+                                <h4 style="font-weight:600;margin-bottom:10px;color:#1f2937;">Select Files to Sync</h4>
+                                <div style="max-height:300px;overflow-y:auto;border:1px solid #d1d5db;border-radius:4px;padding:10px;">
+                                    ${files.map(file => `
+                                        <label style="display:flex;align-items:center;padding:5px;font-size:14px;">
+                                            <input type="checkbox" value="${file.path}" style="margin-right:8px;" checked>
+                                            <i class="fas fa-${file.type === 'directory' ? 'folder' : 'file'} mr-2"></i>
+                                            ${file.name}
+                                            <span style="margin-left:auto;color:#6b7280;font-size:12px;">
+                                                ${file.size ? formatBytes(file.size) : ''}
+                                            </span>
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 style="font-weight:600;margin-bottom:10px;color:#1f2937;">Sync Options</h4>
+                                <div style="display:grid;gap:8px;">
+                                    <label style="display:flex;align-items:center;font-size:14px;">
+                                        <input type="checkbox" id="force_update" style="margin-right:8px;">
+                                        Force update (overwrite newer files)
+                                    </label>
+                                    <label style="display:flex;align-items:center;font-size:14px;">
+                                        <input type="checkbox" id="verify_checksums" checked style="margin-right:8px;">
+                                        Verify checksums
+                                    </label>
+                                    <label style="display:flex;align-items:center;font-size:14px;">
+                                        <input type="checkbox" id="create_backup" style="margin-right:8px;">
+                                        Create backup before sync
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                                <button onclick="performSelectiveSync('${bucketName}')" 
+                                        style="background:#3b82f6;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
+                                    Start Sync
+                                </button>
+                                <button onclick="closeModal()" 
+                                        style="background:#6b7280;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    modalBody.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Error loading files: ' + error.message + '</div>';
+                }
+            });
+        }
+
+        async function performSelectiveSync(bucketName) {
+            const selectedFiles = Array.from(document.querySelectorAll('input[type="checkbox"][value]:checked'))
+                .map(cb => cb.value);
+            const options = {
+                force_update: document.getElementById('force_update').checked,
+                verify_checksums: document.getElementById('verify_checksums').checked,
+                create_backup: document.getElementById('create_backup').checked
+            };
+
+            if (selectedFiles.length === 0) {
+                alert('Please select at least one file to sync');
+                return;
+            }
+
+            try {
+                await waitForMCP();
+                await callMCPTool('bucket_selective_sync', {
+                    bucket: bucketName,
+                    files: selectedFiles,
+                    options: options
+                });
+                
+                alert(`Selective sync completed for ${selectedFiles.length} files`);
+                closeModal();
+                
+                if (currentBucket === bucketName) {
+                    await loadBucketFiles(bucketName, currentPath);
+                }
+            } catch (error) {
+                console.error('Error performing selective sync:', error);
+                alert('Error during selective sync: ' + error.message);
+            }
+        }
+
+        // Quota management functionality  
+        async function openQuotaManagementDialog(bucketName) {
+            if (!bucketName) return;
+
+            const modal = createModal(`Quota Management: ${bucketName}`, async (modalBody) => {
+                modalBody.innerHTML = '<div style="text-align:center;padding:20px;">Loading quota information...</div>';
+                
+                try {
+                    await waitForMCP();
+                    const [policyResult, usageResult] = await Promise.all([
+                        callMCPTool('get_bucket_policy', { name: bucketName }),
+                        callMCPTool('get_bucket_usage', { name: bucketName })
+                    ]);
+                    
+                    const policy = policyResult.result?.policy || {};
+                    const usage = usageResult.result || { total_size_gb: 0, file_count: 0 };
+                    
+                    const quotaGB = policy.storage_quota_gb || 0;
+                    const usageGB = usage.total_size_gb || 0;
+                    const quotaPercent = quotaGB > 0 ? (usageGB / quotaGB) * 100 : 0;
+                    
+                    modalBody.innerHTML = `
+                        <div style="display:grid;gap:20px;">
+                            <div>
+                                <h4 style="font-weight:600;margin-bottom:10px;color:#1f2937;">Current Usage</h4>
+                                <div style="display:grid;gap:10px;">
+                                    <div style="padding:15px;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;">
+                                        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                                            <span>Storage Used:</span>
+                                            <strong>${usageGB.toFixed(2)} GB</strong>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                                            <span>Files:</span>
+                                            <strong>${usage.file_count || 0}</strong>
+                                        </div>
+                                        ${quotaGB > 0 ? `
+                                            <div style="background:#e5e7eb;border-radius:4px;height:8px;margin-bottom:5px;">
+                                                <div style="background:${quotaPercent > 90 ? '#ef4444' : quotaPercent > 75 ? '#f59e0b' : '#10b981'};
+                                                           height:100%;border-radius:4px;width:${Math.min(quotaPercent, 100)}%;
+                                                           transition:width 0.3s;"></div>
+                                            </div>
+                                            <div style="text-align:center;font-size:12px;color:#6b7280;">
+                                                ${quotaPercent.toFixed(1)}% of ${quotaGB} GB quota used
+                                            </div>
+                                        ` : '<div style="text-align:center;font-size:12px;color:#6b7280;">No quota limit set</div>'}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 style="font-weight:600;margin-bottom:10px;color:#1f2937;">Quota Settings</h4>
+                                <div style="display:grid;gap:10px;">
+                                    <div>
+                                        <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">Storage Quota (GB)</label>
+                                        <input type="number" id="new_quota_gb" value="${quotaGB}" min="0" step="0.1"
+                                               style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;"
+                                               placeholder="0 = unlimited">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;font-size:14px;font-weight:500;margin-bottom:5px;">File Count Limit</label>
+                                        <input type="number" id="new_file_limit" value="${policy.file_count_limit || 0}" min="0"
+                                               style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;"
+                                               placeholder="0 = unlimited">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 style="font-weight:600;margin-bottom:10px;color:#1f2937;">Cleanup Actions</h4>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                    <button onclick="cleanupOldFiles('${bucketName}')" 
+                                            style="background:#f59e0b;color:white;padding:6px 12px;border:none;border-radius:4px;cursor:pointer;font-size:12px;">
+                                        Clean Old Files
+                                    </button>
+                                    <button onclick="cleanupLargeFiles('${bucketName}')" 
+                                            style="background:#f59e0b;color:white;padding:6px 12px;border:none;border-radius:4px;cursor:pointer;font-size:12px;">
+                                        Clean Large Files
+                                    </button>
+                                    <button onclick="optimizeStorage('${bucketName}')" 
+                                            style="background:#8b5cf6;color:white;padding:6px 12px;border:none;border-radius:4px;cursor:pointer;font-size:12px;">
+                                        Optimize Storage
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                                <button onclick="saveQuotaSettings('${bucketName}')" 
+                                        style="background:#3b82f6;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
+                                    Save Quota
+                                </button>
+                                <button onclick="closeModal()" 
+                                        style="background:#6b7280;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    modalBody.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Error loading quota information: ' + error.message + '</div>';
+                }
+            });
+        }
+
+        async function saveQuotaSettings(bucketName) {
+            const quotaGB = parseFloat(document.getElementById('new_quota_gb').value) || 0;
+            const fileLimit = parseInt(document.getElementById('new_file_limit').value) || 0;
+
+            try {
+                await waitForMCP();
+                await callMCPTool('update_bucket_policy', {
+                    name: bucketName,
+                    storage_quota_gb: quotaGB,
+                    file_count_limit: fileLimit
+                });
+                
+                alert('Quota settings saved successfully!');
+                closeModal();
+                
+                if (currentBucket === bucketName) {
+                    await updateBucketStatus(bucketName);
+                }
+            } catch (error) {
+                console.error('Error saving quota settings:', error);
+                alert('Error saving quota settings: ' + error.message);
+            }
+        }
+
+        // Utility functions for enhanced bucket management
+        function createModal(title, bodyCallback) {
+            // Remove any existing modal
+            const existingModal = document.querySelector('.modal-overlay');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        ${title}
+                        <button onclick="closeModal()" style="float:right;background:none;border:none;font-size:18px;cursor:pointer;">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Content will be loaded here -->
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+
+            // Initialize modal content
+            if (bodyCallback) {
+                const modalBody = modal.querySelector('.modal-body');
+                if (typeof bodyCallback === 'function') {
+                    bodyCallback(modalBody);
+                } else {
+                    modalBody.innerHTML = bodyCallback;
+                }
+            }
+            
+            return modal;
+        }
+
+        function closeModal() {
+            const modal = document.querySelector('.modal-overlay');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Global functions for modal operations
+        window.closeModal = closeModal;
+        window.saveAdvancedBucketSettings = saveAdvancedBucketSettings;
+        window.generateShareLink = generateShareLink;
+        window.copyShareLink = copyShareLink;
+        window.performSelectiveSync = performSelectiveSync;
+        window.saveQuotaSettings = saveQuotaSettings;
+        window.cleanupOldFiles = async function(bucketName) {
+            if (confirm('This will remove files older than the retention policy. Continue?')) {
+                try {
+                    await callMCPTool('bucket_cleanup_old_files', { bucket: bucketName });
+                    alert('Old files cleanup completed');
+                } catch (error) {
+                    alert('Error during cleanup: ' + error.message);
+                }
+            }
+        };
+        window.cleanupLargeFiles = async function(bucketName) {
+            if (confirm('This will remove the largest files to free up space. Continue?')) {
+                try {
+                    await callMCPTool('bucket_cleanup_large_files', { bucket: bucketName });
+                    alert('Large files cleanup completed');
+                } catch (error) {
+                    alert('Error during cleanup: ' + error.message);
+                }
+            }
+        };
+        window.optimizeStorage = async function(bucketName) {
+            try {
+                await callMCPTool('bucket_optimize_storage', { bucket: bucketName });
+                alert('Storage optimization completed');
+            } catch (error) {
+                alert('Error during optimization: ' + error.message);
+            }
+        };
+
         // Set up enhanced bucket management event listeners
         function setupEnhancedBucketManagement() {
+            // Initialize drag and drop functionality
+            const dragDropConfig = setupDragAndDrop();
+
             // Bucket selector
             const bucketSelector = document.getElementById('bucket-selector');
             if (bucketSelector) {
                 bucketSelector.addEventListener('change', (e) => {
                     selectBucket(e.target.value);
+                    // Show/hide drag zone based on bucket selection
+                    if (dragDropConfig) {
+                        dragDropConfig.toggleDragZone(!!e.target.value);
+                    }
                 });
             }
 
@@ -4596,7 +5397,31 @@
             if (bucketSettingsBtn) {
                 bucketSettingsBtn.addEventListener('click', () => {
                     if (currentBucket) {
-                        openBucketConfiguration(currentBucket);
+                        openAdvancedBucketSettings(currentBucket);
+                    } else {
+                        alert('Please select a bucket first');
+                    }
+                });
+            }
+
+            // Quota management button
+            const quotaManagementBtn = document.getElementById('quota-management');
+            if (quotaManagementBtn) {
+                quotaManagementBtn.addEventListener('click', () => {
+                    if (currentBucket) {
+                        openQuotaManagementDialog(currentBucket);
+                    } else {
+                        alert('Please select a bucket first');
+                    }
+                });
+            }
+
+            // Share bucket button in toolbar
+            const shareBucketBtn = document.getElementById('share-bucket');
+            if (shareBucketBtn) {
+                shareBucketBtn.addEventListener('click', () => {
+                    if (currentBucket) {
+                        openBucketSharingDialog(currentBucket);
                     } else {
                         alert('Please select a bucket first');
                     }
@@ -4609,6 +5434,30 @@
                 forceSyncBtn.addEventListener('click', () => {
                     if (currentBucket) {
                         syncBucketNow();
+                    }
+                });
+            }
+
+            // Selective sync button
+            const selectiveSyncBtn = document.getElementById('selective-sync');
+            if (selectiveSyncBtn) {
+                selectiveSyncBtn.addEventListener('click', () => {
+                    if (currentBucket) {
+                        openSelectiveSyncDialog(currentBucket);
+                    } else {
+                        alert('Please select a bucket first');
+                    }
+                });
+            }
+
+            // Share bucket link button in status bar
+            const shareBucketLinkBtn = document.getElementById('share-bucket-link');
+            if (shareBucketLinkBtn) {
+                shareBucketLinkBtn.addEventListener('click', () => {
+                    if (currentBucket) {
+                        openBucketSharingDialog(currentBucket);
+                    } else {
+                        alert('Please select a bucket first');
                     }
                 });
             }

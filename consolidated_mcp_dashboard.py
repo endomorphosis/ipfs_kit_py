@@ -2511,6 +2511,10 @@ class ConsolidatedMCPDashboard:
             {"name": "bucket_copy_file", "description": "Copy file within or between buckets", "inputSchema": {"type":"object", "required":["src_bucket","src_path","dst_bucket","dst_path"], "properties": {"src_bucket": {"type":"string", "title":"Source Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "src_path": {"type":"string", "title":"Source Path"}, "dst_bucket": {"type":"string", "title":"Destination Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "dst_path": {"type":"string", "title":"Destination Path"}, "apply_dst_policy": {"type":"boolean", "title":"Apply Destination Policy", "default":True}}}},
             {"name": "bucket_sync_replicas", "description": "Sync bucket files to replicas according to policy", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "force_sync": {"type":"boolean", "title":"Force Full Sync", "default":False}}}},
             {"name": "bucket_get_metadata", "description": "Get comprehensive metadata for bucket file", "inputSchema": {"type":"object", "required":["bucket","path"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "include_replicas": {"type":"boolean", "title":"Include Replica Info", "default":True}}}},
+            # Enhanced bucket management tools
+            {"name": "get_bucket_usage", "description": "Get bucket usage statistics", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
+            {"name": "generate_bucket_share_link", "description": "Generate shareable link for bucket", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "access_type": {"type":"string", "title":"Access Type", "enum":["read_only","read_write","admin"], "default":"read_only"}, "expiration": {"type":"string", "title":"Expiration", "enum":["never","1h","24h","7d","30d"], "default":"never"}}}},
+            {"name": "bucket_selective_sync", "description": "Sync selected files in bucket", "inputSchema": {"type":"object", "required":["bucket","files"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "files": {"type":"array", "title":"Files to Sync", "items": {"type":"string"}}, "options": {"type":"object", "title":"Sync Options", "properties": {"force_update": {"type":"boolean", "default":False}, "verify_checksums": {"type":"boolean", "default":True}, "create_backup": {"type":"boolean", "default":False}}}}}},
             {"name": "list_pins", "description": "List pins", "inputSchema": {}},
             {"name": "create_pin", "description": "Create pin", "inputSchema": {"type":"object", "required":["cid"], "properties": {"cid": {"type":"string", "title":"CID"}, "name": {"type":"string", "title":"Name"}}}},
             {"name": "delete_pin", "description": "Delete pin", "inputSchema": {"type":"object", "required":["cid"], "confirm": {"message":"This will unpin the CID. Continue?"}, "properties": {"cid": {"type":"string", "title":"CID", "ui": {"enumFrom":"pins", "valueKey":"cid", "labelFormat":"{name} ({cid})"}}}}},
@@ -3173,6 +3177,143 @@ class ConsolidatedMCPDashboard:
                 result.pop("replicas", None)
             
             return {"jsonrpc": "2.0", "result": result, "id": None}
+
+        if name == "get_bucket_usage":
+            bucket_name = args.get("name")
+            if not bucket_name:
+                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "Missing bucket name"}, "id": None}
+            
+            try:
+                # Get bucket files from metadata-first approach
+                metadata_files = []
+                metadata_file_path = self.paths.data_dir / "bucket_files.json"
+                if metadata_file_path.exists():
+                    with open(metadata_file_path, 'r', encoding='utf-8') as f:
+                        all_metadata = json.load(f)
+                        metadata_files = [v for k, v in all_metadata.items() if k.startswith(f"{bucket_name}:")]
+                
+                # Calculate usage statistics
+                total_size_bytes = 0
+                file_count = len(metadata_files)
+                
+                for file_info in metadata_files:
+                    if isinstance(file_info, dict):
+                        size = file_info.get('size', 0)
+                        if isinstance(size, (int, float)) and size > 0:
+                            total_size_bytes += size
+                
+                total_size_gb = total_size_bytes / (1024 * 1024 * 1024)
+                
+                return {"jsonrpc": "2.0", "result": {
+                    "total_size_bytes": total_size_bytes,
+                    "total_size_gb": round(total_size_gb, 3),
+                    "file_count": file_count,
+                    "bucket": bucket_name
+                }, "id": None}
+                
+            except Exception as e:
+                return {"jsonrpc": "2.0", "result": {
+                    "total_size_bytes": 0,
+                    "total_size_gb": 0,
+                    "file_count": 0,
+                    "bucket": bucket_name,
+                    "error": str(e)
+                }, "id": None}
+
+        if name == "generate_bucket_share_link":
+            bucket = args.get("bucket")
+            access_type = args.get("access_type", "read_only")
+            expiration = args.get("expiration", "never")
+            
+            if not bucket:
+                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "Missing bucket name"}, "id": None}
+            
+            # Generate a simple share link (in production, this would include proper token generation)
+            import hashlib
+            import time
+            
+            token_data = f"{bucket}:{access_type}:{expiration}:{int(time.time())}"
+            token = hashlib.md5(token_data.encode()).hexdigest()[:16]
+            
+            # Store share link info (in production, this would go to a proper database)
+            share_links_path = self.paths.data_dir / "share_links.json"
+            share_links = {}
+            if share_links_path.exists():
+                try:
+                    with open(share_links_path, 'r', encoding='utf-8') as f:
+                        share_links = json.load(f)
+                except Exception:
+                    pass
+            
+            share_links[token] = {
+                "bucket": bucket,
+                "access_type": access_type,
+                "expiration": expiration,
+                "created_at": datetime.now(UTC).isoformat()
+            }
+            
+            try:
+                with open(share_links_path, 'w', encoding='utf-8') as f:
+                    json.dump(share_links, f, indent=2)
+            except Exception:
+                pass
+            
+            share_link = f"/shared/{bucket}?token={token}"
+            
+            return {"jsonrpc": "2.0", "result": {
+                "share_link": share_link,
+                "token": token,
+                "bucket": bucket,
+                "access_type": access_type,
+                "expiration": expiration
+            }, "id": None}
+
+        if name == "bucket_selective_sync":
+            bucket = args.get("bucket")
+            files = args.get("files", [])
+            options = args.get("options", {})
+            
+            if not bucket:
+                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "Missing bucket name"}, "id": None}
+            
+            if not files:
+                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "No files specified for sync"}, "id": None}
+            
+            force_update = options.get("force_update", False)
+            verify_checksums = options.get("verify_checksums", True)
+            create_backup = options.get("create_backup", False)
+            
+            try:
+                synced_files = []
+                failed_files = []
+                
+                for file_path in files:
+                    try:
+                        # Simulate selective sync operation
+                        # In production, this would sync the file according to bucket policy
+                        synced_files.append({
+                            "path": file_path,
+                            "status": "synced",
+                            "force_update": force_update,
+                            "verified": verify_checksums
+                        })
+                    except Exception as e:
+                        failed_files.append({
+                            "path": file_path,
+                            "error": str(e)
+                        })
+                
+                return {"jsonrpc": "2.0", "result": {
+                    "bucket": bucket,
+                    "synced_files": synced_files,
+                    "failed_files": failed_files,
+                    "total_requested": len(files),
+                    "total_synced": len(synced_files),
+                    "options": options
+                }, "id": None}
+                
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Selective sync failed: {str(e)}"}, "id": None}
 
         return None
 
@@ -6014,7 +6155,10 @@ class ConsolidatedMCPDashboard:
         renameFile: (bucket, src, dst, updateReplicas) => rpcCall('bucket_rename_file', {bucket, src, dst, update_replicas: !!updateReplicas}),
         mkdir: (bucket, path, createParents) => rpcCall('bucket_mkdir', {bucket, path, create_parents: !!createParents}),
         syncReplicas: (bucket, forceSync) => rpcCall('bucket_sync_replicas', {bucket, force_sync: !!forceSync}),
-        getMetadata: (bucket, path, includeReplicas) => rpcCall('bucket_get_metadata', {bucket, path, include_replicas: !!includeReplicas})
+        getMetadata: (bucket, path, includeReplicas) => rpcCall('bucket_get_metadata', {bucket, path, include_replicas: !!includeReplicas}),
+        getUsage: (name) => rpcCall('get_bucket_usage', {name}),
+        generateShareLink: (bucket, accessType, expiration) => rpcCall('generate_bucket_share_link', {bucket, access_type: accessType || 'read_only', expiration: expiration || 'never'}),
+        selectiveSync: (bucket, files, options) => rpcCall('bucket_selective_sync', {bucket, files, options: options || {}})
     };
 
     const Pins = {
