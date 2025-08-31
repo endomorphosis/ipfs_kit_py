@@ -71,6 +71,165 @@ class InMemoryLogHandler(logging.Handler):
     def clear(self) -> None:
         self._items.clear()
 
+def create_default_backends():
+    """Create default backend configurations for testing and demonstration."""
+    now = datetime.now(UTC).isoformat()
+    
+    return {
+        "local_fs": {
+            "type": "local_storage",
+            "description": "Local filesystem storage backend",
+            "status": "enabled",
+            "config": {
+                "path": "/tmp/ipfs_kit_storage",
+                "max_size": "10GB",
+                "compression": True
+            },
+            "created_at": now,
+            "last_check": now,
+            "health": "healthy",
+            "category": "storage",
+            "policy": {
+                "quota": "10GB",
+                "replication": 1,
+                "retention": "30d",
+                "cache": "enabled"
+            },
+            "stats": {
+                "size": "2.1GB",
+                "files": 1247,
+                "last_sync": now
+            }
+        },
+        "ipfs_local": {
+            "type": "ipfs",
+            "description": "Local IPFS node for distributed storage",
+            "status": "enabled",
+            "config": {
+                "api_url": "http://127.0.0.1:5001",
+                "gateway_url": "http://127.0.0.1:8080",
+                "pinning": True
+            },
+            "created_at": now,
+            "last_check": now,
+            "health": "healthy",
+            "category": "network",
+            "policy": {
+                "quota": "unlimited",
+                "replication": 3,
+                "retention": "permanent",
+                "cache": "enabled"
+            },
+            "stats": {
+                "peers": 42,
+                "pins": 156,
+                "last_sync": now
+            }
+        },
+        "s3_demo": {
+            "type": "s3",
+            "description": "S3-compatible object storage",
+            "status": "enabled",
+            "config": {
+                "endpoint": "https://s3.amazonaws.com",
+                "bucket": "ipfs-kit-demo",
+                "region": "us-east-1",
+                "access_key": "demo-key",
+                "secret_key": "demo-secret"
+            },
+            "created_at": now,
+            "last_check": now,
+            "health": "healthy",
+            "category": "storage",
+            "policy": {
+                "quota": "100GB",
+                "replication": 3,
+                "retention": "90d",
+                "cache": "enabled"
+            },
+            "stats": {
+                "objects": 3421,
+                "size": "45.2GB",
+                "last_sync": now
+            }
+        },
+        "parquet_meta": {
+            "type": "parquet",
+            "description": "Parquet metadata storage backend",
+            "status": "enabled",
+            "config": {
+                "path": "/tmp/ipfs_kit_parquet",
+                "compression": "snappy",
+                "schema_version": "1.0"
+            },
+            "created_at": now,
+            "last_check": now,
+            "health": "healthy",
+            "category": "analytics",
+            "policy": {
+                "quota": "50GB",
+                "replication": 2,
+                "retention": "365d",
+                "cache": "enabled"
+            },
+            "stats": {
+                "tables": 12,
+                "rows": 98765,
+                "last_sync": now
+            }
+        },
+        "github": {
+            "type": "git",
+            "description": "Git repository backend for version control",
+            "status": "enabled",
+            "config": {
+                "repo_url": "https://github.com/user/repo.git",
+                "branch": "main",
+                "auth_token": "demo-token"
+            },
+            "created_at": now,
+            "last_check": now,
+            "health": "healthy",
+            "category": "storage",
+            "policy": {
+                "quota": "5GB",
+                "replication": 1,
+                "retention": "365d",
+                "cache": "enabled"
+            },
+            "stats": {
+                "commits": 245,
+                "branches": 3,
+                "last_sync": now
+            }
+        },
+        "cluster": {
+            "type": "ipfs_cluster",
+            "description": "IPFS Cluster for coordinated pinning",
+            "status": "enabled",
+            "config": {
+                "cluster_api": "http://127.0.0.1:9094",
+                "peer_id": "12D3KooWDemo...",
+                "secret": "demo-secret"
+            },
+            "created_at": now,
+            "last_check": now,
+            "health": "healthy",
+            "category": "network",
+            "policy": {
+                "quota": "unlimited",
+                "replication": 5,
+                "retention": "permanent",
+                "cache": "enabled"
+            },
+            "stats": {
+                "nodes": 5,
+                "pins": 892,
+                "last_sync": now
+            }
+        }
+    }
+
 def ensure_paths(data_dir: Optional[str]):
     base = Path(data_dir or os.path.expanduser("~/.ipfs_kit"))
     data_dir_path = base
@@ -81,11 +240,42 @@ def ensure_paths(data_dir: Optional[str]):
     backends_file = data_dir_path / "backends.json"
     buckets_file = data_dir_path / "buckets.json"
     pins_file = data_dir_path / "pins.json"
-    for f, default in [(backends_file, {}), (buckets_file, []), (pins_file, [])]:
+    
+    # Initialize with default backends if file doesn't exist or is empty
+    if not backends_file.exists() or backends_file.stat().st_size == 0:
+        with suppress(Exception):
+            with backends_file.open('w', encoding='utf-8') as fh:
+                json.dump(create_default_backends(), fh, indent=2)
+    
+    # Check if backends.json has old format and upgrade it
+    try:
+        with backends_file.open('r', encoding='utf-8') as fh:
+            existing_backends = json.load(fh)
+        
+        # Check if any backend is in old format (missing required fields)
+        needs_upgrade = False
+        for name, config in existing_backends.items():
+            if not isinstance(config, dict) or 'description' not in config or 'created_at' not in config:
+                needs_upgrade = True
+                break
+        
+        if needs_upgrade:
+            # Upgrade to new format with defaults
+            default_backends = create_default_backends()
+            with backends_file.open('w', encoding='utf-8') as fh:
+                json.dump(default_backends, fh, indent=2)
+    except Exception:
+        # If there's any error reading, create defaults
+        with suppress(Exception):
+            with backends_file.open('w', encoding='utf-8') as fh:
+                json.dump(create_default_backends(), fh, indent=2)
+    
+    for f, default in [(buckets_file, []), (pins_file, [])]:
         if not f.exists():
             with suppress(Exception):
                 with f.open('w', encoding='utf-8') as fh:
                     json.dump(default, fh)
+    
     return SimpleNamespace(
         base=base,
         data_dir=data_dir_path,
@@ -2762,33 +2952,73 @@ class ConsolidatedMCPDashboard:
             data = _read_json(self.paths.backends_file, default={})
             items = []
             for k, v in data.items():
-                # Handle both old format (config only) and new format (full backend info)
-                if isinstance(v, dict) and 'type' in v:
-                    # New format with full backend information
+                # Ensure all backends have the required structure
+                if isinstance(v, dict):
+                    # Update health status and last_check time
+                    current_health = self._check_backend_health(k, v)
+                    now = datetime.now(UTC).isoformat()
+                    
                     backend_info = {
                         "name": k,
                         "type": v.get("type", "unknown"),
                         "description": v.get("description", f"{v.get('type', 'unknown')} backend"),
-                        "status": v.get("status", "unknown"),
+                        "status": v.get("status", "enabled"),
                         "config": v.get("config", {}),
-                        "created_at": v.get("created_at", ""),
-                        "last_check": v.get("last_check", "Never"),
-                        "health": self._check_backend_health(k, v)
+                        "created_at": v.get("created_at", now),
+                        "last_check": now,  # Always update to current time
+                        "health": current_health,
+                        "category": v.get("category", "storage"),
+                        "policy": v.get("policy", {
+                            "quota": "unlimited",
+                            "replication": 1,
+                            "retention": "30d",
+                            "cache": "enabled"
+                        }),
+                        "stats": v.get("stats", {
+                            "size": "0B",
+                            "files": 0,
+                            "last_sync": now
+                        })
                     }
                 else:
-                    # Old format (config only) - provide defaults
+                    # Handle malformed entries
+                    now = datetime.now(UTC).isoformat()
                     backend_info = {
                         "name": k,
-                        "type": v.get("type", "unknown") if isinstance(v, dict) else "unknown",
+                        "type": "unknown",
                         "description": f"Legacy {k} backend",
-                        "status": "unknown",
-                        "config": v if isinstance(v, dict) else {},
-                        "created_at": "",
-                        "last_check": "Never",
-                        "health": "unknown"
+                        "status": "disabled",
+                        "config": {},
+                        "created_at": now,
+                        "last_check": now,
+                        "health": "error",
+                        "category": "storage",
+                        "policy": {
+                            "quota": "unlimited",
+                            "replication": 1,
+                            "retention": "30d",
+                            "cache": "disabled"
+                        },
+                        "stats": {
+                            "size": "0B",
+                            "files": 0,
+                            "last_sync": "Never"
+                        }
                     }
                 items.append(backend_info)
-            return {"jsonrpc": "2.0", "result": {"items": items}, "id": None}
+            
+            # Return comprehensive backend data
+            return {
+                "jsonrpc": "2.0", 
+                "result": {
+                    "items": items,
+                    "total": len(items),
+                    "healthy": len([b for b in items if b["health"] == "healthy"]),
+                    "unhealthy": len([b for b in items if b["health"] == "error"]),
+                    "configured": len([b for b in items if b["status"] == "enabled"])
+                }, 
+                "id": None
+            }
         if name == "create_backend":
             bname = args.get("name")
             cfg = args.get("config", {})
@@ -5871,17 +6101,33 @@ class ConsolidatedMCPDashboard:
         container.innerHTML = '<div style="text-align:center;padding:20px;color:#666;"><div class="loading-spinner"></div><br>Loading backends...</div>';
         
         try{ 
-            console.log('🔄 Loading backends from API...');
-            const r = await fetch('/api/state/backends'); 
+            console.log('🗄️ Loading backends via MCP SDK (metadata-first)...');
+            const response = await MCP.callTool('list_backends', {include_metadata: true});
             
-            if (!r.ok) {
-                throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            if (!response || !response.result) {
+                throw new Error('Invalid MCP response');
             }
             
-            const js = await r.json(); 
-            const backends = js.backends || js.items || []; 
+            const js = response.result; 
+            const backends = js.items || []; 
             
-            console.log(`✅ Loaded ${backends.length} backends:`, backends);
+            console.log(`🗄️ MCP backends result:`, js);
+            
+            // Update health counters with MCP data
+            const healthyCount = js.healthy || 0;
+            const unhealthyCount = js.unhealthy || 0;
+            const configuredCount = js.configured || 0;
+            const totalCount = js.total || backends.length;
+            
+            const healthyEl = document.getElementById('healthy-count');
+            const unhealthyEl = document.getElementById('unhealthy-count');
+            const configuredEl = document.getElementById('configured-count');
+            const totalEl = document.getElementById('total-backends-count');
+            
+            if (healthyEl) healthyEl.textContent = healthyCount;
+            if (unhealthyEl) unhealthyEl.textContent = unhealthyCount;
+            if (configuredEl) configuredEl.textContent = configuredCount;
+            if (totalEl) totalEl.textContent = totalCount;
             
             if(!backends.length){ 
                 container.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">No backends configured</div>'; 
