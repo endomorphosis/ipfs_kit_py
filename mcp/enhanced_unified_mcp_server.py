@@ -1427,57 +1427,118 @@ class EnhancedBackendManager:
     
     async def update_backend_policy(self, name: str, policy: Dict[str, Any]) -> Dict[str, Any]:
         """Update backend policy."""
-        backends = self._load_backends()
-        
-        if name not in backends:
-            return {"error": f"Backend '{name}' not found"}
-        
-        if "policies" not in backends[name]:
-            backends[name]["policies"] = {}
+        try:
+            # Handle string input (parse JSON if needed)
+            if isinstance(policy, str):
+                try:
+                    policy = json.loads(policy)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid policy JSON string for {name}: {e}")
+                    return {"ok": False, "error": f"Invalid policy JSON: {str(e)}", "backend": name}
             
-        backends[name]["policies"].update(policy)
-        backends[name]["last_check"] = datetime.now().isoformat()
-        
-        self._save_backends(backends)
-        
-        logger.info(f"Updated backend policy: {name}")
-        return {"ok": True}
+            if not isinstance(policy, dict):
+                logger.error(f"Policy must be a dictionary for {name}, got {type(policy)}")
+                return {"ok": False, "error": f"Policy must be a dictionary, got {type(policy).__name__}", "backend": name}
+            
+            backends = self._load_backends()
+            
+            if name not in backends:
+                return {"ok": False, "error": f"Backend '{name}' not found", "backend": name}
+            
+            if "policies" not in backends[name]:
+                backends[name]["policies"] = {}
+                
+            backends[name]["policies"].update(policy)
+            backends[name]["last_check"] = datetime.now().isoformat()
+            
+            self._save_backends(backends)
+            
+            logger.info(f"Updated backend policy: {name}")
+            return {"ok": True, "backend": name}
+            
+        except Exception as e:
+            logger.error(f"Error updating policy for {name}: {e}")
+            return {"ok": False, "error": str(e), "backend": name}
     
     async def test_backend_config(self, name: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Test backend configuration connectivity."""
-        backends = self._load_backends()
-        
-        if name not in backends:
-            return {"error": f"Backend '{name}' not found"}
-        
-        backend = backends[name]
-        test_config = config or backend.get("config", {})
-        backend_type = backend.get("type", "unknown")
-        
-        # Simulate connectivity test based on backend type
         try:
+            # Handle string input (parse JSON if needed)
+            if isinstance(config, str):
+                try:
+                    config = json.loads(config)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid config JSON string for {name}: {e}")
+                    return {
+                        "reachable": False,
+                        "valid": False,
+                        "errors": [f"Invalid config JSON: {str(e)}"],
+                        "backend": name,
+                        "message": "Configuration test failed - invalid JSON"
+                    }
+            
+            backends = self._load_backends()
+            
+            if name not in backends:
+                return {
+                    "reachable": False,
+                    "valid": False,
+                    "errors": [f"Backend '{name}' not found"],
+                    "backend": name,
+                    "message": "Configuration test failed - backend not found"
+                }
+            
+            backend = backends[name]
+            test_config = config or backend.get("config", {})
+            backend_type = backend.get("type", "unknown")
+            errors = []
+            
+            # Type-specific validation and connectivity test
             if backend_type == "local_storage":
                 root_path = test_config.get("root_path", "/tmp")
-                Path(root_path).mkdir(exist_ok=True)
-                reachable = Path(root_path).exists()
-                
+                try:
+                    Path(root_path).mkdir(exist_ok=True)
+                    reachable = Path(root_path).exists()
+                    if not reachable:
+                        errors.append(f"Cannot access storage path: {root_path}")
+                except Exception as e:
+                    reachable = False
+                    errors.append(f"Storage path error: {str(e)}")
+                    
             elif backend_type == "ipfs":
                 api_url = test_config.get("api_url", "http://127.0.0.1:5001")
                 # For demo purposes, always return success
-                # In real implementation, would test IPFS API
+                # In real implementation, would test IPFS API connectivity
                 reachable = True
                 
             elif backend_type == "s3":
                 access_key = test_config.get("access_key", "")
                 secret_key = test_config.get("secret_key", "")
-                # Test would fail if no credentials (expected for demo)
-                reachable = bool(access_key and secret_key)
+                bucket = test_config.get("bucket", "")
+                region = test_config.get("region", "")
+                
+                if not access_key:
+                    errors.append("Missing S3 access key")
+                if not secret_key:
+                    errors.append("Missing S3 secret key")
+                if not bucket:
+                    errors.append("Missing S3 bucket configuration")
+                if not region:
+                    errors.append("Missing S3 region configuration")
+                    
+                reachable = bool(access_key and secret_key and bucket and region)
                 
             elif backend_type == "github":
+                api_key = test_config.get("api_key", "")
                 token = test_config.get("token", "")
-                repo = test_config.get("repo", "")
-                # Test would fail if no token (expected for demo)
-                reachable = bool(token and repo)
+                base_url = test_config.get("base_url", "")
+                
+                if not api_key and not token:
+                    errors.append("Missing GitHub API key or token")
+                if not base_url:
+                    errors.append("Missing GitHub API base URL")
+                    
+                reachable = bool((api_key or token) and base_url)
                 
             else:
                 # Default to healthy for other types
@@ -1490,32 +1551,61 @@ class EnhancedBackendManager:
             
             return {
                 "reachable": reachable,
-                "status": "healthy" if reachable else "unhealthy",
-                "message": "Configuration test passed" if reachable else "Configuration test failed - check credentials"
+                "valid": reachable,
+                "errors": errors,
+                "backend": name,
+                "message": "Configuration test completed",
+                "status": "healthy" if reachable else "unhealthy"
             }
             
         except Exception as e:
             logger.error(f"Error testing backend {name}: {e}")
-            return {"error": str(e), "reachable": False}
+            return {
+                "reachable": False,
+                "valid": False,
+                "errors": [str(e)],
+                "backend": name,
+                "message": "Configuration test failed with exception"
+            }
     
     async def apply_backend_policy(self, name: str, policy: Dict[str, Any], force_sync: bool = False) -> Dict[str, Any]:
         """Apply backend policy and sync with storage services."""
-        backends = self._load_backends()
-        
-        if name not in backends:
-            return {"error": f"Backend '{name}' not found"}
-        
-        # Update policy
-        await self.update_backend_policy(name, policy)
-        
-        # In a real implementation, this would sync with the actual storage service
-        # For now, we simulate the policy application
-        backend = backends[name]
-        
         try:
+            # Handle string input (parse JSON if needed)
+            if isinstance(policy, str):
+                try:
+                    policy = json.loads(policy)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid policy JSON string for {name}: {e}")
+                    return {"ok": False, "error": f"Invalid policy JSON: {str(e)}", "backend": name}
+            
+            if not isinstance(policy, dict):
+                logger.error(f"Policy must be a dictionary for {name}, got {type(policy)}")
+                return {"ok": False, "error": f"Policy must be a dictionary, got {type(policy).__name__}", "backend": name}
+            
+            backends = self._load_backends()
+            
+            if name not in backends:
+                return {"ok": False, "error": f"Backend '{name}' not found", "backend": name}
+            
+            # Update policy first
+            update_result = await self.update_backend_policy(name, policy)
+            if not update_result.get("ok", False):
+                return {
+                    "ok": False, 
+                    "error": update_result.get("error", "Failed to update policy"),
+                    "backend": name
+                }
+            
+            # Get updated backend data
+            backends = self._load_backends()
+            backend = backends[name]
+            
+            # If force_sync is requested, perform synchronization
             if force_sync:
-                # Simulate synchronization process
                 logger.info(f"Force syncing backend {name} with new policy")
+                # In a real implementation, this would sync with the actual storage service
+                # For now, we simulate the policy application
                 
             # Update backend status
             backend["status"] = "enabled"
@@ -1527,12 +1617,13 @@ class EnhancedBackendManager:
             return {
                 "ok": True,
                 "message": f"Policy applied successfully for {name}",
-                "synced": force_sync
+                "synced": force_sync,
+                "backend": name
             }
             
         except Exception as e:
             logger.error(f"Error applying policy for backend {name}: {e}")
-            return {"error": str(e)}
+            return {"ok": False, "error": str(e), "backend": name}
     
     def _get_backend_category(self, backend_type: str) -> str:
         """Get category for backend type."""
