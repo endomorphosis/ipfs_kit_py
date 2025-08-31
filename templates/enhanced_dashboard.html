@@ -1791,68 +1791,16 @@
                     throw new Error('Tool name is required');
                 }
 
-                // Map MCP tool names to REST API endpoints
-                const endpointMap = {
-                    'list_backends': '/api/backends',
-                    'get_backend': `/api/backends/${args?.name || ''}`,
-                    'test_backend_config': `/api/backends/${args?.name || ''}/test`,
-                    'apply_backend_policy': `/api/backends/${args?.name || ''}/policy`,
-                    'update_backend_policy': `/api/backends/${args?.name || ''}`,
-                    'create_backend_instance': '/api/backends/create',
-                    'get_system_status': '/api/health',
-                    'list_services': '/api/services',
-                    'list_buckets': '/api/buckets',
-                    'list_pins': '/api/pins'
-                };
-
-                const endpoint = endpointMap[toolName];
-                if (!endpoint) {
-                    throw new Error(`Unknown MCP tool: ${toolName}`);
+                // Use the global MCP client instance
+                if (!window.mcpClient) {
+                    throw new Error('MCP client not initialized');
                 }
 
-                // Use appropriate HTTP method based on tool type
-                const method = ['test_backend_config', 'apply_backend_policy', 'update_backend_policy', 'create_backend_instance'].includes(toolName) ? 'POST' : 'GET';
+                // Call the MCP tool using proper JSON-RPC
+                const result = await window.mcpClient.callTool(toolName, args || {});
                 
-                // Handle special endpoint structures
-                let finalEndpoint = endpoint;
-                if (toolName === 'test_backend_config' || toolName === 'apply_backend_policy') {
-                    finalEndpoint = finalEndpoint.replace('undefined', args?.name || '');
-                } else if (toolName === 'update_backend_policy' && args?.name) {
-                    finalEndpoint = `/api/backends/${args.name}`;
-                    method = 'PUT';
-                }
-                
-                const fetchOptions = {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' }
-                };
-
-                if (method === 'POST' && args) {
-                    if (toolName === 'test_backend_config') {
-                        fetchOptions.body = JSON.stringify({ config: args.config });
-                    } else if (toolName === 'apply_backend_policy') {
-                        fetchOptions.body = JSON.stringify({ policy: args.policy, force_sync: args.force_sync });
-                    } else {
-                        fetchOptions.body = JSON.stringify(args);
-                    }
-                } else if (method === 'PUT' && args) {
-                    fetchOptions.body = JSON.stringify(args);
-                }
-
-                const response = await fetch(finalEndpoint, fetchOptions);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.error) {
-                    throw new Error(`API Error: ${data.error}`);
-                }
-                
-                // Return data in MCP-compatible format
-                return { result: data };
+                // Return result in consistent format
+                return { result: result };
             } catch (error) {
                 console.error(`Error calling MCP tool ${toolName}:`, error);
                 throw error;
@@ -2881,19 +2829,13 @@
 
         async function loadBackendsData() {
             try {
-                // Use direct API call for backend operations - metadata-first approach
-                console.log('🗄️ Loading backends via REST API (metadata-first)...');
-                const response = await fetch('/api/backends');
+                // Use MCP JSON-RPC for backend operations - metadata-first approach
+                console.log('🗄️ Loading backends via MCP JSON-RPC (metadata-first)...');
+                const result = await callMCPTool('list_backends', {});
+                console.log('🗄️ Backends result:', result);
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                console.log('🗄️ Backends result:', data);
-                
-                // Handle API result structure
-                const backends = data?.items || data || [];
+                // Handle MCP result structure
+                const backends = result?.result?.items || result?.result || result?.items || result || [];
                 displayBackends(backends);
                 updateBackendStats(backends);
                 
@@ -3262,27 +3204,25 @@
 
         async function loadAnalyticsData() {
             try {
-                // Load data for analytics
-                const [servicesRes, backendsRes, systemRes] = await Promise.all([
-                    fetch('/api/services').catch(() => ({ json: () => ({ services: {} }) })),
-                    fetch('/api/backends').catch(() => ({ json: () => ({ backends: [] }) })),
-                    fetch('/api/metrics/system').catch(() => ({ json: () => ({ cpu_percent: 0, memory_percent: 0, disk_percent: 0 }) }))
+                // Load data for analytics using MCP JSON-RPC
+                const [servicesResult, backendsResult, systemResult] = await Promise.all([
+                    callMCPTool('list_services', {}).catch(() => ({ result: { services: {} } })),
+                    callMCPTool('list_backends', {}).catch(() => ({ result: { backends: [] } })),
+                    callMCPTool('get_system_status', {}).catch(() => ({ result: { cpu_percent: 0, memory_percent: 0, disk_percent: 0 } }))
                 ]);
 
-                const [services, backends, systemMetrics] = await Promise.all([
-                    servicesRes.json(),
-                    backendsRes.json(),
-                    systemRes.json()
-                ]);
+                const services = servicesResult?.result?.services || servicesResult?.result || {};
+                const backends = backendsResult?.result?.backends || backendsResult?.result || [];
+                const systemMetrics = systemResult?.result || systemResult;
 
                 // Create service status chart
-                createServiceStatusChart(services.services || {});
+                createServiceStatusChart(services || {});
                 
                 // Create resource usage chart
                 createResourceUsageChart(systemMetrics);
                 
                 // Create backend charts
-                createBackendCharts(backends.backends || backends || []);
+                createBackendCharts(backends || []);
                 
                 console.log('Analytics charts created successfully');
             } catch (error) {
