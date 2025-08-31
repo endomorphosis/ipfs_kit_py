@@ -6212,7 +6212,8 @@ class ConsolidatedMCPDashboard:
             // Load current settings
             try {
                 await waitForMCP();
-                const bucket = await MCP.Buckets.get(bucketName);
+                const bucketResponse = await MCP.Buckets.get(bucketName);
+                const bucket = (bucketResponse && bucketResponse.result) || {};
                 const policy = bucket.policy || {};
                 
                 document.getElementById('config-replication').value = policy.replication_factor || 1;
@@ -6283,7 +6284,7 @@ class ConsolidatedMCPDashboard:
             const expiration = document.getElementById('share-expiration').value;
             
             const result = await MCP.Buckets.generateShareLink(bucketName, accessType, expiration);
-            const shareLink = window.location.origin + result.share_link;
+            const shareLink = window.location.origin + ((result && result.result && result.result.share_link) || '/share/unknown');
             
             document.getElementById('share-link').value = shareLink;
             document.getElementById('btn-copy-link').disabled = false;
@@ -6715,7 +6716,7 @@ class ConsolidatedMCPDashboard:
         try{ 
             await waitForMCP();
             const result = await MCP.Buckets.list();
-            const items = result.items || []; 
+            const items = (result && result.result && result.result.items) || []; 
             
             // Update bucket selector
             if(selector) {
@@ -7096,7 +7097,8 @@ class ConsolidatedMCPDashboard:
         
         try {
             await waitForMCP();
-            const usage = await MCP.Buckets.getUsage(selectedBucket);
+            const usageResponse = await MCP.Buckets.getUsage(selectedBucket);
+            const usage = (usageResponse && usageResponse.result) || {};
             bucketUsageData[selectedBucket] = usage;
             
             const statusQuota = document.getElementById('status-quota');
@@ -7116,7 +7118,8 @@ class ConsolidatedMCPDashboard:
             }
             
             // Load bucket config for cache and retention info
-            const bucket = await MCP.Buckets.get(selectedBucket);
+            const bucketResponse = await MCP.Buckets.get(selectedBucket);
+            const bucket = (bucketResponse && bucketResponse.result) || {};
             const policy = bucket.policy || {};
             
             if(statusCache) {
@@ -7148,7 +7151,7 @@ class ConsolidatedMCPDashboard:
         try {
             await waitForMCP();
             const result = await MCP.Buckets.listFiles(selectedBucket, '.', true);
-            const files = result.files || [];
+            const files = (result && result.result && result.result.files) || [];
             
             if(files.length === 0) {
                 fileListBody.innerHTML = '<div style="color:#888;padding:12px;text-align:center;">No files in this bucket. Upload some files to get started!</div>';
@@ -7235,7 +7238,7 @@ class ConsolidatedMCPDashboard:
     let logSource=null; let logsInited=false; function initLogs(){
         if(logsInited) return; logsInited=true;
         try{ logSource = new EventSource('/api/logs/stream');
-            logSource.onmessage = (ev)=>{ try{ const data=JSON.parse(ev.data); const pre=document.getElementById('logs-pre'); if(!pre) return; pre.textContent += '\n'+data.timestamp+' '+data.level+' '+data.message; pre.scrollTop = pre.scrollHeight; }catch(e){} };
+            logSource.onmessage = (ev)=>{ try{ const data=JSON.parse(ev.data); const pre=document.getElementById('logs-pre'); if(!pre) return; pre.textContent += '\n'+data.timestamp+' '+data.level+' ['+data.logger+'] '+data.message; pre.scrollTop = pre.scrollHeight; }catch(e){} };
         }catch(e){ console.warn('SSE logs failed', e); }
         const clr=document.getElementById('btn-clear-logs'); if(clr) clr.onclick = ()=>{ if(window.MCP){ window.MCP.callTool('clear_logs',{}).then(()=>{ const pre=document.getElementById('logs-pre'); if(pre) pre.textContent='(cleared)'; }); } };
     }
@@ -7345,9 +7348,10 @@ class ConsolidatedMCPDashboard:
         try {
             await waitForMCP();
             const result = await MCP.Buckets.downloadFile(selectedBucket, filePath, 'text');
+            const content = (result && result.result && result.result.content) || '';
             
             // Create download link
-            const blob = new Blob([result.content], {type: 'text/plain'});
+            const blob = new Blob([content], {type: 'text/plain'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -8146,7 +8150,7 @@ class ConsolidatedMCPDashboard:
             
             await waitForMCP();
             const result = await MCP.Buckets.listFiles(bucketName, currentPath, showMetadata);
-            const files = result.files || [];
+            const files = (result && result.result && result.result.files) || [];
             
             if (files.length === 0) {
                 fileList.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No files in this directory</div>';
@@ -8315,9 +8319,10 @@ class ConsolidatedMCPDashboard:
         try {
             await waitForMCP();
             const result = await MCP.Buckets.downloadFile(bucketName, filePath, 'text');
+            const content = (result && result.result && result.result.content) || '';
             
             // Create download link
-            const blob = new Blob([result.content], { type: 'text/plain' });
+            const blob = new Blob([content], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -8356,11 +8361,12 @@ class ConsolidatedMCPDashboard:
         try {
             await waitForMCP();
             const result = await MCP.Buckets.getMetadata(bucketName, filePath, true);
+            const metadata = (result && result.result) || {};
             
             let metadataHTML = `<div style="font-size:10px;color:#aaa;margin-bottom:5px;">Path: ${filePath}</div>`;
             metadataHTML += `<div style="display:grid;grid-template-columns:auto 1fr;gap:5px;font-size:11px;">`;
             
-            if (result.size) metadataHTML += `<span>Size:</span><span>${formatBytes(result.size)}</span>`;
+            if (metadata.size) metadataHTML += `<span>Size:</span><span>${formatBytes(metadata.size)}</span>`;
             if (result.modified) metadataHTML += `<span>Modified:</span><span>${new Date(result.modified).toLocaleString()}</span>`;
             if (result.created) metadataHTML += `<span>Created:</span><span>${new Date(result.created).toLocaleString()}</span>`;
             if (result.replicas) metadataHTML += `<span>Replicas:</span><span>${result.replicas.length}</span>`;
@@ -8445,7 +8451,8 @@ class ConsolidatedMCPDashboard:
         try {
             await waitForMCP();
             const result = await MCP.Buckets.syncReplicas(bucketName, false);
-            alert(`Replica sync completed. ${result.synced_files || 0} files synced.`);
+            const syncResult = (result && result.result) || {};
+            alert(`Replica sync completed. ${syncResult.synced_files || 0} files synced.`);
             
         } catch (e) {
             console.error('Error syncing replicas:', e);
@@ -8464,7 +8471,8 @@ class ConsolidatedMCPDashboard:
             
             try {
                 await waitForMCP();
-                const policy = await MCP.Buckets.getPolicy(bucketName);
+                const policyResponse = await MCP.Buckets.getPolicy(bucketName);
+                const policy = (policyResponse && policyResponse.result) || {};
                 
                 modalBody.innerHTML = `
                     <div style="display:grid;gap:15px;">
