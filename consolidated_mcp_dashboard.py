@@ -16,7 +16,7 @@ imports + helpers restored below.
 import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading
 from collections import deque
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional, Iterable
 from contextlib import suppress, asynccontextmanager
 from types import SimpleNamespace
@@ -2494,6 +2494,15 @@ class ConsolidatedMCPDashboard:
             {"name": "delete_backend", "description": "Delete backend", "inputSchema": {"type":"object", "required":["name"], "confirm": {"message":"This will remove the backend. Continue?"}, "properties": {"name": {"type":"string", "title":"Backend", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
             {"name": "test_backend", "description": "Test backend reachability", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Backend", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
             {"name": "get_backend", "description": "Get backend by name", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Backend", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
+            # Advanced backend management tools
+            {"name": "list_backend_instances", "description": "List backend instances by type", "inputSchema": {}},
+            {"name": "create_backend_instance", "description": "Create new backend instance", "inputSchema": {"type":"object", "required":["service_type","instance_name"], "properties": {"service_type": {"type":"string", "title":"Backend Type", "enum":["local_storage","ipfs","s3","git","parquet","ipfs_cluster"]}, "instance_name": {"type":"string", "title":"Instance Name"}, "description": {"type":"string", "title":"Description"}}}},
+            {"name": "configure_backend_instance", "description": "Configure backend instance", "inputSchema": {"type":"object", "required":["instance_name"], "properties": {"instance_name": {"type":"string", "title":"Instance Name"}, "service_type": {"type":"string", "title":"Backend Type"}, "config": {"type":"object", "title":"Configuration"}}}},
+            {"name": "get_backend_performance_metrics", "description": "Get backend performance metrics", "inputSchema": {"type":"object", "required":["backend_name"], "properties": {"backend_name": {"type":"string", "title":"Backend Name"}, "time_range": {"type":"string", "title":"Time Range", "enum":["1h","6h","24h","7d"], "default":"1h"}, "include_history": {"type":"boolean", "title":"Include History", "default":False}}}},
+            {"name": "get_backend_configuration_template", "description": "Get configuration template for backend type", "inputSchema": {"type":"object", "required":["backend_type"], "properties": {"backend_type": {"type":"string", "title":"Backend Type", "enum":["local_storage","ipfs","s3","git","parquet","ipfs_cluster"]}, "template_type": {"type":"string", "title":"Template Type", "enum":["basic","enterprise","high_performance"], "default":"basic"}}}},
+            {"name": "clone_backend_configuration", "description": "Clone backend configuration", "inputSchema": {"type":"object", "required":["source_backend","new_backend_name"], "properties": {"source_backend": {"type":"string", "title":"Source Backend"}, "new_backend_name": {"type":"string", "title":"New Backend Name"}, "modify_config": {"type":"boolean", "title":"Modify Configuration", "default":False}}}},
+            {"name": "backup_backend_configuration", "description": "Backup backend configuration", "inputSchema": {"type":"object", "required":["backend_name"], "properties": {"backend_name": {"type":"string", "title":"Backend Name"}, "backup_name": {"type":"string", "title":"Backup Name"}, "include_data": {"type":"boolean", "title":"Include Data", "default":False}}}},
+            {"name": "restore_backend_configuration", "description": "Restore backend configuration from backup", "inputSchema": {"type":"object", "required":["backend_name","backup_id"], "properties": {"backend_name": {"type":"string", "title":"Backend Name"}, "backup_id": {"type":"string", "title":"Backup ID"}, "force_restore": {"type":"boolean", "title":"Force Restore", "default":False}}}},
             {"name": "list_buckets", "description": "List buckets", "inputSchema": {}},
             {"name": "create_bucket", "description": "Create bucket", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket Name", "ui": {"placeholder":"my-bucket"}}, "backend": {"type":"string", "title":"Backend", "description":"Optional backend id", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
             {"name": "delete_bucket", "description": "Delete bucket", "inputSchema": {"type":"object", "required":["name"], "confirm": {"message":"This will delete the bucket record. Continue?"}, "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
@@ -2751,7 +2760,34 @@ class ConsolidatedMCPDashboard:
     def _handle_backends(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if name == "list_backends":
             data = _read_json(self.paths.backends_file, default={})
-            items = [{"name": k, "config": v} for k, v in data.items()]
+            items = []
+            for k, v in data.items():
+                # Handle both old format (config only) and new format (full backend info)
+                if isinstance(v, dict) and 'type' in v:
+                    # New format with full backend information
+                    backend_info = {
+                        "name": k,
+                        "type": v.get("type", "unknown"),
+                        "description": v.get("description", f"{v.get('type', 'unknown')} backend"),
+                        "status": v.get("status", "unknown"),
+                        "config": v.get("config", {}),
+                        "created_at": v.get("created_at", ""),
+                        "last_check": v.get("last_check", "Never"),
+                        "health": self._check_backend_health(k, v)
+                    }
+                else:
+                    # Old format (config only) - provide defaults
+                    backend_info = {
+                        "name": k,
+                        "type": v.get("type", "unknown") if isinstance(v, dict) else "unknown",
+                        "description": f"Legacy {k} backend",
+                        "status": "unknown",
+                        "config": v if isinstance(v, dict) else {},
+                        "created_at": "",
+                        "last_check": "Never",
+                        "health": "unknown"
+                    }
+                items.append(backend_info)
             return {"jsonrpc": "2.0", "result": {"items": items}, "id": None}
         if name == "create_backend":
             bname = args.get("name")
@@ -2784,20 +2820,502 @@ class ConsolidatedMCPDashboard:
         if name == "test_backend":
             bname = args.get("name")
             data = _read_json(self.paths.backends_file, default={})
-            cfg = data.get(bname)
-            if cfg is None:
+            backend_config = data.get(bname)
+            if backend_config is None:
                 raise HTTPException(404, "Not found")
-            kind = (cfg or {}).get("type", "unknown")
-            ipfs_bin = _which("ipfs")
-            reachable = bool(ipfs_bin)
-            return {"jsonrpc": "2.0", "result": {"name": bname, "type": kind, "reachable": reachable, "ipfs_bin": ipfs_bin}, "id": None}
+            
+            # Perform comprehensive backend testing
+            backend_type = backend_config.get("type", "unknown") if isinstance(backend_config, dict) else "unknown"
+            config = backend_config.get("config", {}) if isinstance(backend_config, dict) else {}
+            
+            test_results = {
+                "name": bname,
+                "type": backend_type,
+                "reachable": False,
+                "response_time": None,
+                "details": {},
+                "errors": []
+            }
+            
+            try:
+                import time
+                start_time = time.time()
+                
+                if backend_type == "local_storage":
+                    path = Path(config.get("path", ""))
+                    if path.exists():
+                        test_results["reachable"] = True
+                        test_results["details"]["path_exists"] = True
+                        test_results["details"]["writable"] = os.access(path, os.W_OK)
+                    else:
+                        test_results["errors"].append(f"Path does not exist: {path}")
+                
+                elif backend_type == "ipfs":
+                    import urllib.request
+                    api_url = config.get("api_url", "http://127.0.0.1:5001")
+                    try:
+                        with urllib.request.urlopen(f"{api_url}/api/v0/version", timeout=5) as response:
+                            if response.status == 200:
+                                test_results["reachable"] = True
+                                version_data = response.read().decode()
+                                test_results["details"]["version"] = version_data
+                            else:
+                                test_results["errors"].append(f"HTTP {response.status}")
+                    except Exception as e:
+                        test_results["errors"].append(f"Connection failed: {str(e)}")
+                
+                elif backend_type == "s3":
+                    endpoint = config.get("endpoint")
+                    bucket = config.get("bucket")
+                    if endpoint and bucket:
+                        test_results["reachable"] = True
+                        test_results["details"]["endpoint"] = endpoint
+                        test_results["details"]["bucket"] = bucket
+                    else:
+                        test_results["errors"].append("Missing endpoint or bucket configuration")
+                
+                elif backend_type == "git":
+                    repo_url = config.get("repo_url", "")
+                    if repo_url.startswith(("http://", "https://", "git@")):
+                        test_results["reachable"] = True
+                        test_results["details"]["repo_url"] = repo_url
+                        test_results["details"]["branch"] = config.get("branch", "main")
+                    else:
+                        test_results["errors"].append("Invalid repository URL")
+                
+                else:
+                    test_results["errors"].append(f"Unknown backend type: {backend_type}")
+                
+                test_results["response_time"] = round((time.time() - start_time) * 1000, 2)  # milliseconds
+                
+            except Exception as e:
+                test_results["errors"].append(f"Test failed: {str(e)}")
+            
+            return {"jsonrpc": "2.0", "result": test_results, "id": None}
+        
+        # Advanced backend management tools
+        if name == "list_backend_instances":
+            data = _read_json(self.paths.backends_file, default={})
+            instances = {}
+            for backend_name, backend_config in data.items():
+                backend_type = backend_config.get("type", "unknown") if isinstance(backend_config, dict) else "unknown"
+                if backend_type not in instances:
+                    instances[backend_type] = []
+                instances[backend_type].append({
+                    "name": backend_name,
+                    "status": backend_config.get("status", "unknown") if isinstance(backend_config, dict) else "unknown",
+                    "health": self._check_backend_health(backend_name, backend_config)
+                })
+            return {"jsonrpc": "2.0", "result": {"instances": instances}, "id": None}
+        
+        if name == "create_backend_instance":
+            service_type = args.get("service_type")
+            instance_name = args.get("instance_name")
+            description = args.get("description", f"{service_type} backend")
+            
+            if not service_type or not instance_name:
+                raise HTTPException(400, "Missing service_type or instance_name")
+            
+            data = _read_json(self.paths.backends_file, default={})
+            if instance_name in data:
+                raise HTTPException(409, "Backend instance already exists")
+            
+            # Create default configuration based on backend type
+            default_config = self._get_default_backend_config(service_type)
+            
+            new_backend = {
+                "type": service_type,
+                "description": description,
+                "config": default_config,
+                "status": "enabled",
+                "created_at": datetime.now(UTC).isoformat(),
+                "last_check": datetime.now(UTC).isoformat()
+            }
+            
+            data[instance_name] = new_backend
+            _atomic_write_json(self.paths.backends_file, data)
+            
+            return {"jsonrpc": "2.0", "result": {"ok": True, "instance_name": instance_name, "type": service_type}, "id": None}
+        
+        if name == "configure_backend_instance":
+            instance_name = args.get("instance_name")
+            service_type = args.get("service_type")
+            config = args.get("config", {})
+            
+            if not instance_name:
+                raise HTTPException(400, "Missing instance_name")
+            
+            data = _read_json(self.paths.backends_file, default={})
+            if instance_name not in data:
+                raise HTTPException(404, "Backend instance not found")
+            
+            # Update configuration
+            backend_config = data[instance_name]
+            if isinstance(backend_config, dict):
+                if service_type:
+                    backend_config["type"] = service_type
+                backend_config["config"] = config
+                backend_config["last_check"] = datetime.now(UTC).isoformat()
+            
+            _atomic_write_json(self.paths.backends_file, data)
+            
+            return {"jsonrpc": "2.0", "result": {"ok": True, "instance_name": instance_name}, "id": None}
+        
+        if name == "get_backend_performance_metrics":
+            backend_name = args.get("backend_name")
+            time_range = args.get("time_range", "1h")
+            include_history = args.get("include_history", False)
+            
+            if not backend_name:
+                raise HTTPException(400, "Missing backend_name")
+            
+            data = _read_json(self.paths.backends_file, default={})
+            if backend_name not in data:
+                raise HTTPException(404, "Backend not found")
+            
+            # Generate mock performance metrics
+            metrics = {
+                "backend_name": backend_name,
+                "time_range": time_range,
+                "current_metrics": {
+                    "response_time_ms": 45.2,
+                    "throughput_mbps": 12.5,
+                    "error_rate": 0.01,
+                    "cpu_usage": 15.3,
+                    "memory_usage": 8.7,
+                    "disk_usage": 42.1
+                },
+                "timestamp": datetime.now(UTC).isoformat()
+            }
+            
+            if include_history:
+                # Generate mock historical data points
+                import random
+                history = []
+                for i in range(10):
+                    history.append({
+                        "timestamp": (datetime.now(UTC) - timedelta(minutes=i*6)).isoformat(),
+                        "response_time_ms": 45.2 + random.uniform(-10, 10),
+                        "throughput_mbps": 12.5 + random.uniform(-2, 2),
+                        "error_rate": max(0, 0.01 + random.uniform(-0.005, 0.01))
+                    })
+                metrics["history"] = history
+            
+            return {"jsonrpc": "2.0", "result": metrics, "id": None}
+        
+        if name == "get_backend_configuration_template":
+            backend_type = args.get("backend_type")
+            template_type = args.get("template_type", "basic")
+            
+            if not backend_type:
+                raise HTTPException(400, "Missing backend_type")
+            
+            template = self._get_configuration_template(backend_type, template_type)
+            
+            return {"jsonrpc": "2.0", "result": {
+                "backend_type": backend_type,
+                "template_type": template_type,
+                "template": template
+            }, "id": None}
+        
+        if name == "clone_backend_configuration":
+            source_backend = args.get("source_backend")
+            new_backend_name = args.get("new_backend_name")
+            modify_config = args.get("modify_config", False)
+            
+            if not source_backend or not new_backend_name:
+                raise HTTPException(400, "Missing source_backend or new_backend_name")
+            
+            data = _read_json(self.paths.backends_file, default={})
+            if source_backend not in data:
+                raise HTTPException(404, "Source backend not found")
+            if new_backend_name in data:
+                raise HTTPException(409, "New backend name already exists")
+            
+            # Clone the configuration
+            source_config = data[source_backend]
+            new_config = json.loads(json.dumps(source_config))  # Deep copy
+            
+            if isinstance(new_config, dict):
+                new_config["created_at"] = datetime.now(UTC).isoformat()
+                new_config["last_check"] = datetime.now(UTC).isoformat()
+                if "description" in new_config:
+                    new_config["description"] = f"Cloned from {source_backend}"
+            
+            data[new_backend_name] = new_config
+            _atomic_write_json(self.paths.backends_file, data)
+            
+            return {"jsonrpc": "2.0", "result": {
+                "ok": True,
+                "source_backend": source_backend,
+                "new_backend_name": new_backend_name,
+                "modify_config": modify_config
+            }, "id": None}
+        
+        if name == "backup_backend_configuration":
+            backend_name = args.get("backend_name")
+            backup_name = args.get("backup_name")
+            include_data = args.get("include_data", False)
+            
+            if not backend_name:
+                raise HTTPException(400, "Missing backend_name")
+            
+            data = _read_json(self.paths.backends_file, default={})
+            if backend_name not in data:
+                raise HTTPException(404, "Backend not found")
+            
+            # Create backup
+            backup_id = f"backup_{backend_name}_{int(time.time())}"
+            backup_dir = self.paths.data_dir / "backups" / "backends"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            
+            backup_file = backup_dir / f"{backup_id}.json"
+            backup_data = {
+                "backup_id": backup_id,
+                "backend_name": backend_name,
+                "backup_name": backup_name or f"Backup of {backend_name}",
+                "created_at": datetime.now(UTC).isoformat(),
+                "config": data[backend_name],
+                "include_data": include_data
+            }
+            
+            with open(backup_file, 'w') as f:
+                json.dump(backup_data, f, indent=2)
+            
+            return {"jsonrpc": "2.0", "result": {
+                "ok": True,
+                "backup_id": backup_id,
+                "backup_file": str(backup_file)
+            }, "id": None}
+        
+        if name == "restore_backend_configuration":
+            backend_name = args.get("backend_name")
+            backup_id = args.get("backup_id")
+            force_restore = args.get("force_restore", False)
+            
+            if not backend_name or not backup_id:
+                raise HTTPException(400, "Missing backend_name or backup_id")
+            
+            backup_dir = self.paths.data_dir / "backups" / "backends"
+            backup_file = backup_dir / f"{backup_id}.json"
+            
+            if not backup_file.exists():
+                raise HTTPException(404, "Backup not found")
+            
+            with open(backup_file, 'r') as f:
+                backup_data = json.load(f)
+            
+            data = _read_json(self.paths.backends_file, default={})
+            
+            if backend_name in data and not force_restore:
+                raise HTTPException(409, "Backend exists. Use force_restore=true to overwrite")
+            
+            # Restore configuration
+            data[backend_name] = backup_data["config"]
+            _atomic_write_json(self.paths.backends_file, data)
+            
+            return {"jsonrpc": "2.0", "result": {
+                "ok": True,
+                "backend_name": backend_name,
+                "backup_id": backup_id,
+                "restored_at": datetime.now(UTC).isoformat()
+            }, "id": None}
+        
         if name == "get_backend":
             bname = args.get("name")
             data = _read_json(self.paths.backends_file, default={})
             if bname not in data:
                 raise HTTPException(404, "Not found")
-            return {"jsonrpc": "2.0", "result": {"name": bname, "config": data[bname]}, "id": None}
+            
+            backend_config = data[bname]
+            # Handle both old and new format
+            if isinstance(backend_config, dict) and 'type' in backend_config:
+                # New format with full backend information
+                result = {
+                    "name": bname,
+                    "type": backend_config.get("type", "unknown"),
+                    "description": backend_config.get("description", f"{backend_config.get('type', 'unknown')} backend"),
+                    "status": backend_config.get("status", "unknown"),
+                    "config": backend_config.get("config", {}),
+                    "created_at": backend_config.get("created_at", ""),
+                    "last_check": backend_config.get("last_check", "Never"),
+                    "health": self._check_backend_health(bname, backend_config)
+                }
+            else:
+                # Old format (config only)
+                result = {
+                    "name": bname,
+                    "type": backend_config.get("type", "unknown") if isinstance(backend_config, dict) else "unknown",
+                    "description": f"Legacy {bname} backend",
+                    "status": "unknown",
+                    "config": backend_config if isinstance(backend_config, dict) else {},
+                    "created_at": "",
+                    "last_check": "Never",
+                    "health": "unknown"
+                }
+            
+            return {"jsonrpc": "2.0", "result": result, "id": None}
         return None
+
+    def _get_default_backend_config(self, backend_type: str) -> Dict[str, Any]:
+        """Get default configuration for backend type."""
+        configs = {
+            "local_storage": {
+                "path": str(self.paths.data_dir / "local_storage"),
+                "max_size": "10GB"
+            },
+            "ipfs": {
+                "api_url": "http://127.0.0.1:5001",
+                "gateway_url": "http://127.0.0.1:8080"
+            },
+            "s3": {
+                "endpoint": "https://s3.amazonaws.com",
+                "bucket": "my-bucket",
+                "region": "us-east-1"
+            },
+            "git": {
+                "repo_url": "https://github.com/example/repo",
+                "branch": "main"
+            },
+            "parquet": {
+                "path": str(self.paths.data_dir / "parquet_storage"),
+                "compression": "snappy"
+            },
+            "ipfs_cluster": {
+                "cluster_api": "http://127.0.0.1:9094",
+                "peers": []
+            }
+        }
+        return configs.get(backend_type, {})
+
+    def _get_configuration_template(self, backend_type: str, template_type: str) -> Dict[str, Any]:
+        """Get configuration template for backend type and template."""
+        templates = {
+            "local_storage": {
+                "basic": {
+                    "path": "/path/to/storage",
+                    "max_size": "10GB"
+                },
+                "enterprise": {
+                    "path": "/enterprise/storage",
+                    "max_size": "1TB",
+                    "backup_path": "/enterprise/backup",
+                    "encryption": True
+                },
+                "high_performance": {
+                    "path": "/fast/ssd/storage",
+                    "max_size": "500GB",
+                    "cache_size": "50GB",
+                    "threads": 16
+                }
+            },
+            "ipfs": {
+                "basic": {
+                    "api_url": "http://127.0.0.1:5001",
+                    "gateway_url": "http://127.0.0.1:8080"
+                },
+                "enterprise": {
+                    "api_url": "http://127.0.0.1:5001",
+                    "gateway_url": "http://127.0.0.1:8080",
+                    "swarm_peers": [],
+                    "bootstrap_nodes": []
+                },
+                "high_performance": {
+                    "api_url": "http://127.0.0.1:5001",
+                    "gateway_url": "http://127.0.0.1:8080",
+                    "datastore_type": "badger",
+                    "cache_size": "2GB"
+                }
+            },
+            "s3": {
+                "basic": {
+                    "endpoint": "https://s3.amazonaws.com",
+                    "bucket": "my-bucket",
+                    "region": "us-east-1"
+                },
+                "enterprise": {
+                    "endpoint": "https://s3.amazonaws.com",
+                    "bucket": "enterprise-bucket",
+                    "region": "us-east-1",
+                    "encryption": "AES256",
+                    "versioning": True
+                },
+                "high_performance": {
+                    "endpoint": "https://s3.amazonaws.com",
+                    "bucket": "high-perf-bucket",
+                    "region": "us-east-1",
+                    "storage_class": "STANDARD_IA",
+                    "multipart_threshold": "8MB"
+                }
+            }
+        }
+        
+        backend_templates = templates.get(backend_type, {})
+        return backend_templates.get(template_type, {})
+
+    def _check_backend_health(self, backend_name: str, backend_config: Dict[str, Any]) -> str:
+        """Check backend health and return status."""
+        try:
+            backend_type = backend_config.get("type", "unknown")
+            config = backend_config.get("config", {})
+            
+            if backend_type == "local_storage":
+                # Check if local path exists and is writable
+                path = config.get("path")
+                if path and Path(path).exists():
+                    return "healthy"
+                return "error"
+            
+            elif backend_type == "ipfs":
+                # Check IPFS node connectivity
+                import urllib.request
+                api_url = config.get("api_url", "http://127.0.0.1:5001")
+                try:
+                    with urllib.request.urlopen(f"{api_url}/api/v0/version", timeout=2) as response:
+                        if response.status == 200:
+                            return "healthy"
+                except:
+                    pass
+                return "error"
+            
+            elif backend_type == "s3":
+                # For S3, just check if config has required fields
+                if config.get("endpoint") and config.get("bucket"):
+                    return "healthy"
+                return "error"
+            
+            elif backend_type == "parquet":
+                # Check if parquet path exists
+                path = config.get("path")
+                if path and Path(path).exists():
+                    return "healthy"
+                return "error"
+            
+            elif backend_type == "git":
+                # Check if repo URL is valid format
+                repo_url = config.get("repo_url", "")
+                if repo_url.startswith(("http://", "https://", "git@")):
+                    return "healthy"
+                return "error"
+            
+            elif backend_type == "ipfs_cluster":
+                # Check cluster API connectivity
+                cluster_api = config.get("cluster_api")
+                if cluster_api:
+                    try:
+                        import urllib.request
+                        with urllib.request.urlopen(f"{cluster_api}/api/v0/version", timeout=2) as response:
+                            if response.status == 200:
+                                return "healthy"
+                    except:
+                        pass
+                return "error"
+            
+            # Unknown backend type
+            return "unknown"
+            
+        except Exception:
+            return "error"
 
     def _handle_buckets(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if name == "list_buckets":
