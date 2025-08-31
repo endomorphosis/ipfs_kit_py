@@ -1791,20 +1791,79 @@
                     throw new Error('Tool name is required');
                 }
 
-                // Use the global MCP client instance
-                if (!window.mcpClient) {
-                    throw new Error('MCP client not initialized');
+                // Try MCP client first if available
+                if (window.mcpClient) {
+                    // Call the MCP tool using proper JSON-RPC
+                    const result = await window.mcpClient.callTool(toolName, args || {});
+                    
+                    // Return result in consistent format
+                    return { result: result };
                 }
-
-                // Call the MCP tool using proper JSON-RPC
-                const result = await window.mcpClient.callTool(toolName, args || {});
                 
-                // Return result in consistent format
-                return { result: result };
+                // Fallback to direct API calls when MCP client not available
+                console.log(`Fallback: Using direct API for tool ${toolName}`);
+                return await callToolDirectAPI(toolName, args || {});
+                
             } catch (error) {
                 console.error(`Error calling MCP tool ${toolName}:`, error);
                 throw error;
             }
+        }
+
+        async function callToolDirectAPI(toolName, args) {
+            // Map MCP tools to direct API endpoints
+            const toolMapping = {
+                'list_backends': () => fetch('/api/backends').then(r => r.json()),
+                'get_backend': (args) => fetch(`/api/backends/${args.name}`).then(r => r.json()),
+                'test_backend_config': (args) => fetch(`/api/backends/${args.name}/test`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config: args.config })
+                }).then(r => r.json()).then(data => data.result || data),
+                'apply_backend_policy': (args) => fetch(`/api/backends/${args.name}/policy`, {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ policy: args.policy, force_sync: args.force_sync })
+                }).then(r => r.json()).then(data => data.result || data),
+                'update_backend_policy': (args) => fetch(`/api/backends/${args.name}/policy`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ policy: args.policy })
+                }).then(r => r.json()).then(data => data.result || data),
+                'update_backend': (args) => fetch(`/api/backends/${args.name}/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config: args.config })
+                }).then(r => r.json()).then(data => data.result || data),
+                'create_backend_instance': (args) => fetch('/api/backends/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(args)
+                }).then(r => r.json()).then(data => data.result || data),
+                'delete_backend': (args) => fetch(`/api/backends/${args.name}`, {
+                    method: 'DELETE'
+                }).then(r => r.json()).then(data => data.result || data),
+                'sync_backend': (args) => fetch(`/api/backends/${args.name}/sync`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ force: args.force })
+                }).then(r => r.json()).then(data => data.result || data),
+                'get_system_status': () => fetch('/api/status').then(r => r.json()),
+                'health_check': () => fetch('/api/health').then(r => r.json()),
+                'list_services': () => fetch('/api/services').then(r => r.json()),
+                'list_buckets': () => fetch('/api/buckets').then(r => r.json()),
+                'list_pins': () => fetch('/api/pins').then(r => r.json())
+            };
+            
+            const apiCall = toolMapping[toolName];
+            if (!apiCall) {
+                throw new Error(`No API mapping for tool: ${toolName}`);
+            }
+            
+            const result = await apiCall(args);
+            
+            // Return in consistent MCP-like format
+            return { result: result };
         }
 
         async function getDiskUsage() {
