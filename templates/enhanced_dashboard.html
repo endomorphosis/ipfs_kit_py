@@ -2895,8 +2895,14 @@
                 
                 // Handle MCP result structure
                 const backends = result?.result?.items || result?.result || result?.items || result || [];
-                displayBackends(backends);
-                updateBackendStats(backends);
+                
+                // Ensure backends is an array before processing
+                const backendsArray = Array.isArray(backends) ? backends : [];
+                if (!Array.isArray(backends)) {
+                    console.warn('loadBackendsData: list_backends returned non-array:', typeof backends, backends);
+                }
+                
+                displayBackends(backendsArray);
                 
             } catch (error) {
                 console.error('Error loading backends data:', error);
@@ -3528,6 +3534,12 @@
         }
 
         function updateBackendStats(backends) {
+            // Ensure backends is an array
+            if (!Array.isArray(backends)) {
+                console.warn('updateBackendStats: Expected array but got:', typeof backends, backends);
+                backends = [];
+            }
+            
             const healthy = backends.filter(b => b.health === 'healthy' || b.status === 'enabled').length;
             const unhealthy = backends.filter(b => b.health === 'unknown' && b.status === 'disabled').length;
             const configured = backends.filter(b => b.status === 'enabled' || b.status === 'disabled').length;
