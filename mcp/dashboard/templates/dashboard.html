@@ -79,6 +79,9 @@
                     <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="system">
                         <i class="fas fa-server mr-2"></i>System Status
                     </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="buckets">
+                        <i class="fas fa-folder mr-2"></i>Bucket File Management
+                    </button>
                     <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="configuration">
                         <i class="fas fa-cog mr-2"></i>Configuration
                     </button>
@@ -157,6 +160,95 @@
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <div class="text-lg font-medium">Memory Usage</div>
                             <div id="memory-usage" class="text-blue-600">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bucket File Management Tab -->
+            <div id="buckets" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Bucket File Management</h2>
+                    
+                    <!-- Bucket Controls -->
+                    <div class="flex flex-wrap gap-2 mb-6 p-4 bg-gray-50 rounded-lg">
+                        <button id="refresh-buckets" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                        <button id="create-bucket" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-plus mr-2"></i>Create Bucket
+                        </button>
+                        <button id="upload-file" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-upload mr-2"></i>Upload File
+                        </button>
+                        <button id="create-folder" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-folder-plus mr-2"></i>New Folder
+                        </button>
+                        <button id="force-sync" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-sync mr-2"></i>Force Sync
+                        </button>
+                        <button id="share-bucket" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-share-alt mr-2"></i>Share Bucket
+                        </button>
+                    </div>
+
+                    <!-- Bucket Selector and Advanced Settings -->
+                    <div class="flex flex-wrap gap-2 mb-6 p-4 bg-blue-50 rounded-lg items-center">
+                        <label class="text-sm font-medium text-gray-700">Selected Bucket:</label>
+                        <select id="bucket-selector" class="border rounded px-3 py-2 flex-1 min-w-48">
+                            <option value="">Select a bucket...</option>
+                        </select>
+                        <button id="advanced-settings" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
+                            <i class="fas fa-cog mr-2"></i>Advanced Settings
+                        </button>
+                        <button id="quota-management" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded">
+                            <i class="fas fa-chart-pie mr-2"></i>Quota
+                        </button>
+                    </div>
+
+                    <!-- Drag & Drop Upload Zone -->
+                    <div id="drag-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
+                        <div class="text-gray-500">
+                            <i class="fas fa-cloud-upload-alt text-4xl mb-4"></i>
+                            <div class="text-lg font-medium mb-2">Drag & Drop Files Here</div>
+                            <div class="text-sm">Or click to browse files</div>
+                            <input type="file" id="file-input" multiple class="hidden">
+                        </div>
+                    </div>
+
+                    <!-- Bucket Status and Info -->
+                    <div id="bucket-status" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 hidden">
+                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="bucket-file-count">-</div>
+                            <div class="text-sm opacity-90">Files</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="bucket-size">-</div>
+                            <div class="text-sm opacity-90">Storage Used</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="bucket-replication">-</div>
+                            <div class="text-sm opacity-90">Replication</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="bucket-sync-status">-</div>
+                            <div class="text-sm opacity-90">Sync Status</div>
+                        </div>
+                    </div>
+
+                    <!-- File List -->
+                    <div id="bucket-files" class="space-y-3">
+                        <div class="text-gray-500 text-center py-8">
+                            <i class="fas fa-folder-open text-4xl mb-4"></i>
+                            <div>Select a bucket to view files...</div>
+                        </div>
+                    </div>
+
+                    <!-- Breadcrumb Navigation -->
+                    <div id="breadcrumb" class="hidden mb-4 p-3 bg-gray-100 rounded-lg">
+                        <div class="flex items-center space-x-2 text-sm">
+                            <i class="fas fa-home"></i>
+                            <span class="text-gray-600">Root</span>
                         </div>
                     </div>
                 </div>
