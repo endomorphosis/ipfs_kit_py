@@ -3220,25 +3220,37 @@
         async function loadBucketsData() {
             try {
                 // Use MCP SDK for bucket operations - metadata-first approach (no REST API)
-                console.log('📦 Loading buckets via MCP SDK (metadata-first)...');
-                const result = await MCP.Buckets.list(true);
-                console.log('📦 buckets loaded via MCP:', result);
+                console.log('📦 Loading buckets via MCP JSON-RPC (metadata-first)...');
+                await waitForMCP();
+                const result = await callMCPTool('list_buckets', { include_metadata: true });
+                console.log('📦 Buckets result:', result);
                 
-                // Handle MCP result structure
-                const buckets = result?.items || result?.buckets || result || [];
+                // Handle updated MCP result structure properly
+                let buckets = [];
+                if (result?.result?.items && Array.isArray(result.result.items)) {
+                    buckets = result.result.items;
+                } else if (result?.result?.buckets && Array.isArray(result.result.buckets)) {
+                    buckets = result.result.buckets;
+                } else if (result?.items && Array.isArray(result.items)) {
+                    buckets = result.items;
+                } else if (result?.buckets && Array.isArray(result.buckets)) {
+                    buckets = result.buckets;
+                } else if (Array.isArray(result)) {
+                    buckets = result;
+                } else {
+                    console.warn('loadBucketsData: list_buckets returned unexpected structure:', typeof result, result);
+                    buckets = [];
+                }
+                
+                console.log(`📦 Parsed ${buckets.length} buckets successfully`);
                 displayBuckets(buckets);
+                updateBucketSelector(buckets);
+                
             } catch (error) {
                 console.error('Error loading buckets data via MCP:', error);
-                // Try fallback MCP call method if namespace failed
-                try {
-                    const fallbackResult = await callMCPTool('list_buckets', { include_metadata: true });
-                    const buckets = fallbackResult?.items || fallbackResult?.buckets || [];
-                    displayBuckets(buckets);
-                } catch (fallbackError) {
-                    console.error('Fallback MCP bucket call also failed:', fallbackError);
-                    // Show error or empty state
-                    displayBuckets([]);
-                }
+                // Show error state
+                displayBuckets([]);
+                updateBucketSelector([]);
             }
         }
 
@@ -3699,13 +3711,65 @@
 
         function createBucketCard(bucket) {
             const div = document.createElement('div');
-            div.className = 'bg-gray-50 p-4 rounded-lg border';
+            div.className = 'bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md';
+            
+            const typeIcon = getBackendTypeIcon(bucket.type || bucket.backend);
+            const statusColor = bucket.status === 'healthy' ? 'text-green-600' : 'text-red-600';
+            const files = bucket.files || bucket.file_count || 0;
+            const sizeText = bucket.size_gb ? `${bucket.size_gb} GB` : (bucket.total_size || '0 B');
+            const tier = bucket.tier || 'general';
+            const tierColor = tier === 'hot' ? 'bg-red-100 text-red-800' : 
+                            tier === 'cold' ? 'bg-blue-100 text-blue-800' : 
+                            tier === 'archive' ? 'bg-purple-100 text-purple-800' : 
+                            'bg-gray-100 text-gray-800';
+            
             div.innerHTML = `
-                <h3 class="font-medium mb-2">${bucket.name}</h3>
-                <p class="text-sm text-gray-600 mb-2">${bucket.description || 'No description'}</p>
-                <div class="text-xs text-gray-500">
-                    Files: ${bucket.file_count || 0} | Size: ${bucket.total_size || '0 B'}
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">${typeIcon}</span>
+                        <div>
+                            <h3 class="font-semibold text-lg text-gray-900">${bucket.name}</h3>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-xs px-2 py-1 ${tierColor} rounded-full">${tier}</span>
+                                <span class="text-xs ${statusColor}">${bucket.status || 'unknown'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="selectBucket('${bucket.name}')" 
+                            class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded transition-colors">
+                        Manage
+                    </button>
                 </div>
+                
+                <p class="text-sm text-gray-600 mb-4 line-clamp-2">${bucket.description || 'No description provided'}</p>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="text-center">
+                        <div class="text-xl font-bold text-gray-900">${files}</div>
+                        <div class="text-xs text-gray-500">Files</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-xl font-bold text-gray-900">${sizeText}</div>
+                        <div class="text-xs text-gray-500">Storage</div>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 text-xs">
+                    <button onclick="openBucketConfiguration('${bucket.name}')" 
+                            class="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded transition-colors">
+                        ⚙️ Configure
+                    </button>
+                    <button onclick="syncBucketNow('${bucket.name}')" 
+                            class="bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-1 rounded transition-colors">
+                        🔄 Sync
+                    </button>
+                    <button onclick="openBucketSharingDialog('${bucket.name}')" 
+                            class="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded transition-colors">
+                        🔗 Share
+                    </button>
+                </div>
+                
+                ${bucket.created ? `<div class="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400">Created: ${new Date(bucket.created).toLocaleDateString()}</div>` : ''}
             `;
             return div;
         }
@@ -4069,27 +4133,31 @@
             }
         }
 
-        async function updateBucketSelector() {
+        async function updateBucketSelector(buckets = null) {
             try {
-                const buckets = await callMCPTool('list_buckets', {});
+                // If buckets not provided, fetch them
+                if (!buckets) {
+                    const result = await callMCPTool('list_buckets', {});
+                    buckets = result?.result?.items || result?.items || result?.buckets || [];
+                }
+                
                 const selector = document.getElementById('bucket-selector');
                 if (!selector) return;
 
                 selector.innerHTML = '<option value="">Select a bucket...</option>';
                 
-                // Handle both buckets.result.items and buckets.items response structures
-                const bucketList = buckets?.result?.items || buckets?.items || [];
-                if (bucketList && bucketList.length > 0) {
-                    bucketList.forEach(bucket => {
+                if (buckets && buckets.length > 0) {
+                    buckets.forEach(bucket => {
                         const option = document.createElement('option');
                         option.value = bucket.name;
-                        option.textContent = `${bucket.name} (${bucket.backend || 'unknown'})`;
+                        const size = bucket.size_gb ? `${bucket.size_gb}GB` : (bucket.files ? `${bucket.files} files` : '');
+                        option.textContent = `${bucket.name} ${size ? `(${size})` : ''}`;
                         selector.appendChild(option);
                     });
                     
                     // Auto-select first bucket if only one exists (for better UX)
-                    if (bucketList.length === 1) {
-                        const firstBucket = bucketList[0];
+                    if (buckets.length === 1 && !currentBucket) {
+                        const firstBucket = buckets[0];
                         selector.value = firstBucket.name;
                         await selectBucket(firstBucket.name);
                     }
@@ -5914,6 +5982,42 @@
                     filterBackendsByCategory(e.target.id.replace('filter-', '').replace('-backends', ''));
                 });
             });
+        }
+
+        // Bucket sync functionality
+        async function syncBucketNow(bucketName) {
+            if (!bucketName) {
+                bucketName = currentBucket;
+            }
+            
+            if (!bucketName) {
+                alert('Please select a bucket first');
+                return;
+            }
+            
+            try {
+                await waitForMCP();
+                const result = await callMCPTool('bucket_sync_replicas', {
+                    bucket: bucketName,
+                    force_sync: true
+                });
+                
+                if (result?.ok) {
+                    console.log(`Bucket sync completed for ${bucketName}`);
+                    alert(`✅ Bucket "${bucketName}" synced successfully!\n\nReplicas synced: ${result.replicas_synced || 'N/A'}\nSync time: ${result.sync_time || 'N/A'}`);
+                    
+                    // Refresh bucket status and file list if viewing this bucket
+                    if (currentBucket === bucketName) {
+                        await updateBucketStatus(bucketName);
+                        await loadBucketFiles(bucketName, currentPath);
+                    }
+                } else {
+                    alert(`❌ Failed to sync bucket "${bucketName}": ${result?.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error(`Error syncing bucket ${bucketName}:`, error);
+                alert(`Error syncing bucket: ${error.message}`);
+            }
         }
 
         async function testAllBackends() {

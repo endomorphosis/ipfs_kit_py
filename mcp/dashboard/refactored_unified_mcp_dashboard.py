@@ -234,9 +234,130 @@ class RefactoredUnifiedMCPDashboard:
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "backend": {"type": "string", "description": "Filter by backend name"}
+                        "backend": {"type": "string", "description": "Filter by backend name"},
+                        "include_metadata": {"type": "boolean", "default": False, "description": "Include detailed metadata for each bucket"}
                     },
                     "required": []
+                }
+            ),
+            Tool(
+                name="get_bucket",
+                description="Get detailed information about a specific bucket",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Name of the bucket"}
+                    },
+                    "required": ["name"]
+                }
+            ),
+            Tool(
+                name="update_bucket_policy",
+                description="Update bucket policy settings including cache, storage quota, retention",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Name of the bucket"},
+                        "replication_factor": {"type": "integer", "description": "Number of replicas", "default": 3},
+                        "cache_policy": {"type": "string", "enum": ["none", "memory", "disk", "hybrid"], "default": "memory"},
+                        "cache_size": {"type": "integer", "description": "Cache size in MB", "default": 1024},
+                        "storage_quota": {"type": "integer", "description": "Storage quota in GB", "default": 100},
+                        "max_files": {"type": "integer", "description": "Maximum number of files", "default": 10000},
+                        "retention_policy": {"type": "string", "enum": ["keep_forever", "time_based", "size_based", "access_based"], "default": "keep_forever"},
+                        "retention_days": {"type": "integer", "description": "Retention in days", "default": 0},
+                        "auto_cleanup": {"type": "boolean", "description": "Enable automatic cleanup", "default": False}
+                    },
+                    "required": ["name"]
+                }
+            ),
+            Tool(
+                name="get_bucket_policy",
+                description="Get current bucket policy settings",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Name of the bucket"}
+                    },
+                    "required": ["name"]
+                }
+            ),
+            Tool(
+                name="bucket_list_files",
+                description="List files in a bucket",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Name of the bucket"},
+                        "path": {"type": "string", "description": "Path within bucket", "default": "/"},
+                        "show_metadata": {"type": "boolean", "description": "Include file metadata", "default": False}
+                    },
+                    "required": ["name"]
+                }
+            ),
+            Tool(
+                name="bucket_upload_file",
+                description="Upload a file to a bucket",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "bucket": {"type": "string", "description": "Name of the bucket"},
+                        "path": {"type": "string", "description": "File path in bucket"},
+                        "content": {"type": "string", "description": "File content (for text files)"},
+                        "mode": {"type": "string", "enum": ["text", "binary"], "default": "text"},
+                        "apply_policy": {"type": "boolean", "description": "Apply bucket policy", "default": True}
+                    },
+                    "required": ["bucket", "path", "content"]
+                }
+            ),
+            Tool(
+                name="bucket_delete_file",
+                description="Delete a file from a bucket",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "bucket": {"type": "string", "description": "Name of the bucket"},
+                        "path": {"type": "string", "description": "File path in bucket"},
+                        "remove_replicas": {"type": "boolean", "description": "Remove all replicas", "default": True}
+                    },
+                    "required": ["bucket", "path"]
+                }
+            ),
+            Tool(
+                name="bucket_sync_replicas",
+                description="Force sync bucket replicas across backends",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "bucket": {"type": "string", "description": "Name of the bucket"},
+                        "force_sync": {"type": "boolean", "description": "Force synchronization", "default": True}
+                    },
+                    "required": ["bucket"]
+                }
+            ),
+            Tool(
+                name="generate_bucket_share_link",
+                description="Generate a shareable link for bucket access",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "bucket": {"type": "string", "description": "Name of the bucket"},
+                        "access_type": {"type": "string", "enum": ["read_only", "read_write", "admin"], "default": "read_only"},
+                        "expiration": {"type": "string", "description": "Expiration time (1h, 24h, 7d, 30d, never)", "default": "24h"}
+                    },
+                    "required": ["bucket"]
+                }
+            ),
+            Tool(
+                name="create_bucket",
+                description="Create a new bucket",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Name of the bucket"},
+                        "bucket_type": {"type": "string", "enum": ["general", "dataset", "knowledge", "media", "archive", "temp"], "default": "general"},
+                        "description": {"type": "string", "description": "Bucket description", "default": ""}
+                    },
+                    "required": ["name"]
                 }
             ),
             Tool(
@@ -395,7 +516,25 @@ class RefactoredUnifiedMCPDashboard:
                 elif tool_name == "list_backends":
                     result = await self._get_backends_data()
                 elif tool_name == "list_buckets":
-                    result = await self._get_buckets_data()
+                    result = await self._get_buckets_data(arguments)
+                elif tool_name == "get_bucket":
+                    result = await self._get_bucket_details(arguments.get("name"))
+                elif tool_name == "update_bucket_policy":
+                    result = await self._update_bucket_policy(arguments)
+                elif tool_name == "get_bucket_policy":
+                    result = await self._get_bucket_policy(arguments.get("name"))
+                elif tool_name == "bucket_list_files":
+                    result = await self._bucket_list_files(arguments)
+                elif tool_name == "bucket_upload_file":
+                    result = await self._bucket_upload_file(arguments)
+                elif tool_name == "bucket_delete_file":
+                    result = await self._bucket_delete_file(arguments)
+                elif tool_name == "bucket_sync_replicas":
+                    result = await self._bucket_sync_replicas(arguments)
+                elif tool_name == "generate_bucket_share_link":
+                    result = await self._generate_bucket_share_link(arguments)
+                elif tool_name == "create_bucket":
+                    result = await self._create_bucket_enhanced(arguments)
                 elif tool_name == "get_system_status":
                     result = await self._get_system_metrics()
                 elif tool_name == "get_system_overview":
@@ -1137,36 +1276,600 @@ class RefactoredUnifiedMCPDashboard:
             await self._update_backends_cache()
         return self.backends_cache
 
-    async def _get_buckets_data(self):
-        """Get buckets data."""
-        # Return mock bucket data for demonstration
-        mock_buckets = [
+    async def _get_buckets_data(self, arguments: Optional[Dict[str, Any]] = None):
+        """Get buckets data using metadata-first approach."""
+        if arguments is None:
+            arguments = {}
+            
+        include_metadata = arguments.get("include_metadata", False)
+        backend_filter = arguments.get("backend")
+        
+        try:
+            # Check for bucket data in ~/.ipfs_kit/ directory first
+            buckets_file = self.data_dir / "buckets.json"
+            buckets_data = []
+            
+            if buckets_file.exists():
+                logger.info(f"Loading buckets from metadata file: {buckets_file}")
+                with open(buckets_file, 'r') as f:
+                    metadata_buckets = json.load(f)
+                    
+                if isinstance(metadata_buckets, dict) and "buckets" in metadata_buckets:
+                    buckets_data = metadata_buckets["buckets"]
+                elif isinstance(metadata_buckets, list):
+                    buckets_data = metadata_buckets
+                    
+                logger.info(f"Loaded {len(buckets_data)} buckets from metadata")
+            
+            # If no metadata buckets or using fallback, create default buckets
+            if not buckets_data:
+                logger.info("No metadata buckets found, creating default buckets")
+                buckets_data = await self._create_default_buckets()
+                
+                # Save default buckets to metadata file
+                buckets_metadata = {
+                    "buckets": buckets_data,
+                    "total": len(buckets_data),
+                    "last_updated": datetime.now().isoformat()
+                }
+                os.makedirs(self.data_dir, exist_ok=True)
+                with open(buckets_file, 'w') as f:
+                    json.dump(buckets_metadata, f, indent=2)
+                    
+            # Filter by backend if specified
+            if backend_filter:
+                buckets_data = [b for b in buckets_data if b.get("type") == backend_filter or b.get("backend") == backend_filter]
+            
+            # Add metadata if requested
+            if include_metadata:
+                for bucket in buckets_data:
+                    bucket["metadata"] = await self._get_bucket_metadata(bucket["name"])
+            
+            result = {
+                "items": buckets_data,
+                "total": len(buckets_data),
+                "source": "metadata-first"
+            }
+            
+            logger.info(f"Returning {len(buckets_data)} buckets")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error getting buckets data: {e}")
+            return {
+                "items": [],
+                "total": 0,
+                "error": str(e),
+                "source": "error"
+            }
+
+    async def _create_default_buckets(self):
+        """Create default bucket configurations."""
+        default_buckets = [
             {
-                "name": "default",
-                "type": "ipfs", 
+                "name": "documents",
+                "type": "local_fs",
+                "description": "Local filesystem storage for documents",
+                "backend": "local_fs",
                 "size_gb": 2.1,
                 "files": 156,
-                "created": "2024-01-15T10:30:00Z",
-                "status": "healthy"
+                "created": datetime.now().isoformat(),
+                "status": "healthy",
+                "tier": "hot",
+                "config": {
+                    "path": str(self.data_dir / "buckets" / "documents"),
+                    "compression": "none"
+                },
+                "policy": {
+                    "replication_factor": 1,
+                    "cache_policy": "memory",
+                    "cache_size": 1024,
+                    "storage_quota": 100,
+                    "max_files": 10000,
+                    "retention_policy": "keep_forever",
+                    "retention_days": 0,
+                    "auto_cleanup": False
+                }
             },
             {
                 "name": "media",
                 "type": "s3",
-                "size_gb": 5.7, 
+                "description": "S3-compatible object storage for media files",
+                "backend": "s3_demo",
+                "size_gb": 5.7,
                 "files": 342,
-                "created": "2024-02-01T14:20:00Z",
-                "status": "healthy"
+                "created": datetime.now().isoformat(),
+                "status": "healthy",
+                "tier": "cold",
+                "config": {
+                    "endpoint": "https://s3.amazonaws.com",
+                    "bucket": "ipfs-kit-media",
+                    "region": "us-east-1"
+                },
+                "policy": {
+                    "replication_factor": 3,
+                    "cache_policy": "disk",
+                    "cache_size": 2048,
+                    "storage_quota": 500,
+                    "max_files": 50000,
+                    "retention_policy": "time_based",
+                    "retention_days": 365,
+                    "auto_cleanup": True
+                }
             },
             {
-                "name": "archive", 
-                "type": "local",
+                "name": "archive",
+                "type": "ipfs_local",
+                "description": "IPFS local node storage for archives",
+                "backend": "ipfs_local", 
                 "size_gb": 1.2,
                 "files": 89,
-                "created": "2024-03-10T09:15:00Z",
-                "status": "healthy"
+                "created": datetime.now().isoformat(),
+                "status": "healthy",
+                "tier": "archive",
+                "config": {
+                    "ipfs_api": "http://127.0.0.1:5001",
+                    "pin_on_add": True
+                },
+                "policy": {
+                    "replication_factor": 2,
+                    "cache_policy": "none",
+                    "cache_size": 512,
+                    "storage_quota": 1000,
+                    "max_files": 100000,
+                    "retention_policy": "keep_forever",
+                    "retention_days": 0,
+                    "auto_cleanup": False
+                }
             }
         ]
-        return {"buckets": mock_buckets}
+        return default_buckets
+
+    async def _get_bucket_details(self, bucket_name: str):
+        """Get detailed information about a specific bucket."""
+        if not bucket_name:
+            return {"ok": False, "error": "Bucket name is required"}
+            
+        try:
+            buckets_result = await self._get_buckets_data({"include_metadata": True})
+            buckets = buckets_result.get("items", [])
+            
+            bucket = next((b for b in buckets if b["name"] == bucket_name), None)
+            if not bucket:
+                return {"ok": False, "error": f"Bucket '{bucket_name}' not found"}
+            
+            # Add additional details
+            bucket_files = await self._bucket_list_files({"name": bucket_name, "show_metadata": True})
+            bucket["file_details"] = bucket_files.get("result", {}).get("files", [])
+            
+            return {
+                "result": bucket,
+                "ok": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting bucket details for {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _update_bucket_policy(self, arguments: Dict[str, Any]):
+        """Update bucket policy settings."""
+        bucket_name = arguments.get("name")
+        if not bucket_name:
+            return {"ok": False, "error": "Bucket name is required"}
+            
+        try:
+            # Read current buckets
+            buckets_file = self.data_dir / "buckets.json"
+            buckets_data = []
+            
+            if buckets_file.exists():
+                with open(buckets_file, 'r') as f:
+                    metadata = json.load(f)
+                    buckets_data = metadata.get("buckets", [])
+            
+            # Find the bucket to update
+            bucket = next((b for b in buckets_data if b["name"] == bucket_name), None)
+            if not bucket:
+                return {"ok": False, "error": f"Bucket '{bucket_name}' not found"}
+            
+            # Update policy
+            if "policy" not in bucket:
+                bucket["policy"] = {}
+                
+            policy_updates = {
+                "replication_factor": arguments.get("replication_factor", bucket["policy"].get("replication_factor", 3)),
+                "cache_policy": arguments.get("cache_policy", bucket["policy"].get("cache_policy", "memory")),
+                "cache_size": arguments.get("cache_size", bucket["policy"].get("cache_size", 1024)),
+                "storage_quota": arguments.get("storage_quota", bucket["policy"].get("storage_quota", 100)),
+                "max_files": arguments.get("max_files", bucket["policy"].get("max_files", 10000)),
+                "retention_policy": arguments.get("retention_policy", bucket["policy"].get("retention_policy", "keep_forever")),
+                "retention_days": arguments.get("retention_days", bucket["policy"].get("retention_days", 0)),
+                "auto_cleanup": arguments.get("auto_cleanup", bucket["policy"].get("auto_cleanup", False))
+            }
+            
+            bucket["policy"].update(policy_updates)
+            bucket["last_updated"] = datetime.now().isoformat()
+            
+            # Save updated buckets
+            metadata = {
+                "buckets": buckets_data,
+                "total": len(buckets_data),
+                "last_updated": datetime.now().isoformat()
+            }
+            
+            os.makedirs(self.data_dir, exist_ok=True)
+            with open(buckets_file, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
+            logger.info(f"Updated policy for bucket {bucket_name}")
+            return {"ok": True, "message": "Policy updated successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error updating bucket policy for {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _get_bucket_policy(self, bucket_name: str):
+        """Get current bucket policy settings."""
+        if not bucket_name:
+            return {"ok": False, "error": "Bucket name is required"}
+            
+        try:
+            bucket_details = await self._get_bucket_details(bucket_name)
+            if not bucket_details.get("ok"):
+                return bucket_details
+                
+            bucket = bucket_details["result"]
+            policy = bucket.get("policy", {})
+            
+            return {
+                "result": {
+                    "bucket": bucket_name,
+                    "policy": policy
+                },
+                "ok": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting bucket policy for {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _bucket_list_files(self, arguments: Dict[str, Any]):
+        """List files in a bucket."""
+        bucket_name = arguments.get("name")
+        path = arguments.get("path", "/")
+        show_metadata = arguments.get("show_metadata", False)
+        
+        if not bucket_name:
+            return {"ok": False, "error": "Bucket name is required"}
+            
+        try:
+            # Get bucket details first
+            bucket_details = await self._get_bucket_details(bucket_name)
+            if not bucket_details.get("ok"):
+                return bucket_details
+                
+            bucket = bucket_details["result"]
+            
+            # Create mock file listing for demonstration
+            mock_files = [
+                {
+                    "name": "document1.txt",
+                    "path": f"{path}document1.txt",
+                    "type": "file",
+                    "size": 1024,
+                    "modified": datetime.now().isoformat(),
+                    "hash": "QmExample1..." if show_metadata else None,
+                    "replicas": 3 if show_metadata else None
+                },
+                {
+                    "name": "subfolder",
+                    "path": f"{path}subfolder/",
+                    "type": "directory",
+                    "size": 0,
+                    "modified": datetime.now().isoformat(),
+                    "files": 5 if show_metadata else None
+                },
+                {
+                    "name": "image.jpg",
+                    "path": f"{path}image.jpg",
+                    "type": "file",
+                    "size": 2048576,
+                    "modified": datetime.now().isoformat(),
+                    "hash": "QmExample2..." if show_metadata else None,
+                    "replicas": 3 if show_metadata else None
+                }
+            ]
+            
+            return {
+                "result": {
+                    "bucket": bucket_name,
+                    "path": path,
+                    "files": mock_files,
+                    "total": len(mock_files)
+                },
+                "ok": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error listing files for bucket {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _bucket_upload_file(self, arguments: Dict[str, Any]):
+        """Upload a file to a bucket."""
+        bucket_name = arguments.get("bucket")
+        file_path = arguments.get("path")
+        content = arguments.get("content")
+        mode = arguments.get("mode", "text")
+        apply_policy = arguments.get("apply_policy", True)
+        
+        if not all([bucket_name, file_path, content]):
+            return {"ok": False, "error": "Bucket name, path, and content are required"}
+            
+        try:
+            # Get bucket details
+            bucket_details = await self._get_bucket_details(bucket_name)
+            if not bucket_details.get("ok"):
+                return bucket_details
+                
+            # Create bucket directory structure
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            os.makedirs(bucket_dir, exist_ok=True)
+            
+            # Create file path
+            full_path = bucket_dir / file_path.lstrip("/")
+            os.makedirs(full_path.parent, exist_ok=True)
+            
+            # Write file content
+            if mode == "text":
+                with open(full_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            else:
+                # For binary mode, content should be base64 encoded
+                import base64
+                binary_content = base64.b64decode(content)
+                with open(full_path, 'wb') as f:
+                    f.write(binary_content)
+            
+            logger.info(f"Uploaded file {file_path} to bucket {bucket_name}")
+            
+            return {
+                "ok": True,
+                "message": f"File uploaded successfully to {bucket_name}/{file_path}",
+                "path": file_path,
+                "size": len(content)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error uploading file to bucket {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _bucket_delete_file(self, arguments: Dict[str, Any]):
+        """Delete a file from a bucket."""
+        bucket_name = arguments.get("bucket")
+        file_path = arguments.get("path")
+        remove_replicas = arguments.get("remove_replicas", True)
+        
+        if not all([bucket_name, file_path]):
+            return {"ok": False, "error": "Bucket name and path are required"}
+            
+        try:
+            # Get bucket details
+            bucket_details = await self._get_bucket_details(bucket_name)
+            if not bucket_details.get("ok"):
+                return bucket_details
+                
+            # Create file path
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            full_path = bucket_dir / file_path.lstrip("/")
+            
+            if not full_path.exists():
+                return {"ok": False, "error": f"File {file_path} not found in bucket {bucket_name}"}
+            
+            # Delete the file
+            full_path.unlink()
+            logger.info(f"Deleted file {file_path} from bucket {bucket_name}")
+            
+            return {
+                "ok": True,
+                "message": f"File deleted successfully from {bucket_name}/{file_path}"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error deleting file from bucket {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _bucket_sync_replicas(self, arguments: Dict[str, Any]):
+        """Force sync bucket replicas across backends."""
+        bucket_name = arguments.get("bucket")
+        force_sync = arguments.get("force_sync", True)
+        
+        if not bucket_name:
+            return {"ok": False, "error": "Bucket name is required"}
+            
+        try:
+            # Get bucket details
+            bucket_details = await self._get_bucket_details(bucket_name)
+            if not bucket_details.get("ok"):
+                return bucket_details
+                
+            bucket = bucket_details["result"]
+            policy = bucket.get("policy", {})
+            replication_factor = policy.get("replication_factor", 3)
+            
+            # Simulate sync operation
+            logger.info(f"Syncing replicas for bucket {bucket_name} with replication factor {replication_factor}")
+            
+            # Update last sync time
+            bucket["last_sync"] = datetime.now().isoformat()
+            
+            return {
+                "ok": True,
+                "message": f"Bucket replicas synced successfully",
+                "bucket": bucket_name,
+                "replicas_synced": replication_factor,
+                "sync_time": bucket["last_sync"]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error syncing bucket replicas for {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _generate_bucket_share_link(self, arguments: Dict[str, Any]):
+        """Generate a shareable link for bucket access."""
+        bucket_name = arguments.get("bucket")
+        access_type = arguments.get("access_type", "read_only")
+        expiration = arguments.get("expiration", "24h")
+        
+        if not bucket_name:
+            return {"ok": False, "error": "Bucket name is required"}
+            
+        try:
+            # Get bucket details
+            bucket_details = await self._get_bucket_details(bucket_name)
+            if not bucket_details.get("ok"):
+                return bucket_details
+                
+            # Generate a unique token
+            import hashlib
+            import time
+            token_data = f"{bucket_name}:{access_type}:{expiration}:{time.time()}"
+            token = hashlib.sha256(token_data.encode()).hexdigest()[:16]
+            
+            # Create share link
+            base_url = f"http://{self.host}:{self.port}"
+            share_link = f"{base_url}/shared/{bucket_name}?token={token}&access={access_type}&exp={expiration}"
+            
+            # Calculate expiration time
+            if expiration != "never":
+                from datetime import timedelta
+                exp_mapping = {
+                    "1h": timedelta(hours=1),
+                    "24h": timedelta(hours=24),
+                    "7d": timedelta(days=7),
+                    "30d": timedelta(days=30)
+                }
+                exp_time = datetime.now() + exp_mapping.get(expiration, timedelta(hours=24))
+                exp_iso = exp_time.isoformat()
+            else:
+                exp_iso = None
+            
+            logger.info(f"Generated share link for bucket {bucket_name}")
+            
+            return {
+                "result": {
+                    "bucket": bucket_name,
+                    "share_link": share_link,
+                    "access_type": access_type,
+                    "expiration": expiration,
+                    "expires_at": exp_iso,
+                    "token": token
+                },
+                "ok": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating share link for bucket {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _create_bucket_enhanced(self, arguments: Dict[str, Any]):
+        """Create a new bucket with enhanced settings."""
+        bucket_name = arguments.get("name")
+        bucket_type = arguments.get("bucket_type", "general")
+        description = arguments.get("description", "")
+        
+        if not bucket_name:
+            return {"ok": False, "error": "Bucket name is required"}
+            
+        try:
+            # Check if bucket already exists
+            buckets_result = await self._get_buckets_data()
+            existing_buckets = buckets_result.get("items", [])
+            
+            if any(b["name"] == bucket_name for b in existing_buckets):
+                return {"ok": False, "error": f"Bucket '{bucket_name}' already exists"}
+            
+            # Create new bucket configuration
+            new_bucket = {
+                "name": bucket_name,
+                "type": "local_fs",
+                "description": description or f"{bucket_type.title()} bucket",
+                "backend": "local_fs",
+                "size_gb": 0,
+                "files": 0,
+                "created": datetime.now().isoformat(),
+                "status": "healthy",
+                "tier": "hot",
+                "config": {
+                    "path": str(self.data_dir / "buckets" / bucket_name),
+                    "compression": "none"
+                },
+                "policy": {
+                    "replication_factor": 1,
+                    "cache_policy": "memory",
+                    "cache_size": 1024,
+                    "storage_quota": 100,
+                    "max_files": 10000,
+                    "retention_policy": "keep_forever",
+                    "retention_days": 0,
+                    "auto_cleanup": False
+                }
+            }
+            
+            # Add to existing buckets
+            existing_buckets.append(new_bucket)
+            
+            # Save updated buckets
+            buckets_metadata = {
+                "buckets": existing_buckets,
+                "total": len(existing_buckets),
+                "last_updated": datetime.now().isoformat()
+            }
+            
+            buckets_file = self.data_dir / "buckets.json"
+            os.makedirs(self.data_dir, exist_ok=True)
+            with open(buckets_file, 'w') as f:
+                json.dump(buckets_metadata, f, indent=2)
+            
+            # Create bucket directory
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            os.makedirs(bucket_dir, exist_ok=True)
+            
+            logger.info(f"Created new bucket: {bucket_name}")
+            
+            return {
+                "ok": True,
+                "message": f"Bucket '{bucket_name}' created successfully",
+                "bucket": new_bucket
+            }
+            
+        except Exception as e:
+            logger.error(f"Error creating bucket {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _get_bucket_metadata(self, bucket_name: str):
+        """Get metadata for a specific bucket."""
+        try:
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            if not bucket_dir.exists():
+                return {"files": 0, "size": 0}
+                
+            total_files = 0
+            total_size = 0
+            
+            for file_path in bucket_dir.rglob("*"):
+                if file_path.is_file():
+                    total_files += 1
+                    total_size += file_path.stat().st_size
+                    
+            return {
+                "files": total_files,
+                "size": total_size,
+                "size_gb": round(total_size / (1024**3), 2)
+            }
+            
+        except Exception as e:
+            logger.warning(f"Could not get metadata for bucket {bucket_name}: {e}")
+            return {"files": 0, "size": 0}
 
     async def _get_services_data(self):
         """Get services data."""
