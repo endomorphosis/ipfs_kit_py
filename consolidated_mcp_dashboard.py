@@ -4277,6 +4277,54 @@ class ConsolidatedMCPDashboard:
             except Exception as e:
                 return {"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Selective sync failed: {str(e)}"}, "id": None}
 
+        if name == "update_bucket_policy":
+            bname = args.get("name")
+            if not bname:
+                raise HTTPException(400, "Missing name")
+            # Accept either flat keys or nested { policy: { ... } }
+            pol_in = args.get("policy") if isinstance(args.get("policy"), dict) else None
+            rf = args.get("replication_factor") if args.get("replication_factor") is not None else (pol_in or {}).get("replication_factor")
+            cp = args.get("cache_policy") if args.get("cache_policy") is not None else (pol_in or {}).get("cache_policy")
+            rd = args.get("retention_days") if args.get("retention_days") is not None else (pol_in or {}).get("retention_days")
+            # validation / partial updates allowed
+            if rf is not None:
+                try:
+                    rf = int(rf)
+                except Exception:
+                    raise HTTPException(400, "replication_factor must be int")
+                if rf < 1 or rf > 10:
+                    raise HTTPException(400, "replication_factor out of range")
+            if cp is not None and cp not in ("none", "memory", "disk"):
+                raise HTTPException(400, "cache_policy invalid")
+            if rd is not None:
+                try:
+                    rd = int(rd)
+                except Exception:
+                    raise HTTPException(400, "retention_days must be int")
+                if rd < 0:
+                    raise HTTPException(400, "retention_days must be >=0")
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            updated = False
+            pol: Dict[str, Any] = {}
+            for i, b in enumerate(items):
+                if b.get("name") == bname:
+                    pol = dict(b.get("policy") or {})
+                    if rf is not None: pol['replication_factor'] = rf
+                    if cp is not None: pol['cache_policy'] = cp
+                    if rd is not None: pol['retention_days'] = rd
+                    # ensure defaults
+                    pol.setdefault('replication_factor', 1)
+                    pol.setdefault('cache_policy', 'none')
+                    pol.setdefault('retention_days', 0)
+                    nb = dict(b); nb['policy'] = pol
+                    items[i] = nb
+                    updated = True
+                    break
+            if not updated:
+                raise HTTPException(404, "Not found")
+            _atomic_write_json(self.paths.buckets_file, items)
+            return {"jsonrpc": "2.0", "result": {"ok": True, "policy": pol}, "id": None}
+
         return None
 
     def _handle_pins(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -4823,55 +4871,7 @@ class ConsolidatedMCPDashboard:
                     "backend": backend_name
                 }, "id": None}
         
-    def _handle_buckets(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        if name == "update_bucket_policy":
-            bname = args.get("name")
-            if not bname:
-                raise HTTPException(400, "Missing name")
-            # Accept either flat keys or nested { policy: { ... } }
-            pol_in = args.get("policy") if isinstance(args.get("policy"), dict) else None
-            rf = args.get("replication_factor") if args.get("replication_factor") is not None else (pol_in or {}).get("replication_factor")
-            cp = args.get("cache_policy") if args.get("cache_policy") is not None else (pol_in or {}).get("cache_policy")
-            rd = args.get("retention_days") if args.get("retention_days") is not None else (pol_in or {}).get("retention_days")
-            # validation / partial updates allowed
-            if rf is not None:
-                try:
-                    rf = int(rf)
-                except Exception:
-                    raise HTTPException(400, "replication_factor must be int")
-                if rf < 1 or rf > 10:
-                    raise HTTPException(400, "replication_factor out of range")
-            if cp is not None and cp not in ("none", "memory", "disk"):
-                raise HTTPException(400, "cache_policy invalid")
-            if rd is not None:
-                try:
-                    rd = int(rd)
-                except Exception:
-                    raise HTTPException(400, "retention_days must be int")
-                if rd < 0:
-                    raise HTTPException(400, "retention_days must be >=0")
-            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
-            updated = False
-            pol: Dict[str, Any] = {}
-            for i, b in enumerate(items):
-                if b.get("name") == bname:
-                    pol = dict(b.get("policy") or {})
-                    if rf is not None: pol['replication_factor'] = rf
-                    if cp is not None: pol['cache_policy'] = cp
-                    if rd is not None: pol['retention_days'] = rd
-                    # ensure defaults
-                    pol.setdefault('replication_factor', 1)
-                    pol.setdefault('cache_policy', 'none')
-                    pol.setdefault('retention_days', 0)
-                    nb = dict(b); nb['policy'] = pol
-                    items[i] = nb
-                    updated = True
-                    break
-            if not updated:
-                raise HTTPException(404, "Not found")
-            _atomic_write_json(self.paths.buckets_file, items)
-            return {"jsonrpc": "2.0", "result": {"ok": True, "policy": pol}, "id": None}
-        return None
+
 
     def _handle_cars(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if name == "cars_list":
