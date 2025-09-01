@@ -533,6 +533,38 @@ class PinDashboard {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
+
+    // Load buckets data via MCP JSON-RPC
+    async loadBucketsData() {
+        try {
+            console.log('📦 Loading buckets via MCP JSON-RPC (metadata-first)...');
+            await waitForMCP();
+            const result = await callMCPTool('list_buckets', { include_metadata: true });
+            console.log('📦 Buckets result:', result);
+            
+            // Handle MCP result structure
+            let buckets = [];
+            if (result?.result?.items && Array.isArray(result.result.items)) {
+                buckets = result.result.items;
+            } else if (result?.items && Array.isArray(result.items)) {
+                buckets = result.items;
+            } else if (Array.isArray(result)) {
+                buckets = result;
+            } else {
+                console.warn('loadBucketsData: list_buckets returned unexpected structure:', typeof result, result);
+                buckets = [];
+            }
+            
+            console.log(`📦 Parsed ${buckets.length} buckets successfully`);
+            displayBuckets(buckets);
+            updateBucketSelector(buckets);
+            
+        } catch (error) {
+            console.error('Error loading buckets data via MCP:', error);
+            displayBuckets([]);
+            updateBucketSelector([]);
+        }
+    }
 }
 
 // Configuration Management Functions (called from HTML)
@@ -760,38 +792,6 @@ async function setupBucketManagement() {
         fileInput.addEventListener('change', handleFileUpload);
     }
 }
-
-// Load buckets data via MCP
-dashboard.loadBucketsData = async function() {
-    try {
-        console.log('📦 Loading buckets via MCP JSON-RPC (metadata-first)...');
-        await waitForMCP();
-        const result = await callMCPTool('list_buckets', { include_metadata: true });
-        console.log('📦 Buckets result:', result);
-        
-        // Handle MCP result structure
-        let buckets = [];
-        if (result?.result?.items && Array.isArray(result.result.items)) {
-            buckets = result.result.items;
-        } else if (result?.items && Array.isArray(result.items)) {
-            buckets = result.items;
-        } else if (Array.isArray(result)) {
-            buckets = result;
-        } else {
-            console.warn('loadBucketsData: list_buckets returned unexpected structure:', typeof result, result);
-            buckets = [];
-        }
-        
-        console.log(`📦 Parsed ${buckets.length} buckets successfully`);
-        displayBuckets(buckets);
-        updateBucketSelector(buckets);
-        
-    } catch (error) {
-        console.error('Error loading buckets data via MCP:', error);
-        displayBuckets([]);
-        updateBucketSelector([]);
-    }
-};
 
 // Display buckets in the UI
 function displayBuckets(buckets) {
