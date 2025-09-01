@@ -5823,9 +5823,11 @@ class ConsolidatedMCPDashboard:
             }
             
             const js = response.result; 
-            const backends = js.items || []; 
+            const backends = js.backends || js.items || []; 
             
-            console.log(`🗄️ MCP backends result:`, js);
+            console.log(`🗄️ Backends result:`, {result: js});
+            console.log(`🗄️ Extracted backends array:`, backends);
+            console.log(`🗄️ Is backends an array?`, Array.isArray(backends));
             
             // Update health counters with MCP data
             const healthyCount = js.healthy || 0;
@@ -6023,6 +6025,9 @@ class ConsolidatedMCPDashboard:
             });
         }catch(e){ 
             console.error('❌ Error loading backends:', e);
+            console.error('❌ Error details:', e.stack);
+            console.error('❌ Response data was:', js);
+            console.error('❌ backends variable was:', backends);
             container.innerHTML = `
                 <div style="text-align:center;padding:20px;border:1px solid #f44336;border-radius:8px;background:#ffebee;color:#c62828;">
                     <strong>⚠️ Failed to Load Backends</strong><br>
@@ -6384,7 +6389,7 @@ class ConsolidatedMCPDashboard:
         // Get backend list for cloning
         try {
             const response = await MCP.callTool('list_backends', {});
-            const backends = response?.result?.items || [];
+            const backends = response?.result?.backends || response?.result?.items || [];
             
             const backendOptions = backends.map(b => 
                 `<option value="${b.name}">${b.name} (${b.type || 'unknown'})</option>`
@@ -6458,7 +6463,7 @@ class ConsolidatedMCPDashboard:
         // Get backend list
         try {
             const response = await MCP.callTool('list_backends', {});
-            const backends = response?.result?.items || [];
+            const backends = response?.result?.backends || response?.result?.items || [];
             
             const backendOptions = backends.map(b => 
                 `<option value="${b.name}">${b.name} (${b.type || 'unknown'})</option>`
