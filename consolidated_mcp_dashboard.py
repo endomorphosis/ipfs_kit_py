@@ -1242,16 +1242,17 @@ class ConsolidatedMCPDashboard:
         # Initialize enhanced backend manager
         try:
             from ipfs_kit_py.enhanced_backend_manager import EnhancedBackendManager
-            backend_manager = EnhancedBackendManager(str(self.paths.data_dir))
+            self.backend_manager = EnhancedBackendManager(str(self.paths.data_dir))
+            self.log.info("✓ Enhanced backend manager initialized")
         except ImportError:
             # Fallback to basic implementation
-            backend_manager = None
-            logger.warning("Enhanced backend manager not available, using basic implementation")
+            self.backend_manager = None
+            self.log.warning("Enhanced backend manager not available, using basic implementation")
 
         @app.get("/api/state/backends")
         async def list_backends() -> Dict[str, Any]:
-            if backend_manager:
-                return backend_manager.list_backends()
+            if self.backend_manager:
+                return self.backend_manager.list_backends()
             else:
                 # Fallback to original implementation
                 data = _read_json(self.paths.backends_file, default={})
@@ -1273,7 +1274,7 @@ class ConsolidatedMCPDashboard:
             if not name:
                 raise HTTPException(400, "Missing backend name")
                 
-            if backend_manager:
+            if self.backend_manager:
                 # Use enhanced manager
                 try:
                     backend_config = {
@@ -1285,7 +1286,7 @@ class ConsolidatedMCPDashboard:
                         "tier": tier
                     }
                     
-                    config_path = backend_manager._get_backend_config_path(name)
+                    config_path = self.backend_manager._get_backend_config_path(name)
                     if config_path.exists():
                         raise HTTPException(409, "Backend already exists")
                     
@@ -2949,76 +2950,82 @@ class ConsolidatedMCPDashboard:
 
     def _handle_backends(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if name == "list_backends":
-            data = _read_json(self.paths.backends_file, default={})
-            items = []
-            for k, v in data.items():
-                # Ensure all backends have the required structure
-                if isinstance(v, dict):
-                    # Update health status and last_check time
-                    current_health = self._check_backend_health(k, v)
-                    now = datetime.now(UTC).isoformat()
-                    
-                    backend_info = {
-                        "name": k,
-                        "type": v.get("type", "unknown"),
-                        "description": v.get("description", f"{v.get('type', 'unknown')} backend"),
-                        "status": v.get("status", "enabled"),
-                        "config": v.get("config", {}),
-                        "created_at": v.get("created_at", now),
-                        "last_check": now,  # Always update to current time
-                        "health": current_health,
-                        "category": v.get("category", "storage"),
-                        "policy": v.get("policy", {
-                            "quota": "unlimited",
-                            "replication": 1,
-                            "retention": "30d",
-                            "cache": "enabled"
-                        }),
-                        "stats": v.get("stats", {
-                            "size": "0B",
-                            "files": 0,
-                            "last_sync": now
-                        })
-                    }
-                else:
-                    # Handle malformed entries
-                    now = datetime.now(UTC).isoformat()
-                    backend_info = {
-                        "name": k,
-                        "type": "unknown",
-                        "description": f"Legacy {k} backend",
-                        "status": "disabled",
-                        "config": {},
-                        "created_at": now,
-                        "last_check": now,
-                        "health": "error",
-                        "category": "storage",
-                        "policy": {
-                            "quota": "unlimited",
-                            "replication": 1,
-                            "retention": "30d",
-                            "cache": "disabled"
-                        },
-                        "stats": {
-                            "size": "0B",
-                            "files": 0,
-                            "last_sync": "Never"
+            if self.backend_manager:
+                # Use enhanced backend manager
+                result = self.backend_manager.list_backends()
+                return {"jsonrpc": "2.0", "result": result, "id": None}
+            else:
+                # Fallback to original implementation
+                data = _read_json(self.paths.backends_file, default={})
+                items = []
+                for k, v in data.items():
+                    # Ensure all backends have the required structure
+                    if isinstance(v, dict):
+                        # Update health status and last_check time
+                        current_health = self._check_backend_health(k, v)
+                        now = datetime.now(UTC).isoformat()
+                        
+                        backend_info = {
+                            "name": k,
+                            "type": v.get("type", "unknown"),
+                            "description": v.get("description", f"{v.get('type', 'unknown')} backend"),
+                            "status": v.get("status", "enabled"),
+                            "config": v.get("config", {}),
+                            "created_at": v.get("created_at", now),
+                            "last_check": now,  # Always update to current time
+                            "health": current_health,
+                            "category": v.get("category", "storage"),
+                            "policy": v.get("policy", {
+                                "quota": "unlimited",
+                                "replication": 1,
+                                "retention": "30d",
+                                "cache": "enabled"
+                            }),
+                            "stats": v.get("stats", {
+                                "size": "0B",
+                                "files": 0,
+                                "last_sync": now
+                            })
                         }
-                    }
-                items.append(backend_info)
-            
-            # Return comprehensive backend data
-            return {
-                "jsonrpc": "2.0", 
-                "result": {
-                    "items": items,
-                    "total": len(items),
-                    "healthy": len([b for b in items if b["health"] == "healthy"]),
-                    "unhealthy": len([b for b in items if b["health"] == "error"]),
-                    "configured": len([b for b in items if b["status"] == "enabled"])
-                }, 
-                "id": None
-            }
+                    else:
+                        # Handle malformed entries
+                        now = datetime.now(UTC).isoformat()
+                        backend_info = {
+                            "name": k,
+                            "type": "unknown",
+                            "description": f"Legacy {k} backend",
+                            "status": "disabled",
+                            "config": {},
+                            "created_at": now,
+                            "last_check": now,
+                            "health": "error",
+                            "category": "storage",
+                            "policy": {
+                                "quota": "unlimited",
+                                "replication": 1,
+                                "retention": "30d",
+                                "cache": "disabled"
+                            },
+                            "stats": {
+                                "size": "0B",
+                                "files": 0,
+                                "last_sync": "Never"
+                            }
+                        }
+                    items.append(backend_info)
+                
+                # Return comprehensive backend data
+                return {
+                    "jsonrpc": "2.0", 
+                    "result": {
+                        "items": items,
+                        "total": len(items),
+                        "healthy": len([b for b in items if b["health"] == "healthy"]),
+                        "unhealthy": len([b for b in items if b["health"] == "error"]),
+                        "configured": len([b for b in items if b["status"] == "enabled"])
+                    }, 
+                    "id": None
+                }
         if name == "create_backend":
             bname = args.get("name")
             cfg = args.get("config", {})
@@ -3354,38 +3361,237 @@ class ConsolidatedMCPDashboard:
         
         if name == "get_backend":
             bname = args.get("name")
-            data = _read_json(self.paths.backends_file, default={})
-            if bname not in data:
-                raise HTTPException(404, "Not found")
+            if not bname:
+                raise HTTPException(400, "Missing backend name")
             
-            backend_config = data[bname]
-            # Handle both old and new format
-            if isinstance(backend_config, dict) and 'type' in backend_config:
-                # New format with full backend information
-                result = {
-                    "name": bname,
-                    "type": backend_config.get("type", "unknown"),
-                    "description": backend_config.get("description", f"{backend_config.get('type', 'unknown')} backend"),
-                    "status": backend_config.get("status", "unknown"),
-                    "config": backend_config.get("config", {}),
-                    "created_at": backend_config.get("created_at", ""),
-                    "last_check": backend_config.get("last_check", "Never"),
-                    "health": self._check_backend_health(bname, backend_config)
-                }
+            if self.backend_manager:
+                # Use enhanced backend manager
+                backend = self.backend_manager.get_backend_with_policies(bname)
+                if not backend:
+                    raise HTTPException(404, f"Backend '{bname}' not found")
+                return {"jsonrpc": "2.0", "result": backend, "id": None}
             else:
-                # Old format (config only)
-                result = {
-                    "name": bname,
-                    "type": backend_config.get("type", "unknown") if isinstance(backend_config, dict) else "unknown",
-                    "description": f"Legacy {bname} backend",
-                    "status": "unknown",
-                    "config": backend_config if isinstance(backend_config, dict) else {},
-                    "created_at": "",
-                    "last_check": "Never",
-                    "health": "unknown"
-                }
+                # Fallback to original implementation
+                data = _read_json(self.paths.backends_file, default={})
+                if bname not in data:
+                    raise HTTPException(404, "Not found")
+                
+                backend_config = data[bname]
+                # Handle both old and new format
+                if isinstance(backend_config, dict) and 'type' in backend_config:
+                    # New format with full backend information
+                    result = {
+                        "name": bname,
+                        "type": backend_config.get("type", "unknown"),
+                        "description": backend_config.get("description", f"{backend_config.get('type', 'unknown')} backend"),
+                        "status": backend_config.get("status", "unknown"),
+                        "config": backend_config.get("config", {}),
+                        "created_at": backend_config.get("created_at", ""),
+                        "last_check": backend_config.get("last_check", "Never"),
+                        "health": self._check_backend_health(bname, backend_config)
+                    }
+                else:
+                    # Old format (config only)
+                    result = {
+                        "name": bname,
+                        "type": backend_config.get("type", "unknown") if isinstance(backend_config, dict) else "unknown",
+                        "description": f"Legacy {bname} backend",
+                        "status": "unknown",
+                        "config": backend_config if isinstance(backend_config, dict) else {},
+                        "created_at": "",
+                        "last_check": "Never",
+                        "health": "unknown"
+                    }
+                
+                return {"jsonrpc": "2.0", "result": result, "id": None}
+        
+        if name == "test_backend_config":
+            backend_name = args.get("name")
+            test_config = args.get("config", {})
             
-            return {"jsonrpc": "2.0", "result": result, "id": None}
+            if not backend_name:
+                raise HTTPException(400, "Missing backend name")
+            
+            try:
+                if self.backend_manager:
+                    # Use enhanced backend manager
+                    result = self.backend_manager.test_backend_config(backend_name, test_config)
+                    return {"jsonrpc": "2.0", "result": result, "id": None}
+                else:
+                    # Fallback to basic implementation
+                    # Handle string input for config (from frontend)
+                    if isinstance(test_config, str):
+                        try:
+                            test_config = json.loads(test_config)
+                        except json.JSONDecodeError as e:
+                            return {"jsonrpc": "2.0", "result": {
+                                "reachable": False,
+                                "valid": False,
+                                "errors": [f"Invalid config JSON: {str(e)}"],
+                                "backend": backend_name,
+                                "message": "Configuration test failed - invalid JSON"
+                            }, "id": None}
+                    
+                    # Test configuration without saving
+                    # For now, simulate a configuration test
+                    backend_type = test_config.get("type", "unknown")
+                    
+                    # Basic validation based on backend type
+                    is_valid = True
+                    errors = []
+                    
+                    if backend_type == "s3":
+                        required_fields = ["endpoint", "access_key", "secret_key", "bucket"]
+                        for field in required_fields:
+                            if not test_config.get(field):
+                                is_valid = False
+                                errors.append(f"Missing required field: {field}")
+                    elif backend_type == "github":
+                        required_fields = ["token", "owner", "repo"]
+                        for field in required_fields:
+                            if not test_config.get(field):
+                                is_valid = False
+                                errors.append(f"Missing required field: {field}")
+                    elif backend_type == "ipfs":
+                        required_fields = ["api_url"]
+                        for field in required_fields:
+                            if not test_config.get(field):
+                                is_valid = False
+                                errors.append(f"Missing required field: {field}")
+                    
+                    return {"jsonrpc": "2.0", "result": {
+                        "reachable": is_valid,
+                        "valid": is_valid,
+                        "errors": errors,
+                        "backend": backend_name,
+                        "message": "Configuration test completed" if is_valid else "Configuration test failed"
+                    }, "id": None}
+                    
+            except Exception as e:
+                return {"jsonrpc": "2.0", "result": {
+                    "reachable": False,
+                    "valid": False,
+                    "error": str(e),
+                    "backend": backend_name
+                }, "id": None}
+        
+        if name == "apply_backend_policy":
+            backend_name = args.get("name")
+            policy = args.get("policy", {})
+            force_sync = args.get("force_sync", False)
+            
+            if not backend_name:
+                raise HTTPException(400, "Missing backend name")
+            
+            try:
+                if self.backend_manager:
+                    # Use enhanced backend manager
+                    result = self.backend_manager.apply_backend_policy(backend_name, policy, force_sync)
+                    return {"jsonrpc": "2.0", "result": result, "id": None}
+                else:
+                    # Fallback to original implementation
+                    # Handle string input for policy (from frontend)
+                    if isinstance(policy, str):
+                        try:
+                            policy = json.loads(policy)
+                        except json.JSONDecodeError as e:
+                            return {"jsonrpc": "2.0", "result": {
+                                "ok": False,
+                                "error": f"Invalid policy JSON: {str(e)}",
+                                "backend": backend_name
+                            }, "id": None}
+                    
+                    # Update backend policy and apply it
+                    backends_data = _read_json(self.paths.backends_file, default=[])
+                    updated = False
+                    
+                    for backend in backends_data:
+                        if backend.get('name') == backend_name:
+                            backend['policy'] = {**backend.get('policy', {}), **policy}
+                            backend['last_updated'] = datetime.now(UTC).isoformat()
+                            updated = True
+                            break
+                    
+                    if updated:
+                        _atomic_write_json(self.paths.backends_file, backends_data)
+                        
+                        # If force_sync, trigger replica sync (simplified for non-recursion)
+                        if force_sync:
+                            self.log.info(f"Force sync requested for backend {backend_name}")
+                        
+                        return {"jsonrpc": "2.0", "result": {
+                            "ok": True,
+                            "backend": backend_name,
+                            "policy": policy,
+                            "synced": force_sync,
+                            "message": f"Policy applied successfully to '{backend_name}'"
+                        }, "id": None}
+                    else:
+                        raise HTTPException(404, f"Backend '{backend_name}' not found")
+                        
+            except Exception as e:
+                return {"jsonrpc": "2.0", "result": {
+                    "ok": False,
+                    "error": str(e),
+                    "backend": backend_name
+                }, "id": None}
+        
+        if name == "update_backend_policy":
+            backend_name = args.get("name")
+            policy_updates = args.get("policy", {})
+            
+            if not backend_name:
+                raise HTTPException(400, "Missing backend name")
+            
+            try:
+                if self.backend_manager:
+                    # Use enhanced backend manager
+                    result = self.backend_manager.update_backend_policy(backend_name, policy_updates)
+                    return {"jsonrpc": "2.0", "result": result, "id": None}
+                else:
+                    # Fallback to original implementation
+                    # Handle string input for policy (from frontend)
+                    if isinstance(policy_updates, str):
+                        try:
+                            policy_updates = json.loads(policy_updates)
+                        except json.JSONDecodeError as e:
+                            return {"jsonrpc": "2.0", "result": {
+                                "ok": False,
+                                "error": f"Invalid policy JSON: {str(e)}",
+                                "backend": backend_name
+                            }, "id": None}
+                    
+                    # Update backend policy configuration
+                    backends_data = _read_json(self.paths.backends_file, default=[])
+                    updated = False
+                    
+                    for backend in backends_data:
+                        if backend.get('name') == backend_name:
+                            current_policy = backend.get('policy', {})
+                            backend['policy'] = {**current_policy, **policy_updates}
+                            backend['last_updated'] = datetime.now(UTC).isoformat()
+                            updated = True
+                            break
+                    
+                    if updated:
+                        _atomic_write_json(self.paths.backends_file, backends_data)
+                        
+                        return {"jsonrpc": "2.0", "result": {
+                            "ok": True,
+                            "backend": backend_name,
+                            "policy": policy_updates,
+                            "message": f"Policy updated successfully for '{backend_name}'"
+                        }, "id": None}
+                    else:
+                        raise HTTPException(404, f"Backend '{backend_name}' not found")
+                        
+            except Exception as e:
+                return {"jsonrpc": "2.0", "result": {
+                    "ok": False,
+                    "error": str(e),
+                    "backend": backend_name
+                }, "id": None}
+        
         return None
 
     def _get_default_backend_config(self, backend_type: str) -> Dict[str, Any]:
@@ -4617,499 +4823,7 @@ class ConsolidatedMCPDashboard:
                     "backend": backend_name
                 }, "id": None}
         
-        if name == "test_backend_config":
-            backend_name = args.get("name")
-            test_config = args.get("config", {})
-            
-            if not backend_name:
-                raise HTTPException(400, "Missing backend name")
-            
-            try:
-                # Test configuration without saving
-                # For now, simulate a configuration test
-                backend_type = test_config.get("type", "unknown")
-                
-                # Basic validation based on backend type
-                is_valid = True
-                errors = []
-                
-                if backend_type == "s3":
-                    required_fields = ["endpoint", "access_key", "secret_key", "bucket"]
-                    for field in required_fields:
-                        if not test_config.get(field):
-                            is_valid = False
-                            errors.append(f"Missing required field: {field}")
-                elif backend_type == "github":
-                    required_fields = ["token", "owner", "repo"]
-                    for field in required_fields:
-                        if not test_config.get(field):
-                            is_valid = False
-                            errors.append(f"Missing required field: {field}")
-                elif backend_type == "ipfs":
-                    required_fields = ["api_url"]
-                    for field in required_fields:
-                        if not test_config.get(field):
-                            is_valid = False
-                            errors.append(f"Missing required field: {field}")
-                
-                return {"jsonrpc": "2.0", "result": {
-                    "reachable": is_valid,
-                    "valid": is_valid,
-                    "errors": errors,
-                    "backend": backend_name,
-                    "message": "Configuration test completed" if is_valid else "Configuration test failed"
-                }, "id": None}
-                
-            except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "reachable": False,
-                    "valid": False,
-                    "error": str(e),
-                    "backend": backend_name
-                }, "id": None}
-        
-        if name == "apply_backend_policy":
-            backend_name = args.get("name")
-            policy = args.get("policy", {})
-            force_sync = args.get("force_sync", False)
-            
-            if not backend_name:
-                raise HTTPException(400, "Missing backend name")
-            
-            try:
-                # Update backend policy and apply it
-                backends_data = _read_json(self.paths.backends_file, default=[])
-                updated = False
-                
-                for backend in backends_data:
-                    if backend.get('name') == backend_name:
-                        backend['policy'] = {**backend.get('policy', {}), **policy}
-                        backend['last_updated'] = datetime.now(UTC).isoformat()
-                        updated = True
-                        break
-                
-                if updated:
-                    _atomic_write_json(self.paths.backends_file, backends_data)
-                    
-                    # If force_sync, trigger replica sync (simplified for non-recursion)
-                    if force_sync:
-                        self.log.info(f"Force sync requested for backend {backend_name}")
-                    
-                    return {"jsonrpc": "2.0", "result": {
-                        "ok": True,
-                        "backend": backend_name,
-                        "policy": policy,
-                        "synced": force_sync,
-                        "message": f"Policy applied successfully to '{backend_name}'"
-                    }, "id": None}
-                else:
-                    raise HTTPException(404, f"Backend '{backend_name}' not found")
-                    
-            except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": False,
-                    "error": str(e),
-                    "backend": backend_name
-                }, "id": None}
-        
-        if name == "update_backend_policy":
-            backend_name = args.get("name")
-            policy_updates = args.get("policy", {})
-            
-            if not backend_name:
-                raise HTTPException(400, "Missing backend name")
-            
-            try:
-                # Update backend policy configuration
-                backends_data = _read_json(self.paths.backends_file, default=[])
-                updated = False
-                
-                for backend in backends_data:
-                    if backend.get('name') == backend_name:
-                        current_policy = backend.get('policy', {})
-                        backend['policy'] = {**current_policy, **policy_updates}
-                        backend['last_updated'] = datetime.now(UTC).isoformat()
-                        updated = True
-                        break
-                
-                if updated:
-                    _atomic_write_json(self.paths.backends_file, backends_data)
-                    
-                    return {"jsonrpc": "2.0", "result": {
-                        "ok": True,
-                        "backend": backend_name,
-                        "policy": policy_updates,
-                        "message": f"Policy updated successfully for '{backend_name}'"
-                    }, "id": None}
-                else:
-                    raise HTTPException(404, f"Backend '{backend_name}' not found")
-                    
-            except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": False,
-                    "error": str(e),
-                    "backend": backend_name
-                }, "id": None}
-        
-        # Advanced Feature 8: Real-Time Performance Metrics
-        if name == "get_backend_performance_metrics":
-            backend_name = args.get("backend_name")
-            time_range = args.get("time_range", "1h")
-            include_history = args.get("include_history", True)
-            
-            import random
-            import time as time_module
-            
-            try:
-                # Get backend list
-                backends_data = _read_json(self.paths.backends_file, default=[])
-                
-                if backend_name:
-                    # Filter to specific backend
-                    backends_data = [b for b in backends_data if b.get('name') == backend_name]
-                
-                metrics = []
-                for backend in backends_data:
-                    name = backend.get('name', 'unknown')
-                    backend_type = backend.get('type', 'unknown')
-                    
-                    # Generate realistic performance metrics
-                    current_metrics = {
-                        "backend_name": name,
-                        "backend_type": backend_type,
-                        "timestamp": datetime.now(UTC).isoformat(),
-                        "performance": {
-                            "response_time_ms": round(random.uniform(10, 500), 2),
-                            "throughput_ops_per_sec": round(random.uniform(50, 1000), 2),
-                            "error_rate_percent": round(random.uniform(0, 5), 2),
-                            "success_rate_percent": round(100 - random.uniform(0, 5), 2),
-                            "data_transfer_mbps": round(random.uniform(10, 100), 2),
-                            "cpu_usage_percent": round(random.uniform(10, 80), 2),
-                            "memory_usage_percent": round(random.uniform(20, 70), 2),
-                            "disk_usage_percent": round(random.uniform(30, 90), 2),
-                            "uptime_percent": round(random.uniform(95, 100), 2),
-                            "active_connections": random.randint(1, 50)
-                        }
-                    }
-                    
-                    if include_history:
-                        # Generate historical data points
-                        history_points = 12 if time_range == "1h" else 24 if time_range == "6h" else 48
-                        history = []
-                        base_time = datetime.now(UTC)
-                        
-                        for i in range(history_points):
-                            point_time = base_time - timedelta(minutes=5*i)
-                            history.append({
-                                "timestamp": point_time.isoformat(),
-                                "response_time_ms": round(random.uniform(10, 500), 2),
-                                "throughput_ops_per_sec": round(random.uniform(50, 1000), 2),
-                                "error_rate_percent": round(random.uniform(0, 5), 2),
-                                "cpu_usage_percent": round(random.uniform(10, 80), 2),
-                                "memory_usage_percent": round(random.uniform(20, 70), 2)
-                            })
-                        
-                        current_metrics["history"] = list(reversed(history))
-                    
-                    metrics.append(current_metrics)
-                
-                return {"jsonrpc": "2.0", "result": {
-                    "metrics": metrics,
-                    "time_range": time_range,
-                    "total_backends": len(metrics),
-                    "generated_at": datetime.now(UTC).isoformat()
-                }, "id": None}
-                
-            except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": False,
-                    "error": str(e),
-                    "metrics": []
-                }, "id": None}
-        
-        # Advanced Feature 9: Configuration Templates and Management
-        if name == "get_backend_configuration_template":
-            backend_type = args.get("backend_type", "s3")
-            template_type = args.get("template_type", "basic")
-            
-            templates = {
-                "s3": {
-                    "basic": {
-                        "type": "s3",
-                        "config": {
-                            "bucket": "my-bucket",
-                            "region": "us-east-1",
-                            "access_key_id": "${AWS_ACCESS_KEY_ID}",
-                            "secret_access_key": "${AWS_SECRET_ACCESS_KEY}"
-                        },
-                        "policy": {
-                            "replication_factor": 1,
-                            "cache_policy": "none",
-                            "retention_days": 30
-                        }
-                    },
-                    "enterprise": {
-                        "type": "s3",
-                        "config": {
-                            "bucket": "enterprise-bucket",
-                            "region": "us-east-1",
-                            "access_key_id": "${AWS_ACCESS_KEY_ID}",
-                            "secret_access_key": "${AWS_SECRET_ACCESS_KEY}",
-                            "endpoint_url": "https://s3.amazonaws.com",
-                            "use_ssl": True,
-                            "verify_ssl": True
-                        },
-                        "policy": {
-                            "replication_factor": 3,
-                            "cache_policy": "hybrid",
-                            "retention_days": 365,
-                            "encryption": "AES256",
-                            "backup_schedule": "daily"
-                        }
-                    },
-                    "high_performance": {
-                        "type": "s3",
-                        "config": {
-                            "bucket": "high-perf-bucket",
-                            "region": "us-east-1",
-                            "access_key_id": "${AWS_ACCESS_KEY_ID}",
-                            "secret_access_key": "${AWS_SECRET_ACCESS_KEY}",
-                            "multipart_threshold": "64MB",
-                            "max_concurrency": 10
-                        },
-                        "policy": {
-                            "replication_factor": 2,
-                            "cache_policy": "memory",
-                            "retention_days": 90,
-                            "compression": "lz4",
-                            "parallel_uploads": True
-                        }
-                    }
-                },
-                "github": {
-                    "basic": {
-                        "type": "github",
-                        "config": {
-                            "owner": "username",
-                            "repo": "repository",
-                            "token": "${GITHUB_TOKEN}"
-                        },
-                        "policy": {
-                            "replication_factor": 1,
-                            "cache_policy": "disk",
-                            "retention_days": 0
-                        }
-                    }
-                },
-                "ipfs": {
-                    "basic": {
-                        "type": "ipfs",
-                        "config": {
-                            "api_url": "http://localhost:5001",
-                            "gateway_url": "http://localhost:8080"
-                        },
-                        "policy": {
-                            "replication_factor": 2,
-                            "cache_policy": "hybrid",
-                            "retention_days": 0
-                        }
-                    }
-                }
-            }
-            
-            template = templates.get(backend_type, {}).get(template_type)
-            if not template:
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": False,
-                    "error": f"Template not found for {backend_type}/{template_type}",
-                    "available_types": list(templates.keys()),
-                    "available_templates": list(templates.get(backend_type, {}).keys()) if backend_type in templates else []
-                }, "id": None}
-            
-            return {"jsonrpc": "2.0", "result": {
-                "ok": True,
-                "backend_type": backend_type,
-                "template_type": template_type,
-                "template": template,
-                "description": f"{template_type.title()} template for {backend_type.upper()} backend"
-            }, "id": None}
-        
-        if name == "clone_backend_configuration":
-            source_backend = args.get("source_backend")
-            new_backend_name = args.get("new_backend_name")
-            modify_config = args.get("modify_config", {})
-            
-            if not source_backend or not new_backend_name:
-                raise HTTPException(400, "Missing source_backend or new_backend_name")
-            
-            try:
-                backends_data = _read_json(self.paths.backends_file, default=[])
-                source_config = None
-                
-                # Find source backend
-                for backend in backends_data:
-                    if backend.get('name') == source_backend:
-                        source_config = backend
-                        break
-                
-                if not source_config:
-                    raise HTTPException(404, f"Source backend '{source_backend}' not found")
-                
-                # Check if new name already exists
-                for backend in backends_data:
-                    if backend.get('name') == new_backend_name:
-                        raise HTTPException(409, f"Backend '{new_backend_name}' already exists")
-                
-                # Clone configuration
-                new_config = {
-                    "name": new_backend_name,
-                    "type": source_config.get('type'),
-                    "config": dict(source_config.get('config', {})),
-                    "policy": dict(source_config.get('policy', {})),
-                    "description": f"Cloned from {source_backend}",
-                    "created_at": datetime.now(UTC).isoformat(),
-                    "cloned_from": source_backend
-                }
-                
-                # Apply modifications
-                if modify_config:
-                    if 'config' in modify_config:
-                        new_config['config'].update(modify_config['config'])
-                    if 'policy' in modify_config:
-                        new_config['policy'].update(modify_config['policy'])
-                    if 'description' in modify_config:
-                        new_config['description'] = modify_config['description']
-                
-                backends_data.append(new_config)
-                _atomic_write_json(self.paths.backends_file, backends_data)
-                
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": True,
-                    "source_backend": source_backend,
-                    "new_backend": new_backend_name,
-                    "cloned_config": new_config,
-                    "message": f"Backend '{new_backend_name}' cloned successfully from '{source_backend}'"
-                }, "id": None}
-                
-            except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": False,
-                    "error": str(e)
-                }, "id": None}
-        
-        if name == "backup_backend_configuration":
-            backend_name = args.get("backend_name")
-            backup_name = args.get("backup_name")
-            include_data = args.get("include_data", False)
-            
-            if not backend_name:
-                raise HTTPException(400, "Missing backend_name")
-            
-            try:
-                backends_data = _read_json(self.paths.backends_file, default=[])
-                backend_config = None
-                
-                # Find backend
-                for backend in backends_data:
-                    if backend.get('name') == backend_name:
-                        backend_config = backend
-                        break
-                
-                if not backend_config:
-                    raise HTTPException(404, f"Backend '{backend_name}' not found")
-                
-                # Generate backup
-                backup_id = backup_name or f"{backend_name}_backup_{int(time_module.time())}"
-                backup_data = {
-                    "backup_id": backup_id,
-                    "backend_name": backend_name,
-                    "backup_timestamp": datetime.now(UTC).isoformat(),
-                    "config": dict(backend_config),
-                    "include_data": include_data,
-                    "version": "1.0"
-                }
-                
-                # Store backup in metadata directory
-                backup_dir = self.paths.data_dir / "backups"
-                backup_dir.mkdir(exist_ok=True)
-                backup_file = backup_dir / f"{backup_id}.json"
-                
-                _atomic_write_json(backup_file, backup_data)
-                
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": True,
-                    "backup_id": backup_id,
-                    "backup_file": str(backup_file),
-                    "backend_name": backend_name,
-                    "backup_timestamp": backup_data["backup_timestamp"],
-                    "message": f"Backup created successfully for '{backend_name}'"
-                }, "id": None}
-                
-            except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": False,
-                    "error": str(e)
-                }, "id": None}
-        
-        if name == "restore_backend_configuration":
-            backend_name = args.get("backend_name")
-            backup_id = args.get("backup_id")
-            force_restore = args.get("force_restore", False)
-            
-            if not backend_name or not backup_id:
-                raise HTTPException(400, "Missing backend_name or backup_id")
-            
-            try:
-                # Load backup
-                backup_dir = self.paths.data_dir / "backups"
-                backup_file = backup_dir / f"{backup_id}.json"
-                
-                if not backup_file.exists():
-                    raise HTTPException(404, f"Backup '{backup_id}' not found")
-                
-                backup_data = _read_json(backup_file)
-                
-                if not backup_data or backup_data.get("backend_name") != backend_name:
-                    if not force_restore:
-                        raise HTTPException(400, f"Backup mismatch: expected {backend_name}, got {backup_data.get('backend_name')}")
-                
-                # Restore configuration
-                backends_data = _read_json(self.paths.backends_file, default=[])
-                restored = False
-                
-                for i, backend in enumerate(backends_data):
-                    if backend.get('name') == backend_name:
-                        # Update existing backend
-                        restored_config = dict(backup_data["config"])
-                        restored_config["restored_at"] = datetime.now(UTC).isoformat()
-                        restored_config["restored_from_backup"] = backup_id
-                        backends_data[i] = restored_config
-                        restored = True
-                        break
-                
-                if not restored:
-                    # Create new backend from backup
-                    restored_config = dict(backup_data["config"])
-                    restored_config["restored_at"] = datetime.now(UTC).isoformat()
-                    restored_config["restored_from_backup"] = backup_id
-                    backends_data.append(restored_config)
-                
-                _atomic_write_json(self.paths.backends_file, backends_data)
-                
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": True,
-                    "backend_name": backend_name,
-                    "backup_id": backup_id,
-                    "restored_config": restored_config,
-                    "message": f"Backend '{backend_name}' restored successfully from backup '{backup_id}'"
-                }, "id": None}
-                
-            except Exception as e:
-                return {"jsonrpc": "2.0", "result": {
-                    "ok": False,
-                    "error": str(e)
-                }, "id": None}
-        
+    def _handle_buckets(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if name == "update_bucket_policy":
             bname = args.get("name")
             if not bname:
