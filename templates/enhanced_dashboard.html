@@ -1561,6 +1561,35 @@
             }
         }
 
+        async function waitForMCP() {
+            // Wait for MCP client to be ready or timeout after 5 seconds
+            const maxWaitTime = 5000; // 5 seconds
+            const checkInterval = 100; // 100ms
+            let elapsed = 0;
+            
+            while (elapsed < maxWaitTime) {
+                // If MCP client is available, return immediately
+                if (window.mcpClient) {
+                    return;
+                }
+                
+                // If MCP SDK is available but client not initialized, try to initialize
+                if (window.MCP && window.MCP.MCPClient && !window.mcpClient) {
+                    initializeMCPClient();
+                    if (window.mcpClient) {
+                        return;
+                    }
+                }
+                
+                // Wait before checking again
+                await new Promise(resolve => setTimeout(resolve, checkInterval));
+                elapsed += checkInterval;
+            }
+            
+            // If we get here, MCP client is not available - but that's OK since callMCPTool has fallback logic
+            console.log('MCP client not ready, but continuing with fallback logic');
+        }
+
         function initializeDashboard() {
             // Set initial tab
             showTab('overview');
