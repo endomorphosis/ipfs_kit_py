@@ -2893,16 +2893,23 @@
                 const result = await callMCPTool('list_backends', {});
                 console.log('🗄️ Backends result:', result);
                 
-                // Handle MCP result structure
-                const backends = result?.result?.items || result?.result || result?.items || result || [];
-                
-                // Ensure backends is an array before processing
-                const backendsArray = Array.isArray(backends) ? backends : [];
-                if (!Array.isArray(backends)) {
-                    console.warn('loadBackendsData: list_backends returned non-array:', typeof backends, backends);
+                // Handle MCP result structure - extract backends array from nested structure
+                let backends = [];
+                if (result?.result?.backends && Array.isArray(result.result.backends)) {
+                    backends = result.result.backends;
+                } else if (result?.result && Array.isArray(result.result)) {
+                    backends = result.result;
+                } else if (result?.backends && Array.isArray(result.backends)) {
+                    backends = result.backends;
+                } else if (Array.isArray(result)) {
+                    backends = result;
+                } else {
+                    console.warn('loadBackendsData: list_backends returned unexpected structure:', typeof result, result);
+                    backends = [];
                 }
                 
-                displayBackends(backendsArray);
+                console.log('🗄️ Extracted backends array:', backends);
+                displayBackends(backends);
                 
             } catch (error) {
                 console.error('Error loading backends data:', error);
