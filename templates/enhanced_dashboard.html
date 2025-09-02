@@ -4465,66 +4465,6 @@
                 if (element) element.value = value;
             });
         }
-            const defaultBuckets = [
-                {
-                    name: 'documents',
-                    type: 'general',
-                    description: 'Document storage bucket',
-                    created: new Date().toISOString(),
-                    files: 5,
-                    size: '2.4 MB',
-                    policy: {
-                        replication_factor: 3,
-                        cache_policy: 'memory',
-                        retention_days: 0,
-                        storage_quota_mb: 0,
-                        max_files: 0
-                    }
-                },
-                {
-                    name: 'media',
-                    type: 'general', 
-                    description: 'Media files storage bucket',
-                    created: new Date().toISOString(),
-                    files: 12,
-                    size: '2.3 GB',
-                    policy: {
-                        replication_factor: 3,
-                        cache_policy: 'memory',
-                        retention_days: 0,
-                        storage_quota_mb: 0,
-                        max_files: 0
-                    }
-                },
-                {
-                    name: 'archive',
-                    type: 'general',
-                    description: 'Long-term archive storage',
-                    created: new Date().toISOString(), 
-                    files: 45,
-                    size: '124.7 GB',
-                    policy: {
-                        replication_factor: 3,
-                        cache_policy: 'memory', 
-                        retention_days: 0,
-                        storage_quota_mb: 0,
-                        max_files: 0
-                    }
-                }
-            ];
-            
-            // Save default buckets via MCP (metadata-first approach)
-            try {
-                for (const bucket of defaultBuckets) {
-                    await callMCPTool('create_bucket', bucket);
-                }
-                console.log('✅ Created default buckets');
-            } catch (error) {
-                console.log('ℹ️ Using default buckets (creation failed, probably already exist)');
-            }
-            
-            return defaultBuckets;
-        }
 
         function displayBuckets(buckets) {
             const bucketsList = document.getElementById('buckets-list');
