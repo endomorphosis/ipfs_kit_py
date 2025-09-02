@@ -62,6 +62,7 @@
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" 
           onerror="console.log('FontAwesome CDN blocked, using emoji fallbacks')">
+    <link rel="stylesheet" href="/static/css/enhanced-bucket-dashboard.css">>
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen flex">
@@ -167,88 +168,322 @@
 
             <!-- Bucket File Management Tab -->
             <div id="buckets" class="tab-content hidden">
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Bucket File Management</h2>
+                <!-- Enterprise Bucket Management Interface -->
+                <div class="h-full flex flex-col bg-gray-50">
+                    <!-- Header Toolbar -->
+                    <div class="bg-white shadow-sm border-b px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <h1 class="text-2xl font-semibold text-gray-900">
+                                    <i class="fas fa-database text-blue-600 mr-3"></i>Bucket Management
+                                </h1>
+                                <div class="flex items-center bg-gray-100 px-3 py-1 rounded-full text-sm">
+                                    <div class="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                                    <span id="bucket-count">0</span> buckets
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center space-x-3">
+                                <!-- Search Bar -->
+                                <div class="relative">
+                                    <input type="text" id="bucket-search" placeholder="Search buckets..." 
+                                           class="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                </div>
+                                
+                                <!-- View Toggle -->
+                                <div class="flex bg-gray-100 rounded-lg p-1">
+                                    <button id="view-grid" class="px-3 py-1 rounded-md bg-white shadow-sm text-sm font-medium">
+                                        <i class="fas fa-th-large"></i>
+                                    </button>
+                                    <button id="view-list" class="px-3 py-1 rounded-md text-sm font-medium text-gray-700">
+                                        <i class="fas fa-list"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Actions Dropdown -->
+                                <div class="relative">
+                                    <button id="bulk-actions-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                        <i class="fas fa-plus mr-2"></i>New Bucket
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Filters and Sort Bar -->
+                        <div class="flex items-center justify-between mt-4 pt-4 border-t">
+                            <div class="flex items-center space-x-4">
+                                <select id="bucket-filter-status" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                    <option value="">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="syncing">Syncing</option>
+                                    <option value="error">Error</option>
+                                    <option value="offline">Offline</option>
+                                </select>
+                                
+                                <select id="bucket-filter-tier" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                    <option value="">All Tiers</option>
+                                    <option value="hot">Hot Storage</option>
+                                    <option value="warm">Warm Storage</option>
+                                    <option value="cold">Cold Storage</option>
+                                    <option value="archive">Archive</option>
+                                </select>
+                                
+                                <button id="clear-filters" class="text-sm text-blue-600 hover:text-blue-800">
+                                    Clear filters
+                                </button>
+                            </div>
+                            
+                            <div class="flex items-center space-x-2">
+                                <span class="text-sm text-gray-500">Sort by:</span>
+                                <select id="bucket-sort" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                    <option value="name">Name</option>
+                                    <option value="size">Size</option>
+                                    <option value="files">File Count</option>
+                                    <option value="modified">Last Modified</option>
+                                    <option value="created">Created</option>
+                                </select>
+                                <button id="sort-direction" class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                    <i class="fas fa-sort-amount-down text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     
-                    <!-- Bucket Controls -->
-                    <div class="flex flex-wrap gap-2 mb-6 p-4 bg-gray-50 rounded-lg">
-                        <button id="refresh-buckets" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-sync-alt mr-2"></i>Refresh
-                        </button>
-                        <button id="create-bucket" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-plus mr-2"></i>Create Bucket
-                        </button>
-                        <button id="upload-file" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-upload mr-2"></i>Upload File
-                        </button>
-                        <button id="create-folder" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-folder-plus mr-2"></i>New Folder
-                        </button>
-                        <button id="force-sync" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-sync mr-2"></i>Force Sync
-                        </button>
-                        <button id="share-bucket" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-share-alt mr-2"></i>Share Bucket
-                        </button>
-                    </div>
-
-                    <!-- Bucket Selector and Advanced Settings -->
-                    <div class="flex flex-wrap gap-2 mb-6 p-4 bg-blue-50 rounded-lg items-center">
-                        <label class="text-sm font-medium text-gray-700">Selected Bucket:</label>
-                        <select id="bucket-selector" class="border rounded px-3 py-2 flex-1 min-w-48">
-                            <option value="">Select a bucket...</option>
-                        </select>
-                        <button id="advanced-settings" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
-                            <i class="fas fa-cog mr-2"></i>Advanced Settings
-                        </button>
-                        <button id="quota-management" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded">
-                            <i class="fas fa-chart-pie mr-2"></i>Quota
-                        </button>
-                    </div>
-
-                    <!-- Drag & Drop Upload Zone -->
-                    <div id="drag-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
-                        <div class="text-gray-500">
-                            <i class="fas fa-cloud-upload-alt text-4xl mb-4"></i>
-                            <div class="text-lg font-medium mb-2">Drag & Drop Files Here</div>
-                            <div class="text-sm">Or click to browse files</div>
-                            <input type="file" id="file-input" multiple class="hidden">
+                    <!-- Main Content Area -->
+                    <div class="flex-1 flex overflow-hidden">
+                        <!-- Bucket List Panel -->
+                        <div class="w-1/3 border-r bg-white overflow-hidden flex flex-col">
+                            <!-- Bulk Actions Bar -->
+                            <div id="bulk-actions-bar" class="hidden bg-blue-50 px-4 py-3 border-b border-blue-200">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <span class="text-sm font-medium text-blue-800">
+                                            <span id="selected-count">0</span> selected
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <button id="bulk-sync" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                                            <i class="fas fa-sync mr-1"></i>Sync All
+                                        </button>
+                                        <button id="bulk-delete" class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700">
+                                            <i class="fas fa-trash mr-1"></i>Delete
+                                        </button>
+                                        <button id="clear-selection" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800">
+                                            Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Bucket List -->
+                            <div class="flex-1 overflow-y-auto">
+                                <div id="bucket-list-container" class="p-4">
+                                    <!-- Loading State -->
+                                    <div id="bucket-loading" class="text-center py-12">
+                                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                                        <p class="text-gray-500 mt-3">Loading buckets...</p>
+                                    </div>
+                                    
+                                    <!-- Empty State -->
+                                    <div id="bucket-empty" class="text-center py-12 hidden">
+                                        <i class="fas fa-database text-gray-300 text-4xl mb-4"></i>
+                                        <h3 class="text-lg font-medium text-gray-900 mb-2">No buckets found</h3>
+                                        <p class="text-gray-500 mb-6">Create your first bucket to get started</p>
+                                        <button id="create-first-bucket" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                                            <i class="fas fa-plus mr-2"></i>Create Bucket
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Bucket List Items -->
+                                    <div id="bucket-list" class="space-y-2">
+                                        <!-- Dynamic content will be inserted here -->
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- Bucket Status and Info -->
-                    <div id="bucket-status" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 hidden">
-                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
-                            <div class="text-2xl font-bold" id="bucket-file-count">-</div>
-                            <div class="text-sm opacity-90">Files</div>
-                        </div>
-                        <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg">
-                            <div class="text-2xl font-bold" id="bucket-size">-</div>
-                            <div class="text-sm opacity-90">Storage Used</div>
-                        </div>
-                        <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg">
-                            <div class="text-2xl font-bold" id="bucket-replication">-</div>
-                            <div class="text-sm opacity-90">Replication</div>
-                        </div>
-                        <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white p-4 rounded-lg">
-                            <div class="text-2xl font-bold" id="bucket-sync-status">-</div>
-                            <div class="text-sm opacity-90">Sync Status</div>
-                        </div>
-                    </div>
-
-                    <!-- File List -->
-                    <div id="bucket-files" class="space-y-3">
-                        <div class="text-gray-500 text-center py-8">
-                            <i class="fas fa-folder-open text-4xl mb-4"></i>
-                            <div>Select a bucket to view files...</div>
-                        </div>
-                    </div>
-
-                    <!-- Breadcrumb Navigation -->
-                    <div id="breadcrumb" class="hidden mb-4 p-3 bg-gray-100 rounded-lg">
-                        <div class="flex items-center space-x-2 text-sm">
-                            <i class="fas fa-home"></i>
-                            <span class="text-gray-600">Root</span>
+                        
+                        <!-- Bucket Details Panel -->
+                        <div class="flex-1 bg-white overflow-hidden flex flex-col">
+                            <!-- No Selection State -->
+                            <div id="no-bucket-selected" class="flex-1 flex items-center justify-center">
+                                <div class="text-center">
+                                    <i class="fas fa-database text-gray-300 text-6xl mb-6"></i>
+                                    <h3 class="text-xl font-medium text-gray-900 mb-2">Select a bucket to view details</h3>
+                                    <p class="text-gray-500">Choose a bucket from the list to manage its files and settings</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Bucket Details Content -->
+                            <div id="bucket-details" class="hidden flex-1 flex flex-col">
+                                <!-- Bucket Header -->
+                                <div class="border-b bg-gray-50 px-6 py-4">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0">
+                                                <div id="bucket-icon" class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                    <i class="fas fa-database text-blue-600 text-xl"></i>
+                                                </div>
+                                            </div>
+                                            <div class="ml-4">
+                                                <h2 id="bucket-name" class="text-xl font-semibold text-gray-900">Bucket Name</h2>
+                                                <div class="flex items-center space-x-4 mt-1">
+                                                    <span id="bucket-status-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        <div class="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></div>
+                                                        Active
+                                                    </span>
+                                                    <span id="bucket-tier-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                        Hot Storage
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-center space-x-3">
+                                            <button id="bucket-settings-btn" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                                                <i class="fas fa-cog"></i>
+                                            </button>
+                                            <button id="bucket-share-btn" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                                                <i class="fas fa-share-alt"></i>
+                                            </button>
+                                            <button id="bucket-sync-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                                <i class="fas fa-sync mr-2"></i>Sync
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Bucket Stats -->
+                                <div class="border-b bg-white px-6 py-4">
+                                    <div class="grid grid-cols-4 gap-6">
+                                        <div class="text-center">
+                                            <div id="stat-files" class="text-2xl font-semibold text-gray-900">0</div>
+                                            <div class="text-sm text-gray-500">Files</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div id="stat-size" class="text-2xl font-semibold text-gray-900">0 B</div>
+                                            <div class="text-sm text-gray-500">Total Size</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div id="stat-replicas" class="text-2xl font-semibold text-gray-900">3x</div>
+                                            <div class="text-sm text-gray-500">Replication</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div id="stat-sync-time" class="text-2xl font-semibold text-gray-900">-</div>
+                                            <div class="text-sm text-gray-500">Last Sync</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Tab Navigation -->
+                                <div class="border-b bg-white">
+                                    <nav class="flex space-x-8 px-6">
+                                        <button id="tab-files" class="py-4 px-1 border-b-2 border-blue-600 font-medium text-sm text-blue-600">
+                                            <i class="fas fa-folder mr-2"></i>Files
+                                        </button>
+                                        <button id="tab-settings" class="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700">
+                                            <i class="fas fa-cog mr-2"></i>Settings
+                                        </button>
+                                        <button id="tab-sharing" class="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700">
+                                            <i class="fas fa-users mr-2"></i>Sharing
+                                        </button>
+                                        <button id="tab-activity" class="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700">
+                                            <i class="fas fa-clock mr-2"></i>Activity
+                                        </button>
+                                    </nav>
+                                </div>
+                                
+                                <!-- Tab Content -->
+                                <div class="flex-1 overflow-hidden">
+                                    <!-- Files Tab -->
+                                    <div id="files-tab-content" class="h-full flex flex-col">
+                                        <!-- File Actions Bar -->
+                                        <div class="border-b px-6 py-3 bg-gray-50">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-3">
+                                                    <button id="upload-files-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+                                                        <i class="fas fa-upload mr-2"></i>Upload Files
+                                                    </button>
+                                                    <button id="create-folder-btn" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 text-sm">
+                                                        <i class="fas fa-folder-plus mr-2"></i>New Folder
+                                                    </button>
+                                                    <button id="download-selected-btn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                                                        <i class="fas fa-download mr-2"></i>Download
+                                                    </button>
+                                                </div>
+                                                
+                                                <div class="flex items-center space-x-3">
+                                                    <!-- File Search -->
+                                                    <input type="text" id="file-search" placeholder="Search files..." 
+                                                           class="w-48 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                                    
+                                                    <!-- File View Options -->
+                                                    <div class="flex bg-gray-100 rounded-lg p-1">
+                                                        <button id="file-view-list" class="px-2 py-1 rounded text-sm bg-white shadow-sm">
+                                                            <i class="fas fa-list"></i>
+                                                        </button>
+                                                        <button id="file-view-grid" class="px-2 py-1 rounded text-sm text-gray-700">
+                                                            <i class="fas fa-th-large"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Breadcrumbs -->
+                                        <div id="file-breadcrumbs" class="px-6 py-3 border-b bg-white">
+                                            <nav class="flex items-center space-x-2 text-sm">
+                                                <a href="#" class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-home"></i>
+                                                </a>
+                                                <i class="fas fa-chevron-right text-gray-400"></i>
+                                                <span class="text-gray-900">Root</span>
+                                            </nav>
+                                        </div>
+                                        
+                                        <!-- File List -->
+                                        <div class="flex-1 overflow-y-auto">
+                                            <div id="file-list-container">
+                                                <!-- Files will be loaded here -->
+                                                <div class="text-center py-12">
+                                                    <i class="fas fa-folder-open text-gray-300 text-4xl mb-4"></i>
+                                                    <p class="text-gray-500">No files in this bucket</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Drag & Drop Overlay -->
+                                        <div id="drag-drop-overlay" class="hidden absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center z-50">
+                                            <div class="bg-white p-8 rounded-lg shadow-lg text-center">
+                                                <i class="fas fa-cloud-upload-alt text-4xl text-blue-600 mb-4"></i>
+                                                <h3 class="text-xl font-semibold text-gray-900 mb-2">Drop files to upload</h3>
+                                                <p class="text-gray-500">Release to upload files to this bucket</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Settings Tab -->
+                                    <div id="settings-tab-content" class="hidden h-full overflow-y-auto">
+                                        <div class="p-6 space-y-6">
+                                            <!-- Settings content will be loaded here -->
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Sharing Tab -->
+                                    <div id="sharing-tab-content" class="hidden h-full overflow-y-auto">
+                                        <div class="p-6 space-y-6">
+                                            <!-- Sharing content will be loaded here -->
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Activity Tab -->
+                                    <div id="activity-tab-content" class="hidden h-full overflow-y-auto">
+                                        <div class="p-6 space-y-6">
+                                            <!-- Activity content will be loaded here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -415,7 +650,311 @@
         </div>
     </div>
 
+    <!-- Create Bucket Modal -->
+    <div id="create-bucket-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
+                <div class="flex items-center justify-between p-6 border-b">
+                    <h3 class="text-xl font-semibold text-gray-900">Create New Bucket</h3>
+                    <button id="close-create-bucket" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="create-bucket-form" class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Bucket Name</label>
+                        <input type="text" id="new-bucket-name" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="my-bucket">
+                        <p class="text-xs text-gray-500 mt-1">Lowercase letters, numbers, and hyphens only</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea id="new-bucket-description"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  rows="2" placeholder="Optional description"></textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Storage Tier</label>
+                            <select id="new-bucket-tier" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="hot">Hot - Frequent Access</option>
+                                <option value="warm" selected>Warm - Regular Access</option>
+                                <option value="cold">Cold - Infrequent Access</option>
+                                <option value="archive">Archive - Long-term Storage</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Replication Factor</label>
+                            <select id="new-bucket-replication" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="1">1x - No redundancy</option>
+                                <option value="2">2x - Basic redundancy</option>
+                                <option value="3" selected>3x - Standard redundancy</option>
+                                <option value="5">5x - High redundancy</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-end space-x-3 pt-4">
+                        <button type="button" id="cancel-create-bucket" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-plus mr-2"></i>Create Bucket
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bucket Settings Modal -->
+    <div id="bucket-settings-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                <div class="flex items-center justify-between p-6 border-b">
+                    <h3 class="text-xl font-semibold text-gray-900">Bucket Settings</h3>
+                    <button id="close-settings-modal" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="overflow-y-auto max-h-[80vh]">
+                    <div class="p-6 space-y-8">
+                        <!-- General Settings -->
+                        <div class="border-b pb-6">
+                            <h4 class="text-lg font-medium text-gray-900 mb-4">General Settings</h4>
+                            <div class="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Bucket Name</label>
+                                    <input type="text" id="settings-bucket-name" disabled
+                                           class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Storage Tier</label>
+                                    <select id="settings-bucket-tier" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="hot">Hot Storage</option>
+                                        <option value="warm">Warm Storage</option>
+                                        <option value="cold">Cold Storage</option>
+                                        <option value="archive">Archive</option>
+                                    </select>
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                                    <textarea id="settings-bucket-description" rows="2"
+                                              class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Replication & Sync -->
+                        <div class="border-b pb-6">
+                            <h4 class="text-lg font-medium text-gray-900 mb-4">Replication & Sync</h4>
+                            <div class="grid grid-cols-3 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Replication Factor</label>
+                                    <select id="settings-replication-factor" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="1">1x - No redundancy</option>
+                                        <option value="2">2x - Basic redundancy</option>
+                                        <option value="3">3x - Standard redundancy</option>
+                                        <option value="5">5x - High redundancy</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Cache Policy</label>
+                                    <select id="settings-cache-policy" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="none">No Cache</option>
+                                        <option value="memory">Memory Cache</option>
+                                        <option value="disk">Disk Cache</option>
+                                        <option value="hybrid">Hybrid Cache</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Retention Policy</label>
+                                    <select id="settings-retention-policy" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="permanent">Permanent</option>
+                                        <option value="30d">30 Days</option>
+                                        <option value="90d">90 Days</option>
+                                        <option value="1y">1 Year</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quotas & Limits -->
+                        <div class="border-b pb-6">
+                            <h4 class="text-lg font-medium text-gray-900 mb-4">Quotas & Limits</h4>
+                            <div class="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Storage Quota (GB)</label>
+                                    <input type="number" id="settings-storage-quota" min="0"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                           placeholder="Unlimited">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Max Files</label>
+                                    <input type="number" id="settings-max-files" min="0"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                           placeholder="Unlimited">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Features -->
+                        <div>
+                            <h4 class="text-lg font-medium text-gray-900 mb-4">Advanced Features</h4>
+                            <div class="space-y-4">
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="settings-enable-versioning" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700">Enable file versioning</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="settings-enable-encryption" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700">Enable encryption at rest</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="settings-enable-compression" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700">Enable automatic compression</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="settings-enable-dedup" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700">Enable deduplication</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t p-6">
+                    <div class="flex items-center justify-end space-x-3">
+                        <button type="button" id="cancel-settings" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="button" id="apply-settings" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-save mr-2"></i>Apply Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Files Modal -->
+    <div id="upload-files-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+                <div class="flex items-center justify-between p-6 border-b">
+                    <h3 class="text-xl font-semibold text-gray-900">Upload Files</h3>
+                    <button id="close-upload-modal" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="p-6">
+                    <!-- Drop Zone -->
+                    <div id="modal-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6 hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                        <div class="text-gray-500">
+                            <i class="fas fa-cloud-upload-alt text-5xl mb-4 text-blue-400"></i>
+                            <div class="text-lg font-medium mb-2">Drop files here or click to browse</div>
+                            <div class="text-sm">Supports multiple files up to 100MB each</div>
+                            <input type="file" id="upload-file-input" multiple class="hidden">
+                        </div>
+                    </div>
+                    
+                    <!-- File Queue -->
+                    <div id="upload-file-queue" class="space-y-2 max-h-60 overflow-y-auto">
+                        <!-- Files will be listed here -->
+                    </div>
+                </div>
+                
+                <div class="border-t p-6">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-500">
+                            <span id="upload-file-count">0</span> files selected
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <button type="button" id="clear-upload-queue" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                                Clear All
+                            </button>
+                            <button type="button" id="start-upload" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-upload mr-2"></i>Upload Files
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Bucket Modal -->
+    <div id="share-bucket-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
+                <div class="flex items-center justify-between p-6 border-b">
+                    <h3 class="text-xl font-semibold text-gray-900">Share Bucket</h3>
+                    <button id="close-share-modal" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="p-6 space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Access Level</label>
+                        <select id="share-access-level" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="read">Read Only</option>
+                            <option value="write">Read & Write</option>
+                            <option value="admin">Admin Access</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Link Expires</label>
+                        <select id="share-expiration" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="1h">1 Hour</option>
+                            <option value="1d">1 Day</option>
+                            <option value="1w" selected>1 Week</option>
+                            <option value="1m">1 Month</option>
+                            <option value="never">Never</option>
+                        </select>
+                    </div>
+                    
+                    <div id="share-link-container" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Share Link</label>
+                        <div class="flex">
+                            <input type="text" id="share-link-url" readonly
+                                   class="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-l-lg text-sm">
+                            <button id="copy-share-link" class="px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-t p-6">
+                    <div class="flex items-center justify-end space-x-3">
+                        <button type="button" id="cancel-share" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="button" id="generate-share-link" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-share-alt mr-2"></i>Generate Link
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Notifications will appear here -->
+    </div>
+
     <script src="/static/mcp-sdk.js"></script>
     <script src="/static/dashboard.js"></script>
+    <script src="/static/enhanced-bucket-dashboard.js"></script>
 </body>
 </html>
