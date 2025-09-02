@@ -483,86 +483,181 @@
             margin-right: 1rem;
         }
         
-        /* Professional Bucket Management Styles */
+        /* Professional Bucket Management Styles - Enterprise Grade */
         .h-screen-minus-header {
-            height: calc(100vh - 200px);
+            height: calc(100vh - 240px);
         }
         
+        /* Modern Bucket List Items */
         .bucket-item {
-            padding: 1rem 1.5rem;
+            padding: 1.25rem 1.5rem;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             border-left: 4px solid transparent;
+            position: relative;
+            background: white;
+        }
+        
+        .bucket-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(168, 85, 247, 0.05));
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        
+        .bucket-item:hover::before {
+            opacity: 1;
         }
         
         .bucket-item:hover {
-            background-color: #f8fafc;
-            border-left-color: #e2e8f0;
+            transform: translateX(2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-left-color: #cbd5e0;
         }
         
         .bucket-item.selected {
-            background-color: #eff6ff;
+            background: linear-gradient(135deg, #eff6ff, #f0f9ff);
             border-left-color: #3b82f6;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15);
         }
         
         .bucket-item.selected .bucket-title {
-            color: #1e40af;
+            color: #1d4ed8;
+            font-weight: 700;
+        }
+        
+        .bucket-item input[type="checkbox"] {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 1rem;
+            height: 1rem;
+            accent-color: #3b82f6;
         }
         
         .bucket-title {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             font-weight: 600;
             color: #1f2937;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         
+        .bucket-title .tier-badge {
+            font-size: 0.625rem;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .tier-badge.hot { background-color: #fef3c7; color: #f59e0b; }
+        .tier-badge.warm { background-color: #ddd6fe; color: #8b5cf6; }
+        .tier-badge.cold { background-color: #dbeafe; color: #3b82f6; }
+        .tier-badge.archive { background-color: #e5e7eb; color: #6b7280; }
+        
         .bucket-meta {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+        
+        .bucket-stats {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
             font-size: 0.75rem;
-            color: #6b7280;
-            margin-top: 0.25rem;
+            color: #94a3b8;
+        }
+        
+        .bucket-stats .stat {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
         }
         
         .bucket-status {
             display: inline-flex;
             align-items: center;
-            gap: 0.25rem;
+            gap: 0.375rem;
             font-size: 0.7rem;
             text-transform: uppercase;
-            font-weight: 500;
-            letter-spacing: 0.025em;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.8);
         }
         
         .status-dot {
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
         }
         
         .status-dot.active { background-color: #10b981; }
-        .status-dot.syncing { background-color: #f59e0b; }
+        .status-dot.syncing { 
+            background-color: #f59e0b; 
+            animation: pulse 2s infinite;
+        }
         .status-dot.error { background-color: #ef4444; }
+        .status-dot.maintenance { background-color: #f97316; }
         .status-dot.offline { background-color: #6b7280; }
         
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Enhanced Tab Navigation */
         .detail-tab-btn {
-            padding: 0.75rem 1.5rem;
+            padding: 1rem 1.5rem;
             border: none;
             background: none;
             cursor: pointer;
             font-size: 0.875rem;
             font-weight: 500;
-            color: #6b7280;
+            color: #64748b;
             border-bottom: 2px solid transparent;
-            transition: all 0.2s ease;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        
+        .detail-tab-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(168, 85, 247, 0.05));
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        
+        .detail-tab-btn:hover::before {
+            opacity: 1;
         }
         
         .detail-tab-btn:hover {
             color: #374151;
-            background-color: #f9fafb;
+            transform: translateY(-1px);
         }
         
         .detail-tab-btn.active {
             color: #2563eb;
             border-bottom-color: #2563eb;
-            background-color: #eff6ff;
+            font-weight: 600;
         }
         
         .detail-tab-content {
@@ -571,33 +666,187 @@
         
         .detail-tab-content.active {
             display: block;
+            animation: slideIn 0.3s ease;
         }
         
-        .file-item {
-            padding: 0.75rem 1.5rem;
-            border-bottom: 1px solid #f3f4f6;
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Enhanced File Grid */
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+        }
+        
+        .file-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
             cursor: pointer;
-            transition: background-color 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
         }
         
-        .file-item:hover {
-            background-color: #f9fafb;
+        .file-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(168, 85, 247, 0.05));
+            opacity: 0;
+            transition: opacity 0.25s ease;
         }
         
-        .file-item.selected {
-            background-color: #eff6ff;
+        .file-card:hover::before {
+            opacity: 1;
+        }
+        
+        .file-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+            border-color: #a5b4fc;
+        }
+        
+        .file-card.selected {
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, #eff6ff, #f0f9ff);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15);
         }
         
         .file-icon {
-            width: 2rem;
-            height: 2rem;
+            width: 3rem;
+            height: 3rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 0.375rem;
+            border-radius: 0.75rem;
+            margin-bottom: 0.75rem;
+            font-size: 1.25rem;
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+        }
+        
+        .file-icon.folder {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            color: #f59e0b;
+        }
+        
+        .file-icon.document {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            color: #3b82f6;
+        }
+        
+        .file-icon.image {
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            color: #10b981;
+        }
+        
+        .file-icon.archive {
+            background: linear-gradient(135deg, #fce7f3, #fbcfe8);
+            color: #ec4899;
+        }
+        
+        /* Advanced Search & Filter Controls */
+        .filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .filter-chip:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e0;
+        }
+        
+        .filter-chip.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .filter-chip .remove {
+            margin-left: 0.25rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.success {
+            border-left: 4px solid #10b981;
+        }
+        
+        .toast.error {
+            border-left: 4px solid #ef4444;
+        }
+        
+        .toast.warning {
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .toast.info {
+            border-left: 4px solid #3b82f6;
+        }
+        
+        /* Loading States */
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* Responsive Breakpoints */
+        @media (max-width: 768px) {
+            .bucket-item {
+                padding: 1rem;
+            }
+            
+            .file-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+            
+            .detail-tab-btn {
+                padding: 0.75rem 1rem;
+                font-size: 0.8rem;
+            }
+        }
             font-size: 1rem;
         }
         
@@ -1244,164 +1493,711 @@
 
             <!-- Bucket File Management Tab -->
             <div id="buckets" class="tab-content">
-                <div class="bg-white rounded-lg shadow">
-                    <!-- Header with Actions -->
-                    <div class="px-6 py-4 border-b border-gray-200">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h2 class="text-2xl font-bold text-gray-900">Professional Bucket Management</h2>
-                                <p class="text-sm text-gray-600 mt-1">Enterprise-scale bucket and file administration</p>
+                <div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+                    <!-- Modern Header with Enterprise Features -->
+                    <div class="bg-white shadow-sm border-b border-slate-200">
+                        <div class="px-8 py-6">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-database text-white text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <h1 class="text-2xl font-bold text-slate-900">Enterprise Bucket Manager</h1>
+                                        <p class="text-sm text-slate-600 mt-1">Scalable distributed storage management with enterprise-grade controls</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <button id="import-bucket" class="flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                                        <i class="fas fa-download mr-2"></i>Import
+                                    </button>
+                                    <button id="bulk-actions" class="flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                                        <i class="fas fa-layer-group mr-2"></i>Bulk Actions
+                                    </button>
+                                    <button id="create-bucket" class="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors">
+                                        <i class="fas fa-plus mr-2"></i>New Bucket
+                                    </button>
+                                </div>
                             </div>
-                            <div class="flex gap-2">
-                                <button id="bulk-actions" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm">
-                                    <i class="fas fa-layer-group mr-2"></i>Bulk Actions
-                                </button>
-                                <button id="create-bucket" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-                                    <i class="fas fa-plus mr-2"></i>New Bucket
-                                </button>
+                            
+                            <!-- Advanced Search & Filter Panel -->
+                            <div class="mt-6 bg-slate-50 rounded-lg p-4">
+                                <div class="flex items-center space-x-4">
+                                    <div class="flex-1 relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <i class="fas fa-search text-slate-400"></i>
+                                        </div>
+                                        <input type="text" id="bucket-search" placeholder="Search buckets by name, tags, content, or metadata..." 
+                                               class="block w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-colors">
+                                    </div>
+                                    <select id="status-filter" class="border border-slate-300 rounded-lg px-3 py-3 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                                        <option value="">All Status</option>
+                                        <option value="active">🟢 Active</option>
+                                        <option value="syncing">🟡 Syncing</option>
+                                        <option value="error">🔴 Error</option>
+                                        <option value="maintenance">🟠 Maintenance</option>
+                                        <option value="offline">⚫ Offline</option>
+                                    </select>
+                                    <select id="tier-filter" class="border border-slate-300 rounded-lg px-3 py-3 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                                        <option value="">All Tiers</option>
+                                        <option value="hot">🔥 Hot Storage</option>
+                                        <option value="warm">🌡️ Warm Storage</option>
+                                        <option value="cold">❄️ Cold Storage</option>
+                                        <option value="archive">📦 Archive</option>
+                                    </select>
+                                    <select id="size-filter" class="border border-slate-300 rounded-lg px-3 py-3 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                                        <option value="">All Sizes</option>
+                                        <option value="small">< 1 GB</option>
+                                        <option value="medium">1-10 GB</option>
+                                        <option value="large">10-100 GB</option>
+                                        <option value="xlarge">> 100 GB</option>
+                                    </select>
+                                    <button id="advanced-filters" class="p-3 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors">
+                                        <i class="fas fa-sliders-h text-slate-500"></i>
+                                    </button>
+                                    <button id="refresh-buckets" class="p-3 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors">
+                                        <i class="fas fa-sync-alt text-slate-500"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Quick Stats Bar -->
+                                <div class="mt-4 flex items-center justify-between text-sm">
+                                    <div class="flex items-center space-x-6">
+                                        <span id="bucket-count" class="text-slate-700">Loading buckets...</span>
+                                        <span id="total-size" class="text-slate-500">Total: 0 B</span>
+                                        <span id="total-files" class="text-slate-500">Files: 0</span>
+                                        <span id="health-status" class="text-slate-500">Health: 100%</span>
+                                    </div>
+                                    <div class="flex items-center space-x-4">
+                                        <button id="view-toggle" class="flex items-center space-x-1 px-3 py-1 rounded-md bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors">
+                                            <i class="fas fa-th-large"></i>
+                                            <span>Grid</span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <!-- Search and Filter Bar -->
-                        <div class="mt-4 flex gap-3">
-                            <div class="flex-1 relative">
-                                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                                <input type="text" id="bucket-search" placeholder="Search buckets by name, description, or content..." 
-                                       class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                            <select id="status-filter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                                <option value="">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="syncing">Syncing</option>
-                                <option value="error">Error</option>
-                                <option value="offline">Offline</option>
-                            </select>
-                            <select id="tier-filter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                                <option value="">All Tiers</option>
-                                <option value="hot">Hot</option>
-                                <option value="warm">Warm</option>
-                                <option value="cold">Cold</option>
-                                <option value="archive">Archive</option>
-                            </select>
-                            <button id="refresh-buckets" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 px-4 py-2 rounded-lg text-sm">
-                                <i class="fas fa-sync-alt mr-2"></i>Refresh
-                            </button>
                         </div>
                     </div>
 
-                    <!-- Master-Detail Layout -->
-                    <div class="flex h-screen-minus-header">
-                        <!-- Left Panel - Bucket List -->
-                        <div class="w-2/5 border-r border-gray-200 flex flex-col">
-                            <!-- List Header -->
-                            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                                <div class="flex justify-between items-center text-xs text-gray-600">
-                                    <span id="bucket-count">Loading buckets...</span>
-                                    <div class="flex gap-4">
-                                        <button id="sort-name" class="hover:text-gray-900 cursor-pointer sort-btn" data-sort="name">
+                    <!-- Advanced Layout with Sidebar and Main Content -->
+                    <div class="flex h-[calc(100vh-240px)]">
+                        <!-- Left Sidebar - Bucket List -->
+                        <div class="w-96 bg-white border-r border-slate-200 flex flex-col">
+                            <!-- List Controls -->
+                            <div class="px-4 py-3 border-b border-slate-200 bg-slate-50">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4 text-xs text-slate-600">
+                                        <button id="sort-name" class="sort-btn hover:text-blue-600 cursor-pointer transition-colors" data-sort="name">
                                             Name <i class="fas fa-sort ml-1"></i>
                                         </button>
-                                        <button id="sort-size" class="hover:text-gray-900 cursor-pointer sort-btn" data-sort="size">
+                                        <button id="sort-size" class="sort-btn hover:text-blue-600 cursor-pointer transition-colors" data-sort="size">
                                             Size <i class="fas fa-sort ml-1"></i>
                                         </button>
-                                        <button id="sort-modified" class="hover:text-gray-900 cursor-pointer sort-btn" data-sort="modified">
+                                        <button id="sort-modified" class="sort-btn hover:text-blue-600 cursor-pointer transition-colors" data-sort="modified">
                                             Modified <i class="fas fa-sort ml-1"></i>
                                         </button>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <button id="select-all" class="text-xs text-blue-600 hover:text-blue-700">Select All</button>
+                                        <button id="select-none" class="text-xs text-slate-500 hover:text-slate-700">None</button>
                                     </div>
                                 </div>
                             </div>
                             
-                            <!-- Bucket List Container -->
+                            <!-- Scrollable Bucket List -->
                             <div class="flex-1 overflow-y-auto">
-                                <div id="buckets-list" class="divide-y divide-gray-100">
-                                    <!-- Buckets will be populated here -->
+                                <div id="buckets-list" class="divide-y divide-slate-100">
+                                    <!-- Dynamic bucket items will be inserted here -->
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Right Panel - Bucket Details -->
-                        <div class="flex-1 flex flex-col bg-gray-50">
+                        <!-- Main Content Area -->
+                        <div class="flex-1 flex flex-col bg-slate-50">
                             <!-- Empty State -->
                             <div id="empty-state" class="flex-1 flex items-center justify-center">
-                                <div class="text-center text-gray-500">
-                                    <i class="fas fa-archive text-6xl mb-4"></i>
-                                    <h3 class="text-xl font-medium mb-2">Select a Bucket</h3>
-                                    <p class="text-sm">Choose a bucket from the list to manage its files and settings</p>
+                                <div class="text-center">
+                                    <div class="w-24 h-24 mx-auto bg-gradient-to-r from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center mb-4">
+                                        <i class="fas fa-database text-3xl text-blue-500"></i>
+                                    </div>
+                                    <h3 class="text-xl font-semibold text-slate-800 mb-2">Select a Bucket</h3>
+                                    <p class="text-slate-600 mb-6">Choose a bucket from the sidebar to manage files, settings, and sharing</p>
+                                    <button id="create-first-bucket" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                        <i class="fas fa-plus mr-2"></i>Create Your First Bucket
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Bucket Detail View -->
+                            <!-- Bucket Detail Panel -->
                             <div id="bucket-detail" class="flex-1 flex flex-col hidden">
                                 <!-- Detail Header -->
-                                <div class="px-6 py-4 bg-white border-b border-gray-200">
-                                    <div class="flex justify-between items-start">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                                <i class="fas fa-archive text-blue-600 text-xl"></i>
+                                <div class="px-8 py-6 bg-white border-b border-slate-200">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex items-center space-x-4">
+                                            <div id="bucket-icon" class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                                <i class="fas fa-database text-white text-2xl"></i>
                                             </div>
                                             <div>
-                                                <h3 id="bucket-name" class="text-xl font-bold text-gray-900">documents</h3>
-                                                <p id="bucket-description" class="text-sm text-gray-600">Document storage bucket</p>
+                                                <h2 id="bucket-name" class="text-2xl font-bold text-slate-900">documents</h2>
+                                                <p id="bucket-description" class="text-slate-600 mt-1">Document storage bucket</p>
+                                                <div class="flex items-center space-x-4 mt-2 text-sm">
+                                                    <span class="flex items-center">
+                                                        <div id="status-indicator" class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                                        <span id="bucket-status-text" class="text-slate-700">Active</span>
+                                                    </span>
+                                                    <span class="text-slate-500">•</span>
+                                                    <span id="bucket-tier" class="text-slate-700">Hot Storage</span>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="flex gap-2">
-                                            <button id="sync-bucket" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
-                                                <i class="fas fa-sync mr-1"></i>Sync
+                                        <div class="flex items-center space-x-2">
+                                            <button id="sync-bucket" class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
+                                                <i class="fas fa-sync mr-2"></i>Sync Now
                                             </button>
-                                            <button id="share-bucket" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
-                                                <i class="fas fa-share mr-1"></i>Share
+                                            <button id="share-bucket" class="inline-flex items-center px-3 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors">
+                                                <i class="fas fa-share-alt mr-2"></i>Share
                                             </button>
-                                            <button id="bucket-settings" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm">
-                                                <i class="fas fa-cog mr-1"></i>Settings
+                                            <button id="bucket-settings" class="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition-colors">
+                                                <i class="fas fa-cog mr-2"></i>Settings
                                             </button>
+                                            <div class="relative">
+                                                <button id="bucket-menu" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+                                                    <i class="fas fa-ellipsis-v"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                     
-                                    <!-- Stats Bar -->
-                                    <div class="mt-4 flex gap-6 text-sm">
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                                            <span class="text-gray-600">Status:</span>
-                                            <span id="bucket-status-text" class="font-medium">Active</span>
+                                    <!-- Stats Grid -->
+                                    <div class="mt-6 grid grid-cols-2 md-grid-cols-4 gap-4">
+                                        <div class="bg-slate-50 rounded-lg p-4">
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0">
+                                                    <i class="fas fa-file text-blue-500"></i>
+                                                </div>
+                                                <div class="ml-3">
+                                                    <p class="text-xs font-medium text-slate-600">Files</p>
+                                                    <p id="file-count" class="text-lg font-semibold text-slate-900">0</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-file text-gray-400"></i>
-                                            <span id="file-count">0 files</span>
+                                        <div class="bg-slate-50 rounded-lg p-4">
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0">
+                                                    <i class="fas fa-hdd text-green-500"></i>
+                                                </div>
+                                                <div class="ml-3">
+                                                    <p class="text-xs font-medium text-slate-600">Storage Used</p>
+                                                    <p id="storage-used" class="text-lg font-semibold text-slate-900">0 B</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-hdd text-gray-400"></i>
-                                            <span id="storage-used">0 B</span>
+                                        <div class="bg-slate-50 rounded-lg p-4">
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0">
+                                                    <i class="fas fa-copy text-purple-500"></i>
+                                                </div>
+                                                <div class="ml-3">
+                                                    <p class="text-xs font-medium text-slate-600">Replication</p>
+                                                    <p id="replication-info" class="text-lg font-semibold text-slate-900">3x</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-copy text-gray-400"></i>
-                                            <span id="replication-info">3x replication</span>
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-clock text-gray-400"></i>
-                                            <span id="last-sync">Never synced</span>
+                                        <div class="bg-slate-50 rounded-lg p-4">
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0">
+                                                    <i class="fas fa-clock text-orange-500"></i>
+                                                </div>
+                                                <div class="ml-3">
+                                                    <p class="text-xs font-medium text-slate-600">Last Sync</p>
+                                                    <p id="last-sync" class="text-lg font-semibold text-slate-900">Never</p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Tabbed Interface -->
-                                <div class="bg-white border-b border-gray-200">
-                                    <nav class="flex">
-                                        <button class="detail-tab-btn active" data-tab="files">
-                                            <i class="fas fa-folder mr-2"></i>Files
+                                <!-- Tab Navigation -->
+                                <div class="bg-white border-b border-slate-200">
+                                    <nav class="flex space-x-8 px-8">
+                                        <button class="detail-tab-btn active border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600" data-tab="files">
+                                            <i class="fas fa-folder mr-2"></i>Files & Folders
                                         </button>
-                                        <button class="detail-tab-btn" data-tab="settings">
-                                            <i class="fas fa-sliders-h mr-2"></i>Settings
+                                        <button class="detail-tab-btn py-4 px-1 text-sm font-medium text-slate-500 hover:text-slate-700" data-tab="settings">
+                                            <i class="fas fa-sliders-h mr-2"></i>Configuration
                                         </button>
-                                        <button class="detail-tab-btn" data-tab="sharing">
-                                            <i class="fas fa-share-alt mr-2"></i>Sharing
+                                        <button class="detail-tab-btn py-4 px-1 text-sm font-medium text-slate-500 hover:text-slate-700" data-tab="sharing">
+                                            <i class="fas fa-share-alt mr-2"></i>Sharing & Access
                                         </button>
-                                        <button class="detail-tab-btn" data-tab="activity">
-                                            <i class="fas fa-history mr-2"></i>Activity
+                                        <button class="detail-tab-btn py-4 px-1 text-sm font-medium text-slate-500 hover:text-slate-700" data-tab="analytics">
+                                            <i class="fas fa-chart-line mr-2"></i>Analytics
+                                        </button>
+                                        <button class="detail-tab-btn py-4 px-1 text-sm font-medium text-slate-500 hover:text-slate-700" data-tab="activity">
+                                            <i class="fas fa-history mr-2"></i>Activity Log
                                         </button>
                                     </nav>
                                 </div>
 
-                                <!-- Tab Contents -->
+                                <!-- Tab Content Areas -->
+                                <div class="flex-1 overflow-hidden">
+                                    <!-- Files Tab -->
+                                    <div id="files-tab" class="detail-tab-content active h-full flex flex-col">
+                                        <!-- File Management Toolbar -->
+                                        <div class="px-8 py-4 bg-white border-b border-slate-200">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-3">
+                                                    <button id="upload-files" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                                                        <i class="fas fa-upload mr-2"></i>Upload Files
+                                                    </button>
+                                                    <button id="create-folder" class="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors">
+                                                        <i class="fas fa-folder-plus mr-2"></i>New Folder
+                                                    </button>
+                                                    <div class="h-6 w-px bg-slate-300"></div>
+                                                    <button id="bulk-select" class="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                                                        <i class="fas fa-check-square mr-2"></i>Select All
+                                                    </button>
+                                                    <button id="bulk-download" class="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                                                        <i class="fas fa-download mr-2"></i>Download
+                                                    </button>
+                                                </div>
+                                                <div class="flex items-center space-x-3">
+                                                    <div class="relative">
+                                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                            <i class="fas fa-search text-slate-400 text-sm"></i>
+                                                        </div>
+                                                        <input type="text" id="file-search" placeholder="Search files..." 
+                                                               class="pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm w-64 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                    </div>
+                                                    <button id="file-view-toggle" class="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors" title="Toggle view">
+                                                        <i class="fas fa-th-list text-slate-500"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Advanced Drag & Drop Zone -->
+                                        <div id="drag-drop-zone" class="hidden mx-8 my-6 border-2 border-dashed border-blue-300 rounded-xl p-12 text-center bg-gradient-to-br from-blue-50 to-blue-100">
+                                            <div class="w-20 h-20 mx-auto bg-blue-500 rounded-full flex items-center justify-center mb-4">
+                                                <i class="fas fa-cloud-upload-alt text-2xl text-white"></i>
+                                            </div>
+                                            <h4 class="text-xl font-semibold text-slate-800 mb-2">Drop Files Here</h4>
+                                            <p class="text-slate-600 mb-6">Support for all file types with automatic organization and duplicate detection</p>
+                                            <input type="file" id="file-input" multiple class="hidden">
+                                            <div id="upload-progress" class="mt-8 hidden">
+                                                <div class="bg-blue-200 rounded-full h-3 mb-2">
+                                                    <div id="progress-bar" class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                                </div>
+                                                <p id="upload-status" class="text-sm text-slate-600">Uploading...</p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Breadcrumb Navigation -->
+                                        <div id="breadcrumb" class="px-8 py-3 bg-slate-50 border-b border-slate-200">
+                                            <nav class="flex items-center space-x-2 text-sm">
+                                                <button class="breadcrumb-item flex items-center text-slate-600 hover:text-blue-600 transition-colors" data-path="">
+                                                    <i class="fas fa-home mr-2"></i>Root
+                                                </button>
+                                                <span class="text-slate-400">/</span>
+                                            </nav>
+                                        </div>
+
+                                        <!-- File Browser with Enhanced UI -->
+                                        <div class="flex-1 overflow-y-auto">
+                                            <div id="files-list" class="p-4">
+                                                <!-- Enhanced file grid will be populated here -->
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Configuration Tab -->
+                                    <div id="settings-tab" class="detail-tab-content h-full overflow-y-auto p-8">
+                                        <div class="max-w-4xl space-y-8">
+                                            <!-- Basic Configuration Card -->
+                                            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                                                <div class="flex items-center mb-6">
+                                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                                        <i class="fas fa-cog text-blue-600"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="text-lg font-semibold text-slate-900">Basic Configuration</h3>
+                                                        <p class="text-sm text-slate-600">Core bucket settings and metadata</p>
+                                                    </div>
+                                                </div>
+                                                <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-slate-700 mb-2">Bucket Name</label>
+                                                        <input type="text" id="settings-name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-slate-700 mb-2">Storage Tier</label>
+                                                        <select id="settings-tier" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                            <option value="hot">🔥 Hot Storage (Immediate Access)</option>
+                                                            <option value="warm">🌡️ Warm Storage (Frequent Access)</option>
+                                                            <option value="cold">❄️ Cold Storage (Infrequent Access)</option>
+                                                            <option value="archive">📦 Archive Storage (Long-term)</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="md-col-span-2">
+                                                        <label class="block text-sm font-medium text-slate-700 mb-2">Description</label>
+                                                        <textarea id="settings-description" rows="3" placeholder="Describe the purpose and contents of this bucket..." 
+                                                                  class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Storage Policy Card -->
+                                            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                                                <div class="flex items-center mb-6">
+                                                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                                                        <i class="fas fa-hdd text-green-600"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="text-lg font-semibold text-slate-900">Storage & Quota Policy</h3>
+                                                        <p class="text-sm text-slate-600">Manage storage limits and capacity planning</p>
+                                                    </div>
+                                                </div>
+                                                <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-slate-700 mb-2">Storage Quota</label>
+                                                        <div class="relative">
+                                                            <input type="number" id="settings-quota" placeholder="Unlimited" 
+                                                                   class="w-full px-4 py-3 pr-16 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                                <span class="text-slate-500 text-sm">GB</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-slate-700 mb-2">Replication Factor</label>
+                                                        <select id="settings-replication" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                            <option value="1">1x - No Redundancy</option>
+                                                            <option value="2">2x - Basic Redundancy</option>
+                                                            <option value="3">3x - Standard Redundancy (Recommended)</option>
+                                                            <option value="5">5x - High Redundancy</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Performance Configuration Card -->
+                                            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                                                <div class="flex items-center mb-6">
+                                                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                                                        <i class="fas fa-tachometer-alt text-purple-600"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="text-lg font-semibold text-slate-900">Cache & Performance</h3>
+                                                        <p class="text-sm text-slate-600">Optimize access patterns and caching behavior</p>
+                                                    </div>
+                                                </div>
+                                                <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-slate-700 mb-2">Cache Policy</label>
+                                                        <select id="settings-cache-policy" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                            <option value="memory">💾 Memory Cache (Fastest)</option>
+                                                            <option value="disk">💿 Disk Cache (Balanced)</option>
+                                                            <option value="hybrid">⚡ Hybrid Cache (Smart)</option>
+                                                            <option value="none">🚫 No Cache</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-slate-700 mb-2">Cache Size</label>
+                                                        <div class="relative">
+                                                            <input type="number" id="settings-cache-size" placeholder="Auto-detect" 
+                                                                   class="w-full px-4 py-3 pr-16 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                                <span class="text-slate-500 text-sm">MB</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Data Retention Card -->
+                                            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                                                <div class="flex items-center mb-6">
+                                                    <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                                                        <i class="fas fa-clock text-orange-600"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="text-lg font-semibold text-slate-900">Retention Policy</h3>
+                                                        <p class="text-sm text-slate-600">Define data lifecycle and cleanup rules</p>
+                                                    </div>
+                                                </div>
+                                                <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-slate-700 mb-2">Retention Period</label>
+                                                        <select id="settings-retention" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                            <option value="permanent">♾️ Permanent Storage</option>
+                                                            <option value="7d">7 Days</option>
+                                                            <option value="30d">30 Days</option>
+                                                            <option value="90d">90 Days</option>
+                                                            <option value="1y">1 Year</option>
+                                                            <option value="7y">7 Years (Compliance)</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-slate-700 mb-2">Auto-Cleanup</label>
+                                                        <select id="settings-cleanup" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                            <option value="disabled">🚫 Disabled</option>
+                                                            <option value="enabled">✅ Enabled</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Advanced Features Card -->
+                                            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                                                <div class="flex items-center mb-6">
+                                                    <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
+                                                        <i class="fas fa-shield-alt text-indigo-600"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="text-lg font-semibold text-slate-900">Security & Advanced Features</h3>
+                                                        <p class="text-sm text-slate-600">Enterprise security and optimization features</p>
+                                                    </div>
+                                                </div>
+                                                <div class="space-y-4">
+                                                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                                                        <div class="flex items-center">
+                                                            <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+                                                                <i class="fas fa-lock text-red-600 text-sm"></i>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-sm font-medium text-slate-900">Encryption at Rest</p>
+                                                                <p class="text-xs text-slate-600">AES-256 encryption for stored data</p>
+                                                            </div>
+                                                        </div>
+                                                        <input type="checkbox" id="settings-encryption" class="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                                                    </div>
+                                                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                                                        <div class="flex items-center">
+                                                            <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                                                                <i class="fas fa-compress-alt text-green-600 text-sm"></i>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-sm font-medium text-slate-900">Smart Compression</p>
+                                                                <p class="text-xs text-slate-600">Intelligent compression based on content type</p>
+                                                            </div>
+                                                        </div>
+                                                        <input type="checkbox" id="settings-compression" class="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                                                    </div>
+                                                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                                                        <div class="flex items-center">
+                                                            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                                                <i class="fas fa-copy text-blue-600 text-sm"></i>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-sm font-medium text-slate-900">Content Deduplication</p>
+                                                                <p class="text-xs text-slate-600">Eliminate duplicate files automatically</p>
+                                                            </div>
+                                                        </div>
+                                                        <input type="checkbox" id="settings-deduplication" class="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                                                    </div>
+                                                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                                                        <div class="flex items-center">
+                                                            <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                                                                <i class="fas fa-history text-purple-600 text-sm"></i>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-sm font-medium text-slate-900">File Versioning</p>
+                                                                <p class="text-xs text-slate-600">Keep track of file changes and history</p>
+                                                            </div>
+                                                        </div>
+                                                        <input type="checkbox" id="settings-versioning" class="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Action Buttons -->
+                                            <div class="flex justify-end space-x-3 pt-6">
+                                                <button id="settings-cancel" class="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors">
+                                                    Cancel Changes
+                                                </button>
+                                                <button id="settings-save" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm">
+                                                    Save Configuration
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Sharing & Access Tab -->
+                                    <div id="sharing-tab" class="detail-tab-content h-full overflow-y-auto p-8">
+                                        <div class="max-w-4xl space-y-8">
+                                            <!-- Share Link Generation Card -->
+                                            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                                                <div class="flex items-center mb-6">
+                                                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                                                        <i class="fas fa-link text-green-600"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="text-lg font-semibold text-slate-900">Generate Share Links</h3>
+                                                        <p class="text-sm text-slate-600">Create secure access links with custom permissions</p>
+                                                    </div>
+                                                </div>
+                                                <div class="space-y-6">
+                                                    <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                        <div>
+                                                            <label class="block text-sm font-medium text-slate-700 mb-2">Access Level</label>
+                                                            <select id="share-access-level" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                                <option value="read-only">👁️ Read Only</option>
+                                                                <option value="read-write">✏️ Read & Write</option>
+                                                                <option value="admin">🔑 Full Admin</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label class="block text-sm font-medium text-slate-700 mb-2">Expiration</label>
+                                                            <select id="share-expiration" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                                <option value="never">♾️ Never Expires</option>
+                                                                <option value="1h">1 Hour</option>
+                                                                <option value="24h">24 Hours</option>
+                                                                <option value="7d">7 Days</option>
+                                                                <option value="30d">30 Days</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex space-x-3">
+                                                        <input type="text" id="share-link" readonly placeholder="Generated link will appear here..." 
+                                                               class="flex-1 px-4 py-3 border border-slate-300 rounded-lg bg-slate-50 text-slate-600">
+                                                        <button id="generate-share-link" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+                                                            Generate
+                                                        </button>
+                                                        <button id="copy-share-link" class="px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors">
+                                                            Copy
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Active Shares Card -->
+                                            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                                                <div class="flex items-center mb-6">
+                                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                                        <i class="fas fa-users text-blue-600"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="text-lg font-semibold text-slate-900">Active Share Links</h3>
+                                                        <p class="text-sm text-slate-600">Manage existing shared access</p>
+                                                    </div>
+                                                </div>
+                                                <div id="active-shares" class="space-y-4">
+                                                    <div class="text-center py-12 text-slate-500">
+                                                        <i class="fas fa-share-alt text-4xl mb-4 opacity-50"></i>
+                                                        <p>No active share links</p>
+                                                        <p class="text-sm">Generate a share link above to get started</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Global Access Settings Card -->
+                                            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                                                <div class="flex items-center mb-6">
+                                                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                                                        <i class="fas fa-globe text-purple-600"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="text-lg font-semibold text-slate-900">Global Access Settings</h3>
+                                                        <p class="text-sm text-slate-600">Configure bucket-wide access policies</p>
+                                                    </div>
+                                                </div>
+                                                <div class="space-y-6">
+                                                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                                                        <div>
+                                                            <p class="text-sm font-medium text-slate-900">Public Access</p>
+                                                            <p class="text-xs text-slate-600">Allow anyone with the link to access this bucket</p>
+                                                        </div>
+                                                        <input type="checkbox" id="public-access" class="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                                                    </div>
+                                                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                                                        <div>
+                                                            <p class="text-sm font-medium text-slate-900">Password Protection</p>
+                                                            <p class="text-xs text-slate-600">Require password for all share links</p>
+                                                        </div>
+                                                        <input type="checkbox" id="password-required" class="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                                                    </div>
+                                                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                                                        <div>
+                                                            <p class="text-sm font-medium text-slate-900">Download Tracking</p>
+                                                            <p class="text-xs text-slate-600">Log all download activities for audit purposes</p>
+                                                        </div>
+                                                        <input type="checkbox" id="download-tracking" class="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Analytics Tab -->
+                                    <div id="analytics-tab" class="detail-tab-content h-full overflow-y-auto p-8">
+                                        <div class="max-w-6xl space-y-8">
+                                            <!-- Analytics Overview Cards -->
+                                            <div class="grid grid-cols-1 md-grid-cols-3 gap-6">
+                                                <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6">
+                                                    <div class="flex items-center">
+                                                        <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                                                            <i class="fas fa-eye text-white"></i>
+                                                        </div>
+                                                        <div class="ml-4">
+                                                            <p class="text-sm font-medium text-blue-700">Total Views</p>
+                                                            <p class="text-2xl font-bold text-blue-900">1,234</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-6">
+                                                    <div class="flex items-center">
+                                                        <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                                                            <i class="fas fa-download text-white"></i>
+                                                        </div>
+                                                        <div class="ml-4">
+                                                            <p class="text-sm font-medium text-green-700">Downloads</p>
+                                                            <p class="text-2xl font-bold text-green-900">567</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-6">
+                                                    <div class="flex items-center">
+                                                        <div class="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
+                                                            <i class="fas fa-chart-line text-white"></i>
+                                                        </div>
+                                                        <div class="ml-4">
+                                                            <p class="text-sm font-medium text-purple-700">Growth Rate</p>
+                                                            <p class="text-2xl font-bold text-purple-900">+23%</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Analytics Placeholder -->
+                                            <div class="bg-white border border-slate-200 rounded-xl p-8 text-center">
+                                                <div class="w-20 h-20 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                                                    <i class="fas fa-chart-bar text-2xl text-slate-400"></i>
+                                                </div>
+                                                <h3 class="text-xl font-semibold text-slate-800 mb-2">Analytics Dashboard</h3>
+                                                <p class="text-slate-600 mb-6">Detailed analytics and usage patterns will be displayed here</p>
+                                                <button class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                                    <i class="fas fa-chart-line mr-2"></i>Generate Report
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Activity Log Tab -->
+                                    <div id="activity-tab" class="detail-tab-content h-full overflow-y-auto">
+                                        <div class="p-8">
+                                            <div class="bg-white border border-slate-200 rounded-xl p-8 text-center">
+                                                <div class="w-20 h-20 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                                                    <i class="fas fa-history text-2xl text-slate-400"></i>
+                                                </div>
+                                                <h3 class="text-xl font-semibold text-slate-800 mb-2">Activity Log</h3>
+                                                <p class="text-slate-600">Recent bucket activity will appear here</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                                 <div class="flex-1 overflow-hidden">
                                     <!-- Files Tab -->
                                     <div id="files-tab" class="detail-tab-content active h-full flex flex-col">
@@ -1443,235 +2239,6 @@
                                             </div>
                                         </div>
 
-                                        <!-- Breadcrumb Navigation -->
-                                        <div id="breadcrumb" class="px-6 py-2 bg-gray-50 border-b border-gray-200 text-sm">
-                                            <nav class="flex items-center text-gray-600">
-                                                <button class="breadcrumb-item hover:text-blue-600" data-path="">
-                                                    <i class="fas fa-home mr-1"></i>Root
-                                                </button>
-                                            </nav>
-                                        </div>
-
-                                        <!-- File Browser -->
-                                        <div class="flex-1 overflow-y-auto">
-                                            <div id="files-list" class="divide-y divide-gray-100">
-                                                <!-- Files will be populated here -->
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Settings Tab -->
-                                    <div id="settings-tab" class="detail-tab-content h-full overflow-y-auto p-6">
-                                        <div class="space-y-6 max-w-3xl">
-                                            <!-- Basic Settings -->
-                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
-                                                <h4 class="text-lg font-medium mb-4">Basic Configuration</h4>
-                                                <div class="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Bucket Name</label>
-                                                        <input type="text" id="settings-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                                    </div>
-                                                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Storage Tier</label>
-                                                        <select id="settings-tier" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                                            <option value="hot">Hot (Fast Access)</option>
-                                                            <option value="warm">Warm (Balanced)</option>
-                                                            <option value="cold">Cold (Archive)</option>
-                                                            <option value="archive">Deep Archive</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-span-2">
-                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                                                        <textarea id="settings-description" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Storage Settings -->
-                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
-                                                <h4 class="text-lg font-medium mb-4">Storage Policy</h4>
-                                                <div class="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Storage Quota (GB)</label>
-                                                        <input type="number" id="settings-quota" placeholder="Unlimited" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                                    </div>
-                                                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Replication Factor</label>
-                                                        <select id="settings-replication" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                                            <option value="1">1x - No redundancy</option>
-                                                            <option value="2">2x - Basic redundancy</option>
-                                                            <option value="3">3x - Standard redundancy</option>
-                                                            <option value="5">5x - High redundancy</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Cache Policy -->
-                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
-                                                <h4 class="text-lg font-medium mb-4">Cache Configuration</h4>
-                                                <div class="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Cache Policy</label>
-                                                        <select id="settings-cache-policy" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                                            <option value="memory">Memory Cache</option>
-                                                            <option value="disk">Disk Cache</option>
-                                                            <option value="hybrid">Hybrid Cache</option>
-                                                            <option value="none">No Cache</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Cache Size (MB)</label>
-                                                        <input type="number" id="settings-cache-size" placeholder="Auto" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Retention Policy -->
-                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
-                                                <h4 class="text-lg font-medium mb-4">Retention Policy</h4>
-                                                <div class="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Retention Period</label>
-                                                        <select id="settings-retention" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                                            <option value="permanent">Permanent</option>
-                                                            <option value="7d">7 Days</option>
-                                                            <option value="30d">30 Days</option>
-                                                            <option value="90d">90 Days</option>
-                                                            <option value="1y">1 Year</option>
-                                                            <option value="7y">7 Years</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Auto-Cleanup</label>
-                                                        <select id="settings-cleanup" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                                            <option value="disabled">Disabled</option>
-                                                            <option value="enabled">Enabled</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Advanced Features -->
-                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
-                                                <h4 class="text-lg font-medium mb-4">Advanced Features</h4>
-                                                <div class="space-y-4">
-                                                    <div class="flex items-center">
-                                                        <input type="checkbox" id="settings-encryption" class="mr-3">
-                                                        <label for="settings-encryption" class="text-sm font-medium text-gray-700">Enable Encryption at Rest</label>
-                                                    </div>
-                                                    <div class="flex items-center">
-                                                        <input type="checkbox" id="settings-compression" class="mr-3">
-                                                        <label for="settings-compression" class="text-sm font-medium text-gray-700">Enable Compression</label>
-                                                    </div>
-                                                    <div class="flex items-center">
-                                                        <input type="checkbox" id="settings-deduplication" class="mr-3">
-                                                        <label for="settings-deduplication" class="text-sm font-medium text-gray-700">Enable Deduplication</label>
-                                                    </div>
-                                                    <div class="flex items-center">
-                                                        <input type="checkbox" id="settings-versioning" class="mr-3">
-                                                        <label for="settings-versioning" class="text-sm font-medium text-gray-700">Enable File Versioning</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Save Button -->
-                                            <div class="flex justify-end gap-3">
-                                                <button id="settings-cancel" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
-                                                <button id="settings-save" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Save Changes</button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Sharing Tab -->
-                                    <div id="sharing-tab" class="detail-tab-content h-full overflow-y-auto p-6">
-                                        <div class="space-y-6 max-w-3xl">
-                                            <!-- Share Link Generation -->
-                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
-                                                <h4 class="text-lg font-medium mb-4">Generate Share Link</h4>
-                                                <div class="space-y-4">
-                                                    <div class="grid grid-cols-2 gap-4">
-                                                        <div>
-                                                            <label class="block text-sm font-medium text-gray-700 mb-2">Access Level</label>
-                                                            <select id="share-access-level" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                                                <option value="read-only">Read Only</option>
-                                                                <option value="read-write">Read & Write</option>
-                                                                <option value="admin">Admin Access</option>
-                                                            </select>
-                                                        </div>
-                                                        <div>
-                                                            <label class="block text-sm font-medium text-gray-700 mb-2">Expiration</label>
-                                                            <select id="share-expiration" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                                                <option value="never">Never</option>
-                                                                <option value="1h">1 Hour</option>
-                                                                <option value="24h">24 Hours</option>
-                                                                <option value="7d">7 Days</option>
-                                                                <option value="30d">30 Days</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                    <div class="flex gap-2">
-                                                        <input type="text" id="share-link" readonly placeholder="Click Generate to create share link" 
-                                                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                                                        <button id="generate-share-link" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-                                                            Generate
-                                                        </button>
-                                                        <button id="copy-share-link" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
-                                                            Copy
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Active Shares -->
-                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
-                                                <h4 class="text-lg font-medium mb-4">Active Share Links</h4>
-                                                <div id="active-shares" class="space-y-3">
-                                                    <!-- Active shares will be populated here -->
-                                                    <div class="text-gray-500 text-sm">No active share links</div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Collaboration Settings -->
-                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
-                                                <h4 class="text-lg font-medium mb-4">Collaboration Settings</h4>
-                                                <div class="space-y-4">
-                                                    <div class="flex items-center justify-between">
-                                                        <div>
-                                                            <p class="text-sm font-medium text-gray-700">Allow Public Access</p>
-                                                            <p class="text-xs text-gray-500">Anyone with the link can access</p>
-                                                        </div>
-                                                        <input type="checkbox" id="public-access">
-                                                    </div>
-                                                    <div class="flex items-center justify-between">
-                                                        <div>
-                                                            <p class="text-sm font-medium text-gray-700">Require Password</p>
-                                                            <p class="text-xs text-gray-500">Add password protection to share links</p>
-                                                        </div>
-                                                        <input type="checkbox" id="password-required">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Activity Tab -->
-                                    <div id="activity-tab" class="detail-tab-content h-full overflow-y-auto">
-                                        <div class="divide-y divide-gray-100">
-                                            <div id="activity-list">
-                                                <!-- Activity will be populated here -->
-                                                <div class="p-6 text-center text-gray-500">
-                                                    <i class="fas fa-history text-3xl mb-2"></i>
-                                                    <p>No recent activity</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Pin Management Tab -->
@@ -3867,44 +4434,125 @@
         function renderBucketsList() {
             const container = document.getElementById('buckets-list');
             const countElement = document.getElementById('bucket-count');
+            const totalSizeElement = document.getElementById('total-size');
+            const totalFilesElement = document.getElementById('total-files');
+            const healthStatusElement = document.getElementById('health-status');
             
             if (!container || !countElement) return;
             
+            // Update stats
+            const totalSize = bucketsData.reduce((sum, bucket) => sum + (bucket.size_gb || 0), 0);
+            const totalFiles = bucketsData.reduce((sum, bucket) => sum + (bucket.file_count || 0), 0);
+            const healthyBuckets = bucketsData.filter(b => (b.status || 'active') === 'active').length;
+            const healthPercentage = bucketsData.length > 0 ? Math.round((healthyBuckets / bucketsData.length) * 100) : 100;
+            
             countElement.textContent = `${filteredBuckets.length} of ${bucketsData.length} buckets`;
+            if (totalSizeElement) totalSizeElement.textContent = `Total: ${formatFileSize(totalSize * 1024 * 1024 * 1024)}`;
+            if (totalFilesElement) totalFilesElement.textContent = `Files: ${totalFiles.toLocaleString()}`;
+            if (healthStatusElement) healthStatusElement.textContent = `Health: ${healthPercentage}%`;
             
             if (filteredBuckets.length === 0) {
                 container.innerHTML = `
-                    <div class="p-8 text-center text-gray-500">
-                        <i class="fas fa-search text-3xl mb-2"></i>
-                        <p>No buckets match your search criteria</p>
+                    <div class="p-12 text-center text-slate-500">
+                        <div class="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                            <i class="fas fa-search text-xl text-slate-400"></i>
+                        </div>
+                        <h3 class="font-semibold text-slate-700 mb-2">No Buckets Found</h3>
+                        <p class="text-sm">No buckets match your search criteria</p>
+                        <button onclick="clearFilters()" class="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors">
+                            Clear Filters
+                        </button>
                     </div>
                 `;
                 return;
             }
             
-            container.innerHTML = filteredBuckets.map(bucket => `
-                <div class="bucket-item ${currentBucket?.name === bucket.name ? 'selected' : ''}" 
-                     onclick="selectBucket('${bucket.name}')">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <div class="bucket-title">${bucket.name}</div>
-                            <div class="bucket-meta">${bucket.description || 'No description'}</div>
-                            <div class="bucket-meta mt-1">
-                                ${formatFileSize(bucket.size_gb * 1024 * 1024 * 1024)} • 
-                                ${bucket.file_count || 0} files • 
-                                ${formatDate(bucket.last_modified)}
+            container.innerHTML = filteredBuckets.map(bucket => {
+                const tierIcon = getTierIcon(bucket.tier || 'hot');
+                const statusColor = getStatusColor(bucket.status || 'active');
+                const sizeFormatted = formatFileSize((bucket.size_gb || 0) * 1024 * 1024 * 1024);
+                const filesCount = (bucket.file_count || 0).toLocaleString();
+                const lastModified = formatDate(bucket.last_modified);
+                
+                return `
+                    <div class="bucket-item ${currentBucket?.name === bucket.name ? 'selected' : ''}" 
+                         onclick="selectBucket('${bucket.name}')" 
+                         data-bucket="${bucket.name}">
+                        <input type="checkbox" class="bucket-checkbox" data-bucket="${bucket.name}" 
+                               onclick="event.stopPropagation();" onchange="handleBucketSelection(this)">
+                        
+                        <div class="bucket-title">
+                            <i class="fas fa-database mr-2 text-slate-400"></i>
+                            ${bucket.name}
+                            <span class="tier-badge ${bucket.tier || 'hot'}">${tierIcon} ${(bucket.tier || 'hot').toUpperCase()}</span>
+                        </div>
+                        
+                        <div class="bucket-meta">${bucket.description || 'No description available'}</div>
+                        
+                        <div class="bucket-stats">
+                            <div class="stat">
+                                <i class="fas fa-hdd"></i>
+                                <span>${sizeFormatted}</span>
+                            </div>
+                            <div class="stat">
+                                <i class="fas fa-file"></i>
+                                <span>${filesCount}</span>
+                            </div>
+                            <div class="stat">
+                                <i class="fas fa-clock"></i>
+                                <span>${lastModified}</span>
                             </div>
                         </div>
-                        <div class="flex flex-col items-end gap-1">
-                            <div class="bucket-status">
-                                <div class="status-dot ${bucket.status || 'active'}"></div>
-                                ${(bucket.status || 'active').toUpperCase()}
-                            </div>
-                            <div class="text-xs text-gray-500">${bucket.tier || 'hot'} tier</div>
+                        
+                        <div class="bucket-status">
+                            <div class="status-dot ${bucket.status || 'active'}"></div>
+                            ${(bucket.status || 'active').toUpperCase()}
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
+        }
+        
+        function getTierIcon(tier) {
+            const icons = {
+                'hot': '🔥',
+                'warm': '🌡️', 
+                'cold': '❄️',
+                'archive': '📦'
+            };
+            return icons[tier] || '🔥';
+        }
+        
+        function getStatusColor(status) {
+            const colors = {
+                'active': 'text-green-600',
+                'syncing': 'text-yellow-600',
+                'error': 'text-red-600',
+                'maintenance': 'text-orange-600',
+                'offline': 'text-gray-600'
+            };
+            return colors[status] || 'text-green-600';
+        }
+        
+        function clearFilters() {
+            document.getElementById('bucket-search').value = '';
+            document.getElementById('status-filter').value = '';
+            document.getElementById('tier-filter').value = '';
+            document.getElementById('size-filter').value = '';
+            applyFilters();
+        }
+        
+        function handleBucketSelection(checkbox) {
+            const bucketName = checkbox.dataset.bucket;
+            const selectedBuckets = Array.from(document.querySelectorAll('.bucket-checkbox:checked')).map(cb => cb.dataset.bucket);
+            
+            // Update bulk actions visibility
+            const bulkActionsBtn = document.getElementById('bulk-actions');
+            if (bulkActionsBtn) {
+                bulkActionsBtn.textContent = selectedBuckets.length > 0 
+                    ? `Bulk Actions (${selectedBuckets.length})`
+                    : 'Bulk Actions';
+            }
         }
 
         async function selectBucket(bucketName) {
@@ -3947,6 +4595,103 @@
                 const element = document.getElementById(id);
                 if (element) element.textContent = text;
             });
+        }
+        
+        // Enhanced Filtering and Sorting Functions
+        function applyFilters() {
+            const searchTerm = document.getElementById('bucket-search')?.value.toLowerCase() || '';
+            const statusFilter = document.getElementById('status-filter')?.value || '';
+            const tierFilter = document.getElementById('tier-filter')?.value || '';
+            const sizeFilter = document.getElementById('size-filter')?.value || '';
+            
+            filteredBuckets = bucketsData.filter(bucket => {
+                // Search filter
+                if (searchTerm && !bucket.name.toLowerCase().includes(searchTerm) && 
+                    !(bucket.description || '').toLowerCase().includes(searchTerm)) {
+                    return false;
+                }
+                
+                // Status filter
+                if (statusFilter && (bucket.status || 'active') !== statusFilter) {
+                    return false;
+                }
+                
+                // Tier filter
+                if (tierFilter && (bucket.tier || 'hot') !== tierFilter) {
+                    return false;
+                }
+                
+                // Size filter
+                if (sizeFilter) {
+                    const sizeGB = bucket.size_gb || 0;
+                    switch (sizeFilter) {
+                        case 'small': if (sizeGB >= 1) return false; break;
+                        case 'medium': if (sizeGB < 1 || sizeGB >= 10) return false; break;
+                        case 'large': if (sizeGB < 10 || sizeGB >= 100) return false; break;
+                        case 'xlarge': if (sizeGB < 100) return false; break;
+                    }
+                }
+                
+                return true;
+            });
+            
+            applySorting();
+            renderBucketsList();
+        }
+        
+        function applySorting() {
+            filteredBuckets.sort((a, b) => {
+                let valueA, valueB;
+                
+                switch (sortField) {
+                    case 'name':
+                        valueA = a.name.toLowerCase();
+                        valueB = b.name.toLowerCase();
+                        break;
+                    case 'size':
+                        valueA = a.size_gb || 0;
+                        valueB = b.size_gb || 0;
+                        break;
+                    case 'modified':
+                        valueA = new Date(a.last_modified || 0).getTime();
+                        valueB = new Date(b.last_modified || 0).getTime();
+                        break;
+                    case 'files':
+                        valueA = a.file_count || 0;
+                        valueB = b.file_count || 0;
+                        break;
+                    default:
+                        return 0;
+                }
+                
+                if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
+                if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        function setSortField(field) {
+            if (sortField === field) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortField = field;
+                sortDirection = 'asc';
+            }
+            
+            // Update sort button indicators
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                const icon = btn.querySelector('i');
+                if (btn.dataset.sort === field) {
+                    btn.classList.add('text-blue-600');
+                    icon.className = sortDirection === 'asc' ? 'fas fa-sort-up ml-1' : 'fas fa-sort-down ml-1';
+                } else {
+                    btn.classList.remove('text-blue-600');
+                    icon.className = 'fas fa-sort ml-1';
+                }
+            });
+            
+            applySorting();
+            renderBucketsList();
         }
 
         async function loadBucketFiles(bucketName, path = '') {
@@ -4004,41 +4749,171 @@
             
             if (!files || files.length === 0) {
                 container.innerHTML = `
-                    <div class="p-8 text-center text-gray-500">
-                        <i class="fas fa-folder-open text-3xl mb-2"></i>
-                        <p>No files in this location</p>
-                        <button onclick="showDragDropZone()" class="mt-4 text-blue-600 hover:text-blue-700 text-sm">
-                            Upload your first file
-                        </button>
+                    <div class="flex-1 flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="w-24 h-24 mx-auto bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
+                                <i class="fas fa-folder-open text-3xl text-slate-400"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-slate-800 mb-2">Empty Folder</h3>
+                            <p class="text-slate-600 mb-6">This folder doesn't contain any files yet</p>
+                            <div class="flex gap-3 justify-center">
+                                <button onclick="showDragDropZone()" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                    <i class="fas fa-upload mr-2"></i>Upload Files
+                                </button>
+                                <button onclick="createFolder()" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                    <i class="fas fa-folder-plus mr-2"></i>New Folder
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 `;
                 return;
             }
             
-            container.innerHTML = files.map(file => `
-                <div class="file-item" onclick="selectFile('${file.name}', '${file.type}')">
-                    <div class="file-icon ${file.type}">
-                        <i class="fas ${getFileIcon(file.name, file.type)}"></i>
+            // Check if we should show grid or list view
+            const viewMode = localStorage.getItem('fileViewMode') || 'list';
+            
+            if (viewMode === 'grid') {
+                container.innerHTML = `<div class="file-grid">${files.map(renderFileCard).join('')}</div>`;
+            } else {
+                container.innerHTML = `<div class="space-y-2 p-4">${files.map(renderFileListItem).join('')}</div>`;
+            }
+        }
+        
+        function renderFileCard(file) {
+            const fileIcon = getFileIcon(file.name, file.type);
+            const iconClass = getFileIconClass(file.name, file.type);
+            
+            return `
+                <div class="file-card ${file.selected ? 'selected' : ''}" 
+                     onclick="selectFile('${file.name}', '${file.type}')"
+                     data-file="${file.name}">
+                    <div class="file-icon ${iconClass}">
+                        <i class="fas ${fileIcon}"></i>
                     </div>
-                    <div class="file-info">
-                        <div class="file-name">${file.name}</div>
-                        <div class="file-meta">
+                    <div class="flex-1">
+                        <div class="font-medium text-slate-900 text-sm truncate" title="${file.name}">
+                            ${file.name}
+                        </div>
+                        <div class="text-xs text-slate-500 mt-1">
+                            ${file.type === 'folder' ? 'Folder' : formatFileSize(file.size)}
+                        </div>
+                        <div class="text-xs text-slate-400 mt-1">
+                            ${formatDate(file.modified)}
+                        </div>
+                    </div>
+                    <div class="flex gap-1 mt-3">
+                        ${file.type === 'file' ? `
+                            <button onclick="downloadFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">
+                                <i class="fas fa-download text-xs"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="shareFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
+                            <i class="fas fa-share text-xs"></i>
+                        </button>
+                        <button onclick="deleteFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderFileListItem(file) {
+            const fileIcon = getFileIcon(file.name, file.type);
+            const iconClass = getFileIconClass(file.name, file.type);
+            
+            return `
+                <div class="flex items-center p-4 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-all duration-200 ${file.selected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-slate-50'}" 
+                     onclick="selectFile('${file.name}', '${file.type}')"
+                     data-file="${file.name}">
+                    <input type="checkbox" class="mr-3 w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" 
+                           onclick="event.stopPropagation();" onchange="handleFileSelection(this, '${file.name}')">
+                    
+                    <div class="file-icon ${iconClass} mr-4" style="width: 2.5rem; height: 2.5rem;">
+                        <i class="fas ${fileIcon}"></i>
+                    </div>
+                    
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-slate-900 truncate">
+                            ${file.name}
+                        </div>
+                        <div class="text-sm text-slate-500 mt-1">
                             ${file.type === 'folder' ? 'Folder' : formatFileSize(file.size)} • 
                             ${formatDate(file.modified)}
                         </div>
                     </div>
-                    <div class="flex gap-2">
+                    
+                    <div class="flex items-center space-x-2 ml-4">
                         ${file.type === 'file' ? `
-                            <button onclick="downloadFile(event, '${file.name}')" class="p-1 text-gray-400 hover:text-blue-600" title="Download">
+                            <button onclick="downloadFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">
                                 <i class="fas fa-download"></i>
                             </button>
                         ` : ''}
-                        <button onclick="deleteFile(event, '${file.name}')" class="p-1 text-gray-400 hover:text-red-600" title="Delete">
+                        <button onclick="shareFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
+                            <i class="fas fa-share"></i>
+                        </button>
+                        <button onclick="deleteFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
                             <i class="fas fa-trash"></i>
+                        </button>
+                        <button onclick="showFileMenu(event, '${file.name}')" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors" title="More actions">
+                            <i class="fas fa-ellipsis-v"></i>
                         </button>
                     </div>
                 </div>
-            `).join('');
+            `;
+        }
+        
+        function getFileIconClass(name, type) {
+            if (type === 'folder') return 'folder';
+            
+            const ext = name.toLowerCase().split('.').pop();
+            if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) return 'image';
+            if (['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(ext)) return 'document';
+            if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'archive';
+            
+            return 'document';
+        }
+        
+        function toggleFileView() {
+            const currentMode = localStorage.getItem('fileViewMode') || 'list';
+            const newMode = currentMode === 'list' ? 'grid' : 'list';
+            
+            localStorage.setItem('fileViewMode', newMode);
+            
+            const toggleBtn = document.getElementById('file-view-toggle');
+            if (toggleBtn) {
+                const icon = toggleBtn.querySelector('i');
+                icon.className = newMode === 'grid' ? 'fas fa-list' : 'fas fa-th-large';
+            }
+            
+            // Re-render files with new view
+            const files = getMockFiles(); // In real implementation, use current files
+            renderFilesList(files);
+        }
+        
+        function handleFileSelection(checkbox, fileName) {
+            if (checkbox.checked) {
+                selectedFiles.push(fileName);
+            } else {
+                selectedFiles = selectedFiles.filter(f => f !== fileName);
+            }
+            
+            // Update bulk actions
+            updateBulkFileActions();
+        }
+        
+        function updateBulkFileActions() {
+            const bulkDownloadBtn = document.getElementById('bulk-download');
+            if (bulkDownloadBtn) {
+                if (selectedFiles.length > 0) {
+                    bulkDownloadBtn.textContent = `Download (${selectedFiles.length})`;
+                    bulkDownloadBtn.disabled = false;
+                } else {
+                    bulkDownloadBtn.textContent = 'Download';
+                    bulkDownloadBtn.disabled = true;
+                }
+            }
         }
 
         function getFileIcon(name, type) {
@@ -4985,7 +5860,35 @@
         function setupBucketManagement() {
             console.log('Setting up bucket management...');
             
-            // Bucket control buttons
+            // Enhanced Search and Filter Controls
+            const bucketSearch = document.getElementById('bucket-search');
+            if (bucketSearch) {
+                bucketSearch.addEventListener('input', debounce(applyFilters, 300));
+            }
+            
+            const statusFilter = document.getElementById('status-filter');
+            if (statusFilter) {
+                statusFilter.addEventListener('change', applyFilters);
+            }
+            
+            const tierFilter = document.getElementById('tier-filter');
+            if (tierFilter) {
+                tierFilter.addEventListener('change', applyFilters);
+            }
+            
+            const sizeFilter = document.getElementById('size-filter');
+            if (sizeFilter) {
+                sizeFilter.addEventListener('change', applyFilters);
+            }
+            
+            // Sorting Controls
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    setSortField(btn.dataset.sort);
+                });
+            });
+            
+            // Main Action Buttons
             const refreshBucketsBtn = document.getElementById('refresh-buckets');
             if (refreshBucketsBtn) {
                 refreshBucketsBtn.addEventListener('click', async () => {
@@ -4995,28 +5898,42 @@
             }
 
             const createBucketBtn = document.getElementById('create-bucket');
-            if (createBucketBtn) {
-                createBucketBtn.addEventListener('click', () => {
-                    showCreateBucketModal();
-                });
-            }
+            const createFirstBucketBtn = document.getElementById('create-first-bucket');
+            [createBucketBtn, createFirstBucketBtn].forEach(btn => {
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        showCreateBucketModal();
+                    });
+                }
+            });
 
-            const uploadFileBtn = document.getElementById('upload-file');
-            if (uploadFileBtn) {
-                uploadFileBtn.addEventListener('click', () => {
-                    document.getElementById('file-input').click();
-                });
+            const bulkActionsBtn = document.getElementById('bulk-actions');
+            if (bulkActionsBtn) {
+                bulkActionsBtn.addEventListener('click', showBulkActionsModal);
             }
-
-            const forceSyncBucketBtn = document.getElementById('force-sync-bucket');
-            if (forceSyncBucketBtn) {
-                forceSyncBucketBtn.addEventListener('click', async () => {
-                    const bucketSelector = document.getElementById('bucket-selector');
-                    const selectedBucket = bucketSelector?.value;
-                    if (selectedBucket) {
-                        await forceSyncBucket(selectedBucket);
-                    } else {
-                        alert('Please select a bucket first');
+            
+            const importBucketBtn = document.getElementById('import-bucket');
+            if (importBucketBtn) {
+                importBucketBtn.addEventListener('click', showImportBucketModal);
+            }
+            
+            // View Toggle
+            const viewToggleBtn = document.getElementById('view-toggle');
+            if (viewToggleBtn) {
+                viewToggleBtn.addEventListener('click', toggleViewMode);
+            }
+            
+            const fileViewToggleBtn = document.getElementById('file-view-toggle');
+            if (fileViewToggleBtn) {
+                fileViewToggleBtn.addEventListener('click', toggleFileView);
+            }
+            
+            // Bucket Detail Actions
+            const syncBucketBtn = document.getElementById('sync-bucket');
+            if (syncBucketBtn) {
+                syncBucketBtn.addEventListener('click', async () => {
+                    if (currentBucket) {
+                        await syncBucketNow(currentBucket.name);
                     }
                 });
             }
@@ -5024,48 +5941,416 @@
             const shareBucketBtn = document.getElementById('share-bucket');
             if (shareBucketBtn) {
                 shareBucketBtn.addEventListener('click', () => {
-                    const bucketSelector = document.getElementById('bucket-selector');
-                    const selectedBucket = bucketSelector?.value;
-                    if (selectedBucket) {
-                        shareBucket(selectedBucket);
-                    } else {
-                        alert('Please select a bucket first');
+                    if (currentBucket) {
+                        showShareBucketModal(currentBucket.name);
                     }
                 });
             }
 
-            // Advanced settings button
-            const advancedSettingsBtn = document.getElementById('advanced-settings-btn');
-            if (advancedSettingsBtn) {
-                advancedSettingsBtn.addEventListener('click', () => {
-                    const bucketSelector = document.getElementById('bucket-selector');
-                    const selectedBucket = bucketSelector?.value;
-                    if (selectedBucket) {
-                        showBucketSettings(selectedBucket);
-                    } else {
-                        alert('Please select a bucket first');
+            const bucketSettingsBtn = document.getElementById('bucket-settings');
+            if (bucketSettingsBtn) {
+                bucketSettingsBtn.addEventListener('click', () => {
+                    if (currentBucket) {
+                        showBucketSettingsModal(currentBucket.name);
                     }
                 });
             }
-
-            // Bucket selector change
-            const bucketSelector = document.getElementById('bucket-selector');
-            if (bucketSelector) {
-                bucketSelector.addEventListener('change', (e) => {
-                    const selectedBucket = e.target.value;
-                    if (selectedBucket) {
-                        selectBucket(selectedBucket);
-                    } else {
-                        // Show overview
-                        document.getElementById('buckets-overview').style.display = 'block';
-                        document.getElementById('bucket-content').style.display = 'none';
-                        document.getElementById('bucket-status').style.display = 'none';
-                    }
+            
+            // File Management Actions
+            const uploadFilesBtn = document.getElementById('upload-files');
+            if (uploadFilesBtn) {
+                uploadFilesBtn.addEventListener('click', () => {
+                    document.getElementById('file-input')?.click();
                 });
             }
-
-            // Setup modal event handlers
-            setupBucketModalHandlers();
+            
+            const createFolderBtn = document.getElementById('create-folder');
+            if (createFolderBtn) {
+                createFolderBtn.addEventListener('click', createNewFolder);
+            }
+            
+            const bulkDownloadBtn = document.getElementById('bulk-download');
+            if (bulkDownloadBtn) {
+                bulkDownloadBtn.addEventListener('click', downloadSelectedFiles);
+            }
+            
+            // Tab Navigation
+            document.querySelectorAll('.detail-tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    switchDetailTab(btn.dataset.tab);
+                });
+            });
+            
+            // Settings Actions
+            const settingsSaveBtn = document.getElementById('settings-save');
+            if (settingsSaveBtn) {
+                settingsSaveBtn.addEventListener('click', saveCurrentBucketSettings);
+            }
+            
+            const settingsCancelBtn = document.getElementById('settings-cancel');
+            if (settingsCancelBtn) {
+                settingsCancelBtn.addEventListener('click', cancelBucketSettings);
+            }
+            
+            // Share Link Generation
+            const generateShareLinkBtn = document.getElementById('generate-share-link');
+            if (generateShareLinkBtn) {
+                generateShareLinkBtn.addEventListener('click', generateBucketShareLink);
+            }
+            
+            const copyShareLinkBtn = document.getElementById('copy-share-link');
+            if (copyShareLinkBtn) {
+                copyShareLinkBtn.addEventListener('click', copyShareLinkToClipboard);
+            }
+            
+            // File Input Handler
+            const fileInput = document.getElementById('file-input');
+            if (fileInput) {
+                fileInput.addEventListener('change', handleFileUpload);
+            }
+            
+            // Setup drag and drop
+            setupEnhancedDragAndDrop();
+            
+            console.log('✅ Enhanced bucket management event listeners set up');
+        }
+        
+        // Utility Functions for Enhanced Interface
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        function toggleViewMode() {
+            const currentMode = localStorage.getItem('bucketViewMode') || 'list';
+            const newMode = currentMode === 'list' ? 'grid' : 'list';
+            
+            localStorage.setItem('bucketViewMode', newMode);
+            
+            const viewToggleBtn = document.getElementById('view-toggle');
+            if (viewToggleBtn) {
+                const span = viewToggleBtn.querySelector('span');
+                const icon = viewToggleBtn.querySelector('i');
+                if (newMode === 'grid') {
+                    span.textContent = 'List';
+                    icon.className = 'fas fa-list';
+                } else {
+                    span.textContent = 'Grid';
+                    icon.className = 'fas fa-th-large';
+                }
+            }
+            
+            renderBucketsList();
+        }
+        
+        function switchDetailTab(tabName) {
+            // Remove active class from all tabs and content
+            document.querySelectorAll('.detail-tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
+                btn.classList.add('text-slate-500');
+            });
+            
+            document.querySelectorAll('.detail-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Activate selected tab
+            const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active', 'border-blue-500', 'text-blue-600');
+                activeBtn.classList.remove('text-slate-500');
+            }
+            
+            const activeContent = document.getElementById(`${tabName}-tab`);
+            if (activeContent) {
+                activeContent.classList.add('active');
+            }
+        }
+        
+        async function syncBucketNow(bucketName) {
+            try {
+                showToast('Starting sync...', 'info');
+                
+                const result = await callMCPTool('bucket_sync_replicas', {
+                    bucket: bucketName
+                });
+                
+                if (result?.success) {
+                    showToast(`Sync completed for ${bucketName}`, 'success');
+                    await loadBucketsData(); // Refresh the list
+                } else {
+                    throw new Error(result?.error || 'Sync failed');
+                }
+            } catch (error) {
+                console.error('Error syncing bucket:', error);
+                showToast(`Sync failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function showCreateBucketModal() {
+            // Implementation for create bucket modal
+            showToast('Create bucket modal - coming soon', 'info');
+        }
+        
+        function showBulkActionsModal() {
+            const selectedBuckets = Array.from(document.querySelectorAll('.bucket-checkbox:checked')).map(cb => cb.dataset.bucket);
+            if (selectedBuckets.length === 0) {
+                showToast('Please select one or more buckets', 'warning');
+                return;
+            }
+            showToast(`Bulk actions for ${selectedBuckets.length} buckets - coming soon`, 'info');
+        }
+        
+        
+        function setupEnhancedDragAndDrop() {
+            const dragDropZone = document.getElementById('drag-drop-zone');
+            const filesContainer = document.getElementById('files-list');
+            
+            // Setup drag and drop on the main files area
+            if (filesContainer) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    filesContainer.addEventListener(eventName, preventDefaults, false);
+                });
+                
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    filesContainer.addEventListener(eventName, highlightDropZone, false);
+                });
+                
+                ['dragleave', 'drop'].forEach(eventName => {
+                    filesContainer.addEventListener(eventName, unhighlightDropZone, false);
+                });
+                
+                filesContainer.addEventListener('drop', handleDrop, false);
+            }
+            
+            // Also setup on the dedicated drop zone
+            if (dragDropZone) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dragDropZone.addEventListener(eventName, preventDefaults, false);
+                });
+                
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dragDropZone.addEventListener(eventName, highlightDropZone, false);
+                });
+                
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dragDropZone.addEventListener(eventName, unhighlightDropZone, false);
+                });
+                
+                dragDropZone.addEventListener('drop', handleDrop, false);
+            }
+        }
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        function highlightDropZone(e) {
+            const dragDropZone = document.getElementById('drag-drop-zone');
+            if (dragDropZone) {
+                dragDropZone.classList.remove('hidden');
+                dragDropZone.classList.add('border-blue-400', 'bg-blue-100');
+            }
+        }
+        
+        function unhighlightDropZone(e) {
+            const dragDropZone = document.getElementById('drag-drop-zone');
+            if (dragDropZone && e.type === 'dragleave') {
+                // Only hide if we're leaving the entire drop zone
+                const rect = dragDropZone.getBoundingClientRect();
+                if (e.clientX < rect.left || e.clientX >= rect.right || 
+                    e.clientY < rect.top || e.clientY >= rect.bottom) {
+                    dragDropZone.classList.remove('border-blue-400', 'bg-blue-100');
+                    setTimeout(() => {
+                        if (!dragDropZone.classList.contains('border-blue-400')) {
+                            dragDropZone.classList.add('hidden');
+                        }
+                    }, 100);
+                }
+            }
+        }
+        
+        function handleDrop(e) {
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        }
+        
+        function handleFiles(files) {
+            Array.from(files).forEach(uploadFile);
+        }
+        
+        function handleFileUpload(e) {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                handleFiles(files);
+            }
+        }
+        
+        async function uploadFile(file) {
+            if (!currentBucket) {
+                showToast('Please select a bucket first', 'warning');
+                return;
+            }
+            
+            try {
+                showToast(`Uploading ${file.name}...`, 'info');
+                
+                // Show upload progress
+                const progressContainer = document.getElementById('upload-progress');
+                const progressBar = document.getElementById('progress-bar');
+                const uploadStatus = document.getElementById('upload-status');
+                
+                if (progressContainer) {
+                    progressContainer.classList.remove('hidden');
+                    uploadStatus.textContent = `Uploading ${file.name}...`;
+                }
+                
+                // Create FormData for file upload
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('bucket', currentBucket.name);
+                formData.append('path', currentPath);
+                
+                // Simulate upload progress (in real implementation, use XMLHttpRequest for progress)
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += Math.random() * 30;
+                    if (progress > 90) progress = 90;
+                    if (progressBar) progressBar.style.width = `${progress}%`;
+                }, 100);
+                
+                // Use MCP tool for upload
+                const result = await callMCPTool('upload_file_to_bucket', {
+                    bucket: currentBucket.name,
+                    path: currentPath,
+                    filename: file.name,
+                    content: await fileToBase64(file)
+                });
+                
+                clearInterval(progressInterval);
+                if (progressBar) progressBar.style.width = '100%';
+                
+                if (result?.success) {
+                    showToast(`${file.name} uploaded successfully`, 'success');
+                    // Refresh file list
+                    await loadBucketFiles(currentBucket.name, currentPath);
+                } else {
+                    throw new Error(result?.error || 'Upload failed');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showToast(`Upload failed: ${error.message}`, 'error');
+            } finally {
+                // Hide progress
+                const progressContainer = document.getElementById('upload-progress');
+                if (progressContainer) {
+                    setTimeout(() => {
+                        progressContainer.classList.add('hidden');
+                    }, 1000);
+                }
+            }
+        }
+        
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
+        }
+        
+        // Enhanced Toast Notification System
+        function showToast(message, type = 'info') {
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: 'fas fa-check-circle',
+                error: 'fas fa-exclamation-circle',
+                warning: 'fas fa-exclamation-triangle',
+                info: 'fas fa-info-circle'
+            };
+            
+            toast.innerHTML = `
+                <div class="flex items-center">
+                    <i class="${icons[type]} mr-3"></i>
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-slate-400 hover:text-slate-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Show toast
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            // Auto-hide after 4 seconds
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        }
+        
+        // Placeholder functions for modal actions (to be implemented)
+        function showShareBucketModal(bucketName) {
+            showToast(`Share modal for ${bucketName} - coming soon`, 'info');
+        }
+        
+        function showBucketSettingsModal(bucketName) {
+            showToast(`Settings modal for ${bucketName} - coming soon`, 'info');
+        }
+        
+        function createNewFolder() {
+            const folderName = prompt('Enter folder name:');
+            if (folderName && currentBucket) {
+                showToast(`Creating folder "${folderName}" - coming soon`, 'info');
+            }
+        }
+        
+        function downloadSelectedFiles() {
+            if (selectedFiles.length === 0) {
+                showToast('Please select files to download', 'warning');
+                return;
+            }
+            showToast(`Downloading ${selectedFiles.length} files - coming soon`, 'info');
+        }
+        
+        function saveCurrentBucketSettings() {
+            showToast('Saving bucket settings - coming soon', 'info');
+        }
+        
+        function cancelBucketSettings() {
+            showToast('Settings cancelled', 'info');
+        }
+        
+        function generateBucketShareLink() {
+            showToast('Generating share link - coming soon', 'info');
+        }
+        
+        function copyShareLinkToClipboard() {
+            const shareLink = document.getElementById('share-link');
+            if (shareLink && shareLink.value) {
+                navigator.clipboard.writeText(shareLink.value);
+                showToast('Share link copied to clipboard', 'success');
+            }
         }
 
         function setupBucketModalHandlers() {
