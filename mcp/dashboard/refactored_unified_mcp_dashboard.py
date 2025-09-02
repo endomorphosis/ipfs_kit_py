@@ -323,6 +323,31 @@ class RefactoredUnifiedMCPDashboard:
                 }
             ),
             Tool(
+                name="bucket_download_file",
+                description="Download a file from a bucket",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "bucket": {"type": "string", "description": "Name of the bucket"},
+                        "path": {"type": "string", "description": "File path in bucket"},
+                        "filename": {"type": "string", "description": "Optional filename override"}
+                    },
+                    "required": ["bucket", "path"]
+                }
+            ),
+            Tool(
+                name="bucket_create_folder",
+                description="Create a folder in a bucket",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "bucket": {"type": "string", "description": "Name of the bucket"},
+                        "path": {"type": "string", "description": "Folder path to create"}
+                    },
+                    "required": ["bucket", "path"]
+                }
+            ),
+            Tool(
                 name="bucket_sync_replicas",
                 description="Force sync bucket replicas across backends",
                 inputSchema={
@@ -529,6 +554,10 @@ class RefactoredUnifiedMCPDashboard:
                     result = await self._bucket_upload_file(arguments)
                 elif tool_name == "bucket_delete_file":
                     result = await self._bucket_delete_file(arguments)
+                elif tool_name == "bucket_download_file":
+                    result = await self._bucket_download_file(arguments)
+                elif tool_name == "bucket_create_folder":
+                    result = await self._bucket_create_folder(arguments)
                 elif tool_name == "bucket_sync_replicas":
                     result = await self._bucket_sync_replicas(arguments)
                 elif tool_name == "generate_bucket_share_link":
@@ -1676,6 +1705,87 @@ class RefactoredUnifiedMCPDashboard:
             
         except Exception as e:
             logger.error(f"Error deleting file from bucket {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _bucket_download_file(self, arguments: Dict[str, Any]):
+        """Download a file from a bucket."""
+        bucket_name = arguments.get("bucket")
+        file_path = arguments.get("path")
+        filename = arguments.get("filename")
+        
+        if not all([bucket_name, file_path]):
+            return {"ok": False, "error": "Bucket name and path are required"}
+            
+        try:
+            # Get bucket details
+            bucket_details = await self._get_bucket_details(bucket_name)
+            if not bucket_details.get("ok"):
+                return bucket_details
+                
+            # Create file path
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            full_path = bucket_dir / file_path.lstrip("/")
+            
+            if not full_path.exists():
+                return {"ok": False, "error": f"File {file_path} not found in bucket {bucket_name}"}
+            
+            if not full_path.is_file():
+                return {"ok": False, "error": f"{file_path} is not a file"}
+            
+            # Generate download URL (would be served by the web server)
+            download_url = f"/api/buckets/{bucket_name}/download/{file_path}"
+            
+            logger.info(f"Generated download URL for {file_path} from bucket {bucket_name}")
+            
+            return {
+                "ok": True,
+                "result": {
+                    "download_url": download_url,
+                    "filename": filename or full_path.name,
+                    "size": full_path.stat().st_size,
+                    "path": file_path
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating download for bucket {bucket_name}: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def _bucket_create_folder(self, arguments: Dict[str, Any]):
+        """Create a folder in a bucket."""
+        bucket_name = arguments.get("bucket")
+        folder_path = arguments.get("path")
+        
+        if not all([bucket_name, folder_path]):
+            return {"ok": False, "error": "Bucket name and path are required"}
+            
+        try:
+            # Get bucket details
+            bucket_details = await self._get_bucket_details(bucket_name)
+            if not bucket_details.get("ok"):
+                return bucket_details
+                
+            # Create folder path
+            bucket_dir = self.data_dir / "buckets" / bucket_name
+            full_path = bucket_dir / folder_path.lstrip("/")
+            
+            # Create the folder
+            full_path.mkdir(parents=True, exist_ok=True)
+            
+            # Create a .gitkeep file to ensure the folder is tracked
+            gitkeep_file = full_path / ".gitkeep"
+            gitkeep_file.write_text("")
+            
+            logger.info(f"Created folder {folder_path} in bucket {bucket_name}")
+            
+            return {
+                "ok": True,
+                "message": f"Folder created successfully at {bucket_name}/{folder_path}",
+                "path": folder_path
+            }
+            
+        except Exception as e:
+            logger.error(f"Error creating folder in bucket {bucket_name}: {e}")
             return {"ok": False, "error": str(e)}
 
     async def _bucket_sync_replicas(self, arguments: Dict[str, Any]):

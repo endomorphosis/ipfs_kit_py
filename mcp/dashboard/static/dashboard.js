@@ -1203,7 +1203,11 @@ class EnhancedDashboard {
             return;
         }
 
-        // === UTILITY METHODS ===
+        // For now, redirect to advanced settings since quota is included there
+        this.showBucketSettings(this.selectedBucket);
+    }
+
+    // === UTILITY METHODS ===
 
     formatBytes(bytes, decimals = 2) {
         if (bytes === 0) return '0 Bytes';
@@ -1683,6 +1687,27 @@ async function syncReplicas() {
 // Initialize dashboard
 let dashboard;
 
+// Wait for MCP client to be ready (global function for compatibility)
+async function waitForMCP() {
+    if (dashboard && dashboard.mcp) {
+        return;
+    }
+    
+    const maxWaitTime = 5000;
+    const checkInterval = 100;
+    let elapsed = 0;
+    
+    while (elapsed < maxWaitTime) {
+        if (window.mcpClient) {
+            return;
+        }
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        elapsed += checkInterval;
+    }
+    
+    console.log('MCP client not ready after 5 seconds, continuing with fallback');
+}
+
 // Initialize enhanced dashboard on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Dashboard initializing...');
@@ -1691,6 +1716,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set global reference for onclick handlers
     window.dashboard = dashboard;
     
+    // Initialize MCP client instance
+    window.mcpClient = new MCPClient({ debug: true });
+    
     console.log('📋 Dashboard initialized');
 });
-}
