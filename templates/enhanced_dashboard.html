@@ -482,6 +482,259 @@
             margin-left: 1rem;
             margin-right: 1rem;
         }
+        
+        /* Professional Bucket Management Styles */
+        .h-screen-minus-header {
+            height: calc(100vh - 200px);
+        }
+        
+        .bucket-item {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+        
+        .bucket-item:hover {
+            background-color: #f8fafc;
+            border-left-color: #e2e8f0;
+        }
+        
+        .bucket-item.selected {
+            background-color: #eff6ff;
+            border-left-color: #3b82f6;
+        }
+        
+        .bucket-item.selected .bucket-title {
+            color: #1e40af;
+        }
+        
+        .bucket-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .bucket-meta {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+        
+        .bucket-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+        }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        
+        .status-dot.active { background-color: #10b981; }
+        .status-dot.syncing { background-color: #f59e0b; }
+        .status-dot.error { background-color: #ef4444; }
+        .status-dot.offline { background-color: #6b7280; }
+        
+        .detail-tab-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .detail-tab-btn:hover {
+            color: #374151;
+            background-color: #f9fafb;
+        }
+        
+        .detail-tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+            background-color: #eff6ff;
+        }
+        
+        .detail-tab-content {
+            display: none;
+        }
+        
+        .detail-tab-content.active {
+            display: block;
+        }
+        
+        .file-item {
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .file-item:hover {
+            background-color: #f9fafb;
+        }
+        
+        .file-item.selected {
+            background-color: #eff6ff;
+        }
+        
+        .file-icon {
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+        }
+        
+        .file-icon.folder {
+            background-color: #dbeafe;
+            color: #2563eb;
+        }
+        
+        .file-icon.document {
+            background-color: #fef3c7;
+            color: #f59e0b;
+        }
+        
+        .file-icon.image {
+            background-color: #d1fae5;
+            color: #059669;
+        }
+        
+        .file-icon.video {
+            background-color: #fce7f3;
+            color: #be185d;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #1f2937;
+        }
+        
+        .file-meta {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.125rem;
+        }
+        
+        .breadcrumb-item {
+            background: none;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            color: #6b7280;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        
+        .breadcrumb-item:hover {
+            color: #2563eb;
+        }
+        
+        .breadcrumb-item:after {
+            content: "/";
+            margin: 0 0.5rem;
+            color: #d1d5db;
+        }
+        
+        .breadcrumb-item:last-child:after {
+            content: "";
+        }
+        
+        .sort-btn {
+            background: none;
+            border: none;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        
+        .sort-btn.active {
+            color: #2563eb;
+        }
+        
+        .sort-btn.desc .fa-sort:before {
+            content: "\f0dd"; /* sort-down */
+        }
+        
+        .sort-btn.asc .fa-sort:before {
+            content: "\f0de"; /* sort-up */
+        }
+        
+        .search-highlight {
+            background-color: #fef3c7;
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+        }
+        
+        .loading-spinner {
+            border: 2px solid #e5e7eb;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 1.5rem;
+            height: 1.5rem;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.success {
+            background-color: #059669;
+        }
+        
+        .toast.error {
+            background-color: #dc2626;
+        }
+        
+        .toast.warning {
+            background-color: #d97706;
+        }
+        
+        .toast.info {
+            background-color: #2563eb;
+        }
     </style>
     <style>
         .tab-content { display: none; }
@@ -989,125 +1242,433 @@
                 </div>
             </div>
 
-            <!-- Buckets Tab -->
+            <!-- Bucket File Management Tab -->
             <div id="buckets" class="tab-content">
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Bucket File Management</h2>
-                    
-                    <!-- Bucket Controls -->
-                    <div class="flex flex-wrap gap-2 mb-6 p-4 bg-gray-50 rounded-lg">
-                        <button id="refresh-buckets" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-sync-alt mr-2"></i>Refresh
-                        </button>
-                        <button id="create-bucket" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-plus mr-2"></i>Create Bucket
-                        </button>
-                        <button id="upload-file" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-upload mr-2"></i>Upload File
-                        </button>
-                        <button id="create-folder" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-folder-plus mr-2"></i>New Folder
-                        </button>
-                        <button id="force-sync-bucket" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-sync mr-2"></i>Force Sync
-                        </button>
-                        <button id="share-bucket" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-share-alt mr-2"></i>Share
-                        </button>
-                    </div>
-
-                    <!-- Drag & Drop Upload Zone -->
-                    <div id="drag-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
-                        <div class="text-gray-500">
-                            <i class="fas fa-cloud-upload-alt text-4xl mb-4"></i>
-                            <div class="text-lg font-medium mb-2">Drag & Drop Files Here</div>
-                            <div class="text-sm">Or click to browse files</div>
-                            <input type="file" id="file-input" multiple class="hidden">
-                        </div>
-                        <div id="upload-progress" class="mt-4" style="display: none;">
-                            <div class="bg-blue-100 rounded-full h-2">
-                                <div id="progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                            </div>
-                            <div id="upload-status" class="text-sm text-gray-600 mt-2">Uploading...</div>
-                        </div>
-                    </div>
-
-                    <!-- Bucket Selection -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Selected Bucket:</label>
-                        <div class="flex gap-2">
-                            <select id="bucket-selector" class="flex-1 border border-gray-300 rounded px-3 py-2">
-                                <option value="">Select a bucket...</option>
-                            </select>
-                            <button id="advanced-settings-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
-                                <i class="fas fa-sliders-h mr-2"></i>Advanced Settings
-                            </button>
-                            <button id="quota-management" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
-                                <i class="fas fa-chart-pie mr-2"></i>Quota
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Bucket Status Bar -->
-                    <div id="bucket-status" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg" style="display: none;">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-4">
-                                <span class="text-sm font-medium text-blue-800" id="bucket-info">Bucket: documents</span>
-                                <span class="text-xs text-blue-600" id="replication-status">Replication: 3x</span>
-                                <span class="text-xs text-blue-600" id="cache-status">Cache: memory</span>
-                                <span class="text-xs text-blue-600" id="quota-status">Quota: unlimited</span>
-                                <span class="text-xs text-blue-600" id="retention-status">Retention: permanent</span>
+                <div class="bg-white rounded-lg shadow">
+                    <!-- Header with Actions -->
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-900">Professional Bucket Management</h2>
+                                <p class="text-sm text-gray-600 mt-1">Enterprise-scale bucket and file administration</p>
                             </div>
                             <div class="flex gap-2">
-                                <button id="force-sync" class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded">
-                                    <i class="fas fa-sync mr-1"></i>Force Sync
+                                <button id="bulk-actions" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm">
+                                    <i class="fas fa-layer-group mr-2"></i>Bulk Actions
                                 </button>
-                                <button id="selective-sync" class="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded">
-                                    <i class="fas fa-sync-alt mr-1"></i>Selective Sync
-                                </button>
-                                <button id="view-metadata-files" class="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded">
-                                    <i class="fas fa-database mr-1"></i>Metadata
-                                </button>
-                                <button id="share-bucket-link" class="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded">
-                                    <i class="fas fa-share mr-1"></i>Share
+                                <button id="create-bucket" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                                    <i class="fas fa-plus mr-2"></i>New Bucket
                                 </button>
                             </div>
                         </div>
+                        
+                        <!-- Search and Filter Bar -->
+                        <div class="mt-4 flex gap-3">
+                            <div class="flex-1 relative">
+                                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                <input type="text" id="bucket-search" placeholder="Search buckets by name, description, or content..." 
+                                       class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <select id="status-filter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="syncing">Syncing</option>
+                                <option value="error">Error</option>
+                                <option value="offline">Offline</option>
+                            </select>
+                            <select id="tier-filter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                <option value="">All Tiers</option>
+                                <option value="hot">Hot</option>
+                                <option value="warm">Warm</option>
+                                <option value="cold">Cold</option>
+                                <option value="archive">Archive</option>
+                            </select>
+                            <button id="refresh-buckets" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 px-4 py-2 rounded-lg text-sm">
+                                <i class="fas fa-sync-alt mr-2"></i>Refresh
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- File Browser Grid -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="bucket-content" style="display: none;">
-                        
-                        <!-- File List -->
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center">
-                                <h3 class="text-lg font-semibold">Files & Folders</h3>
-                                <div class="flex gap-2">
-                                    <input type="text" id="search-files" placeholder="Search files..." 
-                                           class="text-xs border rounded px-2 py-1 w-32">
-                                    <button id="refresh-files" class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded">
-                                        <i class="fas fa-sync mr-1"></i>Refresh
-                                    </button>
+                    <!-- Master-Detail Layout -->
+                    <div class="flex h-screen-minus-header">
+                        <!-- Left Panel - Bucket List -->
+                        <div class="w-2/5 border-r border-gray-200 flex flex-col">
+                            <!-- List Header -->
+                            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                                <div class="flex justify-between items-center text-xs text-gray-600">
+                                    <span id="bucket-count">Loading buckets...</span>
+                                    <div class="flex gap-4">
+                                        <button id="sort-name" class="hover:text-gray-900 cursor-pointer sort-btn" data-sort="name">
+                                            Name <i class="fas fa-sort ml-1"></i>
+                                        </button>
+                                        <button id="sort-size" class="hover:text-gray-900 cursor-pointer sort-btn" data-sort="size">
+                                            Size <i class="fas fa-sort ml-1"></i>
+                                        </button>
+                                        <button id="sort-modified" class="hover:text-gray-900 cursor-pointer sort-btn" data-sort="modified">
+                                            Modified <i class="fas fa-sort ml-1"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            <div id="files-list" class="border border-gray-200 rounded-lg max-h-96 overflow-y-auto">
-                                <!-- Files will be populated dynamically -->
+                            
+                            <!-- Bucket List Container -->
+                            <div class="flex-1 overflow-y-auto">
+                                <div id="buckets-list" class="divide-y divide-gray-100">
+                                    <!-- Buckets will be populated here -->
+                                </div>
                             </div>
                         </div>
 
-                        <!-- File Details & Actions -->
-                        <div class="space-y-4">
-                            <h3 class="text-lg font-semibold">File Details</h3>
-                            <div id="file-details" class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                <p class="text-gray-500">Select a file to view details</p>
+                        <!-- Right Panel - Bucket Details -->
+                        <div class="flex-1 flex flex-col bg-gray-50">
+                            <!-- Empty State -->
+                            <div id="empty-state" class="flex-1 flex items-center justify-center">
+                                <div class="text-center text-gray-500">
+                                    <i class="fas fa-archive text-6xl mb-4"></i>
+                                    <h3 class="text-xl font-medium mb-2">Select a Bucket</h3>
+                                    <p class="text-sm">Choose a bucket from the list to manage its files and settings</p>
+                                </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- Buckets Overview (when no bucket selected) -->
-                    <div id="buckets-overview">
-                        <div id="buckets-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <!-- Buckets will be populated dynamically -->
+                            <!-- Bucket Detail View -->
+                            <div id="bucket-detail" class="flex-1 flex flex-col hidden">
+                                <!-- Detail Header -->
+                                <div class="px-6 py-4 bg-white border-b border-gray-200">
+                                    <div class="flex justify-between items-start">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-archive text-blue-600 text-xl"></i>
+                                            </div>
+                                            <div>
+                                                <h3 id="bucket-name" class="text-xl font-bold text-gray-900">documents</h3>
+                                                <p id="bucket-description" class="text-sm text-gray-600">Document storage bucket</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button id="sync-bucket" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
+                                                <i class="fas fa-sync mr-1"></i>Sync
+                                            </button>
+                                            <button id="share-bucket" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
+                                                <i class="fas fa-share mr-1"></i>Share
+                                            </button>
+                                            <button id="bucket-settings" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm">
+                                                <i class="fas fa-cog mr-1"></i>Settings
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Stats Bar -->
+                                    <div class="mt-4 flex gap-6 text-sm">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                            <span class="text-gray-600">Status:</span>
+                                            <span id="bucket-status-text" class="font-medium">Active</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-file text-gray-400"></i>
+                                            <span id="file-count">0 files</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-hdd text-gray-400"></i>
+                                            <span id="storage-used">0 B</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-copy text-gray-400"></i>
+                                            <span id="replication-info">3x replication</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-clock text-gray-400"></i>
+                                            <span id="last-sync">Never synced</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Tabbed Interface -->
+                                <div class="bg-white border-b border-gray-200">
+                                    <nav class="flex">
+                                        <button class="detail-tab-btn active" data-tab="files">
+                                            <i class="fas fa-folder mr-2"></i>Files
+                                        </button>
+                                        <button class="detail-tab-btn" data-tab="settings">
+                                            <i class="fas fa-sliders-h mr-2"></i>Settings
+                                        </button>
+                                        <button class="detail-tab-btn" data-tab="sharing">
+                                            <i class="fas fa-share-alt mr-2"></i>Sharing
+                                        </button>
+                                        <button class="detail-tab-btn" data-tab="activity">
+                                            <i class="fas fa-history mr-2"></i>Activity
+                                        </button>
+                                    </nav>
+                                </div>
+
+                                <!-- Tab Contents -->
+                                <div class="flex-1 overflow-hidden">
+                                    <!-- Files Tab -->
+                                    <div id="files-tab" class="detail-tab-content active h-full flex flex-col">
+                                        <!-- File Actions Bar -->
+                                        <div class="px-6 py-3 bg-gray-50 border-b border-gray-200">
+                                            <div class="flex justify-between items-center">
+                                                <div class="flex gap-2">
+                                                    <button id="upload-files" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm">
+                                                        <i class="fas fa-upload mr-2"></i>Upload Files
+                                                    </button>
+                                                    <button id="create-folder" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm">
+                                                        <i class="fas fa-folder-plus mr-2"></i>New Folder
+                                                    </button>
+                                                    <button id="bulk-download" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                                                        <i class="fas fa-download mr-2"></i>Download
+                                                    </button>
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    <input type="text" id="file-search" placeholder="Search files..." 
+                                                           class="px-3 py-2 border border-gray-300 rounded-lg text-sm w-48">
+                                                    <button id="file-view-toggle" class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50" title="Toggle view">
+                                                        <i class="fas fa-th-list"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Drag & Drop Zone (when empty or uploading) -->
+                                        <div id="drag-drop-zone" class="hidden m-6 border-2 border-dashed border-blue-300 rounded-lg p-12 text-center bg-blue-50">
+                                            <i class="fas fa-cloud-upload-alt text-4xl text-blue-500 mb-4"></i>
+                                            <h4 class="text-lg font-medium text-gray-900 mb-2">Drag & Drop Files Here</h4>
+                                            <p class="text-sm text-gray-600 mb-4">Or click the Upload Files button to browse</p>
+                                            <input type="file" id="file-input" multiple class="hidden">
+                                            <div id="upload-progress" class="mt-6 hidden">
+                                                <div class="bg-blue-200 rounded-full h-2">
+                                                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                                </div>
+                                                <p id="upload-status" class="text-sm text-gray-600 mt-2">Uploading...</p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Breadcrumb Navigation -->
+                                        <div id="breadcrumb" class="px-6 py-2 bg-gray-50 border-b border-gray-200 text-sm">
+                                            <nav class="flex items-center text-gray-600">
+                                                <button class="breadcrumb-item hover:text-blue-600" data-path="">
+                                                    <i class="fas fa-home mr-1"></i>Root
+                                                </button>
+                                            </nav>
+                                        </div>
+
+                                        <!-- File Browser -->
+                                        <div class="flex-1 overflow-y-auto">
+                                            <div id="files-list" class="divide-y divide-gray-100">
+                                                <!-- Files will be populated here -->
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Settings Tab -->
+                                    <div id="settings-tab" class="detail-tab-content h-full overflow-y-auto p-6">
+                                        <div class="space-y-6 max-w-3xl">
+                                            <!-- Basic Settings -->
+                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                                                <h4 class="text-lg font-medium mb-4">Basic Configuration</h4>
+                                                <div class="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Bucket Name</label>
+                                                        <input type="text" id="settings-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Storage Tier</label>
+                                                        <select id="settings-tier" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                            <option value="hot">Hot (Fast Access)</option>
+                                                            <option value="warm">Warm (Balanced)</option>
+                                                            <option value="cold">Cold (Archive)</option>
+                                                            <option value="archive">Deep Archive</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-span-2">
+                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                                                        <textarea id="settings-description" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Storage Settings -->
+                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                                                <h4 class="text-lg font-medium mb-4">Storage Policy</h4>
+                                                <div class="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Storage Quota (GB)</label>
+                                                        <input type="number" id="settings-quota" placeholder="Unlimited" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Replication Factor</label>
+                                                        <select id="settings-replication" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                            <option value="1">1x - No redundancy</option>
+                                                            <option value="2">2x - Basic redundancy</option>
+                                                            <option value="3">3x - Standard redundancy</option>
+                                                            <option value="5">5x - High redundancy</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Cache Policy -->
+                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                                                <h4 class="text-lg font-medium mb-4">Cache Configuration</h4>
+                                                <div class="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Cache Policy</label>
+                                                        <select id="settings-cache-policy" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                            <option value="memory">Memory Cache</option>
+                                                            <option value="disk">Disk Cache</option>
+                                                            <option value="hybrid">Hybrid Cache</option>
+                                                            <option value="none">No Cache</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Cache Size (MB)</label>
+                                                        <input type="number" id="settings-cache-size" placeholder="Auto" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Retention Policy -->
+                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                                                <h4 class="text-lg font-medium mb-4">Retention Policy</h4>
+                                                <div class="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Retention Period</label>
+                                                        <select id="settings-retention" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                            <option value="permanent">Permanent</option>
+                                                            <option value="7d">7 Days</option>
+                                                            <option value="30d">30 Days</option>
+                                                            <option value="90d">90 Days</option>
+                                                            <option value="1y">1 Year</option>
+                                                            <option value="7y">7 Years</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-gray-700 mb-2">Auto-Cleanup</label>
+                                                        <select id="settings-cleanup" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                            <option value="disabled">Disabled</option>
+                                                            <option value="enabled">Enabled</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Advanced Features -->
+                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                                                <h4 class="text-lg font-medium mb-4">Advanced Features</h4>
+                                                <div class="space-y-4">
+                                                    <div class="flex items-center">
+                                                        <input type="checkbox" id="settings-encryption" class="mr-3">
+                                                        <label for="settings-encryption" class="text-sm font-medium text-gray-700">Enable Encryption at Rest</label>
+                                                    </div>
+                                                    <div class="flex items-center">
+                                                        <input type="checkbox" id="settings-compression" class="mr-3">
+                                                        <label for="settings-compression" class="text-sm font-medium text-gray-700">Enable Compression</label>
+                                                    </div>
+                                                    <div class="flex items-center">
+                                                        <input type="checkbox" id="settings-deduplication" class="mr-3">
+                                                        <label for="settings-deduplication" class="text-sm font-medium text-gray-700">Enable Deduplication</label>
+                                                    </div>
+                                                    <div class="flex items-center">
+                                                        <input type="checkbox" id="settings-versioning" class="mr-3">
+                                                        <label for="settings-versioning" class="text-sm font-medium text-gray-700">Enable File Versioning</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Save Button -->
+                                            <div class="flex justify-end gap-3">
+                                                <button id="settings-cancel" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
+                                                <button id="settings-save" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Save Changes</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Sharing Tab -->
+                                    <div id="sharing-tab" class="detail-tab-content h-full overflow-y-auto p-6">
+                                        <div class="space-y-6 max-w-3xl">
+                                            <!-- Share Link Generation -->
+                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                                                <h4 class="text-lg font-medium mb-4">Generate Share Link</h4>
+                                                <div class="space-y-4">
+                                                    <div class="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <label class="block text-sm font-medium text-gray-700 mb-2">Access Level</label>
+                                                            <select id="share-access-level" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                                <option value="read-only">Read Only</option>
+                                                                <option value="read-write">Read & Write</option>
+                                                                <option value="admin">Admin Access</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label class="block text-sm font-medium text-gray-700 mb-2">Expiration</label>
+                                                            <select id="share-expiration" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                                <option value="never">Never</option>
+                                                                <option value="1h">1 Hour</option>
+                                                                <option value="24h">24 Hours</option>
+                                                                <option value="7d">7 Days</option>
+                                                                <option value="30d">30 Days</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex gap-2">
+                                                        <input type="text" id="share-link" readonly placeholder="Click Generate to create share link" 
+                                                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                                                        <button id="generate-share-link" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                                                            Generate
+                                                        </button>
+                                                        <button id="copy-share-link" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+                                                            Copy
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Active Shares -->
+                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                                                <h4 class="text-lg font-medium mb-4">Active Share Links</h4>
+                                                <div id="active-shares" class="space-y-3">
+                                                    <!-- Active shares will be populated here -->
+                                                    <div class="text-gray-500 text-sm">No active share links</div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Collaboration Settings -->
+                                            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                                                <h4 class="text-lg font-medium mb-4">Collaboration Settings</h4>
+                                                <div class="space-y-4">
+                                                    <div class="flex items-center justify-between">
+                                                        <div>
+                                                            <p class="text-sm font-medium text-gray-700">Allow Public Access</p>
+                                                            <p class="text-xs text-gray-500">Anyone with the link can access</p>
+                                                        </div>
+                                                        <input type="checkbox" id="public-access">
+                                                    </div>
+                                                    <div class="flex items-center justify-between">
+                                                        <div>
+                                                            <p class="text-sm font-medium text-gray-700">Require Password</p>
+                                                            <p class="text-xs text-gray-500">Add password protection to share links</p>
+                                                        </div>
+                                                        <input type="checkbox" id="password-required">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Activity Tab -->
+                                    <div id="activity-tab" class="detail-tab-content h-full overflow-y-auto">
+                                        <div class="divide-y divide-gray-100">
+                                            <div id="activity-list">
+                                                <!-- Activity will be populated here -->
+                                                <div class="p-6 text-center text-gray-500">
+                                                    <i class="fas fa-history text-3xl mb-2"></i>
+                                                    <p>No recent activity</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3192,11 +3753,21 @@
             `;
         }
 
+        // Professional Bucket Management System
+        let currentBucket = null;
+        let currentPath = '';
+        let bucketsData = [];
+        let filteredBuckets = [];
+        let sortField = 'name';
+        let sortDirection = 'asc';
+        let selectedFiles = [];
+
         async function loadBucketsData() {
             try {
-                // Use MCP SDK for bucket operations - metadata-first approach (no REST API)
                 console.log('📦 Loading buckets via MCP JSON-RPC (metadata-first)...');
                 await waitForMCP();
+                
+                showToast('Loading buckets...', 'info');
                 const result = await callMCPTool('list_buckets', { include_metadata: true });
                 console.log('📦 Buckets result:', result);
                 
@@ -3214,26 +3785,686 @@
                     buckets = result;
                 } else {
                     console.warn('loadBucketsData: list_buckets returned unexpected structure:', typeof result, result);
-                    
-                    // Create default buckets if none exist
                     buckets = await createDefaultBuckets();
                 }
                 
                 console.log(`📦 Parsed ${buckets.length} buckets successfully`);
-                displayBuckets(buckets);
-                updateBucketSelector(buckets);
+                bucketsData = buckets;
+                filteredBuckets = [...buckets];
+                renderBucketsList();
+                showToast(`Loaded ${buckets.length} buckets`, 'success');
                 
             } catch (error) {
                 console.error('Error loading buckets data via MCP:', error);
-                // Show error state and create default buckets
                 const defaultBuckets = await createDefaultBuckets();
-                displayBuckets(defaultBuckets);
-                updateBucketSelector(defaultBuckets);
+                bucketsData = defaultBuckets;
+                filteredBuckets = [...defaultBuckets];
+                renderBucketsList();
+                showToast('Error loading buckets - showing defaults', 'warning');
             }
         }
 
         async function createDefaultBuckets() {
-            // Create 3 default buckets with realistic metadata
+            const defaultBuckets = [
+                {
+                    name: 'documents',
+                    description: 'Document storage bucket',
+                    size_gb: 2.3,
+                    file_count: 124,
+                    status: 'active',
+                    tier: 'hot',
+                    created: '2024-01-15',
+                    last_modified: new Date().toISOString(),
+                    replication_factor: 3,
+                    cache_policy: 'memory',
+                    retention_policy: 'permanent'
+                },
+                {
+                    name: 'media',
+                    description: 'Media files storage bucket',
+                    size_gb: 15.7,
+                    file_count: 89,
+                    status: 'active',
+                    tier: 'warm',
+                    created: '2024-01-20',
+                    last_modified: new Date().toISOString(),
+                    replication_factor: 2,
+                    cache_policy: 'disk',
+                    retention_policy: '1y'
+                },
+                {
+                    name: 'archive',
+                    description: 'Long-term archive storage',
+                    size_gb: 124.7,
+                    file_count: 2847,
+                    status: 'syncing',
+                    tier: 'cold',
+                    created: '2023-12-01',
+                    last_modified: new Date().toISOString(),
+                    replication_factor: 5,
+                    cache_policy: 'none',
+                    retention_policy: '7y'
+                }
+            ];
+
+            // Create buckets via MCP if they don't exist
+            for (const bucket of defaultBuckets) {
+                try {
+                    await callMCPTool('create_bucket', { 
+                        name: bucket.name, 
+                        description: bucket.description,
+                        tier: bucket.tier,
+                        replication_factor: bucket.replication_factor
+                    });
+                } catch (error) {
+                    console.log(`Bucket ${bucket.name} might already exist:`, error.message);
+                }
+            }
+
+            return defaultBuckets;
+        }
+
+        function renderBucketsList() {
+            const container = document.getElementById('buckets-list');
+            const countElement = document.getElementById('bucket-count');
+            
+            if (!container || !countElement) return;
+            
+            countElement.textContent = `${filteredBuckets.length} of ${bucketsData.length} buckets`;
+            
+            if (filteredBuckets.length === 0) {
+                container.innerHTML = `
+                    <div class="p-8 text-center text-gray-500">
+                        <i class="fas fa-search text-3xl mb-2"></i>
+                        <p>No buckets match your search criteria</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filteredBuckets.map(bucket => `
+                <div class="bucket-item ${currentBucket?.name === bucket.name ? 'selected' : ''}" 
+                     onclick="selectBucket('${bucket.name}')">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="bucket-title">${bucket.name}</div>
+                            <div class="bucket-meta">${bucket.description || 'No description'}</div>
+                            <div class="bucket-meta mt-1">
+                                ${formatFileSize(bucket.size_gb * 1024 * 1024 * 1024)} • 
+                                ${bucket.file_count || 0} files • 
+                                ${formatDate(bucket.last_modified)}
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <div class="bucket-status">
+                                <div class="status-dot ${bucket.status || 'active'}"></div>
+                                ${(bucket.status || 'active').toUpperCase()}
+                            </div>
+                            <div class="text-xs text-gray-500">${bucket.tier || 'hot'} tier</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function selectBucket(bucketName) {
+            try {
+                const bucket = bucketsData.find(b => b.name === bucketName);
+                if (!bucket) return;
+                
+                currentBucket = bucket;
+                currentPath = '';
+                
+                // Update UI
+                renderBucketsList();
+                document.getElementById('empty-state').classList.add('hidden');
+                document.getElementById('bucket-detail').classList.remove('hidden');
+                
+                // Update bucket details header
+                updateBucketHeader(bucket);
+                
+                // Load files for the selected bucket
+                await loadBucketFiles(bucketName);
+                
+            } catch (error) {
+                console.error('Error selecting bucket:', error);
+                showToast('Error selecting bucket', 'error');
+            }
+        }
+
+        function updateBucketHeader(bucket) {
+            const elements = {
+                'bucket-name': bucket.name,
+                'bucket-description': bucket.description || 'No description',
+                'bucket-status-text': (bucket.status || 'active').charAt(0).toUpperCase() + (bucket.status || 'active').slice(1),
+                'file-count': `${bucket.file_count || 0} files`,
+                'storage-used': formatFileSize((bucket.size_gb || 0) * 1024 * 1024 * 1024),
+                'replication-info': `${bucket.replication_factor || 3}x replication`,
+                'last-sync': bucket.last_modified ? formatDate(bucket.last_modified) : 'Never synced'
+            };
+            
+            Object.entries(elements).forEach(([id, text]) => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = text;
+            });
+        }
+
+        async function loadBucketFiles(bucketName, path = '') {
+            try {
+                showToast('Loading files...', 'info');
+                
+                const result = await callMCPTool('list_bucket_files', { 
+                    bucket: bucketName, 
+                    path: path || '' 
+                });
+                
+                const files = result?.files || result?.result?.files || [];
+                renderFilesList(files);
+                updateBreadcrumb(path);
+                
+            } catch (error) {
+                console.error('Error loading bucket files:', error);
+                renderFilesList(getMockFiles());
+                updateBreadcrumb(path);
+            }
+        }
+
+        function getMockFiles() {
+            return [
+                {
+                    name: 'documents',
+                    type: 'folder',
+                    size: 0,
+                    modified: new Date().toISOString()
+                },
+                {
+                    name: 'report.pdf',
+                    type: 'file',
+                    size: 2048576,
+                    modified: new Date().toISOString()
+                },
+                {
+                    name: 'presentation.pptx',
+                    type: 'file',
+                    size: 5242880,
+                    modified: new Date().toISOString()
+                },
+                {
+                    name: 'data.json',
+                    type: 'file',
+                    size: 1024,
+                    modified: new Date().toISOString()
+                }
+            ];
+        }
+
+        function renderFilesList(files) {
+            const container = document.getElementById('files-list');
+            if (!container) return;
+            
+            if (!files || files.length === 0) {
+                container.innerHTML = `
+                    <div class="p-8 text-center text-gray-500">
+                        <i class="fas fa-folder-open text-3xl mb-2"></i>
+                        <p>No files in this location</p>
+                        <button onclick="showDragDropZone()" class="mt-4 text-blue-600 hover:text-blue-700 text-sm">
+                            Upload your first file
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = files.map(file => `
+                <div class="file-item" onclick="selectFile('${file.name}', '${file.type}')">
+                    <div class="file-icon ${file.type}">
+                        <i class="fas ${getFileIcon(file.name, file.type)}"></i>
+                    </div>
+                    <div class="file-info">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-meta">
+                            ${file.type === 'folder' ? 'Folder' : formatFileSize(file.size)} • 
+                            ${formatDate(file.modified)}
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        ${file.type === 'file' ? `
+                            <button onclick="downloadFile(event, '${file.name}')" class="p-1 text-gray-400 hover:text-blue-600" title="Download">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="deleteFile(event, '${file.name}')" class="p-1 text-gray-400 hover:text-red-600" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getFileIcon(name, type) {
+            if (type === 'folder') return 'fa-folder';
+            
+            const ext = name.toLowerCase().split('.').pop();
+            const iconMap = {
+                pdf: 'fa-file-pdf',
+                doc: 'fa-file-word',
+                docx: 'fa-file-word',
+                xls: 'fa-file-excel',
+                xlsx: 'fa-file-excel',
+                ppt: 'fa-file-powerpoint',
+                pptx: 'fa-file-powerpoint',
+                jpg: 'fa-file-image',
+                jpeg: 'fa-file-image',
+                png: 'fa-file-image',
+                gif: 'fa-file-image',
+                mp4: 'fa-file-video',
+                avi: 'fa-file-video',
+                mp3: 'fa-file-audio',
+                wav: 'fa-file-audio',
+                zip: 'fa-file-archive',
+                rar: 'fa-file-archive',
+                json: 'fa-file-code',
+                js: 'fa-file-code',
+                html: 'fa-file-code',
+                css: 'fa-file-code'
+            };
+            
+            return iconMap[ext] || 'fa-file';
+        }
+
+        function updateBreadcrumb(path) {
+            const breadcrumb = document.getElementById('breadcrumb');
+            if (!breadcrumb) return;
+            
+            const parts = path ? path.split('/').filter(p => p) : [];
+            let currentPath = '';
+            
+            const items = [`
+                <button class="breadcrumb-item ${!path ? 'font-medium' : ''}" onclick="navigateToPath('')">
+                    <i class="fas fa-home mr-1"></i>Root
+                </button>
+            `];
+            
+            parts.forEach((part, index) => {
+                currentPath += (currentPath ? '/' : '') + part;
+                const isLast = index === parts.length - 1;
+                items.push(`
+                    <button class="breadcrumb-item ${isLast ? 'font-medium' : ''}" onclick="navigateToPath('${currentPath}')">
+                        ${part}
+                    </button>
+                `);
+            });
+            
+            breadcrumb.innerHTML = `<nav class="flex items-center text-gray-600">${items.join('')}</nav>`;
+        }
+
+        function navigateToPath(path) {
+            if (!currentBucket) return;
+            currentPath = path;
+            loadBucketFiles(currentBucket.name, path);
+        }
+
+        function selectFile(fileName, fileType) {
+            if (fileType === 'folder') {
+                const newPath = currentPath ? `${currentPath}/${fileName}` : fileName;
+                navigateToPath(newPath);
+            }
+        }
+
+        function downloadFile(event, fileName) {
+            event.stopPropagation();
+            if (!currentBucket) return;
+            
+            showToast(`Downloading ${fileName}...`, 'info');
+            // Implement download via MCP
+        }
+
+        function deleteFile(event, fileName) {
+            event.stopPropagation();
+            if (!currentBucket) return;
+            
+            if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
+                showToast(`Deleting ${fileName}...`, 'info');
+                // Implement delete via MCP
+            }
+        }
+
+        // Search and filter functions
+        function filterBuckets() {
+            const searchTerm = document.getElementById('bucket-search')?.value.toLowerCase() || '';
+            const statusFilter = document.getElementById('status-filter')?.value || '';
+            const tierFilter = document.getElementById('tier-filter')?.value || '';
+            
+            filteredBuckets = bucketsData.filter(bucket => {
+                const matchesSearch = !searchTerm || 
+                    bucket.name.toLowerCase().includes(searchTerm) ||
+                    (bucket.description || '').toLowerCase().includes(searchTerm);
+                
+                const matchesStatus = !statusFilter || bucket.status === statusFilter;
+                const matchesTier = !tierFilter || bucket.tier === tierFilter;
+                
+                return matchesSearch && matchesStatus && matchesTier;
+            });
+            
+            sortBuckets();
+            renderBucketsList();
+        }
+
+        function sortBuckets() {
+            filteredBuckets.sort((a, b) => {
+                let aVal = a[sortField];
+                let bVal = b[sortField];
+                
+                if (sortField === 'size') {
+                    aVal = a.size_gb || 0;
+                    bVal = b.size_gb || 0;
+                } else if (sortField === 'modified') {
+                    aVal = new Date(a.last_modified || 0);
+                    bVal = new Date(b.last_modified || 0);
+                }
+                
+                if (sortDirection === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                } else {
+                    return aVal < bVal ? 1 : -1;
+                }
+            });
+        }
+
+        // Tab switching for detail view
+        function switchDetailTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.detail-tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active from all buttons
+            document.querySelectorAll('.detail-tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            const tabContent = document.getElementById(tabName + '-tab');
+            const tabButton = document.querySelector(`[data-tab="${tabName}"]`);
+            
+            if (tabContent) tabContent.classList.add('active');
+            if (tabButton) tabButton.classList.add('active');
+        }
+
+        // Utility functions
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) return 'Yesterday';
+            if (diffDays < 7) return `${diffDays} days ago`;
+            if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
+            if (diffDays < 365) return `${Math.ceil(diffDays / 30)} months ago`;
+            return date.toLocaleDateString();
+        }
+
+        function showToast(message, type = 'info') {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function showDragDropZone() {
+            document.getElementById('drag-drop-zone').classList.remove('hidden');
+        }
+
+        function hideDragDropZone() {
+            document.getElementById('drag-drop-zone').classList.add('hidden');
+        }
+
+        // Professional Bucket Management Event Listeners
+        function setupProfessionalBucketManagement() {
+            // Search functionality
+            const searchInput = document.getElementById('bucket-search');
+            if (searchInput) {
+                let searchTimeout;
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(filterBuckets, 300);
+                });
+            }
+            
+            // Filter dropdowns
+            ['status-filter', 'tier-filter'].forEach(filterId => {
+                const element = document.getElementById(filterId);
+                if (element) {
+                    element.addEventListener('change', filterBuckets);
+                }
+            });
+            
+            // Sort buttons
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const field = btn.dataset.sort;
+                    if (sortField === field) {
+                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortField = field;
+                        sortDirection = 'asc';
+                    }
+                    
+                    // Update UI
+                    document.querySelectorAll('.sort-btn').forEach(b => {
+                        b.classList.remove('active', 'asc', 'desc');
+                    });
+                    btn.classList.add('active', sortDirection);
+                    
+                    sortBuckets();
+                    renderBucketsList();
+                });
+            });
+            
+            // Detail tab buttons
+            document.querySelectorAll('.detail-tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    switchDetailTab(btn.dataset.tab);
+                });
+            });
+            
+            // File upload
+            const uploadBtn = document.getElementById('upload-files');
+            const fileInput = document.getElementById('file-input');
+            if (uploadBtn && fileInput) {
+                uploadBtn.addEventListener('click', () => fileInput.click());
+                fileInput.addEventListener('change', handleFileUpload);
+            }
+            
+            // Drag and drop
+            const dragZone = document.getElementById('drag-drop-zone');
+            if (dragZone) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dragZone.addEventListener(eventName, preventDefaults);
+                });
+                
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dragZone.addEventListener(eventName, () => dragZone.classList.add('drag-over'));
+                });
+                
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dragZone.addEventListener(eventName, () => dragZone.classList.remove('drag-over'));
+                });
+                
+                dragZone.addEventListener('drop', handleFileDrop);
+            }
+            
+            // Action buttons
+            const refreshBtn = document.getElementById('refresh-buckets');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', loadBucketsData);
+            }
+            
+            const createBtn = document.getElementById('create-bucket');
+            if (createBtn) {
+                createBtn.addEventListener('click', showCreateBucketModal);
+            }
+            
+            const syncBtn = document.getElementById('sync-bucket');
+            if (syncBtn) {
+                syncBtn.addEventListener('click', () => {
+                    if (currentBucket) {
+                        syncBucket(currentBucket.name);
+                    }
+                });
+            }
+            
+            const shareBtn = document.getElementById('share-bucket');
+            if (shareBtn) {
+                shareBtn.addEventListener('click', () => {
+                    if (currentBucket) {
+                        switchDetailTab('sharing');
+                    }
+                });
+            }
+            
+            const settingsBtn = document.getElementById('bucket-settings');
+            if (settingsBtn) {
+                settingsBtn.addEventListener('click', () => {
+                    if (currentBucket) {
+                        switchDetailTab('settings');
+                        loadBucketSettings();
+                    }
+                });
+            }
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleFileUpload(e) {
+            const files = Array.from(e.target.files);
+            if (files.length > 0 && currentBucket) {
+                uploadFiles(files);
+            }
+        }
+
+        function handleFileDrop(e) {
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length > 0 && currentBucket) {
+                uploadFiles(files);
+            }
+        }
+
+        async function uploadFiles(files) {
+            if (!currentBucket) return;
+            
+            const progressEl = document.getElementById('upload-progress');
+            const statusEl = document.getElementById('upload-status');
+            const barEl = document.getElementById('progress-bar');
+            
+            if (progressEl) progressEl.classList.remove('hidden');
+            
+            let uploaded = 0;
+            const total = files.length;
+            
+            for (const file of files) {
+                try {
+                    if (statusEl) statusEl.textContent = `Uploading ${file.name}...`;
+                    
+                    await callMCPTool('upload_file_to_bucket', {
+                        bucket: currentBucket.name,
+                        filename: file.name,
+                        content: file,
+                        path: currentPath
+                    });
+                    
+                    uploaded++;
+                    const progress = (uploaded / total) * 100;
+                    if (barEl) barEl.style.width = progress + '%';
+                    
+                } catch (error) {
+                    console.error(`Error uploading ${file.name}:`, error);
+                    showToast(`Error uploading ${file.name}`, 'error');
+                }
+            }
+            
+            if (progressEl) progressEl.classList.add('hidden');
+            showToast(`Uploaded ${uploaded} of ${total} files`, uploaded === total ? 'success' : 'warning');
+            
+            // Refresh file list
+            await loadBucketFiles(currentBucket.name, currentPath);
+        }
+
+        async function syncBucket(bucketName) {
+            try {
+                showToast(`Syncing bucket ${bucketName}...`, 'info');
+                await callMCPTool('bucket_sync_replicas', { bucket: bucketName });
+                showToast(`Bucket ${bucketName} synced successfully`, 'success');
+                await loadBucketsData(); // Refresh bucket data
+            } catch (error) {
+                console.error('Error syncing bucket:', error);
+                showToast('Error syncing bucket', 'error');
+            }
+        }
+
+        async function showCreateBucketModal() {
+            const name = prompt('Enter bucket name:');
+            if (!name) return;
+            
+            const description = prompt('Enter bucket description (optional):') || '';
+            
+            try {
+                showToast(`Creating bucket ${name}...`, 'info');
+                await callMCPTool('create_bucket', {
+                    name: name,
+                    description: description,
+                    tier: 'hot',
+                    replication_factor: 3
+                });
+                
+                showToast(`Bucket ${name} created successfully`, 'success');
+                await loadBucketsData(); // Refresh bucket list
+            } catch (error) {
+                console.error('Error creating bucket:', error);
+                showToast('Error creating bucket', 'error');
+            }
+        }
+
+        async function loadBucketSettings() {
+            if (!currentBucket) return;
+            
+            // Load current settings into the form
+            const elements = {
+                'settings-name': currentBucket.name,
+                'settings-tier': currentBucket.tier || 'hot',
+                'settings-description': currentBucket.description || '',
+                'settings-replication': currentBucket.replication_factor || 3,
+                'settings-cache-policy': currentBucket.cache_policy || 'memory',
+                'settings-retention': currentBucket.retention_policy || 'permanent'
+            };
+            
+            Object.entries(elements).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) element.value = value;
+            });
+        }
             const defaultBuckets = [
                 {
                     name: 'documents',
@@ -6684,30 +7915,9 @@
             }
         }
 
-        // Enhanced loadBucketsData that also updates selector
-        async function loadBucketsDataEnhanced() {
-            await loadBucketsData();
-            await updateBucketSelector();
-        }
-
-        // Override the original bucket creation handler
-        const createBucketBtn = document.getElementById('create-bucket');
-        if (createBucketBtn) {
-            // Remove existing listeners
-            createBucketBtn.replaceWith(createBucketBtn.cloneNode(true));
-            const newCreateBtn = document.getElementById('create-bucket');
-            newCreateBtn.addEventListener('click', () => {
-                const name = prompt('Enter bucket name:');
-                if (name) {
-                    createBucket(name);
-                }
-            });
-        }
-
-        // Initialize enhanced bucket management after DOM is ready
+        // Initialize professional bucket management
         document.addEventListener('DOMContentLoaded', () => {
-            setupEnhancedBucketManagement();
-            updateBucketSelector();
+            setupProfessionalBucketManagement();
         });
 
         // Additional Backend Management Functions
