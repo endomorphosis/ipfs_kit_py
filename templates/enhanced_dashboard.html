@@ -5740,28 +5740,7 @@
             }
         }
 
-        async function showCreateBucketModal() {
-            const name = prompt('Enter bucket name:');
-            if (!name) return;
-            
-            const description = prompt('Enter bucket description (optional):') || '';
-            
-            try {
-                showToast(`Creating bucket ${name}...`, 'info');
-                await callMCPTool('create_bucket', {
-                    name: name,
-                    description: description,
-                    tier: 'hot',
-                    replication_factor: 3
-                });
-                
-                showToast(`Bucket ${name} created successfully`, 'success');
-                await loadBucketsData(); // Refresh bucket list
-            } catch (error) {
-                console.error('Error creating bucket:', error);
-                showToast('Error creating bucket', 'error');
-            }
-        }
+
 
         async function loadBucketSettings() {
             if (!currentBucket) return;
@@ -6761,6 +6740,10 @@
             document.getElementById('create-bucket-modal').classList.remove('hidden');
         }
 
+        function showImportBucketModal() {
+            showToast('Import bucket functionality - coming soon', 'info');
+        }
+
         async function createBucket() {
             const name = document.getElementById('new-bucket-name').value.trim();
             const tier = document.getElementById('new-bucket-tier').value;
@@ -7231,10 +7214,7 @@
             }
         }
         
-        function showCreateBucketModal() {
-            // Implementation for create bucket modal
-            showToast('Create bucket modal - coming soon', 'info');
-        }
+
         
         function showBulkActionsModal() {
             const selectedBuckets = Array.from(document.querySelectorAll('.bucket-checkbox:checked')).map(cb => cb.dataset.bucket);
@@ -7245,10 +7225,6 @@
             showToast(`Bulk actions for ${selectedBuckets.length} buckets - coming soon`, 'info');
         }
 
-        function showImportBucketModal() {
-            showToast('Import bucket functionality - coming soon', 'info');
-        }
-        
         
         function setupEnhancedDragAndDrop() {
             const dragDropZone = document.getElementById('drag-drop-zone');
@@ -7647,9 +7623,7 @@
             }
         }
 
-        function showCreateBucketModal() {
-            alert('📦 Create Bucket modal (feature in development)');
-        }
+
 
         async function loadPinsData() {
             try {
