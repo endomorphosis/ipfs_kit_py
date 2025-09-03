@@ -9,6 +9,11 @@
         /* Reset and base styles */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
+        html, body { 
+            overflow-x: hidden; 
+            max-width: 100vw;
+        }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             line-height: 1.5;
@@ -36,11 +41,29 @@
         .gap-4 { gap: 1rem; }
         .gap-6 { gap: 1.5rem; }
         
+        /* Prevent horizontal overflow */
+        html, body { 
+            overflow-x: hidden; 
+            max-width: 100vw;
+        }
+        
+        /* Main container constraint */
+        .main-container {
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+        
         /* Grid */
         .grid { display: grid; }
         .grid-cols-1 { grid-template-columns: repeat(1, 1fr); }
         .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        
+        /* Responsive Breakpoints */
+        @media (max-width: 640px) {
+            .sm-grid-cols-1 { grid-template-columns: repeat(1, 1fr); }
+            .sm-hidden { display: none; }
+        }
         
         @media (min-width: 768px) {
             .md-grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
@@ -351,6 +374,30 @@
         .justify-between { justify-content: space-between; }
         .items-center { align-items: center; }
         .items-start { align-items: flex-start; }
+        
+        /* Additional responsive utilities */
+        .flex-shrink-0 { flex-shrink: 0; }
+        .overflow-x-auto { overflow-x: auto; }
+        .whitespace-nowrap { white-space: nowrap; }
+        
+        /* Smooth scrolling for tab navigation */
+        .tab-nav {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .tab-nav::-webkit-scrollbar {
+            height: 3px;
+        }
+        
+        .tab-nav::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .tab-nav::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 3px;
+        }
         .hidden { display: none; }
         
         /* Enhanced drag and drop styles */
@@ -932,6 +979,20 @@
         }
         
         /* Responsive Breakpoints */
+        @media (max-width: 480px) {
+            /* Extra small screens */
+            .px-8 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+            .px-6 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+            .px-4 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+            .space-x-8 > * + * { margin-left: 0.5rem !important; }
+            .space-x-4 > * + * { margin-left: 0.25rem !important; }
+            
+            .detail-tab-btn {
+                padding: 0.5rem 0.75rem !important;
+                font-size: 0.75rem !important;
+            }
+        }
+        
         @media (max-width: 768px) {
             .bucket-item {
                 padding: 1rem;
@@ -945,8 +1006,55 @@
                 padding: 0.75rem 1rem;
                 font-size: 0.8rem;
             }
-        }
-            font-size: 1rem;
+            
+            /* Fix horizontal scrolling issues */
+            .bucket-master-detail {
+                flex-direction: column !important;
+                height: auto !important;
+            }
+            
+            .bucket-sidebar {
+                width: 100% !important;
+                max-height: 40vh !important;
+                border-right: none !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+            }
+            
+            .bucket-main-content {
+                width: 100% !important;
+                height: auto !important;
+            }
+            
+            /* Fix fixed width elements */
+            .w-80 { width: 100% !important; }
+            .w-64 { width: 100% !important; }
+            
+            /* Responsive grids */
+            .grid-cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
+            .grid-cols-3 { grid-template-columns: repeat(1, 1fr) !important; }
+            
+            /* Responsive padding */
+            .px-8 { padding-left: 1rem !important; padding-right: 1rem !important; }
+            .px-6 { padding-left: 1rem !important; padding-right: 1rem !important; }
+            
+            /* Responsive search inputs */
+            input[type="text"] {
+                max-width: 100% !important;
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+            
+            /* Sidebar responsive design */
+            .main-sidebar {
+                width: 100% !important;
+                height: auto !important;
+            }
+            
+            /* Tab navigation responsive */
+            .tab-nav {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
         }
         
         .file-icon.folder {
@@ -1170,9 +1278,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-gray-100">
-    <div class="min-h-screen flex">
+    <div class="min-h-screen flex main-container">
         <!-- Enhanced Sidebar -->
-        <div class="w-64 bg-white shadow-lg">
+        <div class="w-64 bg-white shadow-lg main-sidebar">
             <div class="p-6">
                 <h1 class="text-xl font-bold text-gray-800">🚀 IPFS Kit</h1>
                 <p class="text-sm text-gray-600">Comprehensive MCP Dashboard</p>
@@ -1619,9 +1727,9 @@
                     </div>
 
                     <!-- Master-Detail Layout -->
-                    <div class="flex h-[calc(100vh-140px)]">
+                    <div class="flex h-[calc(100vh-140px)] bucket-master-detail">
                         <!-- Scalable Bucket Sidebar -->
-                        <div class="w-80 bg-white/5 backdrop-blur-sm border-r border-white/10 flex flex-col">
+                        <div class="w-80 bg-white/5 backdrop-blur-sm border-r border-white/10 flex flex-col bucket-sidebar">
                             <!-- Search & Filters -->
                             <div class="p-4 border-b border-white/10">
                                 <div class="relative mb-4">
@@ -1671,7 +1779,7 @@
                         </div>
 
                         <!-- Main Content Area -->
-                        <div class="flex-1 flex flex-col">
+                        <div class="flex-1 flex flex-col bucket-main-content">
                             <!-- Empty State -->
                             <div id="empty-state" class="flex-1 flex items-center justify-center">
                                 <div class="text-center">
@@ -1722,7 +1830,7 @@
                                     </div>
                                     
                                     <!-- Stats Grid -->
-                                    <div class="grid grid-cols-4 gap-4">
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         <div class="bg-white/10 backdrop-blur rounded-lg p-4">
                                             <div class="flex items-center">
                                                 <i class="fas fa-file text-blue-400 text-xl mr-3"></i>
@@ -1764,17 +1872,17 @@
 
                                 <!-- Tab Navigation -->
                                 <div class="bg-white/5 backdrop-blur-sm border-b border-white/10">
-                                    <nav class="flex space-x-8 px-6">
-                                        <button class="detail-tab-btn active border-b-2 border-blue-400 py-4 px-1 text-sm font-medium text-blue-400 transition-all" data-tab="files">
+                                    <nav class="flex space-x-8 px-6 tab-nav overflow-x-auto whitespace-nowrap">
+                                        <button class="detail-tab-btn active border-b-2 border-blue-400 py-4 px-1 text-sm font-medium text-blue-400 transition-all flex-shrink-0" data-tab="files">
                                             <i class="fas fa-folder mr-2"></i>Files & Folders
                                         </button>
-                                        <button class="detail-tab-btn py-4 px-1 text-sm font-medium text-blue-200 hover:text-white transition-all" data-tab="settings">
+                                        <button class="detail-tab-btn py-4 px-1 text-sm font-medium text-blue-200 hover:text-white transition-all flex-shrink-0" data-tab="settings">
                                             <i class="fas fa-sliders-h mr-2"></i>Configuration
                                         </button>
-                                        <button class="detail-tab-btn py-4 px-1 text-sm font-medium text-blue-200 hover:text-white transition-all" data-tab="sharing">
+                                        <button class="detail-tab-btn py-4 px-1 text-sm font-medium text-blue-200 hover:text-white transition-all flex-shrink-0" data-tab="sharing">
                                             <i class="fas fa-share-alt mr-2"></i>Sharing & Access
                                         </button>
-                                        <button class="detail-tab-btn py-4 px-1 text-sm font-medium text-blue-200 hover:text-white transition-all" data-tab="activity">
+                                        <button class="detail-tab-btn py-4 px-1 text-sm font-medium text-blue-200 hover:text-white transition-all flex-shrink-0" data-tab="activity">
                                             <i class="fas fa-history mr-2"></i>Activity Log
                                         </button>
                                     </nav>
@@ -1801,7 +1909,7 @@
                                                             <i class="fas fa-search text-blue-300"></i>
                                                         </div>
                                                         <input type="text" id="file-search" placeholder="Search files..." 
-                                                               class="pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200 w-64 focus:ring-2 focus:ring-blue-500 backdrop-blur">
+                                                               class="pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200 w-64 md:w-64 sm:w-full focus:ring-2 focus:ring-blue-500 backdrop-blur">
                                                     </div>
                                                     <button id="file-view-toggle" class="p-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/20 transition-all backdrop-blur">
                                                         <i class="fas fa-th-list text-blue-300"></i>
@@ -1831,7 +1939,7 @@
 
                                         <!-- File Browser -->
                                         <div class="flex-1 overflow-y-auto p-6">
-                                            <div id="files-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                            <div id="files-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                                 <!-- Dynamic file items -->
                                             </div>
                                         </div>
