@@ -1365,7 +1365,10 @@
             </div>
             <nav class="mt-6">
                 <div class="px-6 space-y-2">
-                    <button class="tab-button active" data-tab="overview">
+                    <button class="tab-button active" data-tab="buckets">
+                        <span class="icon icon-folder"></span>Bucket File Management
+                    </button>
+                    <button class="tab-button" data-tab="overview">
                         <span class="icon icon-dashboard"></span>Overview
                     </button>
                     <button class="tab-button" data-tab="services">
@@ -1373,9 +1376,6 @@
                     </button>
                     <button class="tab-button" data-tab="backends">
                         <span class="icon icon-server"></span>Backends
-                    </button>
-                    <button class="tab-button" data-tab="buckets">
-                        <span class="icon icon-folder"></span>Buckets
                     </button>
                     <button class="tab-button" data-tab="pins">
                         <span class="icon icon-thumbtack"></span>Pin Management
@@ -1399,7 +1399,7 @@
         <!-- Main Content -->
         <div class="flex-1 p-6">
             <!-- Overview Tab -->
-            <div id="overview" class="tab-content active">
+            <div id="overview" class="tab-content">
                 <div class="grid grid-cols-1 lg-grid-cols-3 gap-6">
                     <!-- System Metrics -->
                     <div class="lg-col-span-2">
@@ -1773,7 +1773,7 @@
             </div>
 
             <!-- Professional Bucket File Management Dashboard -->
-            <div id="buckets" class="tab-content">
+            <div id="buckets" class="tab-content active">
                 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
                     <!-- Modern Professional Header -->
                     <div class="bg-white border-b border-gray-200 shadow-sm">
@@ -3704,7 +3704,7 @@
     <!-- Real-time updates and UI scripts -->
     <script>
         // Global variables
-        let currentTab = 'overview';
+        let currentTab = 'buckets';
         let wsConnection = null;
         let servicesData = {};
         let mcpClient = null;
