@@ -3967,7 +3967,7 @@
             setupBucketManagement();
             
             // Drag and Drop
-            setupDragAndDrop();
+            setupDragAndDropForFiles();
         }
 
         // Setup refresh buttons event listeners
@@ -4562,14 +4562,6 @@
                         hideCreateBucketModal();
                     }
                 });
-            }
-        }
-        
-        function showCreateBucketModal() {
-            const modal = document.getElementById('create-bucket-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                document.body.style.overflow = 'hidden';
             }
         }
         
@@ -6636,13 +6628,6 @@
                 document.getElementById('new-bucket-quota').value = '';
                 document.getElementById('new-bucket-tier').value = 'hot';
                 document.getElementById('new-bucket-replication').value = '3';
-            }
-        }
-
-        function hideCreateBucketModal() {
-            const modal = document.getElementById('create-bucket-modal');
-            if (modal) {
-                modal.classList.add('hidden');
             }
         }
 
