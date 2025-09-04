@@ -4021,6 +4021,41 @@
             }
         }
 
+        // Modal functions need to be defined before setupActionButtons
+        function showToast(message, type = 'info') {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function showCreateBucketModal() {
+            const modal = document.getElementById('create-bucket-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                // Clear form
+                document.getElementById('new-bucket-name').value = '';
+                document.getElementById('new-bucket-description').value = '';
+                document.getElementById('new-bucket-quota').value = '';
+                document.getElementById('new-bucket-tier').value = 'hot';
+                document.getElementById('new-bucket-replication').value = '3';
+            }
+        }
+
+        function showImportBucketModal() {
+            // TODO: Implement import bucket modal
+            showToast('Import bucket functionality coming soon', 'info');
+        }
+
         // Setup action buttons event listeners
         function setupActionButtons() {
             const createBtn = document.getElementById('create-bucket');
@@ -4575,11 +4610,6 @@
                 const form = document.getElementById('create-bucket-form');
                 if (form) form.reset();
             }
-        }
-        
-        function showImportBucketModal() {
-            // TODO: Implement import bucket modal
-            showToast('Import bucket functionality coming soon', 'info');
         }
         
         async function createBucket() {
@@ -6618,19 +6648,6 @@
         }
 
         // Enhanced bucket creation with proper error handling
-        function showCreateBucketModal() {
-            const modal = document.getElementById('create-bucket-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                // Clear form
-                document.getElementById('new-bucket-name').value = '';
-                document.getElementById('new-bucket-description').value = '';
-                document.getElementById('new-bucket-quota').value = '';
-                document.getElementById('new-bucket-tier').value = 'hot';
-                document.getElementById('new-bucket-replication').value = '3';
-            }
-        }
-
         async function createBucket() {
             const name = document.getElementById('new-bucket-name').value.trim();
             const description = document.getElementById('new-bucket-description').value.trim();
@@ -7414,22 +7431,6 @@
             if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
             if (diffDays < 365) return `${Math.ceil(diffDays / 30)} months ago`;
             return date.toLocaleDateString();
-        }
-
-        function showToast(message, type = 'info') {
-            const existing = document.querySelector('.toast');
-            if (existing) existing.remove();
-            
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            
-            setTimeout(() => toast.classList.add('show'), 100);
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
         }
 
         function showDragDropZone() {
