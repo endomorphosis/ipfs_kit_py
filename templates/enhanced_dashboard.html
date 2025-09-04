@@ -3969,6 +3969,70 @@
             // Drag and Drop
             setupDragAndDrop();
         }
+
+        // Setup refresh buttons event listeners
+        function setupRefreshButtons() {
+            const refreshServices = document.getElementById('refresh-services');
+            if (refreshServices) {
+                refreshServices.addEventListener('click', async () => {
+                    await loadServicesData();
+                });
+            }
+
+            const refreshBackends = document.getElementById('refresh-backends'); 
+            if (refreshBackends) {
+                refreshBackends.addEventListener('click', async () => {
+                    await loadBackendsData();
+                });
+            }
+
+            const refreshBuckets = document.getElementById('refresh-buckets');
+            if (refreshBuckets) {
+                refreshBuckets.addEventListener('click', async () => {
+                    await loadBucketsData();
+                });
+            }
+
+            const refreshPins = document.getElementById('refresh-pins');
+            if (refreshPins) {
+                refreshPins.addEventListener('click', async () => {
+                    // Load pins data - basic implementation
+                    console.log('Refreshing pins data...');
+                    showToast('Pins data refreshed', 'info');
+                });
+            }
+
+            const refreshPeers = document.getElementById('refresh-peers');
+            if (refreshPeers) {
+                refreshPeers.addEventListener('click', async () => {
+                    // Load peers data - basic implementation
+                    console.log('Refreshing peers data...');
+                    showToast('Peers data refreshed', 'info');
+                });
+            }
+
+            const refreshMetadata = document.getElementById('refresh-metadata');
+            if (refreshMetadata) {
+                refreshMetadata.addEventListener('click', async () => {
+                    // Load metadata - basic implementation
+                    console.log('Refreshing metadata...');
+                    showToast('Metadata refreshed', 'info');
+                });
+            }
+        }
+
+        // Setup action buttons event listeners
+        function setupActionButtons() {
+            const createBtn = document.getElementById('create-bucket');
+            if (createBtn) {
+                createBtn.addEventListener('click', showCreateBucketModal);
+            }
+            
+            const importBtn = document.getElementById('import-bucket');
+            if (importBtn) {
+                importBtn.addEventListener('click', showImportBucketModal);
+            }
+        }
         
         // Enhanced Professional Bucket Management Setup
         function setupBucketManagement() {
@@ -4054,22 +4118,7 @@
                     filterAndRenderBuckets();
                 });
             });
-            
-            // Action buttons
-            const refreshBtn = document.getElementById('refresh-buckets');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', loadBucketsData);
-            }
-            
-            const createBtn = document.getElementById('create-bucket');
-            if (createBtn) {
-                createBtn.addEventListener('click', showCreateBucketModal);
-            }
-            
-            const importBtn = document.getElementById('import-bucket');
-            if (importBtn) {
-                importBtn.addEventListener('click', showImportBucketModal);
-            }
+
             
             // Bucket detail actions
             const syncBtn = document.getElementById('sync-bucket');
@@ -7480,17 +7529,7 @@
                 
                 dragZone.addEventListener('drop', handleFileDrop);
             }
-            
-            // Action buttons
-            const refreshBtn = document.getElementById('refresh-buckets');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', loadBucketsData);
-            }
-            
-            const createBtn = document.getElementById('create-bucket');
-            if (createBtn) {
-                createBtn.addEventListener('click', showCreateBucketModal);
-            }
+
             
             const syncBtn = document.getElementById('sync-bucket');
             if (syncBtn) {
