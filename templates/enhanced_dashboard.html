@@ -6551,6 +6551,154 @@
             }
         }
 
+        // Pin Management Data Loading Function
+        async function loadPinsData() {
+            try {
+                console.log('📌 Loading pins via MCP JSON-RPC...');
+                const result = await callMCPTool('list_pins', {});
+                console.log('📌 Pins result:', result);
+                
+                // Handle MCP result structure - extract pins array
+                let pins = [];
+                if (result?.result?.pins && Array.isArray(result.result.pins)) {
+                    pins = result.result.pins;
+                } else if (result?.result && Array.isArray(result.result)) {
+                    pins = result.result;
+                } else if (result?.pins && Array.isArray(result.pins)) {
+                    pins = result.pins;
+                } else if (Array.isArray(result)) {
+                    pins = result;
+                } else {
+                    console.warn('loadPinsData: list_pins returned unexpected structure:', typeof result, result);
+                    pins = [];
+                }
+                
+                console.log('📌 Extracted pins array:', pins);
+                displayPins(pins);
+                
+            } catch (error) {
+                console.error('Error loading pins data:', error);
+                // Show error state in UI
+                const list = document.getElementById('pins-list');
+                if (list) {
+                    list.innerHTML = `
+                        <div class="text-center py-12 text-red-500">
+                            <div class="text-4xl mb-4">⚠️</div>
+                            <h3 class="text-lg font-medium mb-2">Error Loading Pins</h3>
+                            <p class="text-sm mb-4">API service unavailable: ${error.message}</p>
+                            <button onclick="loadPinsData()" class="btn btn-blue">
+                                <i class="fas fa-sync mr-2"></i>Retry
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Display pins in the UI
+        function displayPins(pins) {
+            const list = document.getElementById('pins-list');
+            if (!list) {
+                console.warn('pins-list element not found');
+                return;
+            }
+
+            if (!pins || pins.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <div class="text-4xl mb-4">📌</div>
+                        <h3 class="text-lg font-medium mb-2">No Pins Found</h3>
+                        <p class="text-sm mb-4">IPFS content pins will appear here when added</p>
+                        <button onclick="loadPinsData()" class="btn btn-blue">
+                            <i class="fas fa-sync mr-2"></i>Refresh
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const pinsHTML = pins.map(pin => {
+                const statusColor = pin.status === 'pinned' ? 'text-green-600' : 'text-yellow-600';
+                const statusIcon = pin.status === 'pinned' ? '📌' : '⏳';
+                
+                return `
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center">
+                                <div class="text-2xl mr-3">📌</div>
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900 font-mono text-sm">${pin.cid || pin.hash || 'Unknown CID'}</h3>
+                                    <p class="text-sm text-gray-600">${pin.name || pin.description || 'No description'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center text-sm ${statusColor}">
+                                <span class="mr-1">${statusIcon}</span>
+                                ${pin.status || 'unknown'}
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                            <div>
+                                <span class="text-gray-500">Size:</span>
+                                <div class="font-medium">${formatStorageSize(pin.size || 0)}</div>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Type:</span>
+                                <div class="font-medium">${pin.type || 'recursive'}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button onclick="unpinContent('${pin.cid || pin.hash}')" class="btn btn-red btn-sm">
+                                <i class="fas fa-unlink mr-1"></i>Unpin
+                            </button>
+                            <button onclick="viewPinDetails('${pin.cid || pin.hash}')" class="btn btn-blue btn-sm">
+                                <i class="fas fa-eye mr-1"></i>Details
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            list.innerHTML = pinsHTML;
+        }
+
+        // Pin management functions
+        async function unpinContent(cid) {
+            try {
+                console.log(`Unpinning content: ${cid}`);
+                const result = await callMCPTool('unpin_content', { cid: cid });
+                
+                if (result?.result?.success || result?.success) {
+                    showToast(`✅ Unpinned content "${cid}"`, 'success');
+                } else {
+                    showToast(`❌ Failed to unpin content: ${result?.error || 'Unknown error'}`, 'error');
+                }
+                
+                await loadPinsData();
+            } catch (error) {
+                console.error('Error unpinning content:', error);
+                showToast(`Error unpinning content: ${error.message}`, 'error');
+            }
+        }
+
+        async function viewPinDetails(cid) {
+            try {
+                console.log(`Viewing pin details for: ${cid}`);
+                const result = await callMCPTool('get_pin_details', { cid: cid });
+                
+                if (result?.result || result) {
+                    const details = result?.result || result;
+                    alert(`Pin Details:\nCID: ${details.cid || cid}\nStatus: ${details.status || 'unknown'}\nSize: ${formatStorageSize(details.size || 0)}\nType: ${details.type || 'recursive'}`);
+                } else {
+                    alert(`No details found for pin: ${cid}`);
+                }
+            } catch (error) {
+                console.error('Error viewing pin details:', error);
+                alert(`Error viewing pin details: ${error.message}`);
+            }
+        }
+
         // Enhanced Backend Management Functions using MCP SDK
         async function configureBackend(name, type) {
             try {
