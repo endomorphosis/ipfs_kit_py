@@ -1293,11 +1293,11 @@
         .enterprise-header {
             background: white;
             border-bottom: 1px solid #e2e8f0;
-            padding: 1.5rem 2rem;
+            padding: 2rem;
         }
         
         .enterprise-title {
-            font-size: 1.875rem;
+            font-size: 2rem;
             font-weight: 700;
             color: #1e293b;
             margin-bottom: 0.5rem;
@@ -1305,7 +1305,7 @@
         
         .enterprise-subtitle {
             color: #64748b;
-            font-size: 1rem;
+            font-size: 1.1rem;
         }
         
         .search-bar {
@@ -1359,9 +1359,9 @@
         
         .bucket-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 1.5rem;
-            padding: 1.5rem 2rem;
+            padding: 1.5rem;
         }
         
         .bucket-card {
@@ -1375,8 +1375,8 @@
         
         .bucket-card:hover {
             border-color: #3b82f6;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
         }
         
         .bucket-card.selected {
@@ -3212,32 +3212,30 @@
             const sizeFormatted = formatStorageSize((bucket.size_gb || 0) * 1024 * 1024 * 1024);
             
             return `
-                <div class="bucket-card" onclick="selectBucketEnterprise(${JSON.stringify(bucket).replace(/"/g, '&quot;')})">
+                <div class="bucket-card">
                     <div class="bucket-header">
                         <div>
                             <div class="bucket-name">${bucket.name}</div>
-                            <div class="bucket-status">
-                                <span style="display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
-                                    <span>${statusIcon} ${bucket.status}</span>
-                                    <span>${tierIcon} ${bucket.tier}</span>
-                                </span>
+                            <div class="bucket-badges">
+                                <span class="status-badge status-${bucket.status}">${statusIcon} ${bucket.status}</span>
+                                <span class="tier-badge tier-${bucket.tier}">${tierIcon} ${bucket.tier}</span>
                             </div>
                         </div>
                     </div>
                     <div class="bucket-description">${bucket.description || 'No description provided'}</div>
                     <div class="bucket-stats">
-                        <strong>${sizeFormatted}</strong>
+                        <span><strong>${sizeFormatted}</strong></span>
                         <span><strong>${bucket.file_count || 0}</strong> files</span>
                     </div>
                     <div class="bucket-actions">
-                        <button class="bucket-action-btn" onclick="event.stopPropagation(); syncBucket('${bucket.name}')">
-                            Sync
+                        <button class="btn btn-secondary" onclick="event.stopPropagation()">
+                            <i class="fas fa-sync mr-1"></i> Sync
                         </button>
-                        <button class="bucket-action-btn" onclick="event.stopPropagation(); shareBucket('${bucket.name}')">
-                            Share
+                        <button class="btn btn-secondary" onclick="event.stopPropagation()">
+                            <i class="fas fa-share mr-1"></i> Share
                         </button>
-                        <button class="bucket-action-btn" onclick="event.stopPropagation(); openBucketSettings('${bucket.name}')">
-                            Settings
+                        <button class="btn btn-primary" onclick="event.stopPropagation()">
+                            <i class="fas fa-cog mr-1"></i> Settings
                         </button>
                     </div>
                 </div>
@@ -3254,45 +3252,6 @@
             filterAndRenderBucketsEnterprise();
             
             console.log('📦 Selected bucket:', bucket.name);
-        }
-        
-        function syncBucket(bucketName) {
-            console.log('🔄 Syncing bucket:', bucketName);
-            showToast(`Syncing bucket "${bucketName}"...`, 'info');
-            
-            // Call MCP to sync bucket
-            callMCPTool('sync_bucket', { bucket_name: bucketName })
-                .then(() => {
-                    showToast(`✅ Bucket "${bucketName}" synced successfully`, 'success');
-                    loadBucketsDataEnterprise();
-                })
-                .catch(error => {
-                    console.error('Error syncing bucket:', error);
-                    showToast(`❌ Failed to sync bucket "${bucketName}"`, 'error');
-                });
-        }
-        
-        function shareBucket(bucketName) {
-            console.log('📤 Sharing bucket:', bucketName);
-            showToast(`Generating share link for "${bucketName}"...`, 'info');
-            
-            // Show bucket sharing modal
-            const modal = document.getElementById('bucket-sharing-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                document.getElementById('sharing-bucket-name').textContent = bucketName;
-            }
-        }
-        
-        function openBucketSettings(bucketName) {
-            console.log('⚙️ Opening settings for bucket:', bucketName);
-            
-            // Show bucket settings modal
-            const modal = document.getElementById('bucket-settings-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                document.getElementById('settings-bucket-name').value = bucketName;
-            }
         }
         
         function showBucketDetails(bucket) {
