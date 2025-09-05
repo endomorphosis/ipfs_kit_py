@@ -2590,8 +2590,8 @@
         }
 
         function initializeDashboard() {
-            // Set initial tab
-            showTab('overview');
+            // Set initial tab - default to buckets (Enterprise Storage Hub) as defined in HTML
+            showTab('buckets');
             
             // Set up periodic system metrics refresh (every 30 seconds)
             setInterval(async () => {
