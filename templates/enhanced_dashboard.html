@@ -4660,6 +4660,94 @@
             }
         }
         
+        function handleResponsiveLayout() {
+            // Handle responsive layout for enterprise storage hub
+            function adjustLayout() {
+                const container = document.querySelector('.enterprise-storage-hub');
+                const sidebar = document.querySelector('.bucket-operations-sidebar');
+                const mainContent = document.querySelector('.bucket-main-content');
+                
+                if (!container) return;
+                
+                const screenWidth = window.innerWidth;
+                
+                // Mobile layout (< 768px)
+                if (screenWidth < 768) {
+                    if (sidebar) {
+                        sidebar.style.width = '100%';
+                        sidebar.style.position = 'static';
+                    }
+                    if (mainContent) {
+                        mainContent.style.marginLeft = '0';
+                        mainContent.style.width = '100%';
+                    }
+                } 
+                // Tablet layout (768px - 1024px)
+                else if (screenWidth < 1024) {
+                    if (sidebar) {
+                        sidebar.style.width = '280px';
+                        sidebar.style.position = 'fixed';
+                    }
+                    if (mainContent) {
+                        mainContent.style.marginLeft = '280px';
+                        mainContent.style.width = 'calc(100% - 280px)';
+                    }
+                }
+                // Desktop layout (>= 1024px)
+                else {
+                    if (sidebar) {
+                        sidebar.style.width = '320px';
+                        sidebar.style.position = 'fixed';
+                    }
+                    if (mainContent) {
+                        mainContent.style.marginLeft = '320px';
+                        mainContent.style.width = 'calc(100% - 320px)';
+                    }
+                }
+            }
+            
+            // Initial layout adjustment
+            adjustLayout();
+            
+            // Listen for window resize events
+            window.addEventListener('resize', adjustLayout);
+            
+            console.log('🎨 Responsive layout handler initialized');
+        }
+        
+        function setupModalHandlers() {
+            // Setup professional modal handlers for enterprise storage hub
+            
+            // Close modals when clicking outside
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal-backdrop')) {
+                    const modals = document.querySelectorAll('.modal-backdrop');
+                    modals.forEach(modal => modal.classList.add('hidden'));
+                }
+            });
+            
+            // Close modals with escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    const modals = document.querySelectorAll('.modal-backdrop:not(.hidden)');
+                    modals.forEach(modal => modal.classList.add('hidden'));
+                }
+            });
+            
+            // Setup modal close buttons
+            document.querySelectorAll('[data-modal-close]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const modalId = e.target.dataset.modalClose;
+                    const modal = document.getElementById(modalId);
+                    if (modal) {
+                        modal.classList.add('hidden');
+                    }
+                });
+            });
+            
+            console.log('🏗️ Modal handlers setup completed');
+        }
+        
         function initializeEnterpriseStorage() {
             // Initialize responsive layout handling
             handleResponsiveLayout();
@@ -5374,12 +5462,8 @@
                 });
             }
         }
-                    searchTimeout = setTimeout(() => {
-                        filterAndRenderBuckets();
-                    }, 300);
-                });
-            }
-            
+        
+        function setupBucketUIEventListeners() {
             // Filter controls
             ['status-filter', 'tier-filter', 'sort-buckets'].forEach(id => {
                 const element = document.getElementById(id);
@@ -8176,17 +8260,6 @@
                                     <i class="fas fa-share-alt"></i>
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-                            </div>
-                        </div>
-                        
-                        <div class="bucket-status">
-                            <div class="status-dot ${bucket.status || 'active'}"></div>
-                            ${(bucket.status || 'active').toUpperCase()}
                         </div>
                     </div>
                 `;
