@@ -1284,27 +1284,17 @@
             transition: all 0.2s ease-in-out;
         }
 
-        /* Simplified Professional Enterprise Storage Hub Styles */
-        .enterprise-hub {
-            background-color: #f8fafc;
-            min-height: 100vh;
+        /* Professional Enterprise Storage Hub Styles - Minimal and Clean */
+        .filter-pill-active {
+            background-color: rgb(219, 234, 254) !important;
+            color: rgb(30, 64, 175) !important;
         }
         
-        .enterprise-header {
-            background: white;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 1.5rem 2rem;
+        .bucket-card-professional:hover {
+            transform: translateY(-1px);
         }
         
-        .enterprise-title {
-            font-size: 1.875rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 0.5rem;
-        }
-        
-        .enterprise-subtitle {
-            color: #64748b;
+        /* Remove existing enterprise styles that are now handled by Tailwind */
             font-size: 1rem;
         }
         
@@ -1990,94 +1980,194 @@
                 </div>
             </div>
 
-            <!-- Simplified Enterprise Storage Hub -->
+            <!-- Professional Enterprise Storage Hub -->
             <div id="buckets" class="tab-content active">
-                <div class="enterprise-hub">
-                    <!-- Clean Header -->
-                    <div class="enterprise-header">
-                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div class="min-h-screen bg-white">
+                    <!-- Professional Header -->
+                    <div class="bg-white border-b border-gray-200 px-6 py-4">
+                        <div class="flex items-center justify-between">
                             <div>
-                                <h1 class="enterprise-title">Enterprise Storage Hub</h1>
-                                <p class="enterprise-subtitle">Professional bucket management for distributed storage systems</p>
+                                <h1 class="text-2xl font-semibold text-gray-900">Enterprise Storage Hub</h1>
+                                <p class="text-sm text-gray-600">Professional distributed bucket management system</p>
                             </div>
-                            <div class="flex gap-3">
-                                <button id="refresh-buckets" class="btn btn-secondary">
-                                    <i class="fas fa-sync-alt mr-2"></i>Refresh
+                            <div class="flex items-center space-x-3">
+                                <button id="refresh-buckets" onclick="refreshBuckets()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                    Refresh
                                 </button>
-                                <button id="import-bucket" class="btn btn-secondary">
-                                    <i class="fas fa-cloud-download-alt mr-2"></i>Import
+                                <button id="import-bucket" onclick="showImportBucketModal()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                                    </svg>
+                                    Import
                                 </button>
-                                <button id="create-bucket" class="btn btn-primary">
-                                    <i class="fas fa-plus mr-2"></i>Create Bucket
+                                <button id="create-bucket" onclick="showCreateBucketModal()" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                    </svg>
+                                    Create Bucket
                                 </button>
                             </div>
                         </div>
-                        
-                        <!-- Search and Filters -->
-                        <div class="flex flex-col lg:flex-row gap-4 mt-6">
-                            <input type="text" id="bucket-search" placeholder="Search buckets..." class="search-bar flex-1">
-                            <div class="flex gap-3">
-                                <select id="status-filter" class="filter-select">
+                    </div>
+
+                    <!-- Search and Filter Bar -->
+                    <div class="bg-gray-50 border-b border-gray-200 px-6 py-3">
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1">
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                        </svg>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        id="bucket-search" 
+                                        placeholder="Search buckets by name, description, or metadata..." 
+                                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        oninput="filterAndRenderBucketsEnterprise()"
+                                    >
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <select id="status-filter" onchange="filterAndRenderBucketsEnterprise()" class="block w-40 px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                     <option value="">All Status</option>
                                     <option value="active">🟢 Active</option>
                                     <option value="syncing">🟡 Syncing</option>
                                     <option value="error">🔴 Error</option>
                                     <option value="offline">⚫ Offline</option>
                                 </select>
-                                <select id="tier-filter" class="filter-select">
+                                <select id="tier-filter" onchange="filterAndRenderBucketsEnterprise()" class="block w-40 px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                     <option value="">All Tiers</option>
                                     <option value="hot">🔥 Hot</option>
                                     <option value="warm">🌡️ Warm</option>
                                     <option value="cold">❄️ Cold</option>
                                     <option value="archive">📦 Archive</option>
                                 </select>
-                                <select id="sort-buckets" class="filter-select">
-                                    <option value="name">Name</option>
-                                    <option value="size">Size</option>
-                                    <option value="files">Files</option>
-                                    <option value="modified">Modified</option>
+                                <select id="sort-buckets" onchange="filterAndRenderBucketsEnterprise()" class="block w-40 px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    <option value="name">Sort by Name</option>
+                                    <option value="size">Sort by Size</option>
+                                    <option value="files">Sort by Files</option>
+                                    <option value="modified">Sort by Modified</option>
                                 </select>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Statistics -->
-                    <div class="px-6 py-4 bg-white border-b">
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                            <div class="stats-card">
-                                <div class="stats-number" id="total-buckets-count">0</div>
-                                <div class="stats-label">Total Buckets</div>
+
+                    <!-- Statistics Dashboard -->
+                    <div class="bg-white px-6 py-4 border-b border-gray-200">
+                        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                            <div class="bg-white overflow-hidden shadow rounded-lg">
+                                <div class="p-5">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="ml-5 w-0 flex-1">
+                                            <dl>
+                                                <dt class="text-sm font-medium text-gray-500 truncate">Total Buckets</dt>
+                                                <dd class="text-lg font-medium text-gray-900" id="total-buckets-count">0</dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="stats-card">
-                                <div class="stats-number" id="total-storage-size">0 B</div>
-                                <div class="stats-label">Total Storage</div>
+                            <div class="bg-white overflow-hidden shadow rounded-lg">
+                                <div class="p-5">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="ml-5 w-0 flex-1">
+                                            <dl>
+                                                <dt class="text-sm font-medium text-gray-500 truncate">Total Storage</dt>
+                                                <dd class="text-lg font-medium text-gray-900" id="total-storage-size">0 B</dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="stats-card">
-                                <div class="stats-number" id="active-buckets-count">0</div>
-                                <div class="stats-label">Active</div>
+                            <div class="bg-white overflow-hidden shadow rounded-lg">
+                                <div class="p-5">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                                                <span class="text-white text-sm font-medium">✓</span>
+                                            </div>
+                                        </div>
+                                        <div class="ml-5 w-0 flex-1">
+                                            <dl>
+                                                <dt class="text-sm font-medium text-gray-500 truncate">Active Buckets</dt>
+                                                <dd class="text-lg font-medium text-gray-900" id="active-buckets-count">0</dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="stats-card">
-                                <div class="stats-number" id="syncing-buckets-count">0</div>
-                                <div class="stats-label">Syncing</div>
+                            <div class="bg-white overflow-hidden shadow rounded-lg">
+                                <div class="p-5">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="ml-5 w-0 flex-1">
+                                            <dl>
+                                                <dt class="text-sm font-medium text-gray-500 truncate">Syncing</dt>
+                                                <dd class="text-lg font-medium text-gray-900" id="syncing-buckets-count">0</dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Filter Pills -->
-                    <div class="px-6 py-4 bg-gray-50 border-b">
-                        <div class="filter-pills">
-                            <div class="filter-pill active" data-filter="all">🌐 All <span id="all-count">0</span></div>
-                            <div class="filter-pill" data-filter="active">🟢 Active <span id="active-count">0</span></div>
-                            <div class="filter-pill" data-filter="syncing">🟡 Syncing <span id="syncing-count">0</span></div>
-                            <div class="filter-pill" data-filter="error">🔴 Issues <span id="error-count">0</span></div>
+
+                    <!-- Status Filter Pills -->
+                    <div class="bg-white px-6 py-3 border-b border-gray-200">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm font-medium text-gray-700">Filter by status:</span>
+                            <div class="flex space-x-2">
+                                <button onclick="setStatusFilterEnterprise('')" class="filter-pill filter-pill-active inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="">
+                                    🌐 All <span id="all-count" class="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">0</span>
+                                </button>
+                                <button onclick="setStatusFilterEnterprise('active')" class="filter-pill inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="active">
+                                    🟢 Active <span id="active-count" class="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">0</span>
+                                </button>
+                                <button onclick="setStatusFilterEnterprise('syncing')" class="filter-pill inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="syncing">
+                                    🟡 Syncing <span id="syncing-count" class="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">0</span>
+                                </button>
+                                <button onclick="setStatusFilterEnterprise('error')" class="filter-pill inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="error">
+                                    🔴 Issues <span id="error-count" class="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">0</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    
+
                     <!-- Bucket Grid -->
-                    <div class="bucket-grid" id="buckets-list">
-                        <div class="text-center py-12 text-gray-500">
-                            <i class="fas fa-database text-4xl mb-4"></i>
-                            <div class="text-lg">Loading buckets...</div>
+                    <div class="bg-white px-6 py-6">
+                        <div id="buckets-list" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            <div class="text-center py-12 text-gray-500 col-span-full">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                </svg>
+                                <h3 class="mt-2 text-sm font-medium text-gray-900">Loading buckets...</h3>
+                                <p class="mt-1 text-sm text-gray-500">Please wait while we fetch your bucket data.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3184,61 +3274,94 @@
             
             if (buckets.length === 0) {
                 bucketsList.innerHTML = `
-                    <div class="text-center py-12 text-gray-500">
-                        <i class="fas fa-search text-4xl mb-4"></i>
-                        <div class="text-lg">No buckets found</div>
-                        <div class="text-sm mt-2">Try adjusting your search criteria or create a new bucket</div>
+                    <div class="text-center py-12 text-gray-500 col-span-full">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">No buckets found</h3>
+                        <p class="mt-1 text-sm text-gray-500">Try adjusting your search criteria or create a new bucket</p>
                     </div>
                 `;
                 return;
             }
             
-            bucketsList.innerHTML = buckets.map(bucket => generateSimpleBucketCard(bucket)).join('');
+            bucketsList.innerHTML = buckets.map(bucket => generateProfessionalBucketCard(bucket)).join('');
             
             // Add click handlers for bucket selection
-            bucketsList.querySelectorAll('.bucket-card').forEach((card, index) => {
+            bucketsList.querySelectorAll('.bucket-card-professional').forEach((card, index) => {
                 card.addEventListener('click', () => {
                     // Remove previous selection
-                    bucketsList.querySelectorAll('.bucket-card').forEach(c => c.classList.remove('selected'));
+                    bucketsList.querySelectorAll('.bucket-card-professional').forEach(c => c.classList.remove('ring-2', 'ring-blue-500'));
                     // Add selection to clicked card
-                    card.classList.add('selected');
+                    card.classList.add('ring-2', 'ring-blue-500');
                 });
             });
         }
         
-        function generateSimpleBucketCard(bucket) {
+        function generateProfessionalBucketCard(bucket) {
             const statusIcon = getStatusIcon(bucket.status);
             const tierIcon = getTierIcon(bucket.tier);
             const sizeFormatted = formatStorageSize((bucket.size_gb || 0) * 1024 * 1024 * 1024);
+            const statusColor = getStatusColor(bucket.status);
+            const tierColor = getTierColor(bucket.tier);
             
             return `
-                <div class="bucket-card" onclick="selectBucketEnterprise(${JSON.stringify(bucket).replace(/"/g, '&quot;')})">
-                    <div class="bucket-header">
-                        <div>
-                            <div class="bucket-name">${bucket.name}</div>
-                            <div class="bucket-status">
-                                <span style="display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
-                                    <span>${statusIcon} ${bucket.status}</span>
-                                    <span>${tierIcon} ${bucket.tier}</span>
-                                </span>
+                <div class="bucket-card-professional bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer" onclick="selectBucketEnterprise(${JSON.stringify(bucket).replace(/"/g, '&quot;')})">
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-lg font-medium text-gray-900">${bucket.name}</div>
+                                    <div class="flex items-center space-x-2 mt-1">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}">
+                                            ${statusIcon} ${bucket.status}
+                                        </span>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tierColor}">
+                                            ${tierIcon} ${bucket.tier}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm font-medium text-gray-900">${sizeFormatted}</div>
+                                <div class="text-sm text-gray-500">${bucket.file_count || 0} files</div>
                             </div>
                         </div>
-                    </div>
-                    <div class="bucket-description">${bucket.description || 'No description provided'}</div>
-                    <div class="bucket-stats">
-                        <strong>${sizeFormatted}</strong>
-                        <span><strong>${bucket.file_count || 0}</strong> files</span>
-                    </div>
-                    <div class="bucket-actions">
-                        <button class="bucket-action-btn" onclick="event.stopPropagation(); syncBucket('${bucket.name}')">
-                            Sync
-                        </button>
-                        <button class="bucket-action-btn" onclick="event.stopPropagation(); shareBucket('${bucket.name}')">
-                            Share
-                        </button>
-                        <button class="bucket-action-btn" onclick="event.stopPropagation(); openBucketSettings('${bucket.name}')">
-                            Settings
-                        </button>
+                        
+                        <div class="mt-3">
+                            <p class="text-sm text-gray-600">${bucket.description || 'No description provided'}</p>
+                        </div>
+                        
+                        <div class="mt-4 flex justify-between">
+                            <div class="flex space-x-2">
+                                <button onclick="event.stopPropagation(); syncBucket('${bucket.name}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                    Sync
+                                </button>
+                                <button onclick="event.stopPropagation(); shareBucket('${bucket.name}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"/>
+                                    </svg>
+                                    Share
+                                </button>
+                                <button onclick="event.stopPropagation(); openBucketSettings('${bucket.name}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    </svg>
+                                    Settings
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -3357,6 +3480,50 @@
                 case 'archive': return '📦';
                 default: return '💾';
             }
+        }
+        
+        function getStatusColor(status) {
+            switch (status) {
+                case 'active': return 'bg-green-100 text-green-800';
+                case 'syncing': return 'bg-yellow-100 text-yellow-800';
+                case 'error': return 'bg-red-100 text-red-800';
+                case 'offline': return 'bg-gray-100 text-gray-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+        
+        function getTierColor(tier) {
+            switch (tier) {
+                case 'hot': return 'bg-red-100 text-red-800';
+                case 'warm': return 'bg-orange-100 text-orange-800';
+                case 'cold': return 'bg-blue-100 text-blue-800';
+                case 'archive': return 'bg-purple-100 text-purple-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+        
+        function setStatusFilterEnterprise(status) {
+            // Update the status filter dropdown
+            const statusFilter = document.getElementById('status-filter');
+            if (statusFilter) {
+                statusFilter.value = status;
+            }
+            
+            // Update filter pill active state
+            const filterPills = document.querySelectorAll('.filter-pill');
+            filterPills.forEach(pill => {
+                const pillStatus = pill.getAttribute('data-status');
+                if (pillStatus === status) {
+                    pill.classList.add('filter-pill-active', 'bg-blue-100', 'text-blue-800');
+                    pill.classList.remove('bg-gray-100', 'text-gray-800');
+                } else {
+                    pill.classList.remove('filter-pill-active', 'bg-blue-100', 'text-blue-800');
+                    pill.classList.add('bg-gray-100', 'text-gray-800');
+                }
+            });
+            
+            // Trigger filtering
+            filterAndRenderBucketsEnterprise();
         }
         
         function getStatusBadgeClass(status) {
