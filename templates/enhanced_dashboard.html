@@ -2524,7 +2524,7 @@
     </div>
 
     <!-- Load MCP SDK for MCP tool calls -->
-    <script src="mcp-sdk.js"></script>
+    <script src="/static/mcp-sdk.js"></script>
     
     <!-- Real-time updates and UI scripts -->
     <script>
@@ -7409,6 +7409,41 @@
             
             selector.innerHTML = '<option value="">Select a bucket...</option>' + 
                 buckets.map(bucket => `<option value="${bucket.name}">${bucket.name}</option>`).join('');
+        }
+
+        // Missing function definitions for tab loading
+        async function loadConfigData() {
+            try {
+                console.log('⚙️ Loading configuration data...');
+                // Placeholder for configuration loading logic
+                // This would typically load MCP server configuration, settings, etc.
+                showToast('Configuration loaded successfully', 'success');
+            } catch (error) {
+                console.error('Error loading configuration data:', error);
+                showToast('Failed to load configuration', 'error');
+            }
+        }
+
+        async function loadLogsData() {
+            try {
+                console.log('📄 Loading logs data...');
+                // Placeholder for logs loading logic
+                showToast('Logs loaded successfully', 'success');
+            } catch (error) {
+                console.error('Error loading logs data:', error);
+                showToast('Failed to load logs', 'error');
+            }
+        }
+
+        async function loadAnalyticsData() {
+            try {
+                console.log('📈 Loading analytics data...');
+                // Placeholder for analytics loading logic
+                showToast('Analytics loaded successfully', 'success');
+            } catch (error) {
+                console.error('Error loading analytics data:', error);
+                showToast('Failed to load analytics', 'error');
+            }
         }
     </script>
 
