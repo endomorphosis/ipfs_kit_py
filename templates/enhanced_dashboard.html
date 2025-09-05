@@ -99,46 +99,7 @@
         .text-green-400 { color: #4ade80; }
         .text-blue-600 { color: #2563eb; }
         
-        /* Gradients */
-        .bg-gradient-to-r {
-            background: linear-gradient(to right, var(--tw-gradient-from), var(--tw-gradient-to));
-        }
-        .from-blue-500.to-blue-600 {
-            --tw-gradient-from: #3b82f6;
-            --tw-gradient-to: #2563eb;
-        }
-        .from-green-500.to-green-600 {
-            --tw-gradient-from: #10b981;
-            --tw-gradient-to: #059669;
-        }
-        .from-purple-500.to-purple-600 {
-            --tw-gradient-from: #8b5cf6;
-            --tw-gradient-to: #7c3aed;
-        }
-        .from-yellow-500.to-yellow-600 {
-            --tw-gradient-from: #eab308;
-            --tw-gradient-to: #ca8a04;
-        }
-        .from-indigo-500.to-indigo-600 {
-            --tw-gradient-from: #6366f1;
-            --tw-gradient-to: #4f46e5;
-        }
-        .from-pink-500.to-pink-600 {
-            --tw-gradient-from: #ec4899;
-            --tw-gradient-to: #db2777;
-        }
-        .from-teal-500.to-teal-600 {
-            --tw-gradient-from: #14b8a6;
-            --tw-gradient-to: #0d9488;
-        }
-        .from-red-500.to-red-600 {
-            --tw-gradient-from: #ef4444;
-            --tw-gradient-to: #dc2626;
-        }
-        .from-gray-500.to-gray-600 {
-            --tw-gradient-from: #6b7280;
-            --tw-gradient-to: #4b5563;
-        }
+        /* Simplified Colors - removed complex gradients */
         
         /* Typography */
         .text-xl { font-size: 1.25rem; }
@@ -252,56 +213,36 @@
         
         .filter-pill.active {
             color: #1e40af;
-            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            background: #e0f2fe;
             border-color: #3b82f6;
-            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
         }
         
         .bucket-item {
             padding: 20px 24px;
-            border: 2px solid #e5e7eb;
-            border-radius: 24px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
             background: white;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transform: translateZ(0);
-        }
-        
-        .bucket-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(168, 85, 247, 0.05));
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: 0;
-        }
-        
-        .bucket-item:hover::before {
-            opacity: 1;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         
         .bucket-item:hover {
             border-color: #3b82f6;
-            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.2);
-            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
         }
         
         .bucket-item.selected {
-            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            background: #f0f9ff;
             border-color: #1d4ed8;
-            box-shadow: 0 8px 24px rgba(29, 78, 216, 0.3);
+            box-shadow: 0 2px 4px rgba(29, 78, 216, 0.1);
         }
         
         .bucket-item.selected .bucket-title {
             color: #1d4ed8;
-            font-weight: 800;
+            font-weight: 600;
         }
         
         .status-indicator {
@@ -313,7 +254,7 @@
         }
         
         .status-active { background-color: #10b981; }
-        .status-syncing { background-color: #f59e0b; animation: pulse 2s infinite; }
+        .status-syncing { background-color: #f59e0b; }
         .status-error { background-color: #ef4444; }
         .status-offline { background-color: #6b7280; }
         
@@ -3296,35 +3237,6 @@
                         <button class="btn btn-primary" onclick="event.stopPropagation()">
                             <i class="fas fa-cog mr-1"></i> Settings
                         </button>
-                    </div>
-                </div>
-            `;
-        }
-                            </div>
-                        </div>
-                        
-                        <p class="text-blue-200 text-sm mb-4 line-clamp-2">${bucket.description || 'No description provided'}</p>
-                        
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-4 text-xs text-slate-400">
-                                <span class="flex items-center space-x-1">
-                                    <i class="fas fa-copy"></i>
-                                    <span>${bucket.replication_factor || 1}x</span>
-                                </span>
-                                <span class="flex items-center space-x-1">
-                                    <i class="fas fa-shield-alt"></i>
-                                    <span>${bucket.encryption ? 'Encrypted' : 'Standard'}</span>
-                                </span>
-                            </div>
-                            <div class="flex space-x-2">
-                                <button class="p-2 text-slate-400 hover:text-cyan-400 hover:bg-white/10 rounded-lg transition-all" onclick="event.stopPropagation(); syncBucketEnterprise('${bucket.name}')">
-                                    <i class="fas fa-sync-alt text-sm"></i>
-                                </button>
-                                <button class="p-2 text-slate-400 hover:text-blue-400 hover:bg-white/10 rounded-lg transition-all" onclick="event.stopPropagation(); shareBucketEnterprise('${bucket.name}')">
-                                    <i class="fas fa-share-alt text-sm"></i>
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             `;
