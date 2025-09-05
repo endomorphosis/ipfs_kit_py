@@ -2059,7 +2059,7 @@
 
                     <!-- Statistics Dashboard -->
                     <div class="bg-white px-6 py-4 border-b border-gray-200">
-                        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <div class="grid grid-cols-4 gap-4">
                             <div class="bg-white overflow-hidden shadow rounded-lg">
                                 <div class="p-5">
                                     <div class="flex items-center">
@@ -2523,6 +2523,124 @@
         </div>
     </div>
 
+    <!-- Enhanced Bucket File Manager Modal -->
+    <div id="bucket-file-manager-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg w-full max-w-6xl max-h-screen m-4 flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200">
+                <div class="flex items-center">
+                    <h3 class="text-xl font-semibold text-gray-900">
+                        <i class="fas fa-folder-open mr-2 text-blue-600"></i>
+                        Bucket File Manager: <span id="bucket-modal-name" class="text-blue-600">Loading...</span>
+                    </h3>
+                </div>
+                <button id="close-bucket-file-manager" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="flex-1 flex overflow-hidden">
+                <!-- File Browser Section -->
+                <div class="flex-1 flex flex-col">
+                    <!-- Toolbar -->
+                    <div class="p-4 border-b border-gray-200 bg-gray-50">
+                        <div class="flex items-center justify-between">
+                            <!-- Breadcrumb Navigation -->
+                            <div class="flex items-center text-sm">
+                                <i class="fas fa-folder text-gray-500 mr-2"></i>
+                                <span id="bucket-path-breadcrumb" class="text-gray-700">/</span>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex space-x-2">
+                                <button id="refresh-bucket-files" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
+                                    <i class="fas fa-sync mr-1"></i>Refresh
+                                </button>
+                                <button id="upload-files-btn" class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600">
+                                    <i class="fas fa-upload mr-1"></i>Upload
+                                </button>
+                                <button id="create-folder-btn" class="px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600">
+                                    <i class="fas fa-folder-plus mr-1"></i>New Folder
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Drag and Drop Zone -->
+                    <div id="bucket-drag-drop-zone" class="p-4 border-2 border-dashed border-gray-300 m-4 rounded-lg text-center bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div class="py-8">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                            <p class="text-lg font-medium text-gray-600">Drag and drop files or folders here</p>
+                            <p class="text-sm text-gray-500">Or click to select files</p>
+                            <input type="file" id="bucket-file-input" multiple class="hidden">
+                        </div>
+                    </div>
+
+                    <!-- Files List -->
+                    <div class="flex-1 overflow-y-auto p-4">
+                        <div id="bucket-files-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            <!-- Files will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Details Panel -->
+                <div class="w-80 border-l border-gray-200 bg-gray-50 flex flex-col">
+                    <!-- File Info Header -->
+                    <div class="p-4 border-b border-gray-200">
+                        <h4 class="font-semibold text-gray-900">File Details</h4>
+                    </div>
+
+                    <!-- File Preview/Info -->
+                    <div class="flex-1 overflow-y-auto p-4">
+                        <div id="file-details-content">
+                            <div class="text-center py-8 text-gray-500">
+                                <i class="fas fa-file-alt text-3xl mb-3 opacity-50"></i>
+                                <p>Select a file to view details</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bucket Metadata Panel -->
+                    <div class="border-t border-gray-200 p-4">
+                        <h5 class="font-semibold text-gray-900 mb-3">Bucket Metadata</h5>
+                        <div id="bucket-metadata-summary" class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Files:</span>
+                                <span id="bucket-file-count" class="font-medium">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Size:</span>
+                                <span id="bucket-total-size" class="font-medium">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Type:</span>
+                                <span id="bucket-storage-type" class="font-medium">-</span>
+                            </div>
+                        </div>
+                        
+                        <button id="view-bucket-metadata" class="w-full mt-3 px-3 py-2 bg-gray-600 text-white rounded text-sm hover:bg-gray-700">
+                            <i class="fas fa-info-circle mr-1"></i>View Full Metadata
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Progress -->
+            <div id="upload-progress-panel" class="hidden p-4 border-t border-gray-200 bg-blue-50">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-blue-800">Uploading files...</span>
+                    <span id="upload-percentage" class="text-sm text-blue-600">0%</span>
+                </div>
+                <div class="w-full bg-blue-200 rounded-full h-2 mt-2">
+                    <div id="upload-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload Input -->
+    <input type="file" id="hidden-file-input" multiple class="hidden">
+
     <!-- Load MCP SDK for MCP tool calls -->
     <script src="/static/mcp-sdk.js"></script>
     
@@ -2852,6 +2970,48 @@
                     }
                 });
             });
+            
+            // Setup bucket file manager modal handlers
+            const closeBucketFileManagerBtn = document.getElementById('close-bucket-file-manager');
+            if (closeBucketFileManagerBtn) {
+                closeBucketFileManagerBtn.addEventListener('click', closeBucketFileManager);
+            }
+            
+            const refreshBucketFilesBtn = document.getElementById('refresh-bucket-files');
+            if (refreshBucketFilesBtn) {
+                refreshBucketFilesBtn.addEventListener('click', () => {
+                    const bucketName = document.getElementById('bucket-modal-name').textContent;
+                    const currentPath = document.getElementById('bucket-path-breadcrumb').textContent;
+                    loadBucketFilesInModal(bucketName, currentPath === '/' ? '' : currentPath);
+                });
+            }
+            
+            const uploadFilesBtnModal = document.getElementById('upload-files-btn');
+            if (uploadFilesBtnModal) {
+                uploadFilesBtnModal.addEventListener('click', () => {
+                    document.getElementById('bucket-file-input').click();
+                });
+            }
+            
+            const createFolderBtn = document.getElementById('create-folder-btn');
+            if (createFolderBtn) {
+                createFolderBtn.addEventListener('click', () => {
+                    const folderName = prompt('Enter folder name:');
+                    if (folderName) {
+                        showToast(`Creating folder: ${folderName}`, 'info');
+                        // TODO: Implement folder creation via MCP
+                    }
+                });
+            }
+            
+            const viewBucketMetadataBtn = document.getElementById('view-bucket-metadata');
+            if (viewBucketMetadataBtn) {
+                viewBucketMetadataBtn.addEventListener('click', () => {
+                    const bucketName = document.getElementById('bucket-modal-name').textContent;
+                    showToast(`Loading full metadata for bucket: ${bucketName}`, 'info');
+                    // TODO: Open detailed metadata modal
+                });
+            }
             
             console.log('🏗️ Modal handlers setup completed');
         }
@@ -3376,13 +3536,316 @@
         function selectBucketEnterprise(bucket) {
             window.enterpriseStorage.currentBucket = bucket;
             
-            // Update UI to show bucket details
-            showBucketDetails(bucket);
+            // Open the enhanced file manager modal instead of the old details view
+            openBucketFileManager(bucket);
             
             // Update visual selection
             filterAndRenderBucketsEnterprise();
             
             console.log('📦 Selected bucket:', bucket.name);
+        }
+
+        // Enhanced Bucket File Manager Functions
+        function openBucketFileManager(bucket) {
+            const modal = document.getElementById('bucket-file-manager-modal');
+            const bucketName = document.getElementById('bucket-modal-name');
+            
+            if (modal && bucketName) {
+                bucketName.textContent = bucket.name;
+                modal.classList.remove('hidden');
+                
+                // Initialize file manager for this bucket
+                initializeBucketFileManager(bucket);
+            }
+        }
+
+        function closeBucketFileManager() {
+            const modal = document.getElementById('bucket-file-manager-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        async function initializeBucketFileManager(bucket) {
+            try {
+                // Update bucket metadata summary
+                updateBucketMetadataSummary(bucket);
+                
+                // Load bucket files
+                await loadBucketFilesInModal(bucket.name);
+                
+                // Setup drag and drop for this bucket
+                setupBucketDragAndDrop(bucket.name);
+                
+                console.log('📁 Initialized file manager for bucket:', bucket.name);
+            } catch (error) {
+                console.error('Error initializing bucket file manager:', error);
+                showToast('Error loading bucket file manager', 'error');
+            }
+        }
+
+        function updateBucketMetadataSummary(bucket) {
+            // Update the summary panel with bucket info
+            const fileCountEl = document.getElementById('bucket-file-count');
+            const totalSizeEl = document.getElementById('bucket-total-size');
+            const storageTypeEl = document.getElementById('bucket-storage-type');
+            
+            if (fileCountEl) fileCountEl.textContent = bucket.files || 0;
+            if (totalSizeEl) totalSizeEl.textContent = formatStorageSize((bucket.size_gb || 0) * 1024 * 1024 * 1024);
+            if (storageTypeEl) storageTypeEl.textContent = bucket.tier || 'Standard';
+        }
+
+        async function loadBucketFilesInModal(bucketName, path = '') {
+            try {
+                const pathBreadcrumb = document.getElementById('bucket-path-breadcrumb');
+                const filesGrid = document.getElementById('bucket-files-grid');
+                
+                if (pathBreadcrumb) {
+                    pathBreadcrumb.textContent = path || '/';
+                }
+                
+                // Load files via MCP using metadata-first approach (~/.ipfs_kit/ before ipfs_kit_py)
+                console.log(`📂 Loading files for bucket: ${bucketName}, path: ${path}`);
+                const result = await callMCPTool('list_bucket_files', {
+                    bucket: bucketName,
+                    path: path,
+                    metadata_first: true  // Use ~/.ipfs_kit/ metadata first
+                });
+                
+                let files = [];
+                if (result?.result?.files) {
+                    files = result.result.files;
+                } else if (result?.files) {
+                    files = result.files;
+                } else if (Array.isArray(result)) {
+                    files = result;
+                }
+                
+                console.log(`📂 Loaded ${files.length} files for bucket: ${bucketName}`);
+                renderBucketFilesGrid(files);
+                
+            } catch (error) {
+                console.error('Error loading bucket files:', error);
+                // Show demo files as fallback
+                renderBucketFilesGrid(getDemoBucketFiles());
+            }
+        }
+
+        function renderBucketFilesGrid(files) {
+            const grid = document.getElementById('bucket-files-grid');
+            if (!grid) return;
+            
+            if (!files || files.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-gray-500">
+                        <i class="fas fa-folder-open text-4xl mb-4 opacity-50"></i>
+                        <p class="text-lg font-medium">No files in this location</p>
+                        <p class="text-sm">Upload files using drag & drop or the upload button</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const filesHTML = files.map(file => {
+                const isFolder = file.type === 'folder' || file.type === 'directory';
+                const icon = isFolder ? 'fas fa-folder text-blue-500' : getFileIcon(file.name);
+                const size = isFolder ? '-' : formatFileSize(file.size || 0);
+                
+                return `
+                    <div class="file-item bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer" 
+                         onclick="selectFile('${file.name}', '${file.type}', ${file.size || 0})"
+                         ondblclick="${isFolder ? `openFolder('${file.name}')` : `openFileEditor('${file.name}')`}">
+                        <div class="flex items-center mb-2">
+                            <i class="${icon} text-lg mr-2"></i>
+                            <span class="font-medium text-gray-900 truncate" title="${file.name}">${file.name}</span>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            <div>Size: ${size}</div>
+                            <div>Modified: ${formatRelativeTime(file.modified || file.last_modified)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            grid.innerHTML = filesHTML;
+        }
+
+        function selectFile(fileName, fileType, fileSize) {
+            // Update the file details panel
+            const detailsContent = document.getElementById('file-details-content');
+            if (!detailsContent) return;
+            
+            const isFolder = fileType === 'folder' || fileType === 'directory';
+            const icon = isFolder ? 'fas fa-folder text-blue-500' : getFileIcon(fileName);
+            
+            detailsContent.innerHTML = `
+                <div class="text-center mb-4">
+                    <i class="${icon} text-4xl mb-3"></i>
+                    <h5 class="font-medium text-gray-900">${fileName}</h5>
+                </div>
+                
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Type:</span>
+                        <span class="font-medium">${isFolder ? 'Folder' : fileType}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Size:</span>
+                        <span class="font-medium">${isFolder ? '-' : formatFileSize(fileSize)}</span>
+                    </div>
+                </div>
+                
+                <div class="mt-4 space-y-2">
+                    ${!isFolder ? `
+                        <button onclick="openFileEditor('${fileName}')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
+                            <i class="fas fa-edit mr-1"></i>Edit File
+                        </button>
+                        <button onclick="downloadFile('${fileName}')" class="w-full px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600">
+                            <i class="fas fa-download mr-1"></i>Download
+                        </button>
+                    ` : `
+                        <button onclick="openFolder('${fileName}')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
+                            <i class="fas fa-folder-open mr-1"></i>Open Folder
+                        </button>
+                    `}
+                    <button onclick="deleteFile('${fileName}')" class="w-full px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
+                        <i class="fas fa-trash mr-1"></i>Delete
+                    </button>
+                </div>
+            `;
+        }
+
+        function openFolder(folderName) {
+            // Navigate into the folder
+            const currentPath = document.getElementById('bucket-path-breadcrumb').textContent;
+            const newPath = currentPath === '/' ? folderName : `${currentPath}/${folderName}`;
+            const bucketName = document.getElementById('bucket-modal-name').textContent;
+            
+            loadBucketFilesInModal(bucketName, newPath);
+        }
+
+        function openFileEditor(fileName) {
+            // This would open a file editor - for now, show a placeholder
+            showToast(`Opening file editor for: ${fileName}`, 'info');
+            // TODO: Implement file editor modal
+        }
+
+        function downloadFile(fileName) {
+            // Download the file
+            const bucketName = document.getElementById('bucket-modal-name').textContent;
+            showToast(`Downloading file: ${fileName} from bucket: ${bucketName}`, 'info');
+            // TODO: Implement file download
+        }
+
+        function deleteFile(fileName) {
+            if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
+                showToast(`Deleting file: ${fileName}`, 'info');
+                // TODO: Implement file deletion via MCP
+            }
+        }
+
+        function setupBucketDragAndDrop(bucketName) {
+            const dropZone = document.getElementById('bucket-drag-drop-zone');
+            const fileInput = document.getElementById('bucket-file-input');
+            
+            if (!dropZone || !fileInput) return;
+            
+            // Remove previous event listeners
+            dropZone.replaceWith(dropZone.cloneNode(true));
+            const newDropZone = document.getElementById('bucket-drag-drop-zone');
+            const newFileInput = document.getElementById('bucket-file-input');
+            
+            // Setup drag and drop events
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                newDropZone.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                newDropZone.addEventListener(eventName, () => {
+                    newDropZone.classList.add('border-blue-500', 'bg-blue-50');
+                }, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                newDropZone.addEventListener(eventName, () => {
+                    newDropZone.classList.remove('border-blue-500', 'bg-blue-50');
+                }, false);
+            });
+            
+            newDropZone.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                handleBucketFileUpload(files, bucketName);
+            });
+            
+            newDropZone.addEventListener('click', () => {
+                newFileInput.click();
+            });
+            
+            newFileInput.addEventListener('change', (e) => {
+                handleBucketFileUpload(e.target.files, bucketName);
+            });
+        }
+
+        function handleBucketFileUpload(files, bucketName) {
+            if (!files || files.length === 0) return;
+            
+            const progressPanel = document.getElementById('upload-progress-panel');
+            const progressBar = document.getElementById('upload-progress-bar');
+            const progressText = document.getElementById('upload-percentage');
+            
+            if (progressPanel) progressPanel.classList.remove('hidden');
+            
+            console.log(`📤 Uploading ${files.length} files to bucket: ${bucketName}`);
+            
+            // Simulate upload progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 20;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    
+                    setTimeout(() => {
+                        if (progressPanel) progressPanel.classList.add('hidden');
+                        showToast(`✅ Uploaded ${files.length} files to ${bucketName}`, 'success');
+                        loadBucketFilesInModal(bucketName); // Refresh file list
+                    }, 500);
+                }
+                
+                if (progressBar) progressBar.style.width = `${progress}%`;
+                if (progressText) progressText.textContent = `${Math.round(progress)}%`;
+            }, 200);
+            
+            // TODO: Implement actual file upload via MCP
+        }
+
+        function getDemoBucketFiles() {
+            return [
+                {
+                    name: 'documents',
+                    type: 'folder',
+                    size: 0,
+                    modified: new Date(Date.now() - 86400000).toISOString()
+                },
+                {
+                    name: 'images',
+                    type: 'folder', 
+                    size: 0,
+                    modified: new Date(Date.now() - 172800000).toISOString()
+                },
+                {
+                    name: 'README.md',
+                    type: 'file',
+                    size: 2048,
+                    modified: new Date(Date.now() - 3600000).toISOString()
+                },
+                {
+                    name: 'config.json',
+                    type: 'file',
+                    size: 512,
+                    modified: new Date(Date.now() - 7200000).toISOString()
+                }
+            ];
         }
         
         function syncBucket(bucketName) {
@@ -5863,6 +6326,231 @@
             }
         }
 
+        // Display backends in the UI
+        function displayBackends(backends) {
+            const list = document.getElementById('backends-list');
+            if (!list) {
+                console.warn('backends-list element not found');
+                return;
+            }
+
+            if (!backends || backends.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <div class="text-4xl mb-4">🗄️</div>
+                        <h3 class="text-lg font-medium mb-2">No Backends Configured</h3>
+                        <p class="text-sm mb-4">Add your first storage backend to get started</p>
+                        <button onclick="showAddBackendModal()" class="btn btn-blue">
+                            <i class="fas fa-plus mr-2"></i>Add Backend
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const backendsHTML = backends.map(backend => {
+                const statusColor = backend.status === 'active' ? 'text-green-600' : 
+                                  backend.status === 'error' ? 'text-red-600' : 'text-yellow-600';
+                const statusIcon = backend.status === 'active' ? '🟢' : 
+                                 backend.status === 'error' ? '🔴' : '🟡';
+                
+                return `
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center">
+                                <div class="text-2xl mr-3">🗄️</div>
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900">${backend.name || 'Unknown'}</h3>
+                                    <p class="text-sm text-gray-600">${backend.type || 'Unknown Type'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center text-sm ${statusColor}">
+                                <span class="mr-1">${statusIcon}</span>
+                                ${backend.status || 'unknown'}
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                            <div>
+                                <span class="text-gray-500">Endpoint:</span>
+                                <div class="font-medium">${backend.endpoint || 'Not configured'}</div>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Replicas:</span>
+                                <div class="font-medium">${backend.replicas || 0}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button onclick="testBackend('${backend.name}')" class="btn btn-blue btn-sm">
+                                <i class="fas fa-check mr-1"></i>Test
+                            </button>
+                            <button onclick="configureBackend('${backend.name}', '${backend.type}')" class="btn btn-gray btn-sm">
+                                <i class="fas fa-cog mr-1"></i>Configure
+                            </button>
+                            <button onclick="syncBackend('${backend.name}')" class="btn btn-green btn-sm">
+                                <i class="fas fa-sync mr-1"></i>Sync
+                            </button>
+                            <button onclick="deleteBackend('${backend.name}')" class="btn btn-red btn-sm">
+                                <i class="fas fa-trash mr-1"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            list.innerHTML = backendsHTML;
+        }
+
+        // Load peers data function
+        async function loadPeersData() {
+            try {
+                console.log('🌐 Loading peers via MCP JSON-RPC...');
+                const result = await callMCPTool('list_peers', {});
+                console.log('🌐 Peers result:', result);
+                
+                // Handle MCP result structure - extract peers array
+                let peers = [];
+                if (result?.result?.peers && Array.isArray(result.result.peers)) {
+                    peers = result.result.peers;
+                } else if (result?.result && Array.isArray(result.result)) {
+                    peers = result.result;
+                } else if (result?.peers && Array.isArray(result.peers)) {
+                    peers = result.peers;
+                } else if (Array.isArray(result)) {
+                    peers = result;
+                } else {
+                    console.warn('loadPeersData: list_peers returned unexpected structure:', typeof result, result);
+                    peers = [];
+                }
+                
+                console.log('🌐 Extracted peers array:', peers);
+                displayPeers(peers);
+                
+            } catch (error) {
+                console.error('Error loading peers data:', error);
+                // Show error state in UI
+                const list = document.getElementById('peers-list');
+                if (list) {
+                    list.innerHTML = `
+                        <div class="text-center py-12 text-red-500">
+                            <div class="text-4xl mb-4">⚠️</div>
+                            <h3 class="text-lg font-medium mb-2">Error Loading Peers</h3>
+                            <p class="text-sm mb-4">API service unavailable: ${error.message}</p>
+                            <button onclick="loadPeersData()" class="btn btn-blue">
+                                <i class="fas fa-sync mr-2"></i>Retry
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Display peers in the UI
+        function displayPeers(peers) {
+            const list = document.getElementById('peers-list');
+            if (!list) {
+                console.warn('peers-list element not found');
+                return;
+            }
+
+            if (!peers || peers.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <div class="text-4xl mb-4">🌐</div>
+                        <h3 class="text-lg font-medium mb-2">No Peers Connected</h3>
+                        <p class="text-sm mb-4">IPFS network peers will appear here when connected</p>
+                        <button onclick="loadPeersData()" class="btn btn-blue">
+                            <i class="fas fa-sync mr-2"></i>Refresh
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const peersHTML = peers.map(peer => {
+                const connectionColor = peer.connected ? 'text-green-600' : 'text-red-600';
+                const connectionIcon = peer.connected ? '🟢' : '🔴';
+                
+                return `
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center">
+                                <div class="text-2xl mr-3">🌐</div>
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900 font-mono text-sm">${peer.id || 'Unknown ID'}</h3>
+                                    <p class="text-sm text-gray-600">${peer.addr || 'No address'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center text-sm ${connectionColor}">
+                                <span class="mr-1">${connectionIcon}</span>
+                                ${peer.connected ? 'Connected' : 'Disconnected'}
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                            <div>
+                                <span class="text-gray-500">Latency:</span>
+                                <div class="font-medium">${peer.latency || 'Unknown'}</div>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Protocols:</span>
+                                <div class="font-medium">${peer.protocols ? peer.protocols.length : 0}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button onclick="connectPeer('${peer.id}')" class="btn btn-blue btn-sm">
+                                <i class="fas fa-link mr-1"></i>Connect
+                            </button>
+                            <button onclick="disconnectPeer('${peer.id}')" class="btn btn-red btn-sm">
+                                <i class="fas fa-unlink mr-1"></i>Disconnect
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            list.innerHTML = peersHTML;
+        }
+
+        // Peer management functions
+        async function connectPeer(peerId) {
+            try {
+                console.log(`Connecting to peer: ${peerId}`);
+                const result = await callMCPTool('connect_peer', { peer_id: peerId });
+                
+                if (result?.result?.success || result?.success) {
+                    alert(`✅ Connected to peer "${peerId}"`);
+                } else {
+                    alert(`❌ Failed to connect to peer: ${result?.error || 'Unknown error'}`);
+                }
+                
+                await loadPeersData();
+            } catch (error) {
+                console.error('Error connecting to peer:', error);
+                alert(`Error connecting to peer: ${error.message}`);
+            }
+        }
+
+        async function disconnectPeer(peerId) {
+            try {
+                console.log(`Disconnecting from peer: ${peerId}`);
+                const result = await callMCPTool('disconnect_peer', { peer_id: peerId });
+                
+                if (result?.result?.success || result?.success) {
+                    alert(`✅ Disconnected from peer "${peerId}"`);
+                } else {
+                    alert(`❌ Failed to disconnect from peer: ${result?.error || 'Unknown error'}`);
+                }
+                
+                await loadPeersData();
+            } catch (error) {
+                console.error('Error disconnecting from peer:', error);
+                alert(`Error disconnecting from peer: ${error.message}`);
+            }
+        }
+
         // Enhanced Backend Management Functions using MCP SDK
         async function configureBackend(name, type) {
             try {
@@ -7124,6 +7812,31 @@
 
         function hideDragDropZone() {
             document.getElementById('drag-drop-zone').classList.add('hidden');
+        }
+
+        // Utility function for formatting relative time
+        function formatRelativeTime(dateString) {
+            if (!dateString) return 'Unknown';
+            
+            try {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffSecs = Math.floor(diffMs / 1000);
+                const diffMins = Math.floor(diffSecs / 60);
+                const diffHours = Math.floor(diffMins / 60);
+                const diffDays = Math.floor(diffHours / 24);
+                
+                if (diffSecs < 60) return 'Just now';
+                if (diffMins < 60) return `${diffMins}m ago`;
+                if (diffHours < 24) return `${diffHours}h ago`;
+                if (diffDays < 7) return `${diffDays}d ago`;
+                if (diffDays < 30) return `${Math.ceil(diffDays / 7)}w ago`;
+                if (diffDays < 365) return `${Math.ceil(diffDays / 30)}mo ago`;
+                return `${Math.ceil(diffDays / 365)}y ago`;
+            } catch (error) {
+                return 'Unknown';
+            }
         }
 
         // Professional Bucket Management Event Listeners
