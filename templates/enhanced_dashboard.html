@@ -2227,14 +2227,46 @@
             <div id="peers" class="tab-content">
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Peer Management</h2>
-                    <div class="mb-4">
-                        <button id="refresh-peers" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2">
+                    
+                    <!-- Peer Stats Row -->
+                    <div id="peer-stats" class="grid grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-blue-600" id="total-peers">0</div>
+                            <div class="text-sm text-blue-800">Total Peers</div>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-green-600" id="connected-peers">0</div>
+                            <div class="text-sm text-green-800">Connected</div>
+                        </div>
+                        <div class="bg-yellow-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-yellow-600" id="discovery-active">No</div>
+                            <div class="text-sm text-yellow-800">Discovery Active</div>
+                        </div>
+                        <div class="bg-purple-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-purple-600" id="protocols-count">0</div>
+                            <div class="text-sm text-purple-800">Protocols</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Peer Action Buttons -->
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <button id="refresh-peers" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
                             <i class="fas fa-sync-alt mr-2"></i>Refresh Peers
                         </button>
                         <button id="connect-peer" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
                             <i class="fas fa-link mr-2"></i>Connect Peer
                         </button>
+                        <button id="discover-peers" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-search mr-2"></i>Discover Peers
+                        </button>
+                        <button id="bootstrap-peers" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-rocket mr-2"></i>Bootstrap Peers
+                        </button>
+                        <button id="peer-stats-btn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-chart-bar mr-2"></i>Get Stats
+                        </button>
                     </div>
+                    
                     <div id="peers-list" class="space-y-4">
                         <!-- Peers will be populated dynamically -->
                     </div>
@@ -2781,9 +2813,74 @@
             const refreshPeers = document.getElementById('refresh-peers');
             if (refreshPeers) {
                 refreshPeers.addEventListener('click', async () => {
-                    // Load peers data - basic implementation
                     console.log('Refreshing peers data...');
-                    showToast('Peers data refreshed', 'info');
+                    await loadPeersData();
+                    await loadPeerStats();
+                    showToast('Peers data refreshed', 'success');
+                });
+            }
+
+            const connectPeerBtn = document.getElementById('connect-peer');
+            if (connectPeerBtn) {
+                connectPeerBtn.addEventListener('click', () => {
+                    showConnectPeerModal();
+                });
+            }
+
+            const discoverPeersBtn = document.getElementById('discover-peers');
+            if (discoverPeersBtn) {
+                discoverPeersBtn.addEventListener('click', async () => {
+                    console.log('Starting peer discovery...');
+                    showToast('Starting peer discovery...', 'info');
+                    
+                    try {
+                        const result = await callMCPTool('discover_peers', {});
+                        const discovered = result?.result?.total_discovered || 0;
+                        
+                        if (discovered > 0) {
+                            showToast(`Discovered ${discovered} new peers`, 'success');
+                            await loadPeersData();
+                            await loadPeerStats();
+                        } else {
+                            showToast('No new peers discovered', 'info');
+                        }
+                    } catch (error) {
+                        console.error('Error discovering peers:', error);
+                        showToast('Failed to discover peers', 'error');
+                    }
+                });
+            }
+
+            const bootstrapPeersBtn = document.getElementById('bootstrap-peers');
+            if (bootstrapPeersBtn) {
+                bootstrapPeersBtn.addEventListener('click', async () => {
+                    console.log('Bootstrapping peers...');
+                    showToast('Bootstrapping peers...', 'info');
+                    
+                    try {
+                        const result = await callMCPTool('bootstrap_peers', {});
+                        const bootstrapped = result?.result?.total_bootstrapped || 0;
+                        
+                        if (bootstrapped > 0) {
+                            showToast(`Bootstrapped ${bootstrapped} peers`, 'success');
+                            await loadPeersData();
+                            await loadPeerStats();
+                        } else {
+                            showToast('No peers bootstrapped', 'info');
+                        }
+                    } catch (error) {
+                        console.error('Error bootstrapping peers:', error);
+                        showToast('Failed to bootstrap peers', 'error');
+                    }
+                });
+            }
+
+            const peerStatsBtn = document.getElementById('peer-stats-btn');
+            if (peerStatsBtn) {
+                peerStatsBtn.addEventListener('click', async () => {
+                    console.log('Loading peer statistics...');
+                    await loadPeerStats();
+                    showToast('Peer statistics updated', 'success');
                 });
             }
 
@@ -6427,6 +6524,9 @@
                 console.log('🌐 Extracted peers array:', peers);
                 displayPeers(peers);
                 
+                // Also load peer statistics
+                await loadPeerStats();
+                
             } catch (error) {
                 console.error('Error loading peers data:', error);
                 // Show error state in UI
@@ -6471,15 +6571,24 @@
             const peersHTML = peers.map(peer => {
                 const connectionColor = peer.connected ? 'text-green-600' : 'text-red-600';
                 const connectionIcon = peer.connected ? '🟢' : '🔴';
+                const peerId = peer.peer_id || peer.id || 'Unknown ID';
+                const multiaddrs = peer.multiaddrs || [peer.addr || 'No address'];
+                const firstAddr = Array.isArray(multiaddrs) ? multiaddrs[0] : multiaddrs;
+                const latency = peer.latency_ms ? `${peer.latency_ms}ms` : (peer.latency || 'Unknown');
+                const protocols = peer.protocols || [];
+                const protocolCount = Array.isArray(protocols) ? protocols.length : 0;
+                const isClusterPeer = peer.cluster_peer ? '🔗 Cluster' : '🌐 Network';
+                const lastSeen = peer.last_seen ? new Date(peer.last_seen * 1000).toLocaleString() : 'Unknown';
                 
                 return `
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                         <div class="flex items-center justify-between mb-4">
                             <div class="flex items-center">
-                                <div class="text-2xl mr-3">🌐</div>
+                                <div class="text-2xl mr-3">${isClusterPeer}</div>
                                 <div>
-                                    <h3 class="text-lg font-semibold text-gray-900 font-mono text-sm">${peer.id || 'Unknown ID'}</h3>
-                                    <p class="text-sm text-gray-600">${peer.addr || 'No address'}</p>
+                                    <h3 class="text-lg font-semibold text-gray-900 font-mono text-sm">${peerId}</h3>
+                                    <p class="text-sm text-gray-600">${firstAddr}</p>
+                                    ${multiaddrs.length > 1 ? `<p class="text-xs text-gray-500">+${multiaddrs.length - 1} more addresses</p>` : ''}
                                 </div>
                             </div>
                             <div class="flex items-center text-sm ${connectionColor}">
@@ -6488,23 +6597,44 @@
                             </div>
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                        <div class="grid grid-cols-3 gap-4 text-sm mb-4">
                             <div>
                                 <span class="text-gray-500">Latency:</span>
-                                <div class="font-medium">${peer.latency || 'Unknown'}</div>
+                                <div class="font-medium">${latency}</div>
                             </div>
                             <div>
                                 <span class="text-gray-500">Protocols:</span>
-                                <div class="font-medium">${peer.protocols ? peer.protocols.length : 0}</div>
+                                <div class="font-medium">${protocolCount}</div>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Last Seen:</span>
+                                <div class="font-medium text-xs">${lastSeen}</div>
                             </div>
                         </div>
                         
+                        ${peer.agent_version && peer.agent_version !== 'unknown' ? `
+                        <div class="text-sm mb-4">
+                            <span class="text-gray-500">Agent:</span>
+                            <span class="font-medium text-xs">${peer.agent_version}</span>
+                        </div>
+                        ` : ''}
+                        
+                        ${peer.connection_attempts || peer.successful_connections ? `
+                        <div class="grid grid-cols-2 gap-4 text-xs text-gray-500 mb-4">
+                            <div>Attempts: ${peer.connection_attempts || 0}</div>
+                            <div>Successful: ${peer.successful_connections || 0}</div>
+                        </div>
+                        ` : ''}
+                        
                         <div class="flex space-x-2">
-                            <button onclick="connectPeer('${peer.id}')" class="btn btn-blue btn-sm">
+                            <button onclick="connectPeer('${peerId}')" class="btn btn-blue btn-sm">
                                 <i class="fas fa-link mr-1"></i>Connect
                             </button>
-                            <button onclick="disconnectPeer('${peer.id}')" class="btn btn-red btn-sm">
+                            <button onclick="disconnectPeer('${peerId}')" class="btn btn-red btn-sm">
                                 <i class="fas fa-unlink mr-1"></i>Disconnect
+                            </button>
+                            <button onclick="getPeerInfo('${peerId}')" class="btn btn-gray btn-sm">
+                                <i class="fas fa-info mr-1"></i>Info
                             </button>
                         </div>
                     </div>
@@ -6548,6 +6678,110 @@
             } catch (error) {
                 console.error('Error disconnecting from peer:', error);
                 alert(`Error disconnecting from peer: ${error.message}`);
+            }
+        }
+
+        // Load peer statistics and update UI
+        async function loadPeerStats() {
+            try {
+                console.log('📊 Loading peer statistics...');
+                const result = await callMCPTool('get_peer_stats', {});
+                console.log('📊 Peer stats result:', result);
+                
+                const stats = result?.result || result || {};
+                
+                // Update stats display
+                const totalPeersEl = document.getElementById('total-peers');
+                const connectedPeersEl = document.getElementById('connected-peers');
+                const discoveryActiveEl = document.getElementById('discovery-active');
+                const protocolsCountEl = document.getElementById('protocols-count');
+                
+                if (totalPeersEl) totalPeersEl.textContent = stats.total_peers || 0;
+                if (connectedPeersEl) connectedPeersEl.textContent = stats.connected_peers || 0;
+                if (discoveryActiveEl) discoveryActiveEl.textContent = stats.discovery_active ? 'Yes' : 'No';
+                if (protocolsCountEl) protocolsCountEl.textContent = (stats.protocols_supported || []).length;
+                
+                console.log('📊 Peer statistics updated');
+                
+            } catch (error) {
+                console.error('Error loading peer stats:', error);
+            }
+        }
+
+        // Show connect peer modal
+        function showConnectPeerModal() {
+            const peerAddress = prompt(
+                'Enter peer address (multiaddr format):\n\nExample:\n/ip4/127.0.0.1/tcp/4001/p2p/12D3KooW...'
+            );
+            
+            if (peerAddress && peerAddress.trim()) {
+                connectPeerByAddress(peerAddress.trim());
+            }
+        }
+
+        // Connect to peer by address
+        async function connectPeerByAddress(peerAddress) {
+            try {
+                console.log(`Connecting to peer address: ${peerAddress}`);
+                showToast('Connecting to peer...', 'info');
+                
+                const result = await callMCPTool('connect_peer', { 
+                    peer_address: peerAddress 
+                });
+                
+                if (result?.result?.success || result?.success) {
+                    const peerId = result?.result?.peer_id || result?.peer_id || 'unknown';
+                    showToast(`✅ Connected to peer ${peerId}`, 'success');
+                    await loadPeersData();
+                    await loadPeerStats();
+                } else {
+                    const errorMsg = result?.result?.error || result?.error || 'Unknown error';
+                    showToast(`❌ Failed to connect: ${errorMsg}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error connecting to peer address:', error);
+                showToast(`Error connecting to peer: ${error.message}`, 'error');
+            }
+        }
+
+        // Get detailed peer information
+        async function getPeerInfo(peerId) {
+            try {
+                console.log(`Getting info for peer: ${peerId}`);
+                showToast('Loading peer information...', 'info');
+                
+                const result = await callMCPTool('get_peer_info', { peer_id: peerId });
+                
+                if (result?.result?.success || result?.success) {
+                    const peerInfo = result?.result?.peer_info || result?.peer_info || {};
+                    const metadata = peerInfo.metadata || {};
+                    const pinsets = peerInfo.pinsets || [];
+                    
+                    const infoText = `
+Peer Information:
+ID: ${peerInfo.peer_id || 'Unknown'}
+Connected: ${peerInfo.connected ? 'Yes' : 'No'}
+Addresses: ${(peerInfo.multiaddrs || []).join('\n')}
+Protocols: ${(peerInfo.protocols || []).join(', ')}
+Agent: ${peerInfo.agent_version || 'Unknown'}
+Latency: ${peerInfo.latency_ms ? peerInfo.latency_ms + 'ms' : 'Unknown'}
+Last Seen: ${peerInfo.last_seen ? new Date(peerInfo.last_seen * 1000).toLocaleString() : 'Unknown'}
+Cluster Peer: ${peerInfo.cluster_peer ? 'Yes' : 'No'}
+Connection Attempts: ${peerInfo.connection_attempts || 0}
+Successful Connections: ${peerInfo.successful_connections || 0}
+Shared Pins: ${pinsets.length || 0}
+                    `.trim();
+                    
+                    alert(infoText);
+                } else {
+                    const errorMsg = result?.result?.error || result?.error || 'Unknown error';
+                    showToast(`❌ Failed to get peer info: ${errorMsg}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error getting peer info:', error);
+                showToast(`Error getting peer info: ${error.message}`, 'error');
             }
         }
 

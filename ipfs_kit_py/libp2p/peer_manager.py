@@ -113,6 +113,8 @@ class Libp2pPeerManager:
     
     async def start(self):
         """Initialize and start the peer manager."""
+        self._start_time = time.time()
+        
         if not LIBP2P_AVAILABLE:
             logger.warning("LibP2P not available, using mock mode")
             return
@@ -715,6 +717,135 @@ class Libp2pPeerManager:
                 f.write(f"{multiaddr_str}\n")
         except Exception as e:
             logger.warning(f"Failed to save bootstrap peer: {e}")
+    
+    async def connect_peer(self, peer_address: str, peer_id: str = None):
+        """Connect to a specific peer."""
+        try:
+            if not self.host:
+                return {"success": False, "error": "LibP2P host not initialized"}
+            
+            # Parse multiaddr if provided
+            if multiaddr and peer_address.startswith('/'):
+                try:
+                    addr = Multiaddr(peer_address)
+                    if not peer_id:
+                        peer_id = addr.value_for_protocol('p2p')
+                    
+                    # Attempt connection
+                    await self.host.connect(addr)
+                    
+                    # Update peer registry
+                    if peer_id:
+                        await self._add_discovered_peer(peer_id, [peer_address])
+                        if peer_id in self.peers:
+                            self.peers[peer_id]["connected"] = True
+                            self.peers[peer_id]["last_successful_connection"] = time.time()
+                            self.peers[peer_id]["successful_connections"] += 1
+                    
+                    logger.info(f"Successfully connected to peer {peer_id} at {peer_address}")
+                    return {
+                        "success": True,
+                        "peer_id": peer_id,
+                        "peer_address": peer_address,
+                        "connected": True
+                    }
+                    
+                except Exception as e:
+                    logger.error(f"Failed to connect to peer {peer_address}: {e}")
+                    return {"success": False, "error": str(e)}
+            else:
+                return {"success": False, "error": "Invalid peer address format"}
+                
+        except Exception as e:
+            logger.error(f"Error connecting to peer: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def disconnect_peer(self, peer_id: str):
+        """Disconnect from a specific peer."""
+        try:
+            if not self.host:
+                return {"success": False, "error": "LibP2P host not initialized"}
+            
+            if peer_id in self.peers:
+                # Update peer status
+                self.peers[peer_id]["connected"] = False
+                self.peers[peer_id]["last_seen"] = time.time()
+                
+                # Try to close connection if possible
+                # Note: This is a simplified implementation
+                # Real implementation would use the libp2p host's connection manager
+                
+                logger.info(f"Disconnected from peer {peer_id}")
+                return {
+                    "success": True,
+                    "peer_id": peer_id,
+                    "connected": False
+                }
+            else:
+                return {"success": False, "error": f"Peer {peer_id} not found"}
+                
+        except Exception as e:
+            logger.error(f"Error disconnecting from peer: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def discover_peers(self):
+        """Discover new peers and return results."""
+        try:
+            initial_peer_count = len(self.peers)
+            
+            # Run discovery methods
+            await self._discover_peers()
+            
+            # Get newly discovered peers
+            new_peer_count = len(self.peers) - initial_peer_count
+            
+            return {
+                "success": True,
+                "discovered_peers": list(self.peers.values())[-new_peer_count:] if new_peer_count > 0 else [],
+                "total_discovered": new_peer_count,
+                "total_peers": len(self.peers),
+                "discovery_active": self.discovery_active
+            }
+            
+        except Exception as e:
+            logger.error(f"Error during peer discovery: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "discovered_peers": [],
+                "total_discovered": 0
+            }
+    
+    async def get_stats(self):
+        """Get comprehensive peer manager statistics."""
+        try:
+            connected_count = sum(1 for peer in self.peers.values() if peer.get("connected", False))
+            
+            stats = {
+                "total_peers": len(self.peers),
+                "connected_peers": connected_count,
+                "bootstrap_peers": len(self.bootstrap_peers),
+                "discovery_active": self.discovery_active,
+                "protocols_supported": list(self.protocols),
+                "libp2p_available": LIBP2P_AVAILABLE,
+                "host_id": str(self.host.get_id()) if self.host else None,
+                "uptime_seconds": time.time() - getattr(self, '_start_time', time.time()),
+                "last_discovery": self.stats.get("last_discovery"),
+                "peer_breakdown": {
+                    "cluster_peers": sum(1 for peer in self.peers.values() if peer.get("cluster_peer", False)),
+                    "dht_peers": sum(1 for peer in self.peers.values() if "dht" in peer.get("protocols", [])),
+                    "gossipsub_peers": sum(1 for peer in self.peers.values() if "gossipsub" in peer.get("protocols", []))
+                }
+            }
+            
+            # Update internal stats
+            self.stats.update(stats)
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error getting stats: {e}")
+            return {"error": str(e)}
 
 
 # Global instance for easy access

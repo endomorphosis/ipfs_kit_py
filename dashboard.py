@@ -26,6 +26,15 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
+# Import libp2p peer manager for real peer functionality
+try:
+    from ipfs_kit_py.libp2p.peer_manager import Libp2pPeerManager
+    from ipfs_kit_py.peer_manager import PeerManager
+    LIBP2P_AVAILABLE = True
+except ImportError as e:
+    LIBP2P_AVAILABLE = False
+    logging.warning(f"LibP2P peer manager not available: {e}")
+
 logger = logging.getLogger(__name__)
 
 class SimpleMCPDashboard:
@@ -35,6 +44,11 @@ class SimpleMCPDashboard:
         self.host = host
         self.port = port
         self.start_time = datetime.now()
+        
+        # Initialize peer managers
+        self.peer_manager = None
+        self.libp2p_peer_manager = None
+        self._initialize_peer_managers()
         
         # Initialize FastAPI
         self.app = FastAPI(title="IPFS Kit - Simple Dashboard")
@@ -50,6 +64,25 @@ class SimpleMCPDashboard:
         
         # Setup routes
         self.setup_routes()
+        
+    def _initialize_peer_managers(self):
+        """Initialize peer management components."""
+        try:
+            # Initialize basic peer manager (always available)
+            if LIBP2P_AVAILABLE:
+                self.peer_manager = PeerManager()
+                logger.info("✓ Basic peer manager initialized")
+                
+                # Initialize libp2p peer manager if available
+                try:
+                    self.libp2p_peer_manager = Libp2pPeerManager()
+                    logger.info("✓ LibP2P peer manager initialized")
+                except Exception as e:
+                    logger.warning(f"LibP2P peer manager initialization failed: {e}")
+            else:
+                logger.warning("Peer managers not available - using mock mode")
+        except Exception as e:
+            logger.error(f"Failed to initialize peer managers: {e}")
         
     def setup_routes(self):
         """Setup all API routes."""
@@ -116,6 +149,18 @@ class SimpleMCPDashboard:
                 result = await self._list_backends()
             elif tool_name == "list_peers":
                 result = await self._list_peers()
+            elif tool_name == "connect_peer":
+                result = await self._connect_peer(arguments.get("peer_address"), arguments.get("peer_id"))
+            elif tool_name == "disconnect_peer":
+                result = await self._disconnect_peer(arguments.get("peer_id"))
+            elif tool_name == "discover_peers":
+                result = await self._discover_peers()
+            elif tool_name == "get_peer_info":
+                result = await self._get_peer_info(arguments.get("peer_id"))
+            elif tool_name == "get_peer_stats":
+                result = await self._get_peer_stats()
+            elif tool_name == "bootstrap_peers":
+                result = await self._bootstrap_peers()
             elif tool_name == "create_bucket":
                 result = await self._create_bucket(arguments.get("name"), arguments.get("config", {}))
             elif tool_name == "delete_bucket":
@@ -513,24 +558,360 @@ class SimpleMCPDashboard:
             }
     
     async def _list_peers(self):
-        """List IPFS peers using metadata-first approach."""
+        """List IPFS peers using libp2p_py integration."""
         try:
-            # For now, return mock data as IPFS peer discovery may not always be available
-            # This prevents UI errors when the Peer Management tab is accessed
+            peers_data = []
+            total_count = 0
+            source = "mock"
+            status = "No peers connected"
+            
+            # Try to use libp2p peer manager first
+            if self.libp2p_peer_manager:
+                try:
+                    # Start libp2p peer manager if not already started
+                    if not hasattr(self.libp2p_peer_manager, '_started'):
+                        await self.libp2p_peer_manager.start()
+                        self.libp2p_peer_manager._started = True
+                    
+                    # Get peers from libp2p
+                    libp2p_stats = await self.libp2p_peer_manager.get_stats()
+                    peers_data = list(self.libp2p_peer_manager.peers.values())
+                    total_count = libp2p_stats.get("connected_peers", 0)
+                    source = "libp2p"
+                    status = f"{total_count} libp2p peers connected" if total_count > 0 else "No libp2p peers connected"
+                    
+                    logger.info(f"Retrieved {total_count} peers from libp2p peer manager")
+                    
+                except Exception as e:
+                    logger.warning(f"LibP2P peer manager failed: {e}")
+                    
+            # Fallback to basic peer manager
+            if not peers_data and self.peer_manager:
+                try:
+                    peer_result = self.peer_manager.list_peers()
+                    peers_data = peer_result.get("peers", [])
+                    total_count = peer_result.get("total", 0)
+                    source = "basic"
+                    status = f"{total_count} basic peers connected" if total_count > 0 else "No basic peers connected"
+                    
+                    logger.info(f"Retrieved {total_count} peers from basic peer manager")
+                    
+                except Exception as e:
+                    logger.warning(f"Basic peer manager failed: {e}")
+            
+            # Return comprehensive peer information
             return {
-                "peers": [],
-                "total_count": 0,
-                "source": "ipfs",
-                "status": "No peers connected",
-                "message": "IPFS network peers will appear here when connected"
+                "peers": peers_data,
+                "total_count": total_count,
+                "source": source,
+                "status": status,
+                "message": "IPFS network peers will appear here when connected" if total_count == 0 else f"Connected to {total_count} peers",
+                "last_updated": datetime.now().isoformat(),
+                "capabilities": {
+                    "libp2p_available": self.libp2p_peer_manager is not None,
+                    "basic_available": self.peer_manager is not None,
+                    "discovery_active": getattr(self.libp2p_peer_manager, 'discovery_active', False) if self.libp2p_peer_manager else False
+                }
             }
+            
         except Exception as e:
             logger.error(f"Error listing peers: {e}")
             return {
                 "peers": [],
                 "total_count": 0,
                 "source": "error",
-                "error": str(e)
+                "status": "Error retrieving peers",
+                "error": str(e),
+                "last_updated": datetime.now().isoformat()
+            }
+    
+    async def _connect_peer(self, peer_address: str, peer_id: str = None):
+        """Connect to a peer using libp2p_py integration."""
+        try:
+            if not peer_address:
+                return {"success": False, "error": "Peer address is required"}
+            
+            # Try libp2p peer manager first
+            if self.libp2p_peer_manager:
+                try:
+                    if not hasattr(self.libp2p_peer_manager, '_started'):
+                        await self.libp2p_peer_manager.start()
+                        self.libp2p_peer_manager._started = True
+                    
+                    # Connect using libp2p
+                    connection_result = await self.libp2p_peer_manager.connect_peer(peer_address, peer_id)
+                    
+                    return {
+                        "success": True,
+                        "peer_address": peer_address,
+                        "peer_id": peer_id,
+                        "source": "libp2p",
+                        "connection_result": connection_result,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                except Exception as e:
+                    logger.warning(f"LibP2P connection failed: {e}")
+            
+            # Fallback to basic peer manager
+            if self.peer_manager:
+                try:
+                    peer_info = {
+                        "peer_address": peer_address,
+                        "peer_id": peer_id or f"peer_{int(time.time())}",
+                        "connected_at": datetime.now().isoformat()
+                    }
+                    
+                    result = self.peer_manager.connect_peer(peer_info)
+                    
+                    return {
+                        "success": True,
+                        "peer_address": peer_address,
+                        "peer_id": peer_info["peer_id"],
+                        "source": "basic",
+                        "connection_result": result,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                except Exception as e:
+                    logger.warning(f"Basic peer connection failed: {e}")
+            
+            return {"success": False, "error": "No peer manager available"}
+            
+        except Exception as e:
+            logger.error(f"Error connecting to peer: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _disconnect_peer(self, peer_id: str):
+        """Disconnect from a peer using libp2p_py integration."""
+        try:
+            if not peer_id:
+                return {"success": False, "error": "Peer ID is required"}
+            
+            # Try libp2p peer manager first
+            if self.libp2p_peer_manager:
+                try:
+                    disconnection_result = await self.libp2p_peer_manager.disconnect_peer(peer_id)
+                    
+                    return {
+                        "success": True,
+                        "peer_id": peer_id,
+                        "source": "libp2p",
+                        "disconnection_result": disconnection_result,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                except Exception as e:
+                    logger.warning(f"LibP2P disconnection failed: {e}")
+            
+            # Fallback to basic peer manager
+            if self.peer_manager:
+                try:
+                    result = self.peer_manager.disconnect_peer(peer_id)
+                    
+                    return {
+                        "success": True,
+                        "peer_id": peer_id,
+                        "source": "basic",
+                        "disconnection_result": result,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                except Exception as e:
+                    logger.warning(f"Basic peer disconnection failed: {e}")
+            
+            return {"success": False, "error": "No peer manager available"}
+            
+        except Exception as e:
+            logger.error(f"Error disconnecting peer: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _discover_peers(self):
+        """Discover new peers using libp2p_py integration."""
+        try:
+            discovered_peers = []
+            total_discovered = 0
+            source = "mock"
+            
+            # Try libp2p peer manager first
+            if self.libp2p_peer_manager:
+                try:
+                    if not hasattr(self.libp2p_peer_manager, '_started'):
+                        await self.libp2p_peer_manager.start()
+                        self.libp2p_peer_manager._started = True
+                    
+                    # Start peer discovery
+                    self.libp2p_peer_manager.discovery_active = True
+                    discovery_result = await self.libp2p_peer_manager.discover_peers()
+                    
+                    discovered_peers = discovery_result.get("discovered_peers", [])
+                    total_discovered = len(discovered_peers)
+                    source = "libp2p"
+                    
+                    logger.info(f"Discovered {total_discovered} peers via libp2p")
+                    
+                except Exception as e:
+                    logger.warning(f"LibP2P discovery failed: {e}")
+            
+            return {
+                "discovered_peers": discovered_peers,
+                "total_discovered": total_discovered,
+                "source": source,
+                "discovery_active": getattr(self.libp2p_peer_manager, 'discovery_active', False) if self.libp2p_peer_manager else False,
+                "timestamp": datetime.now().isoformat(),
+                "status": f"Discovered {total_discovered} new peers" if total_discovered > 0 else "No new peers discovered"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error discovering peers: {e}")
+            return {
+                "discovered_peers": [],
+                "total_discovered": 0,
+                "source": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    async def _get_peer_info(self, peer_id: str):
+        """Get detailed information about a specific peer."""
+        try:
+            if not peer_id:
+                return {"success": False, "error": "Peer ID is required"}
+            
+            peer_info = None
+            source = "not_found"
+            
+            # Try libp2p peer manager first
+            if self.libp2p_peer_manager:
+                try:
+                    peer_info = self.libp2p_peer_manager.peers.get(peer_id)
+                    if peer_info:
+                        source = "libp2p"
+                        # Add additional metadata
+                        peer_info["metadata"] = self.libp2p_peer_manager.peer_metadata.get(peer_id, {})
+                        peer_info["pinsets"] = self.libp2p_peer_manager.peer_pinsets.get(peer_id, [])
+                        
+                except Exception as e:
+                    logger.warning(f"LibP2P peer info retrieval failed: {e}")
+            
+            # Fallback to basic peer manager
+            if not peer_info and self.peer_manager:
+                try:
+                    for peer in self.peer_manager.peers_data:
+                        if peer.get("peer_id") == peer_id:
+                            peer_info = peer
+                            source = "basic"
+                            break
+                            
+                except Exception as e:
+                    logger.warning(f"Basic peer info retrieval failed: {e}")
+            
+            if peer_info:
+                return {
+                    "success": True,
+                    "peer_info": peer_info,
+                    "source": source,
+                    "timestamp": datetime.now().isoformat()
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Peer {peer_id} not found",
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+        except Exception as e:
+            logger.error(f"Error getting peer info: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _get_peer_stats(self):
+        """Get comprehensive peer statistics."""
+        try:
+            stats = {
+                "total_peers": 0,
+                "connected_peers": 0,
+                "bootstrap_peers": 0,
+                "discovery_active": False,
+                "protocols_supported": [],
+                "libp2p_available": False,
+                "basic_available": False
+            }
+            
+            # Get stats from libp2p peer manager
+            if self.libp2p_peer_manager:
+                try:
+                    libp2p_stats = await self.libp2p_peer_manager.get_stats() if hasattr(self.libp2p_peer_manager, 'get_stats') else self.libp2p_peer_manager.stats
+                    stats.update(libp2p_stats)
+                    stats["libp2p_available"] = True
+                    
+                except Exception as e:
+                    logger.warning(f"LibP2P stats retrieval failed: {e}")
+            
+            # Get stats from basic peer manager
+            if self.peer_manager:
+                try:
+                    basic_stats = self.peer_manager.list_peers()
+                    if not stats["total_peers"]:
+                        stats["total_peers"] = basic_stats.get("total", 0)
+                        stats["connected_peers"] = basic_stats.get("total", 0)
+                    
+                    stats["basic_available"] = True
+                    
+                except Exception as e:
+                    logger.warning(f"Basic peer stats retrieval failed: {e}")
+            
+            stats["timestamp"] = datetime.now().isoformat()
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error getting peer stats: {e}")
+            return {"error": str(e), "timestamp": datetime.now().isoformat()}
+    
+    async def _bootstrap_peers(self):
+        """Bootstrap peer connections using known peers."""
+        try:
+            bootstrap_results = []
+            total_bootstrapped = 0
+            
+            # Try libp2p peer manager first
+            if self.libp2p_peer_manager:
+                try:
+                    if not hasattr(self.libp2p_peer_manager, '_started'):
+                        await self.libp2p_peer_manager.start()
+                        self.libp2p_peer_manager._started = True
+                    
+                    # Bootstrap from configured sources
+                    bootstrap_result = await self.libp2p_peer_manager._bootstrap_from_sources() if hasattr(self.libp2p_peer_manager, '_bootstrap_from_sources') else {}
+                    bootstrap_results.append({
+                        "source": "libp2p",
+                        "result": bootstrap_result,
+                        "success": True
+                    })
+                    
+                    total_bootstrapped += len(self.libp2p_peer_manager.bootstrap_peers)
+                    
+                except Exception as e:
+                    logger.warning(f"LibP2P bootstrap failed: {e}")
+                    bootstrap_results.append({
+                        "source": "libp2p",
+                        "error": str(e),
+                        "success": False
+                    })
+            
+            return {
+                "bootstrap_results": bootstrap_results,
+                "total_bootstrapped": total_bootstrapped,
+                "timestamp": datetime.now().isoformat(),
+                "status": f"Bootstrapped {total_bootstrapped} peers" if total_bootstrapped > 0 else "No peers bootstrapped"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error bootstrapping peers: {e}")
+            return {
+                "bootstrap_results": [],
+                "total_bootstrapped": 0,
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
             }
     
     async def _create_bucket(self, name, config=None):
