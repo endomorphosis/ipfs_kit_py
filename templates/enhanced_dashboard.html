@@ -3023,8 +3023,14 @@
                     buckets = result;
                 } else {
                     console.warn('Unexpected bucket data structure:', result);
-                    // Fall back to creating default buckets for demo
-                    buckets = await createDefaultBucketsEnterprise();
+                    buckets = [];
+                }
+                
+                // If no buckets found from MCP server, load demo buckets for professional demo
+                if (buckets.length === 0) {
+                    console.log('📦 No buckets from MCP server, loading demo buckets for professional interface');
+                    loadMockBucketData();
+                    return;
                 }
                 
                 // Enhanced data management
@@ -3045,12 +3051,12 @@
                 
                 // Smart error categorization for enterprise operations
                 if (error.message && error.message.toLowerCase().includes('network')) {
-                    showToast('⚠️ Network connectivity issue. Using cached data.', 'warning');
+                    showToast('⚠️ Network connectivity issue. Using demo data.', 'warning');
                 } else if (error.message && error.message.toLowerCase().includes('permission')) {
-                    showToast('⚠️ Access denied. Check your permissions.', 'warning');
+                    showToast('⚠️ Access denied. Using demo data.', 'warning');
                 } else {
                     // Programming errors should still be visible for debugging
-                    showToast('❌ Error loading buckets. Creating defaults.', 'error');
+                    showToast('❌ Error loading buckets. Using demo data.', 'error');
                     console.error('Programming error in bucket loading:', error);
                 }
                 
