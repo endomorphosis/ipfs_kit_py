@@ -498,8 +498,8 @@ class ConsolidatedMCPDashboard:
         self.log = logging.getLogger("dashboard")
         self.log.info("Consolidated MCP Dashboard initialized at %s", self.paths.base)
         self._ws_clients: set[WebSocket] = set()
-        # Initialize comprehensive service manager for proper services management
-        self._service_manager = None  # Will be initialized on first use to avoid circular imports
+        # Lazy-initialized peer manager
+        self._peer_manager = None
         self._register_routes()
         atexit.register(self._cleanup_pid_file)
 
@@ -526,6 +526,22 @@ class ConsolidatedMCPDashboard:
                 self.log.error(f"Failed to initialize ComprehensiveServiceManager: {e}")
                 self._service_manager = None
         return self._service_manager
+
+    def _get_peer_manager(self):
+        """Get or initialize the simple file-backed PeerManager.
+
+        Uses ~/.ipfs_kit/peers.json to persist connections. If libp2p is not
+        enabled in this deployment, this still provides a consistent surface
+        for the dashboard UI and tools.
+        """
+        if self._peer_manager is None:
+            try:
+                from ipfs_kit_py.peer_manager import PeerManager  # type: ignore
+                self._peer_manager = PeerManager()
+            except Exception as e:  # pragma: no cover
+                self.log.warning(f"PeerManager unavailable: {e}")
+                self._peer_manager = None
+        return self._peer_manager
     
     async def _list_all_services(self, service_manager):
         """List all services (enabled and disabled) for comprehensive dashboard view."""
@@ -784,15 +800,15 @@ class ConsolidatedMCPDashboard:
                    "  try {\n" \
                    "    var g = (typeof window !== 'undefined' ? window : globalThis);\n" \
                    "    g.MCP = g.MCP || {};\n" \
-                   "    async function rpcList(){ const r = await fetch('/mcp/tools/list', {method:'POST'}); return await r.json(); }\n" \
-                   "    async function rpcCall(name, args){ const r = await fetch('/mcp/tools/call', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({name, args})}); return await r.json(); }\n" \
+                   "    async function rpcList(){ const r = await fetch('/mcp/tools/list', {method:'POST', headers:{'x-api-token': (g.API_TOKEN||'')}}); return await r.json(); }\n" \
+                   "    async function rpcCall(name, args){ const r = await fetch('/mcp/tools/call', {method:'POST', headers:{'content-type':'application/json','x-api-token':(g.API_TOKEN||'')}, body: JSON.stringify({name, args})}); return await r.json(); }\n" \
                    "    if (!g.MCP.listTools) g.MCP.listTools = rpcList;\n" \
                    "    if (!g.MCP.callTool) g.MCP.callTool = (n,a)=>rpcCall(n, a||{});\n" \
                    "    if (!g.MCP.status) {\n" \
                    "      g.MCP.status = async function(){ const r = await fetch('/api/mcp/status'); const js = await r.json(); const data = (js && (js.data||js)) || {}; const tools = Array.isArray(data.tools)?data.tools:[]; return Object.assign({ initialized: !!data, tools }, data); };\n" \
                    "    }\n" \
-                   "    function ensureNS(ns, obj){ if (!g.MCP[ns]) g.MCP[ns] = obj; }\n" \
-                   "    ensureNS('Services', { control:(s,a)=>rpcCall('service_control',{service:s, action:a}), status:(s)=>rpcCall('service_status',{service:s}) });\n" \
+                   "    function ensureNS(ns, obj){ g.MCP[ns] = g.MCP[ns] || {}; var t=g.MCP[ns]; for (var k in obj){ if (!(k in t)) t[k]=obj[k]; } }\n" \
+                   "    ensureNS('Services', { list:()=>rpcCall('list_services',{}), control:(s,a)=>rpcCall('service_control',{service:s, action:a}), status:(s)=>rpcCall('service_status',{service:s}) });\n" \
                    "    ensureNS('Backends', { list:()=>rpcCall('list_backends',{}), get:(n)=>rpcCall('get_backend',{name:n}), create:(n,c)=>rpcCall('create_backend',{name:n, config:c}), update:(n,c)=>rpcCall('update_backend',{name:n, config:c}), delete:(n)=>rpcCall('delete_backend',{name:n}), test:(n)=>rpcCall('test_backend',{name:n}), listInstances:()=>rpcCall('list_backend_instances',{}), createInstance:(type,name,desc)=>rpcCall('create_backend_instance',{service_type:type, instance_name:name, description:desc}), configureInstance:(name,type,config)=>rpcCall('configure_backend_instance',{instance_name:name, service_type:type, config:config}), getPerformanceMetrics:(name,range,history)=>rpcCall('get_backend_performance_metrics',{backend_name:name, time_range:range, include_history:history}), getTemplate:(type,template)=>rpcCall('get_backend_configuration_template',{backend_type:type, template_type:template}), clone:(source,newName,modifyConfig)=>rpcCall('clone_backend_configuration',{source_backend:source, new_backend_name:newName, modify_config:modifyConfig}), backup:(name,backupName,includeData)=>rpcCall('backup_backend_configuration',{backend_name:name, backup_name:backupName, include_data:includeData}), restore:(name,backupId,force)=>rpcCall('restore_backend_configuration',{backend_name:name, backup_id:backupId, force_restore:force}) });\n" \
                    "    ensureNS('Buckets', { list:()=>rpcCall('list_buckets',{}), get:(n)=>rpcCall('get_bucket',{name:n}), create:(n,b)=>rpcCall('create_bucket',{name:n, backend:b}), update:(n,p)=>rpcCall('update_bucket',{name:n, patch:p}), delete:(n)=>rpcCall('delete_bucket',{name:n}), getPolicy:(n)=>rpcCall('get_bucket_policy',{name:n}), updatePolicy:(n,pol)=>rpcCall('update_bucket_policy',{name:n, policy:pol}), listFiles:(bucket,path,meta)=>rpcCall('bucket_list_files',{bucket,path:(path||'.'),show_metadata:!!meta}), uploadFile:(bucket,path,content,mode,policy)=>rpcCall('bucket_upload_file',{bucket,path,content,mode:(mode||'text'),apply_policy:!!policy}), downloadFile:(bucket,path,format)=>rpcCall('bucket_download_file',{bucket,path,format:(format||'text')}), deleteFile:(bucket,path,replicas)=>rpcCall('bucket_delete_file',{bucket,path,remove_replicas:!!replicas}), renameFile:(bucket,src,dst,replicas)=>rpcCall('bucket_rename_file',{bucket,src,dst,update_replicas:!!replicas}), mkdir:(bucket,path,parents)=>rpcCall('bucket_mkdir',{bucket,path,create_parents:!!parents}), syncReplicas:(bucket,force)=>rpcCall('bucket_sync_replicas',{bucket,force_sync:!!force}), getMetadata:(bucket,path,replicas)=>rpcCall('bucket_get_metadata',{bucket,path,include_replicas:!!replicas}) });\n" \
                    "    ensureNS('Pins', { list:()=>rpcCall('list_pins',{}), create:(cid,name)=>rpcCall('create_pin',{cid, name}), delete:(cid)=>rpcCall('delete_pin',{cid}), export:()=>rpcCall('pins_export',{}), import:(items)=>rpcCall('pins_import',{items}) });\n" \
@@ -802,6 +818,7 @@ class ConsolidatedMCPDashboard:
                    "    ensureNS('State', { snapshot:()=>rpcCall('state_snapshot',{}), backup:()=>rpcCall('state_backup',{}), reset:()=>rpcCall('state_reset',{}) });\n" \
                    "    ensureNS('Logs', { get:(limit)=>rpcCall('get_logs',{limit: (limit==null?200:limit)}), clear:()=>rpcCall('clear_logs',{}) });\n" \
                    "    ensureNS('Server', { shutdown:()=>rpcCall('server_shutdown',{}) });\n" \
+                   "    ensureNS('Peers', { list:()=>rpcCall('list_peers',{}), stats:()=>rpcCall('get_peer_stats',{}), connect:(peer)=>rpcCall('connect_peer',peer||{}), disconnect:(peer_id)=>rpcCall('disconnect_peer',{peer_id}), info:(peer_id)=>rpcCall('get_peer_info',{peer_id}) });\n" \
                    "  } catch(e) { /* ignore shim errors */ }\n" \
                    "})();\n"
             source = "inline"
@@ -852,6 +869,55 @@ class ConsolidatedMCPDashboard:
                 
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Error serving static file: {str(e)}")
+
+        # Lightweight REST mirrors for analytics and configuration management
+        @app.get("/api/analytics/performance")
+        async def api_performance(request: Request) -> JSONResponse:
+            try:
+                backend = request.query_params.get("backend")
+                time_range = request.query_params.get("range", "1h")
+                include_history = request.query_params.get("history", "true").lower() in ("1","true","yes","y")
+                res = self._handle_backends(
+                    name="get_backend_performance_metrics",
+                    args={"backend_name": backend, "time_range": time_range, "include_history": include_history},
+                )
+                if res is None:
+                    raise HTTPException(404, "metrics handler unavailable")
+                return JSONResponse(res.get("result", res))
+            except HTTPException as he:
+                raise he
+            except Exception as e:
+                self.log.exception("/api/analytics/performance failed")
+                raise HTTPException(500, str(e))
+
+        @app.get("/api/config/files")
+        async def api_config_files() -> JSONResponse:
+            res = self._handle_config("list_config_files", {})
+            if res is None:
+                raise HTTPException(404, "config handler unavailable")
+            return JSONResponse(res.get("result", res))
+
+        @app.get("/api/config/read/{filename:path}")
+        async def api_config_read(filename: str) -> JSONResponse:
+            res = self._handle_config("read_config_file", {"filename": filename})
+            if res is None:
+                raise HTTPException(404, "config read unavailable")
+            if "error" in res:
+                err = res["error"]
+                raise HTTPException(int(err.get("code", 500)), err.get("message", "error"))
+            return JSONResponse(res.get("result", res))
+
+        @app.post("/api/config/write/{filename:path}")
+        async def api_config_write(filename: str, request: Request) -> JSONResponse:
+            body = await request.json()
+            content = body.get("content", "")
+            res = self._handle_config("write_config_file", {"filename": filename, "content": content})
+            if res is None:
+                raise HTTPException(404, "config write unavailable")
+            if "error" in res:
+                err = res["error"]
+                raise HTTPException(int(err.get("code", 500)), err.get("message", "error"))
+            return JSONResponse(res.get("result", res))
 
         # Explicit HEAD handlers for common endpoints (avoid 405s from probes)
         @app.head("/")
@@ -2595,17 +2661,36 @@ class ConsolidatedMCPDashboard:
         # Peers endpoint for JavaScript compatibility
         @app.get("/api/peers")
         async def list_peers() -> Dict[str, Any]:
-            """List IPFS peers - basic implementation"""
-            # In a real implementation, this would query IPFS for peer connections
-            # For now, return a basic structure that matches what the frontend expects
-            return {
-                "peers": [],
-                "total": 0,
-                "connected": 0,
-                "status": "No IPFS peers connected"
-            }
+            """List peers using the simple PeerManager when available."""
+            mgr = self._get_peer_manager()
+            if not mgr:
+                return {"peers": [], "total": 0, "connected": 0, "status": "Peer manager unavailable"}
+            data = mgr.list_peers() or {"peers": [], "total": 0}
+            peers = data.get("peers") or []
+            total = data.get("total") or len(peers)
+            connected = sum(1 for p in peers if (p or {}).get("connection_status") == "connected")
+            status = ("Connected" if connected else ("Discovered" if total else "No IPFS peers connected"))
+            return {"peers": peers, "total": total, "connected": connected, "status": status}
+
+        @app.get("/api/peers/stats")
+        async def peer_stats() -> Dict[str, Any]:
+            mgr = self._get_peer_manager()
+            if not mgr:
+                return {"total": 0, "connected": 0, "by_tag": {}, "peers": []}
+            data = mgr.list_peers() or {"peers": [], "total": 0}
+            peers = data.get("peers") or []
+            total = data.get("total") or len(peers)
+            connected = sum(1 for p in peers if (p or {}).get("connection_status") == "connected")
+            by_tag: Dict[str, int] = {}
+            for p in peers:
+                for t in (p.get("tags") or []):
+                    by_tag[t] = by_tag.get(t, 0) + 1
+            return {"total": total, "connected": connected, "by_tag": by_tag, "peers": peers}
 
         # Tools (JSON-RPC wrappers)
+        @app.get("/mcp/tools/list")
+        async def mcp_tools_list_get() -> Dict[str, Any]:
+            return self._tools_list()
         @app.post("/mcp/tools/list")
         async def mcp_tools_list() -> Dict[str, Any]:
             return self._tools_list()
@@ -2765,6 +2850,12 @@ class ConsolidatedMCPDashboard:
             {"name": "read_config_file", "description": "Read configuration file with metadata-first approach", "inputSchema": {"type":"object", "required":["filename"], "properties": {"filename": {"type":"string", "title":"Configuration File"}}}},
             {"name": "write_config_file", "description": "Write configuration file with metadata-first approach", "inputSchema": {"type":"object", "required":["filename","content"], "properties": {"filename": {"type":"string", "title":"Configuration File"}, "content": {"type":"string", "title":"File Content", "ui": {"widget":"textarea", "rows":10}}}}},
             {"name": "get_config_metadata", "description": "Get configuration file metadata", "inputSchema": {"type":"object", "required":["filename"], "properties": {"filename": {"type":"string", "title":"Configuration File"}}}},
+            # Peer management tools (file-backed by default; integrates with libp2p when present)
+            {"name": "list_peers", "description": "List known peers", "inputSchema": {}},
+            {"name": "get_peer_stats", "description": "Get peer statistics and summary", "inputSchema": {}},
+            {"name": "connect_peer", "description": "Connect or add a peer", "inputSchema": {"type":"object", "properties": {"peer_id": {"type":"string", "title":"Peer ID"}, "peer_address": {"type":"string", "title":"Peer Multiaddr"}, "tags": {"type":"array", "items": {"type":"string"}}}}},
+            {"name": "disconnect_peer", "description": "Disconnect or remove a peer", "inputSchema": {"type":"object", "required":["peer_id"], "properties": {"peer_id": {"type":"string", "title":"Peer ID"}}}},
+            {"name": "get_peer_info", "description": "Get peer details", "inputSchema": {"type":"object", "required":["peer_id"], "properties": {"peer_id": {"type":"string", "title":"Peer ID"}}}},
         ]
         return {"jsonrpc": "2.0", "result": {"tools": tools}, "id": None}
 
@@ -2781,6 +2872,7 @@ class ConsolidatedMCPDashboard:
                 self._handle_pins,
                 self._handle_files,
                 self._handle_ipfs,
+                self._handle_peers,
                 self._handle_cars,
                 self._handle_state,
                 self._handle_logs_server,
@@ -2875,11 +2967,14 @@ class ConsolidatedMCPDashboard:
             # Fallback to hardcoded services if service manager is not available or fails
             services = {
                 "services": {
-                    "ipfs": {"bin": _which("ipfs"), "api_port_open": _port_open("127.0.0.1", 5001)},
-                    "docker": {"bin": _which("docker")},
-                    "kubectl": {"bin": _which("kubectl")},
+                    "ipfs": {"name": "IPFS Daemon", "type": "daemon", "bin": _which("ipfs"), "api_port_open": _port_open("127.0.0.1", 5001), "status": "unknown"},
+                    "docker": {"name": "Docker", "type": "system", "bin": _which("docker"), "status": "unknown"},
+                    "kubectl": {"name": "kubectl", "type": "system", "bin": _which("kubectl"), "status": "unknown"},
                 }
             }
+            total = len(services["services"])
+            services["total"] = total
+            services["summary"] = {"total": total, "running": 0, "configured": sum(1 for v in services["services"].values() if v.get("bin"))}
             return {"jsonrpc": "2.0", "result": services, "id": None}
         if name == "service_control":
             svc = str(args.get("service", "")).strip()
@@ -3202,43 +3297,51 @@ class ConsolidatedMCPDashboard:
             backend_name = args.get("backend_name")
             time_range = args.get("time_range", "1h")
             include_history = args.get("include_history", False)
-            
-            if not backend_name:
-                raise HTTPException(400, "Missing backend_name")
-            
+
             data = _read_json(self.paths.backends_file, default={})
-            if backend_name not in data:
-                raise HTTPException(404, "Backend not found")
-            
-            # Generate mock performance metrics
-            metrics = {
-                "backend_name": backend_name,
-                "time_range": time_range,
-                "current_metrics": {
-                    "response_time_ms": 45.2,
-                    "throughput_mbps": 12.5,
-                    "error_rate": 0.01,
-                    "cpu_usage": 15.3,
-                    "memory_usage": 8.7,
-                    "disk_usage": 42.1
-                },
-                "timestamp": datetime.now(UTC).isoformat()
-            }
-            
-            if include_history:
-                # Generate mock historical data points
-                import random
-                history = []
-                for i in range(10):
-                    history.append({
-                        "timestamp": (datetime.now(UTC) - timedelta(minutes=i*6)).isoformat(),
-                        "response_time_ms": 45.2 + random.uniform(-10, 10),
-                        "throughput_mbps": 12.5 + random.uniform(-2, 2),
-                        "error_rate": max(0, 0.01 + random.uniform(-0.005, 0.01))
-                    })
-                metrics["history"] = history
-            
-            return {"jsonrpc": "2.0", "result": metrics, "id": None}
+
+            def _gen_metrics(bname: str, binfo: Dict[str, Any]) -> Dict[str, Any]:
+                # Generate mock performance metrics in a richer, UI-friendly shape
+                perf = {
+                    "response_time_ms": 40.0,
+                    "throughput_ops_per_sec": 120.0,
+                    "error_rate_percent": 1.0,
+                    "success_rate_percent": 99.0,
+                    "data_transfer_mbps": 15.0,
+                    "uptime_percent": 99.9,
+                    "cpu_usage_percent": 15.0,
+                    "memory_usage_percent": 35.0,
+                    "disk_usage_percent": 42.0,
+                    "active_connections": 3,
+                }
+                item = {
+                    "backend_name": bname,
+                    "backend_type": (binfo or {}).get("type", "unknown"),
+                    "time_range": time_range,
+                    "performance": perf,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+                if include_history:
+                    import random
+                    history = []
+                    for i in range(12):
+                        history.append({
+                            "timestamp": (datetime.now(UTC) - timedelta(minutes=i*5)).isoformat(),
+                            "response_time_ms": max(1.0, perf["response_time_ms"] + random.uniform(-10, 10)),
+                            "throughput_ops_per_sec": max(0.0, perf["throughput_ops_per_sec"] + random.uniform(-20, 20)),
+                            "error_rate_percent": max(0.0, perf["error_rate_percent"] + random.uniform(-0.5, 0.8)),
+                        })
+                    item["history"] = history
+                return item
+
+            if backend_name:
+                if backend_name not in data:
+                    raise HTTPException(404, "Backend not found")
+                return {"jsonrpc": "2.0", "result": _gen_metrics(backend_name, data.get(backend_name, {})), "id": None}
+            else:
+                # Aggregate metrics for all backends
+                items = [_gen_metrics(bname, binfo) for bname, binfo in data.items()]
+                return {"jsonrpc": "2.0", "result": {"metrics": items}, "id": None}
         
         if name == "get_backend_configuration_template":
             backend_type = args.get("backend_type")
@@ -4871,6 +4974,45 @@ class ConsolidatedMCPDashboard:
                     "backend": backend_name
                 }, "id": None}
         
+
+    def _handle_peers(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        mgr = self._get_peer_manager()
+        if name == "list_peers":
+            data = (mgr.list_peers() if mgr else {"peers": [], "total": 0})
+            return {"jsonrpc": "2.0", "result": data, "id": None}
+        if name == "get_peer_stats":
+            if not mgr:
+                return {"jsonrpc": "2.0", "result": {"total": 0, "connected": 0, "by_tag": {}, "peers": []}, "id": None}
+            data = mgr.list_peers()
+            peers = data.get("peers", []) if isinstance(data, dict) else []
+            total = len(peers)
+            connected = sum(1 for p in peers if (p.get("connection_status") or "").lower() == "connected")
+            by_tag: Dict[str, int] = {}
+            for p in peers:
+                for t in p.get("tags", []) or []:
+                    by_tag[t] = by_tag.get(t, 0) + 1
+            return {"jsonrpc": "2.0", "result": {"total": total, "connected": connected, "by_tag": by_tag, "peers": peers}, "id": None}
+        if name == "connect_peer":
+            peer_info = {
+                "peer_id": args.get("peer_id"),
+                "peer_address": args.get("peer_address"),
+                "tags": args.get("tags") or [],
+            }
+            data = (mgr.connect_peer(peer_info) if mgr else {"error": "Peer manager unavailable"})
+            return {"jsonrpc": "2.0", "result": data, "id": None}
+        if name == "disconnect_peer":
+            pid = args.get("peer_id")
+            if not pid:
+                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "peer_id is required"}, "id": None}
+            data = (mgr.disconnect_peer(pid) if mgr else {"error": "Peer manager unavailable"})
+            return {"jsonrpc": "2.0", "result": data, "id": None}
+        if name == "get_peer_info":
+            pid = args.get("peer_id")
+            if not pid:
+                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "peer_id is required"}, "id": None}
+            data = (mgr.get_peer_info(pid) if mgr else {"error": "Peer manager unavailable"})
+            return {"jsonrpc": "2.0", "result": data, "id": None}
+        return None
 
 
     def _handle_cars(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -8592,6 +8734,13 @@ class ConsolidatedMCPDashboard:
         shutdown: () => rpcCall('server_shutdown', {}),
     };
 
+    const Peers = {
+        list: () => rpcCall('list_peers', {}),
+        connect: (peer) => rpcCall('connect_peer', peer || {}),
+        disconnect: (peer_id) => rpcCall('disconnect_peer', {peer_id}),
+        info: (peer_id) => rpcCall('get_peer_info', {peer_id}),
+    };
+
     // Schema helpers (beta; not used by wrappers yet)
     const Schema = {
         normalize(inputSchema){
@@ -8628,7 +8777,7 @@ class ConsolidatedMCPDashboard:
         callTool: rpcCall,
         status,
         // Namespaces
-        Services, Backends, Buckets, Pins, Files, IPFS, CARs, State, Logs, Server,
+        Services, Backends, Buckets, Pins, Files, IPFS, CARs, State, Logs, Server, Peers,
         // Utils
         Schema,
     };

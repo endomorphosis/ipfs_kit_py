@@ -2317,7 +2317,25 @@
                 <div class="space-y-6">
                     <!-- Performance Analytics -->
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-6">Performance Analytics</h2>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Performance Analytics</h2>
+                        <div class="flex items-center justify-between mb-4 gap-4">
+                            <div class="flex items-center gap-2">
+                                <label for="analytics-range-select" class="text-sm text-gray-600">Time range</label>
+                                <select id="analytics-range-select" class="border rounded px-2 py-1 text-sm">
+                                    <option value="1h" selected>Last 1h</option>
+                                    <option value="6h">Last 6h</option>
+                                    <option value="24h">Last 24h</option>
+                                    <option value="7d">Last 7d</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label for="analytics-backend-select" class="text-sm text-gray-600">Backend</label>
+                                <select id="analytics-backend-select" class="border rounded px-2 py-1 text-sm">
+                                    <option value="">All</option>
+                                </select>
+                            </div>
+                            <button id="analytics-reload-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">Reload</button>
+                        </div>
                         <div class="grid grid-cols-1 lg-grid-cols-2 gap-6">
                             <div>
                                 <h3 class="text-lg font-medium text-gray-700 mb-4">Service Status Distribution</h3>
@@ -2327,6 +2345,10 @@
                                 <h3 class="text-lg font-medium text-gray-700 mb-4">System Resource Usage</h3>
                                 <canvas id="resourceUsageChart" width="400" height="200"></canvas>
                             </div>
+                        </div>
+                        <div class="mt-6">
+                            <h3 class="text-lg font-medium text-gray-700 mb-4">Latency History (avg)</h3>
+                            <canvas id="latencyHistoryChart" width="800" height="240"></canvas>
                         </div>
                     </div>
                     
@@ -5124,7 +5146,7 @@
         
         let currentConfigFilename = null;
         
-        async function saveConfigurationFile() {
+    async function saveConfigurationFile() {
             try {
                 if (!currentConfigFilename) {
                     alert('Please select a configuration file first');
@@ -5137,20 +5159,34 @@
                     return;
                 }
                 
-                // Use MCP JSON-RPC call to save the configuration
-                const result = await window.mcpClient.callTool('write_config_file', {
-                    filename: currentConfigFilename,
-                    content: content
-                });
-                
-                if (result && result.success) {
+                let result;
+                if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
+                    // Use MCP JSON-RPC call to save the configuration
+                    result = await window.mcpClient.callTool('write_config_file', {
+                        filename: currentConfigFilename,
+                        content: content
+                    });
+                } else {
+                    // REST fallback
+                    const r = await fetch(`/api/config/write/${encodeURIComponent(currentConfigFilename)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content })
+                    });
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    result = await r.json();
+                }
+
+                if (result && (result.success || result.ok || result.status === 'ok')) {
                     alert(`✅ Configuration saved successfully!\n${result.message}`);
                     
                     // Update source info
                     const editorContainer = document.getElementById('config-editor').parentElement;
                     let sourceInfo = editorContainer.querySelector('.source-info');
                     if (sourceInfo) {
-                        sourceInfo.textContent = `📁 Saved to ~/.ipfs_kit/ (${result.size} bytes, modified: ${result.modified})`;
+                        const size = result.size ?? result.bytes ?? '';
+                        const mod = result.modified ?? result.mtime ?? '';
+                        sourceInfo.textContent = `📁 Saved to ~/.ipfs_kit/ (${size} bytes${mod ? `, modified: ${mod}` : ''})`;
                         sourceInfo.className = 'source-info text-sm text-green-600 mt-2';
                     }
                     
@@ -5161,6 +5197,42 @@
             } catch (error) {
                 console.error('Error saving configuration file via MCP:', error);
                 alert(`Error saving configuration: ${error.message}`);
+            }
+        }
+
+        async function loadConfigFile(filename) {
+            const editor = document.getElementById('config-editor');
+            if (!editor) return;
+            editor.value = '';
+            currentConfigFilename = filename;
+            try {
+                let res;
+                if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
+                    res = await window.mcpClient.callTool('read_config_file', { filename });
+                } else {
+                    const r = await fetch(`/api/config/read/${encodeURIComponent(filename)}`);
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    res = await r.json();
+                }
+                const content = res?.content || res?.result?.content || res?.text || '';
+                editor.value = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+
+                // Show source/meta if available
+                const editorContainer = editor.parentElement;
+                let sourceInfo = editorContainer.querySelector('.source-info');
+                if (!sourceInfo) {
+                    sourceInfo = document.createElement('div');
+                    sourceInfo.className = 'source-info text-sm text-gray-500 mt-2';
+                    editorContainer.appendChild(sourceInfo);
+                }
+                const size = res?.size ?? res?.bytes ?? '';
+                const mod = res?.modified ?? res?.mtime ?? '';
+                sourceInfo.textContent = `📄 ${filename} ${size ? `• ${size} B` : ''} ${mod ? `• modified: ${mod}` : ''}`;
+
+                showToast(`Loaded ${filename}`, 'success');
+            } catch (err) {
+                console.error('Failed to load config file', filename, err);
+                showToast(`Failed to load ${filename}`, 'error');
             }
         }
 
@@ -6874,12 +6946,21 @@ Shared Pins: ${pinsets.length || 0}
                 
                 // Handle MCP result structure - extract pins array
                 let pins = [];
-                if (result?.result?.pins && Array.isArray(result.result.pins)) {
+                // Common shapes:
+                // - JSON-RPC: { result: { items: [...] } } (backend REST mirror uses `items`)
+                // - Legacy:   { result: { pins:  [...] } }
+                // - Direct:   { items: [...] } or { pins: [...] }
+                // - Raw:      [ ... ]
+                if (Array.isArray(result?.result?.pins)) {
                     pins = result.result.pins;
+                } else if (Array.isArray(result?.result?.items)) {
+                    pins = result.result.items;
                 } else if (result?.result && Array.isArray(result.result)) {
                     pins = result.result;
-                } else if (result?.pins && Array.isArray(result.pins)) {
+                } else if (Array.isArray(result?.pins)) {
                     pins = result.pins;
+                } else if (Array.isArray(result?.items)) {
+                    pins = result.items;
                 } else if (Array.isArray(result)) {
                     pins = result;
                 } else {
@@ -8588,13 +8669,65 @@ Shared Pins: ${pinsets.length || 0}
 
         // Missing function definitions for tab loading
         async function loadConfigData() {
+            const listEl = document.getElementById('config-files-list');
+            if (!listEl) return;
+            listEl.innerHTML = '<div class="text-sm text-gray-500">Loading configuration files…</div>';
             try {
                 console.log('⚙️ Loading configuration data...');
-                // Placeholder for configuration loading logic
-                // This would typically load MCP server configuration, settings, etc.
-                showToast('Configuration loaded successfully', 'success');
+                let res;
+                if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
+                    res = await window.mcpClient.callTool('list_config_files', {});
+                } else {
+                    const r = await fetch('/api/config/files');
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    res = await r.json();
+                }
+
+                // Normalize to array of files
+                const files = (Array.isArray(res?.files) ? res.files : (res?.result?.files || res?.items || [])) || [];
+                listEl.innerHTML = '';
+
+                if (!files.length) {
+                    listEl.innerHTML = '<div class="text-sm text-gray-500">No configuration files found.</div>';
+                    return;
+                }
+
+                files.forEach((file) => {
+                    const filename = file?.filename || file?.name || file?.path || `${file}`;
+                    const size = file?.size ?? file?.bytes;
+                    const modified = file?.modified || file?.mtime || '';
+                    const item = document.createElement('div');
+                    item.className = 'config-file-item flex items-center justify-between p-2 border rounded hover:bg-gray-50 cursor-pointer';
+                    item.dataset.filename = filename;
+                    item.innerHTML = `
+                        <div class="flex-1 truncate">
+                            <span class="font-mono text-sm">${filename}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 ml-2 whitespace-nowrap">
+                            ${size ? `${size} B` : ''} ${modified ? `• ${modified}` : ''}
+                        </div>`;
+                    item.addEventListener('click', async () => {
+                        // highlight selection
+                        document.querySelectorAll('#config-files-list .config-file-item').forEach(el => el.classList.remove('bg-blue-50', 'border-blue-300', 'active'));
+                        item.classList.add('bg-blue-50', 'border-blue-300', 'active');
+                        await loadConfigFile(filename);
+                    });
+                    listEl.appendChild(item);
+                });
+
+                // Auto-select first if nothing selected
+                if (!currentConfigFilename && files[0]) {
+                    const firstName = files[0]?.filename || files[0]?.name || files[0]?.path || `${files[0]}`;
+                    const firstItem = listEl.querySelector(`[data-filename="${CSS.escape(firstName)}"]`) || listEl.firstElementChild;
+                    if (firstItem) {
+                        firstItem.classList.add('bg-blue-50', 'border-blue-300', 'active');
+                    }
+                    await loadConfigFile(firstName);
+                }
+                showToast('Configuration files loaded', 'success');
             } catch (error) {
                 console.error('Error loading configuration data:', error);
+                listEl.innerHTML = '<div class="text-sm text-red-600">Failed to load configuration files.</div>';
                 showToast('Failed to load configuration', 'error');
             }
         }
@@ -8610,15 +8743,306 @@ Shared Pins: ${pinsets.length || 0}
             }
         }
 
-        async function loadAnalyticsData() {
+    async function loadAnalyticsData() {
             try {
                 console.log('📈 Loading analytics data...');
-                // Placeholder for analytics loading logic
+        let res;
+        const rangeSel = document.getElementById('analytics-range-select');
+        const backendSel = document.getElementById('analytics-backend-select');
+        const timeRange = rangeSel ? rangeSel.value : '1h';
+        const backendFilter = backendSel ? backendSel.value : '';
+                // Prefer MCP tool, fallback to REST
+                if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
+            const args = { include_history: true, time_range: timeRange };
+            if (backendFilter) args.backend_name = backendFilter;
+            res = await window.mcpClient.callTool('get_backend_performance_metrics', args);
+                } else {
+            const query = new URLSearchParams({ history: 'true', range: String(timeRange) });
+            if (backendFilter) query.set('backend', backendFilter);
+            const r = await fetch(`/api/analytics/performance?${query.toString()}`);
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    res = await r.json();
+                }
+
+                // Normalize to metrics array
+                let metrics = [];
+                if (Array.isArray(res?.metrics)) metrics = res.metrics;
+                else if (Array.isArray(res?.result?.metrics)) metrics = res.result.metrics;
+                else if (res?.backend_name || res?.performance) metrics = [res];
+
+                // Graceful empty state
+                if (!metrics.length) {
+                    console.warn('No performance metrics available');
+                    renderServiceStatusChart({ healthy: 0, degraded: 0, critical: 0 });
+                    renderResourceUsageChart(0, 0);
+                    showToast('No analytics data available yet', 'warning');
+                    return;
+                }
+
+                // Populate backend selector (unique names), but only when showing all
+                try {
+                    const sel = document.getElementById('analytics-backend-select');
+                    if (sel) {
+                        const names = Array.from(new Set(metrics.map(m => m.backend_name).filter(Boolean)));
+                        const current = sel.value;
+                        // Rebuild options if empty or missing some names
+                        if (sel.options.length <= 1 || names.some(n => !Array.from(sel.options).some(o => o.value === n))) {
+                            const keepAll = sel.querySelector('option[value=""]');
+                            sel.innerHTML = '';
+                            const optAll = document.createElement('option');
+                            optAll.value = '';
+                            optAll.textContent = 'All';
+                            sel.appendChild(optAll);
+                            names.sort().forEach(n => {
+                                const o = document.createElement('option');
+                                o.value = n;
+                                o.textContent = n;
+                                sel.appendChild(o);
+                            });
+                            // Restore selection if possible
+                            if (current && names.includes(current)) sel.value = current;
+                        }
+                    }
+                } catch {}
+
+                // Compute status buckets and averages
+                const counts = { healthy: 0, degraded: 0, critical: 0 };
+                const cpuValues = [];
+                const memValues = [];
+                metrics.forEach(m => {
+                    const p = m.performance || m;
+                    const uptime = Number(p.uptime_percent ?? 0);
+                    const err = Number(p.error_rate_percent ?? 0);
+                    const cpu = Number(p.cpu_usage_percent ?? 0);
+                    const mem = Number(p.memory_usage_percent ?? 0);
+                    cpuValues.push(isFinite(cpu) ? cpu : 0);
+                    memValues.push(isFinite(mem) ? mem : 0);
+                    let status = 'degraded';
+                    if (uptime >= 99 && err < 1) status = 'healthy';
+                    else if (uptime < 95 || err >= 5) status = 'critical';
+                    counts[status]++;
+                });
+                const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+                const avgCpu = Math.round(avg(cpuValues) * 10) / 10;
+                const avgMem = Math.round(avg(memValues) * 10) / 10;
+
+                renderServiceStatusChart(counts);
+                renderResourceUsageChart(avgCpu, avgMem);
+
+                // Render latency history (average per timestamp across backends)
+                const labelSet = new Set();
+                const perBackend = metrics.map(m => ({ name: (m.backend_name || 'backend'), history: m.history || [] }));
+                perBackend.forEach(b => b.history.forEach(h => labelSet.add(h.timestamp)));
+                const labels = Array.from(labelSet.values()).sort();
+                // Build per-backend datasets aligned to labels
+                const palette = ['#34d399','#60a5fa','#f59e0b','#f87171','#a78bfa','#93c5fd','#4ade80','#f472b6','#22d3ee','#eab308'];
+                const datasets = perBackend.map((b, i) => {
+                    const map = new Map(b.history.map(h => [h.timestamp, Number(h.response_time_ms ?? 0)]));
+                    const arr = labels.map(ts => (map.has(ts) ? map.get(ts) : null));
+                    return {
+                        label: `${b.name} (ms)`,
+                        data: arr,
+                        fill: false,
+                        borderColor: palette[i % palette.length],
+                        tension: 0.25,
+                        pointRadius: 0
+                    };
+                });
+                renderLatencyHistoryChart(labels, datasets);
+
+                // Bucket Analytics: storage per bucket
+                try {
+                    const br = await fetch('/api/buckets');
+                    if (br.ok) {
+                        const bj = await br.json();
+                        const buckets = (bj?.buckets || bj?.items || []);
+                        // Fetch sizes in parallel (cap to first 20 for readability)
+                        const toFetch = buckets.slice(0, 20);
+                        const details = await Promise.all(toFetch.map(async b => {
+                            const name = b?.name || b;
+                            try {
+                                const dr = await fetch(`/api/buckets/${encodeURIComponent(name)}`);
+                                if (!dr.ok) throw new Error('bad');
+                                const dj = await dr.json();
+                                return { name, size: Number(dj?.total_size || 0) };
+                            } catch {
+                                return { name, size: 0 };
+                            }
+                        }));
+                        const sorted = details.sort((a,b)=>b.size-a.size);
+                        renderBucketStorageChart(sorted.map(d=>d.name), sorted.map(d=>d.size));
+                    }
+                } catch (e) { console.warn('Bucket analytics failed', e); }
+
+                // Backend Type Distribution
+                try {
+                    let backendsMap = {};
+                    const cr = await fetch('/api/config/read/backends.json');
+                    if (cr.ok) {
+                        const cj = await cr.json();
+                        const content = cj?.content ?? cj?.result?.content;
+                        if (typeof content === 'string') {
+                            try { backendsMap = JSON.parse(content); } catch {}
+                        } else if (content && typeof content === 'object') {
+                            backendsMap = content;
+                        }
+                    }
+                    const typeCounts = {};
+                    Object.values(backendsMap || {}).forEach((v) => {
+                        const t = (v && (v.type || v.backend_type)) || 'unknown';
+                        typeCounts[t] = (typeCounts[t] || 0) + 1;
+                    });
+                    const labelsBT = Object.keys(typeCounts);
+                    const valuesBT = labelsBT.map(k => typeCounts[k]);
+                    if (labelsBT.length) renderBackendTypeChart(labelsBT, valuesBT);
+                } catch (e) { console.warn('Backend type analytics failed', e); }
                 showToast('Analytics loaded successfully', 'success');
             } catch (error) {
                 console.error('Error loading analytics data:', error);
                 showToast('Failed to load analytics', 'error');
             }
+        }
+
+        // Chart helpers (preserve single instances)
+        window.__analyticsCharts = window.__analyticsCharts || {};
+        function renderServiceStatusChart(counts) {
+            const ctx = document.getElementById('serviceStatusChart');
+            if (!ctx) return;
+            if (window.__analyticsCharts.serviceStatus) {
+                try { window.__analyticsCharts.serviceStatus.destroy(); } catch {}
+            }
+            window.__analyticsCharts.serviceStatus = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Healthy', 'Degraded', 'Critical'],
+                    datasets: [{
+                        data: [counts.healthy || 0, counts.degraded || 0, counts.critical || 0],
+                        backgroundColor: ['#34d399', '#fbbf24', '#f87171']
+                    }]
+                },
+                options: {
+                    plugins: { legend: { position: 'bottom' } },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function renderResourceUsageChart(avgCpu, avgMem) {
+            const ctx = document.getElementById('resourceUsageChart');
+            if (!ctx) return;
+            if (window.__analyticsCharts.resourceUsage) {
+                try { window.__analyticsCharts.resourceUsage.destroy(); } catch {}
+            }
+            window.__analyticsCharts.resourceUsage = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['CPU %', 'Memory %'],
+                    datasets: [{
+                        label: 'Average Usage',
+                        data: [avgCpu, avgMem],
+                        backgroundColor: ['#60a5fa', '#a78bfa']
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function renderLatencyHistoryChart(labels, datasets) {
+            const ctx = document.getElementById('latencyHistoryChart');
+            if (!ctx) return;
+            if (window.__analyticsCharts.latencyHistory) {
+                try { window.__analyticsCharts.latencyHistory.destroy(); } catch {}
+            }
+            window.__analyticsCharts.latencyHistory = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets
+                },
+                options: {
+                    plugins: { legend: { position: 'bottom' } },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { title: { display: true, text: 'ms' } }
+                    }
+                }
+            });
+        }
+
+        // Wire reload button
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('#analytics-reload-btn');
+            if (btn) {
+                loadAnalyticsData();
+            }
+        });
+        document.addEventListener('change', (e) => {
+            if (e.target && (e.target.id === 'analytics-range-select' || e.target.id === 'analytics-backend-select')) {
+                loadAnalyticsData();
+            }
+        });
+
+        function formatBytes(num) {
+            const units = ['B','KB','MB','GB','TB'];
+            let n = Number(num)||0, i=0;
+            while (n>=1024 && i<units.length-1) { n/=1024; i++; }
+            return `${n.toFixed(n<10 && i>0 ? 1 : 0)} ${units[i]}`;
+        }
+
+        function renderBucketStorageChart(labels, values) {
+            const ctx = document.getElementById('bucketStorageChart');
+            if (!ctx) return;
+            if (window.__analyticsCharts.bucketStorage) {
+                try { window.__analyticsCharts.bucketStorage.destroy(); } catch {}
+            }
+            window.__analyticsCharts.bucketStorage = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Total Size',
+                        data: values,
+                        backgroundColor: '#60a5fa'
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${formatBytes(ctx.parsed.y)}` } } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: (v)=>formatBytes(v) } } },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function renderBackendTypeChart(labels, values) {
+            const ctx = document.getElementById('backendTypeChart');
+            if (!ctx) return;
+            if (window.__analyticsCharts.backendType) {
+                try { window.__analyticsCharts.backendType.destroy(); } catch {}
+            }
+            const colors = ['#34d399','#fbbf24','#a78bfa','#f87171','#93c5fd','#f472b6','#f59e0b','#4ade80'];
+            window.__analyticsCharts.backendType = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: labels.map((_,i)=>colors[i % colors.length])
+                    }]
+                },
+                options: {
+                    plugins: { legend: { position: 'bottom' } },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
         }
     </script>
 
