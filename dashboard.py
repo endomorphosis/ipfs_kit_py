@@ -106,6 +106,31 @@ class SimpleMCPDashboard:
         async def mcp_tools_call(request: Request):
             data = await request.json()
             return await self._handle_mcp_call(data)
+            
+        # MCP Tools list endpoint for client discovery
+        @self.app.get("/mcp/tools/list")
+        async def mcp_tools_list():
+            return {
+                "tools": [
+                    {"name": "health_check", "description": "Health check for the MCP server"},
+                    {"name": "get_system_status", "description": "Get system status and metrics"},
+                    {"name": "list_pins", "description": "List IPFS pins"},
+                    {"name": "list_config_files", "description": "List configuration files"},
+                    {"name": "read_config_file", "description": "Read configuration file content"},
+                    {"name": "write_config_file", "description": "Write configuration file content"},
+                    {"name": "get_config_metadata", "description": "Get configuration file metadata"},
+                    {"name": "list_buckets", "description": "List storage buckets"},
+                    {"name": "list_services", "description": "List available services"},
+                    {"name": "list_backends", "description": "List storage backends"},
+                    {"name": "list_peers", "description": "List connected IPFS peers"},
+                    {"name": "connect_peer", "description": "Connect to an IPFS peer"},
+                    {"name": "disconnect_peer", "description": "Disconnect from an IPFS peer"},
+                    {"name": "discover_peers", "description": "Discover new IPFS peers"},
+                    {"name": "get_peer_info", "description": "Get detailed peer information"},
+                    {"name": "get_peer_stats", "description": "Get peer statistics"},
+                    {"name": "bootstrap_peers", "description": "Bootstrap connection to default peers"}
+                ]
+            }
     
     async def _handle_mcp_call(self, data):
         """Handle MCP JSON-RPC calls with full configuration management support."""
