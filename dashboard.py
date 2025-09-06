@@ -135,10 +135,16 @@ class SimpleMCPDashboard:
     async def _handle_mcp_call(self, data):
         """Handle MCP JSON-RPC calls with full configuration management support."""
         try:
+            # Add debug logging to understand what we're receiving
+            logger.info(f"MCP call received: {data}")
+            
             tool_name = data.get("params", {}).get("name")
             arguments = data.get("params", {}).get("arguments", {})
             
+            logger.info(f"Extracted tool_name: '{tool_name}', arguments: {arguments}")
+            
             if not tool_name:
+                logger.warning("Missing tool name in MCP call")
                 return {
                     "jsonrpc": "2.0",
                     "error": {
@@ -173,7 +179,9 @@ class SimpleMCPDashboard:
             elif tool_name == "list_backends":
                 result = await self._list_backends()
             elif tool_name == "list_peers":
+                logger.info("Processing list_peers tool call")
                 result = await self._list_peers()
+                logger.info(f"list_peers result: {result}")
             elif tool_name == "connect_peer":
                 result = await self._connect_peer(arguments.get("peer_address"), arguments.get("peer_id"))
             elif tool_name == "disconnect_peer":
@@ -226,6 +234,7 @@ class SimpleMCPDashboard:
             elif tool_name == "set_metadata":
                 result = await self._set_metadata(arguments.get("key"), arguments.get("value"))
             else:
+                logger.warning(f"Unknown tool requested: '{tool_name}' (available tools: health_check, get_system_status, list_pins, list_peers, etc.)")
                 result = {"error": f"Unknown tool: {tool_name}"}
             
             return {

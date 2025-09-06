@@ -2701,12 +2701,22 @@
                         timeoutMs: 10000
                     });
                     window.mcpClient = mcpClient;
-                    console.log('MCP client initialized');
+                    console.log('✓ MCP client initialized successfully');
+                    
+                    // Test the connection
+                    mcpClient.callTool('health_check').then(() => {
+                        console.log('✓ MCP client connection verified');
+                    }).catch(error => {
+                        console.warn('⚠️ MCP client connection test failed:', error);
+                    });
                 } else {
-                    console.warn('MCP SDK not available, falling back to direct API calls');
+                    console.warn('⚠️ MCP SDK not available, falling back to direct API calls');
                 }
             } catch (error) {
-                console.error('Error initializing MCP client:', error);
+                console.error('❌ Error initializing MCP client:', error);
+                // Ensure mcpClient is null so fallback is used
+                mcpClient = null;
+                window.mcpClient = null;
             }
         }
 
@@ -5284,21 +5294,29 @@
                     throw new Error('Tool name is required');
                 }
 
+                console.log(`🔧 Calling MCP tool: ${toolName}`, args);
+
                 // Try MCP client first if available
                 if (window.mcpClient) {
+                    console.log(`📡 Using MCP client for ${toolName}`);
                     // Call the MCP tool using proper JSON-RPC
                     const result = await window.mcpClient.callTool(toolName, args || {});
+                    console.log(`✅ MCP client success for ${toolName}:`, result);
                     
                     // Return result in consistent format
                     return { result: result };
+                } else {
+                    console.log(`🔄 MCP client not available, using fallback for ${toolName}`);
                 }
                 
                 // Fallback to direct API calls when MCP client not available
-                console.log(`Fallback: Using direct API for tool ${toolName}`);
-                return await callToolDirectAPI(toolName, args || {});
+                console.log(`📞 Fallback: Using direct API for tool ${toolName}`);
+                const result = await callToolDirectAPI(toolName, args || {});
+                console.log(`✅ Direct API success for ${toolName}:`, result);
+                return result;
                 
             } catch (error) {
-                console.error(`Error calling MCP tool ${toolName}:`, error);
+                console.error(`❌ Error calling MCP tool ${toolName}:`, error);
                 throw error;
             }
         }
@@ -5345,12 +5363,74 @@
                 'health_check': () => fetch('/api/health').then(r => r.json()),
                 'list_services': () => fetch('/api/services').then(r => r.json()),
                 'list_buckets': () => fetch('/api/buckets').then(r => r.json()),
-                'list_pins': () => fetch('/api/pins').then(r => r.json())
+                'list_pins': () => fetch('/api/pins').then(r => r.json()),
+                // Add peer management fallback to direct MCP calls
+                'list_peers': () => fetch('/mcp/tools/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        params: { name: 'list_peers', arguments: {} },
+                        id: Date.now()
+                    })
+                }).then(r => r.json()).then(data => data.result || data),
+                'connect_peer': (args) => fetch('/mcp/tools/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        params: { name: 'connect_peer', arguments: args },
+                        id: Date.now()
+                    })
+                }).then(r => r.json()).then(data => data.result || data),
+                'disconnect_peer': (args) => fetch('/mcp/tools/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        params: { name: 'disconnect_peer', arguments: args },
+                        id: Date.now()
+                    })
+                }).then(r => r.json()).then(data => data.result || data),
+                'discover_peers': (args) => fetch('/mcp/tools/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        params: { name: 'discover_peers', arguments: args || {} },
+                        id: Date.now()
+                    })
+                }).then(r => r.json()).then(data => data.result || data),
+                'get_peer_stats': (args) => fetch('/mcp/tools/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        params: { name: 'get_peer_stats', arguments: args || {} },
+                        id: Date.now()
+                    })
+                }).then(r => r.json()).then(data => data.result || data),
+                'bootstrap_peers': (args) => fetch('/mcp/tools/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        params: { name: 'bootstrap_peers', arguments: args || {} },
+                        id: Date.now()
+                    })
+                }).then(r => r.json()).then(data => data.result || data)
             };
             
             const apiCall = toolMapping[toolName];
             if (!apiCall) {
-                throw new Error(`No API mapping for tool: ${toolName}`);
+                console.error(`❌ No API mapping for tool: ${toolName}. Available mappings:`, Object.keys(toolMapping));
+                throw new Error(`No API mapping for tool: ${toolName}. Available: ${Object.keys(toolMapping).join(', ')}`);
             }
             
             const result = await apiCall(args);
