@@ -250,16 +250,12 @@ window.MCP = {
     }
 };
 
-// Expose MCP namespace for dashboard compatibility
+// Global MCP namespace and client instance
 window.MCP = {
-    MCPClient: MCPClient,
-    // Helper method for backward compatibility
-    callTool: async function(toolName, params = {}) {
-        return await window.mcpClient.callTool(toolName, params);
-    }
+    MCPClient: MCPClient
 };
 
-// Global MCP client instance
+// Create global MCP client instance
 window.mcpClient = new MCPClient();
 
 // Enhanced error handling and logging

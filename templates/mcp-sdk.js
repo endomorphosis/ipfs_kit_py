@@ -250,7 +250,12 @@ window.MCP = {
     }
 };
 
-// Global MCP client instance
+// Global MCP namespace and client instance
+window.MCP = {
+    MCPClient: MCPClient
+};
+
+// Create global MCP client instance
 window.mcpClient = new MCPClient();
 
 // Enhanced error handling and logging
