@@ -15,12 +15,16 @@ class MCPClient {
     
     async testConnection() {
         try {
+            console.log('Testing MCP connection...');
             await this.callTool('health_check');
             this.isConnected = true;
-            console.log('MCP connection established');
+            console.log('MCP connection established successfully');
         } catch (error) {
             this.isConnected = false;
-            console.warn('MCP connection failed, using fallback mode');
+            console.warn('MCP connection failed, using fallback mode:', error.message);
+            
+            // Don't throw the error - just log and continue with fallback
+            return false;
         }
     }
     
@@ -40,7 +44,7 @@ class MCPClient {
                     id: requestId
                 };
                 
-                console.log(`MCP call attempt ${attempt + 1}:`, toolName, params);
+                console.log(`MCP call attempt ${attempt + 1}:`, toolName, JSON.stringify(params));
                 
                 const response = await fetch('/mcp/tools/call', {
                     method: 'POST',
@@ -59,12 +63,34 @@ class MCPClient {
                 let data;
                 try {
                     const text = await response.text();
+                    console.log(`Raw response (${text.length} chars):`, text.substring(0, 200) + (text.length > 200 ? '...' : ''));
+                    
                     if (!text || text.trim() === '') {
-                        throw new Error('Empty response');
+                        throw new Error('Empty response from server');
                     }
+                    
+                    // Validate JSON structure before parsing
+                    const trimmedText = text.trim();
+                    if (!trimmedText.startsWith('{') && !trimmedText.startsWith('[')) {
+                        throw new Error(`Invalid JSON response format: starts with '${trimmedText.substring(0, 10)}'`);
+                    }
+                    
+                    if (trimmedText.startsWith('{') && !trimmedText.endsWith('}')) {
+                        throw new Error('Incomplete JSON object: missing closing brace');
+                    }
+                    
+                    if (trimmedText.startsWith('[') && !trimmedText.endsWith(']')) {
+                        throw new Error('Incomplete JSON array: missing closing bracket');
+                    }
+                    
                     data = JSON.parse(text);
                 } catch (jsonError) {
-                    console.error('Failed to parse JSON response:', jsonError);
+                    console.error('JSON parsing error details:', {
+                        error: jsonError.message,
+                        responseStatus: response.status,
+                        responseHeaders: Object.fromEntries(response.headers.entries()),
+                        bodyPreview: (await response.text()).substring(0, 500)
+                    });
                     throw new Error(`Invalid JSON response: ${jsonError.message}`);
                 }
                 
@@ -83,7 +109,7 @@ class MCPClient {
                     throw new Error(`MCP Error: ${errorMessage}`);
                 }
                 
-                console.log(`MCP call successful:`, toolName, data.result || data);
+                console.log(`MCP call successful:`, toolName, JSON.stringify(data.result || data).substring(0, 200) + '...');
                 this.isConnected = true;
                 this.retryCount = 0;
                 
@@ -274,6 +300,26 @@ window.mcpLogger = {
     warn: (message, data) => console.warn(`[MCP] ${message}`, data || ''),
     error: (message, data) => console.error(`[MCP] ${message}`, data || '')
 };
+
+// Global error handler to catch any uncaught JavaScript errors
+window.addEventListener('error', function(event) {
+    console.error('Uncaught JavaScript error:', {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        error: event.error,
+        stack: event.error ? event.error.stack : 'No stack trace available'
+    });
+});
+
+// Global unhandled promise rejection handler
+window.addEventListener('unhandledrejection', function(event) {
+    console.error('Unhandled promise rejection:', {
+        reason: event.reason,
+        promise: event.promise
+    });
+});
 
 // Helper function that was missing from the enhanced dashboard template
 function updateElement(elementId, value) {
