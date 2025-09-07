@@ -2715,12 +2715,12 @@
         let mcpClient = null;
 
         // Initialize dashboard
-    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function() {
             initializeDashboard();
             setupEventListeners();
             initializeMCPClient();
             loadInitialData();
-    });
+        });
 
         function initializeMCPClient() {
             try {
@@ -9246,11 +9246,9 @@ Shared Pins: ${pinsets.length || 0}
                     maintainAspectRatio: false
                 }
             });
-    }
+        }
 
-    // Ensure any stray open blocks are closed
-    // (No-op wrapper to satisfy parser if prior edits left an open scope)
-    void 0;
+    // End of inline script helpers
     </script>
 
     <!-- Advanced Bucket Settings Modal -->
