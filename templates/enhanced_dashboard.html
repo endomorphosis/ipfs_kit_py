@@ -1298,8 +1298,36 @@
             color: rgb(30, 64, 175) !important;
         }
         
+        .bucket-card-professional {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        
         .bucket-card-professional:hover {
-            transform: translateY(-1px);
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            border-color: #3b82f6;
+        }
+        
+        .bucket-card-professional:active {
+            transform: translateY(0) scale(1.01);
+        }
+        
+        .bucket-card-professional::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #10b981);
+            border-radius: 8px 8px 0 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .bucket-card-professional:hover::before {
+            opacity: 1;
         }
         
         /* Remove existing enterprise styles that are now handled by Tailwind */
@@ -1313,11 +1341,26 @@
             padding: 0.75rem 1rem;
             width: 100%;
             max-width: 400px;
+            transition: all 0.2s ease;
         }
         
         .search-bar:focus {
             outline: none;
             border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        /* Enhanced search icon styling */
+        .search-icon-container {
+            transition: all 0.2s ease;
+        }
+        
+        .search-bar:focus + .search-icon-container svg,
+        .search-bar:focus ~ .search-icon-container svg {
+            color: #3b82f6;
+            transform: scale(1.1);
+        }
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
         
@@ -1353,6 +1396,51 @@
             color: #64748b;
             font-size: 0.875rem;
             margin-top: 0.25rem;
+        }
+        
+        /* Enhanced Modal Styling */
+        .bucket-settings-modal {
+            backdrop-filter: blur(4px);
+            animation: modalFadeIn 0.2s ease-out;
+        }
+        
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .bucket-settings-modal .modal-content {
+            animation: modalSlideIn 0.3s ease-out;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .bucket-settings-modal .close-button {
+            transition: all 0.2s ease;
+            border-radius: 50%;
+            padding: 0.5rem;
+        }
+        
+        .bucket-settings-modal .close-button:hover {
+            background-color: #f3f4f6;
+            transform: scale(1.1);
         }
         
         .bucket-grid {
@@ -2026,8 +2114,8 @@
                         <div class="flex items-center space-x-4">
                             <div class="flex-1">
                                 <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none search-icon-container">
+                                        <svg class="h-5 w-5 text-gray-400 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                                         </svg>
                                     </div>
@@ -9252,13 +9340,13 @@ Shared Pins: ${pinsets.length || 0}
     </script>
 
     <!-- Advanced Bucket Settings Modal -->
-    <div id="bucket-settings-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div id="bucket-settings-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 bucket-settings-modal">
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto modal-content">
                 <div class="p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-semibold text-gray-900">Bucket Configuration</h3>
-                        <button id="close-bucket-settings" class="text-gray-400 hover:text-gray-600">
+                        <button id="close-bucket-settings" class="text-gray-400 hover:text-gray-600 close-button">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
