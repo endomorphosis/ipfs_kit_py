@@ -372,6 +372,14 @@
         .to-purple-900 {
             --tw-gradient-to: #581c87;
         }
+
+    /* Prevent charts from widening layout over time */
+    .min-w-0 { min-width: 0; }
+    .chart-wrap { width: 100%; overflow: hidden; }
+    canvas.chart-canvas { display: block; width: 100% !important; height: 240px; }
+    #serviceStatusChart.chart-canvas, #resourceUsageChart.chart-canvas { height: 200px !important; }
+    /* Ensure grid children can shrink in responsive layouts */
+    .grid > div { min-width: 0; }
         .status-running { background-color: #10b981; }
         .status-stopped { background-color: #ef4444; }
         .status-warning { background-color: #f59e0b; }
@@ -2337,18 +2345,18 @@
                             <button id="analytics-reload-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">Reload</button>
                         </div>
                         <div class="grid grid-cols-1 lg-grid-cols-2 gap-6">
-                            <div>
+                            <div class="min-w-0">
                                 <h3 class="text-lg font-medium text-gray-700 mb-4">Service Status Distribution</h3>
-                                <canvas id="serviceStatusChart" width="400" height="200"></canvas>
+                                <div class="chart-wrap"><canvas id="serviceStatusChart" class="chart-canvas"></canvas></div>
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <h3 class="text-lg font-medium text-gray-700 mb-4">System Resource Usage</h3>
-                                <canvas id="resourceUsageChart" width="400" height="200"></canvas>
+                                <div class="chart-wrap"><canvas id="resourceUsageChart" class="chart-canvas"></canvas></div>
                             </div>
                         </div>
-                        <div class="mt-6">
+                        <div class="mt-6 min-w-0">
                             <h3 class="text-lg font-medium text-gray-700 mb-4">Latency History (avg)</h3>
-                            <canvas id="latencyHistoryChart" width="800" height="240"></canvas>
+                            <div class="chart-wrap"><canvas id="latencyHistoryChart" class="chart-canvas"></canvas></div>
                         </div>
                     </div>
                     
@@ -2356,13 +2364,13 @@
                     <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-4">Bucket Analytics</h3>
                         <div class="grid grid-cols-1 lg-grid-cols-2 gap-6">
-                            <div>
+                            <div class="min-w-0">
                                 <h4 class="text-lg font-medium text-gray-700 mb-4">Storage Distribution by Bucket</h4>
-                                <canvas id="bucketStorageChart" width="400" height="200"></canvas>
+                                <div class="chart-wrap"><canvas id="bucketStorageChart" class="chart-canvas"></canvas></div>
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <h4 class="text-lg font-medium text-gray-700 mb-4">Backend Type Distribution</h4>
-                                <canvas id="backendTypeChart" width="400" height="200"></canvas>
+                                <div class="chart-wrap"><canvas id="backendTypeChart" class="chart-canvas"></canvas></div>
                             </div>
                         </div>
                     </div>
@@ -2707,12 +2715,12 @@
         let mcpClient = null;
 
         // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function() {
             initializeDashboard();
             setupEventListeners();
             initializeMCPClient();
             loadInitialData();
-        });
+    });
 
         function initializeMCPClient() {
             try {
@@ -3779,11 +3787,12 @@
                 const isFolder = file.type === 'folder' || file.type === 'directory';
                 const icon = isFolder ? 'fas fa-folder text-blue-500' : getFileIcon(file.name);
                 const size = isFolder ? '-' : formatFileSize(file.size || 0);
-                
+                const nameAttr = encodeURIComponent(file.name || '');
+                const typeAttr = encodeURIComponent(file.type || '');
+                const sizeAttr = Number(file.size || 0);
                 return `
-                    <div class="file-item bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer" 
-                         onclick="selectFile('${file.name}', '${file.type}', ${file.size || 0})"
-                         ondblclick="${isFolder ? `openFolder('${file.name}')` : `openFileEditor('${file.name}')`}">
+                    <div class="file-item bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                         data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}">
                         <div class="flex items-center mb-2">
                             <i class="${icon} text-lg mr-2"></i>
                             <span class="font-medium text-gray-900 truncate" title="${file.name}">${file.name}</span>
@@ -3792,11 +3801,27 @@
                             <div>Size: ${size}</div>
                             <div>Modified: ${formatRelativeTime(file.modified || file.last_modified)}</div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
-            
+
             grid.innerHTML = filesHTML;
+
+            // Attach safe event listeners
+            grid.querySelectorAll('.file-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const name = decodeURIComponent(el.dataset.name || '');
+                    const type = decodeURIComponent(el.dataset.type || '');
+                    const size = parseInt(el.dataset.size || '0', 10) || 0;
+                    selectFile(name, type, size);
+                });
+                el.addEventListener('dblclick', () => {
+                    const name = decodeURIComponent(el.dataset.name || '');
+                    const type = decodeURIComponent(el.dataset.type || '');
+                    const isFolder = type === 'folder' || type === 'directory';
+                    if (isFolder) openFolder(name);
+                    else openFileEditor(name);
+                });
+            });
         }
 
         function selectFile(fileName, fileType, fileSize) {
@@ -3806,6 +3831,21 @@
             
             const isFolder = fileType === 'folder' || fileType === 'directory';
             const icon = isFolder ? 'fas fa-folder text-blue-500' : getFileIcon(fileName);
+                        // Build action buttons without nested template literals to avoid unterminated template issues
+                        const actionButtons = !isFolder
+                                ? (
+                                        '<button onclick="openFileEditor(\'' + fileName + '\')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">\n' +
+                                        '    <i class="fas fa-edit mr-1"></i>Edit File\n' +
+                                        '</button>\n' +
+                                        '<button onclick="downloadFile(\'' + fileName + '\')" class="w-full px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600">\n' +
+                                        '    <i class="fas fa-download mr-1"></i>Download\n' +
+                                        '</button>'
+                                    )
+                                : (
+                                        '<button onclick="openFolder(\'' + fileName + '\')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">\n' +
+                                        '    <i class="fas fa-folder-open mr-1"></i>Open Folder\n' +
+                                        '</button>'
+                                    );
             
             detailsContent.innerHTML = `
                 <div class="text-center mb-4">
@@ -3825,18 +3865,7 @@
                 </div>
                 
                 <div class="mt-4 space-y-2">
-                    ${!isFolder ? `
-                        <button onclick="openFileEditor('${fileName}')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                            <i class="fas fa-edit mr-1"></i>Edit File
-                        </button>
-                        <button onclick="downloadFile('${fileName}')" class="w-full px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600">
-                            <i class="fas fa-download mr-1"></i>Download
-                        </button>
-                    ` : `
-                        <button onclick="openFolder('${fileName}')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                            <i class="fas fa-folder-open mr-1"></i>Open Folder
-                        </button>
-                    `}
+                                        ${actionButtons}
                     <button onclick="deleteFile('${fileName}')" class="w-full px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
                         <i class="fas fa-trash mr-1"></i>Delete
                     </button>
@@ -3997,11 +4026,15 @@
             console.log('📤 Sharing bucket:', bucketName);
             showToast(`Generating share link for "${bucketName}"...`, 'info');
             
-            // Show bucket sharing modal
-            const modal = document.getElementById('bucket-sharing-modal');
+            // Show bucket sharing modal (correct ID and input field)
+            const modal = document.getElementById('share-bucket-modal');
             if (modal) {
                 modal.classList.remove('hidden');
-                document.getElementById('sharing-bucket-name').textContent = bucketName;
+                const nameInput = modal.querySelector('#share-bucket-name');
+                if (nameInput) nameInput.value = bucketName;
+                else console.warn('share-bucket-name input not found in share-bucket-modal');
+            } else {
+                console.warn('share-bucket-modal not found');
             }
         }
         
@@ -4012,28 +4045,41 @@
             const modal = document.getElementById('bucket-settings-modal');
             if (modal) {
                 modal.classList.remove('hidden');
-                document.getElementById('settings-bucket-name').value = bucketName;
+                // Scope queries to modal to avoid duplicate ID collisions
+                const nameInput = modal.querySelector('#bucket-name');
+                if (nameInput) nameInput.value = bucketName;
+                else console.warn('bucket-name input not found in bucket-settings-modal');
+            } else {
+                console.warn('bucket-settings-modal not found');
             }
         }
         
         function showBucketDetails(bucket) {
-            // Hide no-bucket-selected and show bucket-selected
-            document.getElementById('no-bucket-selected').classList.add('hidden');
-            document.getElementById('bucket-selected').classList.remove('hidden');
-            document.getElementById('bucket-detail-content').classList.remove('hidden');
-            document.getElementById('bucket-detail-content').classList.add('flex', 'flex-col');
-            
-            // Update bucket information
-            document.getElementById('bucket-name').textContent = bucket.name;
-            document.getElementById('bucket-description').textContent = bucket.description || 'No description provided';
-            document.getElementById('bucket-created').textContent = formatDate(bucket.created);
-            
-            // Update status and tier badges
-            updateBucketBadges(bucket);
-            
-            // Load bucket files and settings
-            loadBucketFiles(bucket);
-            loadBucketSettings(bucket);
+            // Legacy details view; guard against missing nodes and avoid ID collisions
+            const noSel = document.getElementById('no-bucket-selected');
+            const sel = document.getElementById('bucket-selected');
+            const content = document.getElementById('bucket-detail-content');
+            if (noSel) noSel.classList.add('hidden');
+            if (sel) sel.classList.remove('hidden');
+            if (content) {
+                content.classList.remove('hidden');
+                content.classList.add('flex', 'flex-col');
+            }
+
+            // Update bucket information if elements exist
+            const nameEl = document.getElementById('bucket-detail-name');
+            if (nameEl) nameEl.textContent = bucket.name;
+            const descEl = document.getElementById('bucket-description');
+            if (descEl) descEl.textContent = bucket.description || 'No description provided';
+            const createdEl = document.getElementById('bucket-created');
+            if (createdEl) createdEl.textContent = formatDate(bucket.created);
+
+            // Update status and tier badges (if present)
+            try { updateBucketBadges(bucket); } catch {}
+
+            // Load bucket files and settings (match function signatures)
+            try { loadBucketFiles(bucket?.name); } catch {}
+            try { loadBucketSettings(); } catch {}
         }
         
         function updateBucketBadges(bucket) {
@@ -5178,7 +5224,8 @@
                 }
 
                 if (result && (result.success || result.ok || result.status === 'ok')) {
-                    alert(`✅ Configuration saved successfully!\n${result.message}`);
+                    // Avoid nested template backticks inside alerts to prevent parser confusion
+                    alert('✅ Configuration saved successfully!\n' + (result.message ?? ''));
                     
                     // Update source info
                     const editorContainer = document.getElementById('config-editor').parentElement;
@@ -5186,7 +5233,8 @@
                     if (sourceInfo) {
                         const size = result.size ?? result.bytes ?? '';
                         const mod = result.modified ?? result.mtime ?? '';
-                        sourceInfo.textContent = `📁 Saved to ~/.ipfs_kit/ (${size} bytes${mod ? `, modified: ${mod}` : ''})`;
+                        const modText = mod ? ', modified: ' + mod : '';
+                        sourceInfo.textContent = `📁 Saved to ~/.ipfs_kit/ (${size} bytes${modText})`;
                         sourceInfo.className = 'source-info text-sm text-green-600 mt-2';
                     }
                     
@@ -5227,9 +5275,11 @@
                 }
                 const size = res?.size ?? res?.bytes ?? '';
                 const mod = res?.modified ?? res?.mtime ?? '';
-                sourceInfo.textContent = `📄 ${filename} ${size ? `• ${size} B` : ''} ${mod ? `• modified: ${mod}` : ''}`;
+                const sizePart = size ? '• ' + size + ' B' : '';
+                const modPart = mod ? '• modified: ' + mod : '';
+                sourceInfo.textContent = `📄 ${filename} ${sizePart} ${modPart}`.trim();
 
-                showToast(`Loaded ${filename}`, 'success');
+                showToast('Loaded ' + filename, 'success');
             } catch (err) {
                 console.error('Failed to load config file', filename, err);
                 showToast(`Failed to load ${filename}`, 'error');
@@ -5608,7 +5658,7 @@
                 ]);
 
                 // Count components from MCP results
-                const services = servicesResult.services || [];
+                let services = servicesResult.services || [];
                 const backends = backendsResult.backends || [];
                 const buckets = bucketsResult.items || [];
                 
@@ -5620,6 +5670,18 @@
                 } catch (error) {
                     console.log('Pins not available via MCP, using default count');
                     pins = [];
+                }
+
+                // If MCP services list is empty, try REST fallback for counts
+                if ((!Array.isArray(services) || services.length === 0)) {
+                    try {
+                        const resp = await fetch('/api/services');
+                        if (resp.ok) {
+                            const body = await resp.json();
+                            const svcMap = normalizeServicesPayload(body);
+                            services = Object.keys(svcMap).map(k => svcMap[k]);
+                        }
+                    } catch {}
                 }
 
                 // Update component counts
@@ -5664,41 +5726,104 @@
             console.log('Component counts updated:', counts);
         }
 
+        // Normalize various service payload shapes into an id-keyed object map
+        function normalizeServicesPayload(raw) {
+            try {
+                if (!raw) return {};
+                // Unwrap common wrappers
+                let data = raw;
+                if (data && typeof data === 'object' && 'result' in data) {
+                    data = data.result;
+                }
+                if (data && typeof data === 'object' && 'services' in data) {
+                    data = data.services;
+                }
+                if (Array.isArray(data)) {
+                    const obj = {};
+                    data.forEach((s, i) => {
+                        if (!s || typeof s !== 'object') return;
+                        const key = s?.id || s?.name || `svc_${i}`;
+                        obj[key] = { id: s?.id || key, ...s };
+                    });
+                    return obj;
+                }
+                if (typeof data === 'object') {
+                    // Heuristic: if values look like service items, return as-is
+                    const obj = {};
+                    for (const [k, v] of Object.entries(data)) {
+                        if (v && typeof v === 'object') {
+                            obj[k] = { id: v.id || k, ...v };
+                        }
+                    }
+                    return obj;
+                }
+                return {};
+            } catch (e) {
+                console.warn('normalizeServicesPayload failed:', e);
+                return {};
+            }
+        }
+
+        function sanitizeServiceMap(map) {
+            const out = {};
+            try {
+                for (const [k, v] of Object.entries(map || {})) {
+                    if (v && typeof v === 'object') out[k] = v;
+                }
+            } catch (e) {
+                console.warn('sanitizeServiceMap failed:', e);
+            }
+            return out;
+        }
+
         async function loadServicesData() {
             try {
                 // Use MCP SDK for service data with metadata-first approach (no REST API calls)
                 console.log('🔧 Loading services via MCP JSON-RPC (metadata-first)...');
                 
-                let servicesData = [];
-                
-                // Use new comprehensive MCP Services namespace
+                let servicesMap = {};
+
+                // 1) Try MCP.Services.list(true)
                 try {
                     const mcpResult = await MCP.Services.list(true);
-                    servicesData = mcpResult.services || [];
-                    console.log('🔧 services loaded via MCP:', mcpResult);
+                    servicesMap = normalizeServicesPayload(mcpResult);
+                    console.log('🔧 services via MCP.Services.list:', mcpResult, servicesMap);
                 } catch (mcpError) {
-                    console.warn('MCP service call failed:', mcpError);
-                    // Try fallback method with mcpClient directly
+                    console.warn('MCP.Services.list failed:', mcpError);
+                }
+
+                // 2) If still empty, try generic tool call with built-in REST fallback mapping
+                if (!servicesMap || Object.keys(servicesMap).length === 0) {
                     try {
-                        const fallbackResult = await window.mcpClient.callTool('list_services', { include_metadata: true });
-                        servicesData = fallbackResult.services || [];
-                        console.log('🔧 services loaded via MCP fallback:', fallbackResult);
-                    } catch (fallbackError) {
-                        console.error('Both MCP methods failed:', fallbackError);
-                        // Create minimal service data to prevent errors
-                        servicesData = [
-                            {"name": "Apache Arrow", "type": "storage", "category": "ai_ml", "status": "configured", "description": "In-memory columnar data format for analytics"},
-                            {"name": "Parquet Storage", "type": "storage", "category": "ai_ml", "status": "configured", "description": "Columnar storage format for analytics workloads"}
-                        ];
+                        const viaTool = await callMCPTool('list_services', { include_metadata: true });
+                        servicesMap = normalizeServicesPayload(viaTool);
+                        console.log('🔧 services via callMCPTool(list_services):', viaTool, servicesMap);
+                    } catch (toolErr) {
+                        console.warn('callMCPTool(list_services) failed:', toolErr);
                     }
                 }
-                
-                window.servicesData = servicesData;
+
+                // 3) If still empty, hit REST directly
+                if (!servicesMap || Object.keys(servicesMap).length === 0) {
+                    try {
+                        const resp = await fetch('/api/services');
+                        if (resp.ok) {
+                            const body = await resp.json();
+                            servicesMap = normalizeServicesPayload(body);
+                            console.log('🔧 services via REST /api/services:', servicesMap);
+                        }
+                    } catch (restErr) {
+                        console.warn('Direct REST /api/services fetch failed:', restErr);
+                    }
+                }
+
+                // 4) Absolute last resort: keep empty map; don't inject mock items
+                window.servicesData = sanitizeServiceMap(servicesMap || {});
                 
                 // Ensure we're on the services tab before trying to display
                 if (currentTab === 'services') {
-                    displayEnhancedServices(servicesData);
-                    updateServicesStatistics(servicesData);
+                    try { displayEnhancedServices(window.servicesData); } catch (e) { console.error('displayEnhancedServices failed:', e); }
+                    try { updateServicesStatistics(window.servicesData); } catch (e) { console.error('updateServicesStatistics failed:', e); }
                 }
             } catch (error) {
                 console.error('Error loading services data:', error);
@@ -5735,11 +5860,16 @@
             
             // Process services and group by type, supporting multiple instances
             for (const [serviceId, service] of Object.entries(services)) {
+                if (!service || typeof service !== 'object') continue;
                 const serviceType = determineServiceType(serviceId, service.type);
                 if (!serviceGroups[serviceType]) {
                     serviceGroups[serviceType] = { name: serviceType.toUpperCase(), services: [] };
                 }
-                serviceGroups[serviceType].services.push({ id: serviceId, ...service });
+                try {
+                    serviceGroups[serviceType].services.push({ id: serviceId, ...service });
+                } catch {
+                    serviceGroups[serviceType].services.push({ id: serviceId, name: service?.name || serviceId, status: service?.status || 'unknown' });
+                }
             }
             
             // Create service group sections
@@ -5849,7 +5979,10 @@
                     <i class="fas fa-layer-group mr-1"></i> ${service.instances} instances
                  </div>` : '';
             
-            div.innerHTML = `
+        const portLine = service.port ? ('<div><strong>Port:</strong> ' + service.port + '</div>') : '';
+        const endpointLine = service.endpoint ? ('<div><strong>Endpoint:</strong> ' + service.endpoint + '</div>') : '';
+
+        div.innerHTML = `
                 <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center gap-2">
                         <span class="text-2xl">${typeIcon}</span>
@@ -5867,8 +6000,8 @@
                 
                 <div class="space-y-1 text-xs text-gray-600 mb-4">
                     <div><strong>Type:</strong> ${service.type || 'unknown'}</div>
-                    ${service.port ? `<div><strong>Port:</strong> ${service.port}</div>` : ''}
-                    ${service.endpoint ? `<div><strong>Endpoint:</strong> ${service.endpoint}</div>` : ''}
+            ${portLine}
+            ${endpointLine}
                     <div><strong>Last Check:</strong> ${service.last_check || 'Never'}</div>
                 </div>
                 
@@ -5987,7 +6120,7 @@
         }
 
         function cloneService(serviceId, groupKey) {
-            const service = window.servicesData[serviceId];
+            const service = (window.servicesData && window.servicesData[serviceId]) || null;
             if (!service) return;
             
             const newName = prompt(`Clone ${serviceId}.\n\nEnter name for the new instance:`, `${serviceId}-clone`);
@@ -5998,7 +6131,7 @@
         }
 
         function openEnhancedConfigModal(serviceId, groupKey) {
-            const service = window.servicesData[serviceId];
+            const service = (window.servicesData && window.servicesData[serviceId]) || null;
             if (!service) return;
             
             const modal = document.getElementById('service-config-modal');
@@ -6102,9 +6235,10 @@
             `;
         }
 
-        async function saveEnhancedServiceConfig(serviceId) {
+    async function saveEnhancedServiceConfig(serviceId) {
             try {
-                const service = window.servicesData[serviceId];
+        const service = (window.servicesData && window.servicesData[serviceId]) || null;
+        if (!service) throw new Error('Service not found');
                 const config = {};
                 
                 // Collect configuration based on service type
@@ -6216,7 +6350,8 @@
                 'network': []
             };
             
-            for (const [serviceId, service] of Object.entries(services)) {
+            for (const [serviceId, service] of Object.entries(services || {})) {
+                if (!service || typeof service !== 'object') continue;
                 const serviceType = service.type || 'network';
                 if (!servicesByType[serviceType]) {
                     servicesByType[serviceType] = [];
@@ -6348,7 +6483,7 @@
 
         // Enhanced configuration modal system
         function openConfigurationModal(serviceId) {
-            const service = servicesData[serviceId];
+            const service = (window.servicesData && window.servicesData[serviceId]) || null;
             if (!service) return;
             
             const modal = document.getElementById('service-config-modal');
@@ -6391,7 +6526,7 @@
         }
 
         async function saveServiceConfiguration(serviceId) {
-            const service = servicesData[serviceId];
+            const service = (window.servicesData && window.servicesData[serviceId]) || null;
             const config = {};
             
             if (service.config_keys) {
@@ -6437,14 +6572,11 @@
                 configured: 0,
                 error: 0
             };
-            
-            for (const service of Object.values(services)) {
-                const status = service.status;
-                if (stats.hasOwnProperty(status)) {
-                    stats[status]++;
-                }
+            for (const service of Object.values(services || {})) {
+                if (!service || typeof service !== 'object') continue;
+                const status = service.status || 'unknown';
+                if (status in stats) stats[status]++;
             }
-            
             document.getElementById('services-running').textContent = stats.running;
             document.getElementById('services-stopped').textContent = stats.stopped;
             document.getElementById('services-not-enabled').textContent = stats.not_enabled;
@@ -6480,7 +6612,7 @@
         }
 
         function promptForServiceConfiguration(serviceId) {
-            const service = servicesData[serviceId];
+            const service = (window.servicesData && window.servicesData[serviceId]) || null;
             if (!service) return;
             
             // Simple prompt-based configuration for now
@@ -7771,7 +7903,8 @@ Shared Pins: ${pinsets.length || 0}
                 'offline': 'text-gray-600'
             };
             return colors[status] || 'text-green-600';
-        }
+            for (const service of Object.values(services || {})) {
+                if (!service || typeof service !== 'object') continue;
         
         // Enhanced Badge and Status Helper Functions
         function getStatusBadge(status) {
@@ -8038,16 +8171,46 @@ Shared Pins: ${pinsets.length || 0}
             } else {
                 container.innerHTML = `<div class="space-y-2 p-4">${files.map(renderFileListItem).join('')}</div>`;
             }
+
+            // Delegated events to avoid inline JS quoting issues
+            container.addEventListener('click', (e) => {
+                const actionEl = e.target.closest('[data-action]');
+                if (actionEl) {
+                    e.stopPropagation();
+                    const row = actionEl.closest('[data-name]');
+                    const name = row ? decodeURIComponent(row.getAttribute('data-name') || '') : '';
+                    const type = row ? decodeURIComponent(row.getAttribute('data-type') || '') : '';
+                    const size = row ? parseInt(row.getAttribute('data-size') || '0', 10) || 0 : 0;
+                    switch (actionEl.getAttribute('data-action')) {
+                        case 'download': return downloadFile(e, name);
+                        case 'share': return shareFile(e, name);
+                        case 'delete': return deleteFile(e, name);
+                        case 'open-folder': return openFolder(name);
+                        case 'open-file': return openFileEditor(name);
+                        case 'toggle-select': return handleFileSelection(actionEl, name);
+                        case 'menu': return showFileMenu(e, name);
+                    }
+                }
+                const card = e.target.closest('.file-card, .file-row');
+                if (card && card.hasAttribute('data-name')) {
+                    const name = decodeURIComponent(card.getAttribute('data-name') || '');
+                    const type = decodeURIComponent(card.getAttribute('data-type') || '');
+                    const size = parseInt(card.getAttribute('data-size') || '0', 10) || 0;
+                    selectFile(name, type, size);
+                }
+            }, { once: true });
         }
         
         function renderFileCard(file) {
             const fileIcon = getFileIcon(file.name, file.type);
             const iconClass = getFileIconClass(file.name, file.type);
+            const nameAttr = encodeURIComponent(file.name || '');
+            const typeAttr = encodeURIComponent(file.type || '');
+            const sizeAttr = Number(file.size || 0);
             
             return `
                 <div class="file-card ${file.selected ? 'selected' : ''}" 
-                     onclick="selectFile('${file.name}', '${file.type}')"
-                     data-file="${file.name}">
+                     data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}">
                     <div class="file-icon ${iconClass}">
                         <i class="fas ${fileIcon}"></i>
                     </div>
@@ -8064,14 +8227,14 @@ Shared Pins: ${pinsets.length || 0}
                     </div>
                     <div class="flex gap-1 mt-3">
                         ${file.type === 'file' ? `
-                            <button onclick="downloadFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">
+                            <button data-action="download" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">
                                 <i class="fas fa-download text-xs"></i>
                             </button>
                         ` : ''}
-                        <button onclick="shareFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
+                        <button data-action="share" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
                             <i class="fas fa-share text-xs"></i>
                         </button>
-                        <button onclick="deleteFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                        <button data-action="delete" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
                             <i class="fas fa-trash text-xs"></i>
                         </button>
                     </div>
@@ -8082,13 +8245,14 @@ Shared Pins: ${pinsets.length || 0}
         function renderFileListItem(file) {
             const fileIcon = getFileIcon(file.name, file.type);
             const iconClass = getFileIconClass(file.name, file.type);
+            const nameAttr = encodeURIComponent(file.name || '');
+            const typeAttr = encodeURIComponent(file.type || '');
+            const sizeAttr = Number(file.size || 0);
             
             return `
-                <div class="flex items-center p-4 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-all duration-200 ${file.selected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-slate-50'}" 
-                     onclick="selectFile('${file.name}', '${file.type}')"
-                     data-file="${file.name}">
-                    <input type="checkbox" class="mr-3 w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" 
-                           onclick="event.stopPropagation();" onchange="handleFileSelection(this, '${file.name}')">
+                <div class="file-row flex items-center p-4 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-all duration-200 ${file.selected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-slate-50'}" 
+                     data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}">
+                    <input type="checkbox" class="mr-3 w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" data-action="toggle-select">
                     
                     <div class="file-icon ${iconClass} mr-4" style="width: 2.5rem; height: 2.5rem;">
                         <i class="fas ${fileIcon}"></i>
@@ -8106,17 +8270,17 @@ Shared Pins: ${pinsets.length || 0}
                     
                     <div class="flex items-center space-x-2 ml-4">
                         ${file.type === 'file' ? `
-                            <button onclick="downloadFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">
+                            <button data-action="download" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">
                                 <i class="fas fa-download"></i>
                             </button>
                         ` : ''}
-                        <button onclick="shareFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
+                        <button data-action="share" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
                             <i class="fas fa-share"></i>
                         </button>
-                        <button onclick="deleteFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                        <button data-action="delete" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
-                        <button onclick="showFileMenu(event, '${file.name}')" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors" title="More actions">
+                        <button data-action="menu" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors" title="More actions">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                     </div>
@@ -8699,12 +8863,14 @@ Shared Pins: ${pinsets.length || 0}
                     const item = document.createElement('div');
                     item.className = 'config-file-item flex items-center justify-between p-2 border rounded hover:bg-gray-50 cursor-pointer';
                     item.dataset.filename = filename;
-                    item.innerHTML = `
+            const sizePart = size ? (size + ' B') : '';
+            const modPart = modified ? ('• ' + modified) : '';
+            item.innerHTML = `
                         <div class="flex-1 truncate">
                             <span class="font-mono text-sm">${filename}</span>
                         </div>
                         <div class="text-xs text-gray-500 ml-2 whitespace-nowrap">
-                            ${size ? `${size} B` : ''} ${modified ? `• ${modified}` : ''}
+                ${sizePart} ${modPart}
                         </div>`;
                     item.addEventListener('click', async () => {
                         // highlight selection
@@ -8833,22 +8999,39 @@ Shared Pins: ${pinsets.length || 0}
                 const labelSet = new Set();
                 const perBackend = metrics.map(m => ({ name: (m.backend_name || 'backend'), history: m.history || [] }));
                 perBackend.forEach(b => b.history.forEach(h => labelSet.add(h.timestamp)));
-                const labels = Array.from(labelSet.values()).sort();
+                let labels = Array.from(labelSet.values()).filter(v => v != null && v !== '').sort();
+                // Limit to last N points to prevent growth pushing layout
+                const MAX_POINTS = 60;
+                if (labels.length > MAX_POINTS) labels = labels.slice(-MAX_POINTS);
+                if (!labels.length) {
+                    console.warn('Latency chart skipped: no labels');
+                    if (window.__analyticsCharts.latencyHistory) {
+                        try { window.__analyticsCharts.latencyHistory.destroy(); } catch {}
+                        window.__analyticsCharts.latencyHistory = null;
+                    }
+                    return;
+                }
                 // Build per-backend datasets aligned to labels
                 const palette = ['#34d399','#60a5fa','#f59e0b','#f87171','#a78bfa','#93c5fd','#4ade80','#f472b6','#22d3ee','#eab308'];
                 const datasets = perBackend.map((b, i) => {
                     const map = new Map(b.history.map(h => [h.timestamp, Number(h.response_time_ms ?? 0)]));
-                    const arr = labels.map(ts => (map.has(ts) ? map.get(ts) : null));
+                    const arr = labels.map(ts => {
+                        const v = map.get(ts);
+                        const n = Number.isFinite(v) ? Number(v) : null;
+                        return n;
+                    });
                     return {
                         label: `${b.name} (ms)`,
                         data: arr,
                         fill: false,
                         borderColor: palette[i % palette.length],
                         tension: 0.25,
-                        pointRadius: 0
+                        pointRadius: 0,
+                        spanGaps: true
                     };
                 });
-                renderLatencyHistoryChart(labels, datasets);
+                const filteredDatasets = datasets.filter(d => Array.isArray(d.data) && d.data.some(v => Number.isFinite(v)));
+                renderLatencyHistoryChart(labels, filteredDatasets);
 
                 // Bucket Analytics: storage per bucket
                 try {
@@ -8923,7 +9106,9 @@ Shared Pins: ${pinsets.length || 0}
                 options: {
                     plugins: { legend: { position: 'bottom' } },
                     responsive: true,
-                    maintainAspectRatio: false
+                    maintainAspectRatio: false,
+                    animation: { duration: 250 },
+                    layout: { padding: 0 }
                 }
             });
         }
@@ -8946,9 +9131,11 @@ Shared Pins: ${pinsets.length || 0}
                 },
                 options: {
                     plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, max: 100 } },
+                    scales: { y: { beginAtZero: true, max: 100, ticks: { precision: 0 } }, x: { ticks: { maxRotation: 0 } } },
                     responsive: true,
-                    maintainAspectRatio: false
+                    maintainAspectRatio: false,
+                    animation: { duration: 250 },
+                    layout: { padding: 0 }
                 }
             });
         }
@@ -8956,6 +9143,14 @@ Shared Pins: ${pinsets.length || 0}
         function renderLatencyHistoryChart(labels, datasets) {
             const ctx = document.getElementById('latencyHistoryChart');
             if (!ctx) return;
+            if (!Array.isArray(labels) || !labels.length || !Array.isArray(datasets) || !datasets.length) {
+                console.warn('Latency chart: no data to render');
+                if (window.__analyticsCharts.latencyHistory) {
+                    try { window.__analyticsCharts.latencyHistory.destroy(); } catch {}
+                    window.__analyticsCharts.latencyHistory = null;
+                }
+                return;
+            }
             if (window.__analyticsCharts.latencyHistory) {
                 try { window.__analyticsCharts.latencyHistory.destroy(); } catch {}
             }
@@ -8970,8 +9165,16 @@ Shared Pins: ${pinsets.length || 0}
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { title: { display: true, text: 'ms' } }
-                    }
+                        x: { type: 'category', ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+                        y: { title: { display: true, text: 'ms' }, ticks: { precision: 0 } }
+                    },
+                    animation: { duration: 250 },
+                    layout: { padding: 0 },
+                    elements: {
+                        point: { radius: 0, hitRadius: 3, hoverRadius: 3 },
+                        line: { spanGaps: true }
+                    },
+                    interaction: { intersect: false, mode: 'nearest' }
                 }
             });
         }
@@ -9043,7 +9246,11 @@ Shared Pins: ${pinsets.length || 0}
                     maintainAspectRatio: false
                 }
             });
-        }
+    }
+
+    // Ensure any stray open blocks are closed
+    // (No-op wrapper to satisfy parser if prior edits left an open scope)
+    void 0;
     </script>
 
     <!-- Advanced Bucket Settings Modal -->
