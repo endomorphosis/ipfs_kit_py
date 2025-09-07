@@ -56,7 +56,17 @@ class MCPClient {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
-                const data = await response.json();
+                let data;
+                try {
+                    const text = await response.text();
+                    if (!text || text.trim() === '') {
+                        throw new Error('Empty response');
+                    }
+                    data = JSON.parse(text);
+                } catch (jsonError) {
+                    console.error('Failed to parse JSON response:', jsonError);
+                    throw new Error(`Invalid JSON response: ${jsonError.message}`);
+                }
                 
                 if (data.error) {
                     // Handle different error formats

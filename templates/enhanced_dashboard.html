@@ -1653,7 +1653,8 @@
     </style>
     
     <!-- Chart.js for analytics -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js CDN disabled due to browser blocking -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> -->
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen flex main-container">
@@ -9179,6 +9180,10 @@ Shared Pins: ${pinsets.length || 0}
         function renderServiceStatusChart(counts) {
             const ctx = document.getElementById('serviceStatusChart');
             if (!ctx) return;
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not available, skipping chart rendering');
+                return;
+            }
             if (window.__analyticsCharts.serviceStatus) {
                 try { window.__analyticsCharts.serviceStatus.destroy(); } catch {}
             }
@@ -9204,6 +9209,10 @@ Shared Pins: ${pinsets.length || 0}
         function renderResourceUsageChart(avgCpu, avgMem) {
             const ctx = document.getElementById('resourceUsageChart');
             if (!ctx) return;
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not available, skipping chart rendering');
+                return;
+            }
             if (window.__analyticsCharts.resourceUsage) {
                 try { window.__analyticsCharts.resourceUsage.destroy(); } catch {}
             }
@@ -9231,6 +9240,10 @@ Shared Pins: ${pinsets.length || 0}
         function renderLatencyHistoryChart(labels, datasets) {
             const ctx = document.getElementById('latencyHistoryChart');
             if (!ctx) return;
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not available, skipping chart rendering');
+                return;
+            }
             if (!Array.isArray(labels) || !labels.length || !Array.isArray(datasets) || !datasets.length) {
                 console.warn('Latency chart: no data to render');
                 if (window.__analyticsCharts.latencyHistory) {
@@ -9290,6 +9303,10 @@ Shared Pins: ${pinsets.length || 0}
         function renderBucketStorageChart(labels, values) {
             const ctx = document.getElementById('bucketStorageChart');
             if (!ctx) return;
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not available, skipping chart rendering');
+                return;
+            }
             if (window.__analyticsCharts.bucketStorage) {
                 try { window.__analyticsCharts.bucketStorage.destroy(); } catch {}
             }
@@ -9315,6 +9332,10 @@ Shared Pins: ${pinsets.length || 0}
         function renderBackendTypeChart(labels, values) {
             const ctx = document.getElementById('backendTypeChart');
             if (!ctx) return;
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not available, skipping chart rendering');
+                return;
+            }
             if (window.__analyticsCharts.backendType) {
                 try { window.__analyticsCharts.backendType.destroy(); } catch {}
             }
