@@ -89,7 +89,7 @@ class MCPClient {
                         error: jsonError.message,
                         responseStatus: response.status,
                         responseHeaders: Object.fromEntries(response.headers.entries()),
-                        bodyPreview: (await response.text()).substring(0, 500)
+                        bodyPreview: text.substring(0, 500)
                     });
                     throw new Error(`Invalid JSON response: ${jsonError.message}`);
                 }
@@ -308,7 +308,7 @@ window.addEventListener('error', function(event) {
         filename: event.filename,
         lineno: event.lineno,
         colno: event.colno,
-        error: event.error,
+        error: event.error ? event.error.toString() : 'No error object',
         stack: event.error ? event.error.stack : 'No stack trace available'
     });
 });
@@ -316,7 +316,7 @@ window.addEventListener('error', function(event) {
 // Global unhandled promise rejection handler
 window.addEventListener('unhandledrejection', function(event) {
     console.error('Unhandled promise rejection:', {
-        reason: event.reason,
+        reason: typeof event.reason === 'object' ? JSON.stringify(event.reason) : event.reason,
         promise: event.promise
     });
 });
