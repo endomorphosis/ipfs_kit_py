@@ -61,8 +61,9 @@ class MCPClient {
                 }
                 
                 let data;
+                let text = '';
                 try {
-                    const text = await response.text();
+                    text = await response.text();
                     console.log(`Raw response (${text.length} chars):`, text.substring(0, 200) + (text.length > 200 ? '...' : ''));
                     
                     if (!text || text.trim() === '') {
@@ -84,12 +85,12 @@ class MCPClient {
                     }
                     
                     data = JSON.parse(text);
-                } catch (jsonError) {
+        } catch (jsonError) {
                     console.error('JSON parsing error details:', {
                         error: jsonError.message,
                         responseStatus: response.status,
                         responseHeaders: Object.fromEntries(response.headers.entries()),
-                        bodyPreview: text.substring(0, 500)
+            bodyPreview: (text || '').substring(0, 500)
                     });
                     throw new Error(`Invalid JSON response: ${jsonError.message}`);
                 }
@@ -165,12 +166,12 @@ class MCPClient {
     }
 }
 
-// Export MCP client class and create global instances with comprehensive service management
-window.MCP = {
-    MCPClient: MCPClient,
-    
-    // Comprehensive Service Management namespace
-    Services: {
+// Export MCP client class and create/merge global namespace without clobbering
+window.MCP = window.MCP || {};
+window.MCP.MCPClient = MCPClient;
+
+// Comprehensive Service Management namespace
+window.MCP.Services = {
         async list(includeMetadata = true) {
             return await window.mcpClient.callTool('list_services', { include_metadata: includeMetadata });
         },
@@ -186,10 +187,10 @@ window.MCP = {
         async getStatus() {
             return await window.mcpClient.callTool('get_system_status');
         }
-    },
-    
-    // Comprehensive Backend Management namespace  
-    Backends: {
+};
+
+// Comprehensive Backend Management namespace  
+window.MCP.Backends = {
         async list(includeMetadata = true) {
             return await window.mcpClient.callTool('list_backends', { include_metadata: includeMetadata });
         },
@@ -201,10 +202,10 @@ window.MCP = {
                 config: config
             });
         }
-    },
-    
-    // Comprehensive Bucket Management namespace
-    Buckets: {
+};
+
+// Comprehensive Bucket Management namespace
+window.MCP.Buckets = {
         async list(includeMetadata = true) {
             return await window.mcpClient.callTool('list_buckets', { include_metadata: includeMetadata });
         },
@@ -272,10 +273,10 @@ window.MCP = {
                 config: config
             });
         }
-    },
-    
-    // System Health namespace
-    System: {
+};
+
+// System Health namespace
+window.MCP.System = {
         async healthCheck() {
             return await window.mcpClient.callTool('health_check');
         },
@@ -284,11 +285,6 @@ window.MCP = {
             return await window.mcpClient.callTool('get_system_status');
         }
     }
-};
-
-// Global MCP namespace and client instance
-window.MCP = {
-    MCPClient: MCPClient
 };
 
 // Create global MCP client instance

@@ -7994,8 +7994,7 @@ Shared Pins: ${pinsets.length || 0}
                 'offline': 'text-gray-600'
             };
             return colors[status] || 'text-green-600';
-            for (const service of Object.values(services || {})) {
-                if (!service || typeof service !== 'object') continue;
+        }
         
         // Enhanced Badge and Status Helper Functions
         function getStatusBadge(status) {
