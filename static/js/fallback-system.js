@@ -197,14 +197,22 @@
             console.log(`Loading base JS fallback for: ${name}`);
             
             if (config.fallback === 'mock' && name === 'chartjs') {
-                // Create a mock Chart.js object
-                window.Chart = window.Chart || {
-                    register: () => {},
-                    defaults: { global: {} },
-                    Line: function() { return { update: () => {}, destroy: () => {} }; },
-                    Bar: function() { return { update: () => {}, destroy: () => {} }; },
-                    Doughnut: function() { return { update: () => {}, destroy: () => {} }; }
-                };
+                // Provide a minimal constructor-compatible mock for Chart.js (new Chart(ctx, cfg))
+                const MockChart = function() { return undefined; };
+                MockChart.prototype.update = function() {};
+                MockChart.prototype.destroy = function() {};
+                // Ensure callable as constructor
+                function ChartCtor() {
+                    return new MockChart();
+                }
+                // Attach minimal API surface used by our code
+                ChartCtor.register = function() {};
+                ChartCtor.defaults = { global: {} };
+                // Legacy helpers (unused by our code, but harmless)
+                ChartCtor.Line = function() { return { update: function(){}, destroy: function(){} }; };
+                ChartCtor.Bar = function() { return { update: function(){}, destroy: function(){} }; };
+                ChartCtor.Doughnut = function() { return { update: function(){}, destroy: function(){} }; };
+                window.Chart = window.Chart || ChartCtor;
                 resolve('fallback-mock');
             } else {
                 resolve('fallback-none');

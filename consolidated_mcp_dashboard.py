@@ -2687,6 +2687,151 @@ class ConsolidatedMCPDashboard:
                     by_tag[t] = by_tag.get(t, 0) + 1
             return {"total": total, "connected": connected, "by_tag": by_tag, "peers": peers}
 
+        @app.post("/api/peers/discover")
+        async def discover_peers(request: Request) -> Dict[str, Any]:
+            """Discover peers via ipfs_kit_py libp2p integration when available.
+
+            Primary: ipfs_kit_py.high_level_api.ipfs_kit().discover_peers(max_peers, timeout)
+            Fallback: return current peers from simple PeerManager
+            """
+            # Parse body (optional)
+            limit = 20
+            timeout = 10
+            try:
+                try:
+                    body = await request.json()
+                    if isinstance(body, dict):
+                        limit = int(body.get("limit", limit))
+                        timeout = int(body.get("timeout", timeout))
+                except Exception:
+                    pass
+
+                # Try high-level API based discovery (libp2p)
+                try:
+                    from ipfs_kit_py.high_level_api import ipfs_kit  # type: ignore
+                    api = ipfs_kit()
+                    if hasattr(api, "discover_peers"):
+                        result = api.discover_peers(max_peers=limit, timeout=timeout)
+                        peers: list = []
+                        if isinstance(result, dict):
+                            # Common shapes: {"peers": [...]}, or mapping
+                            maybe = result.get("peers") or result.get("discovered") or result.get("results")
+                            if isinstance(maybe, list):
+                                peers = maybe
+                            elif isinstance(maybe, dict):
+                                peers = [
+                                    {**(v if isinstance(v, dict) else {"info": v}), "peer_id": k}
+                                    for k, v in maybe.items()
+                                ]
+                            else:
+                                # If dict itself is a mapping of peers
+                                peers = [
+                                    {**(v if isinstance(v, dict) else {"info": v}), "peer_id": k}
+                                    for k, v in result.items()
+                                    if isinstance(k, str)
+                                ]
+                        elif isinstance(result, list):
+                            peers = result
+                        return {"status": "ok", "source": "libp2p", "peers": peers, "total": len(peers)}
+                except Exception as e:  # pragma: no cover
+                    self.log.warning(f"libp2p peer discovery failed: {e}")
+
+                # Fallback to simple peer file manager
+                mgr = self._get_peer_manager()
+                if mgr:
+                    data = mgr.list_peers() or {"peers": [], "total": 0}
+                    peers = data.get("peers") or []
+                    return {"status": "fallback", "peers": peers, "total": len(peers)}
+                return {"status": "unavailable", "peers": [], "total": 0}
+            except Exception as e:  # pragma: no cover
+                return {"error": str(e), "peers": [], "total": 0}
+
+        # Additional peer REST endpoints: connect, disconnect, info, bootstrap
+        @app.post("/api/peers/connect")
+        async def rest_connect_peer(payload: Dict[str, Any]) -> Dict[str, Any]:
+            mgr = self._get_peer_manager()
+            if not mgr:
+                raise HTTPException(503, "Peer manager unavailable")
+            peer_info = {
+                "peer_id": payload.get("peer_id"),
+                "peer_address": payload.get("peer_address"),
+                "tags": payload.get("tags") or [],
+            }
+            return mgr.connect_peer(peer_info)
+
+        @app.post("/api/peers/disconnect")
+        async def rest_disconnect_peer(payload: Dict[str, Any]) -> Dict[str, Any]:
+            mgr = self._get_peer_manager()
+            if not mgr:
+                raise HTTPException(503, "Peer manager unavailable")
+            pid = payload.get("peer_id")
+            if not pid:
+                raise HTTPException(400, "peer_id is required")
+            return mgr.disconnect_peer(pid)
+
+        @app.get("/api/peers/{peer_id}")
+        async def rest_get_peer_info(peer_id: str) -> Dict[str, Any]:
+            mgr = self._get_peer_manager()
+            if not mgr:
+                raise HTTPException(503, "Peer manager unavailable")
+            return mgr.get_peer_info(peer_id)
+
+        @app.post("/api/peers/bootstrap")
+        async def rest_bootstrap_peers(payload: Dict[str, Any]) -> Dict[str, Any]:
+            action = (payload.get("action") or "list").lower()
+            peer_address = payload.get("peer_address")
+            try:
+                from ipfs_kit_py.libp2p.peer_manager import get_global_peer_manager  # type: ignore
+                libp2p_mgr = get_global_peer_manager()
+            except Exception:
+                libp2p_mgr = None
+            try:
+                if action == "list":
+                    if libp2p_mgr and hasattr(libp2p_mgr, "list_bootstrap_peers"):
+                        return {"ok": True, "peers": libp2p_mgr.list_bootstrap_peers()}
+                    # fallback: read known files
+                    peers: List[str] = []
+                    for path in ["~/.ipfs/bootstrap", "/etc/ipfs/bootstrap"]:
+                        p = Path(os.path.expanduser(path))
+                        if p.exists():
+                            with p.open() as fh:
+                                for line in fh:
+                                    s = line.strip()
+                                    if s and not s.startswith("#"):
+                                        peers.append(s)
+                    return {"ok": True, "peers": peers}
+                if action == "from_ipfs":
+                    if libp2p_mgr and hasattr(libp2p_mgr, "bootstrap_from_ipfs"):
+                        return libp2p_mgr.bootstrap_from_ipfs() or {"ok": True}
+                    ipfs = _which("ipfs")
+                    if not ipfs:
+                        raise HTTPException(404, "ipfs binary not found")
+                    out = _run_cmd([ipfs, "bootstrap", "list"])  # safe list
+                    return {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}
+                if action == "from_cluster":
+                    if libp2p_mgr and hasattr(libp2p_mgr, "bootstrap_from_cluster"):
+                        return libp2p_mgr.bootstrap_from_cluster() or {"ok": True}
+                    ctl = _which("ipfs-cluster-ctl")
+                    if not ctl:
+                        raise HTTPException(404, "ipfs-cluster-ctl binary not found")
+                    out = _run_cmd([ctl, "peers", "ls"])  # safe list
+                    return {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}
+                if action == "add":
+                    if not peer_address:
+                        raise HTTPException(400, "peer_address is required for action=add")
+                    if libp2p_mgr and hasattr(libp2p_mgr, "add_bootstrap_peer"):
+                        return libp2p_mgr.add_bootstrap_peer(peer_address) or {"ok": True}
+                    ipfs = _which("ipfs")
+                    if not ipfs:
+                        raise HTTPException(404, "ipfs binary not found")
+                    out = _run_cmd([ipfs, "bootstrap", "add", peer_address])
+                    return {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}
+                raise HTTPException(400, f"Unknown action: {action}")
+            except HTTPException:
+                raise
+            except Exception as e:
+                return {"ok": False, "error": str(e), "action": action}
+
         # Tools (JSON-RPC wrappers)
         @app.get("/mcp/tools/list")
         async def mcp_tools_list_get() -> Dict[str, Any]:
@@ -2856,6 +3001,8 @@ class ConsolidatedMCPDashboard:
             {"name": "connect_peer", "description": "Connect or add a peer", "inputSchema": {"type":"object", "properties": {"peer_id": {"type":"string", "title":"Peer ID"}, "peer_address": {"type":"string", "title":"Peer Multiaddr"}, "tags": {"type":"array", "items": {"type":"string"}}}}},
             {"name": "disconnect_peer", "description": "Disconnect or remove a peer", "inputSchema": {"type":"object", "required":["peer_id"], "properties": {"peer_id": {"type":"string", "title":"Peer ID"}}}},
             {"name": "get_peer_info", "description": "Get peer details", "inputSchema": {"type":"object", "required":["peer_id"], "properties": {"peer_id": {"type":"string", "title":"Peer ID"}}}},
+            {"name": "discover_peers", "description": "Discover peers via libp2p/ipfs_kit when available", "inputSchema": {"type":"object", "properties": {"limit": {"type":"number", "default": 20}, "timeout": {"type":"number", "default": 10}}}},
+            {"name": "bootstrap_peers", "description": "Manage bootstrap peers (list/from_ipfs/from_cluster/add)", "inputSchema": {"type":"object", "properties": {"action": {"type":"string", "enum":["list","from_ipfs","from_cluster","add"], "default":"list"}, "peer_address": {"type":"string"}}}},
         ]
         return {"jsonrpc": "2.0", "result": {"tools": tools}, "id": None}
 
@@ -5012,6 +5159,92 @@ class ConsolidatedMCPDashboard:
                 return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "peer_id is required"}, "id": None}
             data = (mgr.get_peer_info(pid) if mgr else {"error": "Peer manager unavailable"})
             return {"jsonrpc": "2.0", "result": data, "id": None}
+        if name == "discover_peers":
+            limit = int(args.get("limit", 20) or 20)
+            timeout = int(args.get("timeout", 10) or 10)
+            try:
+                from ipfs_kit_py.high_level_api import ipfs_kit  # type: ignore
+                api = ipfs_kit()
+                if hasattr(api, "discover_peers"):
+                    result = api.discover_peers(max_peers=limit, timeout=timeout)
+                    peers: list = []
+                    if isinstance(result, dict):
+                        maybe = result.get("peers") or result.get("discovered") or result.get("results")
+                        if isinstance(maybe, list):
+                            peers = maybe
+                        elif isinstance(maybe, dict):
+                            peers = [
+                                {**(v if isinstance(v, dict) else {"info": v}), "peer_id": k}
+                                for k, v in maybe.items()
+                            ]
+                        else:
+                            peers = [
+                                {**(v if isinstance(v, dict) else {"info": v}), "peer_id": k}
+                                for k, v in result.items() if isinstance(k, str)
+                            ]
+                    elif isinstance(result, list):
+                        peers = result
+                    return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers, "source": "libp2p"}, "id": None}
+            except Exception:
+                pass
+            # Fallback
+            data = (mgr.list_peers() if mgr else {"peers": [], "total": 0})
+            peers = data.get("peers") if isinstance(data, dict) else []
+            return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers, "source": "fallback"}, "id": None}
+        if name == "bootstrap_peers":
+            action = (args.get("action") or "list").lower()
+            peer_address = args.get("peer_address")
+            try:
+                from ipfs_kit_py.libp2p.peer_manager import get_global_peer_manager  # type: ignore
+                libp2p_mgr = get_global_peer_manager()
+            except Exception:
+                libp2p_mgr = None
+            try:
+                if action == "list":
+                    if libp2p_mgr and hasattr(libp2p_mgr, "list_bootstrap_peers"):
+                        peers = libp2p_mgr.list_bootstrap_peers()
+                    else:
+                        peers = []
+                        for path in ["~/.ipfs/bootstrap", "/etc/ipfs/bootstrap"]:
+                            p = Path(os.path.expanduser(path))
+                            if p.exists():
+                                with p.open() as fh:
+                                    for line in fh:
+                                        s = line.strip()
+                                        if s and not s.startswith("#"):
+                                            peers.append(s)
+                    return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers}, "id": None}
+                if action == "from_ipfs":
+                    if libp2p_mgr and hasattr(libp2p_mgr, "bootstrap_from_ipfs"):
+                        res = libp2p_mgr.bootstrap_from_ipfs() or {"ok": True}
+                        return {"jsonrpc": "2.0", "result": res, "id": None}
+                    ipfs = _which("ipfs")
+                    if not ipfs:
+                        return {"jsonrpc": "2.0", "error": {"code": 404, "message": "ipfs binary not found"}, "id": None}
+                    out = _run_cmd([ipfs, "bootstrap", "list"])  # list as a safe op
+                    return {"jsonrpc": "2.0", "result": {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}, "id": None}
+                if action == "from_cluster":
+                    if libp2p_mgr and hasattr(libp2p_mgr, "bootstrap_from_cluster"):
+                        res = libp2p_mgr.bootstrap_from_cluster() or {"ok": True}
+                        return {"jsonrpc": "2.0", "result": res, "id": None}
+                    ctl = _which("ipfs-cluster-ctl")
+                    if not ctl:
+                        return {"jsonrpc": "2.0", "error": {"code": 404, "message": "ipfs-cluster-ctl binary not found"}, "id": None}
+                    out = _run_cmd([ctl, "peers", "ls"])  # safe listing
+                    return {"jsonrpc": "2.0", "result": {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}, "id": None}
+                if action == "add":
+                    if not peer_address:
+                        return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "peer_address is required for action=add"}, "id": None}
+                    if libp2p_mgr and hasattr(libp2p_mgr, "add_bootstrap_peer"):
+                        res = libp2p_mgr.add_bootstrap_peer(peer_address) or {"ok": True}
+                        return {"jsonrpc": "2.0", "result": res, "id": None}
+                    ipfs = _which("ipfs")
+                    if not ipfs:
+                        return {"jsonrpc": "2.0", "error": {"code": 404, "message": "ipfs binary not found"}, "id": None}
+                    out = _run_cmd([ipfs, "bootstrap", "add", peer_address])
+                    return {"jsonrpc": "2.0", "result": {"ok": out.get("code") == 0, "out": out.get("out"), "err": out.get("err")}, "id": None}
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -32000, "message": str(e)}, "id": None}
         return None
 
 

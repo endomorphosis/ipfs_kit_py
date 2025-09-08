@@ -8,6 +8,9 @@ class MCPClient {
         this.retryCount = 0;
         this.maxRetries = 3;
         this.retryDelay = 1000;
+    // Cache of available MCP tools (optional)
+    this._toolList = null;
+    this._lastToolListAt = 0;
         
         // Initialize connection testing
         this.testConnection();
@@ -123,6 +126,21 @@ class MCPClient {
                     error: error.message,
                     stack: error.stack
                 });
+
+                // On unknown tool, try alias mapping and REST fallbacks (peer ops)
+                if (String(error.message || '').includes('Unknown tool')) {
+                    try {
+                        const alt = await this._tryAliasesAndFallbacks(toolName, params);
+                        if (alt !== undefined) {
+                            // Success via alias/fallback
+                            this.isConnected = true;
+                            this.retryCount = 0;
+                            return alt;
+                        }
+                    } catch (aliasErr) {
+                        console.warn(`Alias/REST fallback failed for ${toolName}:`, aliasErr.message);
+                    }
+                }
                 
                 if (attempt < this.maxRetries) {
                     await new Promise(resolve => setTimeout(resolve, this.retryDelay * (attempt + 1)));
@@ -134,6 +152,108 @@ class MCPClient {
                 }
             }
         }
+    }
+
+    // Attempt alias names and REST peer fallbacks when the server doesn't expose the exact tool
+    async _tryAliasesAndFallbacks(toolName, params) {
+        const candidates = this._aliasCandidates(toolName);
+        // Try alias names over MCP
+        for (const name of candidates) {
+            try {
+                const res = await this._callOnce(name, params);
+                console.log(`Alias '${name}' succeeded for '${toolName}'`);
+                return res;
+            } catch (e) {
+                // continue to next alias
+            }
+        }
+        // Try REST fallbacks for peer operations
+        if (this._isPeerTool(toolName)) {
+            const rest = await this._peerRestFallback(toolName, params);
+            return rest;
+        }
+        return undefined;
+    }
+
+    _isPeerTool(name) {
+        const n = String(name || '').toLowerCase();
+        return ['list_peers','discover_peers','connect_peer','disconnect_peer','get_peer_stats','get_peer_info','bootstrap_peers']
+            .includes(n);
+    }
+
+    _aliasCandidates(toolName) {
+        const name = String(toolName || '');
+        const base = name.replace(/[-\s]+/g, '_').toLowerCase();
+        const map = {
+            // peer discovery
+            'discover_peers': ['peer_discover', 'discover_network_peers', 'find_peers', 'peers_discover', 'dht_discover_peers'],
+            // peer list
+            'list_peers': ['peers_list', 'get_peers', 'peer_list'],
+            // peer connect/disconnect
+            'connect_peer': ['peer_connect', 'connect_to_peer'],
+            'disconnect_peer': ['peer_disconnect', 'disconnect_from_peer'],
+            // peer stats/info
+            'get_peer_stats': ['peer_stats', 'peers_stats'],
+            'get_peer_info': ['peer_info', 'peers_info']
+        };
+        const built = map[base] || [];
+        // add a hyphen variant and camel-case variant as last resort
+        const hyphen = base.replace(/_/g, '-');
+        const nosep = base.replace(/_/g, '');
+        return [...new Set([base, ...built, hyphen, nosep])].filter(n => n !== name);
+    }
+
+    async _callOnce(toolName, params) {
+        const payload = {
+            jsonrpc: '2.0',
+            method: 'tools/call',
+            params: { name: toolName, arguments: params || {} },
+            id: this.requestId++
+        };
+        const resp = await fetch('/mcp/tools/call', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if (data && data.error) throw new Error(data.error.message || 'MCP error');
+        return data.result || data;
+    }
+
+    async _peerRestFallback(toolName, params) {
+        // Try REST endpoints if available; return undefined if none succeed
+        const n = String(toolName || '').toLowerCase();
+        try {
+            if (n === 'list_peers') {
+                const r = await fetch('/api/peers');
+                if (r.ok) return await r.json();
+            } else if (n === 'discover_peers') {
+                const r = await fetch('/api/peers/discover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params || {}) });
+                if (r.ok) return await r.json();
+            } else if (n === 'connect_peer') {
+                const r = await fetch('/api/peers/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params || {}) });
+                if (r.ok) return await r.json();
+            } else if (n === 'disconnect_peer') {
+                const r = await fetch('/api/peers/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params || {}) });
+                if (r.ok) return await r.json();
+            } else if (n === 'get_peer_stats') {
+                const r = await fetch('/api/peers/stats');
+                if (r.ok) return await r.json();
+            } else if (n === 'get_peer_info') {
+                const pid = encodeURIComponent(params?.peer_id || '');
+                if (pid) {
+                    const r = await fetch(`/api/peers/${pid}`);
+                    if (r.ok) return await r.json();
+                }
+            } else if (n === 'bootstrap_peers') {
+                const r = await fetch('/api/peers/bootstrap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params || {}) });
+                if (r.ok) return await r.json();
+            }
+        } catch (e) {
+            // network or endpoint not found; swallow to allow normal error path
+        }
+        return undefined;
     }
     
     async callToolWithFallback(toolName, params = {}, fallbackApiEndpoint) {
@@ -284,11 +404,18 @@ window.MCP.System = {
         async getStatus() {
             return await window.mcpClient.callTool('get_system_status');
         }
-    }
 };
 
 // Create global MCP client instance
 window.mcpClient = new MCPClient();
+
+// Provide a proxy so callers using window.MCP.callTool work
+window.MCP.callTool = async function(toolName, params = {}) {
+    if (!window.mcpClient || typeof window.mcpClient.callTool !== 'function') {
+        throw new Error('MCP client not initialized');
+    }
+    return window.mcpClient.callTool(toolName, params);
+};
 
 // Enhanced error handling and logging
 window.mcpLogger = {
