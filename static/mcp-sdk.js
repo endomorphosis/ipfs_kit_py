@@ -8,6 +8,8 @@ class MCPClient {
         this.retryCount = 0;
         this.maxRetries = 3;
         this.retryDelay = 1000;
+    // Enforce MCP-only by default (no REST fallback)
+    this.disableRestFallback = true;
     // Cache of available MCP tools (optional)
     this._toolList = null;
     this._lastToolListAt = 0;
@@ -168,7 +170,7 @@ class MCPClient {
             }
         }
         // Try REST fallbacks for peer operations
-        if (this._isPeerTool(toolName)) {
+    if (!this.disableRestFallback && this._isPeerTool(toolName)) {
             const rest = await this._peerRestFallback(toolName, params);
             return rest;
         }
