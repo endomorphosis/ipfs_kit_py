@@ -3686,6 +3686,10 @@
                     bucketsList.querySelectorAll('.bucket-card-professional').forEach(c => c.classList.remove('ring-2', 'ring-blue-500'));
                     // Add selection to clicked card
                     card.classList.add('ring-2', 'ring-blue-500');
+                    // Call the bucket selection function with the corresponding bucket
+                    if (buckets[index]) {
+                        selectBucketEnterprise(buckets[index]);
+                    }
                 });
             });
         }
@@ -3698,7 +3702,7 @@
             const tierColor = getTierColor(bucket.tier);
             
             return `
-                <div class="bucket-card-professional bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer" onclick="selectBucketEnterprise(${JSON.stringify(bucket).replace(/"/g, '&quot;')})">
+                <div class="bucket-card-professional bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer" data-bucket-name="${bucket.name}">
                     <div class="px-4 py-5 sm:p-6">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center">
@@ -6508,7 +6512,7 @@
                         <p class="text-sm text-gray-600 mb-2">${service.description || 'No description available'}</p>
                         <div class="text-xs text-gray-500">
                             <div>Type: <span class="font-medium">${service.type || 'Unknown'}</span></div>
-                            ${service.port ? `<div>Port: <span class="font-medium">${service.port}</span></div>` : ''}
+                            ${service.port ? '<div>Port: <span class="font-medium">' + service.port + '</span></div>' : ''}
                             <div>Last check: <span class="font-medium">${service.last_check || 'N/A'}</span></div>
                         </div>
                     </div>
@@ -6961,7 +6965,7 @@
                                 <div>
                                     <h3 class="text-lg font-semibold text-gray-900 font-mono text-sm">${peerId}</h3>
                                     <p class="text-sm text-gray-600">${firstAddr}</p>
-                                    ${multiaddrs.length > 1 ? `<p class="text-xs text-gray-500">+${multiaddrs.length - 1} more addresses</p>` : ''}
+                                    ${multiaddrs.length > 1 ? '<p class="text-xs text-gray-500">+' + (multiaddrs.length - 1) + ' more addresses</p>' : ''}
                                 </div>
                             </div>
                             <div class="flex items-center text-sm ${connectionColor}">
@@ -6985,19 +6989,17 @@
                             </div>
                         </div>
                         
-                        ${peer.agent_version && peer.agent_version !== 'unknown' ? `
-                        <div class="text-sm mb-4">
-                            <span class="text-gray-500">Agent:</span>
-                            <span class="font-medium text-xs">${peer.agent_version}</span>
-                        </div>
-                        ` : ''}
+                        ${peer.agent_version && peer.agent_version !== 'unknown' ? 
+                        '<div class="text-sm mb-4">' +
+                            '<span class="text-gray-500">Agent:</span>' +
+                            '<span class="font-medium text-xs">' + peer.agent_version + '</span>' +
+                        '</div>' : ''}
                         
-                        ${peer.connection_attempts || peer.successful_connections ? `
-                        <div class="grid grid-cols-2 gap-4 text-xs text-gray-500 mb-4">
-                            <div>Attempts: ${peer.connection_attempts || 0}</div>
-                            <div>Successful: ${peer.successful_connections || 0}</div>
-                        </div>
-                        ` : ''}
+                        ${peer.connection_attempts || peer.successful_connections ? 
+                        '<div class="grid grid-cols-2 gap-4 text-xs text-gray-500 mb-4">' +
+                            '<div>Attempts: ' + (peer.connection_attempts || 0) + '</div>' +
+                            '<div>Successful: ' + (peer.successful_connections || 0) + '</div>' +
+                        '</div>' : ''}
                         
                         <div class="flex space-x-2">
                             <button onclick="connectPeer('${peerId}')" class="btn btn-blue btn-sm">
@@ -7567,7 +7569,7 @@ Shared Pins: ${pinsets.length || 0}
                         <label class="block text-sm font-medium text-gray-700 mb-2">Replication Factor</label>
                         <select id="policy-replication-factor" class="w-full p-3 border border-gray-300 rounded-lg">
                             ${[1,2,3,4,5,6,7,8,9,10].map(n => 
-                                `<option value="${n}" ${policy.replication_factor === n ? 'selected' : ''}>${n}x</option>`
+                                '<option value="' + n + '" ' + (policy.replication_factor === n ? 'selected' : '') + '>' + n + 'x</option>'
                             ).join('')}
                         </select>
                     </div>
@@ -8315,11 +8317,10 @@ Shared Pins: ${pinsets.length || 0}
                         </div>
                     </div>
                     <div class="flex gap-1 mt-3">
-                        ${file.type === 'file' ? `
-                            <button data-action="download" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">
-                                <i class="fas fa-download text-xs"></i>
-                            </button>
-                        ` : ''}
+                        ${file.type === 'file' ? 
+                            '<button data-action="download" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">' +
+                                '<i class="fas fa-download text-xs"></i>' +
+                            '</button>' : ''}
                         <button data-action="share" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
                             <i class="fas fa-share text-xs"></i>
                         </button>
@@ -8358,11 +8359,10 @@ Shared Pins: ${pinsets.length || 0}
                     </div>
                     
                     <div class="flex items-center space-x-2 ml-4">
-                        ${file.type === 'file' ? `
-                            <button data-action="download" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">
-                                <i class="fas fa-download"></i>
-                            </button>
-                        ` : ''}
+                        ${file.type === 'file' ? 
+                            '<button data-action="download" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">' +
+                                '<i class="fas fa-download"></i>' +
+                            '</button>' : ''}
                         <button data-action="share" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
                             <i class="fas fa-share"></i>
                         </button>
