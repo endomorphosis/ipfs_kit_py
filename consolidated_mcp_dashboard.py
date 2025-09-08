@@ -818,7 +818,7 @@ class ConsolidatedMCPDashboard:
                    "    ensureNS('State', { snapshot:()=>rpcCall('state_snapshot',{}), backup:()=>rpcCall('state_backup',{}), reset:()=>rpcCall('state_reset',{}) });\n" \
                    "    ensureNS('Logs', { get:(limit)=>rpcCall('get_logs',{limit: (limit==null?200:limit)}), clear:()=>rpcCall('clear_logs',{}) });\n" \
                    "    ensureNS('Server', { shutdown:()=>rpcCall('server_shutdown',{}) });\n" \
-                   "    ensureNS('Peers', { list:()=>rpcCall('list_peers',{}), stats:()=>rpcCall('get_peer_stats',{}), connect:(peer)=>rpcCall('connect_peer',peer||{}), disconnect:(peer_id)=>rpcCall('disconnect_peer',{peer_id}), info:(peer_id)=>rpcCall('get_peer_info',{peer_id}) });\n" \
+                   "    ensureNS('Peers', { list:()=>rpcCall('list_peers',{}), stats:()=>rpcCall('get_peer_stats',{}), connect:(peer)=>rpcCall('connect_peer',peer||{}), disconnect:(peer_id)=>rpcCall('disconnect_peer',{peer_id}), info:(peer_id)=>rpcCall('get_peer_info',{peer_id}), discover:(limit,timeout)=>rpcCall('discover_peers',{limit, timeout}), bootstrap:(action,peer_address)=>rpcCall('bootstrap_peers',{action, peer_address}) });\n" \
                    "  } catch(e) { /* ignore shim errors */ }\n" \
                    "})();\n"
             source = "inline"
@@ -5126,7 +5126,9 @@ class ConsolidatedMCPDashboard:
         mgr = self._get_peer_manager()
         if name == "list_peers":
             data = (mgr.list_peers() if mgr else {"peers": [], "total": 0})
-            return {"jsonrpc": "2.0", "result": data, "id": None}
+            peers = data.get("peers", []) if isinstance(data, dict) else []
+            total = data.get("total", len(peers)) if isinstance(data, dict) else len(peers)
+            return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers, "total": total}, "id": None}
         if name == "get_peer_stats":
             if not mgr:
                 return {"jsonrpc": "2.0", "result": {"total": 0, "connected": 0, "by_tag": {}, "peers": []}, "id": None}
@@ -5138,7 +5140,7 @@ class ConsolidatedMCPDashboard:
             for p in peers:
                 for t in p.get("tags", []) or []:
                     by_tag[t] = by_tag.get(t, 0) + 1
-            return {"jsonrpc": "2.0", "result": {"total": total, "connected": connected, "by_tag": by_tag, "peers": peers}, "id": None}
+            return {"jsonrpc": "2.0", "result": {"ok": True, "total": total, "connected": connected, "by_tag": by_tag, "peers": peers}, "id": None}
         if name == "connect_peer":
             peer_info = {
                 "peer_id": args.get("peer_id"),
@@ -5146,19 +5148,32 @@ class ConsolidatedMCPDashboard:
                 "tags": args.get("tags") or [],
             }
             data = (mgr.connect_peer(peer_info) if mgr else {"error": "Peer manager unavailable"})
-            return {"jsonrpc": "2.0", "result": data, "id": None}
+            ok = not isinstance(data, dict) or ("error" not in data)
+            # Standardize shape
+            result = {"ok": ok}
+            if isinstance(data, dict):
+                result.update(data)
+            return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "disconnect_peer":
             pid = args.get("peer_id")
             if not pid:
                 return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "peer_id is required"}, "id": None}
             data = (mgr.disconnect_peer(pid) if mgr else {"error": "Peer manager unavailable"})
-            return {"jsonrpc": "2.0", "result": data, "id": None}
+            ok = not isinstance(data, dict) or ("error" not in data)
+            result = {"ok": ok}
+            if isinstance(data, dict):
+                result.update(data)
+            return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "get_peer_info":
             pid = args.get("peer_id")
             if not pid:
                 return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "peer_id is required"}, "id": None}
             data = (mgr.get_peer_info(pid) if mgr else {"error": "Peer manager unavailable"})
-            return {"jsonrpc": "2.0", "result": data, "id": None}
+            ok = isinstance(data, dict) and ("error" not in data)
+            result = {"ok": ok}
+            if isinstance(data, dict):
+                result.update(data)
+            return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "discover_peers":
             limit = int(args.get("limit", 20) or 20)
             timeout = int(args.get("timeout", 10) or 10)
