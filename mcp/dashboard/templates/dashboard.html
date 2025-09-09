@@ -26,6 +26,7 @@
                 .bg-blue-500 { background-color: #3b82f6; } .text-white { color: white; } .text-gray-700 { color: #374151; }
                 .hover\\:bg-gray-100:hover { background-color: #f3f4f6; } .flex-1 { flex: 1; }
                 .rounded-lg { border-radius: 0.5rem; } .shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+                /* Keep margin utility semantics: remove accidental display:flex from .mb-6 */
                 .text-2xl { font-size: 1.5rem; } .mb-6 { margin-bottom: 1.5rem; } .flex-wrap { flex-wrap: wrap; }
                 .gap-2 { gap: 0.5rem; } .bg-gray-50 { background-color: #f9fafb; } .px-4 { padding-left: 1rem; padding-right: 1rem; }
                 .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; } .rounded { border-radius: 0.25rem; }
@@ -62,7 +63,7 @@
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" 
           onerror="console.log('FontAwesome CDN blocked, using emoji fallbacks')">
-    <link rel="stylesheet" href="/static/css/enhanced-bucket-dashboard.css">>
+    <link rel="stylesheet" href="/static/css/enhanced-bucket-dashboard.css">
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen flex">
@@ -120,7 +121,7 @@
                     </div>
                     
                     <!-- Pin Statistics -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="flex grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                         <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
                             <div class="text-2xl font-bold" id="total-pins">-</div>
                             <div class="text-sm opacity-90">Total Pins</div>
@@ -279,60 +280,20 @@
                             <!-- Bucket List -->
                             <div class="flex-1 overflow-y-auto">
                                 <div id="bucket-list-container" class="p-4">
-                                    <!-- Loading State -->
-                                    <div id="bucket-loading" class="text-center py-12">
-                                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                                        <p class="text-gray-500 mt-3">Loading buckets...</p>
-                                    </div>
-                                    
-                                    <!-- Empty State -->
-                                    <div id="bucket-empty" class="text-center py-12 hidden">
-                                        <i class="fas fa-database text-gray-300 text-4xl mb-4"></i>
-                                        <h3 class="text-lg font-medium text-gray-900 mb-2">No buckets found</h3>
-                                        <p class="text-gray-500 mb-6">Create your first bucket to get started</p>
-                                        <button id="create-first-bucket" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                                            <i class="fas fa-plus mr-2"></i>Create Bucket
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- Bucket List Items -->
-                                    <div id="bucket-list" class="space-y-2">
-                                        <!-- Dynamic content will be inserted here -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Bucket Details Panel -->
-                        <div class="flex-1 bg-white overflow-hidden flex flex-col">
-                            <!-- No Selection State -->
-                            <div id="no-bucket-selected" class="flex-1 flex items-center justify-center">
-                                <div class="text-center">
-                                    <i class="fas fa-database text-gray-300 text-6xl mb-6"></i>
-                                    <h3 class="text-xl font-medium text-gray-900 mb-2">Select a bucket to view details</h3>
-                                    <p class="text-gray-500">Choose a bucket from the list to manage its files and settings</p>
-                                </div>
-                            </div>
-                            
-                            <!-- Bucket Details Content -->
-                            <div id="bucket-details" class="hidden flex-1 flex flex-col">
-                                <!-- Bucket Header -->
-                                <div class="border-b bg-gray-50 px-6 py-4">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center">
-                                            <div class="flex-shrink-0">
-                                                <div id="bucket-icon" class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                                    <i class="fas fa-database text-blue-600 text-xl"></i>
-                                                </div>
-                                            </div>
-                                            <div class="ml-4">
-                                                <h2 id="bucket-name" class="text-xl font-semibold text-gray-900">Bucket Name</h2>
-                                                <div class="flex items-center space-x-4 mt-1">
-                                                    <span id="bucket-status-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                        <div class="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></div>
-                                                        Active
-                                                    </span>
-                                                    <span id="bucket-tier-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    <script>
+                                        // Load Tailwind CSS with local fallback. If CDN fails, load minimal fallback CSS file.
+                                        const twCdn = document.createElement('link');
+                                        twCdn.rel = 'stylesheet';
+                                        twCdn.href = 'https://cdn.tailwindcss.com';
+                                        twCdn.onerror = function() {
+                                            console.log('[fallback] Tailwind CDN blocked, loading fallback-base.css');
+                                            const fallback = document.createElement('link');
+                                            fallback.rel = 'stylesheet';
+                                            fallback.href = '/static/css/fallback-base.css';
+                                            document.head.appendChild(fallback);
+                                        };
+                                        document.head.appendChild(twCdn);
+                                    </script>
                                                         Hot Storage
                                                     </span>
                                                 </div>

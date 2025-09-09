@@ -1617,7 +1617,7 @@
         <div class="flex-1 p-6">
             <!-- Overview Tab -->
             <div id="overview" class="tab-content">
-                <div class="grid grid-cols-1 lg-grid-cols-3 gap-6">
+                <div class="flex grid-cols-1 lg-grid-cols-3 gap-6">
                     <!-- System Metrics -->
                     <div class="lg-col-span-2">
                         <div class="bg-white rounded-lg shadow p-6">
@@ -1655,7 +1655,7 @@
                                     <div class="text-sm opacity-90">Buckets</div>
                                 </div>
                             </div>
-                            <div class="bg-gray-50 p-4 rounded-lg mt-6">
+                            <div class="bg-gray-50 p-4 rounded-lg mt-6" style="display:none;">
                                 <h3 class="text-lg font-medium mb-2">System Status</h3>
                                 <div class="text-sm text-gray-600">
                                     MCP Server running properly. All systems operational.
@@ -1711,7 +1711,7 @@
                     </div>
                     
                     <!-- Services Status Summary -->
-                    <div class="grid grid-cols-2 md-grid-cols-3 lg-grid-cols-6 gap-4 mb-6">
+                    <div class="flex grid-cols-2 md-grid-cols-3 lg-grid-cols-6 gap-4 mb-6">
                         <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg text-center">
                             <div class="text-2xl font-bold" id="services-running">0</div>
                             <div class="text-sm opacity-90">🟢 Running</div>
@@ -1739,16 +1739,13 @@
                     </div>
                     
                     <!-- Service Categories and Multi-Instance Support -->
-                    <div class="mb-6 bg-gray-50 p-4 rounded-lg">
+                    <div class="flex mb-6 bg-gray-50 p-4 rounded-lg">
                         <div class="flex flex-wrap gap-2 mb-4">
                             <button id="filter-all" class="btn btn-blue btn-sm filter-btn active">All Services</button>
                             <button id="filter-daemon" class="btn btn-green btn-sm filter-btn">🛠️ System Daemons</button>
                             <button id="filter-storage" class="btn btn-yellow btn-sm filter-btn">📦 Storage Backends</button>
                             <button id="filter-network" class="btn btn-purple btn-sm filter-btn">🌐 Network Services</button>
                             <button id="filter-ai" class="btn btn-pink btn-sm filter-btn">🧠 AI/ML Services</button>
-                        </div>
-                        <div class="text-sm text-gray-600">
-                            💡 <strong>Multi-Instance Support:</strong> Add multiple S3 buckets, GitHub accounts, IPFS clusters, and more. Each service type supports unlimited configured instances.
                         </div>
                     </div>
                     
@@ -2103,7 +2100,7 @@
                     </div>
                     
                     <!-- Pin Statistics -->
-                    <div class="grid grid-cols-1 md-grid-cols-4 gap-4 mb-6">
+                    <div class="flex grid-cols-1 md-grid-cols-4 gap-4 mb-6">
                         <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
                             <div class="text-2xl font-bold" id="total-pins">-</div>
                             <div class="text-sm opacity-90">Total Pins</div>
