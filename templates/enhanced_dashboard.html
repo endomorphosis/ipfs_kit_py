@@ -2925,6 +2925,9 @@
             
             // Drag and Drop
             setupDragAndDropForFiles();
+            
+            // Log Controls
+            setupLogControls();
         }
 
         // Setup refresh buttons event listeners
@@ -3041,6 +3044,102 @@
                     showToast('Metadata refreshed', 'info');
                 });
             }
+        }
+
+        // Setup log controls event listeners
+        function setupLogControls() {
+            // Clear logs button
+            const clearLogsBtn = document.getElementById('clear-logs');
+            if (clearLogsBtn) {
+                clearLogsBtn.addEventListener('click', async () => {
+                    try {
+                        console.log('Clearing logs...');
+                        showToast('Clearing logs...', 'info');
+                        
+                        const result = await callMCPTool('clear_logs', {});
+                        if (result?.result?.ok || result?.ok) {
+                            showToast('Logs cleared successfully', 'success');
+                            
+                            // Clear the display
+                            const logDisplay = document.getElementById('log-display');
+                            if (logDisplay) {
+                                logDisplay.innerHTML = '<div class="text-gray-500">Logs cleared. New logs will appear here...</div>';
+                            }
+                        } else {
+                            showToast('Failed to clear logs', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error clearing logs:', error);
+                        showToast('Failed to clear logs', 'error');
+                    }
+                });
+            }
+            
+            // Download logs button
+            const downloadLogsBtn = document.getElementById('download-logs');
+            if (downloadLogsBtn) {
+                downloadLogsBtn.addEventListener('click', async () => {
+                    try {
+                        console.log('Downloading logs...');
+                        showToast('Downloading logs...', 'info');
+                        
+                        const result = await callMCPTool('get_logs', { limit: 1000 });
+                        let logItems = [];
+                        if (result?.result?.items && Array.isArray(result.result.items)) {
+                            logItems = result.result.items;
+                        } else if (result?.items && Array.isArray(result.items)) {
+                            logItems = result.items;
+                        }
+                        
+                        if (logItems.length === 0) {
+                            showToast('No logs available to download', 'warning');
+                            return;
+                        }
+                        
+                        // Format logs as text
+                        const logText = logItems.map(log => {
+                            const timestamp = log.timestamp || 'Unknown time';
+                            const level = log.level || 'INFO';
+                            const logger = log.logger || 'system';
+                            const message = log.message || '';
+                            return `${timestamp} [${level}] ${logger}: ${message}`;
+                        }).join('\\n');
+                        
+                        // Create and download file
+                        const blob = new Blob([logText], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `ipfs-kit-logs-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.txt`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                        showToast('Logs downloaded successfully', 'success');
+                    } catch (error) {
+                        console.error('Error downloading logs:', error);
+                        showToast('Failed to download logs', 'error');
+                    }
+                });
+            }
+            
+            // Log level filter
+            const logLevelFilter = document.getElementById('log-level');
+            if (logLevelFilter) {
+                logLevelFilter.addEventListener('change', () => {
+                    // Reload logs with new filter
+                    loadLogsData();
+                });
+            }
+            
+            // Auto-refresh logs every 5 seconds
+            setInterval(() => {
+                const currentTab = document.querySelector('.tab-content:not(.hidden)');
+                if (currentTab && currentTab.id === 'logs') {
+                    loadLogsData();
+                }
+            }, 5000);
         }
 
         // Modal functions need to be defined before setupActionButtons
@@ -9009,11 +9108,107 @@ Shared Pins: ${pinsets.length || 0}
         async function loadLogsData() {
             try {
                 console.log('📄 Loading logs data...');
-                // Placeholder for logs loading logic
+                const result = await callMCPTool('get_logs', { limit: 200 });
+                console.log('📄 Logs result:', result);
+                
+                // Handle MCP result structure - extract log items
+                let logItems = [];
+                if (result?.result?.items && Array.isArray(result.result.items)) {
+                    logItems = result.result.items;
+                } else if (result?.items && Array.isArray(result.items)) {
+                    logItems = result.items;
+                } else if (Array.isArray(result)) {
+                    logItems = result;
+                } else {
+                    console.warn('loadLogsData: get_logs returned unexpected structure:', typeof result, result);
+                    logItems = [];
+                }
+                
+                displayLogs(logItems);
                 showToast('Logs loaded successfully', 'success');
             } catch (error) {
                 console.error('Error loading logs data:', error);
+                const logDisplay = document.getElementById('log-display');
+                if (logDisplay) {
+                    logDisplay.innerHTML = `
+                        <div class="text-red-400 text-center py-8">
+                            <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                            <div>Failed to load logs: ${error.message}</div>
+                            <button onclick="loadLogsData()" class="btn btn-blue mt-4">
+                                <i class="fas fa-sync mr-2"></i>Retry
+                            </button>
+                        </div>
+                    `;
+                }
                 showToast('Failed to load logs', 'error');
+            }
+        }
+
+        // Display logs in the UI
+        function displayLogs(logItems) {
+            const logDisplay = document.getElementById('log-display');
+            if (!logDisplay) {
+                console.warn('log-display element not found');
+                return;
+            }
+
+            if (!logItems || logItems.length === 0) {
+                logDisplay.innerHTML = `
+                    <div class="text-gray-500 text-center py-8">
+                        <div class="text-4xl mb-4">📄</div>
+                        <div>No logs available</div>
+                        <button onclick="loadLogsData()" class="btn btn-blue mt-4">
+                            <i class="fas fa-sync mr-2"></i>Refresh
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            // Get filter values
+            const levelFilter = document.getElementById('log-level')?.value || 'all';
+            
+            // Filter logs by level if needed
+            let filteredLogs = logItems;
+            if (levelFilter !== 'all') {
+                filteredLogs = logItems.filter(log => 
+                    (log.level || '').toUpperCase() === levelFilter.toUpperCase()
+                );
+            }
+
+            // Format logs for display
+            const logsHTML = filteredLogs.map(log => {
+                const timestamp = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unknown time';
+                const level = log.level || 'INFO';
+                const logger = log.logger || 'system';
+                const message = log.message || '';
+                
+                // Color coding for log levels
+                let levelColor = 'text-gray-400';
+                switch (level.toUpperCase()) {
+                    case 'ERROR': levelColor = 'text-red-400'; break;
+                    case 'WARNING': case 'WARN': levelColor = 'text-yellow-400'; break;
+                    case 'INFO': levelColor = 'text-blue-400'; break;
+                    case 'DEBUG': levelColor = 'text-gray-400'; break;
+                    default: levelColor = 'text-green-400'; break;
+                }
+                
+                return `
+                    <div class="log-entry border-b border-gray-700 py-1">
+                        <span class="text-gray-500 text-xs">${timestamp}</span>
+                        <span class="${levelColor} font-semibold ml-2">[${level}]</span>
+                        <span class="text-gray-300 ml-2">${logger}:</span>
+                        <span class="text-green-400 ml-2">${message}</span>
+                    </div>
+                `;
+            }).join('');
+
+            logDisplay.innerHTML = logsHTML || '<div class="text-gray-500">No logs match the current filter</div>';
+            
+            // Auto-scroll to bottom if enabled
+            const autoScroll = document.getElementById('auto-scroll');
+            if (autoScroll && autoScroll.checked) {
+                logDisplay.scrollTop = logDisplay.scrollHeight;
             }
         }
 
