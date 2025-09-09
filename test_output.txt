@@ -1,8 +1,0 @@
-Testing HAS_LOTUS availability...
-Error: No module named 'anyio'
-Traceback (most recent call last):
-  File "/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/test_has_lotus_file.py", line 12, in <module>
-    import ipfs_kit_py.ipfs_kit
-  File "/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_kit_py/ipfs_kit.py", line 1, in <module>
-    import anyio
-ModuleNotFoundError: No module named 'anyio'
