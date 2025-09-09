@@ -1046,7 +1046,7 @@ class ConsolidatedMCPDashboard:
                     if service_manager:
                         services = await self._list_all_services(service_manager)
                         services_count = len(services)
-                        active_services = len([s for s in services if s["status"] in ["running", "healthy"]])
+                        active_services = len([s for s in services if isinstance(s, dict) and s.get("status") in ("running", "healthy")])
                 
                 # Get backend and bucket counts with error handling
                 backends_count = 0
@@ -1173,13 +1173,14 @@ class ConsolidatedMCPDashboard:
             
             # Use enhanced backend manager if available
             backend_count = 0
-            if backend_manager:
+            bm = getattr(self, "backend_manager", None)
+            if bm is not None:
                 try:
-                    backend_result = backend_manager.list_backends()
-                    backend_count = backend_result.get("total", 0)
+                    backend_result = bm.list_backends()  # type: ignore[attr-defined]
+                    if isinstance(backend_result, dict):
+                        backend_count = int(backend_result.get("total", 0))
                 except Exception as e:
-                    logger.warning(f"Error getting backend count: {e}")
-                    # Fallback to basic count
+                    self.log.warning(f"Error getting backend count: {e}")
                     backends = _read_json(self.paths.backends_file, default={})
                     backend_count = len(backends.keys()) if isinstance(backends, dict) else 0
             else:
@@ -1340,7 +1341,7 @@ class ConsolidatedMCPDashboard:
             if not name:
                 raise HTTPException(400, "Missing backend name")
                 
-            if self.backend_manager:
+            if bm := getattr(self, "backend_manager", None):
                 # Use enhanced manager
                 try:
                     backend_config = {
@@ -1351,20 +1352,23 @@ class ConsolidatedMCPDashboard:
                         "status": "enabled",
                         "tier": tier
                     }
-                    
-                    config_path = self.backend_manager._get_backend_config_path(name)
+
+                    config_path = bm._get_backend_config_path(name)  # type: ignore[attr-defined]
                     if config_path.exists():
                         raise HTTPException(409, "Backend already exists")
-                    
+
                     with open(config_path, 'w') as f:
-                        yaml.safe_dump(backend_config, f)
-                    
-                    # Create default policy
-                    policy_set = backend_manager._generate_policy_for_backend(name, backend_type, tier)
-                    policy_path = backend_manager._get_policy_config_path(name)
+                        yaml.safe_dump(backend_config, f)  # type: ignore[attr-defined]
+
+                    # Create default policy (use enhanced manager instance consistently)
+                    policy_set = bm._generate_policy_for_backend(name, backend_type, tier)  # type: ignore[attr-defined]
+                    policy_path = bm._get_policy_config_path(name)  # type: ignore[attr-defined]
+                    policy_payload: Any = policy_set.model_dump() if hasattr(policy_set, "model_dump") else (
+                        policy_set.dict() if hasattr(policy_set, "dict") else policy_set
+                    )
                     with open(policy_path, 'w') as f:
-                        json.dump(policy_set.model_dump(), f, indent=2)
-                    
+                        json.dump(policy_payload, f, indent=2)
+
                     return {"ok": True, "name": name, "type": backend_type, "tier": tier}
                 except Exception as e:
                     raise HTTPException(500, f"Failed to create backend: {str(e)}")
@@ -1379,13 +1383,13 @@ class ConsolidatedMCPDashboard:
 
         @app.get("/api/state/backends/{name}")
         async def get_backend(name: str) -> Dict[str, Any]:
-            if backend_manager:
-                backend = backend_manager.get_backend_with_policies(name)
+            if bm := getattr(self, "backend_manager", None):
+                backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
                 
                 # Add current stats
-                stats = backend_manager.get_backend_stats(name)
+                stats = bm.get_backend_stats(name)  # type: ignore[attr-defined]
                 backend["stats"] = stats
                 
                 return backend
@@ -1398,18 +1402,20 @@ class ConsolidatedMCPDashboard:
 
         @app.post("/api/state/backends/{name}")
         async def update_backend(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
-            if backend_manager:
-                backend = backend_manager.get_backend_with_policies(name)
+            if bm := getattr(self, "backend_manager", None):
+                backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
                     
                 # Update backend config
-                config_path = backend_manager._get_backend_config_path(name)
+                config_path = bm._get_backend_config_path(name)  # type: ignore[attr-defined]
                 with open(config_path, 'r') as f:
-                    current_config = yaml.safe_load(f)
+                    current_config = yaml.safe_load(f)  # type: ignore[attr-defined]
                     
                 # Apply updates
                 if "config" in payload:
+                    if "config" not in current_config or not isinstance(current_config.get("config"), dict):
+                        current_config["config"] = {}
                     current_config["config"].update(payload["config"])
                 if "tier" in payload:
                     current_config["tier"] = payload["tier"]
@@ -1419,11 +1425,11 @@ class ConsolidatedMCPDashboard:
                     current_config["description"] = payload["description"]
                     
                 with open(config_path, 'w') as f:
-                    yaml.safe_dump(current_config, f)
+                    yaml.safe_dump(current_config, f)  # type: ignore[attr-defined]
                     
                 # Update policies if provided
-                if "policy" in payload:
-                    backend_manager.update_backend_policy(name, payload["policy"])
+                if "policy" in payload and bm is not None:
+                    bm.update_backend_policy(name, payload["policy"])  # type: ignore[attr-defined]
                     
                 return {"ok": True}
             else:
@@ -1438,9 +1444,9 @@ class ConsolidatedMCPDashboard:
 
         @app.delete("/api/state/backends/{name}")
         async def delete_backend(name: str, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
-            if backend_manager:
-                config_path = backend_manager._get_backend_config_path(name)
-                policy_path = backend_manager._get_policy_config_path(name)
+            if bm := getattr(self, "backend_manager", None):
+                config_path = bm._get_backend_config_path(name)  # type: ignore[attr-defined]
+                policy_path = bm._get_policy_config_path(name)  # type: ignore[attr-defined]
                 
                 if not config_path.exists():
                     raise HTTPException(404, "Backend not found")
@@ -1463,13 +1469,13 @@ class ConsolidatedMCPDashboard:
 
         @app.post("/api/state/backends/{name}/test")
         async def test_backend(name: str) -> Dict[str, Any]:
-            if backend_manager:
-                backend = backend_manager.get_backend_with_policies(name)
+            if bm := getattr(self, "backend_manager", None):
+                backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
                     
                 backend_type = backend.get("type", "unknown")
-                stats = backend_manager.get_backend_stats(name)
+                stats = bm.get_backend_stats(name)  # type: ignore[attr-defined]
                 
                 # Simple reachability test based on backend type
                 reachable = True  # Default to true for demo
@@ -1510,12 +1516,11 @@ class ConsolidatedMCPDashboard:
         @app.get("/api/state/backends/{name}/stats")
         async def get_backend_stats(name: str) -> Dict[str, Any]:
             """Get detailed statistics for a specific backend."""
-            if backend_manager:
-                backend = backend_manager.get_backend_with_policies(name)
+            if bm := getattr(self, "backend_manager", None):
+                backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                    
-                stats = backend_manager.get_backend_stats(name)
+                stats = bm.get_backend_stats(name)  # type: ignore[attr-defined]
                 return {"name": name, "stats": stats}
             else:
                 raise HTTPException(501, "Backend statistics not available")
@@ -1523,8 +1528,8 @@ class ConsolidatedMCPDashboard:
         @app.get("/api/state/backends/{name}/policy")
         async def get_backend_policy(name: str) -> Dict[str, Any]:
             """Get policy configuration for a specific backend."""
-            if backend_manager:
-                backend = backend_manager.get_backend_with_policies(name)
+            if bm := getattr(self, "backend_manager", None):
+                backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
                     
@@ -1535,13 +1540,13 @@ class ConsolidatedMCPDashboard:
         @app.post("/api/state/backends/{name}/policy")
         async def update_backend_policy(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
             """Update policy configuration for a specific backend."""
-            if backend_manager:
-                backend = backend_manager.get_backend_with_policies(name)
+            if bm := getattr(self, "backend_manager", None):
+                backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
                     
                 policy_updates = payload.get("policy", {})
-                if backend_manager.update_backend_policy(name, policy_updates):
+                if bm.update_backend_policy(name, policy_updates):  # type: ignore[attr-defined]
                     return {"ok": True, "message": "Policy updated successfully"}
                 else:
                     raise HTTPException(500, "Failed to update policy")
@@ -2195,7 +2200,7 @@ class ConsolidatedMCPDashboard:
                         "name": file.filename,
                         "path": str(file_path.relative_to(self.paths.vfs_root / bucket_name)),
                         "size": stat_info.st_size,
-                        "mime_type": mimetypes.guess_type(file.filename)[0],
+                        "mime_type": (mimetypes.guess_type(file.filename or "")[0] if (file and getattr(file, 'filename', None)) else None),
                         "uploaded": datetime.now(UTC).isoformat()
                     }
                 }
@@ -3067,12 +3072,10 @@ class ConsolidatedMCPDashboard:
                     result["uptime"] = str(datetime.now(UTC) - datetime.fromtimestamp(psutil.boot_time(), UTC))
             else:
                 # Fallback when psutil is not available
-                result.update({
-                    "cpu_percent": "N/A",
-                    "memory_percent": "N/A",
-                    "disk_percent": "N/A",
-                    "status": "running"
-                })
+                result["cpu_percent"] = "N/A"
+                result["memory_percent"] = "N/A"
+                result["disk_percent"] = "N/A"
+                result["status"] = "running"
             return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "list_services":
             # Use comprehensive service manager if available
@@ -3082,7 +3085,7 @@ class ConsolidatedMCPDashboard:
                     # Get all services (enabled and disabled) for comprehensive dashboard view
                     services_data = await self._list_all_services(service_manager)
                     # Transform the service manager format to match the expected dashboard format
-                    services = {"services": {}}
+                    services: Dict[str, Any] = {"services": {}}
                     
                     for service in services_data.get("services", []):
                         service_id = service.get("id")
@@ -3102,9 +3105,11 @@ class ConsolidatedMCPDashboard:
                                 "api_port_open": service.get("details", {}).get("api_port_open", False) if service.get("type") == "daemon" else None
                             }
                     
-                    # Add summary information
-                    services["summary"] = services_data.get("summary", {})
-                    services["total"] = services_data.get("total", 0)
+                    # Add summary information nested to avoid heterogeneous dict values at top level
+                    services["metadata"] = {
+                        "summary": services_data.get("summary", {}),
+                        "total": services_data.get("total", 0)
+                    }
                     
                     return {"jsonrpc": "2.0", "result": services, "id": None}
                 except Exception as e:
@@ -3112,7 +3117,7 @@ class ConsolidatedMCPDashboard:
                     # Fall back to the old implementation if service manager fails
             
             # Fallback to hardcoded services if service manager is not available or fails
-            services = {
+            services: Dict[str, Any] = {
                 "services": {
                     "ipfs": {"name": "IPFS Daemon", "type": "daemon", "bin": _which("ipfs"), "api_port_open": _port_open("127.0.0.1", 5001), "status": "unknown"},
                     "docker": {"name": "Docker", "type": "system", "bin": _which("docker"), "status": "unknown"},
@@ -3120,8 +3125,11 @@ class ConsolidatedMCPDashboard:
                 }
             }
             total = len(services["services"])
-            services["total"] = total
-            services["summary"] = {"total": total, "running": 0, "configured": sum(1 for v in services["services"].values() if v.get("bin"))}
+            services["metadata"] = {
+                "total": total,
+                "running": 0,
+                "configured": sum(1 for v in services["services"].values() if v.get("bin"))
+            }
             return {"jsonrpc": "2.0", "result": services, "id": None}
         if name == "service_control":
             svc = str(args.get("service", "")).strip()
@@ -5150,9 +5158,10 @@ class ConsolidatedMCPDashboard:
             data = (mgr.connect_peer(peer_info) if mgr else {"error": "Peer manager unavailable"})
             ok = not isinstance(data, dict) or ("error" not in data)
             # Standardize shape
-            result = {"ok": ok}
+            result: Dict[str, Any] = {"ok": ok}
             if isinstance(data, dict):
-                result.update(data)
+                for k, v in data.items():
+                    result[k] = v
             return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "disconnect_peer":
             pid = args.get("peer_id")
@@ -5162,7 +5171,8 @@ class ConsolidatedMCPDashboard:
             ok = not isinstance(data, dict) or ("error" not in data)
             result = {"ok": ok}
             if isinstance(data, dict):
-                result.update(data)
+                for k, v in data.items():
+                    result[k] = v
             return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "get_peer_info":
             pid = args.get("peer_id")
@@ -5172,7 +5182,8 @@ class ConsolidatedMCPDashboard:
             ok = isinstance(data, dict) and ("error" not in data)
             result = {"ok": ok}
             if isinstance(data, dict):
-                result.update(data)
+                for k, v in data.items():
+                    result[k] = v
             return {"jsonrpc": "2.0", "result": result, "id": None}
         if name == "discover_peers":
             limit = int(args.get("limit", 20) or 20)
@@ -5199,13 +5210,17 @@ class ConsolidatedMCPDashboard:
                             ]
                     elif isinstance(result, list):
                         peers = result
-                    return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers, "source": "libp2p"}, "id": None}
+                    return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers, "total_discovered": len(peers), "source": "libp2p"}, "id": None}
             except Exception:
                 pass
             # Fallback
             data = (mgr.list_peers() if mgr else {"peers": [], "total": 0})
-            peers = data.get("peers") if isinstance(data, dict) else []
-            return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers, "source": "fallback"}, "id": None}
+            peers_list: list[Any] = []
+            if isinstance(data, dict):
+                maybe_peers = data.get("peers")
+                if isinstance(maybe_peers, list):
+                    peers_list = maybe_peers
+            return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers_list, "total_discovered": len(peers_list), "source": "fallback"}, "id": None}
         if name == "bootstrap_peers":
             action = (args.get("action") or "list").lower()
             peer_address = args.get("peer_address")
@@ -5228,7 +5243,7 @@ class ConsolidatedMCPDashboard:
                                         s = line.strip()
                                         if s and not s.startswith("#"):
                                             peers.append(s)
-                    return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers}, "id": None}
+                    return {"jsonrpc": "2.0", "result": {"ok": True, "peers": peers, "total_bootstrapped": len(peers)}, "id": None}
                 if action == "from_ipfs":
                     if libp2p_mgr and hasattr(libp2p_mgr, "bootstrap_from_ipfs"):
                         res = libp2p_mgr.bootstrap_from_ipfs() or {"ok": True}
