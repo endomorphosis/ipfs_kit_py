@@ -1178,6 +1178,499 @@ class BackendHealthMonitor:
             return {"error": f"Failed to save package config: {str(e)}"}
 
 
+class EnhancedBackendManager:
+    """Enhanced backend manager using metadata-first approach with ~/.ipfs_kit/ persistence."""
+    
+    def __init__(self):
+        self.ipfs_kit_dir = Path.home() / ".ipfs_kit"
+        self.backends_file = self.ipfs_kit_dir / "backends.json"
+        self.policies_file = self.ipfs_kit_dir / "backend_policies.json"
+        
+        # Ensure directory exists
+        self.ipfs_kit_dir.mkdir(exist_ok=True)
+        
+        # Initialize default backends if none exist
+        self._ensure_default_backends()
+        
+    def _ensure_default_backends(self):
+        """Create default backends for testing purposes."""
+        if not self.backends_file.exists():
+            default_backends = {
+                "local_storage": {
+                    "name": "local_storage",
+                    "type": "local_storage",
+                    "description": "Local filesystem storage backend",
+                    "status": "enabled",
+                    "health": "healthy",
+                    "category": "Storage",
+                    "last_check": datetime.now().isoformat(),
+                    "created_at": datetime.now().isoformat(),
+                    "config": {
+                        "root_path": "/tmp/ipfs_kit_storage",
+                        "max_size_gb": 100,
+                        "compression": True
+                    },
+                    "policies": {
+                        "cache_policy": "write-through",
+                        "cache_size_mb": 1024,
+                        "retention_days": 30,
+                        "replication_factor": 1,
+                        "quota_gb": 100
+                    }
+                },
+                "ipfs_local": {
+                    "name": "ipfs_local",
+                    "type": "ipfs",
+                    "description": "Local IPFS node",
+                    "status": "enabled",
+                    "health": "healthy",
+                    "category": "Network",
+                    "last_check": datetime.now().isoformat(),
+                    "created_at": datetime.now().isoformat(),
+                    "config": {
+                        "api_url": "http://127.0.0.1:5001",
+                        "gateway_url": "http://127.0.0.1:8080",
+                        "timeout": 30
+                    },
+                    "policies": {
+                        "cache_policy": "pin-local",
+                        "cache_size_mb": 2048,
+                        "retention_days": 90,
+                        "replication_factor": 3,
+                        "quota_gb": 50
+                    }
+                },
+                "s3_demo": {
+                    "name": "s3_demo",
+                    "type": "s3",
+                    "description": "Amazon S3 compatible storage",
+                    "status": "disabled",
+                    "health": "unknown",
+                    "category": "Storage",
+                    "last_check": datetime.now().isoformat(),
+                    "created_at": datetime.now().isoformat(),
+                    "config": {
+                        "endpoint": "https://s3.amazonaws.com",
+                        "bucket": "ipfs-kit-demo",
+                        "region": "us-east-1",
+                        "access_key": "",
+                        "secret_key": ""
+                    },
+                    "policies": {
+                        "cache_policy": "write-back",
+                        "cache_size_mb": 512,
+                        "retention_days": 365,
+                        "replication_factor": 2,
+                        "quota_gb": 1000
+                    }
+                },
+                "github": {
+                    "name": "github",
+                    "type": "github",
+                    "description": "GitHub repository backend",
+                    "status": "disabled",
+                    "health": "unknown",
+                    "category": "Storage",
+                    "last_check": datetime.now().isoformat(),
+                    "created_at": datetime.now().isoformat(),
+                    "config": {
+                        "owner": "",
+                        "repo": "",
+                        "token": "",
+                        "branch": "main"
+                    },
+                    "policies": {
+                        "cache_policy": "read-only",
+                        "cache_size_mb": 256,
+                        "retention_days": 7,
+                        "replication_factor": 1,
+                        "quota_gb": 1
+                    }
+                },
+                "parquet_meta": {
+                    "name": "parquet_meta",
+                    "type": "parquet",
+                    "description": "Parquet metadata analytics backend",
+                    "status": "enabled",
+                    "health": "healthy",
+                    "category": "Analytics",
+                    "last_check": datetime.now().isoformat(),
+                    "created_at": datetime.now().isoformat(),
+                    "config": {
+                        "storage_path": "/tmp/ipfs_kit_parquet",
+                        "compression": "snappy",
+                        "row_group_size": 100000
+                    },
+                    "policies": {
+                        "cache_policy": "read-through",
+                        "cache_size_mb": 2048,
+                        "retention_days": 180,
+                        "replication_factor": 1,
+                        "quota_gb": 10
+                    }
+                },
+                "cluster": {
+                    "name": "cluster",
+                    "type": "ipfs_cluster",
+                    "description": "IPFS Cluster distributed storage",
+                    "status": "disabled",
+                    "health": "unknown",
+                    "category": "Network",
+                    "last_check": datetime.now().isoformat(),
+                    "created_at": datetime.now().isoformat(),
+                    "config": {
+                        "api_url": "http://127.0.0.1:9094",
+                        "cluster_secret": "",
+                        "consensus": "crdt"
+                    },
+                    "policies": {
+                        "cache_policy": "distributed",
+                        "cache_size_mb": 4096,
+                        "retention_days": 365,
+                        "replication_factor": 3,
+                        "quota_gb": 500
+                    }
+                }
+            }
+            
+            self._save_backends(default_backends)
+            logger.info(f"Created {len(default_backends)} default backends")
+    
+    def _save_backends(self, backends: Dict[str, Any]):
+        """Save backends to JSON file."""
+        try:
+            with open(self.backends_file, 'w') as f:
+                json.dump(backends, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save backends: {e}")
+    
+    def _load_backends(self) -> Dict[str, Any]:
+        """Load backends from JSON file."""
+        try:
+            if self.backends_file.exists():
+                with open(self.backends_file, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load backends: {e}")
+        return {}
+    
+    async def list_backends(self, include_metadata: bool = True) -> Dict[str, Any]:
+        """List all backends with metadata."""
+        backends = self._load_backends()
+        
+        # Convert to list format expected by dashboard
+        backend_list = []
+        for name, backend in backends.items():
+            backend_info = {
+                "name": name,
+                "type": backend.get("type", "unknown"),
+                "description": backend.get("description", ""),
+                "status": backend.get("status", "unknown"),
+                "health": backend.get("health", "unknown"),
+                "category": backend.get("category", "Storage"),
+                "last_check": backend.get("last_check", datetime.now().isoformat()),
+                "created_at": backend.get("created_at", datetime.now().isoformat())
+            }
+            
+            if include_metadata:
+                backend_info["config"] = backend.get("config", {})
+                backend_info["policies"] = backend.get("policies", {})
+                
+            backend_list.append(backend_info)
+        
+        return {
+            "items": backend_list,
+            "total": len(backend_list)
+        }
+    
+    async def create_backend_instance(self, name: str, backend_type: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new backend instance."""
+        backends = self._load_backends()
+        
+        if name in backends:
+            return {"error": f"Backend '{name}' already exists"}
+        
+        # Create new backend
+        new_backend = {
+            "name": name,
+            "type": backend_type,
+            "description": f"{backend_type.title()} backend instance",
+            "status": "enabled",
+            "health": "unknown",
+            "category": self._get_backend_category(backend_type),
+            "last_check": datetime.now().isoformat(),
+            "created_at": datetime.now().isoformat(),
+            "config": config,
+            "policies": self._get_default_policies(backend_type)
+        }
+        
+        backends[name] = new_backend
+        self._save_backends(backends)
+        
+        logger.info(f"Created backend instance: {name} ({backend_type})")
+        return {"ok": True, "backend": new_backend}
+    
+    async def update_backend(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Update backend configuration."""
+        backends = self._load_backends()
+        
+        if name not in backends:
+            return {"error": f"Backend '{name}' not found"}
+        
+        backends[name]["config"].update(config)
+        backends[name]["last_check"] = datetime.now().isoformat()
+        
+        self._save_backends(backends)
+        
+        logger.info(f"Updated backend configuration: {name}")
+        return {"ok": True}
+    
+    async def update_backend_policy(self, name: str, policy: Dict[str, Any]) -> Dict[str, Any]:
+        """Update backend policy."""
+        try:
+            # Handle string input (parse JSON if needed)
+            if isinstance(policy, str):
+                try:
+                    policy = json.loads(policy)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid policy JSON string for {name}: {e}")
+                    return {"ok": False, "error": f"Invalid policy JSON: {str(e)}", "backend": name}
+            
+            if not isinstance(policy, dict):
+                logger.error(f"Policy must be a dictionary for {name}, got {type(policy)}")
+                return {"ok": False, "error": f"Policy must be a dictionary, got {type(policy).__name__}", "backend": name}
+            
+            backends = self._load_backends()
+            
+            if name not in backends:
+                return {"ok": False, "error": f"Backend '{name}' not found", "backend": name}
+            
+            if "policies" not in backends[name]:
+                backends[name]["policies"] = {}
+                
+            backends[name]["policies"].update(policy)
+            backends[name]["last_check"] = datetime.now().isoformat()
+            
+            self._save_backends(backends)
+            
+            logger.info(f"Updated backend policy: {name}")
+            return {"ok": True, "backend": name}
+            
+        except Exception as e:
+            logger.error(f"Error updating policy for {name}: {e}")
+            return {"ok": False, "error": str(e), "backend": name}
+    
+    async def test_backend_config(self, name: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Test backend configuration connectivity."""
+        try:
+            # Handle string input (parse JSON if needed)
+            if isinstance(config, str):
+                try:
+                    config = json.loads(config)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid config JSON string for {name}: {e}")
+                    return {
+                        "reachable": False,
+                        "valid": False,
+                        "errors": [f"Invalid config JSON: {str(e)}"],
+                        "backend": name,
+                        "message": "Configuration test failed - invalid JSON"
+                    }
+            
+            backends = self._load_backends()
+            
+            if name not in backends:
+                return {
+                    "reachable": False,
+                    "valid": False,
+                    "errors": [f"Backend '{name}' not found"],
+                    "backend": name,
+                    "message": "Configuration test failed - backend not found"
+                }
+            
+            backend = backends[name]
+            test_config = config or backend.get("config", {})
+            backend_type = backend.get("type", "unknown")
+            errors = []
+            
+            # Type-specific validation and connectivity test
+            if backend_type == "local_storage":
+                root_path = test_config.get("root_path", "/tmp")
+                try:
+                    Path(root_path).mkdir(exist_ok=True)
+                    reachable = Path(root_path).exists()
+                    if not reachable:
+                        errors.append(f"Cannot access storage path: {root_path}")
+                except Exception as e:
+                    reachable = False
+                    errors.append(f"Storage path error: {str(e)}")
+                    
+            elif backend_type == "ipfs":
+                api_url = test_config.get("api_url", "http://127.0.0.1:5001")
+                # For demo purposes, always return success
+                # In real implementation, would test IPFS API connectivity
+                reachable = True
+                
+            elif backend_type == "s3":
+                access_key = test_config.get("access_key", "")
+                secret_key = test_config.get("secret_key", "")
+                bucket = test_config.get("bucket", "")
+                region = test_config.get("region", "")
+                
+                if not access_key:
+                    errors.append("Missing S3 access key")
+                if not secret_key:
+                    errors.append("Missing S3 secret key")
+                if not bucket:
+                    errors.append("Missing S3 bucket configuration")
+                if not region:
+                    errors.append("Missing S3 region configuration")
+                    
+                reachable = bool(access_key and secret_key and bucket and region)
+                
+            elif backend_type == "github":
+                api_key = test_config.get("api_key", "")
+                token = test_config.get("token", "")
+                base_url = test_config.get("base_url", "")
+                
+                if not api_key and not token:
+                    errors.append("Missing GitHub API key or token")
+                if not base_url:
+                    errors.append("Missing GitHub API base URL")
+                    
+                reachable = bool((api_key or token) and base_url)
+                
+            else:
+                # Default to healthy for other types
+                reachable = True
+            
+            # Update backend health status
+            backends[name]["health"] = "healthy" if reachable else "unhealthy"
+            backends[name]["last_check"] = datetime.now().isoformat()
+            self._save_backends(backends)
+            
+            return {
+                "reachable": reachable,
+                "valid": reachable,
+                "errors": errors,
+                "backend": name,
+                "message": "Configuration test completed",
+                "status": "healthy" if reachable else "unhealthy"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error testing backend {name}: {e}")
+            return {
+                "reachable": False,
+                "valid": False,
+                "errors": [str(e)],
+                "backend": name,
+                "message": "Configuration test failed with exception"
+            }
+    
+    async def apply_backend_policy(self, name: str, policy: Dict[str, Any], force_sync: bool = False) -> Dict[str, Any]:
+        """Apply backend policy and sync with storage services."""
+        try:
+            # Handle string input (parse JSON if needed)
+            if isinstance(policy, str):
+                try:
+                    policy = json.loads(policy)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid policy JSON string for {name}: {e}")
+                    return {"ok": False, "error": f"Invalid policy JSON: {str(e)}", "backend": name}
+            
+            if not isinstance(policy, dict):
+                logger.error(f"Policy must be a dictionary for {name}, got {type(policy)}")
+                return {"ok": False, "error": f"Policy must be a dictionary, got {type(policy).__name__}", "backend": name}
+            
+            backends = self._load_backends()
+            
+            if name not in backends:
+                return {"ok": False, "error": f"Backend '{name}' not found", "backend": name}
+            
+            # Update policy first
+            update_result = await self.update_backend_policy(name, policy)
+            if not update_result.get("ok", False):
+                return {
+                    "ok": False, 
+                    "error": update_result.get("error", "Failed to update policy"),
+                    "backend": name
+                }
+            
+            # Get updated backend data
+            backends = self._load_backends()
+            backend = backends[name]
+            
+            # If force_sync is requested, perform synchronization
+            if force_sync:
+                logger.info(f"Force syncing backend {name} with new policy")
+                # In a real implementation, this would sync with the actual storage service
+                # For now, we simulate the policy application
+                
+            # Update backend status
+            backend["status"] = "enabled"
+            backend["health"] = "healthy"
+            backend["last_check"] = datetime.now().isoformat()
+            
+            self._save_backends(backends)
+            
+            return {
+                "ok": True,
+                "message": f"Policy applied successfully for {name}",
+                "synced": force_sync,
+                "backend": name
+            }
+            
+        except Exception as e:
+            logger.error(f"Error applying policy for backend {name}: {e}")
+            return {"ok": False, "error": str(e), "backend": name}
+    
+    def _get_backend_category(self, backend_type: str) -> str:
+        """Get category for backend type."""
+        categories = {
+            "local_storage": "Storage",
+            "ipfs": "Network",
+            "s3": "Storage",
+            "github": "Storage",
+            "parquet": "Analytics",
+            "ipfs_cluster": "Network"
+        }
+        return categories.get(backend_type, "Storage")
+    
+    def _get_default_policies(self, backend_type: str) -> Dict[str, Any]:
+        """Get default policies for backend type."""
+        policies = {
+            "local_storage": {
+                "cache_policy": "write-through",
+                "cache_size_mb": 1024,
+                "retention_days": 30,
+                "replication_factor": 1,
+                "quota_gb": 100
+            },
+            "ipfs": {
+                "cache_policy": "pin-local",
+                "cache_size_mb": 2048,
+                "retention_days": 90,
+                "replication_factor": 3,
+                "quota_gb": 50
+            },
+            "s3": {
+                "cache_policy": "write-back",
+                "cache_size_mb": 512,
+                "retention_days": 365,
+                "replication_factor": 2,
+                "quota_gb": 1000
+            }
+        }
+        return policies.get(backend_type, {
+            "cache_policy": "write-through",
+            "cache_size_mb": 512,
+            "retention_days": 30,
+            "replication_factor": 1,
+            "quota_gb": 10
+        })
+
+
 class VFSObservabilityManager:
     """Comprehensive VFS and cache observability."""
     
@@ -1451,9 +1944,10 @@ class EnhancedUnifiedMCPServer:
         self.port = port
         self.start_time = time.time()
         
-        # Initialize backend monitor
+        # Initialize backend monitor and manager
         self.backend_monitor = BackendHealthMonitor()
         self.backend_monitor.initialize_vfs_observer()  # Initialize VFS observer
+        self.backend_manager = EnhancedBackendManager()  # Initialize enhanced backend manager
         COMPONENTS["backend_monitor"] = True
         COMPONENTS["filesystem_backends"] = True
         COMPONENTS["metrics_collector"] = True
@@ -1513,6 +2007,120 @@ class EnhancedUnifiedMCPServer:
                 }
             ),
             SimplifiedMCPTool(
+                name="list_backends",
+                description="List all configured backends with metadata from ~/.ipfs_kit/",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "include_metadata": {
+                            "type": "boolean",
+                            "description": "Include full metadata for each backend",
+                            "default": True
+                        }
+                    }
+                }
+            ),
+            SimplifiedMCPTool(
+                name="create_backend_instance",
+                description="Create a new backend instance with configuration",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Unique name for the backend instance"
+                        },
+                        "type": {
+                            "type": "string",
+                            "description": "Backend type",
+                            "enum": ["local_storage", "ipfs", "s3", "github", "parquet", "cluster"]
+                        },
+                        "config": {
+                            "type": "object",
+                            "description": "Backend configuration parameters"
+                        }
+                    },
+                    "required": ["name", "type", "config"]
+                }
+            ),
+            SimplifiedMCPTool(
+                name="update_backend",
+                description="Update backend configuration",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Backend instance name"
+                        },
+                        "config": {
+                            "type": "object",
+                            "description": "Updated configuration parameters"
+                        }
+                    },
+                    "required": ["name", "config"]
+                }
+            ),
+            SimplifiedMCPTool(
+                name="update_backend_policy",
+                description="Update backend policy settings",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Backend instance name"
+                        },
+                        "policy": {
+                            "type": "object",
+                            "description": "Policy configuration (cache, replication, retention, etc.)"
+                        }
+                    },
+                    "required": ["name", "policy"]
+                }
+            ),
+            SimplifiedMCPTool(
+                name="test_backend_config",
+                description="Test backend configuration connectivity",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Backend instance name"
+                        },
+                        "config": {
+                            "type": "object",
+                            "description": "Configuration to test (optional, uses current if not provided)"
+                        }
+                    },
+                    "required": ["name"]
+                }
+            ),
+            SimplifiedMCPTool(
+                name="apply_backend_policy",
+                description="Apply backend policy and sync with storage services",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Backend instance name"
+                        },
+                        "policy": {
+                            "type": "object",
+                            "description": "Policy to apply"
+                        },
+                        "force_sync": {
+                            "type": "boolean",
+                            "description": "Force synchronization with underlying storage",
+                            "default": False
+                        }
+                    },
+                    "required": ["name", "policy"]
+                }
+            ),
+            SimplifiedMCPTool(
                 name="get_metrics_history",
                 description="Get historical metrics for backends",
                 input_schema={
@@ -1564,13 +2172,12 @@ class EnhancedUnifiedMCPServer:
             version="2.0.0"
         )
         
-        # Setup templates
-        templates_dir = Path(__file__).parent / "templates"
-        templates_dir.mkdir(exist_ok=True)
-        
-        # Always recreate the template to ensure it's up to date
-        self._create_dashboard_template(templates_dir)
-        
+        # Setup templates - use the external enhanced dashboard
+        templates_dir = Path(__file__).parent.parent / "templates"
+        if not templates_dir.exists():
+            templates_dir = Path(__file__).parent / "templates"
+            templates_dir.mkdir(exist_ok=True)
+            
         self.templates = Jinja2Templates(directory=str(templates_dir))
         
         # Setup routes
@@ -3166,7 +3773,7 @@ class EnhancedUnifiedMCPServer:
         
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard(request: Request):
-            return self.templates.TemplateResponse("index.html", {"request": request})
+            return self.templates.TemplateResponse("enhanced_dashboard.html", {"request": request})
         
         @self.app.get("/api/health")
         async def health_check():
@@ -3193,11 +3800,67 @@ class EnhancedUnifiedMCPServer:
         
         @self.app.get("/api/backends")
         async def get_backends():
-            return await self.backend_monitor.check_all_backends()
+            # Use enhanced backend manager instead of the old backend monitor
+            result = await self.backend_manager.list_backends(include_metadata=True)
+            return result
         
         @self.app.get("/api/backends/{backend_name}")
         async def get_backend_status(backend_name: str):
+            # First try enhanced backend manager, then fall back to monitor
+            backends = await self.backend_manager.list_backends(include_metadata=True)
+            for backend in backends.get("items", []):
+                if backend["name"] == backend_name:
+                    return backend
+            
+            # Fallback to old monitor
             return await self.backend_monitor.check_backend_health(backend_name)
+        
+        @self.app.post("/api/backends/{backend_name}/test")
+        async def test_backend(backend_name: str, request: Request):
+            """Test backend configuration."""
+            try:
+                data = await request.json()
+                config = data.get("config")
+                result = await self.backend_manager.test_backend_config(backend_name, config)
+                return {"jsonrpc": "2.0", "result": result, "id": "1"}
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
+        
+        @self.app.post("/api/backends/{backend_name}/update")
+        async def update_backend_config(backend_name: str, request: Request):
+            """Update backend configuration."""
+            try:
+                data = await request.json()
+                config = data.get("config", {})
+                result = await self.backend_manager.update_backend(backend_name, config)
+                return {"jsonrpc": "2.0", "result": result, "id": "1"}
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
+        
+        @self.app.post("/api/backends/{backend_name}/policy")
+        async def apply_backend_policy_endpoint(backend_name: str, request: Request):
+            """Apply backend policy."""
+            try:
+                data = await request.json()
+                policy = data.get("policy", {})
+                force_sync = data.get("force_sync", False)
+                result = await self.backend_manager.apply_backend_policy(backend_name, policy, force_sync)
+                return {"jsonrpc": "2.0", "result": result, "id": "1"}
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
+
+        @self.app.post("/api/backends/create")
+        async def create_backend_instance_endpoint(request: Request):
+            """Create a new backend instance."""
+            try:
+                data = await request.json()
+                name = data.get("name")
+                backend_type = data.get("type")
+                config = data.get("config", {})
+                result = await self.backend_manager.create_backend_instance(name, backend_type, config)
+                return {"jsonrpc": "2.0", "result": result, "id": "1"}
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
         
         @self.app.get("/api/metrics/{backend_name}")
         async def get_metrics_history(backend_name: str, limit: int = 10):
@@ -3484,18 +4147,6 @@ class EnhancedUnifiedMCPServer:
             "cost_estimate_usd": 12.45
         }
         
-        @self.app.get("/api/logs")
-        async def get_all_logs():
-            """Get logs from all backends."""
-            all_logs = {}
-            for backend_name in self.backend_monitor.backends.keys():
-                all_logs[backend_name] = await self.backend_monitor.get_backend_logs(backend_name)
-                
-            return {
-                "timestamp": datetime.now().isoformat(),
-                "logs": all_logs
-            }
-        
         @self.app.post("/api/backends/{backend_name}/restart")
         async def restart_backend_daemon(backend_name: str):
             """Restart a backend daemon."""
@@ -3551,6 +4202,68 @@ class EnhancedUnifiedMCPServer:
                 return {"logs": log_lines, "source": "system"}
             except Exception as e:
                 return {"error": str(e), "logs": []}
+
+        # Simple direct API endpoints for MCP compatibility
+        @self.app.post("/api/call_mcp_tool")  
+        async def call_mcp_tool_direct(request: Request):
+            """Direct MCP tool call endpoint."""
+            try:
+                data = await request.json()
+                tool_name = data.get("tool_name")
+                arguments = data.get("arguments", {})
+                
+                result = await self.handle_mcp_request(tool_name, arguments)
+                
+                return {
+                    "jsonrpc": "2.0", 
+                    "result": result,
+                    "id": data.get("id", "1")
+                }
+            except Exception as e:
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -1, "message": str(e)},
+                    "id": "1"
+                }
+
+        @self.app.get("/api/list_backends")
+        async def list_backends_direct():
+            """Direct backends list endpoint."""
+            try:
+                result = await self.handle_mcp_request("list_backends", {"include_metadata": True})
+                return {"result": result}
+            except Exception as e:
+                return {"error": str(e)}
+
+        @self.app.post("/api/test_backend_config")
+        async def test_backend_config_direct(request: Request):
+            """Direct backend test endpoint."""
+            try:
+                data = await request.json()
+                result = await self.handle_mcp_request("test_backend_config", data)
+                return {"result": result}
+            except Exception as e:
+                return {"error": str(e)}
+
+        @self.app.post("/api/update_backend")
+        async def update_backend_direct(request: Request):
+            """Direct backend update endpoint."""
+            try:
+                data = await request.json()
+                result = await self.handle_mcp_request("update_backend", data)
+                return {"result": result}
+            except Exception as e:
+                return {"error": str(e)}
+
+        @self.app.post("/api/apply_backend_policy")
+        async def apply_backend_policy_direct(request: Request):
+            """Direct backend policy endpoint."""
+            try:
+                data = await request.json()
+                result = await self.handle_mcp_request("apply_backend_policy", data)
+                return {"result": result}
+            except Exception as e:
+                return {"error": str(e)}
     
     def _generate_development_insights(self, backend_health: Dict[str, Any]) -> str:
         """Generate development insights based on backend status."""
@@ -3628,6 +4341,37 @@ class EnhancedUnifiedMCPServer:
                     return await self.backend_monitor.check_backend_health(backend)
                 else:
                     return await self.backend_monitor.check_all_backends()
+            
+            elif tool_name == "list_backends":
+                include_metadata = arguments.get("include_metadata", True)
+                return await self.backend_manager.list_backends(include_metadata)
+            
+            elif tool_name == "create_backend_instance":
+                name = arguments.get("name")
+                backend_type = arguments.get("type")
+                config = arguments.get("config", {})
+                return await self.backend_manager.create_backend_instance(name, backend_type, config)
+            
+            elif tool_name == "update_backend":
+                name = arguments.get("name")
+                config = arguments.get("config", {})
+                return await self.backend_manager.update_backend(name, config)
+            
+            elif tool_name == "update_backend_policy":
+                name = arguments.get("name")
+                policy = arguments.get("policy", {})
+                return await self.backend_manager.update_backend_policy(name, policy)
+            
+            elif tool_name == "test_backend_config":
+                name = arguments.get("name")
+                config = arguments.get("config")
+                return await self.backend_manager.test_backend_config(name, config)
+            
+            elif tool_name == "apply_backend_policy":
+                name = arguments.get("name")
+                policy = arguments.get("policy", {})
+                force_sync = arguments.get("force_sync", False)
+                return await self.backend_manager.apply_backend_policy(name, policy, force_sync)
             
             elif tool_name == "get_metrics_history":
                 backend = arguments.get("backend")

@@ -279,7 +279,7 @@ class ComprehensiveServiceManager:
                     "description": "In-memory columnar data format for analytics and data processing",
                     "requires_credentials": False,
                     "config_keys": ["memory_pool", "compression"],
-                    "enabled": False
+                    "enabled": True
                 },
                 "parquet": {
                     "type": ServiceType.STORAGE.value,
@@ -287,7 +287,7 @@ class ComprehensiveServiceManager:
                     "description": "Columnar storage format optimized for analytics workloads",
                     "requires_credentials": False,
                     "config_keys": ["compression_codec", "row_group_size", "schema_validation"],
-                    "enabled": False
+                    "enabled": True
                 }
             },
             "network_services": {

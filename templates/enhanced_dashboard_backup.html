@@ -371,14 +371,6 @@
         .to-purple-900 {
             --tw-gradient-to: #581c87;
         }
-
-    /* Prevent charts from widening layout over time */
-    .min-w-0 { min-width: 0; }
-    .chart-wrap { width: 100%; overflow: hidden; }
-    canvas.chart-canvas { display: block; width: 100% !important; height: 240px; }
-    #serviceStatusChart.chart-canvas, #resourceUsageChart.chart-canvas { height: 200px !important; }
-    /* Ensure grid children can shrink in responsive layouts */
-    .grid > div { min-width: 0; }
         .status-running { background-color: #10b981; }
         .status-stopped { background-color: #ef4444; }
         .status-warning { background-color: #f59e0b; }
@@ -1291,97 +1283,42 @@
             transition: all 0.2s ease-in-out;
         }
 
-        /* Professional Enterprise Storage Hub Styles - Minimal and Clean */
-        .filter-pill-active {
-            background-color: rgb(219, 234, 254) !important;
-            color: rgb(30, 64, 175) !important;
+        /* Simplified Professional Enterprise Storage Hub Styles */
+        .enterprise-hub {
+            background-color: #f8fafc;
+            min-height: 100vh;
         }
         
-        .bucket-card-professional {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
+        .enterprise-header {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 2rem;
         }
         
-        .bucket-card-professional:hover {
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            border-color: #3b82f6;
+        .enterprise-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
         }
         
-        .bucket-card-professional:active {
-            transform: translateY(0) scale(1.01);
-        }
-        
-        .bucket-card-professional::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #3b82f6, #10b981);
-            border-radius: 8px 8px 0 0;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        .bucket-card-professional:hover::before {
-            opacity: 1;
-        }
-        
-        /* Remove existing enterprise styles that are now handled by Tailwind */
-            font-size: 1rem;
+        .enterprise-subtitle {
+            color: #64748b;
+            font-size: 1.1rem;
         }
         
         .search-bar {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 0.65rem 0.875rem 0.65rem 2.5rem; /* leave space for icon */
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
             width: 100%;
-            max-width: 520px;
-            color: #111827;
-            transition: box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+            max-width: 400px;
         }
         
         .search-bar:focus {
             outline: none;
-            border-color: #60a5fa;
-            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
-            background: #ffffff;
-        }
-        
-        /* Enhanced search icon styling */
-        .search-icon-container {
-            transition: color 0.15s ease, transform 0.15s ease;
-            display: inline-flex;
-            width: 2rem;
-            justify-content: center;
-            align-items: center;
-            color: #9ca3af; /* text-gray-400 */
-        }
-        
-        /* When the input inside the relative wrapper is focused, tint the icon */
-        .relative:focus-within .search-icon-container svg {
-            color: #2563eb;
-            transform: scale(1.05);
-        }
-        
-        /* Ensure placeholder and transition feel refined */
-        #bucket-search::placeholder {
-            color: #9ca3af;
-        }
-        #bucket-search {
-            transition: box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-            background: #f9fafb;
-            border-color: #e5e7eb;
-            border-radius: 10px;
-        }
-        #bucket-search:focus {
-            background: #ffffff;
-            border-color: #60a5fa !important;
-            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
-        }
+            border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
         
@@ -1419,56 +1356,11 @@
             margin-top: 0.25rem;
         }
         
-        /* Enhanced Modal Styling */
-        .bucket-settings-modal {
-            backdrop-filter: blur(4px);
-            animation: modalFadeIn 0.2s ease-out;
-        }
-        
-        @keyframes modalFadeIn {
-            from {
-                opacity: 0;
-                transform: scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-        
-        .bucket-settings-modal .modal-content {
-            animation: modalSlideIn 0.3s ease-out;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        }
-        
-        @keyframes modalSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px) scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-        
-        .bucket-settings-modal .close-button {
-            transition: all 0.2s ease;
-            border-radius: 50%;
-            padding: 0.5rem;
-        }
-        
-        .bucket-settings-modal .close-button:hover {
-            background-color: #f3f4f6;
-            transform: scale(1.1);
-        }
-        
         .bucket-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 1.5rem;
-            padding: 1.5rem 2rem;
+            padding: 1.5rem;
         }
         
         .bucket-card {
@@ -1482,8 +1374,8 @@
         
         .bucket-card:hover {
             border-color: #3b82f6;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
         }
         
         .bucket-card.selected {
@@ -1674,8 +1566,7 @@
     </style>
     
     <!-- Chart.js for analytics -->
-    <!-- Chart.js CDN disabled due to browser blocking -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen flex main-container">
@@ -1764,7 +1655,7 @@
                                     <div class="text-sm opacity-90">Buckets</div>
                                 </div>
                             </div>
-                            <div class="bg-gray-50 p-4 rounded-lg mt-6"  style="display:none;">
+                            <div class="bg-gray-50 p-4 rounded-lg mt-6" style="display:none;">
                                 <h3 class="text-lg font-medium mb-2">System Status</h3>
                                 <div class="text-sm text-gray-600">
                                     MCP Server running properly. All systems operational.
@@ -2092,194 +1983,94 @@
                 </div>
             </div>
 
-            <!-- Professional Enterprise Storage Hub -->
+            <!-- Simplified Enterprise Storage Hub -->
             <div id="buckets" class="tab-content active">
-                <div class="min-h-screen bg-white">
-                    <!-- Professional Header -->
-                    <div class="bg-white border-b border-gray-200 px-6 py-4">
-                        <div class="flex items-center justify-between">
+                <div class="enterprise-hub">
+                    <!-- Clean Header -->
+                    <div class="enterprise-header">
+                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                             <div>
-                                <h1 class="text-2xl font-semibold text-gray-900">Enterprise Storage Hub</h1>
-                                <p class="text-sm text-gray-600">Professional distributed bucket management system</p>
+                                <h1 class="enterprise-title">Enterprise Storage Hub</h1>
+                                <p class="enterprise-subtitle">Professional bucket management for distributed storage systems</p>
                             </div>
-                            <div class="flex items-center space-x-3">
-                                <button id="refresh-buckets" onclick="refreshBuckets()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                                    </svg>
-                                    Refresh
+                            <div class="flex gap-3">
+                                <button id="refresh-buckets" class="btn btn-secondary">
+                                    <i class="fas fa-sync-alt mr-2"></i>Refresh
                                 </button>
-                                <button id="import-bucket" onclick="showImportBucketModal()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
-                                    </svg>
-                                    Import
+                                <button id="import-bucket" class="btn btn-secondary">
+                                    <i class="fas fa-cloud-download-alt mr-2"></i>Import
                                 </button>
-                                <button id="create-bucket" onclick="showCreateBucketModal()" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                                    </svg>
-                                    Create Bucket
+                                <button id="create-bucket" class="btn btn-primary">
+                                    <i class="fas fa-plus mr-2"></i>Create Bucket
                                 </button>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Search and Filter Bar -->
-                    <div class="bg-gray-50 border-b border-gray-200 px-6 py-3">
-                        <div class="flex items-center space-x-4">
-                            <div class="flex-1">
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none search-icon-container">
-                                        <svg class="h-5 w-5 text-gray-400 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                                        </svg>
-                                    </div>
-                                    <input 
-                                        type="text" 
-                                        id="bucket-search" 
-                                        placeholder="Search buckets by name, description, or metadata..." 
-                                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                        oninput="filterAndRenderBucketsEnterprise()"
-                                    >
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <select id="status-filter" onchange="filterAndRenderBucketsEnterprise()" class="block w-40 px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        
+                        <!-- Search and Filters -->
+                        <div class="flex flex-col lg:flex-row gap-4 mt-6">
+                            <input type="text" id="bucket-search" placeholder="Search buckets..." class="search-bar flex-1">
+                            <div class="flex gap-3">
+                                <select id="status-filter" class="filter-select">
                                     <option value="">All Status</option>
                                     <option value="active">🟢 Active</option>
                                     <option value="syncing">🟡 Syncing</option>
                                     <option value="error">🔴 Error</option>
                                     <option value="offline">⚫ Offline</option>
                                 </select>
-                                <select id="tier-filter" onchange="filterAndRenderBucketsEnterprise()" class="block w-40 px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <select id="tier-filter" class="filter-select">
                                     <option value="">All Tiers</option>
                                     <option value="hot">🔥 Hot</option>
                                     <option value="warm">🌡️ Warm</option>
                                     <option value="cold">❄️ Cold</option>
                                     <option value="archive">📦 Archive</option>
                                 </select>
-                                <select id="sort-buckets" onchange="filterAndRenderBucketsEnterprise()" class="block w-40 px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                    <option value="name">Sort by Name</option>
-                                    <option value="size">Sort by Size</option>
-                                    <option value="files">Sort by Files</option>
-                                    <option value="modified">Sort by Modified</option>
+                                <select id="sort-buckets" class="filter-select">
+                                    <option value="name">Name</option>
+                                    <option value="size">Size</option>
+                                    <option value="files">Files</option>
+                                    <option value="modified">Modified</option>
                                 </select>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Statistics Dashboard -->
-                    <div class="bg-white px-6 py-4 border-b border-gray-200">
-                        <div class="grid grid-cols-4 gap-4">
-                            <div class="bg-white overflow-hidden shadow rounded-lg">
-                                <div class="p-5">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0">
-                                            <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
-                                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                                                </svg>
-                                            </div>
-                                        </div>
-                                        <div class="ml-5 w-0 flex-1">
-                                            <dl>
-                                                <dt class="text-sm font-medium text-gray-500 truncate">Total Buckets</dt>
-                                                <dd class="text-lg font-medium text-gray-900" id="total-buckets-count">0</dd>
-                                            </dl>
-                                        </div>
-                                    </div>
-                                </div>
+                    
+                    <!-- Statistics -->
+                    <div class="px-6 py-4 bg-white border-b">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            <div class="stats-card">
+                                <div class="stats-number" id="total-buckets-count">0</div>
+                                <div class="stats-label">Total Buckets</div>
                             </div>
-                            <div class="bg-white overflow-hidden shadow rounded-lg">
-                                <div class="p-5">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0">
-                                            <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
-                                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
-                                                </svg>
-                                            </div>
-                                        </div>
-                                        <div class="ml-5 w-0 flex-1">
-                                            <dl>
-                                                <dt class="text-sm font-medium text-gray-500 truncate">Total Storage</dt>
-                                                <dd class="text-lg font-medium text-gray-900" id="total-storage-size">0 B</dd>
-                                            </dl>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="stats-card">
+                                <div class="stats-number" id="total-storage-size">0 B</div>
+                                <div class="stats-label">Total Storage</div>
                             </div>
-                            <div class="bg-white overflow-hidden shadow rounded-lg">
-                                <div class="p-5">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0">
-                                            <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
-                                                <span class="text-white text-sm font-medium">✓</span>
-                                            </div>
-                                        </div>
-                                        <div class="ml-5 w-0 flex-1">
-                                            <dl>
-                                                <dt class="text-sm font-medium text-gray-500 truncate">Active Buckets</dt>
-                                                <dd class="text-lg font-medium text-gray-900" id="active-buckets-count">0</dd>
-                                            </dl>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="stats-card">
+                                <div class="stats-number" id="active-buckets-count">0</div>
+                                <div class="stats-label">Active</div>
                             </div>
-                            <div class="bg-white overflow-hidden shadow rounded-lg">
-                                <div class="p-5">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0">
-                                            <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
-                                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                                                </svg>
-                                            </div>
-                                        </div>
-                                        <div class="ml-5 w-0 flex-1">
-                                            <dl>
-                                                <dt class="text-sm font-medium text-gray-500 truncate">Syncing</dt>
-                                                <dd class="text-lg font-medium text-gray-900" id="syncing-buckets-count">0</dd>
-                                            </dl>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="stats-card">
+                                <div class="stats-number" id="syncing-buckets-count">0</div>
+                                <div class="stats-label">Syncing</div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Status Filter Pills -->
-                    <div class="bg-white px-6 py-3 border-b border-gray-200">
-                        <div class="flex items-center space-x-2">
-                            <span class="text-sm font-medium text-gray-700">Filter by status:</span>
-                            <div class="flex space-x-2">
-                                <button onclick="setStatusFilterEnterprise('')" class="filter-pill filter-pill-active inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="">
-                                    🌐 All <span id="all-count" class="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">0</span>
-                                </button>
-                                <button onclick="setStatusFilterEnterprise('active')" class="filter-pill inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="active">
-                                    🟢 Active <span id="active-count" class="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">0</span>
-                                </button>
-                                <button onclick="setStatusFilterEnterprise('syncing')" class="filter-pill inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="syncing">
-                                    🟡 Syncing <span id="syncing-count" class="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">0</span>
-                                </button>
-                                <button onclick="setStatusFilterEnterprise('error')" class="filter-pill inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="error">
-                                    🔴 Issues <span id="error-count" class="ml-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">0</span>
-                                </button>
-                            </div>
+                    
+                    <!-- Filter Pills -->
+                    <div class="px-6 py-4 bg-gray-50 border-b">
+                        <div class="filter-pills">
+                            <div class="filter-pill active" data-filter="all">🌐 All <span id="all-count">0</span></div>
+                            <div class="filter-pill" data-filter="active">🟢 Active <span id="active-count">0</span></div>
+                            <div class="filter-pill" data-filter="syncing">🟡 Syncing <span id="syncing-count">0</span></div>
+                            <div class="filter-pill" data-filter="error">🔴 Issues <span id="error-count">0</span></div>
                         </div>
                     </div>
-
+                    
                     <!-- Bucket Grid -->
-                    <div class="bg-white px-6 py-6">
-                        <div id="buckets-list" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            <div class="text-center py-12 text-gray-500 col-span-full">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                                </svg>
-                                <h3 class="mt-2 text-sm font-medium text-gray-900">Loading buckets...</h3>
-                                <p class="mt-1 text-sm text-gray-500">Please wait while we fetch your bucket data.</p>
-                            </div>
+                    <div class="bucket-grid" id="buckets-list">
+                        <div class="text-center py-12 text-gray-500">
+                            <i class="fas fa-database text-4xl mb-4"></i>
+                            <div class="text-lg">Loading buckets...</div>
                         </div>
                     </div>
                 </div>
@@ -2339,46 +2130,14 @@
             <div id="peers" class="tab-content">
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Peer Management</h2>
-                    
-                    <!-- Peer Stats Row -->
-                    <div id="peer-stats" class="grid grid-cols-4 gap-4 mb-6">
-                        <div class="bg-blue-50 rounded-lg p-4 text-center">
-                            <div class="text-2xl font-bold text-blue-600" id="total-peers">0</div>
-                            <div class="text-sm text-blue-800">Total Peers</div>
-                        </div>
-                        <div class="bg-green-50 rounded-lg p-4 text-center">
-                            <div class="text-2xl font-bold text-green-600" id="connected-peers">0</div>
-                            <div class="text-sm text-green-800">Connected</div>
-                        </div>
-                        <div class="bg-yellow-50 rounded-lg p-4 text-center">
-                            <div class="text-2xl font-bold text-yellow-600" id="discovery-active">No</div>
-                            <div class="text-sm text-yellow-800">Discovery Active</div>
-                        </div>
-                        <div class="bg-purple-50 rounded-lg p-4 text-center">
-                            <div class="text-2xl font-bold text-purple-600" id="protocols-count">0</div>
-                            <div class="text-sm text-purple-800">Protocols</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Peer Action Buttons -->
-                    <div class="flex flex-wrap gap-2 mb-6">
-                        <button id="refresh-peers" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                    <div class="mb-4">
+                        <button id="refresh-peers" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2">
                             <i class="fas fa-sync-alt mr-2"></i>Refresh Peers
                         </button>
                         <button id="connect-peer" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
                             <i class="fas fa-link mr-2"></i>Connect Peer
                         </button>
-                        <button id="discover-peers" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-search mr-2"></i>Discover Peers
-                        </button>
-                        <button id="bootstrap-peers" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-rocket mr-2"></i>Bootstrap Peers
-                        </button>
-                        <button id="peer-stats-btn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
-                            <i class="fas fa-chart-bar mr-2"></i>Get Stats
-                        </button>
                     </div>
-                    
                     <div id="peers-list" class="space-y-4">
                         <!-- Peers will be populated dynamically -->
                     </div>
@@ -2429,38 +2188,16 @@
                 <div class="space-y-6">
                     <!-- Performance Analytics -->
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Performance Analytics</h2>
-                        <div class="flex items-center justify-between mb-4 gap-4">
-                            <div class="flex items-center gap-2">
-                                <label for="analytics-range-select" class="text-sm text-gray-600">Time range</label>
-                                <select id="analytics-range-select" class="border rounded px-2 py-1 text-sm">
-                                    <option value="1h" selected>Last 1h</option>
-                                    <option value="6h">Last 6h</option>
-                                    <option value="24h">Last 24h</option>
-                                    <option value="7d">Last 7d</option>
-                                </select>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <label for="analytics-backend-select" class="text-sm text-gray-600">Backend</label>
-                                <select id="analytics-backend-select" class="border rounded px-2 py-1 text-sm">
-                                    <option value="">All</option>
-                                </select>
-                            </div>
-                            <button id="analytics-reload-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">Reload</button>
-                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-6">Performance Analytics</h2>
                         <div class="grid grid-cols-1 lg-grid-cols-2 gap-6">
-                            <div class="min-w-0">
+                            <div>
                                 <h3 class="text-lg font-medium text-gray-700 mb-4">Service Status Distribution</h3>
-                                <div class="chart-wrap"><canvas id="serviceStatusChart" class="chart-canvas"></canvas></div>
+                                <canvas id="serviceStatusChart" width="400" height="200"></canvas>
                             </div>
-                            <div class="min-w-0">
+                            <div>
                                 <h3 class="text-lg font-medium text-gray-700 mb-4">System Resource Usage</h3>
-                                <div class="chart-wrap"><canvas id="resourceUsageChart" class="chart-canvas"></canvas></div>
+                                <canvas id="resourceUsageChart" width="400" height="200"></canvas>
                             </div>
-                        </div>
-                        <div class="mt-6 min-w-0">
-                            <h3 class="text-lg font-medium text-gray-700 mb-4">Latency History (avg)</h3>
-                            <div class="chart-wrap"><canvas id="latencyHistoryChart" class="chart-canvas"></canvas></div>
                         </div>
                     </div>
                     
@@ -2468,13 +2205,13 @@
                     <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-4">Bucket Analytics</h3>
                         <div class="grid grid-cols-1 lg-grid-cols-2 gap-6">
-                            <div class="min-w-0">
+                            <div>
                                 <h4 class="text-lg font-medium text-gray-700 mb-4">Storage Distribution by Bucket</h4>
-                                <div class="chart-wrap"><canvas id="bucketStorageChart" class="chart-canvas"></canvas></div>
+                                <canvas id="bucketStorageChart" width="400" height="200"></canvas>
                             </div>
-                            <div class="min-w-0">
+                            <div>
                                 <h4 class="text-lg font-medium text-gray-700 mb-4">Backend Type Distribution</h4>
-                                <div class="chart-wrap"><canvas id="backendTypeChart" class="chart-canvas"></canvas></div>
+                                <canvas id="backendTypeChart" width="400" height="200"></canvas>
                             </div>
                         </div>
                     </div>
@@ -2689,126 +2426,6 @@
         </div>
     </div>
 
-    <!-- Enhanced Bucket File Manager Modal -->
-    <div id="bucket-file-manager-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg w-full max-w-6xl max-h-screen m-4 flex flex-col">
-            <!-- Modal Header -->
-            <div class="flex justify-between items-center p-6 border-b border-gray-200">
-                <div class="flex items-center">
-                    <h3 class="text-xl font-semibold text-gray-900">
-                        <i class="fas fa-folder-open mr-2 text-blue-600"></i>
-                        Bucket File Manager: <span id="bucket-modal-name" class="text-blue-600">Loading...</span>
-                    </h3>
-                </div>
-                <button id="close-bucket-file-manager" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-            </div>
-
-            <!-- Modal Content -->
-            <div class="flex-1 flex overflow-hidden">
-                <!-- File Browser Section -->
-                <div class="flex-1 flex flex-col">
-                    <!-- Toolbar -->
-                    <div class="p-4 border-b border-gray-200 bg-gray-50">
-                        <div class="flex items-center justify-between">
-                            <!-- Breadcrumb Navigation -->
-                            <div class="flex items-center text-sm">
-                                <i class="fas fa-folder text-gray-500 mr-2"></i>
-                                <span id="bucket-path-breadcrumb" class="text-gray-700">/</span>
-                            </div>
-                            
-                            <!-- Action Buttons -->
-                            <div class="flex space-x-2">
-                                <button id="refresh-bucket-files" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                                    <i class="fas fa-sync mr-1"></i>Refresh
-                                </button>
-                                <button id="upload-files-btn" class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600">
-                                    <i class="fas fa-upload mr-1"></i>Upload
-                                </button>
-                                <button id="create-folder-btn" class="px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600">
-                                    <i class="fas fa-folder-plus mr-1"></i>New Folder
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Drag and Drop Zone -->
-                    <div id="bucket-drag-drop-zone" class="p-4 border-2 border-dashed border-gray-300 m-4 rounded-lg text-center bg-gray-50 hover:bg-gray-100 transition-colors">
-                        <div class="py-8">
-                            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
-                            <p class="text-lg font-medium text-gray-600">Drag and drop files or folders here</p>
-                            <p class="text-sm text-gray-500">Or click to select files</p>
-                            <input type="file" id="bucket-file-input" multiple class="hidden">
-                        </div>
-                    </div>
-
-                    <!-- Files List -->
-                    <div class="flex-1 overflow-y-auto p-4">
-                        <div id="bucket-files-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            <!-- Files will be populated here -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- File Details Panel -->
-                <div class="w-80 border-l border-gray-200 bg-gray-50 flex flex-col">
-                    <!-- File Info Header -->
-                    <div class="p-4 border-b border-gray-200">
-                        <h4 class="font-semibold text-gray-900">File Details</h4>
-                    </div>
-
-                    <!-- File Preview/Info -->
-                    <div class="flex-1 overflow-y-auto p-4">
-                        <div id="file-details-content">
-                            <div class="text-center py-8 text-gray-500">
-                                <i class="fas fa-file-alt text-3xl mb-3 opacity-50"></i>
-                                <p>Select a file to view details</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bucket Metadata Panel -->
-                    <div class="border-t border-gray-200 p-4">
-                        <h5 class="font-semibold text-gray-900 mb-3">Bucket Metadata</h5>
-                        <div id="bucket-metadata-summary" class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Files:</span>
-                                <span id="bucket-file-count" class="font-medium">-</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Size:</span>
-                                <span id="bucket-total-size" class="font-medium">-</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Type:</span>
-                                <span id="bucket-storage-type" class="font-medium">-</span>
-                            </div>
-                        </div>
-                        
-                        <button id="view-bucket-metadata" class="w-full mt-3 px-3 py-2 bg-gray-600 text-white rounded text-sm hover:bg-gray-700">
-                            <i class="fas fa-info-circle mr-1"></i>View Full Metadata
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Upload Progress -->
-            <div id="upload-progress-panel" class="hidden p-4 border-t border-gray-200 bg-blue-50">
-                <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-blue-800">Uploading files...</span>
-                    <span id="upload-percentage" class="text-sm text-blue-600">0%</span>
-                </div>
-                <div class="w-full bg-blue-200 rounded-full h-2 mt-2">
-                    <div id="upload-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- File Upload Input -->
-    <input type="file" id="hidden-file-input" multiple class="hidden">
-
-    <!-- Load resource fallback system (handles Chart.js, Tailwind, etc.) -->
-    <script src="/static/js/fallback-system.js"></script>
     <!-- Load MCP SDK for MCP tool calls -->
     <script src="/static/mcp-sdk.js"></script>
     
@@ -2837,22 +2454,12 @@
                         timeoutMs: 10000
                     });
                     window.mcpClient = mcpClient;
-                    console.log('✓ MCP client initialized successfully');
-                    
-                    // Test the connection
-                    mcpClient.callTool('health_check').then(() => {
-                        console.log('✓ MCP client connection verified');
-                    }).catch(error => {
-                        console.warn('⚠️ MCP client connection test failed:', error);
-                    });
+                    console.log('MCP client initialized');
                 } else {
-                    console.warn('⚠️ MCP SDK not available, falling back to direct API calls');
+                    console.warn('MCP SDK not available, falling back to direct API calls');
                 }
             } catch (error) {
-                console.error('❌ Error initializing MCP client:', error);
-                // Ensure mcpClient is null so fallback is used
-                mcpClient = null;
-                window.mcpClient = null;
+                console.error('Error initializing MCP client:', error);
             }
         }
 
@@ -2886,8 +2493,8 @@
         }
 
         function initializeDashboard() {
-            // Set initial tab - default to buckets (Enterprise Storage Hub) as defined in HTML
-            showTab('buckets');
+            // Set initial tab
+            showTab('overview');
             
             // Set up periodic system metrics refresh (every 30 seconds)
             setInterval(async () => {
@@ -2922,9 +2529,6 @@
             
             // Drag and Drop
             setupDragAndDropForFiles();
-            
-            // Log Controls
-            setupLogControls();
         }
 
         // Setup refresh buttons event listeners
@@ -2962,74 +2566,9 @@
             const refreshPeers = document.getElementById('refresh-peers');
             if (refreshPeers) {
                 refreshPeers.addEventListener('click', async () => {
+                    // Load peers data - basic implementation
                     console.log('Refreshing peers data...');
-                    await loadPeersData();
-                    await loadPeerStats();
-                    showToast('Peers data refreshed', 'success');
-                });
-            }
-
-            const connectPeerBtn = document.getElementById('connect-peer');
-            if (connectPeerBtn) {
-                connectPeerBtn.addEventListener('click', () => {
-                    showConnectPeerModal();
-                });
-            }
-
-            const discoverPeersBtn = document.getElementById('discover-peers');
-            if (discoverPeersBtn) {
-                discoverPeersBtn.addEventListener('click', async () => {
-                    console.log('Starting peer discovery...');
-                    showToast('Starting peer discovery...', 'info');
-                    
-                    try {
-                        const result = await callMCPTool('discover_peers', {});
-                        const discovered = result?.result?.total_discovered || 0;
-                        
-                        if (discovered > 0) {
-                            showToast(`Discovered ${discovered} new peers`, 'success');
-                            await loadPeersData();
-                            await loadPeerStats();
-                        } else {
-                            showToast('No new peers discovered', 'info');
-                        }
-                    } catch (error) {
-                        console.error('Error discovering peers:', error);
-                        showToast('Failed to discover peers', 'error');
-                    }
-                });
-            }
-
-            const bootstrapPeersBtn = document.getElementById('bootstrap-peers');
-            if (bootstrapPeersBtn) {
-                bootstrapPeersBtn.addEventListener('click', async () => {
-                    console.log('Bootstrapping peers...');
-                    showToast('Bootstrapping peers...', 'info');
-                    
-                    try {
-                        const result = await callMCPTool('bootstrap_peers', {});
-                        const bootstrapped = result?.result?.total_bootstrapped || 0;
-                        
-                        if (bootstrapped > 0) {
-                            showToast(`Bootstrapped ${bootstrapped} peers`, 'success');
-                            await loadPeersData();
-                            await loadPeerStats();
-                        } else {
-                            showToast('No peers bootstrapped', 'info');
-                        }
-                    } catch (error) {
-                        console.error('Error bootstrapping peers:', error);
-                        showToast('Failed to bootstrap peers', 'error');
-                    }
-                });
-            }
-
-            const peerStatsBtn = document.getElementById('peer-stats-btn');
-            if (peerStatsBtn) {
-                peerStatsBtn.addEventListener('click', async () => {
-                    console.log('Loading peer statistics...');
-                    await loadPeerStats();
-                    showToast('Peer statistics updated', 'success');
+                    showToast('Peers data refreshed', 'info');
                 });
             }
 
@@ -3041,102 +2580,6 @@
                     showToast('Metadata refreshed', 'info');
                 });
             }
-        }
-
-        // Setup log controls event listeners
-        function setupLogControls() {
-            // Clear logs button
-            const clearLogsBtn = document.getElementById('clear-logs');
-            if (clearLogsBtn) {
-                clearLogsBtn.addEventListener('click', async () => {
-                    try {
-                        console.log('Clearing logs...');
-                        showToast('Clearing logs...', 'info');
-                        
-                        const result = await callMCPTool('clear_logs', {});
-                        if (result?.result?.ok || result?.ok) {
-                            showToast('Logs cleared successfully', 'success');
-                            
-                            // Clear the display
-                            const logDisplay = document.getElementById('log-display');
-                            if (logDisplay) {
-                                logDisplay.innerHTML = '<div class="text-gray-500">Logs cleared. New logs will appear here...</div>';
-                            }
-                        } else {
-                            showToast('Failed to clear logs', 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error clearing logs:', error);
-                        showToast('Failed to clear logs', 'error');
-                    }
-                });
-            }
-            
-            // Download logs button
-            const downloadLogsBtn = document.getElementById('download-logs');
-            if (downloadLogsBtn) {
-                downloadLogsBtn.addEventListener('click', async () => {
-                    try {
-                        console.log('Downloading logs...');
-                        showToast('Downloading logs...', 'info');
-                        
-                        const result = await callMCPTool('get_logs', { limit: 1000 });
-                        let logItems = [];
-                        if (result?.result?.items && Array.isArray(result.result.items)) {
-                            logItems = result.result.items;
-                        } else if (result?.items && Array.isArray(result.items)) {
-                            logItems = result.items;
-                        }
-                        
-                        if (logItems.length === 0) {
-                            showToast('No logs available to download', 'warning');
-                            return;
-                        }
-                        
-                        // Format logs as text
-                        const logText = logItems.map(log => {
-                            const timestamp = log.timestamp || 'Unknown time';
-                            const level = log.level || 'INFO';
-                            const logger = log.logger || 'system';
-                            const message = log.message || '';
-                            return `${timestamp} [${level}] ${logger}: ${message}`;
-                        }).join('\\n');
-                        
-                        // Create and download file
-                        const blob = new Blob([logText], { type: 'text/plain' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `ipfs-kit-logs-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.txt`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        
-                        showToast('Logs downloaded successfully', 'success');
-                    } catch (error) {
-                        console.error('Error downloading logs:', error);
-                        showToast('Failed to download logs', 'error');
-                    }
-                });
-            }
-            
-            // Log level filter
-            const logLevelFilter = document.getElementById('log-level');
-            if (logLevelFilter) {
-                logLevelFilter.addEventListener('change', () => {
-                    // Reload logs with new filter
-                    loadLogsData();
-                });
-            }
-            
-            // Auto-refresh logs every 5 seconds
-            setInterval(() => {
-                const currentTab = document.querySelector('.tab-content:not(.hidden)');
-                if (currentTab && currentTab.id === 'logs') {
-                    loadLogsData();
-                }
-            }, 5000);
         }
 
         // Modal functions need to be defined before setupActionButtons
@@ -3313,48 +2756,6 @@
                 });
             });
             
-            // Setup bucket file manager modal handlers
-            const closeBucketFileManagerBtn = document.getElementById('close-bucket-file-manager');
-            if (closeBucketFileManagerBtn) {
-                closeBucketFileManagerBtn.addEventListener('click', closeBucketFileManager);
-            }
-            
-            const refreshBucketFilesBtn = document.getElementById('refresh-bucket-files');
-            if (refreshBucketFilesBtn) {
-                refreshBucketFilesBtn.addEventListener('click', () => {
-                    const bucketName = document.getElementById('bucket-modal-name').textContent;
-                    const currentPath = document.getElementById('bucket-path-breadcrumb').textContent;
-                    loadBucketFilesInModal(bucketName, currentPath === '/' ? '' : currentPath);
-                });
-            }
-            
-            const uploadFilesBtnModal = document.getElementById('upload-files-btn');
-            if (uploadFilesBtnModal) {
-                uploadFilesBtnModal.addEventListener('click', () => {
-                    document.getElementById('bucket-file-input').click();
-                });
-            }
-            
-            const createFolderBtn = document.getElementById('create-folder-btn');
-            if (createFolderBtn) {
-                createFolderBtn.addEventListener('click', () => {
-                    const folderName = prompt('Enter folder name:');
-                    if (folderName) {
-                        showToast(`Creating folder: ${folderName}`, 'info');
-                        // TODO: Implement folder creation via MCP
-                    }
-                });
-            }
-            
-            const viewBucketMetadataBtn = document.getElementById('view-bucket-metadata');
-            if (viewBucketMetadataBtn) {
-                viewBucketMetadataBtn.addEventListener('click', () => {
-                    const bucketName = document.getElementById('bucket-modal-name').textContent;
-                    showToast(`Loading full metadata for bucket: ${bucketName}`, 'info');
-                    // TODO: Open detailed metadata modal
-                });
-            }
-            
             console.log('🏗️ Modal handlers setup completed');
         }
         
@@ -3525,14 +2926,8 @@
                     buckets = result;
                 } else {
                     console.warn('Unexpected bucket data structure:', result);
-                    buckets = [];
-                }
-                
-                // If no buckets found from MCP server, load demo buckets for professional demo
-                if (buckets.length === 0) {
-                    console.log('📦 No buckets from MCP server, loading demo buckets for professional interface');
-                    loadMockBucketData();
-                    return;
+                    // Fall back to creating default buckets for demo
+                    buckets = await createDefaultBucketsEnterprise();
                 }
                 
                 // Enhanced data management
@@ -3553,12 +2948,12 @@
                 
                 // Smart error categorization for enterprise operations
                 if (error.message && error.message.toLowerCase().includes('network')) {
-                    showToast('⚠️ Network connectivity issue. Using demo data.', 'warning');
+                    showToast('⚠️ Network connectivity issue. Using cached data.', 'warning');
                 } else if (error.message && error.message.toLowerCase().includes('permission')) {
-                    showToast('⚠️ Access denied. Using demo data.', 'warning');
+                    showToast('⚠️ Access denied. Check your permissions.', 'warning');
                 } else {
                     // Programming errors should still be visible for debugging
-                    showToast('❌ Error loading buckets. Using demo data.', 'error');
+                    showToast('❌ Error loading buckets. Creating defaults.', 'error');
                     console.error('Programming error in bucket loading:', error);
                 }
                 
@@ -3782,98 +3177,59 @@
             
             if (buckets.length === 0) {
                 bucketsList.innerHTML = `
-                    <div class="text-center py-12 text-gray-500 col-span-full">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">No buckets found</h3>
-                        <p class="mt-1 text-sm text-gray-500">Try adjusting your search criteria or create a new bucket</p>
+                    <div class="text-center py-12 text-gray-500">
+                        <i class="fas fa-search text-4xl mb-4"></i>
+                        <div class="text-lg">No buckets found</div>
+                        <div class="text-sm mt-2">Try adjusting your search criteria or create a new bucket</div>
                     </div>
                 `;
                 return;
             }
             
-            bucketsList.innerHTML = buckets.map(bucket => generateProfessionalBucketCard(bucket)).join('');
+            bucketsList.innerHTML = buckets.map(bucket => generateSimpleBucketCard(bucket)).join('');
             
             // Add click handlers for bucket selection
-            bucketsList.querySelectorAll('.bucket-card-professional').forEach((card, index) => {
+            bucketsList.querySelectorAll('.bucket-card').forEach((card, index) => {
                 card.addEventListener('click', () => {
                     // Remove previous selection
-                    bucketsList.querySelectorAll('.bucket-card-professional').forEach(c => c.classList.remove('ring-2', 'ring-blue-500'));
+                    bucketsList.querySelectorAll('.bucket-card').forEach(c => c.classList.remove('selected'));
                     // Add selection to clicked card
-                    card.classList.add('ring-2', 'ring-blue-500');
-                    // Call the bucket selection function with the corresponding bucket
-                    if (buckets[index]) {
-                        selectBucketEnterprise(buckets[index]);
-                    }
+                    card.classList.add('selected');
                 });
             });
         }
         
-        function generateProfessionalBucketCard(bucket) {
+        function generateSimpleBucketCard(bucket) {
             const statusIcon = getStatusIcon(bucket.status);
             const tierIcon = getTierIcon(bucket.tier);
             const sizeFormatted = formatStorageSize((bucket.size_gb || 0) * 1024 * 1024 * 1024);
-            const statusColor = getStatusColor(bucket.status);
-            const tierColor = getTierColor(bucket.tier);
             
             return `
-                <div class="bucket-card-professional bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer" data-bucket-name="${bucket.name}">
-                    <div class="px-4 py-5 sm:p-6">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                                        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="ml-4">
-                                    <div class="text-lg font-medium text-gray-900">${bucket.name}</div>
-                                    <div class="flex items-center space-x-2 mt-1">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}">
-                                            ${statusIcon} ${bucket.status}
-                                        </span>
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tierColor}">
-                                            ${tierIcon} ${bucket.tier}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-sm font-medium text-gray-900">${sizeFormatted}</div>
-                                <div class="text-sm text-gray-500">${bucket.file_count || 0} files</div>
+                <div class="bucket-card">
+                    <div class="bucket-header">
+                        <div>
+                            <div class="bucket-name">${bucket.name}</div>
+                            <div class="bucket-badges">
+                                <span class="status-badge status-${bucket.status}">${statusIcon} ${bucket.status}</span>
+                                <span class="tier-badge tier-${bucket.tier}">${tierIcon} ${bucket.tier}</span>
                             </div>
                         </div>
-                        
-                        <div class="mt-3">
-                            <p class="text-sm text-gray-600">${bucket.description || 'No description provided'}</p>
-                        </div>
-                        
-                        <div class="mt-4 flex justify-between">
-                            <div class="flex space-x-2">
-                                <button onclick="event.stopPropagation(); syncBucket('${bucket.name}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                                    </svg>
-                                    Sync
-                                </button>
-                                <button onclick="event.stopPropagation(); shareBucket('${bucket.name}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"/>
-                                    </svg>
-                                    Share
-                                </button>
-                                <button onclick="event.stopPropagation(); openBucketSettings('${bucket.name}')" class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    </svg>
-                                    Settings
-                                </button>
-                            </div>
-                        </div>
+                    </div>
+                    <div class="bucket-description">${bucket.description || 'No description provided'}</div>
+                    <div class="bucket-stats">
+                        <span><strong>${sizeFormatted}</strong></span>
+                        <span><strong>${bucket.file_count || 0}</strong> files</span>
+                    </div>
+                    <div class="bucket-actions">
+                        <button class="btn btn-secondary" onclick="event.stopPropagation()">
+                            <i class="fas fa-sync mr-1"></i> Sync
+                        </button>
+                        <button class="btn btn-secondary" onclick="event.stopPropagation()">
+                            <i class="fas fa-share mr-1"></i> Share
+                        </button>
+                        <button class="btn btn-primary" onclick="event.stopPropagation()">
+                            <i class="fas fa-cog mr-1"></i> Settings
+                        </button>
                     </div>
                 </div>
             `;
@@ -3882,413 +3238,33 @@
         function selectBucketEnterprise(bucket) {
             window.enterpriseStorage.currentBucket = bucket;
             
-            // Open the enhanced file manager modal instead of the old details view
-            openBucketFileManager(bucket);
+            // Update UI to show bucket details
+            showBucketDetails(bucket);
             
             // Update visual selection
             filterAndRenderBucketsEnterprise();
             
             console.log('📦 Selected bucket:', bucket.name);
         }
-
-        // Enhanced Bucket File Manager Functions
-        function openBucketFileManager(bucket) {
-            const modal = document.getElementById('bucket-file-manager-modal');
-            const bucketName = document.getElementById('bucket-modal-name');
-            
-            if (modal && bucketName) {
-                bucketName.textContent = bucket.name;
-                modal.classList.remove('hidden');
-                
-                // Initialize file manager for this bucket
-                initializeBucketFileManager(bucket);
-            }
-        }
-
-        function closeBucketFileManager() {
-            const modal = document.getElementById('bucket-file-manager-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-            }
-        }
-
-        async function initializeBucketFileManager(bucket) {
-            try {
-                // Update bucket metadata summary
-                updateBucketMetadataSummary(bucket);
-                
-                // Load bucket files
-                await loadBucketFilesInModal(bucket.name);
-                
-                // Setup drag and drop for this bucket
-                setupBucketDragAndDrop(bucket.name);
-                
-                console.log('📁 Initialized file manager for bucket:', bucket.name);
-            } catch (error) {
-                console.error('Error initializing bucket file manager:', error);
-                showToast('Error loading bucket file manager', 'error');
-            }
-        }
-
-        function updateBucketMetadataSummary(bucket) {
-            // Update the summary panel with bucket info
-            const fileCountEl = document.getElementById('bucket-file-count');
-            const totalSizeEl = document.getElementById('bucket-total-size');
-            const storageTypeEl = document.getElementById('bucket-storage-type');
-            
-            if (fileCountEl) fileCountEl.textContent = bucket.files || 0;
-            if (totalSizeEl) totalSizeEl.textContent = formatStorageSize((bucket.size_gb || 0) * 1024 * 1024 * 1024);
-            if (storageTypeEl) storageTypeEl.textContent = bucket.tier || 'Standard';
-        }
-
-        async function loadBucketFilesInModal(bucketName, path = '') {
-            try {
-                const pathBreadcrumb = document.getElementById('bucket-path-breadcrumb');
-                const filesGrid = document.getElementById('bucket-files-grid');
-                
-                if (pathBreadcrumb) {
-                    pathBreadcrumb.textContent = path || '/';
-                }
-                
-                // Load files via MCP using metadata-first approach (~/.ipfs_kit/ before ipfs_kit_py)
-                console.log(`📂 Loading files for bucket: ${bucketName}, path: ${path}`);
-                const result = await callMCPTool('list_bucket_files', {
-                    bucket: bucketName,
-                    path: path,
-                    metadata_first: true  // Use ~/.ipfs_kit/ metadata first
-                });
-                
-                let files = [];
-                if (result?.result?.files) {
-                    files = result.result.files;
-                } else if (result?.files) {
-                    files = result.files;
-                } else if (Array.isArray(result)) {
-                    files = result;
-                }
-                
-                console.log(`📂 Loaded ${files.length} files for bucket: ${bucketName}`);
-                renderBucketFilesGrid(files);
-                
-            } catch (error) {
-                console.error('Error loading bucket files:', error);
-                // Show demo files as fallback
-                renderBucketFilesGrid(getDemoBucketFiles());
-            }
-        }
-
-        function renderBucketFilesGrid(files) {
-            const grid = document.getElementById('bucket-files-grid');
-            if (!grid) return;
-            
-            if (!files || files.length === 0) {
-                grid.innerHTML = `
-                    <div class="col-span-full text-center py-12 text-gray-500">
-                        <i class="fas fa-folder-open text-4xl mb-4 opacity-50"></i>
-                        <p class="text-lg font-medium">No files in this location</p>
-                        <p class="text-sm">Upload files using drag & drop or the upload button</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            const filesHTML = files.map(file => {
-                const isFolder = file.type === 'folder' || file.type === 'directory';
-                const icon = isFolder ? 'fas fa-folder text-blue-500' : getFileIcon(file.name);
-                const size = isFolder ? '-' : formatFileSize(file.size || 0);
-                const nameAttr = encodeURIComponent(file.name || '');
-                const typeAttr = encodeURIComponent(file.type || '');
-                const sizeAttr = Number(file.size || 0);
-                return `
-                    <div class="file-item bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
-                         data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}">
-                        <div class="flex items-center mb-2">
-                            <i class="${icon} text-lg mr-2"></i>
-                            <span class="font-medium text-gray-900 truncate" title="${file.name}">${file.name}</span>
-                        </div>
-                        <div class="text-xs text-gray-500">
-                            <div>Size: ${size}</div>
-                            <div>Modified: ${formatRelativeTime(file.modified || file.last_modified)}</div>
-                        </div>
-                    </div>`;
-            }).join('');
-
-            grid.innerHTML = filesHTML;
-
-            // Attach safe event listeners
-            grid.querySelectorAll('.file-item').forEach(el => {
-                el.addEventListener('click', () => {
-                    const name = decodeURIComponent(el.dataset.name || '');
-                    const type = decodeURIComponent(el.dataset.type || '');
-                    const size = parseInt(el.dataset.size || '0', 10) || 0;
-                    selectFile(name, type, size);
-                });
-                el.addEventListener('dblclick', () => {
-                    const name = decodeURIComponent(el.dataset.name || '');
-                    const type = decodeURIComponent(el.dataset.type || '');
-                    const isFolder = type === 'folder' || type === 'directory';
-                    if (isFolder) openFolder(name);
-                    else openFileEditor(name);
-                });
-            });
-        }
-
-        function selectFile(fileName, fileType, fileSize) {
-            // Update the file details panel
-            const detailsContent = document.getElementById('file-details-content');
-            if (!detailsContent) return;
-            
-            const isFolder = fileType === 'folder' || fileType === 'directory';
-            const icon = isFolder ? 'fas fa-folder text-blue-500' : getFileIcon(fileName);
-                        // Build action buttons without nested template literals to avoid unterminated template issues
-                        const actionButtons = !isFolder
-                                ? (
-                                        '<button onclick="openFileEditor(\'' + fileName + '\')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">\n' +
-                                        '    <i class="fas fa-edit mr-1"></i>Edit File\n' +
-                                        '</button>\n' +
-                                        '<button onclick="downloadFile(\'' + fileName + '\')" class="w-full px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600">\n' +
-                                        '    <i class="fas fa-download mr-1"></i>Download\n' +
-                                        '</button>'
-                                    )
-                                : (
-                                        '<button onclick="openFolder(\'' + fileName + '\')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">\n' +
-                                        '    <i class="fas fa-folder-open mr-1"></i>Open Folder\n' +
-                                        '</button>'
-                                    );
-            
-            detailsContent.innerHTML = `
-                <div class="text-center mb-4">
-                    <i class="${icon} text-4xl mb-3"></i>
-                    <h5 class="font-medium text-gray-900">${fileName}</h5>
-                </div>
-                
-                <div class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Type:</span>
-                        <span class="font-medium">${isFolder ? 'Folder' : fileType}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Size:</span>
-                        <span class="font-medium">${isFolder ? '-' : formatFileSize(fileSize)}</span>
-                    </div>
-                </div>
-                
-                <div class="mt-4 space-y-2">
-                                        ${actionButtons}
-                    <button onclick="deleteFile('${fileName}')" class="w-full px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
-                        <i class="fas fa-trash mr-1"></i>Delete
-                    </button>
-                </div>
-            `;
-        }
-
-        function openFolder(folderName) {
-            // Navigate into the folder
-            const currentPath = document.getElementById('bucket-path-breadcrumb').textContent;
-            const newPath = currentPath === '/' ? folderName : `${currentPath}/${folderName}`;
-            const bucketName = document.getElementById('bucket-modal-name').textContent;
-            
-            loadBucketFilesInModal(bucketName, newPath);
-        }
-
-        function openFileEditor(fileName) {
-            // This would open a file editor - for now, show a placeholder
-            showToast(`Opening file editor for: ${fileName}`, 'info');
-            // TODO: Implement file editor modal
-        }
-
-        function downloadFile(fileName) {
-            // Download the file
-            const bucketName = document.getElementById('bucket-modal-name').textContent;
-            showToast(`Downloading file: ${fileName} from bucket: ${bucketName}`, 'info');
-            // TODO: Implement file download
-        }
-
-        function deleteFile(fileName) {
-            if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
-                showToast(`Deleting file: ${fileName}`, 'info');
-                // TODO: Implement file deletion via MCP
-            }
-        }
-
-        function setupBucketDragAndDrop(bucketName) {
-            const dropZone = document.getElementById('bucket-drag-drop-zone');
-            const fileInput = document.getElementById('bucket-file-input');
-            
-            if (!dropZone || !fileInput) return;
-            
-            // Remove previous event listeners
-            dropZone.replaceWith(dropZone.cloneNode(true));
-            const newDropZone = document.getElementById('bucket-drag-drop-zone');
-            const newFileInput = document.getElementById('bucket-file-input');
-            
-            // Setup drag and drop events
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                newDropZone.addEventListener(eventName, preventDefaults, false);
-            });
-            
-            ['dragenter', 'dragover'].forEach(eventName => {
-                newDropZone.addEventListener(eventName, () => {
-                    newDropZone.classList.add('border-blue-500', 'bg-blue-50');
-                }, false);
-            });
-            
-            ['dragleave', 'drop'].forEach(eventName => {
-                newDropZone.addEventListener(eventName, () => {
-                    newDropZone.classList.remove('border-blue-500', 'bg-blue-50');
-                }, false);
-            });
-            
-            newDropZone.addEventListener('drop', (e) => {
-                const files = e.dataTransfer.files;
-                handleBucketFileUpload(files, bucketName);
-            });
-            
-            newDropZone.addEventListener('click', () => {
-                newFileInput.click();
-            });
-            
-            newFileInput.addEventListener('change', (e) => {
-                handleBucketFileUpload(e.target.files, bucketName);
-            });
-        }
-
-        function handleBucketFileUpload(files, bucketName) {
-            if (!files || files.length === 0) return;
-            
-            const progressPanel = document.getElementById('upload-progress-panel');
-            const progressBar = document.getElementById('upload-progress-bar');
-            const progressText = document.getElementById('upload-percentage');
-            
-            if (progressPanel) progressPanel.classList.remove('hidden');
-            
-            console.log(`📤 Uploading ${files.length} files to bucket: ${bucketName}`);
-            
-            // Simulate upload progress
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 20;
-                if (progress >= 100) {
-                    progress = 100;
-                    clearInterval(interval);
-                    
-                    setTimeout(() => {
-                        if (progressPanel) progressPanel.classList.add('hidden');
-                        showToast(`✅ Uploaded ${files.length} files to ${bucketName}`, 'success');
-                        loadBucketFilesInModal(bucketName); // Refresh file list
-                    }, 500);
-                }
-                
-                if (progressBar) progressBar.style.width = `${progress}%`;
-                if (progressText) progressText.textContent = `${Math.round(progress)}%`;
-            }, 200);
-            
-            // TODO: Implement actual file upload via MCP
-        }
-
-        function getDemoBucketFiles() {
-            return [
-                {
-                    name: 'documents',
-                    type: 'folder',
-                    size: 0,
-                    modified: new Date(Date.now() - 86400000).toISOString()
-                },
-                {
-                    name: 'images',
-                    type: 'folder', 
-                    size: 0,
-                    modified: new Date(Date.now() - 172800000).toISOString()
-                },
-                {
-                    name: 'README.md',
-                    type: 'file',
-                    size: 2048,
-                    modified: new Date(Date.now() - 3600000).toISOString()
-                },
-                {
-                    name: 'config.json',
-                    type: 'file',
-                    size: 512,
-                    modified: new Date(Date.now() - 7200000).toISOString()
-                }
-            ];
-        }
-        
-        function syncBucket(bucketName) {
-            console.log('🔄 Syncing bucket:', bucketName);
-            showToast(`Syncing bucket "${bucketName}"...`, 'info');
-            
-            // Call MCP to sync bucket
-            callMCPTool('sync_bucket', { bucket_name: bucketName })
-                .then(() => {
-                    showToast(`✅ Bucket "${bucketName}" synced successfully`, 'success');
-                    loadBucketsDataEnterprise();
-                })
-                .catch(error => {
-                    console.error('Error syncing bucket:', error);
-                    showToast(`❌ Failed to sync bucket "${bucketName}"`, 'error');
-                });
-        }
-        
-        function shareBucket(bucketName) {
-            console.log('📤 Sharing bucket:', bucketName);
-            showToast(`Generating share link for "${bucketName}"...`, 'info');
-            
-            // Show bucket sharing modal (correct ID and input field)
-            const modal = document.getElementById('share-bucket-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                const nameInput = modal.querySelector('#share-bucket-name');
-                if (nameInput) nameInput.value = bucketName;
-                else console.warn('share-bucket-name input not found in share-bucket-modal');
-            } else {
-                console.warn('share-bucket-modal not found');
-            }
-        }
-        
-        function openBucketSettings(bucketName) {
-            console.log('⚙️ Opening settings for bucket:', bucketName);
-            
-            // Show bucket settings modal
-            const modal = document.getElementById('bucket-settings-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                // Scope queries to modal to avoid duplicate ID collisions
-                const nameInput = modal.querySelector('#bucket-name');
-                if (nameInput) nameInput.value = bucketName;
-                else console.warn('bucket-name input not found in bucket-settings-modal');
-            } else {
-                console.warn('bucket-settings-modal not found');
-            }
-        }
         
         function showBucketDetails(bucket) {
-            // Legacy details view; guard against missing nodes and avoid ID collisions
-            const noSel = document.getElementById('no-bucket-selected');
-            const sel = document.getElementById('bucket-selected');
-            const content = document.getElementById('bucket-detail-content');
-            if (noSel) noSel.classList.add('hidden');
-            if (sel) sel.classList.remove('hidden');
-            if (content) {
-                content.classList.remove('hidden');
-                content.classList.add('flex', 'flex-col');
-            }
-
-            // Update bucket information if elements exist
-            const nameEl = document.getElementById('bucket-detail-name');
-            if (nameEl) nameEl.textContent = bucket.name;
-            const descEl = document.getElementById('bucket-description');
-            if (descEl) descEl.textContent = bucket.description || 'No description provided';
-            const createdEl = document.getElementById('bucket-created');
-            if (createdEl) createdEl.textContent = formatDate(bucket.created);
-
-            // Update status and tier badges (if present)
-            try { updateBucketBadges(bucket); } catch {}
-
-            // Load bucket files and settings (match function signatures)
-            try { loadBucketFiles(bucket?.name); } catch {}
-            try { loadBucketSettings(); } catch {}
+            // Hide no-bucket-selected and show bucket-selected
+            document.getElementById('no-bucket-selected').classList.add('hidden');
+            document.getElementById('bucket-selected').classList.remove('hidden');
+            document.getElementById('bucket-detail-content').classList.remove('hidden');
+            document.getElementById('bucket-detail-content').classList.add('flex', 'flex-col');
+            
+            // Update bucket information
+            document.getElementById('bucket-name').textContent = bucket.name;
+            document.getElementById('bucket-description').textContent = bucket.description || 'No description provided';
+            document.getElementById('bucket-created').textContent = formatDate(bucket.created);
+            
+            // Update status and tier badges
+            updateBucketBadges(bucket);
+            
+            // Load bucket files and settings
+            loadBucketFiles(bucket);
+            loadBucketSettings(bucket);
         }
         
         function updateBucketBadges(bucket) {
@@ -4333,50 +3309,6 @@
                 case 'archive': return '📦';
                 default: return '💾';
             }
-        }
-        
-        function getStatusColor(status) {
-            switch (status) {
-                case 'active': return 'bg-green-100 text-green-800';
-                case 'syncing': return 'bg-yellow-100 text-yellow-800';
-                case 'error': return 'bg-red-100 text-red-800';
-                case 'offline': return 'bg-gray-100 text-gray-800';
-                default: return 'bg-gray-100 text-gray-800';
-            }
-        }
-        
-        function getTierColor(tier) {
-            switch (tier) {
-                case 'hot': return 'bg-red-100 text-red-800';
-                case 'warm': return 'bg-orange-100 text-orange-800';
-                case 'cold': return 'bg-blue-100 text-blue-800';
-                case 'archive': return 'bg-purple-100 text-purple-800';
-                default: return 'bg-gray-100 text-gray-800';
-            }
-        }
-        
-        function setStatusFilterEnterprise(status) {
-            // Update the status filter dropdown
-            const statusFilter = document.getElementById('status-filter');
-            if (statusFilter) {
-                statusFilter.value = status;
-            }
-            
-            // Update filter pill active state
-            const filterPills = document.querySelectorAll('.filter-pill');
-            filterPills.forEach(pill => {
-                const pillStatus = pill.getAttribute('data-status');
-                if (pillStatus === status) {
-                    pill.classList.add('filter-pill-active', 'bg-blue-100', 'text-blue-800');
-                    pill.classList.remove('bg-gray-100', 'text-gray-800');
-                } else {
-                    pill.classList.remove('filter-pill-active', 'bg-blue-100', 'text-blue-800');
-                    pill.classList.add('bg-gray-100', 'text-gray-800');
-                }
-            });
-            
-            // Trigger filtering
-            filterAndRenderBucketsEnterprise();
         }
         
         function getStatusBadgeClass(status) {
@@ -5401,7 +4333,7 @@
         
         let currentConfigFilename = null;
         
-    async function saveConfigurationFile() {
+        async function saveConfigurationFile() {
             try {
                 if (!currentConfigFilename) {
                     alert('Please select a configuration file first');
@@ -5414,36 +4346,20 @@
                     return;
                 }
                 
-                let result;
-                if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
-                    // Use MCP JSON-RPC call to save the configuration
-                    result = await window.mcpClient.callTool('write_config_file', {
-                        filename: currentConfigFilename,
-                        content: content
-                    });
-                } else {
-                    // REST fallback
-                    const r = await fetch(`/api/config/write/${encodeURIComponent(currentConfigFilename)}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content })
-                    });
-                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                    result = await r.json();
-                }
-
-                if (result && (result.success || result.ok || result.status === 'ok')) {
-                    // Avoid nested template backticks inside alerts to prevent parser confusion
-                    alert('✅ Configuration saved successfully!\n' + (result.message ?? ''));
+                // Use MCP JSON-RPC call to save the configuration
+                const result = await window.mcpClient.callTool('write_config_file', {
+                    filename: currentConfigFilename,
+                    content: content
+                });
+                
+                if (result && result.success) {
+                    alert(`✅ Configuration saved successfully!\n${result.message}`);
                     
                     // Update source info
                     const editorContainer = document.getElementById('config-editor').parentElement;
                     let sourceInfo = editorContainer.querySelector('.source-info');
                     if (sourceInfo) {
-                        const size = result.size ?? result.bytes ?? '';
-                        const mod = result.modified ?? result.mtime ?? '';
-                        const modText = mod ? ', modified: ' + mod : '';
-                        sourceInfo.textContent = `📁 Saved to ~/.ipfs_kit/ (${size} bytes${modText})`;
+                        sourceInfo.textContent = `📁 Saved to ~/.ipfs_kit/ (${result.size} bytes, modified: ${result.modified})`;
                         sourceInfo.className = 'source-info text-sm text-green-600 mt-2';
                     }
                     
@@ -5454,44 +4370,6 @@
             } catch (error) {
                 console.error('Error saving configuration file via MCP:', error);
                 alert(`Error saving configuration: ${error.message}`);
-            }
-        }
-
-        async function loadConfigFile(filename) {
-            const editor = document.getElementById('config-editor');
-            if (!editor) return;
-            editor.value = '';
-            currentConfigFilename = filename;
-            try {
-                let res;
-                if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
-                    res = await window.mcpClient.callTool('read_config_file', { filename });
-                } else {
-                    const r = await fetch(`/api/config/read/${encodeURIComponent(filename)}`);
-                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                    res = await r.json();
-                }
-                const content = res?.content || res?.result?.content || res?.text || '';
-                editor.value = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-
-                // Show source/meta if available
-                const editorContainer = editor.parentElement;
-                let sourceInfo = editorContainer.querySelector('.source-info');
-                if (!sourceInfo) {
-                    sourceInfo = document.createElement('div');
-                    sourceInfo.className = 'source-info text-sm text-gray-500 mt-2';
-                    editorContainer.appendChild(sourceInfo);
-                }
-                const size = res?.size ?? res?.bytes ?? '';
-                const mod = res?.modified ?? res?.mtime ?? '';
-                const sizePart = size ? '• ' + size + ' B' : '';
-                const modPart = mod ? '• modified: ' + mod : '';
-                sourceInfo.textContent = `📄 ${filename} ${sizePart} ${modPart}`.trim();
-
-                showToast('Loaded ' + filename, 'success');
-            } catch (err) {
-                console.error('Failed to load config file', filename, err);
-                showToast(`Failed to load ${filename}`, 'error');
             }
         }
 
@@ -5625,29 +4503,21 @@
                     throw new Error('Tool name is required');
                 }
 
-                console.log(`🔧 Calling MCP tool: ${toolName}`, args);
-
                 // Try MCP client first if available
                 if (window.mcpClient) {
-                    console.log(`📡 Using MCP client for ${toolName}`);
                     // Call the MCP tool using proper JSON-RPC
                     const result = await window.mcpClient.callTool(toolName, args || {});
-                    console.log(`✅ MCP client success for ${toolName}:`, result);
                     
                     // Return result in consistent format
                     return { result: result };
-                } else {
-                    console.log(`🔄 MCP client not available, using fallback for ${toolName}`);
                 }
                 
                 // Fallback to direct API calls when MCP client not available
-                console.log(`📞 Fallback: Using direct API for tool ${toolName}`);
-                const result = await callToolDirectAPI(toolName, args || {});
-                console.log(`✅ Direct API success for ${toolName}:`, result);
-                return result;
+                console.log(`Fallback: Using direct API for tool ${toolName}`);
+                return await callToolDirectAPI(toolName, args || {});
                 
             } catch (error) {
-                console.error(`❌ Error calling MCP tool ${toolName}:`, error);
+                console.error(`Error calling MCP tool ${toolName}:`, error);
                 throw error;
             }
         }
@@ -5694,74 +4564,12 @@
                 'health_check': () => fetch('/api/health').then(r => r.json()),
                 'list_services': () => fetch('/api/services').then(r => r.json()),
                 'list_buckets': () => fetch('/api/buckets').then(r => r.json()),
-                'list_pins': () => fetch('/api/pins').then(r => r.json()),
-                // Add peer management fallback to direct MCP calls
-                'list_peers': () => fetch('/mcp/tools/call', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        method: 'tools/call',
-                        params: { name: 'list_peers', arguments: {} },
-                        id: Date.now()
-                    })
-                }).then(r => r.json()).then(data => data.result || data),
-                'connect_peer': (args) => fetch('/mcp/tools/call', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        method: 'tools/call',
-                        params: { name: 'connect_peer', arguments: args },
-                        id: Date.now()
-                    })
-                }).then(r => r.json()).then(data => data.result || data),
-                'disconnect_peer': (args) => fetch('/mcp/tools/call', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        method: 'tools/call',
-                        params: { name: 'disconnect_peer', arguments: args },
-                        id: Date.now()
-                    })
-                }).then(r => r.json()).then(data => data.result || data),
-                'discover_peers': (args) => fetch('/mcp/tools/call', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        method: 'tools/call',
-                        params: { name: 'discover_peers', arguments: args || {} },
-                        id: Date.now()
-                    })
-                }).then(r => r.json()).then(data => data.result || data),
-                'get_peer_stats': (args) => fetch('/mcp/tools/call', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        method: 'tools/call',
-                        params: { name: 'get_peer_stats', arguments: args || {} },
-                        id: Date.now()
-                    })
-                }).then(r => r.json()).then(data => data.result || data),
-                'bootstrap_peers': (args) => fetch('/mcp/tools/call', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        method: 'tools/call',
-                        params: { name: 'bootstrap_peers', arguments: args || {} },
-                        id: Date.now()
-                    })
-                }).then(r => r.json()).then(data => data.result || data)
+                'list_pins': () => fetch('/api/pins').then(r => r.json())
             };
             
             const apiCall = toolMapping[toolName];
             if (!apiCall) {
-                console.error(`❌ No API mapping for tool: ${toolName}. Available mappings:`, Object.keys(toolMapping));
-                throw new Error(`No API mapping for tool: ${toolName}. Available: ${Object.keys(toolMapping).join(', ')}`);
+                throw new Error(`No API mapping for tool: ${toolName}`);
             }
             
             const result = await apiCall(args);
@@ -5867,7 +4675,7 @@
                 ]);
 
                 // Count components from MCP results
-                let services = servicesResult.services || [];
+                const services = servicesResult.services || [];
                 const backends = backendsResult.backends || [];
                 const buckets = bucketsResult.items || [];
                 
@@ -5879,18 +4687,6 @@
                 } catch (error) {
                     console.log('Pins not available via MCP, using default count');
                     pins = [];
-                }
-
-                // If MCP services list is empty, try REST fallback for counts
-                if ((!Array.isArray(services) || services.length === 0)) {
-                    try {
-                        const resp = await fetch('/api/services');
-                        if (resp.ok) {
-                            const body = await resp.json();
-                            const svcMap = normalizeServicesPayload(body);
-                            services = Object.keys(svcMap).map(k => svcMap[k]);
-                        }
-                    } catch {}
                 }
 
                 // Update component counts
@@ -5935,104 +4731,41 @@
             console.log('Component counts updated:', counts);
         }
 
-        // Normalize various service payload shapes into an id-keyed object map
-        function normalizeServicesPayload(raw) {
-            try {
-                if (!raw) return {};
-                // Unwrap common wrappers
-                let data = raw;
-                if (data && typeof data === 'object' && 'result' in data) {
-                    data = data.result;
-                }
-                if (data && typeof data === 'object' && 'services' in data) {
-                    data = data.services;
-                }
-                if (Array.isArray(data)) {
-                    const obj = {};
-                    data.forEach((s, i) => {
-                        if (!s || typeof s !== 'object') return;
-                        const key = s?.id || s?.name || `svc_${i}`;
-                        obj[key] = { id: s?.id || key, ...s };
-                    });
-                    return obj;
-                }
-                if (typeof data === 'object') {
-                    // Heuristic: if values look like service items, return as-is
-                    const obj = {};
-                    for (const [k, v] of Object.entries(data)) {
-                        if (v && typeof v === 'object') {
-                            obj[k] = { id: v.id || k, ...v };
-                        }
-                    }
-                    return obj;
-                }
-                return {};
-            } catch (e) {
-                console.warn('normalizeServicesPayload failed:', e);
-                return {};
-            }
-        }
-
-        function sanitizeServiceMap(map) {
-            const out = {};
-            try {
-                for (const [k, v] of Object.entries(map || {})) {
-                    if (v && typeof v === 'object') out[k] = v;
-                }
-            } catch (e) {
-                console.warn('sanitizeServiceMap failed:', e);
-            }
-            return out;
-        }
-
         async function loadServicesData() {
             try {
                 // Use MCP SDK for service data with metadata-first approach (no REST API calls)
                 console.log('🔧 Loading services via MCP JSON-RPC (metadata-first)...');
                 
-                let servicesMap = {};
-
-                // 1) Try MCP.Services.list(true)
+                let servicesData = [];
+                
+                // Use new comprehensive MCP Services namespace
                 try {
                     const mcpResult = await MCP.Services.list(true);
-                    servicesMap = normalizeServicesPayload(mcpResult);
-                    console.log('🔧 services via MCP.Services.list:', mcpResult, servicesMap);
+                    servicesData = mcpResult.services || [];
+                    console.log('🔧 services loaded via MCP:', mcpResult);
                 } catch (mcpError) {
-                    console.warn('MCP.Services.list failed:', mcpError);
-                }
-
-                // 2) If still empty, try generic tool call with built-in REST fallback mapping
-                if (!servicesMap || Object.keys(servicesMap).length === 0) {
+                    console.warn('MCP service call failed:', mcpError);
+                    // Try fallback method with mcpClient directly
                     try {
-                        const viaTool = await callMCPTool('list_services', { include_metadata: true });
-                        servicesMap = normalizeServicesPayload(viaTool);
-                        console.log('🔧 services via callMCPTool(list_services):', viaTool, servicesMap);
-                    } catch (toolErr) {
-                        console.warn('callMCPTool(list_services) failed:', toolErr);
+                        const fallbackResult = await window.mcpClient.callTool('list_services', { include_metadata: true });
+                        servicesData = fallbackResult.services || [];
+                        console.log('🔧 services loaded via MCP fallback:', fallbackResult);
+                    } catch (fallbackError) {
+                        console.error('Both MCP methods failed:', fallbackError);
+                        // Create minimal service data to prevent errors
+                        servicesData = [
+                            {"name": "Apache Arrow", "type": "storage", "category": "ai_ml", "status": "configured", "description": "In-memory columnar data format for analytics"},
+                            {"name": "Parquet Storage", "type": "storage", "category": "ai_ml", "status": "configured", "description": "Columnar storage format for analytics workloads"}
+                        ];
                     }
                 }
-
-                // 3) If still empty, hit REST directly
-                if (!servicesMap || Object.keys(servicesMap).length === 0) {
-                    try {
-                        const resp = await fetch('/api/services');
-                        if (resp.ok) {
-                            const body = await resp.json();
-                            servicesMap = normalizeServicesPayload(body);
-                            console.log('🔧 services via REST /api/services:', servicesMap);
-                        }
-                    } catch (restErr) {
-                        console.warn('Direct REST /api/services fetch failed:', restErr);
-                    }
-                }
-
-                // 4) Absolute last resort: keep empty map; don't inject mock items
-                window.servicesData = sanitizeServiceMap(servicesMap || {});
+                
+                window.servicesData = servicesData;
                 
                 // Ensure we're on the services tab before trying to display
                 if (currentTab === 'services') {
-                    try { displayEnhancedServices(window.servicesData); } catch (e) { console.error('displayEnhancedServices failed:', e); }
-                    try { updateServicesStatistics(window.servicesData); } catch (e) { console.error('updateServicesStatistics failed:', e); }
+                    displayEnhancedServices(servicesData);
+                    updateServicesStatistics(servicesData);
                 }
             } catch (error) {
                 console.error('Error loading services data:', error);
@@ -6069,16 +4802,11 @@
             
             // Process services and group by type, supporting multiple instances
             for (const [serviceId, service] of Object.entries(services)) {
-                if (!service || typeof service !== 'object') continue;
                 const serviceType = determineServiceType(serviceId, service.type);
                 if (!serviceGroups[serviceType]) {
                     serviceGroups[serviceType] = { name: serviceType.toUpperCase(), services: [] };
                 }
-                try {
-                    serviceGroups[serviceType].services.push({ id: serviceId, ...service });
-                } catch {
-                    serviceGroups[serviceType].services.push({ id: serviceId, name: service?.name || serviceId, status: service?.status || 'unknown' });
-                }
+                serviceGroups[serviceType].services.push({ id: serviceId, ...service });
             }
             
             // Create service group sections
@@ -6188,10 +4916,7 @@
                     <i class="fas fa-layer-group mr-1"></i> ${service.instances} instances
                  </div>` : '';
             
-        const portLine = service.port ? ('<div><strong>Port:</strong> ' + service.port + '</div>') : '';
-        const endpointLine = service.endpoint ? ('<div><strong>Endpoint:</strong> ' + service.endpoint + '</div>') : '';
-
-        div.innerHTML = `
+            div.innerHTML = `
                 <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center gap-2">
                         <span class="text-2xl">${typeIcon}</span>
@@ -6209,8 +4934,8 @@
                 
                 <div class="space-y-1 text-xs text-gray-600 mb-4">
                     <div><strong>Type:</strong> ${service.type || 'unknown'}</div>
-            ${portLine}
-            ${endpointLine}
+                    ${service.port ? `<div><strong>Port:</strong> ${service.port}</div>` : ''}
+                    ${service.endpoint ? `<div><strong>Endpoint:</strong> ${service.endpoint}</div>` : ''}
                     <div><strong>Last Check:</strong> ${service.last_check || 'Never'}</div>
                 </div>
                 
@@ -6329,7 +5054,7 @@
         }
 
         function cloneService(serviceId, groupKey) {
-            const service = (window.servicesData && window.servicesData[serviceId]) || null;
+            const service = window.servicesData[serviceId];
             if (!service) return;
             
             const newName = prompt(`Clone ${serviceId}.\n\nEnter name for the new instance:`, `${serviceId}-clone`);
@@ -6340,7 +5065,7 @@
         }
 
         function openEnhancedConfigModal(serviceId, groupKey) {
-            const service = (window.servicesData && window.servicesData[serviceId]) || null;
+            const service = window.servicesData[serviceId];
             if (!service) return;
             
             const modal = document.getElementById('service-config-modal');
@@ -6444,10 +5169,9 @@
             `;
         }
 
-    async function saveEnhancedServiceConfig(serviceId) {
+        async function saveEnhancedServiceConfig(serviceId) {
             try {
-        const service = (window.servicesData && window.servicesData[serviceId]) || null;
-        if (!service) throw new Error('Service not found');
+                const service = window.servicesData[serviceId];
                 const config = {};
                 
                 // Collect configuration based on service type
@@ -6559,8 +5283,7 @@
                 'network': []
             };
             
-            for (const [serviceId, service] of Object.entries(services || {})) {
-                if (!service || typeof service !== 'object') continue;
+            for (const [serviceId, service] of Object.entries(services)) {
                 const serviceType = service.type || 'network';
                 if (!servicesByType[serviceType]) {
                     servicesByType[serviceType] = [];
@@ -6628,7 +5351,7 @@
                         <p class="text-sm text-gray-600 mb-2">${service.description || 'No description available'}</p>
                         <div class="text-xs text-gray-500">
                             <div>Type: <span class="font-medium">${service.type || 'Unknown'}</span></div>
-                            ${service.port ? '<div>Port: <span class="font-medium">' + service.port + '</span></div>' : ''}
+                            ${service.port ? `<div>Port: <span class="font-medium">${service.port}</span></div>` : ''}
                             <div>Last check: <span class="font-medium">${service.last_check || 'N/A'}</span></div>
                         </div>
                     </div>
@@ -6692,7 +5415,7 @@
 
         // Enhanced configuration modal system
         function openConfigurationModal(serviceId) {
-            const service = (window.servicesData && window.servicesData[serviceId]) || null;
+            const service = servicesData[serviceId];
             if (!service) return;
             
             const modal = document.getElementById('service-config-modal');
@@ -6735,7 +5458,7 @@
         }
 
         async function saveServiceConfiguration(serviceId) {
-            const service = (window.servicesData && window.servicesData[serviceId]) || null;
+            const service = servicesData[serviceId];
             const config = {};
             
             if (service.config_keys) {
@@ -6781,11 +5504,14 @@
                 configured: 0,
                 error: 0
             };
-            for (const service of Object.values(services || {})) {
-                if (!service || typeof service !== 'object') continue;
-                const status = service.status || 'unknown';
-                if (status in stats) stats[status]++;
+            
+            for (const service of Object.values(services)) {
+                const status = service.status;
+                if (stats.hasOwnProperty(status)) {
+                    stats[status]++;
+                }
             }
+            
             document.getElementById('services-running').textContent = stats.running;
             document.getElementById('services-stopped').textContent = stats.stopped;
             document.getElementById('services-not-enabled').textContent = stats.not_enabled;
@@ -6821,7 +5547,7 @@
         }
 
         function promptForServiceConfiguration(serviceId) {
-            const service = (window.servicesData && window.servicesData[serviceId]) || null;
+            const service = servicesData[serviceId];
             if (!service) return;
             
             // Simple prompt-based configuration for now
@@ -6913,523 +5639,6 @@
                         </div>
                     `;
                 }
-            }
-        }
-
-        // Display backends in the UI
-        function displayBackends(backends) {
-            const list = document.getElementById('backends-list');
-            if (!list) {
-                console.warn('backends-list element not found');
-                return;
-            }
-
-            if (!backends || backends.length === 0) {
-                list.innerHTML = `
-                    <div class="text-center py-12 text-gray-500">
-                        <div class="text-4xl mb-4">🗄️</div>
-                        <h3 class="text-lg font-medium mb-2">No Backends Configured</h3>
-                        <p class="text-sm mb-4">Add your first storage backend to get started</p>
-                        <button onclick="showAddBackendModal()" class="btn btn-blue">
-                            <i class="fas fa-plus mr-2"></i>Add Backend
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-
-            const backendsHTML = backends.map(backend => {
-                const statusColor = backend.status === 'active' ? 'text-green-600' : 
-                                  backend.status === 'error' ? 'text-red-600' : 'text-yellow-600';
-                const statusIcon = backend.status === 'active' ? '🟢' : 
-                                 backend.status === 'error' ? '🔴' : '🟡';
-                
-                return `
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="flex items-center">
-                                <div class="text-2xl mr-3">🗄️</div>
-                                <div>
-                                    <h3 class="text-lg font-semibold text-gray-900">${backend.name || 'Unknown'}</h3>
-                                    <p class="text-sm text-gray-600">${backend.type || 'Unknown Type'}</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center text-sm ${statusColor}">
-                                <span class="mr-1">${statusIcon}</span>
-                                ${backend.status || 'unknown'}
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-4 text-sm mb-4">
-                            <div>
-                                <span class="text-gray-500">Endpoint:</span>
-                                <div class="font-medium">${backend.endpoint || 'Not configured'}</div>
-                            </div>
-                            <div>
-                                <span class="text-gray-500">Replicas:</span>
-                                <div class="font-medium">${backend.replicas || 0}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex space-x-2">
-                            <button onclick="testBackend('${backend.name}')" class="btn btn-blue btn-sm">
-                                <i class="fas fa-check mr-1"></i>Test
-                            </button>
-                            <button onclick="configureBackend('${backend.name}', '${backend.type}')" class="btn btn-gray btn-sm">
-                                <i class="fas fa-cog mr-1"></i>Configure
-                            </button>
-                            <button onclick="syncBackend('${backend.name}')" class="btn btn-green btn-sm">
-                                <i class="fas fa-sync mr-1"></i>Sync
-                            </button>
-                            <button onclick="deleteBackend('${backend.name}')" class="btn btn-red btn-sm">
-                                <i class="fas fa-trash mr-1"></i>Delete
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            list.innerHTML = backendsHTML;
-        }
-
-        // Load peers data function
-        async function loadPeersData() {
-            try {
-                console.log('🌐 Loading peers via MCP JSON-RPC...');
-                const result = await callMCPTool('list_peers', {});
-                console.log('🌐 Peers result:', result);
-                
-                // Handle MCP result structure - extract peers array
-                let peers = [];
-                if (result?.result?.peers && Array.isArray(result.result.peers)) {
-                    peers = result.result.peers;
-                } else if (result?.result && Array.isArray(result.result)) {
-                    peers = result.result;
-                } else if (result?.peers && Array.isArray(result.peers)) {
-                    peers = result.peers;
-                } else if (Array.isArray(result)) {
-                    peers = result;
-                } else {
-                    console.warn('loadPeersData: list_peers returned unexpected structure:', typeof result, result);
-                    peers = [];
-                }
-                
-                console.log('🌐 Extracted peers array:', peers);
-                displayPeers(peers);
-                
-                // Also load peer statistics
-                await loadPeerStats();
-                
-            } catch (error) {
-                console.error('Error loading peers data:', error);
-                // Show error state in UI
-                const list = document.getElementById('peers-list');
-                if (list) {
-                    list.innerHTML = `
-                        <div class="text-center py-12 text-red-500">
-                            <div class="text-4xl mb-4">⚠️</div>
-                            <h3 class="text-lg font-medium mb-2">Error Loading Peers</h3>
-                            <p class="text-sm mb-4">API service unavailable: ${error.message}</p>
-                            <button onclick="loadPeersData()" class="btn btn-blue">
-                                <i class="fas fa-sync mr-2"></i>Retry
-                            </button>
-                        </div>
-                    `;
-                }
-            }
-        }
-
-        // Display peers in the UI
-        function displayPeers(peers) {
-            const list = document.getElementById('peers-list');
-            if (!list) {
-                console.warn('peers-list element not found');
-                return;
-            }
-
-            if (!peers || peers.length === 0) {
-                list.innerHTML = `
-                    <div class="text-center py-12 text-gray-500">
-                        <div class="text-4xl mb-4">🌐</div>
-                        <h3 class="text-lg font-medium mb-2">No Peers Connected</h3>
-                        <p class="text-sm mb-4">IPFS network peers will appear here when connected</p>
-                        <button onclick="loadPeersData()" class="btn btn-blue">
-                            <i class="fas fa-sync mr-2"></i>Refresh
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-
-            const peersHTML = peers.map(peer => {
-                const connectionColor = peer.connected ? 'text-green-600' : 'text-red-600';
-                const connectionIcon = peer.connected ? '🟢' : '🔴';
-                const peerId = peer.peer_id || peer.id || 'Unknown ID';
-                const multiaddrs = peer.multiaddrs || [peer.addr || 'No address'];
-                const firstAddr = Array.isArray(multiaddrs) ? multiaddrs[0] : multiaddrs;
-                const latency = peer.latency_ms ? `${peer.latency_ms}ms` : (peer.latency || 'Unknown');
-                const protocols = peer.protocols || [];
-                const protocolCount = Array.isArray(protocols) ? protocols.length : 0;
-                const isClusterPeer = peer.cluster_peer ? '🔗 Cluster' : '🌐 Network';
-                const lastSeen = peer.last_seen ? new Date(peer.last_seen * 1000).toLocaleString() : 'Unknown';
-                
-                return `
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="flex items-center">
-                                <div class="text-2xl mr-3">${isClusterPeer}</div>
-                                <div>
-                                    <h3 class="text-lg font-semibold text-gray-900 font-mono text-sm">${peerId}</h3>
-                                    <p class="text-sm text-gray-600">${firstAddr}</p>
-                                    ${multiaddrs.length > 1 ? '<p class="text-xs text-gray-500">+' + (multiaddrs.length - 1) + ' more addresses</p>' : ''}
-                                </div>
-                            </div>
-                            <div class="flex items-center text-sm ${connectionColor}">
-                                <span class="mr-1">${connectionIcon}</span>
-                                ${peer.connected ? 'Connected' : 'Disconnected'}
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-3 gap-4 text-sm mb-4">
-                            <div>
-                                <span class="text-gray-500">Latency:</span>
-                                <div class="font-medium">${latency}</div>
-                            </div>
-                            <div>
-                                <span class="text-gray-500">Protocols:</span>
-                                <div class="font-medium">${protocolCount}</div>
-                            </div>
-                            <div>
-                                <span class="text-gray-500">Last Seen:</span>
-                                <div class="font-medium text-xs">${lastSeen}</div>
-                            </div>
-                        </div>
-                        
-                        ${peer.agent_version && peer.agent_version !== 'unknown' ? 
-                        '<div class="text-sm mb-4">' +
-                            '<span class="text-gray-500">Agent:</span>' +
-                            '<span class="font-medium text-xs">' + peer.agent_version + '</span>' +
-                        '</div>' : ''}
-                        
-                        ${peer.connection_attempts || peer.successful_connections ? 
-                        '<div class="grid grid-cols-2 gap-4 text-xs text-gray-500 mb-4">' +
-                            '<div>Attempts: ' + (peer.connection_attempts || 0) + '</div>' +
-                            '<div>Successful: ' + (peer.successful_connections || 0) + '</div>' +
-                        '</div>' : ''}
-                        
-                        <div class="flex space-x-2">
-                            <button onclick="connectPeer('${peerId}')" class="btn btn-blue btn-sm">
-                                <i class="fas fa-link mr-1"></i>Connect
-                            </button>
-                            <button onclick="disconnectPeer('${peerId}')" class="btn btn-red btn-sm">
-                                <i class="fas fa-unlink mr-1"></i>Disconnect
-                            </button>
-                            <button onclick="getPeerInfo('${peerId}')" class="btn btn-gray btn-sm">
-                                <i class="fas fa-info mr-1"></i>Info
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            list.innerHTML = peersHTML;
-        }
-
-        // Peer management functions
-        async function connectPeer(peerId) {
-            try {
-                console.log(`Connecting to peer: ${peerId}`);
-                const result = await callMCPTool('connect_peer', { peer_id: peerId });
-                
-                if (result?.result?.success || result?.success) {
-                    alert(`✅ Connected to peer "${peerId}"`);
-                } else {
-                    alert(`❌ Failed to connect to peer: ${result?.error || 'Unknown error'}`);
-                }
-                
-                await loadPeersData();
-            } catch (error) {
-                console.error('Error connecting to peer:', error);
-                alert(`Error connecting to peer: ${error.message}`);
-            }
-        }
-
-        async function disconnectPeer(peerId) {
-            try {
-                console.log(`Disconnecting from peer: ${peerId}`);
-                const result = await callMCPTool('disconnect_peer', { peer_id: peerId });
-                
-                if (result?.result?.success || result?.success) {
-                    alert(`✅ Disconnected from peer "${peerId}"`);
-                } else {
-                    alert(`❌ Failed to disconnect from peer: ${result?.error || 'Unknown error'}`);
-                }
-                
-                await loadPeersData();
-            } catch (error) {
-                console.error('Error disconnecting from peer:', error);
-                alert(`Error disconnecting from peer: ${error.message}`);
-            }
-        }
-
-        // Load peer statistics and update UI
-        async function loadPeerStats() {
-            try {
-                console.log('📊 Loading peer statistics...');
-                const result = await callMCPTool('get_peer_stats', {});
-                console.log('📊 Peer stats result:', result);
-                
-                const stats = result?.result || result || {};
-                
-                // Update stats display
-                const totalPeersEl = document.getElementById('total-peers');
-                const connectedPeersEl = document.getElementById('connected-peers');
-                const discoveryActiveEl = document.getElementById('discovery-active');
-                const protocolsCountEl = document.getElementById('protocols-count');
-                
-                if (totalPeersEl) totalPeersEl.textContent = stats.total_peers || 0;
-                if (connectedPeersEl) connectedPeersEl.textContent = stats.connected_peers || 0;
-                if (discoveryActiveEl) discoveryActiveEl.textContent = stats.discovery_active ? 'Yes' : 'No';
-                if (protocolsCountEl) protocolsCountEl.textContent = (stats.protocols_supported || []).length;
-                
-                console.log('📊 Peer statistics updated');
-                
-            } catch (error) {
-                console.error('Error loading peer stats:', error);
-            }
-        }
-
-        // Show connect peer modal
-        function showConnectPeerModal() {
-            const peerAddress = prompt(
-                'Enter peer address (multiaddr format):\n\nExample:\n/ip4/127.0.0.1/tcp/4001/p2p/12D3KooW...'
-            );
-            
-            if (peerAddress && peerAddress.trim()) {
-                connectPeerByAddress(peerAddress.trim());
-            }
-        }
-
-        // Connect to peer by address
-        async function connectPeerByAddress(peerAddress) {
-            try {
-                console.log(`Connecting to peer address: ${peerAddress}`);
-                showToast('Connecting to peer...', 'info');
-                
-                const result = await callMCPTool('connect_peer', { 
-                    peer_address: peerAddress 
-                });
-                
-                if (result?.result?.success || result?.success) {
-                    const peerId = result?.result?.peer_id || result?.peer_id || 'unknown';
-                    showToast(`✅ Connected to peer ${peerId}`, 'success');
-                    await loadPeersData();
-                    await loadPeerStats();
-                } else {
-                    const errorMsg = result?.result?.error || result?.error || 'Unknown error';
-                    showToast(`❌ Failed to connect: ${errorMsg}`, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error connecting to peer address:', error);
-                showToast(`Error connecting to peer: ${error.message}`, 'error');
-            }
-        }
-
-        // Get detailed peer information
-        async function getPeerInfo(peerId) {
-            try {
-                console.log(`Getting info for peer: ${peerId}`);
-                showToast('Loading peer information...', 'info');
-                
-                const result = await callMCPTool('get_peer_info', { peer_id: peerId });
-                
-                if (result?.result?.success || result?.success) {
-                    const peerInfo = result?.result?.peer_info || result?.peer_info || {};
-                    const metadata = peerInfo.metadata || {};
-                    const pinsets = peerInfo.pinsets || [];
-                    
-                    const infoText = `
-Peer Information:
-ID: ${peerInfo.peer_id || 'Unknown'}
-Connected: ${peerInfo.connected ? 'Yes' : 'No'}
-Addresses: ${(peerInfo.multiaddrs || []).join('\n')}
-Protocols: ${(peerInfo.protocols || []).join(', ')}
-Agent: ${peerInfo.agent_version || 'Unknown'}
-Latency: ${peerInfo.latency_ms ? peerInfo.latency_ms + 'ms' : 'Unknown'}
-Last Seen: ${peerInfo.last_seen ? new Date(peerInfo.last_seen * 1000).toLocaleString() : 'Unknown'}
-Cluster Peer: ${peerInfo.cluster_peer ? 'Yes' : 'No'}
-Connection Attempts: ${peerInfo.connection_attempts || 0}
-Successful Connections: ${peerInfo.successful_connections || 0}
-Shared Pins: ${pinsets.length || 0}
-                    `.trim();
-                    
-                    alert(infoText);
-                } else {
-                    const errorMsg = result?.result?.error || result?.error || 'Unknown error';
-                    showToast(`❌ Failed to get peer info: ${errorMsg}`, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error getting peer info:', error);
-                showToast(`Error getting peer info: ${error.message}`, 'error');
-            }
-        }
-
-        // Pin Management Data Loading Function
-        async function loadPinsData() {
-            try {
-                console.log('📌 Loading pins via MCP JSON-RPC...');
-                const result = await callMCPTool('list_pins', {});
-                console.log('📌 Pins result:', result);
-                
-                // Handle MCP result structure - extract pins array
-                let pins = [];
-                // Common shapes:
-                // - JSON-RPC: { result: { items: [...] } } (backend REST mirror uses `items`)
-                // - Legacy:   { result: { pins:  [...] } }
-                // - Direct:   { items: [...] } or { pins: [...] }
-                // - Raw:      [ ... ]
-                if (Array.isArray(result?.result?.pins)) {
-                    pins = result.result.pins;
-                } else if (Array.isArray(result?.result?.items)) {
-                    pins = result.result.items;
-                } else if (result?.result && Array.isArray(result.result)) {
-                    pins = result.result;
-                } else if (Array.isArray(result?.pins)) {
-                    pins = result.pins;
-                } else if (Array.isArray(result?.items)) {
-                    pins = result.items;
-                } else if (Array.isArray(result)) {
-                    pins = result;
-                } else {
-                    console.warn('loadPinsData: list_pins returned unexpected structure:', typeof result, result);
-                    pins = [];
-                }
-                
-                console.log('📌 Extracted pins array:', pins);
-                displayPins(pins);
-                
-            } catch (error) {
-                console.error('Error loading pins data:', error);
-                // Show error state in UI
-                const list = document.getElementById('pins-list');
-                if (list) {
-                    list.innerHTML = `
-                        <div class="text-center py-12 text-red-500">
-                            <div class="text-4xl mb-4">⚠️</div>
-                            <h3 class="text-lg font-medium mb-2">Error Loading Pins</h3>
-                            <p class="text-sm mb-4">API service unavailable: ${error.message}</p>
-                            <button onclick="loadPinsData()" class="btn btn-blue">
-                                <i class="fas fa-sync mr-2"></i>Retry
-                            </button>
-                        </div>
-                    `;
-                }
-            }
-        }
-
-        // Display pins in the UI
-        function displayPins(pins) {
-            const list = document.getElementById('pins-list');
-            if (!list) {
-                console.warn('pins-list element not found');
-                return;
-            }
-
-            if (!pins || pins.length === 0) {
-                list.innerHTML = `
-                    <div class="text-center py-12 text-gray-500">
-                        <div class="text-4xl mb-4">📌</div>
-                        <h3 class="text-lg font-medium mb-2">No Pins Found</h3>
-                        <p class="text-sm mb-4">IPFS content pins will appear here when added</p>
-                        <button onclick="loadPinsData()" class="btn btn-blue">
-                            <i class="fas fa-sync mr-2"></i>Refresh
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-
-            const pinsHTML = pins.map(pin => {
-                const statusColor = pin.status === 'pinned' ? 'text-green-600' : 'text-yellow-600';
-                const statusIcon = pin.status === 'pinned' ? '📌' : '⏳';
-                
-                return `
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="flex items-center">
-                                <div class="text-2xl mr-3">📌</div>
-                                <div>
-                                    <h3 class="text-lg font-semibold text-gray-900 font-mono text-sm">${pin.cid || pin.hash || 'Unknown CID'}</h3>
-                                    <p class="text-sm text-gray-600">${pin.name || pin.description || 'No description'}</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center text-sm ${statusColor}">
-                                <span class="mr-1">${statusIcon}</span>
-                                ${pin.status || 'unknown'}
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-4 text-sm mb-4">
-                            <div>
-                                <span class="text-gray-500">Size:</span>
-                                <div class="font-medium">${formatStorageSize(pin.size || 0)}</div>
-                            </div>
-                            <div>
-                                <span class="text-gray-500">Type:</span>
-                                <div class="font-medium">${pin.type || 'recursive'}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex space-x-2">
-                            <button onclick="unpinContent('${pin.cid || pin.hash}')" class="btn btn-red btn-sm">
-                                <i class="fas fa-unlink mr-1"></i>Unpin
-                            </button>
-                            <button onclick="viewPinDetails('${pin.cid || pin.hash}')" class="btn btn-blue btn-sm">
-                                <i class="fas fa-eye mr-1"></i>Details
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            list.innerHTML = pinsHTML;
-        }
-
-        // Pin management functions
-        async function unpinContent(cid) {
-            try {
-                console.log(`Unpinning content: ${cid}`);
-                const result = await callMCPTool('unpin_content', { cid: cid });
-                
-                if (result?.result?.success || result?.success) {
-                    showToast(`✅ Unpinned content "${cid}"`, 'success');
-                } else {
-                    showToast(`❌ Failed to unpin content: ${result?.error || 'Unknown error'}`, 'error');
-                }
-                
-                await loadPinsData();
-            } catch (error) {
-                console.error('Error unpinning content:', error);
-                showToast(`Error unpinning content: ${error.message}`, 'error');
-            }
-        }
-
-        async function viewPinDetails(cid) {
-            try {
-                console.log(`Viewing pin details for: ${cid}`);
-                const result = await callMCPTool('get_pin_details', { cid: cid });
-                
-                if (result?.result || result) {
-                    const details = result?.result || result;
-                    alert(`Pin Details:\nCID: ${details.cid || cid}\nStatus: ${details.status || 'unknown'}\nSize: ${formatStorageSize(details.size || 0)}\nType: ${details.type || 'recursive'}`);
-                } else {
-                    alert(`No details found for pin: ${cid}`);
-                }
-            } catch (error) {
-                console.error('Error viewing pin details:', error);
-                alert(`Error viewing pin details: ${error.message}`);
             }
         }
 
@@ -7685,7 +5894,7 @@ Shared Pins: ${pinsets.length || 0}
                         <label class="block text-sm font-medium text-gray-700 mb-2">Replication Factor</label>
                         <select id="policy-replication-factor" class="w-full p-3 border border-gray-300 rounded-lg">
                             ${[1,2,3,4,5,6,7,8,9,10].map(n => 
-                                '<option value="' + n + '" ' + (policy.replication_factor === n ? 'selected' : '') + '>' + n + 'x</option>'
+                                `<option value="${n}" ${policy.replication_factor === n ? 'selected' : ''}>${n}x</option>`
                             ).join('')}
                         </select>
                     </div>
@@ -8377,46 +6586,16 @@ Shared Pins: ${pinsets.length || 0}
             } else {
                 container.innerHTML = `<div class="space-y-2 p-4">${files.map(renderFileListItem).join('')}</div>`;
             }
-
-            // Delegated events to avoid inline JS quoting issues
-            container.addEventListener('click', (e) => {
-                const actionEl = e.target.closest('[data-action]');
-                if (actionEl) {
-                    e.stopPropagation();
-                    const row = actionEl.closest('[data-name]');
-                    const name = row ? decodeURIComponent(row.getAttribute('data-name') || '') : '';
-                    const type = row ? decodeURIComponent(row.getAttribute('data-type') || '') : '';
-                    const size = row ? parseInt(row.getAttribute('data-size') || '0', 10) || 0 : 0;
-                    switch (actionEl.getAttribute('data-action')) {
-                        case 'download': return downloadFile(e, name);
-                        case 'share': return shareFile(e, name);
-                        case 'delete': return deleteFile(e, name);
-                        case 'open-folder': return openFolder(name);
-                        case 'open-file': return openFileEditor(name);
-                        case 'toggle-select': return handleFileSelection(actionEl, name);
-                        case 'menu': return showFileMenu(e, name);
-                    }
-                }
-                const card = e.target.closest('.file-card, .file-row');
-                if (card && card.hasAttribute('data-name')) {
-                    const name = decodeURIComponent(card.getAttribute('data-name') || '');
-                    const type = decodeURIComponent(card.getAttribute('data-type') || '');
-                    const size = parseInt(card.getAttribute('data-size') || '0', 10) || 0;
-                    selectFile(name, type, size);
-                }
-            }, { once: true });
         }
         
         function renderFileCard(file) {
             const fileIcon = getFileIcon(file.name, file.type);
             const iconClass = getFileIconClass(file.name, file.type);
-            const nameAttr = encodeURIComponent(file.name || '');
-            const typeAttr = encodeURIComponent(file.type || '');
-            const sizeAttr = Number(file.size || 0);
             
             return `
                 <div class="file-card ${file.selected ? 'selected' : ''}" 
-                     data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}">
+                     onclick="selectFile('${file.name}', '${file.type}')"
+                     data-file="${file.name}">
                     <div class="file-icon ${iconClass}">
                         <i class="fas ${fileIcon}"></i>
                     </div>
@@ -8432,14 +6611,15 @@ Shared Pins: ${pinsets.length || 0}
                         </div>
                     </div>
                     <div class="flex gap-1 mt-3">
-                        ${file.type === 'file' ? 
-                            '<button data-action="download" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">' +
-                                '<i class="fas fa-download text-xs"></i>' +
-                            '</button>' : ''}
-                        <button data-action="share" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
+                        ${file.type === 'file' ? `
+                            <button onclick="downloadFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">
+                                <i class="fas fa-download text-xs"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="shareFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
                             <i class="fas fa-share text-xs"></i>
                         </button>
-                        <button data-action="delete" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                        <button onclick="deleteFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
                             <i class="fas fa-trash text-xs"></i>
                         </button>
                     </div>
@@ -8450,14 +6630,13 @@ Shared Pins: ${pinsets.length || 0}
         function renderFileListItem(file) {
             const fileIcon = getFileIcon(file.name, file.type);
             const iconClass = getFileIconClass(file.name, file.type);
-            const nameAttr = encodeURIComponent(file.name || '');
-            const typeAttr = encodeURIComponent(file.type || '');
-            const sizeAttr = Number(file.size || 0);
             
             return `
-                <div class="file-row flex items-center p-4 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-all duration-200 ${file.selected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-slate-50'}" 
-                     data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}">
-                    <input type="checkbox" class="mr-3 w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" data-action="toggle-select">
+                <div class="flex items-center p-4 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-all duration-200 ${file.selected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-slate-50'}" 
+                     onclick="selectFile('${file.name}', '${file.type}')"
+                     data-file="${file.name}">
+                    <input type="checkbox" class="mr-3 w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" 
+                           onclick="event.stopPropagation();" onchange="handleFileSelection(this, '${file.name}')">
                     
                     <div class="file-icon ${iconClass} mr-4" style="width: 2.5rem; height: 2.5rem;">
                         <i class="fas ${fileIcon}"></i>
@@ -8474,17 +6653,18 @@ Shared Pins: ${pinsets.length || 0}
                     </div>
                     
                     <div class="flex items-center space-x-2 ml-4">
-                        ${file.type === 'file' ? 
-                            '<button data-action="download" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">' +
-                                '<i class="fas fa-download"></i>' +
-                            '</button>' : ''}
-                        <button data-action="share" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
+                        ${file.type === 'file' ? `
+                            <button onclick="downloadFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Download">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="shareFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors" title="Share">
                             <i class="fas fa-share"></i>
                         </button>
-                        <button data-action="delete" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                        <button onclick="deleteFile(event, '${file.name}')" class="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
-                        <button data-action="menu" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors" title="More actions">
+                        <button onclick="showFileMenu(event, '${file.name}')" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors" title="More actions">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                     </div>
@@ -8723,31 +6903,6 @@ Shared Pins: ${pinsets.length || 0}
 
         function hideDragDropZone() {
             document.getElementById('drag-drop-zone').classList.add('hidden');
-        }
-
-        // Utility function for formatting relative time
-        function formatRelativeTime(dateString) {
-            if (!dateString) return 'Unknown';
-            
-            try {
-                const date = new Date(dateString);
-                const now = new Date();
-                const diffMs = now - date;
-                const diffSecs = Math.floor(diffMs / 1000);
-                const diffMins = Math.floor(diffSecs / 60);
-                const diffHours = Math.floor(diffMins / 60);
-                const diffDays = Math.floor(diffHours / 24);
-                
-                if (diffSecs < 60) return 'Just now';
-                if (diffMins < 60) return `${diffMins}m ago`;
-                if (diffHours < 24) return `${diffHours}h ago`;
-                if (diffDays < 7) return `${diffDays}d ago`;
-                if (diffDays < 30) return `${Math.ceil(diffDays / 7)}w ago`;
-                if (diffDays < 365) return `${Math.ceil(diffDays / 30)}mo ago`;
-                return `${Math.ceil(diffDays / 365)}y ago`;
-            } catch (error) {
-                return 'Unknown';
-            }
         }
 
         // Professional Bucket Management Event Listeners
@@ -9034,551 +7189,16 @@ Shared Pins: ${pinsets.length || 0}
             selector.innerHTML = '<option value="">Select a bucket...</option>' + 
                 buckets.map(bucket => `<option value="${bucket.name}">${bucket.name}</option>`).join('');
         }
-
-        // Missing function definitions for tab loading
-        async function loadConfigData() {
-            const listEl = document.getElementById('config-files-list');
-            if (!listEl) return;
-            listEl.innerHTML = '<div class="text-sm text-gray-500">Loading configuration files…</div>';
-            try {
-                console.log('⚙️ Loading configuration data...');
-                let res;
-                if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
-                    res = await window.mcpClient.callTool('list_config_files', {});
-                } else {
-                    const r = await fetch('/api/config/files');
-                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                    res = await r.json();
-                }
-
-                // Normalize to array of files
-                const files = (Array.isArray(res?.files) ? res.files : (res?.result?.files || res?.items || [])) || [];
-                listEl.innerHTML = '';
-
-                if (!files.length) {
-                    listEl.innerHTML = '<div class="text-sm text-gray-500">No configuration files found.</div>';
-                    return;
-                }
-
-                files.forEach((file) => {
-                    const filename = file?.filename || file?.name || file?.path || `${file}`;
-                    const size = file?.size ?? file?.bytes;
-                    const modified = file?.modified || file?.mtime || '';
-                    const item = document.createElement('div');
-                    item.className = 'config-file-item flex items-center justify-between p-2 border rounded hover:bg-gray-50 cursor-pointer';
-                    item.dataset.filename = filename;
-            const sizePart = size ? (size + ' B') : '';
-            const modPart = modified ? ('• ' + modified) : '';
-            item.innerHTML = `
-                        <div class="flex-1 truncate">
-                            <span class="font-mono text-sm">${filename}</span>
-                        </div>
-                        <div class="text-xs text-gray-500 ml-2 whitespace-nowrap">
-                ${sizePart} ${modPart}
-                        </div>`;
-                    item.addEventListener('click', async () => {
-                        // highlight selection
-                        document.querySelectorAll('#config-files-list .config-file-item').forEach(el => el.classList.remove('bg-blue-50', 'border-blue-300', 'active'));
-                        item.classList.add('bg-blue-50', 'border-blue-300', 'active');
-                        await loadConfigFile(filename);
-                    });
-                    listEl.appendChild(item);
-                });
-
-                // Auto-select first if nothing selected
-                if (!currentConfigFilename && files[0]) {
-                    const firstName = files[0]?.filename || files[0]?.name || files[0]?.path || `${files[0]}`;
-                    const firstItem = listEl.querySelector(`[data-filename="${CSS.escape(firstName)}"]`) || listEl.firstElementChild;
-                    if (firstItem) {
-                        firstItem.classList.add('bg-blue-50', 'border-blue-300', 'active');
-                    }
-                    await loadConfigFile(firstName);
-                }
-                showToast('Configuration files loaded', 'success');
-            } catch (error) {
-                console.error('Error loading configuration data:', error);
-                listEl.innerHTML = '<div class="text-sm text-red-600">Failed to load configuration files.</div>';
-                showToast('Failed to load configuration', 'error');
-            }
-        }
-
-        async function loadLogsData() {
-            try {
-                console.log('📄 Loading logs data...');
-                const result = await callMCPTool('get_logs', { limit: 200 });
-                console.log('📄 Logs result:', result);
-                
-                // Handle MCP result structure - extract log items
-                let logItems = [];
-                if (result?.result?.items && Array.isArray(result.result.items)) {
-                    logItems = result.result.items;
-                } else if (result?.items && Array.isArray(result.items)) {
-                    logItems = result.items;
-                } else if (Array.isArray(result)) {
-                    logItems = result;
-                } else {
-                    console.warn('loadLogsData: get_logs returned unexpected structure:', typeof result, result);
-                    logItems = [];
-                }
-                
-                displayLogs(logItems);
-                showToast('Logs loaded successfully', 'success');
-            } catch (error) {
-                console.error('Error loading logs data:', error);
-                const logDisplay = document.getElementById('log-display');
-                if (logDisplay) {
-                    logDisplay.innerHTML = `
-                        <div class="text-red-400 text-center py-8">
-                            <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
-                            <div>Failed to load logs: ${error.message}</div>
-                            <button onclick="loadLogsData()" class="btn btn-blue mt-4">
-                                <i class="fas fa-sync mr-2"></i>Retry
-                            </button>
-                        </div>
-                    `;
-                }
-                showToast('Failed to load logs', 'error');
-            }
-        }
-
-        // Display logs in the UI
-        function displayLogs(logItems) {
-            const logDisplay = document.getElementById('log-display');
-            if (!logDisplay) {
-                console.warn('log-display element not found');
-                return;
-            }
-
-            if (!logItems || logItems.length === 0) {
-                logDisplay.innerHTML = `
-                    <div class="text-gray-500 text-center py-8">
-                        <div class="text-4xl mb-4">📄</div>
-                        <div>No logs available</div>
-                        <button onclick="loadLogsData()" class="btn btn-blue mt-4">
-                            <i class="fas fa-sync mr-2"></i>Refresh
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-
-            // Get filter values
-            const levelFilter = document.getElementById('log-level')?.value || 'all';
-            
-            // Filter logs by level if needed
-            let filteredLogs = logItems;
-            if (levelFilter !== 'all') {
-                filteredLogs = logItems.filter(log => 
-                    (log.level || '').toUpperCase() === levelFilter.toUpperCase()
-                );
-            }
-
-            // Format logs for display
-            const logsHTML = filteredLogs.map(log => {
-                const timestamp = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unknown time';
-                const level = log.level || 'INFO';
-                const logger = log.logger || 'system';
-                const message = log.message || '';
-                
-                // Color coding for log levels
-                let levelColor = 'text-gray-400';
-                switch (level.toUpperCase()) {
-                    case 'ERROR': levelColor = 'text-red-400'; break;
-                    case 'WARNING': case 'WARN': levelColor = 'text-yellow-400'; break;
-                    case 'INFO': levelColor = 'text-blue-400'; break;
-                    case 'DEBUG': levelColor = 'text-gray-400'; break;
-                    default: levelColor = 'text-green-400'; break;
-                }
-                
-                return `
-                    <div class="log-entry border-b border-gray-700 py-1">
-                        <span class="text-gray-500 text-xs">${timestamp}</span>
-                        <span class="${levelColor} font-semibold ml-2">[${level}]</span>
-                        <span class="text-gray-300 ml-2">${logger}:</span>
-                        <span class="text-green-400 ml-2">${message}</span>
-                    </div>
-                `;
-            }).join('');
-
-            logDisplay.innerHTML = logsHTML || '<div class="text-gray-500">No logs match the current filter</div>';
-            
-            // Auto-scroll to bottom if enabled
-            const autoScroll = document.getElementById('auto-scroll');
-            if (autoScroll && autoScroll.checked) {
-                logDisplay.scrollTop = logDisplay.scrollHeight;
-            }
-        }
-
-    async function loadAnalyticsData() {
-            try {
-                console.log('📈 Loading analytics data...');
-        let res;
-        const rangeSel = document.getElementById('analytics-range-select');
-        const backendSel = document.getElementById('analytics-backend-select');
-        const timeRange = rangeSel ? rangeSel.value : '1h';
-        const backendFilter = backendSel ? backendSel.value : '';
-                // Prefer MCP tool, fallback to REST
-                if (window.mcpClient && typeof window.mcpClient.callTool === 'function') {
-            const args = { include_history: true, time_range: timeRange };
-            if (backendFilter) args.backend_name = backendFilter;
-            res = await window.mcpClient.callTool('get_backend_performance_metrics', args);
-                } else {
-            const query = new URLSearchParams({ history: 'true', range: String(timeRange) });
-            if (backendFilter) query.set('backend', backendFilter);
-            const r = await fetch(`/api/analytics/performance?${query.toString()}`);
-                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                    res = await r.json();
-                }
-
-                // Normalize to metrics array
-                let metrics = [];
-                if (Array.isArray(res?.metrics)) metrics = res.metrics;
-                else if (Array.isArray(res?.result?.metrics)) metrics = res.result.metrics;
-                else if (res?.backend_name || res?.performance) metrics = [res];
-
-                // Graceful empty state
-                if (!metrics.length) {
-                    console.warn('No performance metrics available');
-                    renderServiceStatusChart({ healthy: 0, degraded: 0, critical: 0 });
-                    renderResourceUsageChart(0, 0);
-                    showToast('No analytics data available yet', 'warning');
-                    return;
-                }
-
-                // Populate backend selector (unique names), but only when showing all
-                try {
-                    const sel = document.getElementById('analytics-backend-select');
-                    if (sel) {
-                        const names = Array.from(new Set(metrics.map(m => m.backend_name).filter(Boolean)));
-                        const current = sel.value;
-                        // Rebuild options if empty or missing some names
-                        if (sel.options.length <= 1 || names.some(n => !Array.from(sel.options).some(o => o.value === n))) {
-                            const keepAll = sel.querySelector('option[value=""]');
-                            sel.innerHTML = '';
-                            const optAll = document.createElement('option');
-                            optAll.value = '';
-                            optAll.textContent = 'All';
-                            sel.appendChild(optAll);
-                            names.sort().forEach(n => {
-                                const o = document.createElement('option');
-                                o.value = n;
-                                o.textContent = n;
-                                sel.appendChild(o);
-                            });
-                            // Restore selection if possible
-                            if (current && names.includes(current)) sel.value = current;
-                        }
-                    }
-                } catch {}
-
-                // Compute status buckets and averages
-                const counts = { healthy: 0, degraded: 0, critical: 0 };
-                const cpuValues = [];
-                const memValues = [];
-                metrics.forEach(m => {
-                    const p = m.performance || m;
-                    const uptime = Number(p.uptime_percent ?? 0);
-                    const err = Number(p.error_rate_percent ?? 0);
-                    const cpu = Number(p.cpu_usage_percent ?? 0);
-                    const mem = Number(p.memory_usage_percent ?? 0);
-                    cpuValues.push(isFinite(cpu) ? cpu : 0);
-                    memValues.push(isFinite(mem) ? mem : 0);
-                    let status = 'degraded';
-                    if (uptime >= 99 && err < 1) status = 'healthy';
-                    else if (uptime < 95 || err >= 5) status = 'critical';
-                    counts[status]++;
-                });
-                const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
-                const avgCpu = Math.round(avg(cpuValues) * 10) / 10;
-                const avgMem = Math.round(avg(memValues) * 10) / 10;
-
-                renderServiceStatusChart(counts);
-                renderResourceUsageChart(avgCpu, avgMem);
-
-                // Render latency history (average per timestamp across backends)
-                const labelSet = new Set();
-                const perBackend = metrics.map(m => ({ name: (m.backend_name || 'backend'), history: m.history || [] }));
-                perBackend.forEach(b => b.history.forEach(h => labelSet.add(h.timestamp)));
-                let labels = Array.from(labelSet.values()).filter(v => v != null && v !== '').sort();
-                // Limit to last N points to prevent growth pushing layout
-                const MAX_POINTS = 60;
-                if (labels.length > MAX_POINTS) labels = labels.slice(-MAX_POINTS);
-                if (!labels.length) {
-                    console.warn('Latency chart skipped: no labels');
-                    if (window.__analyticsCharts.latencyHistory) {
-                        try { window.__analyticsCharts.latencyHistory.destroy(); } catch {}
-                        window.__analyticsCharts.latencyHistory = null;
-                    }
-                    return;
-                }
-                // Build per-backend datasets aligned to labels
-                const palette = ['#34d399','#60a5fa','#f59e0b','#f87171','#a78bfa','#93c5fd','#4ade80','#f472b6','#22d3ee','#eab308'];
-                const datasets = perBackend.map((b, i) => {
-                    const map = new Map(b.history.map(h => [h.timestamp, Number(h.response_time_ms ?? 0)]));
-                    const arr = labels.map(ts => {
-                        const v = map.get(ts);
-                        const n = Number.isFinite(v) ? Number(v) : null;
-                        return n;
-                    });
-                    return {
-                        label: `${b.name} (ms)`,
-                        data: arr,
-                        fill: false,
-                        borderColor: palette[i % palette.length],
-                        tension: 0.25,
-                        pointRadius: 0,
-                        spanGaps: true
-                    };
-                });
-                const filteredDatasets = datasets.filter(d => Array.isArray(d.data) && d.data.some(v => Number.isFinite(v)));
-                renderLatencyHistoryChart(labels, filteredDatasets);
-
-                // Bucket Analytics: storage per bucket
-                try {
-                    const br = await fetch('/api/buckets');
-                    if (br.ok) {
-                        const bj = await br.json();
-                        const buckets = (bj?.buckets || bj?.items || []);
-                        // Fetch sizes in parallel (cap to first 20 for readability)
-                        const toFetch = buckets.slice(0, 20);
-                        const details = await Promise.all(toFetch.map(async b => {
-                            const name = b?.name || b;
-                            try {
-                                const dr = await fetch(`/api/buckets/${encodeURIComponent(name)}`);
-                                if (!dr.ok) throw new Error('bad');
-                                const dj = await dr.json();
-                                return { name, size: Number(dj?.total_size || 0) };
-                            } catch {
-                                return { name, size: 0 };
-                            }
-                        }));
-                        const sorted = details.sort((a,b)=>b.size-a.size);
-                        renderBucketStorageChart(sorted.map(d=>d.name), sorted.map(d=>d.size));
-                    }
-                } catch (e) { console.warn('Bucket analytics failed', e); }
-
-                // Backend Type Distribution
-                try {
-                    let backendsMap = {};
-                    const cr = await fetch('/api/config/read/backends.json');
-                    if (cr.ok) {
-                        const cj = await cr.json();
-                        const content = cj?.content ?? cj?.result?.content;
-                        if (typeof content === 'string') {
-                            try { backendsMap = JSON.parse(content); } catch {}
-                        } else if (content && typeof content === 'object') {
-                            backendsMap = content;
-                        }
-                    }
-                    const typeCounts = {};
-                    Object.values(backendsMap || {}).forEach((v) => {
-                        const t = (v && (v.type || v.backend_type)) || 'unknown';
-                        typeCounts[t] = (typeCounts[t] || 0) + 1;
-                    });
-                    const labelsBT = Object.keys(typeCounts);
-                    const valuesBT = labelsBT.map(k => typeCounts[k]);
-                    if (labelsBT.length) renderBackendTypeChart(labelsBT, valuesBT);
-                } catch (e) { console.warn('Backend type analytics failed', e); }
-                showToast('Analytics loaded successfully', 'success');
-            } catch (error) {
-                console.error('Error loading analytics data:', error);
-                showToast('Failed to load analytics', 'error');
-            }
-        }
-
-        // Chart helpers (preserve single instances)
-        window.__analyticsCharts = window.__analyticsCharts || {};
-        function renderServiceStatusChart(counts) {
-            const ctx = document.getElementById('serviceStatusChart');
-            if (!ctx) return;
-            if (typeof Chart === 'undefined') {
-                console.warn('Chart.js not available, skipping chart rendering');
-                return;
-            }
-            if (window.__analyticsCharts.serviceStatus) {
-                try { window.__analyticsCharts.serviceStatus.destroy(); } catch {}
-            }
-            window.__analyticsCharts.serviceStatus = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Healthy', 'Degraded', 'Critical'],
-                    datasets: [{
-                        data: [counts.healthy || 0, counts.degraded || 0, counts.critical || 0],
-                        backgroundColor: ['#34d399', '#fbbf24', '#f87171']
-                    }]
-                },
-                options: {
-                    plugins: { legend: { position: 'bottom' } },
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 250 },
-                    layout: { padding: 0 }
-                }
-            });
-        }
-
-        function renderResourceUsageChart(avgCpu, avgMem) {
-            const ctx = document.getElementById('resourceUsageChart');
-            if (!ctx) return;
-            if (typeof Chart === 'undefined') {
-                console.warn('Chart.js not available, skipping chart rendering');
-                return;
-            }
-            if (window.__analyticsCharts.resourceUsage) {
-                try { window.__analyticsCharts.resourceUsage.destroy(); } catch {}
-            }
-            window.__analyticsCharts.resourceUsage = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['CPU %', 'Memory %'],
-                    datasets: [{
-                        label: 'Average Usage',
-                        data: [avgCpu, avgMem],
-                        backgroundColor: ['#60a5fa', '#a78bfa']
-                    }]
-                },
-                options: {
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, max: 100, ticks: { precision: 0 } }, x: { ticks: { maxRotation: 0 } } },
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 250 },
-                    layout: { padding: 0 }
-                }
-            });
-        }
-
-        function renderLatencyHistoryChart(labels, datasets) {
-            const ctx = document.getElementById('latencyHistoryChart');
-            if (!ctx) return;
-            if (typeof Chart === 'undefined') {
-                console.warn('Chart.js not available, skipping chart rendering');
-                return;
-            }
-            if (!Array.isArray(labels) || !labels.length || !Array.isArray(datasets) || !datasets.length) {
-                console.warn('Latency chart: no data to render');
-                if (window.__analyticsCharts.latencyHistory) {
-                    try { window.__analyticsCharts.latencyHistory.destroy(); } catch {}
-                    window.__analyticsCharts.latencyHistory = null;
-                }
-                return;
-            }
-            if (window.__analyticsCharts.latencyHistory) {
-                try { window.__analyticsCharts.latencyHistory.destroy(); } catch {}
-            }
-            window.__analyticsCharts.latencyHistory = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets
-                },
-                options: {
-                    plugins: { legend: { position: 'bottom' } },
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { type: 'category', ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
-                        y: { title: { display: true, text: 'ms' }, ticks: { precision: 0 } }
-                    },
-                    animation: { duration: 250 },
-                    layout: { padding: 0 },
-                    elements: {
-                        point: { radius: 0, hitRadius: 3, hoverRadius: 3 },
-                        line: { spanGaps: true }
-                    },
-                    interaction: { intersect: false, mode: 'nearest' }
-                }
-            });
-        }
-
-        // Wire reload button
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('#analytics-reload-btn');
-            if (btn) {
-                loadAnalyticsData();
-            }
-        });
-        document.addEventListener('change', (e) => {
-            if (e.target && (e.target.id === 'analytics-range-select' || e.target.id === 'analytics-backend-select')) {
-                loadAnalyticsData();
-            }
-        });
-
-        function formatBytes(num) {
-            const units = ['B','KB','MB','GB','TB'];
-            let n = Number(num)||0, i=0;
-            while (n>=1024 && i<units.length-1) { n/=1024; i++; }
-            return `${n.toFixed(n<10 && i>0 ? 1 : 0)} ${units[i]}`;
-        }
-
-        function renderBucketStorageChart(labels, values) {
-            const ctx = document.getElementById('bucketStorageChart');
-            if (!ctx) return;
-            if (typeof Chart === 'undefined') {
-                console.warn('Chart.js not available, skipping chart rendering');
-                return;
-            }
-            if (window.__analyticsCharts.bucketStorage) {
-                try { window.__analyticsCharts.bucketStorage.destroy(); } catch {}
-            }
-            window.__analyticsCharts.bucketStorage = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Total Size',
-                        data: values,
-                        backgroundColor: '#60a5fa'
-                    }]
-                },
-                options: {
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${formatBytes(ctx.parsed.y)}` } } },
-                    scales: { y: { beginAtZero: true, ticks: { callback: (v)=>formatBytes(v) } } },
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
-        }
-
-        function renderBackendTypeChart(labels, values) {
-            const ctx = document.getElementById('backendTypeChart');
-            if (!ctx) return;
-            if (typeof Chart === 'undefined') {
-                console.warn('Chart.js not available, skipping chart rendering');
-                return;
-            }
-            if (window.__analyticsCharts.backendType) {
-                try { window.__analyticsCharts.backendType.destroy(); } catch {}
-            }
-            const colors = ['#34d399','#fbbf24','#a78bfa','#f87171','#93c5fd','#f472b6','#f59e0b','#4ade80'];
-            window.__analyticsCharts.backendType = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: labels.map((_,i)=>colors[i % colors.length])
-                    }]
-                },
-                options: {
-                    plugins: { legend: { position: 'bottom' } },
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
-        }
-
-    // End of inline script helpers
     </script>
 
     <!-- Advanced Bucket Settings Modal -->
-    <div id="bucket-settings-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 bucket-settings-modal">
+    <div id="bucket-settings-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto modal-content">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
                 <div class="p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-semibold text-gray-900">Bucket Configuration</h3>
-                        <button id="close-bucket-settings" class="text-gray-400 hover:text-gray-600 close-button">
+                        <button id="close-bucket-settings" class="text-gray-400 hover:text-gray-600">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>

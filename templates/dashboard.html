@@ -23,6 +23,9 @@
                     <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="system">
                         <i class="fas fa-server mr-2"></i>System Status
                     </button>
+                    <button class="tab-button w-full text-left px-4 py-2 rounded text-gray-700 hover:bg-gray-100" data-tab="configuration">
+                        <i class="fas fa-cog mr-2"></i>Configuration
+                    </button>
                 </div>
             </nav>
         </div>
@@ -57,7 +60,7 @@
                     </div>
                     
                     <!-- Pin Statistics -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="flex grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                         <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
                             <div class="text-2xl font-bold" id="total-pins">-</div>
                             <div class="text-sm opacity-90">Total Pins</div>
@@ -102,6 +105,132 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Configuration Tab -->
+            <div id="configuration" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Configuration Management</h2>
+                    
+                    <div class="mb-4 p-4 bg-blue-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                            <span class="text-sm text-blue-700">Files loaded via MCP JSON-RPC. Metadata-first approach: ~/.ipfs_kit/ → ipfs_kit_py backends → consistent replication state</span>
+                        </div>
+                    </div>
+
+                    <!-- Configuration Files -->
+                    <div class="space-y-6">
+                        <!-- Pins Configuration -->
+                        <div class="border rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-lg font-semibold text-gray-800">
+                                    <i class="fas fa-thumbtack text-blue-500 mr-2"></i>pins.json
+                                </h3>
+                                <span id="pins-status" class="px-2 py-1 rounded text-xs bg-gray-100">Loading...</span>
+                            </div>
+                            <div class="space-y-2 mb-3">
+                                <div class="flex justify-between text-sm text-gray-600">
+                                    <span>Source: <span id="pins-source">-</span></span>
+                                    <span>Size: <span id="pins-size">-</span> bytes</span>
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    Modified: <span id="pins-modified">-</span>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded text-xs font-mono">
+                                <div id="pins-preview">Loading configuration...</div>
+                            </div>
+                            <div class="flex space-x-2 mt-3">
+                                <button onclick="editConfig('pins.json')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-edit mr-1"></i>Edit
+                                </button>
+                                <button onclick="refreshConfig('pins.json')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-sync-alt mr-1"></i>Refresh
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Buckets Configuration -->
+                        <div class="border rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-lg font-semibold text-gray-800">
+                                    <i class="fas fa-folder text-green-500 mr-2"></i>buckets.json
+                                </h3>
+                                <span id="buckets-status" class="px-2 py-1 rounded text-xs bg-gray-100">Loading...</span>
+                            </div>
+                            <div class="space-y-2 mb-3">
+                                <div class="flex justify-between text-sm text-gray-600">
+                                    <span>Source: <span id="buckets-source">-</span></span>
+                                    <span>Size: <span id="buckets-size">-</span> bytes</span>
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    Modified: <span id="buckets-modified">-</span>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded text-xs font-mono">
+                                <div id="buckets-preview">Loading configuration...</div>
+                            </div>
+                            <div class="flex space-x-2 mt-3">
+                                <button onclick="editConfig('buckets.json')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-edit mr-1"></i>Edit
+                                </button>
+                                <button onclick="refreshConfig('buckets.json')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-sync-alt mr-1"></i>Refresh
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Backends Configuration -->
+                        <div class="border rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-lg font-semibold text-gray-800">
+                                    <i class="fas fa-database text-purple-500 mr-2"></i>backends.json
+                                </h3>
+                                <span id="backends-status" class="px-2 py-1 rounded text-xs bg-gray-100">Loading...</span>
+                            </div>
+                            <div class="space-y-2 mb-3">
+                                <div class="flex justify-between text-sm text-gray-600">
+                                    <span>Source: <span id="backends-source">-</span></span>
+                                    <span>Size: <span id="backends-size">-</span> bytes</span>
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    Modified: <span id="backends-modified">-</span>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded text-xs font-mono">
+                                <div id="backends-preview">Loading configuration...</div>
+                            </div>
+                            <div class="flex space-x-2 mt-3">
+                                <button onclick="editConfig('backends.json')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-edit mr-1"></i>Edit
+                                </button>
+                                <button onclick="refreshConfig('backends.json')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-sync-alt mr-1"></i>Refresh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuration Actions -->
+                    <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                        <h4 class="font-semibold mb-3">Configuration Actions</h4>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="refreshAllConfigs()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                                <i class="fas fa-sync-alt mr-2"></i>Refresh All
+                            </button>
+                            <button onclick="createNewConfig()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                                <i class="fas fa-plus mr-2"></i>Create New
+                            </button>
+                            <button onclick="exportConfigs()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
+                                <i class="fas fa-download mr-2"></i>Export All
+                            </button>
+                            <button onclick="syncReplicas()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded">
+                                <i class="fas fa-sync mr-2"></i>Sync Replicas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -138,6 +267,7 @@
         </div>
     </div>
 
+    <script src="/static/mcp-sdk.js"></script>
     <script src="/static/dashboard.js"></script>
 </body>
 </html>
