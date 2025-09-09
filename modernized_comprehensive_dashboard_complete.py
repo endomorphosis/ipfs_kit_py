@@ -773,7 +773,7 @@ class ModernizedComprehensiveDashboard:
         .md\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .lg\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
         .gap-6 { gap: 1.5rem; }
-        .mb-6 { margin-bottom: 1.5rem; }
+        .mb-6 { margin-bottom: 1.5rem;  display: flex; }
         .bg-gray-50 { background-color: #f9fafb; }
         .border { border-width: 1px; border-color: #d1d5db; }
         .rounded-lg { border-radius: 0.5rem; }

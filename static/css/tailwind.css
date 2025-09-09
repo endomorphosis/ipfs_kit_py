@@ -104,8 +104,7 @@ body {
 .grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .gap-1 { gap: 0.25rem; }
 .gap-2 { gap: 0.5rem; }
-.gap-4 { gap: 1rem; }
-.gap-6 { gap: 1.5rem; }
+.gap-4 { gap: 1rem; display: flex; }.gap-6 { gap: 1.5rem; }
 .gap-8 { gap: 2rem; }
 
 /* Spacing - Padding */
@@ -157,7 +156,7 @@ body {
 .mt-8 { margin-top: 2rem; }
 .mb-2 { margin-bottom: 0.5rem; }
 .mb-4 { margin-bottom: 1rem; }
-.mb-6 { margin-bottom: 1.5rem; }
+.mb-6 { margin-bottom: 1.5rem;  display: flex; }
 .mb-8 { margin-bottom: 2rem; }
 .mb-10 { margin-bottom: 2.5rem; }
 .ml-4 { margin-left: 1rem; }

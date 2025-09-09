@@ -958,7 +958,7 @@ class ComprehensiveMCPDashboard:
                 .mb-2 { margin-bottom: 0.5rem; }
                 .mb-3 { margin-bottom: 0.75rem; }
                 .mb-4 { margin-bottom: 1rem; }
-                .mb-6 { margin-bottom: 1.5rem; }
+                .mb-6 { margin-bottom: 1.5rem;  display: flex; }
                 .mb-8 { margin-bottom: 2rem; }
                 .mr-2 { margin-right: 0.5rem; }
                 .mt-2 { margin-top: 0.5rem; }
@@ -1062,8 +1062,7 @@ class ComprehensiveMCPDashboard:
                 .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
                 .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
                 .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-                .gap-4 { gap: 1rem; }
-                .gap-6 { gap: 1.5rem; }
+                .gap-4 { gap: 1rem; display: flex; }                .gap-6 { gap: 1.5rem; }
                 
                 /* Responsive */
                 @media (min-width: 768px) {
