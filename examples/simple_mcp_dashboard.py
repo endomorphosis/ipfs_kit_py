@@ -31,9 +31,19 @@ logger = logging.getLogger(__name__)
 class MCPDashboard:
     """Simple MCP Dashboard with proper JSON-RPC integration."""
     
-    def __init__(self, host="127.0.0.1", port=8004):
-        self.host = host
-        self.port = port
+    def __init__(self, config=None, host="127.0.0.1", port=8004, data_dir=None, debug=False):
+        # Handle dict config from CLI or direct parameters
+        if isinstance(config, dict):
+            self.host = config.get("host", "127.0.0.1")
+            self.port = config.get("port", 8004)
+            self.data_dir = Path(config.get("data_dir", Path.home() / ".ipfs_kit"))
+            self.debug = config.get("debug", False)
+        else:
+            self.host = host
+            self.port = port
+            self.data_dir = Path(data_dir) if data_dir else Path.home() / ".ipfs_kit"
+            self.debug = debug
+            
         self.start_time = datetime.now()
         
         # Initialize FastAPI
@@ -545,6 +555,11 @@ window.mcpClient = new MCPClient();
     <div class="container">
         <div class="sidebar">
             <h1>🚀 IPFS Kit</h1>
+            <p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">Comprehensive MCP Dashboard</p>
+            <div style="color: #28a745; font-size: 0.8em; margin-bottom: 20px;">● MCP Server Active</div>
+            
+            <div style="color: #666; font-size: 0.8em; margin-bottom: 10px; margin-top: 20px;">📂 Bucket File Management</div>
+            
             <div class="nav-item active" data-tab="overview">📊 Overview</div>
             <div class="nav-item" data-tab="services">⚙️ Services</div>
             <div class="nav-item" data-tab="backends">🗄️ Backends</div>
@@ -985,6 +1000,14 @@ window.mcpClient = new MCPClient();
 </body>
 </html>'''
     
+    async def start(self):
+        """Start the dashboard server (async method for CLI integration)."""
+        import uvicorn
+        logger.info(f"Starting MCP Dashboard on {self.host}:{self.port}")
+        config = uvicorn.Config(app=self.app, host=self.host, port=self.port, log_level="info")
+        server = uvicorn.Server(config)
+        await server.serve()
+    
     def run(self):
         """Run the dashboard server."""
         logger.info(f"Starting MCP Dashboard on {self.host}:{self.port}")
@@ -998,6 +1021,7 @@ def main():
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8004, help="Port to bind to")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--data-dir", default=str(Path.home() / ".ipfs_kit"), help="Data directory")
     
     args = parser.parse_args()
     
@@ -1008,7 +1032,7 @@ def main():
     )
     
     # Create and run dashboard
-    dashboard = MCPDashboard(host=args.host, port=args.port)
+    dashboard = MCPDashboard(host=args.host, port=args.port, data_dir=args.data_dir, debug=args.debug)
     dashboard.run()
 
 if __name__ == "__main__":
