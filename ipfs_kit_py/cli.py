@@ -98,11 +98,11 @@ class FastCLI:
                 bases.append(home_repo)
             for base in bases:
                 for name in (
-                    "simple_mcp_dashboard.py",
                     "consolidated_mcp_dashboard.py",
                     "unified_mcp_dashboard.py",
                     "comprehensive_mcp_dashboard.py",
                     "modernized_comprehensive_dashboard.py",
+                    "simple_mcp_dashboard.py",
                 ):
                     p = base / name
                     if p.exists():
