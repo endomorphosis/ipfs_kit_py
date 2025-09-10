@@ -98,6 +98,7 @@ class FastCLI:
                 bases.append(home_repo)
             for base in bases:
                 for name in (
+                    "comprehensive_mcp_dashboard.py",
                     "consolidated_mcp_dashboard.py",
                     "unified_mcp_dashboard.py",
                     "modernized_comprehensive_dashboard.py",
@@ -109,6 +110,10 @@ class FastCLI:
                     p_dev = base / "scripts" / "development" / name
                     if p_dev.exists():
                         return p_dev
+                    # Also check in deprecated_dashboards subdirectory
+                    p_dep = base / "deprecated_dashboards" / name
+                    if p_dep.exists():
+                        return p_dep
             return None
 
         server_file = detect_server_file()
@@ -133,7 +138,14 @@ class FastCLI:
             if DashboardClass is None:
                 print("No Dashboard class found in server file"); sys.exit(2)
             app = DashboardClass({"host": host, "port": port, "data_dir": str(data_dir), "debug": debug})
-            await app.run()
+            # Try different method names for starting the dashboard
+            if hasattr(app, 'start'):
+                await app.start()
+            elif hasattr(app, 'run'):
+                await app.run()
+            else:
+                print("Dashboard class does not have start() or run() method")
+                sys.exit(2)
             return
 
         # background
