@@ -5758,7 +5758,7 @@ class ConsolidatedMCPDashboard:
             
             // Info Banner
             el('div',{style:'padding:8px 12px;background:#1a1a1a;border:1px solid #333;border-radius:4px;margin-bottom:12px;font-size:13px;'},
-                el('span',{style:'color:#FFC107;'},,'💡'),
+                el('span',{style:'color:#FFC107;'},'💡'),
                 el('strong',{text:' Multi-Backend Support: ',style:'color:#4CAF50;'}),
                 'Manage multiple S3 buckets, GitHub accounts, IPFS clusters with individual cache/storage/retention policies. Uses ~/.ipfs_kit/ metadata-first approach.'
             ),
@@ -7658,8 +7658,8 @@ class ConsolidatedMCPDashboard:
                         el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Sync Replicas',onclick:(e)=>{ e.stopPropagation(); syncBucketReplicas(it.name); }},'🔄'),
                         el('button',{style:'padding:2px 6px;font-size:11px;margin-right:4px;',title:'Expand/Collapse',onclick:(e)=>{ e.stopPropagation(); toggle(); }},'▾'),
                         el('button',{style:'padding:2px 6px;font-size:11px;',title:'Delete',onclick:(e)=>{ e.stopPropagation(); if(confirm('Delete bucket '+it.name+'?')) deleteBucket(it.name); }},'✕')
+                        )
                     )
-                );
                 
                 // Enhanced bucket details
                 const body=el('div',{style:'display:none;margin-top:6px;font-size:12px;'});
@@ -7754,6 +7754,7 @@ class ConsolidatedMCPDashboard:
                 body.querySelector('.btn-view-files').onclick = ()=> showBucketDetails(it.name);
                 header.addEventListener('click', ()=> toggle());
             });
+            }
         }catch(e){ 
             container.textContent='Error loading buckets'; 
             console.error('Bucket loading error:', e);
@@ -7826,9 +7827,9 @@ class ConsolidatedMCPDashboard:
     };
     
     // Enhanced Bucket File Management Variables
-    let selectedBucket = null;
-    let selectedFiles = [];
-    let bucketUsageData = {};
+    // selectedBucket = null; // already declared above
+    selectedFiles = [];
+    bucketUsageData = {};
     
     // Event handlers for new bucket management features
     const bucketSelector = document.getElementById('bucket-selector');

@@ -105,6 +105,10 @@ class FastCLI:
                     p = base / name
                     if p.exists():
                         return p
+                    # Also check in scripts/development subdirectory
+                    p_dev = base / "scripts" / "development" / name
+                    if p_dev.exists():
+                        return p_dev
             return None
 
         server_file = detect_server_file()
