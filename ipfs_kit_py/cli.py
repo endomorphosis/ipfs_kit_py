@@ -139,11 +139,11 @@ class FastCLI:
         # background
         print(f"Starting MCP dashboard (background) using: {server_file}")
         log_file = data_dir / f"mcp_{port}.log"
-        cmd = [sys.executable, "-m", "ipfs_kit_py.cli", "mcp", "start", "--host", host, "--port", str(port), "--data-dir", str(data_dir), "--foreground"]
+        # Run the dashboard file directly instead of through the CLI module to avoid import issues
+        cmd = [sys.executable, str(server_file), "--host", host, "--port", str(port), "--data-dir", str(data_dir)]
         if debug:
             cmd.append("--debug")
         env = os.environ.copy()
-        env["IPFS_KIT_SERVER_FILE"] = str(server_file)
         try:
             with open(log_file, "ab", buffering=0) as lf:
                 proc = subprocess.Popen(cmd, stdout=lf, stderr=lf, cwd=server_file.parent, start_new_session=True, env=env)
