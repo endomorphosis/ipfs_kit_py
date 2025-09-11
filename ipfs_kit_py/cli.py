@@ -72,15 +72,7 @@ class FastCLI:
         data_dir.mkdir(parents=True, exist_ok=True)
 
         def detect_server_file() -> Optional[Path]:
-            # Prefer the simple light-themed dashboard from examples that matches PR #38
-            try:
-                repo_root = Path(__file__).resolve().parents[1]
-                preferred = repo_root / "examples" / "simple_mcp_dashboard.py"
-                if preferred.exists():
-                    return preferred
-            except Exception:
-                pass
-            # explicit
+            # Explicit argument always wins
             sp = getattr(args, "server_path", None)
             if sp:
                 p = Path(sp).expanduser().resolve()
@@ -104,26 +96,32 @@ class FastCLI:
             home_repo = Path.home() / "ipfs_kit_py"
             if home_repo.exists():
                 bases.append(home_repo)
+            # Preferred order of dashboard implementations
+            preference_order = [
+                # Consolidated (current beta / primary)
+                "consolidated_mcp_dashboard.py",
+                # Unified/modern variants
+                "unified_mcp_dashboard.py",
+                "modernized_comprehensive_dashboard.py",
+                "comprehensive_mcp_dashboard.py",
+                # Simple fallback (legacy light-themed example)
+                "simple_mcp_dashboard.py",
+            ]
             for base in bases:
-                for name in (
-                    "simple_mcp_dashboard.py",
-                    "consolidated_mcp_dashboard.py",
-                    "unified_mcp_dashboard.py",
-                    "comprehensive_mcp_dashboard.py",
-                    "modernized_comprehensive_dashboard.py",
-                ):
-                    p = base / name
-                    if p.exists():
-                        return p
-                    # Also check in examples subdirectory
-                    p_examples = base / "examples" / name
-                    if p_examples.exists():
-                        return p_examples
-                    # Also check in scripts/development subdirectory
+                for name in preference_order:
+                    # scripts/development specific first
                     p_dev = base / "scripts" / "development" / name
                     if p_dev.exists():
                         return p_dev
-                    # Also check in deprecated_dashboards subdirectory
+                    # repo root
+                    p_root = base / name
+                    if p_root.exists():
+                        return p_root
+                    # examples
+                    p_examples = base / "examples" / name
+                    if p_examples.exists():
+                        return p_examples
+                    # deprecated
                     p_dep = base / "deprecated_dashboards" / name
                     if p_dep.exists():
                         return p_dep

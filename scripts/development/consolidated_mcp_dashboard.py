@@ -786,7 +786,15 @@ class ConsolidatedMCPDashboard:
 
         @app.get("/app.js", response_class=PlainTextResponse)
         async def app_js() -> Response:
-            return Response(self._app_js(), media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store"})
+            body = self._app_js()
+            encoded = body.encode('utf-8', 'ignore')
+            return Response(content=body, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "Content-Length": str(len(encoded))})
+
+        @app.head("/app.js")
+        async def head_app_js() -> Response:
+            body = self._app_js()
+            encoded = body.encode('utf-8', 'ignore')
+            return Response(status_code=200, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "Content-Length": str(len(encoded))})
 
         @app.get("/mcp-client.js", response_class=PlainTextResponse)
         async def mcp_client_js() -> Response:
@@ -832,7 +840,14 @@ class ConsolidatedMCPDashboard:
             if body is None:
                 body = self._mcp_client_js()
                 source = "inline"
-            return Response(body, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "X-MCP-SDK-Source": source})
+            encoded = body.encode('utf-8', 'ignore')
+            return Response(content=body, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "X-MCP-SDK-Source": source, "Content-Length": str(len(encoded))})
+
+        @app.head("/mcp-client.js")
+        async def head_mcp_client_js() -> Response:
+            body = self._mcp_client_js()
+            encoded = body.encode('utf-8', 'ignore')
+            return Response(status_code=200, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "Content-Length": str(len(encoded)), "X-MCP-SDK-Source": "inline"})
 
         # Route alias so legacy references to /static/app.js get the dynamic app.js
         @app.get("/static/app.js", response_class=PlainTextResponse)
@@ -843,6 +858,13 @@ class ConsolidatedMCPDashboard:
         @app.get("/static/mcp-sdk.js", response_class=PlainTextResponse)
         async def static_mcp_sdk_js() -> Response:
             return await mcp_client_js()
+
+        # HEAD alias to avoid 405 on /static/app.js HEAD probes
+        @app.head("/static/app.js")
+        async def head_static_app_js() -> Response:
+            body = self._app_js()
+            encoded = body.encode('utf-8','ignore')
+            return Response(status_code=200, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "Content-Length": str(len(encoded))})
 
         # General static file handler for CSS, JS, and other assets
         @app.get("/static/{file_path:path}")
