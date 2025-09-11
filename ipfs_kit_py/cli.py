@@ -72,10 +72,10 @@ class FastCLI:
         data_dir.mkdir(parents=True, exist_ok=True)
 
         def detect_server_file() -> Optional[Path]:
-            # Prefer the unified consolidated dashboard under scripts/development first
+            # Prefer the simple light-themed dashboard from examples that matches PR #38
             try:
                 repo_root = Path(__file__).resolve().parents[1]
-                preferred = repo_root / "scripts" / "development" / "consolidated_mcp_dashboard.py"
+                preferred = repo_root / "examples" / "simple_mcp_dashboard.py"
                 if preferred.exists():
                     return preferred
             except Exception:
@@ -106,11 +106,11 @@ class FastCLI:
                 bases.append(home_repo)
             for base in bases:
                 for name in (
+                    "simple_mcp_dashboard.py",
                     "consolidated_mcp_dashboard.py",
                     "unified_mcp_dashboard.py",
                     "comprehensive_mcp_dashboard.py",
                     "modernized_comprehensive_dashboard.py",
-                    "simple_mcp_dashboard.py",
                 ):
                     p = base / name
                     if p.exists():
