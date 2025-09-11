@@ -5599,34 +5599,33 @@ class ConsolidatedMCPDashboard:
 
     # ---- assets ----
     def _html(self) -> str:
-        # Return the enhanced dashboard HTML template
+        # Always render the beta Tool Runner SPA to guarantee the beta UI is shown
+        # Add a cache-busting version query to ensure the latest app.js is fetched
         try:
-            template_path = Path(__file__).parent / "templates" / "enhanced_dashboard.html"
-            if template_path.exists():
-                with open(template_path, 'r', encoding='utf-8') as f:
-                    return f.read()
-        except Exception as e:
-            self.log.warning(f"Could not load enhanced template: {e}")
-        
-        # Fallback to basic template
-        return """
+            import time as _time
+            ver = str(int(_time.time()))
+        except Exception:
+            ver = "0"
+        return f"""
 <!doctype html>
 <html>
     <head>
-        <meta charset="utf-8"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1"/>
-        <title>IPFS Kit MCP Dashboard</title>
+        <meta charset=\"utf-8\"/>
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>
+        <title>IPFS Kit MCP Dashboard (Beta)</title>
     </head>
     <body>
-        <div id="app">Loading…</div>
-        <script src="/mcp-client.js"></script>
-        <script src="/app.js"></script>
+        <div id=\"app\">Loading…</div>
+        <script src=\"/mcp-client.js?v={ver}\"></script>
+        <script src=\"/app.js?v={ver}\"></script>
     </body>
  </html>
 """
 
     def _app_js(self) -> str:
-        import textwrap
+        import textwrap, time as _time
+        _ver = str(int(_time.time()))
+        header = f"/* MCP Dashboard app.js (dynamic) v={_ver} */\n"
         js_code = r"""
 (function(){
     const POLL_INTERVAL = 5000; // ms
@@ -6064,7 +6063,8 @@ class ConsolidatedMCPDashboard:
     showView('tools');
 
     // --- Beta Tool Runner logic ---
-    let toolbetaInited=false; let toolbetaTools=[];
+    // Use var to avoid TDZ if showView('tools') fires before these are initialized
+    var toolbetaInited=false; var toolbetaTools=[];
     async function initToolRunnerBeta(){
         const container=document.getElementById('toolrunner-beta-container'); if(!container) return;
         if(toolbetaInited) return; toolbetaInited=true;
@@ -8887,6 +8887,7 @@ class ConsolidatedMCPDashboard:
 })();
 """
         js_code = textwrap.dedent(js_code)
+        js_code = header + js_code
         js_code = ''.join(c for c in js_code if ord(c) < 128)
         return js_code
 

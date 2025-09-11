@@ -72,6 +72,14 @@ class FastCLI:
         data_dir.mkdir(parents=True, exist_ok=True)
 
         def detect_server_file() -> Optional[Path]:
+            # Prefer the unified consolidated dashboard under scripts/development first
+            try:
+                repo_root = Path(__file__).resolve().parents[1]
+                preferred = repo_root / "scripts" / "development" / "consolidated_mcp_dashboard.py"
+                if preferred.exists():
+                    return preferred
+            except Exception:
+                pass
             # explicit
             sp = getattr(args, "server_path", None)
             if sp:
@@ -125,6 +133,8 @@ class FastCLI:
         if not server_file:
             print("No server file found. Use --server-path or IPFS_KIT_SERVER_FILE.")
             sys.exit(2)
+        else:
+            print(f"Using server file: {server_file}")
 
         pid_file = data_dir / f"mcp_{port}.pid"
 
