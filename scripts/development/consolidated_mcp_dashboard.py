@@ -834,6 +834,11 @@ class ConsolidatedMCPDashboard:
                 source = "inline"
             return Response(body, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "X-MCP-SDK-Source": source})
 
+        # Route alias so legacy references to /static/app.js get the dynamic app.js
+        @app.get("/static/app.js", response_class=PlainTextResponse)
+        async def static_app_js() -> Response:
+            return await app_js()
+
         # Add route for /static/mcp-sdk.js to fix dashboard loading
         @app.get("/static/mcp-sdk.js", response_class=PlainTextResponse)
         async def static_mcp_sdk_js() -> Response:
