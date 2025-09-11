@@ -420,7 +420,7 @@ class ConsolidatedMCPDashboard:
         self.config = config or {}
         self.paths = ensure_paths(self.config.get("data_dir"))
         self.host = self.config.get("host", "127.0.0.1")
-        self.port = int(self.config.get("port", 8081))
+        self.port = int(self.config.get("port", 8004))
         self.debug = bool(self.config.get("debug", False))
         self.DEPRECATED_ENDPOINTS: Dict[str, str] = {"/api/system/overview": "3.2.0"}
         self.api_token = self.config.get("api_token") or os.environ.get("MCP_API_TOKEN")
@@ -5639,7 +5639,7 @@ class ConsolidatedMCPDashboard:
     <head>
         <meta charset=\"utf-8\"/>
         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>
-        <title>IPFS Kit MCP Dashboard (Beta)</title>
+        <title>IPFS Kit MCP Dashboard</title>
     </head>
     <body>
         <div id=\"app\">Loading…</div>
@@ -5704,7 +5704,7 @@ class ConsolidatedMCPDashboard:
         return e;
     }
     const header = el('div',{class:'dash-header'},
-        el('div',{}, el('h1',{text:'IPFS Kit Dashboard'}), el('div',{class:'timestamp',id:'ts-info'},'')),
+        el('div',{}, el('h1',{text:'🚀 IPFS Kit'}), el('div',{class:'timestamp',id:'ts-info'},'')),
         el('div',{class:'actions'},
             el('button',{id:'btn-refresh',title:'Refresh data'},'Refresh'),
             ' ',
@@ -9539,7 +9539,7 @@ if __name__ == "__main__":  # pragma: no cover
     import argparse as _argparse
     p = _argparse.ArgumentParser(description="Start the Consolidated MCP Dashboard")
     p.add_argument("--host", default=os.environ.get("MCP_HOST", "127.0.0.1"), help="Bind host (default: env MCP_HOST or 127.0.0.1)")
-    p.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "8081")), help="Bind port (default: env MCP_PORT or 8081)")
+    p.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "8004")), help="Bind port (default: env MCP_PORT or 8004)")
     p.add_argument("--data-dir", default=os.environ.get("MCP_DATA_DIR"), help="Data directory (default: env MCP_DATA_DIR or ~/.ipfs_kit)")
     p.add_argument("--debug", action="store_true", default=(os.environ.get("MCP_DEBUG", "0") in ("1", "true", "True")), help="Enable debug logging")
     args = p.parse_args()
