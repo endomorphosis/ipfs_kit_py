@@ -98,10 +98,10 @@ class FastCLI:
                 bases.append(home_repo)
             # Preferred order of dashboard implementations
             preference_order = [
-                # Consolidated dashboard (PR #38 style - restored with correct header)
-                "consolidated_mcp_dashboard.py",
-                # Simple dashboard (basic functionality only)
+                # Simple dashboard (original PR #38 with correct styling)
                 "simple_mcp_dashboard.py",
+                # Consolidated dashboard (advanced functionality)
+                "consolidated_mcp_dashboard.py",
                 # Unified/modern variants
                 "unified_mcp_dashboard.py",
                 "modernized_comprehensive_dashboard.py",
@@ -109,11 +109,11 @@ class FastCLI:
             ]
             for base in bases:
                 for name in preference_order:
-                    # examples first (PR #38 simple dashboard)
+                    # examples first (original PR #38 simple dashboard)
                     p_examples = base / "examples" / name
                     if p_examples.exists():
                         return p_examples
-                    # scripts/development specific
+                    # scripts/development (advanced features)
                     p_dev = base / "scripts" / "development" / name
                     if p_dev.exists():
                         return p_dev
