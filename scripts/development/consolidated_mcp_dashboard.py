@@ -5660,26 +5660,27 @@ class ConsolidatedMCPDashboard:
     if (appRoot) appRoot.innerHTML = '';
     if (!document.getElementById('mcp-dashboard-css')) {
         const css = `
-            .dash-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:linear-gradient(90deg,#243b55,#432c7a);color:#eef;font-family:system-ui,Arial,sans-serif;border-radius:6px;margin-bottom:14px;}
+            body{background:#f5f5f5;color:#333;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+            .dash-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:#2d3748;color:white;font-family:system-ui,Arial,sans-serif;border-radius:6px;margin-bottom:14px;}
             .dash-header h1{font-size:20px;margin:0;font-weight:600;letter-spacing:.5px;}
-            .dash-header .actions button{background:#394b68;color:#fff;border:1px solid #4d5f7d;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:13px;}
+            .dash-header .actions button{background:#4a5568;color:#fff;border:1px solid #638797;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:13px;}
             .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px;}
-            .card{background:#1c2432;color:#dbe2ee;border:1px solid #2d3a4d;border-radius:10px;padding:14px;position:relative;box-shadow:0 2px 4px rgba(0,0,0,.25);font-family:system-ui,Arial,sans-serif;}
-            .card h3{margin:0 0 6px;font-size:15px;font-weight:600;color:#fff;}
-            .big-metric{font-size:34px;font-weight:600;line-height:1.05;letter-spacing:-1px;color:#fff;}
+            .card{background:#fff;color:#333;border:1px solid #e2e8f0;border-radius:10px;padding:14px;position:relative;box-shadow:0 2px 4px rgba(0,0,0,.1);font-family:system-ui,Arial,sans-serif;}
+            .card h3{margin:0 0 6px;font-size:15px;font-weight:600;color:#2d3748;}
+            .big-metric{font-size:34px;font-weight:600;line-height:1.05;letter-spacing:-1px;color:#2d3748;}
             .metric-sub{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
             .bars{display:flex;flex-direction:column;gap:10px;}
             .bar{display:flex;flex-direction:column;font-size:12px;font-family:monospace;}
             .bar span{display:flex;justify-content:space-between;}
-            .bar-track{height:8px;background:#2a3545;border-radius:4px;overflow:hidden;margin-top:4px;}
-            .bar-fill{height:100%;background:linear-gradient(90deg,#6b8cff,#b081ff);width:0;transition:width .6s;}
+            .bar-track{height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;margin-top:4px;}
+            .bar-fill{height:100%;background:linear-gradient(90deg,#4299e1,#9f7aea);width:0;transition:width .6s;}
             .muted{opacity:.55;}
             .split{display:grid;grid-template-columns:2fr 1fr;gap:16px;}
             @media(max-width:900px){.split{grid-template-columns:1fr;}}
             .timestamp{font-size:11px;opacity:.6;margin-left:12px;}
             .dash-nav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px 0;padding:0 4px;}
-            .dash-nav .nav-btn{background:#263242;color:#dbe2ee;border:1px solid #37475d;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:13px;}
-            .dash-nav .nav-btn.active{background:#4b5d78;color:#fff;}
+            .dash-nav .nav-btn{background:#fff;color:#4a5568;border:1px solid #e2e8f0;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:13px;}
+            .dash-nav .nav-btn.active{background:#2d3748;color:#fff;}
             .view-panel{animation:fade .25s ease;}
             @keyframes fade{from{opacity:0}to{opacity:1}}
             .loading-spinner {
@@ -5699,12 +5700,15 @@ class ConsolidatedMCPDashboard:
         const styleEl = document.createElement('style'); styleEl.id='mcp-dashboard-css'; styleEl.textContent = css; document.head.append(styleEl);
     }
     function el(tag, attrs, ...kids){
-        const e=document.createElement(tag); if(attrs){ for(const k in attrs){ if(k==='class') e.className=attrs[k]; else if(k==='text') e.textContent=attrs[k]; else e.setAttribute(k,attrs[k]); } }
+        const e=document.createElement(tag); if(attrs){ for(const k in attrs){ if(k==='class') e.className=attrs[k]; else if(k==='text') e.textContent=attrs[k]; else if(k==='innerHTML') e.innerHTML=attrs[k]; else e.setAttribute(k,attrs[k]); } }
         kids.flat().forEach(k=>{ if(k==null) return; if(typeof k==='string') e.appendChild(document.createTextNode(k)); else e.appendChild(k); });
         return e;
     }
     const header = el('div',{class:'dash-header'},
-        el('div',{}, el('h1',{text:'🚀 IPFS Kit'}), el('div',{class:'timestamp',id:'ts-info'},'')),
+        el('div',{}, 
+            el('h1',{innerHTML:'🚀 IPFS Kit',style:'font-size:20px;margin:0;font-weight:600;letter-spacing:.5px;'}), 
+            el('p',{text:'Comprehensive MCP Dashboard',style:'color:#cbd5e0;font-size:0.9em;margin:2px 0 0 0;'}),
+            el('div',{class:'timestamp',id:'ts-info'},'')),
         el('div',{class:'actions'},
             el('button',{id:'btn-refresh',title:'Refresh data'},'Refresh'),
             ' ',
@@ -5744,15 +5748,15 @@ class ConsolidatedMCPDashboard:
         el('h3',{text:'System Performance'}),
         el('div',{class:'bars'},
             perfBar('CPU Usage','cpu'),
-            el('svg',{id:'spark-cpu',width:'100%',height:'26',style:'margin:4px 0 8px 0;background:#202a38;border:1px solid #2d3a4d;border-radius:3px;'}),
+            el('svg',{id:'spark-cpu',width:'100%',height:'26',style:'margin:4px 0 8px 0;background:#f7fafc;border:1px solid #e2e8f0;border-radius:3px;'}),
             perfBar('Memory Usage','mem'),
-            el('svg',{id:'spark-mem',width:'100%',height:'26',style:'margin:4px 0 8px 0;background:#202a38;border:1px solid #2d3a4d;border-radius:3px;'}),
+            el('svg',{id:'spark-mem',width:'100%',height:'26',style:'margin:4px 0 8px 0;background:#f7fafc;border:1px solid #e2e8f0;border-radius:3px;'}),
             perfBar('Disk Usage','disk'),
-            el('svg',{id:'spark-disk',width:'100%',height:'26',style:'margin:4px 0 0 0;background:#202a38;border:1px solid #2d3a4d;border-radius:3px;'})
+            el('svg',{id:'spark-disk',width:'100%',height:'26',style:'margin:4px 0 0 0;background:#f7fafc;border:1px solid #e2e8f0;border-radius:3px;'})
         )
     );
     const layout = el('div',{class:'split'}, perfCard, el('div',{class:'card'}, el('h3',{text:'Network Activity'}), el('div',{id:'net-activity',class:'muted',text:'Loading…'}),
-        el('svg',{id:'net-spark',width:'100%',height:'60',style:'margin-top:6px;display:block;background:#202a38;border:1px solid #2d3a4d;border-radius:4px;'}),
+        el('svg',{id:'net-spark',width:'100%',height:'60',style:'margin-top:6px;display:block;background:#f7fafc;border:1px solid #e2e8f0;border-radius:4px;'}),
         el('div',{id:'net-summary',class:'muted',style:'margin-top:4px;font-size:11px;'},'')));
     // --- Navigation & Views ---
     const nav = el('div',{class:'dash-nav'}, ['Overview','Services','Backends','Buckets','Pins','Logs','Files','Tools','IPFS','CARs'].map(name => el('button',{class:'nav-btn','data-view':name.toLowerCase(),text:name})));
@@ -5934,7 +5938,7 @@ class ConsolidatedMCPDashboard:
             el('div',{id:'upload-progress',style:'margin-top:8px;display:none;'},
                 el('div',{style:'color:#ccc;font-size:12px;margin-bottom:4px;'},'Uploading files...'),
                 el('div',{class:'progress-bar',style:'background:#333;border-radius:4px;height:20px;overflow:hidden;'},
-                    el('div',{id:'progress-fill',style:'background:linear-gradient(90deg,#4CAF50,#8BC34A);height:100%;width:0%;transition:width 0.3s;'})
+                    el('div',{id:'progress-fill',style:'background:linear-gradient(90deg,#48bb78,#68d391);height:100%;width:0%;transition:width 0.3s;'})
                 ),
                 el('div',{id:'progress-text',style:'color:#888;font-size:11px;margin-top:4px;'},'0% complete')
             ),
