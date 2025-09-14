@@ -1,0 +1,51 @@
+{
+  "timestamp": "20250914_090506",
+  "dashboard_url": "http://127.0.0.1:8004",
+  "screenshots": [
+    {
+      "method": "chrome_headless",
+      "file": "/home/runner/work/ipfs_kit_py/ipfs_kit_py/screenshots/dashboard_chrome_20250914_090506.png",
+      "size_bytes": 62710,
+      "status": "success"
+    },
+    {
+      "method": "html_source",
+      "file": "/home/runner/work/ipfs_kit_py/ipfs_kit_py/screenshots/dashboard_source_20250914_090506.html",
+      "size_bytes": 387,
+      "status": "success"
+    }
+  ],
+  "validation": {
+    "has_rocket_emoji": false,
+    "has_ipfs_kit_title": true,
+    "has_dashboard_title": true,
+    "has_overview_tab": false,
+    "has_backends_tab": false,
+    "has_services_tab": false,
+    "has_light_theme_bg": false,
+    "has_dark_theme_elements": false,
+    "content_length": 385,
+    "api_endpoints": {
+      "/mcp/list_tools": {
+        "status": 404,
+        "success": false,
+        "content_length": 22
+      },
+      "/api/metrics/system": {
+        "status": 200,
+        "success": true,
+        "content_length": 202
+      },
+      "/api/buckets": {
+        "status": 200,
+        "success": true,
+        "content_length": 24
+      },
+      "/api/backends": {
+        "status": 200,
+        "success": true,
+        "content_length": 3141
+      }
+    }
+  }
+}
