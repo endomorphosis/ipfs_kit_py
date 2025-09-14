@@ -5661,9 +5661,10 @@ class ConsolidatedMCPDashboard:
     if (!document.getElementById('mcp-dashboard-css')) {
         const css = `
             body{background:#f5f5f5;color:#333;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
-            .dash-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:#2d3748;color:white;font-family:system-ui,Arial,sans-serif;border-radius:6px;margin-bottom:14px;}
-            .dash-header h1{font-size:20px;margin:0;font-weight:600;letter-spacing:.5px;}
-            .dash-header .actions button{background:#4a5568;color:#fff;border:1px solid #638797;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:13px;}
+            .dash-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:#fff;color:#2d3748;font-family:system-ui,Arial,sans-serif;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+            .dash-header h1{font-size:20px;margin:0;font-weight:600;letter-spacing:.5px;color:#2d3748;}
+            .dash-header .actions button{background:#f7fafc;color:#2d3748;border:1px solid #e2e8f0;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:13px;}
+            .dash-header .actions button:hover{background:#e2e8f0;}
             .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px;}
             .card{background:#fff;color:#333;border:1px solid #e2e8f0;border-radius:10px;padding:14px;position:relative;box-shadow:0 2px 4px rgba(0,0,0,.1);font-family:system-ui,Arial,sans-serif;}
             .card h3{margin:0 0 6px;font-size:15px;font-weight:600;color:#2d3748;}
@@ -5707,7 +5708,7 @@ class ConsolidatedMCPDashboard:
     const header = el('div',{class:'dash-header'},
         el('div',{}, 
             el('h1',{innerHTML:'🚀 IPFS Kit',style:'font-size:20px;margin:0;font-weight:600;letter-spacing:.5px;'}), 
-            el('p',{text:'Comprehensive MCP Dashboard',style:'color:#cbd5e0;font-size:0.9em;margin:2px 0 0 0;'}),
+            el('p',{text:'Comprehensive MCP Dashboard',style:'color:#718096;font-size:0.9em;margin:2px 0 0 0;'}),
             el('div',{class:'timestamp',id:'ts-info'},'')),
         el('div',{class:'actions'},
             el('button',{id:'btn-refresh',title:'Refresh data'},'Refresh'),
