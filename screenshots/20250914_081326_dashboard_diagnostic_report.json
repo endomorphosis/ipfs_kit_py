@@ -1,0 +1,2109 @@
+{
+  "timestamp": "20250914_081326",
+  "dashboard_url": "http://127.0.0.1:8004",
+  "accessibility": true,
+  "html_analysis": {
+    "title": "IPFS Kit MCP Dashboard",
+    "has_loading_div": true,
+    "javascript_files": [
+      "/mcp-client.js?v=1757837606",
+      "/app.js?v=1757837606"
+    ],
+    "css_files": [],
+    "meta_viewport": true,
+    "character_encoding": true
+  },
+  "javascript_analysis": {
+    "/mcp-client.js": {
+      "accessible": true,
+      "size": 28719,
+      "has_pr38_elements": {
+        "\ud83d\ude80": false,
+        "Comprehensive MCP Dashboard": false,
+        "MCP Server Active": false,
+        "Overview": false,
+        "Services": true,
+        "Backends": true,
+        "Pin Management": false
+      },
+      "css_injection": false,
+      "rocket_emoji": false,
+      "comprehensive_dashboard": false,
+      "file_saved": "screenshots/20250914_081326__mcp-client.js"
+    },
+    "/app.js": {
+      "accessible": true,
+      "size": 179626,
+      "has_pr38_elements": {
+        "\ud83d\ude80": false,
+        "Comprehensive MCP Dashboard": true,
+        "MCP Server Active": false,
+        "Overview": true,
+        "Services": true,
+        "Backends": true,
+        "Pin Management": false
+      },
+      "css_injection": true,
+      "rocket_emoji": false,
+      "comprehensive_dashboard": true,
+      "file_saved": "screenshots/20250914_081326__app.js"
+    }
+  },
+  "api_tests": {
+    "/api/mcp/status": {
+      "accessible": true,
+      "data": {
+        "success": true,
+        "data": {
+          "protocol_version": "1.0",
+          "total_tools": 91,
+          "tools": [
+            "health_check",
+            "get_system_status",
+            "list_services",
+            "service_control",
+            "service_status",
+            "list_backends",
+            "create_backend",
+            "update_backend",
+            "delete_backend",
+            "test_backend",
+            "get_backend",
+            "list_backend_instances",
+            "create_backend_instance",
+            "configure_backend_instance",
+            "get_backend_performance_metrics",
+            "get_backend_configuration_template",
+            "clone_backend_configuration",
+            "backup_backend_configuration",
+            "restore_backend_configuration",
+            "list_buckets",
+            "create_bucket",
+            "delete_bucket",
+            "get_bucket",
+            "update_bucket",
+            "get_bucket_policy",
+            "update_bucket_policy",
+            "bucket_list_files",
+            "bucket_upload_file",
+            "bucket_download_file",
+            "bucket_delete_file",
+            "bucket_rename_file",
+            "bucket_mkdir",
+            "bucket_copy_file",
+            "bucket_sync_replicas",
+            "bucket_get_metadata",
+            "get_bucket_usage",
+            "generate_bucket_share_link",
+            "bucket_selective_sync",
+            "list_pins",
+            "create_pin",
+            "delete_pin",
+            "pins_export",
+            "pins_import",
+            "files_list",
+            "files_read",
+            "files_write",
+            "files_mkdir",
+            "files_rm",
+            "files_mv",
+            "files_stat",
+            "files_copy",
+            "files_touch",
+            "files_tree",
+            "ipfs_add",
+            "ipfs_pin",
+            "ipfs_cat",
+            "ipfs_ls",
+            "ipfs_version",
+            "cars_list",
+            "car_export",
+            "car_import",
+            "state_snapshot",
+            "state_backup",
+            "state_reset",
+            "get_logs",
+            "clear_logs",
+            "server_shutdown",
+            "configure_backend_instance",
+            "create_backend_instance",
+            "list_backend_instances",
+            "backend_health_check",
+            "sync_backend_replicas",
+            "test_backend_config",
+            "apply_backend_policy",
+            "update_backend_policy",
+            "get_backend_performance_metrics",
+            "get_backend_configuration_template",
+            "clone_backend_configuration",
+            "backup_backend_configuration",
+            "restore_backend_configuration",
+            "list_config_files",
+            "read_config_file",
+            "write_config_file",
+            "get_config_metadata",
+            "list_peers",
+            "get_peer_stats",
+            "connect_peer",
+            "disconnect_peer",
+            "get_peer_info",
+            "discover_peers",
+            "bootstrap_peers"
+          ],
+          "uptime": 325.79606795310974,
+          "counts": {
+            "services_active": 0,
+            "backends": 6,
+            "buckets": 0,
+            "pins": 0,
+            "requests": 12
+          },
+          "security": {
+            "auth_enabled": false
+          },
+          "endpoints": {
+            "tools_list": "/mcp/tools/list",
+            "tools_call": "/mcp/tools/call",
+            "sse_logs": "/api/logs/stream",
+            "websocket": "/ws"
+          }
+        }
+      },
+      "tools_count": null
+    },
+    "/mcp/tools/list": {
+      "accessible": true,
+      "data": {
+        "jsonrpc": "2.0",
+        "result": {
+          "tools": [
+            {
+              "name": "health_check",
+              "description": "Simple health check for MCP connection",
+              "inputSchema": {}
+            },
+            {
+              "name": "get_system_status",
+              "description": "System health and versions",
+              "inputSchema": {}
+            },
+            {
+              "name": "list_services",
+              "description": "List local services and probes",
+              "inputSchema": {}
+            },
+            {
+              "name": "service_control",
+              "description": "Control a local service (start/stop/restart/status)",
+              "inputSchema": {
+                "service": "string",
+                "action": "string"
+              }
+            },
+            {
+              "name": "service_status",
+              "description": "Probe service status (ipfs)",
+              "inputSchema": {
+                "service": "string"
+              }
+            },
+            {
+              "name": "list_backends",
+              "description": "List configured backends",
+              "inputSchema": {}
+            },
+            {
+              "name": "create_backend",
+              "description": "Create backend",
+              "inputSchema": {
+                "name": "string",
+                "config": "object"
+              }
+            },
+            {
+              "name": "update_backend",
+              "description": "Update backend",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "config"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Backend",
+                    "ui": {
+                      "enumFrom": "backends",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "config": {
+                    "type": "object",
+                    "title": "Config",
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "delete_backend",
+              "description": "Delete backend",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "confirm": {
+                  "message": "This will remove the backend. Continue?"
+                },
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Backend",
+                    "ui": {
+                      "enumFrom": "backends",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "test_backend",
+              "description": "Test backend reachability",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Backend",
+                    "ui": {
+                      "enumFrom": "backends",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "get_backend",
+              "description": "Get backend by name",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Backend",
+                    "ui": {
+                      "enumFrom": "backends",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "list_backend_instances",
+              "description": "List backend instances by type",
+              "inputSchema": {}
+            },
+            {
+              "name": "create_backend_instance",
+              "description": "Create new backend instance",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "service_type",
+                  "instance_name"
+                ],
+                "properties": {
+                  "service_type": {
+                    "type": "string",
+                    "title": "Backend Type",
+                    "enum": [
+                      "local_storage",
+                      "ipfs",
+                      "s3",
+                      "git",
+                      "parquet",
+                      "ipfs_cluster"
+                    ]
+                  },
+                  "instance_name": {
+                    "type": "string",
+                    "title": "Instance Name"
+                  },
+                  "description": {
+                    "type": "string",
+                    "title": "Description"
+                  }
+                }
+              }
+            },
+            {
+              "name": "configure_backend_instance",
+              "description": "Configure backend instance",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "instance_name"
+                ],
+                "properties": {
+                  "instance_name": {
+                    "type": "string",
+                    "title": "Instance Name"
+                  },
+                  "service_type": {
+                    "type": "string",
+                    "title": "Backend Type"
+                  },
+                  "config": {
+                    "type": "object",
+                    "title": "Configuration"
+                  }
+                }
+              }
+            },
+            {
+              "name": "get_backend_performance_metrics",
+              "description": "Get backend performance metrics",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "backend_name"
+                ],
+                "properties": {
+                  "backend_name": {
+                    "type": "string",
+                    "title": "Backend Name"
+                  },
+                  "time_range": {
+                    "type": "string",
+                    "title": "Time Range",
+                    "enum": [
+                      "1h",
+                      "6h",
+                      "24h",
+                      "7d"
+                    ],
+                    "default": "1h"
+                  },
+                  "include_history": {
+                    "type": "boolean",
+                    "title": "Include History",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "get_backend_configuration_template",
+              "description": "Get configuration template for backend type",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "backend_type"
+                ],
+                "properties": {
+                  "backend_type": {
+                    "type": "string",
+                    "title": "Backend Type",
+                    "enum": [
+                      "local_storage",
+                      "ipfs",
+                      "s3",
+                      "git",
+                      "parquet",
+                      "ipfs_cluster"
+                    ]
+                  },
+                  "template_type": {
+                    "type": "string",
+                    "title": "Template Type",
+                    "enum": [
+                      "basic",
+                      "enterprise",
+                      "high_performance"
+                    ],
+                    "default": "basic"
+                  }
+                }
+              }
+            },
+            {
+              "name": "clone_backend_configuration",
+              "description": "Clone backend configuration",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "source_backend",
+                  "new_backend_name"
+                ],
+                "properties": {
+                  "source_backend": {
+                    "type": "string",
+                    "title": "Source Backend"
+                  },
+                  "new_backend_name": {
+                    "type": "string",
+                    "title": "New Backend Name"
+                  },
+                  "modify_config": {
+                    "type": "boolean",
+                    "title": "Modify Configuration",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "backup_backend_configuration",
+              "description": "Backup backend configuration",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "backend_name"
+                ],
+                "properties": {
+                  "backend_name": {
+                    "type": "string",
+                    "title": "Backend Name"
+                  },
+                  "backup_name": {
+                    "type": "string",
+                    "title": "Backup Name"
+                  },
+                  "include_data": {
+                    "type": "boolean",
+                    "title": "Include Data",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "restore_backend_configuration",
+              "description": "Restore backend configuration from backup",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "backend_name",
+                  "backup_id"
+                ],
+                "properties": {
+                  "backend_name": {
+                    "type": "string",
+                    "title": "Backend Name"
+                  },
+                  "backup_id": {
+                    "type": "string",
+                    "title": "Backup ID"
+                  },
+                  "force_restore": {
+                    "type": "boolean",
+                    "title": "Force Restore",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "list_buckets",
+              "description": "List buckets",
+              "inputSchema": {}
+            },
+            {
+              "name": "create_bucket",
+              "description": "Create bucket",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Bucket Name",
+                    "ui": {
+                      "placeholder": "my-bucket"
+                    }
+                  },
+                  "backend": {
+                    "type": "string",
+                    "title": "Backend",
+                    "description": "Optional backend id",
+                    "ui": {
+                      "enumFrom": "backends",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "delete_bucket",
+              "description": "Delete bucket",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "confirm": {
+                  "message": "This will delete the bucket record. Continue?"
+                },
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "get_bucket",
+              "description": "Get bucket by name",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "update_bucket",
+              "description": "Update bucket (merge fields)",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "patch"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "patch": {
+                    "type": "object",
+                    "title": "Patch"
+                  }
+                }
+              }
+            },
+            {
+              "name": "get_bucket_policy",
+              "description": "Get bucket policy",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "update_bucket_policy",
+              "description": "Update bucket policy",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "replication_factor": {
+                    "type": "number",
+                    "title": "Replication",
+                    "default": 1
+                  },
+                  "cache_policy": {
+                    "type": "string",
+                    "title": "Cache",
+                    "enum": [
+                      "none",
+                      "memory",
+                      "disk"
+                    ],
+                    "default": "none"
+                  },
+                  "retention_days": {
+                    "type": "number",
+                    "title": "Retention Days",
+                    "default": 0
+                  }
+                }
+              }
+            },
+            {
+              "name": "bucket_list_files",
+              "description": "List files in bucket with metadata priority",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "bucket"
+                ],
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "title": "Path",
+                    "default": "."
+                  },
+                  "show_metadata": {
+                    "type": "boolean",
+                    "title": "Show Metadata",
+                    "default": true
+                  }
+                }
+              }
+            },
+            {
+              "name": "bucket_upload_file",
+              "description": "Upload file to bucket with replication policy",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "bucket",
+                  "path",
+                  "content"
+                ],
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "title": "File Path"
+                  },
+                  "content": {
+                    "type": "string",
+                    "title": "Content",
+                    "ui": {
+                      "widget": "textarea",
+                      "rows": 6
+                    }
+                  },
+                  "mode": {
+                    "type": "string",
+                    "title": "Mode",
+                    "enum": [
+                      "text",
+                      "hex",
+                      "base64"
+                    ],
+                    "default": "text"
+                  },
+                  "apply_policy": {
+                    "type": "boolean",
+                    "title": "Apply Bucket Policy",
+                    "default": true
+                  }
+                }
+              }
+            },
+            {
+              "name": "bucket_download_file",
+              "description": "Download file from bucket",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "bucket",
+                  "path"
+                ],
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "title": "File Path"
+                  },
+                  "format": {
+                    "type": "string",
+                    "title": "Format",
+                    "enum": [
+                      "text",
+                      "hex",
+                      "base64"
+                    ],
+                    "default": "text"
+                  }
+                }
+              }
+            },
+            {
+              "name": "bucket_delete_file",
+              "description": "Delete file from bucket",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "bucket",
+                  "path"
+                ],
+                "confirm": {
+                  "message": "This will delete the file from the bucket. Continue?"
+                },
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "title": "File Path"
+                  },
+                  "remove_replicas": {
+                    "type": "boolean",
+                    "title": "Remove Replicas",
+                    "default": true
+                  }
+                }
+              }
+            },
+            {
+              "name": "bucket_rename_file",
+              "description": "Rename/move file in bucket",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "bucket",
+                  "src",
+                  "dst"
+                ],
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "src": {
+                    "type": "string",
+                    "title": "Source Path"
+                  },
+                  "dst": {
+                    "type": "string",
+                    "title": "Destination Path"
+                  },
+                  "update_replicas": {
+                    "type": "boolean",
+                    "title": "Update Replicas",
+                    "default": true
+                  }
+                }
+              }
+            },
+            {
+              "name": "bucket_mkdir",
+              "description": "Create directory in bucket",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "bucket",
+                  "path"
+                ],
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "title": "Directory Path"
+                  },
+                  "create_parents": {
+                    "type": "boolean",
+                    "title": "Create Parents",
+                    "default": true
+                  }
+                }
+              }
+            },
+            {
+              "name": "bucket_copy_file",
+              "description": "Copy file within or between buckets",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "src_bucket",
+                  "src_path",
+                  "dst_bucket",
+                  "dst_path"
+                ],
+                "properties": {
+                  "src_bucket": {
+                    "type": "string",
+                    "title": "Source Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "src_path": {
+                    "type": "string",
+                    "title": "Source Path"
+                  },
+                  "dst_bucket": {
+                    "type": "string",
+                    "title": "Destination Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "dst_path": {
+                    "type": "string",
+                    "title": "Destination Path"
+                  },
+                  "apply_dst_policy": {
+                    "type": "boolean",
+                    "title": "Apply Destination Policy",
+                    "default": true
+                  }
+                }
+              }
+            },
+            {
+              "name": "bucket_sync_replicas",
+              "description": "Sync bucket files to replicas according to policy",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "bucket"
+                ],
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "force_sync": {
+                    "type": "boolean",
+                    "title": "Force Full Sync",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "bucket_get_metadata",
+              "description": "Get comprehensive metadata for bucket file",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "bucket",
+                  "path"
+                ],
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "title": "File Path"
+                  },
+                  "include_replicas": {
+                    "type": "boolean",
+                    "title": "Include Replica Info",
+                    "default": true
+                  }
+                }
+              }
+            },
+            {
+              "name": "get_bucket_usage",
+              "description": "Get bucket usage statistics",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "generate_bucket_share_link",
+              "description": "Generate shareable link for bucket",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "bucket"
+                ],
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "access_type": {
+                    "type": "string",
+                    "title": "Access Type",
+                    "enum": [
+                      "read_only",
+                      "read_write",
+                      "admin"
+                    ],
+                    "default": "read_only"
+                  },
+                  "expiration": {
+                    "type": "string",
+                    "title": "Expiration",
+                    "enum": [
+                      "never",
+                      "1h",
+                      "24h",
+                      "7d",
+                      "30d"
+                    ],
+                    "default": "never"
+                  }
+                }
+              }
+            },
+            {
+              "name": "bucket_selective_sync",
+              "description": "Sync selected files in bucket",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "bucket",
+                  "files"
+                ],
+                "properties": {
+                  "bucket": {
+                    "type": "string",
+                    "title": "Bucket",
+                    "ui": {
+                      "enumFrom": "buckets",
+                      "valueKey": "name",
+                      "labelKey": "name"
+                    }
+                  },
+                  "files": {
+                    "type": "array",
+                    "title": "Files to Sync",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "options": {
+                    "type": "object",
+                    "title": "Sync Options",
+                    "properties": {
+                      "force_update": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "verify_checksums": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "create_backup": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "list_pins",
+              "description": "List pins",
+              "inputSchema": {}
+            },
+            {
+              "name": "create_pin",
+              "description": "Create pin",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "cid"
+                ],
+                "properties": {
+                  "cid": {
+                    "type": "string",
+                    "title": "CID"
+                  },
+                  "name": {
+                    "type": "string",
+                    "title": "Name"
+                  }
+                }
+              }
+            },
+            {
+              "name": "delete_pin",
+              "description": "Delete pin",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "cid"
+                ],
+                "confirm": {
+                  "message": "This will unpin the CID. Continue?"
+                },
+                "properties": {
+                  "cid": {
+                    "type": "string",
+                    "title": "CID",
+                    "ui": {
+                      "enumFrom": "pins",
+                      "valueKey": "cid",
+                      "labelFormat": "{name} ({cid})"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "pins_export",
+              "description": "Export pins (raw list)",
+              "inputSchema": {}
+            },
+            {
+              "name": "pins_import",
+              "description": "Import pins (merge without duplicates)",
+              "inputSchema": {
+                "items": "array"
+              }
+            },
+            {
+              "name": "files_list",
+              "description": "List VFS",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "path"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "title": "Path",
+                    "ui": {
+                      "widget": "path",
+                      "placeholder": "."
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "files_read",
+              "description": "Read VFS file",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "path"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "title": "Path"
+                  }
+                }
+              }
+            },
+            {
+              "name": "files_write",
+              "description": "Write VFS file",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "path",
+                  "content"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "title": "Path"
+                  },
+                  "content": {
+                    "type": "string",
+                    "title": "Content",
+                    "ui": {
+                      "widget": "textarea",
+                      "rows": 4
+                    }
+                  },
+                  "mode": {
+                    "type": "string",
+                    "title": "Mode",
+                    "enum": [
+                      "text",
+                      "hex"
+                    ],
+                    "default": "text"
+                  }
+                }
+              }
+            },
+            {
+              "name": "files_mkdir",
+              "description": "Create directory in VFS",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "path"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "title": "Path"
+                  }
+                }
+              }
+            },
+            {
+              "name": "files_rm",
+              "description": "Remove file/dir in VFS",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "path"
+                ],
+                "confirm": {
+                  "message": "This will delete files. Continue?"
+                },
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "title": "Path"
+                  },
+                  "recursive": {
+                    "type": "boolean",
+                    "title": "Recursive",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "files_mv",
+              "description": "Move/Rename in VFS",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "src",
+                  "dst"
+                ],
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "title": "Source"
+                  },
+                  "dst": {
+                    "type": "string",
+                    "title": "Destination"
+                  }
+                }
+              }
+            },
+            {
+              "name": "files_stat",
+              "description": "Stat a VFS path",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "path"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "title": "Path"
+                  }
+                }
+              }
+            },
+            {
+              "name": "files_copy",
+              "description": "Copy file/dir in VFS",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "src",
+                  "dst"
+                ],
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "title": "Source"
+                  },
+                  "dst": {
+                    "type": "string",
+                    "title": "Destination"
+                  },
+                  "recursive": {
+                    "type": "boolean",
+                    "title": "Recursive",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "files_touch",
+              "description": "Create empty file in VFS",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "path"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "title": "Path"
+                  }
+                }
+              }
+            },
+            {
+              "name": "files_tree",
+              "description": "Recursive tree listing (depth-limited)",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "path"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "title": "Path",
+                    "default": "."
+                  },
+                  "depth": {
+                    "type": "number",
+                    "title": "Depth",
+                    "default": 2
+                  }
+                }
+              }
+            },
+            {
+              "name": "ipfs_add",
+              "description": "Add a VFS path to IPFS",
+              "inputSchema": {
+                "path": "string"
+              }
+            },
+            {
+              "name": "ipfs_pin",
+              "description": "Pin a CID via IPFS",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "cid"
+                ],
+                "properties": {
+                  "cid": {
+                    "type": "string",
+                    "title": "CID",
+                    "ui": {
+                      "enumFrom": "pins",
+                      "valueKey": "cid",
+                      "labelFormat": "{name} ({cid})"
+                    }
+                  },
+                  "name": {
+                    "type": "string",
+                    "title": "Name"
+                  }
+                }
+              }
+            },
+            {
+              "name": "ipfs_cat",
+              "description": "Cat a CID via IPFS",
+              "inputSchema": {
+                "cid": "string"
+              }
+            },
+            {
+              "name": "ipfs_ls",
+              "description": "List links for CID",
+              "inputSchema": {
+                "cid": "string"
+              }
+            },
+            {
+              "name": "ipfs_version",
+              "description": "IPFS version info",
+              "inputSchema": {}
+            },
+            {
+              "name": "cars_list",
+              "description": "List CAR files",
+              "inputSchema": {}
+            },
+            {
+              "name": "car_export",
+              "description": "Export a VFS path to CAR",
+              "inputSchema": {
+                "path": "string",
+                "car": "string"
+              }
+            },
+            {
+              "name": "car_import",
+              "description": "Import a CAR to VFS",
+              "inputSchema": {
+                "car": "string",
+                "dest": "string"
+              }
+            },
+            {
+              "name": "state_snapshot",
+              "description": "Snapshot key state files",
+              "inputSchema": {}
+            },
+            {
+              "name": "state_backup",
+              "description": "Backup state to tar.gz",
+              "inputSchema": {}
+            },
+            {
+              "name": "state_reset",
+              "description": "Reset state JSON files (with backups)",
+              "inputSchema": {}
+            },
+            {
+              "name": "get_logs",
+              "description": "Get recent logs",
+              "inputSchema": {
+                "limit": "number"
+              }
+            },
+            {
+              "name": "clear_logs",
+              "description": "Clear logs",
+              "inputSchema": {}
+            },
+            {
+              "name": "server_shutdown",
+              "description": "Shutdown this MCP server",
+              "inputSchema": {}
+            },
+            {
+              "name": "configure_backend_instance",
+              "description": "Configure backend instance with advanced settings",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "instance_name",
+                  "service_type"
+                ],
+                "properties": {
+                  "instance_name": {
+                    "type": "string",
+                    "title": "Instance Name"
+                  },
+                  "service_type": {
+                    "type": "string",
+                    "title": "Service Type",
+                    "enum": [
+                      "s3",
+                      "github",
+                      "ipfs_cluster",
+                      "huggingface",
+                      "gdrive",
+                      "ftp",
+                      "sshfs",
+                      "apache_arrow",
+                      "parquet"
+                    ]
+                  },
+                  "config": {
+                    "type": "object",
+                    "title": "Configuration",
+                    "properties": {
+                      "description": {
+                        "type": "string",
+                        "title": "Description"
+                      },
+                      "cache_policy": {
+                        "type": "string",
+                        "title": "Cache Policy",
+                        "enum": [
+                          "none",
+                          "memory",
+                          "disk",
+                          "hybrid"
+                        ],
+                        "default": "none"
+                      },
+                      "cache_size_mb": {
+                        "type": "number",
+                        "title": "Cache Size (MB)",
+                        "default": 1024
+                      },
+                      "cache_ttl_seconds": {
+                        "type": "number",
+                        "title": "Cache TTL (seconds)",
+                        "default": 3600
+                      },
+                      "storage_quota_gb": {
+                        "type": "number",
+                        "title": "Storage Quota (GB)",
+                        "default": 100
+                      },
+                      "max_files": {
+                        "type": "number",
+                        "title": "Max Files",
+                        "default": 10000
+                      },
+                      "max_file_size_mb": {
+                        "type": "number",
+                        "title": "Max File Size (MB)",
+                        "default": 500
+                      },
+                      "retention_days": {
+                        "type": "number",
+                        "title": "Retention Days",
+                        "default": 365
+                      },
+                      "auto_cleanup": {
+                        "type": "boolean",
+                        "title": "Auto Cleanup",
+                        "default": false
+                      },
+                      "versioning": {
+                        "type": "boolean",
+                        "title": "Versioning",
+                        "default": false
+                      },
+                      "replication_factor": {
+                        "type": "number",
+                        "title": "Replication Factor",
+                        "enum": [
+                          1,
+                          2,
+                          3,
+                          5,
+                          10
+                        ],
+                        "default": 3
+                      },
+                      "sync_strategy": {
+                        "type": "string",
+                        "title": "Sync Strategy",
+                        "enum": [
+                          "immediate",
+                          "scheduled",
+                          "manual"
+                        ],
+                        "default": "immediate"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "create_backend_instance",
+              "description": "Create new backend instance",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "service_type",
+                  "instance_name"
+                ],
+                "properties": {
+                  "service_type": {
+                    "type": "string",
+                    "title": "Service Type",
+                    "enum": [
+                      "s3",
+                      "github",
+                      "ipfs_cluster",
+                      "huggingface",
+                      "gdrive",
+                      "ftp",
+                      "sshfs",
+                      "apache_arrow",
+                      "parquet"
+                    ]
+                  },
+                  "instance_name": {
+                    "type": "string",
+                    "title": "Instance Name"
+                  },
+                  "description": {
+                    "type": "string",
+                    "title": "Description"
+                  }
+                }
+              }
+            },
+            {
+              "name": "list_backend_instances",
+              "description": "List all backend instances with configurations",
+              "inputSchema": {}
+            },
+            {
+              "name": "backend_health_check",
+              "description": "Run comprehensive health check on all backends",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "detailed": {
+                    "type": "boolean",
+                    "title": "Detailed Report",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "sync_backend_replicas",
+              "description": "Sync backend replicas using metadata-first approach",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Backend Name"
+                  },
+                  "use_metadata_first": {
+                    "type": "boolean",
+                    "title": "Use Metadata First",
+                    "default": true
+                  },
+                  "force_sync": {
+                    "type": "boolean",
+                    "title": "Force Sync",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "test_backend_config",
+              "description": "Test backend configuration without saving",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Backend Name"
+                  },
+                  "config": {
+                    "type": "object",
+                    "title": "Configuration to Test"
+                  }
+                }
+              }
+            },
+            {
+              "name": "apply_backend_policy",
+              "description": "Apply policy to backend with replication sync",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "policy"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Backend Name"
+                  },
+                  "policy": {
+                    "type": "object",
+                    "title": "Policy Configuration"
+                  },
+                  "force_sync": {
+                    "type": "boolean",
+                    "title": "Force Sync",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "update_backend_policy",
+              "description": "Update backend policy configuration",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "policy"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Backend Name"
+                  },
+                  "policy": {
+                    "type": "object",
+                    "title": "Policy Updates"
+                  }
+                }
+              }
+            },
+            {
+              "name": "get_backend_performance_metrics",
+              "description": "Get real-time performance metrics for backends",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "backend_name": {
+                    "type": "string",
+                    "title": "Backend Name (optional, all if empty)"
+                  },
+                  "time_range": {
+                    "type": "string",
+                    "title": "Time Range",
+                    "enum": [
+                      "1h",
+                      "6h",
+                      "24h",
+                      "7d"
+                    ],
+                    "default": "1h"
+                  },
+                  "include_history": {
+                    "type": "boolean",
+                    "title": "Include Historical Data",
+                    "default": true
+                  }
+                }
+              }
+            },
+            {
+              "name": "get_backend_configuration_template",
+              "description": "Get configuration templates and policy presets",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "backend_type": {
+                    "type": "string",
+                    "title": "Backend Type",
+                    "enum": [
+                      "s3",
+                      "github",
+                      "ipfs",
+                      "huggingface",
+                      "gdrive",
+                      "parquet"
+                    ]
+                  },
+                  "template_type": {
+                    "type": "string",
+                    "title": "Template Type",
+                    "enum": [
+                      "basic",
+                      "enterprise",
+                      "high_performance",
+                      "backup"
+                    ],
+                    "default": "basic"
+                  }
+                }
+              }
+            },
+            {
+              "name": "clone_backend_configuration",
+              "description": "Clone backend configuration to create new backend",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "source_backend",
+                  "new_backend_name"
+                ],
+                "properties": {
+                  "source_backend": {
+                    "type": "string",
+                    "title": "Source Backend Name"
+                  },
+                  "new_backend_name": {
+                    "type": "string",
+                    "title": "New Backend Name"
+                  },
+                  "modify_config": {
+                    "type": "object",
+                    "title": "Configuration Modifications"
+                  }
+                }
+              }
+            },
+            {
+              "name": "backup_backend_configuration",
+              "description": "Backup backend configuration with versioning",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "backend_name"
+                ],
+                "properties": {
+                  "backend_name": {
+                    "type": "string",
+                    "title": "Backend Name"
+                  },
+                  "backup_name": {
+                    "type": "string",
+                    "title": "Backup Name (optional)"
+                  },
+                  "include_data": {
+                    "type": "boolean",
+                    "title": "Include Data Backup",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "restore_backend_configuration",
+              "description": "Restore backend configuration from backup",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "backend_name",
+                  "backup_id"
+                ],
+                "properties": {
+                  "backend_name": {
+                    "type": "string",
+                    "title": "Backend Name"
+                  },
+                  "backup_id": {
+                    "type": "string",
+                    "title": "Backup ID"
+                  },
+                  "force_restore": {
+                    "type": "boolean",
+                    "title": "Force Restore",
+                    "default": false
+                  }
+                }
+              }
+            },
+            {
+              "name": "list_config_files",
+              "description": "List configuration files with metadata-first approach",
+              "inputSchema": {}
+            },
+            {
+              "name": "read_config_file",
+              "description": "Read configuration file with metadata-first approach",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "filename"
+                ],
+                "properties": {
+                  "filename": {
+                    "type": "string",
+                    "title": "Configuration File"
+                  }
+                }
+              }
+            },
+            {
+              "name": "write_config_file",
+              "description": "Write configuration file with metadata-first approach",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "filename",
+                  "content"
+                ],
+                "properties": {
+                  "filename": {
+                    "type": "string",
+                    "title": "Configuration File"
+                  },
+                  "content": {
+                    "type": "string",
+                    "title": "File Content",
+                    "ui": {
+                      "widget": "textarea",
+                      "rows": 10
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "get_config_metadata",
+              "description": "Get configuration file metadata",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "filename"
+                ],
+                "properties": {
+                  "filename": {
+                    "type": "string",
+                    "title": "Configuration File"
+                  }
+                }
+              }
+            },
+            {
+              "name": "list_peers",
+              "description": "List known peers",
+              "inputSchema": {}
+            },
+            {
+              "name": "get_peer_stats",
+              "description": "Get peer statistics and summary",
+              "inputSchema": {}
+            },
+            {
+              "name": "connect_peer",
+              "description": "Connect or add a peer",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "peer_id": {
+                    "type": "string",
+                    "title": "Peer ID"
+                  },
+                  "peer_address": {
+                    "type": "string",
+                    "title": "Peer Multiaddr"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "disconnect_peer",
+              "description": "Disconnect or remove a peer",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "peer_id"
+                ],
+                "properties": {
+                  "peer_id": {
+                    "type": "string",
+                    "title": "Peer ID"
+                  }
+                }
+              }
+            },
+            {
+              "name": "get_peer_info",
+              "description": "Get peer details",
+              "inputSchema": {
+                "type": "object",
+                "required": [
+                  "peer_id"
+                ],
+                "properties": {
+                  "peer_id": {
+                    "type": "string",
+                    "title": "Peer ID"
+                  }
+                }
+              }
+            },
+            {
+              "name": "discover_peers",
+              "description": "Discover peers via libp2p/ipfs_kit when available",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "limit": {
+                    "type": "number",
+                    "default": 20
+                  },
+                  "timeout": {
+                    "type": "number",
+                    "default": 10
+                  }
+                }
+              }
+            },
+            {
+              "name": "bootstrap_peers",
+              "description": "Manage bootstrap peers (list/from_ipfs/from_cluster/add)",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "list",
+                      "from_ipfs",
+                      "from_cluster",
+                      "add"
+                    ],
+                    "default": "list"
+                  },
+                  "peer_address": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "id": null
+      },
+      "tools_count": null
+    },
+    "/api/health": {
+      "accessible": false,
+      "status": 404
+    }
+  },
+  "pr38_comparison": {
+    "rocket_header": false,
+    "comprehensive_title": true,
+    "light_theme_css": true,
+    "no_dark_theme": true,
+    "navigation_elements": {
+      "Overview": true,
+      "Services": true,
+      "Backends": true,
+      "Pin Management": false,
+      "Analytics": true,
+      "Configuration": true
+    },
+    "not_vfs_browser": true,
+    "not_comprehensive_deprecated": true
+  },
+  "reorganization_issues": [
+    "Resource error: /static/css/dashboard.css (HTTP 500)",
+    "Resource error: /static/js/dashboard.js (HTTP 500)",
+    "Missing resource: /assets/css/style.css (404)",
+    "Missing resource: /css/main.css (404)",
+    "Missing resource: /js/main.js (404)",
+    "Resource error: /favicon.ico (HTTP 204)",
+    "Using JavaScript-only rendering (no fallback HTML)"
+  ],
+  "summary": {
+    "dashboard_accessible": true,
+    "has_pr38_styling": false,
+    "api_functional": true,
+    "reorganization_issues_count": 7,
+    "recommendation": "Dashboard is missing key PR #38 elements - may be using wrong dashboard file"
+  }
+}
