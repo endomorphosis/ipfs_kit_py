@@ -139,23 +139,25 @@ class RefactoredUnifiedMCPDashboard:
     
     def _setup_static_files(self):
         """Setup static file serving and template directories."""
-        # Get the directory where this file is located
-        current_dir = Path(__file__).parent
-        
-        # Setup template directory
-        template_dir = current_dir / "templates"
-        if template_dir.exists():
-            self.templates = Jinja2Templates(directory=str(template_dir))
-        else:
-            logger.warning(f"Template directory not found: {template_dir}")
-            self.templates = None
-        
-        # Setup static files directory
-        static_dir = current_dir / "static"
+        base_dir = Path(__file__).parent  # ipfs_kit_py/mcp/dashboard
+        templates_dir = base_dir / "templates"
+        static_dir = base_dir / "static"
+
+        if not templates_dir.exists():
+            logging.warning(f"Templates dir missing at: {templates_dir}")
+        if not static_dir.exists():
+            logging.warning(f"Static dir missing at: {static_dir}")
+
+        # Mount and configure
         if static_dir.exists():
             self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+        if templates_dir.exists():
+            self.templates = Jinja2Templates(directory=str(templates_dir))
         else:
-            logger.warning(f"Static directory not found: {static_dir}")
+            self.templates = None
+
+        logging.info(f"Templates from: {templates_dir}")
+        logging.info(f"Static files from: {static_dir}")
     
     def _setup_middleware(self):
         """Setup CORS and other middleware."""
