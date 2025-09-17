@@ -86,10 +86,10 @@ class FastCLI:
                     return p
             # Prefer the packaged dashboard first to ensure correct assets/templates
             pkg_base = Path(__file__).resolve().parent
-            # Prefer the stable consolidated_server first; legacy consolidated_mcp_dashboard.py may be corrupted
+            # Prefer the consolidated_mcp_dashboard.py as requested by user
             packaged_candidates = [
-                pkg_base / "mcp" / "dashboard" / "consolidated_server.py",
                 pkg_base / "mcp" / "dashboard" / "consolidated_mcp_dashboard.py",
+                pkg_base / "mcp" / "dashboard" / "consolidated_server.py",
                 pkg_base / "mcp" / "dashboard" / "refactored_unified_mcp_dashboard.py",
                 pkg_base / "mcp" / "dashboard" / "launch_refactored_dashboard.py",
                 pkg_base / "mcp" / "refactored_unified_dashboard.py",

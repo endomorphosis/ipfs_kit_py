@@ -1611,7 +1611,22 @@ class ConsolidatedMCPDashboard:
                                 "status": "running" if port_open else "stopped",
                                 "description": description,
                                 "bin": binary_path,
-                                js_code = r"""
+                            }
+                    
+                    return {"services": services}
+            except Exception as e:
+                self.log.error(f"Error listing services: {e}")
+                return {"services": {}, "error": str(e)}
+
+        @app.post("/api/services/{name}/action")
+        async def service_action(name: str, request: Request) -> Dict[str, Any]:
+            """Perform an action on a service."""
+            try:
+                data = await request.json()
+                action = data.get("action", "")
+            except Exception:
+                action = ""
+                
             if action not in ("start", "stop", "restart", "enable", "disable", "health_check"):
                 raise HTTPException(status_code=400, detail="Invalid action")
             
@@ -5589,7 +5604,7 @@ class ConsolidatedMCPDashboard:
         <title>IPFS Kit MCP Dashboard</title>
     </head>
     <body>
-        <div id="app">Loading…</div>
+        <div id="app">Loading...</div>
         <script src="/mcp-client.js"></script>
         <script src="/app.js"></script>
     </body>
@@ -5626,7 +5641,7 @@ class ConsolidatedMCPDashboard:
         const toolSelect=document.getElementById('tool-select'); if(toolSelect) toolSelect.addEventListener('change', ()=> buildToolFormForSelected());
         const rawToggle=document.getElementById('btn-tool-raw-toggle'); if(rawToggle) rawToggle.addEventListener('click',()=>{ /* keep raw visible; no-op */ });
         """)
-        js_code = r"""
+        js_code = helpers + r"""
 (function(){
     const POLL_INTERVAL = 5000; // ms
     const appRoot = document.getElementById('app');
@@ -5708,10 +5723,10 @@ class ConsolidatedMCPDashboard:
         }catch(e){}
     }
     const grid = el('div',{class:'dash-grid'});
-    const cardServer = el('div',{class:'card'}, el('h3',{text:'MCP Server'}), el('div',{class:'big-metric',id:'srv-status'},'—'), el('div',{class:'metric-sub',id:'srv-port'},''));
-    const cardServices = el('div',{class:'card'}, el('h3',{text:'Services'}), el('div',{class:'big-metric',id:'svc-active'},'—'), el('div',{class:'metric-sub muted'},'Active Services'));
-    const cardBackends = el('div',{class:'card'}, el('h3',{text:'Backends'}), el('div',{class:'big-metric',id:'count-backends'},'—'), el('div',{class:'metric-sub muted'},'Storage Backends'));
-    const cardBuckets = el('div',{class:'card'}, el('h3',{text:'Buckets'}), el('div',{class:'big-metric',id:'count-buckets'},'—'), el('div',{class:'metric-sub muted'},'Total Buckets'));
+    const cardServer = el('div',{class:'card'}, el('h3',{text:'MCP Server'}), el('div',{class:'big-metric',id:'srv-status'},'-'), el('div',{class:'metric-sub',id:'srv-port'},''));
+    const cardServices = el('div',{class:'card'}, el('h3',{text:'Services'}), el('div',{class:'big-metric',id:'svc-active'},'-'), el('div',{class:'metric-sub muted'},'Active Services'));
+    const cardBackends = el('div',{class:'card'}, el('h3',{text:'Backends'}), el('div',{class:'big-metric',id:'count-backends'},'-'), el('div',{class:'metric-sub muted'},'Storage Backends'));
+    const cardBuckets = el('div',{class:'card'}, el('h3',{text:'Buckets'}), el('div',{class:'big-metric',id:'count-buckets'},'-'), el('div',{class:'metric-sub muted'},'Total Buckets'));
     grid.append(cardServer, cardServices, cardBackends, cardBuckets);
     const perfCard = el('div',{class:'card'},
         el('h3',{text:'System Performance'}),
@@ -6038,7 +6053,7 @@ class ConsolidatedMCPDashboard:
     function perfBar(label,key){
         const fillId = 'bar-fill-'+key;
         return el('div',{class:'bar'},
-            el('span',{}, el('strong',{},label), el('span',{id:'bar-label-'+key},'—')),
+            el('span',{}, el('strong',{},label), el('span',{id:'bar-label-'+key},'-')),
             el('div',{class:'bar-track'}, el('div',{class:'bar-fill',id:fillId}))
         );
     }
@@ -8432,11 +8447,11 @@ class ConsolidatedMCPDashboard:
                 row.appendChild(el('td', {text: item.type, style: 'padding: 4px; color: #888;'}));
                 
                 // Size
-                const sizeText = item.size !== null ? formatBytes(item.size) : '—';
+                const sizeText = item.size !== null ? formatBytes(item.size) : '-';
                 row.appendChild(el('td', {text: sizeText, style: 'padding: 4px; text-align: right; font-family: monospace;'}));
                 
                 // Modified
-                const modText = item.modified ? new Date(item.modified).toLocaleDateString() + ' ' + new Date(item.modified).toLocaleTimeString() : '—';
+                const modText = item.modified ? new Date(item.modified).toLocaleDateString() + ' ' + new Date(item.modified).toLocaleTimeString() : '-';
                 row.appendChild(el('td', {text: modText, style: 'padding: 4px; font-family: monospace; font-size: 10px;'}));
                 
                 // Click handlers
@@ -8505,9 +8520,9 @@ class ConsolidatedMCPDashboard:
             statsText += `Name: ${item.name}\n`;
             statsText += `Type: ${stats.is_file ? 'File' : 'Directory'}\n`;
             statsText += `Size: ${formatBytes(stats.size || 0)}\n`;
-            statsText += `Modified: ${stats.modified ? new Date(stats.modified).toLocaleString() : '—'}\n`;
-            statsText += `Created: ${stats.created ? new Date(stats.created).toLocaleString() : '—'}\n`;
-            statsText += `Permissions: ${stats.permissions || '—'}\n`;
+            statsText += `Modified: ${stats.modified ? new Date(stats.modified).toLocaleString() : '-'}\n`;
+            statsText += `Created: ${stats.created ? new Date(stats.created).toLocaleString() : '-'}\n`;
+            statsText += `Permissions: ${stats.permissions || '-'}\n`;
             
             if (stats.is_dir) {
                 statsText += `\nContains:\n`;
@@ -8854,11 +8869,11 @@ class ConsolidatedMCPDashboard:
     function updatePerf(key, val, suffix, extra){
         const pct = (typeof val === 'number') ? Math.max(0, Math.min(100, val)) : 0;
         const fill = document.getElementById('bar-fill-'+key); if(fill) fill.style.width = pct+'%';
-        const label = document.getElementById('bar-label-'+key); if(label) label.textContent = (val!=null?val.toFixed(1):'—')+ (suffix||'') + (extra?('  '+extra):'');
+        const label = document.getElementById('bar-label-'+key); if(label) label.textContent = (val!=null?val.toFixed(1):'-')+ (suffix||'') + (extra?('  '+extra):'');
     }
-    function setText(id,v){ const el=document.getElementById(id); if(el) el.textContent = (v==null?'—':String(v)); }
-    function formatBytes(b){ if(!b && b!==0) return '—'; const u=['B','KB','MB','GB','TB']; let i=0; let n=b; while(n>=1024 && i<u.length-1){ n/=1024; i++; } return n.toFixed(n>=100?0: (n>=10?1:2))+' '+u[i]; }
-    function humanRate(bps){ if(bps==null) return '—'; const u=['B/s','KB/s','MB/s','GB/s']; let i=0; let n=bps; while(n>=1024 && i<u.length-1){ n/=1024; i++; } return n.toFixed(n>=100?0: (n>=10?1:2))+' '+u[i]; }
+    function setText(id,v){ const el=document.getElementById(id); if(el) el.textContent = (v==null?'-':String(v)); }
+    function formatBytes(b){ if(!b && b!==0) return '-'; const u=['B','KB','MB','GB','TB']; let i=0; let n=b; while(n>=1024 && i<u.length-1){ n/=1024; i++; } return n.toFixed(n>=100?0: (n>=10?1:2))+' '+u[i]; }
+    function humanRate(bps){ if(bps==null) return '-'; const u=['B/s','KB/s','MB/s','GB/s']; let i=0; let n=bps; while(n>=1024 && i<u.length-1){ n/=1024; i++; } return n.toFixed(n>=100?0: (n>=10?1:2))+' '+u[i]; }
     let realtime=false; let pollTimer=null; const btnRT=document.getElementById('btn-realtime');
     function schedulePoll(){ clearTimeout(pollTimer); pollTimer = setTimeout(async ()=>{ await refreshAll(); if(!realtime) schedulePoll(); }, POLL_INTERVAL); }
     async function refreshAll(){ await Promise.all([fetchStatus(), fetchMetrics()]); }
@@ -8911,9 +8926,9 @@ class ConsolidatedMCPDashboard:
     try{ fetch('/api/system/deprecations').then(r=>r.json()).then(d=>{ if(d && Array.isArray(d.deprecated)) renderDeprecationBanner(d.deprecated); }).catch(()=>{}); }catch(e){}
 })();
 """
-    js_code = textwrap.dedent(js_code)
-    js_code = ''.join(c for c in js_code if ord(c) < 128)
-    return js_code
+        js_code = textwrap.dedent(js_code)
+        js_code = ''.join(c for c in js_code if ord(c) < 128)
+        return js_code
 
     def _mcp_client_js(self) -> str:
         return """
@@ -9112,8 +9127,8 @@ class ConsolidatedMCPDashboard:
             files.forEach(file => {
                 const isDir = file.is_dir;
                 const icon = isDir ? '📁' : '📄';
-                const size = isDir ? '—' : formatBytes(file.size || 0);
-                const modified = file.modified ? new Date(file.modified).toLocaleDateString() : '—';
+                const size = isDir ? '-' : formatBytes(file.size || 0);
+                const modified = file.modified ? new Date(file.modified).toLocaleDateString() : '-';
                 const replicas = showMetadata && file.replicas ? file.replicas.length : 0;
                 const cached = showMetadata && file.cached ? '💾' : '';
                 
