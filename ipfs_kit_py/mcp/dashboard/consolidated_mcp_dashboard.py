@@ -790,9 +790,10 @@ class ConsolidatedMCPDashboard:
 
         @app.get("/mcp-client.js", response_class=PlainTextResponse)
         async def mcp_client_js() -> Response:
-            # Prefer user-provided static SDK if present; otherwise serve inline SDK
+            # Prefer user-provided static SDK if present; otherwise serve inline SDK with robust path resolution
             try:
-                static_path = (Path(__file__).parent / "static" / "mcp-sdk.js").resolve()
+                base_dir = Path(__file__).parent  # ipfs_kit_py/mcp/dashboard
+                static_path = (base_dir / "static" / "mcp-sdk.js").resolve()
             except Exception:
                 static_path = None
             # Compatibility shim: ensure core + expected namespaces exist when using static SDKs
@@ -844,15 +845,17 @@ class ConsolidatedMCPDashboard:
         async def serve_static_files(file_path: str) -> Response:
             """Serve static files from the static directory."""
             try:
-                # Try to find the static file in multiple locations
+                # Try to find the static file in multiple locations with robust path resolution
+                base_dir = Path(__file__).parent  # ipfs_kit_py/mcp/dashboard
                 static_locations = [
-                    Path(__file__).parent / "static" / file_path,
-                    Path(__file__).parent / "mcp" / "dashboard" / "static" / file_path,
-                    Path(__file__).parent.parent / "static" / file_path,
+                    base_dir / "static" / file_path,
+                    base_dir / "mcp" / "dashboard" / "static" / file_path,
+                    base_dir.parent / "static" / file_path,
                 ]
                 
                 for static_path in static_locations:
                     if static_path.exists() and static_path.is_file():
+                        self.log.debug(f"Serving static file from: {static_path}")
                         # Determine content type
                         content_type, _ = mimetypes.guess_type(str(static_path))
                         if not content_type:
@@ -5585,12 +5588,17 @@ class ConsolidatedMCPDashboard:
 
     # ---- assets ----
     def _html(self) -> str:
-        # Return the enhanced dashboard HTML template
+        # Return the enhanced dashboard HTML template with robust path resolution
         try:
-            template_path = Path(__file__).parent / "templates" / "enhanced_dashboard.html"
+            base_dir = Path(__file__).parent  # ipfs_kit_py/mcp/dashboard
+            template_path = base_dir / "templates" / "enhanced_dashboard.html"
+            
             if template_path.exists():
                 with open(template_path, 'r', encoding='utf-8') as f:
+                    self.log.info(f"Loaded template from: {template_path}")
                     return f.read()
+            else:
+                self.log.warning(f"Template not found at: {template_path}")
         except Exception as e:
             self.log.warning(f"Could not load enhanced template: {e}")
         
