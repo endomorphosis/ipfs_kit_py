@@ -436,19 +436,33 @@
             async loadBuckets() {
                 this.showLoading(true);
                 try {
-                    const response = await fetch('/api/v0/buckets');
-                    const result = await response.json();
+                    console.log('📦 Loading buckets via MCP...');
+                    const result = await this.mcp.callTool('list_buckets', { 
+                        include_metadata: true, 
+                        metadata_first: true,
+                        offset: 0,
+                        limit: 20 
+                    });
                     
-                    if (result.success) {
-                        this.buckets = result.buckets || [];
+                    console.log('📦 MCP list_buckets result:', result);
+                    
+                    // Handle both direct result and JSON-RPC wrapped result
+                    let bucketData = result;
+                    if (result && result.jsonrpc && result.result) {
+                        bucketData = result.result;
+                    }
+                    
+                    if (bucketData && bucketData.items) {
+                        this.buckets = bucketData.items || [];
                         this.updateBucketsList();
                         this.updateStatistics();
-                        this.showNotification('Buckets loaded successfully', 'success');
+                        this.showNotification(`Successfully loaded ${this.buckets.length} buckets via MCP`, 'success');
                     } else {
-                        throw new Error(result.error || 'Failed to load buckets');
+                        console.warn('Unexpected bucket data format:', bucketData);
+                        throw new Error('No buckets data received from MCP');
                     }
                 } catch (error) {
-                    console.error('Failed to load buckets:', error);
+                    console.error('Failed to load buckets via MCP:', error);
                     this.showNotification('Error loading buckets: ' + error.message, 'error');
                 } finally {
                     this.showLoading(false);
@@ -525,8 +539,10 @@
                 }
 
                 const bucketsHtml = this.buckets.map(bucket => {
-                    const sizeFormatted = this.formatBytes(bucket.size);
-                    const quotaUsage = bucket.quota.size_usage_percent || 0;
+                    const sizeFormatted = this.formatBytes(bucket.size || 0);
+                    const fileCount = bucket.file_count || bucket.files || 0;
+                    const bucketStatus = bucket.status || (bucket.metadata && bucket.metadata.status) || 'active';
+                    const quotaUsage = (bucket.quota && bucket.quota.size_usage_percent) || 0;
                     let quotaClass = '';
                     
                     if (quotaUsage > 90) quotaClass = 'danger';
@@ -536,13 +552,13 @@
                         <div class="bucket-card">
                             <div class="bucket-header">
                                 <div class="bucket-name">${bucket.name}</div>
-                                <span class="status-badge status-${bucket.status}">${bucket.status}</span>
+                                <span class="status-badge status-${bucketStatus}">${bucketStatus}</span>
                             </div>
                             <div class="bucket-info">
-                                <div><strong>Backend:</strong> ${bucket.backend}</div>
-                                <div><strong>Size:</strong> ${sizeFormatted} (${bucket.files} files)</div>
-                                <div><strong>Created:</strong> ${new Date(bucket.created_at * 1000).toLocaleDateString()}</div>
-                                ${bucket.quota.max_size ? `
+                                <div><strong>Backend:</strong> ${bucket.backend || (bucket.metadata && bucket.metadata.backend) || 'unknown'}</div>
+                                <div><strong>Size:</strong> ${sizeFormatted} (${fileCount} files)</div>
+                                <div><strong>Created:</strong> ${bucket.created ? new Date(bucket.created).toLocaleDateString() : 'Unknown'}</div>
+                                ${quotaUsage > 0 ? `
                                     <div><strong>Quota:</strong> ${Math.round(quotaUsage)}% used</div>
                                     <div class="quota-bar">
                                         <div class="quota-fill ${quotaClass}" style="width: ${quotaUsage}%"></div>
@@ -550,7 +566,7 @@
                                 ` : ''}
                             </div>
                             <div class="bucket-actions">
-                                <button class="btn btn-small btn-primary" onclick="dashboard.viewBucketStats('${bucket.name}')">Stats</button>
+                                <button class="btn btn-small btn-primary" onclick="dashboard.viewBucketStats('${bucket.name}')">View Files</button>
                                 <button class="btn btn-small btn-success" onclick="dashboard.editBucket('${bucket.name}')">Edit</button>
                                 <button class="btn btn-small btn-danger" onclick="dashboard.deleteBucket('${bucket.name}')">Delete</button>
                             </div>
@@ -563,9 +579,13 @@
 
             updateStatistics() {
                 const totalBuckets = this.buckets.length;
-                const activeBuckets = this.buckets.filter(b => b.status === 'active').length;
-                const totalSize = this.buckets.reduce((sum, bucket) => sum + bucket.size, 0);
-                const totalFiles = this.buckets.reduce((sum, bucket) => sum + bucket.files, 0);
+                const activeBuckets = this.buckets.filter(b => 
+                    (b.status === 'active') || 
+                    (b.metadata && b.metadata.status === 'active') ||
+                    (!b.status && !b.metadata) // assume active if no status specified
+                ).length;
+                const totalSize = this.buckets.reduce((sum, bucket) => sum + (bucket.size || 0), 0);
+                const totalFiles = this.buckets.reduce((sum, bucket) => sum + (bucket.file_count || bucket.files || 0), 0);
 
                 document.getElementById('total-buckets').textContent = totalBuckets;
                 document.getElementById('active-buckets').textContent = activeBuckets;
@@ -588,19 +608,48 @@
                 }
             }
 
-            async viewBucketStats(bucketName) {
+            async loadBucketFiles(bucketName, path = '') {
                 try {
-                    const response = await fetch(`/api/v0/buckets/${bucketName}/stats`);
-                    const result = await response.json();
+                    console.log(`📁 Loading files for bucket: ${bucketName}, path: ${path}`);
+                    const result = await this.mcp.callTool('list_bucket_files', { 
+                        bucket: bucketName,
+                        path: path,
+                        metadata_first: true
+                    });
                     
-                    if (result.success) {
-                        const stats = result.stats;
-                        alert(JSON.stringify(stats, null, 2));
+                    console.log('📁 MCP list_bucket_files result:', result);
+                    
+                    // Handle both direct result and JSON-RPC wrapped result
+                    let fileData = result;
+                    if (result && result.jsonrpc && result.result) {
+                        fileData = result.result;
+                    }
+                    
+                    if (fileData && fileData.items) {
+                        return fileData.items;
+                    } else if (fileData && fileData.error) {
+                        throw new Error(fileData.error);
                     } else {
-                        throw new Error(result.error || 'Failed to get bucket stats');
+                        console.warn('Unexpected file data format:', fileData);
+                        return [];
                     }
                 } catch (error) {
-                    this.showNotification('Error getting bucket stats: ' + error.message, 'error');
+                    console.error(`Failed to load files for bucket ${bucketName}:`, error);
+                    this.showNotification(`Error loading files: ${error.message}`, 'error');
+                    return [];
+                }
+            }
+
+            async viewBucketStats(bucketName) {
+                try {
+                    const files = await this.loadBucketFiles(bucketName);
+                    let filesList = files.length > 0 ? 
+                        files.map(f => `${f.name} (${f.type}) - ${this.formatBytes(f.size)}`).join('\n') :
+                        'No files found in this bucket';
+                    
+                    alert(`Bucket: ${bucketName}\nFiles (${files.length}):\n\n${filesList}`);
+                } catch (error) {
+                    this.showNotification('Error loading bucket details: ' + error.message, 'error');
                 }
             }
 
