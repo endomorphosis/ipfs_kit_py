@@ -175,3 +175,5 @@ bin/lotus-worker
 **/nvidia/cudnn/lib/libcudnn_*.so*
 **/nvidia/cublas/lib/libcublas*.so*
 **/triton/_C/libtriton.so*
+# Temporary files from reorganization
+temp/

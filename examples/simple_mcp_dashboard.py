@@ -54,6 +54,7 @@ class MCPDashboard:
         
     def setup_static_files(self):
         """Setup static files and templates."""
+<<<<<<< HEAD
         # Prefer packaged assets for stability across reorganizations
         base_pkg = Path(__file__).resolve().parents[2] / "ipfs_kit_py" / "mcp" / "dashboard"
         static_candidates = [
@@ -66,6 +67,13 @@ class MCPDashboard:
         ]
         static_dir = next((p for p in static_candidates if p.exists()), static_candidates[0])
         templates_dir = next((p for p in templates_candidates if p.exists()), templates_candidates[0])
+=======
+        # Create static and templates directories if they don't exist
+        static_dir = Path("static")
+        templates_dir = Path("templates")
+        static_dir.mkdir(exist_ok=True)
+        templates_dir.mkdir(exist_ok=True)
+>>>>>>> origin/new_cope
         
         # Mount static files
         try:
