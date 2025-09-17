@@ -196,7 +196,10 @@ class MCPClient {
             'disconnect_peer': ['peer_disconnect', 'disconnect_from_peer'],
             // peer stats/info
             'get_peer_stats': ['peer_stats', 'peers_stats'],
-            'get_peer_info': ['peer_info', 'peers_info']
+            'get_peer_info': ['peer_info', 'peers_info'],
+            // bucket operations
+            'list_bucket_files': ['bucket_list_files', 'bucket_files', 'get_bucket_files'],
+            'bucket_list_files': ['list_bucket_files', 'bucket_files', 'get_bucket_files']
         };
         const built = map[base] || [];
         // add a hyphen variant and camel-case variant as last resort

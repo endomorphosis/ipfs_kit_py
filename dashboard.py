@@ -120,6 +120,16 @@ class SimpleMCPDashboard:
                     {"name": "write_config_file", "description": "Write configuration file content"},
                     {"name": "get_config_metadata", "description": "Get configuration file metadata"},
                     {"name": "list_buckets", "description": "List storage buckets"},
+                    {"name": "list_bucket_files", "description": "List files in a bucket"},
+                    {"name": "bucket_list_files", "description": "List files in a bucket (alternative name)"},
+                    {"name": "bucket_upload_file", "description": "Upload file to bucket"},
+                    {"name": "bucket_download_file", "description": "Download file from bucket"},
+                    {"name": "bucket_delete_file", "description": "Delete file from bucket"},
+                    {"name": "create_bucket", "description": "Create a new storage bucket"},
+                    {"name": "delete_bucket", "description": "Delete a storage bucket"},
+                    {"name": "update_bucket", "description": "Update bucket configuration"},
+                    {"name": "get_bucket_stats", "description": "Get bucket statistics"},
+                    {"name": "get_bucket", "description": "Get bucket information"},
                     {"name": "list_services", "description": "List available services"},
                     {"name": "list_backends", "description": "List storage backends"},
                     {"name": "list_peers", "description": "List connected IPFS peers"},
@@ -174,6 +184,10 @@ class SimpleMCPDashboard:
                 result = await self._get_config_metadata(arguments.get("filename"))
             elif tool_name == "list_buckets":
                 result = await self._list_buckets()
+            elif tool_name == "list_bucket_files":
+                # Handle the JavaScript's expected tool name
+                bucket_name = arguments.get("bucket_name") or arguments.get("bucket")
+                result = await self._bucket_list_files(bucket_name, arguments.get("path", ""))
             elif tool_name == "list_services":
                 result = await self._list_services()
             elif tool_name == "list_backends":
