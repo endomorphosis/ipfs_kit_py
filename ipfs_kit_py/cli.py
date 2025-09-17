@@ -93,6 +93,31 @@ class FastCLI:
                             help="Daemon type to check")
         d_status.add_argument("--config-dir", help="Directory for daemon configuration")
 
+        # Alternative top-level commands for convenience
+        # This provides `ipfs-kit start` as an alternative to `ipfs-kit daemon start`
+        start_parser = sub.add_parser("start", help="Start services (alias for 'daemon start')")
+        start_parser.add_argument("service", nargs="?", default="daemon", 
+                                choices=["daemon", "daemons"], 
+                                help="Service to start")
+        start_parser.add_argument("--type", choices=["ipfs", "aria2", "lotus", "all"], default="ipfs",
+                                help="Daemon type to start")
+        start_parser.add_argument("--config-dir", help="Directory for daemon configuration")
+        start_parser.add_argument("--work-dir", help="Working directory for the daemon")
+        start_parser.add_argument("--log-dir", help="Directory for daemon logs")
+        start_parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+        start_parser.add_argument("--api-port", type=int, help="Port for API server")
+        start_parser.add_argument("--gateway-port", type=int, help="Port for IPFS gateway")
+        start_parser.add_argument("--swarm-port", type=int, help="Port for IPFS swarm connections")
+
+        # Stop command
+        stop_parser = sub.add_parser("stop", help="Stop services (alias for 'daemon stop')")
+        stop_parser.add_argument("service", nargs="?", default="daemon",
+                               choices=["daemon", "daemons"],
+                               help="Service to stop")
+        stop_parser.add_argument("--type", choices=["ipfs", "aria2", "lotus", "all"], default="ipfs",
+                               help="Daemon type to stop")
+        stop_parser.add_argument("--config-dir", help="Directory for daemon configuration")
+
         return parser
 
     async def run(self) -> None:
@@ -108,6 +133,10 @@ class FastCLI:
         elif args.command == "daemon":
             sub_action = getattr(args, "daemon_action", None)
             handler = getattr(self, f"handle_daemon_{sub_action}", None) if sub_action else None
+        # Handle top-level convenience commands
+        elif args.command in ["start", "stop"]:
+            # These are aliases for daemon commands
+            handler = getattr(self, f"handle_daemon_{args.command}", None)
         else:
             handler = getattr(self, f"handle_{args.command}", None)
             
