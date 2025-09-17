@@ -71,6 +71,25 @@ class FastCLI:
         data_dir = Path(getattr(args, "data_dir", str(Path.home() / ".ipfs_kit"))).expanduser()
         data_dir.mkdir(parents=True, exist_ok=True)
 
+        # Ensure we start the packaged dashboard server
+        if bool(getattr(args, "foreground", False)):
+            print(f"Starting MCP dashboard (foreground) using packaged server")
+            try:
+                from ipfs_kit_py.mcp.dashboard.refactored_unified_mcp_dashboard import RefactoredUnifiedMCPDashboard  # noqa: E402
+                dashboard = RefactoredUnifiedMCPDashboard({
+                    "host": host,
+                    "port": port,
+                    "debug": debug,
+                    "data_dir": str(data_dir),
+                    "update_interval": 3
+                })
+                await dashboard.run()
+                return
+            except ImportError as e:
+                print(f"Could not import packaged dashboard server: {e}")
+                # Fall back to file-based approach
+                pass
+
         def detect_server_file() -> Optional[Path]:
             # explicit
             sp = getattr(args, "server_path", None)
@@ -86,12 +105,11 @@ class FastCLI:
                     return p
             # Prefer the packaged dashboard first to ensure correct assets/templates
             pkg_base = Path(__file__).resolve().parent
-            # Prefer the consolidated_mcp_dashboard.py as requested by user
+            # Prefer the refactored_unified_mcp_dashboard.py as the main dashboard
             packaged_candidates = [
+                pkg_base / "mcp" / "dashboard" / "refactored_unified_mcp_dashboard.py",
                 pkg_base / "mcp" / "dashboard" / "consolidated_mcp_dashboard.py",
                 pkg_base / "mcp" / "dashboard" / "consolidated_server.py",
-                pkg_base / "mcp" / "dashboard" / "refactored_unified_mcp_dashboard.py",
-                pkg_base / "mcp" / "dashboard" / "launch_refactored_dashboard.py",
                 pkg_base / "mcp" / "refactored_unified_dashboard.py",
                 pkg_base / "mcp" / "main_dashboard.py",
             ]
