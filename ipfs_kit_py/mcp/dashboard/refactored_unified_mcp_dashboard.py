@@ -20,6 +20,7 @@ import time
 import psutil
 import sys
 import traceback
+import os
 import yaml
 import pandas as pd
 from datetime import datetime, timedelta
@@ -28,7 +29,7 @@ from typing import Dict, Any, List, Optional, Set, Union
 
 # Web framework imports
 from fastapi import FastAPI, Request, HTTPException, File, UploadFile, Form
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -142,7 +143,7 @@ class RefactoredUnifiedMCPDashboard:
         current_dir = Path(__file__).parent
         
         # Setup template directory
-        template_dir = current_dir / "dashboard" / "templates"
+        template_dir = current_dir / "templates"
         if template_dir.exists():
             self.templates = Jinja2Templates(directory=str(template_dir))
         else:
@@ -150,7 +151,7 @@ class RefactoredUnifiedMCPDashboard:
             self.templates = None
         
         # Setup static files directory
-        static_dir = current_dir / "dashboard" / "static"
+        static_dir = current_dir / "static"
         if static_dir.exists():
             self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
         else:
@@ -263,6 +264,82 @@ class RefactoredUnifiedMCPDashboard:
                 "dashboard.html", 
                 {"request": request, "port": self.port}
             )
+
+        # Serve the MCP SDK at a stable alias for the UI/tests
+        @self.app.get("/mcp-client.js")
+        async def serve_mcp_client_js():
+            current_dir = Path(__file__).parent
+            static_dir = current_dir / "static"
+            sdk_path = static_dir / "mcp-sdk.js"
+            headers = {
+                "Cache-Control": "no-store",
+                "X-MCP-SDK-Source": "static",
+                "Content-Type": "application/javascript; charset=utf-8",
+            }
+            if sdk_path.exists():
+                # Return file contents with a small UMD shim to expose MCP.listTools/callTool
+                try:
+                    base = sdk_path.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    base = ""
+                shim = (
+                    "\n\n// MCP SDK (Browser/Node UMD)\n"
+                    "(function(){\n"
+                    "  try{ window.MCP = window.MCP || {}; }catch(e){ return; }\n"
+                    "  if (typeof window.MCP.listTools !== 'function') {\n"
+                    "    window.MCP.listTools = async function(){\n"
+                    "      const r = await fetch('/mcp/tools/list', { method: 'POST' });\n"
+                    "      try { const j = await r.json(); return (j.result && j.result.tools) || j.tools || []; } catch(e){ return []; }\n"
+                    "    };\n"
+                    "  }\n"
+                    "  if (typeof window.MCP.callTool !== 'function') {\n"
+                    "    window.MCP.callTool = async function(name, args){\n"
+                    "      const payload = { jsonrpc: '2.0', method: 'tools/call', params: { name: name, arguments: args||{} }, id: Date.now() };\n"
+                    "      const r = await fetch('/mcp/tools/call', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(payload) });\n"
+                    "      try { const j = await r.json(); return j.result || j; } catch(e){ return null; }\n"
+                    "    };\n"
+                    "  }\n"
+                    "})();\n"
+                )
+                body = base + shim
+                headers["X-MCP-SDK-Source"] = "static"
+                headers["X-MCP-SDK-Shim"] = "1"
+                return Response(content=body, media_type="application/javascript", headers=headers)
+            # Fallback inline SDK (minimal) if static file not present
+            inline = (
+                "// Minimal MCP SDK inline fallback\n"
+                "window.MCP = window.MCP || {};\n"
+                "window.MCP.callTool = async function(name, args){\n"
+                "  const r = await fetch('/mcp/tools/call', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({jsonrpc:'2.0', method:'tools/call', params:{name:name, arguments: args||{}}, id: Date.now()})});\n"
+                "  const j = await r.json(); return j.result || j;\n"
+                "};\n"
+                "window.MCP.listTools = async function(){\n"
+                "  const r = await fetch('/mcp/tools/list', {method:'POST'});\n"
+                "  try { const j = await r.json(); return (j.result && j.result.tools) || []; } catch(e){ return []; }\n"
+                "};\n"
+            )
+            headers["X-MCP-SDK-Source"] = "inline"
+            return Response(content=inline, media_type="application/javascript", headers=headers)
+
+        # Serve the ES5-safe app.js from repository root static directory
+        @self.app.get("/app.js")
+        async def serve_app_js():
+            # Prefer the repo-root static/app.js to ensure consistent, ES5-safe client
+            repo_root = Path(__file__).resolve().parents[3]
+            app_js_path = repo_root / "static" / "app.js"
+            headers = {
+                "Cache-Control": "no-store",
+            }
+            if app_js_path.exists():
+                return FileResponse(path=str(app_js_path), media_type="application/javascript", headers=headers)
+            # As a last resort, return a tiny bootstrap to avoid 404s
+            fallback = (
+                "// Fallback app.js (minimal)\n"
+                "window.addEventListener('DOMContentLoaded', function(){\n"
+                "  console.warn('Fallback app.js loaded: static/app.js not found');\n"
+                "});\n"
+            )
+            return Response(content=fallback, media_type="application/javascript", headers=headers)
         
         # API Routes (same as original implementation)
         @self.app.get("/api/system/overview")

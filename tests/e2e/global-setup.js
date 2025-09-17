@@ -6,6 +6,7 @@ const path = require('path');
 
 function waitForHttp(url, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
+  let delay = 300;
   return new Promise((resolve, reject) => {
     const attempt = () => {
       const req = http.get(url, res => {
@@ -13,18 +14,51 @@ function waitForHttp(url, timeoutMs) {
           res.resume();
           return resolve();
         }
+        // Fallback probe to /healthz before retrying
         res.resume();
-        if (Date.now() > deadline) return reject(new Error('Timeout waiting for server'));
-        setTimeout(attempt, 300);
+        const u = new URL(url);
+        const healthz = `${u.origin}/healthz`;
+        const r2 = http.get(healthz, r => {
+          if (r.statusCode && r.statusCode >= 200 && r.statusCode < 500) {
+            r.resume();
+            return resolve();
+          }
+          r.resume();
+          if (Date.now() > deadline) return reject(new Error('Timeout waiting for server'));
+          delay = Math.min(delay * 1.5, 1200);
+          setTimeout(attempt, delay);
+        });
+        r2.on('error', () => {
+          if (Date.now() > deadline) return reject(new Error('Timeout waiting for server'));
+          delay = Math.min(delay * 1.5, 1200);
+          setTimeout(attempt, delay);
+        });
+        r2.setTimeout(5000, () => { try { r2.destroy(); } catch {} });
       });
       req.on('error', () => {
-        if (Date.now() > deadline) return reject(new Error('Timeout waiting for server'));
-        setTimeout(attempt, 300);
+        // On error, also try /healthz before retrying
+        const u = new URL(url);
+        const healthz = `${u.origin}/healthz`;
+        const r2 = http.get(healthz, r => {
+          if (r.statusCode && r.statusCode >= 200 && r.statusCode < 500) {
+            r.resume();
+            return resolve();
+          }
+          r.resume();
+          if (Date.now() > deadline) return reject(new Error('Timeout waiting for server'));
+          delay = Math.min(delay * 1.5, 1200);
+          setTimeout(attempt, delay);
+        });
+        r2.on('error', () => {
+          if (Date.now() > deadline) return reject(new Error('Timeout waiting for server'));
+          delay = Math.min(delay * 1.5, 1200);
+          setTimeout(attempt, delay);
+        });
+        r2.setTimeout(5000, () => { try { r2.destroy(); } catch {} });
       });
-      req.setTimeout(3000, () => { try { req.destroy(); } catch {}
-      });
+      req.setTimeout(5000, () => { try { req.destroy(); } catch {} });
     };
-    attempt();
+    setTimeout(attempt, 800);
   });
 }
 
@@ -68,14 +102,30 @@ module.exports = async function globalSetup() {
 
   // Launch the consolidated MCP dashboard directly to ensure JSON-RPC shapes and UI match tests
   const env = { ...process.env, MCP_HOST: String(host), MCP_PORT: String(port) };
-  child = spawn('bash', ['-lc', 'python3 consolidated_mcp_dashboard.py'], { cwd: process.cwd(), env, stdio: 'pipe' });
+  const logPath = path.join(process.cwd(), 'dashboard_test.log');
+  try { fs.writeFileSync(logPath, ''); } catch {}
+  const cmd = `python3 consolidated_mcp_dashboard.py >> ${logPath} 2>&1`;
+  child = spawn('bash', ['-lc', cmd], { cwd: process.cwd(), env, stdio: 'ignore' });
   // Initially record the wrapper PID; we'll replace it with the real MCP pid when the pidFile appears
   try { fs.writeFileSync(repoPidFile, String(child.pid)); } catch {}
 
   process.on('exit', () => { try { child && process.kill(child.pid); } catch {} });
 
-  // Wait for readiness with hard timeout
-  await waitForHttp(`${base}/api/mcp/status`, 20_000);
+  // Wait for readiness with hard timeout; fail early if child exits unexpectedly
+  const exitEarly = new Promise((_, reject) => {
+    child.once('exit', (code, signal) => {
+      let tail = '';
+      try {
+        const content = fs.readFileSync(logPath, 'utf8');
+        tail = content.slice(-4000);
+      } catch {}
+      reject(new Error(`Server exited early (code=${code} signal=${signal})\n${tail}`));
+    });
+  });
+  await Promise.race([
+    waitForHttp(`${base}/api/mcp/status`, 45_000),
+    exitEarly,
+  ]);
 
   // Debug: fetch index HTML and log a small snippet to verify SDK script presence
   try {

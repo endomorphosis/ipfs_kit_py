@@ -88,10 +88,22 @@ class SimpleMCPDashboard:
         """Setup all API routes."""
         
         # Mount static files
-        self.app.mount("/static", StaticFiles(directory="static"), name="static")
+        # Setup static files and templates with resilient path resolution
+        base_pkg = Path(__file__).resolve().parent / "mcp" / "dashboard"
+        static_candidates = [
+            base_pkg / "static",
+            Path.cwd() / "static",
+        ]
+        templates_candidates = [
+            base_pkg / "templates",
+            Path.cwd() / "templates",
+        ]
+        static_dir = next((p for p in static_candidates if p.exists()), static_candidates[0])
+        templates_dir = next((p for p in templates_candidates if p.exists()), templates_candidates[0])
+        self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+        templates = Jinja2Templates(directory=str(templates_dir))
         
         # Setup templates
-        templates = Jinja2Templates(directory="templates")
         
         # Main dashboard route
         @self.app.get("/", response_class=HTMLResponse)

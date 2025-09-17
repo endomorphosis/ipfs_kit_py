@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "description": "Playwright E2E tests for the consolidated MCP dashboard",
   "scripts": {
-  "e2e": "NODE_PATH=./.playwright_local/node_modules node ./.playwright_local/node_modules/@playwright/test/cli.js test --config=playwright.config.js",
-  "e2e:headed": "NODE_PATH=./.playwright_local/node_modules node ./.playwright_local/node_modules/@playwright/test/cli.js test --headed --config=playwright.config.js",
-  "e2e:report": "NODE_PATH=./.playwright_local/node_modules node ./.playwright_local/node_modules/@playwright/test/cli.js show-report"
+    "e2e": "node node_modules/@playwright/test/cli.js test --config=playwright.config.js",
+    "e2e:headed": "node node_modules/@playwright/test/cli.js test --headed --config=playwright.config.js",
+    "e2e:report": "node node_modules/@playwright/test/cli.js show-report"
   },
   "devDependencies": {
-    "@playwright/test": "^1.46.0"
+    "@playwright/test": "^1.48.2"
   }
 }

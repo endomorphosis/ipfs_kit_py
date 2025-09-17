@@ -84,6 +84,7 @@ class FastCLI:
                 p = Path(envp).expanduser().resolve()
                 if p.exists():
                     return p
+            # Prefer the live repository files first when present (developer workflow)
             # repo root or cwd (handle missing/invalid cwd gracefully)
             bases: list[Path] = [Path(__file__).resolve().parents[1]]
             try:
@@ -105,6 +106,18 @@ class FastCLI:
                     p = base / name
                     if p.exists():
                         return p
+            # If no repo-local dashboards were found, fall back to packaged versions
+            pkg_base = Path(__file__).resolve().parent
+            packaged_candidates = [
+                pkg_base / "mcp" / "dashboard" / "consolidated_server.py",
+                pkg_base / "mcp" / "dashboard" / "refactored_unified_mcp_dashboard.py",
+                pkg_base / "mcp" / "dashboard" / "launch_refactored_dashboard.py",
+                pkg_base / "mcp" / "refactored_unified_dashboard.py",
+                pkg_base / "mcp" / "main_dashboard.py",
+            ]
+            for cand in packaged_candidates:
+                if cand.exists():
+                    return cand
             return None
 
         server_file = detect_server_file()
@@ -129,7 +142,15 @@ class FastCLI:
             if DashboardClass is None:
                 print("No Dashboard class found in server file"); sys.exit(2)
             app = DashboardClass({"host": host, "port": port, "data_dir": str(data_dir), "debug": debug})
-            await app.run()
+            run_method = getattr(app, "run", None)
+            if run_method is None:
+                print("No run() method found on Dashboard class"); sys.exit(2)
+            # Support both async and sync run() implementations
+            if asyncio.iscoroutinefunction(run_method):
+                await run_method()
+            else:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, run_method)
             return
 
         # background
