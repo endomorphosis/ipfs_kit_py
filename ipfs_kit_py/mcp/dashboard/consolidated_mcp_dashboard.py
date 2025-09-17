@@ -8926,9 +8926,9 @@ class ConsolidatedMCPDashboard:
     try{ fetch('/api/system/deprecations').then(r=>r.json()).then(d=>{ if(d && Array.isArray(d.deprecated)) renderDeprecationBanner(d.deprecated); }).catch(()=>{}); }catch(e){}
 })();
 """
-    js_code = textwrap.dedent(js_code)
-    js_code = ''.join(c for c in js_code if ord(c) < 128)
-    return js_code
+        js_code = textwrap.dedent(js_code)
+        js_code = ''.join(c for c in js_code if ord(c) < 128)
+        return js_code
 
     def _mcp_client_js(self) -> str:
         return """
