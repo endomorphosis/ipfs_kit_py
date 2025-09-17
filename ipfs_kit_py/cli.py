@@ -84,7 +84,22 @@ class FastCLI:
                 p = Path(envp).expanduser().resolve()
                 if p.exists():
                     return p
-            # Prefer the live repository files first when present (developer workflow)
+            # Prefer the packaged dashboard first to ensure correct assets/templates
+            pkg_base = Path(__file__).resolve().parent
+            # Prefer the stable consolidated_server first; legacy consolidated_mcp_dashboard.py may be corrupted
+            packaged_candidates = [
+                pkg_base / "mcp" / "dashboard" / "consolidated_server.py",
+                pkg_base / "mcp" / "dashboard" / "consolidated_mcp_dashboard.py",
+                pkg_base / "mcp" / "dashboard" / "refactored_unified_mcp_dashboard.py",
+                pkg_base / "mcp" / "dashboard" / "launch_refactored_dashboard.py",
+                pkg_base / "mcp" / "refactored_unified_dashboard.py",
+                pkg_base / "mcp" / "main_dashboard.py",
+            ]
+            for cand in packaged_candidates:
+                if cand.exists():
+                    return cand
+            # If not installed as a package or in an editable dev layout, fall back to repo-local files
+            # Prefer the live repository files when present (developer workflow)
             # repo root or cwd (handle missing/invalid cwd gracefully)
             bases: list[Path] = [Path(__file__).resolve().parents[1]]
             try:
@@ -106,18 +121,6 @@ class FastCLI:
                     p = base / name
                     if p.exists():
                         return p
-            # If no repo-local dashboards were found, fall back to packaged versions
-            pkg_base = Path(__file__).resolve().parent
-            packaged_candidates = [
-                pkg_base / "mcp" / "dashboard" / "consolidated_server.py",
-                pkg_base / "mcp" / "dashboard" / "refactored_unified_mcp_dashboard.py",
-                pkg_base / "mcp" / "dashboard" / "launch_refactored_dashboard.py",
-                pkg_base / "mcp" / "refactored_unified_dashboard.py",
-                pkg_base / "mcp" / "main_dashboard.py",
-            ]
-            for cand in packaged_candidates:
-                if cand.exists():
-                    return cand
             return None
 
         server_file = detect_server_file()

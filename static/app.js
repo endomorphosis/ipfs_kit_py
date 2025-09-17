@@ -1,5 +1,62 @@
 // Static app.js override to avoid string literal formatting issues
 (function(){
+  // Ensure beta Tool Runner UI exists even if server serves a minimal shell
+  function injectBetaToolsUI(){
+    try{
+      if (document.getElementById('toolrunner-beta-container')) return;
+      var app = document.getElementById('app');
+      if (!app) return;
+      var frag = document.createElement('div');
+      frag.innerHTML = "\n<div id='toolrunner-beta-container'>\n  <div class='dash-nav'>\n    <button class='nav-btn' data-view='tools'>Tools</button>\n  </div>\n  <section id='view-tools'>\n    <div class='row'>\n      <div class='card'>\n        <label for='tool-filter'>Filter</label>\n        <input id='tool-filter' placeholder='filter tools...'>\n        <label for='tool-select'>Select Tool</label>\n        <select id='tool-select'></select>\n      </div>\n      <div class='card'>\n        <label for='tool-args'>Arguments (JSON)</label>\n        <textarea id='tool-args' rows='8' data-testid='toolrunner-args'>{}</textarea>\n        <div style='margin-top:8px'><button id='btn-tool-run'>Run</button></div>\n      </div>\n    </div>\n    <div class='card' style='margin-top:10px'>\n      <label>Result</label>\n      <pre id='tool-result'></pre>\n    </div>\n  </section>\n</div>\n";
+      // insert at top of #app so it's immediately visible
+      app.insertBefore(frag.firstChild, app.firstChild);
+    }catch(e){ /* ignore */ }
+  }
+
+  async function betaPopulateTools(){
+    try{
+      if (!window.MCP || (!MCP.listTools && !MCP.toolsList)) return;
+      var listFn = MCP.listTools || MCP.toolsList;
+      var resp = await listFn();
+      var tools = [];
+      if (resp && resp.result && Array.isArray(resp.result.tools)) tools = resp.result.tools.map(function(t){return t && t.name ? t.name : String(t)});
+      else if (Array.isArray(resp)) tools = resp.map(function(t){return t && t.name ? t.name : String(t)});
+      var sel = document.getElementById('tool-select'); if (!sel) return;
+      sel.innerHTML = '';
+      tools.slice().map(String).sort().forEach(function(name){ var o=document.createElement('option'); o.value=name; o.textContent=name; sel.appendChild(o); });
+    }catch(e){ /* ignore */ }
+  }
+  function betaSetupFilter(){
+    var input = document.getElementById('tool-filter'); var sel = document.getElementById('tool-select');
+    if (!input || !sel) return;
+    input.addEventListener('input', function(){
+      var q = (input.value||'').toLowerCase();
+      var opts = Array.prototype.slice.call(sel.querySelectorAll('option')).map(function(o){return o.value});
+      sel.innerHTML = '';
+      opts.filter(function(n){ return !q || String(n).toLowerCase().indexOf(q) !== -1; }).sort().forEach(function(name){ var o=document.createElement('option'); o.value=name; o.textContent=name; sel.appendChild(o); });
+      if (sel.options.length > 0) sel.selectedIndex = 0;
+    });
+  }
+  function betaSetupRunner(){
+    var btn = document.getElementById('btn-tool-run'); var sel = document.getElementById('tool-select'); var argsEl = document.getElementById('tool-args'); var out = document.getElementById('tool-result');
+    if(!btn || !sel || !argsEl || !out) return;
+    btn.addEventListener('click', async function(){
+      try{
+        var name = sel.value; var args = {};
+        try{ args = JSON.parse(argsEl.value||'{}'); }catch(_e){}
+        var c = (window.MCP && (MCP.callTool || MCP.toolsCall)) ? MCP : null;
+        if(!c) throw new Error('MCP not ready');
+        var res = c.callTool ? await c.callTool(name, args) : await c.toolsCall(name, args);
+        var wrapped = (res && res.jsonrpc) ? res : { jsonrpc:'2.0', id: Date.now(), result: res };
+        out.textContent = JSON.stringify(wrapped, null, 2);
+      }catch(e){ out.textContent = 'Error: '+(e && e.message ? e.message : String(e)); }
+    });
+  }
+
+  function ensureBeta(){ injectBetaToolsUI(); betaPopulateTools(); betaSetupFilter(); betaSetupRunner(); }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') { setTimeout(ensureBeta, 0); }
+  else { window.addEventListener('DOMContentLoaded', ensureBeta); }
+
   function ensureMcp(){ if(!window.mcpClient) throw new Error('MCP client not initialized'); return window.mcpClient; }
   async function rpcTool(name, args){ const c=ensureMcp(); if(c.toolsCall) return c.toolsCall(name,args||{}); if(c.callTool) return c.callTool(name,args||{}); throw new Error('MCP client missing toolsCall'); }
   async function rpcToolsList(){
