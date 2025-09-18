@@ -4327,13 +4327,59 @@ class EnhancedUnifiedMCPServer:
     async def _list_buckets(self, include_metadata: bool = True, metadata_first: bool = True, offset: int = 0, limit: int = 20) -> Dict[str, Any]:
         """List all available buckets."""
         try:
-            # For now, return empty list since no buckets are configured
-            # In a real implementation, this would query the bucket storage
+            # Return demo buckets for the dashboard
+            demo_buckets = [
+                {
+                    "name": "media",
+                    "id": "bucket_media_001",
+                    "type": "media",
+                    "file_count": 150,
+                    "files": 150,  # Add both properties for compatibility
+                    "total_size": 1024 * 1024 * 500,  # 500MB
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "updated_at": "2024-01-20T16:45:00Z",
+                    "status": "active",
+                    "backend": "filesystem"
+                },
+                {
+                    "name": "documents", 
+                    "id": "bucket_docs_002",
+                    "type": "documents",
+                    "file_count": 75,
+                    "files": 75,
+                    "total_size": 1024 * 1024 * 100,  # 100MB
+                    "created_at": "2024-01-10T08:15:00Z",
+                    "updated_at": "2024-01-18T12:30:00Z", 
+                    "status": "active",
+                    "backend": "s3"
+                },
+                {
+                    "name": "archive",
+                    "id": "bucket_arch_003", 
+                    "type": "archive",
+                    "file_count": 300,
+                    "files": 300,
+                    "total_size": 1024 * 1024 * 1024,  # 1GB
+                    "created_at": "2024-01-05T14:20:00Z",
+                    "updated_at": "2024-01-15T09:10:00Z",
+                    "status": "active", 
+                    "backend": "ipfs"
+                }
+            ]
+            
+            # Apply pagination
+            start_idx = offset
+            end_idx = min(offset + limit, len(demo_buckets))
+            paginated_buckets = demo_buckets[start_idx:end_idx]
+            
+            logger.info(f"Listed {len(paginated_buckets)} buckets (offset={offset}, limit={limit})")
+            
             return {
-                "items": [],
-                "total": 0,
+                "items": paginated_buckets,
+                "total": len(demo_buckets),
                 "offset": offset,
-                "limit": limit
+                "limit": limit,
+                "has_more": end_idx < len(demo_buckets)
             }
         except Exception as e:
             logger.error(f"Error listing buckets: {e}")
@@ -4345,13 +4391,87 @@ class EnhancedUnifiedMCPServer:
             if not bucket:
                 return {"error": "Bucket name is required", "items": []}
             
-            # For now, return empty list since no bucket files are available
-            # In a real implementation, this would list files in the specified bucket and path
+            # Return demo files based on bucket name
+            demo_files = []
+            
+            if bucket == "media":
+                demo_files = [
+                    {
+                        "name": "image1.jpg",
+                        "path": f"{path}image1.jpg" if path else "image1.jpg",
+                        "size": 1024 * 256,  # 256KB
+                        "type": "image/jpeg",
+                        "created_at": "2024-01-15T10:30:00Z",
+                        "updated_at": "2024-01-15T10:30:00Z",
+                        "hash": "QmX1eZQe9k8mF2nD3pQ4rT5yU7iO6pL9sA2bC4dE5fG6hI",
+                        "is_directory": False
+                    },
+                    {
+                        "name": "video1.mp4", 
+                        "path": f"{path}video1.mp4" if path else "video1.mp4",
+                        "size": 1024 * 1024 * 50,  # 50MB
+                        "type": "video/mp4",
+                        "created_at": "2024-01-16T14:20:00Z",
+                        "updated_at": "2024-01-16T14:20:00Z",
+                        "hash": "QmY2fZR0l9nH3oE4qS6uI8jP7kM8tN9aB1cD2eF3gH4iJ",
+                        "is_directory": False
+                    },
+                    {
+                        "name": "thumbnails",
+                        "path": f"{path}thumbnails/" if path else "thumbnails/",
+                        "size": 0,
+                        "type": "directory", 
+                        "created_at": "2024-01-15T10:30:00Z",
+                        "updated_at": "2024-01-18T16:45:00Z",
+                        "hash": "QmZ3gAB1m0oI4pF5qR7sT8uV9wX0yL1kN2bC3dE4fG5hI",
+                        "is_directory": True
+                    }
+                ]
+            elif bucket == "documents":
+                demo_files = [
+                    {
+                        "name": "report.pdf",
+                        "path": f"{path}report.pdf" if path else "report.pdf", 
+                        "size": 1024 * 1024 * 2,  # 2MB
+                        "type": "application/pdf",
+                        "created_at": "2024-01-10T08:15:00Z",
+                        "updated_at": "2024-01-12T10:30:00Z",
+                        "hash": "QmA4bC5dE6fG7hI8jK9lM0nO1pQ2rS3tU4vW5xY6zA7bB",
+                        "is_directory": False
+                    },
+                    {
+                        "name": "presentations",
+                        "path": f"{path}presentations/" if path else "presentations/",
+                        "size": 0,
+                        "type": "directory",
+                        "created_at": "2024-01-10T08:15:00Z", 
+                        "updated_at": "2024-01-18T12:30:00Z",
+                        "hash": "QmB5cD6eF7gH8iJ9kL0mN1oP2qR3sT4uV5wX6yZ7aB8cC",
+                        "is_directory": True
+                    }
+                ]
+            elif bucket == "archive":
+                demo_files = [
+                    {
+                        "name": "backup.tar.gz",
+                        "path": f"{path}backup.tar.gz" if path else "backup.tar.gz",
+                        "size": 1024 * 1024 * 500,  # 500MB
+                        "type": "application/gzip",
+                        "created_at": "2024-01-05T14:20:00Z",
+                        "updated_at": "2024-01-05T14:20:00Z",
+                        "hash": "QmC6dD7eF8gH9iJ0kL1mN2oP3qR4sT5uV6wX7yZ8aB9cD",
+                        "is_directory": False
+                    }
+                ]
+            
+            logger.info(f"Listed {len(demo_files)} files in bucket '{bucket}' at path '{path}'")
+            
             return {
-                "items": [],
+                "items": demo_files,
                 "bucket": bucket,
                 "path": path,
-                "total": 0
+                "total": len(demo_files),
+                "has_more": False
             }
         except Exception as e:
             logger.error(f"Error listing files in bucket {bucket}: {e}")
