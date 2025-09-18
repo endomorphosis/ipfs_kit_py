@@ -8133,7 +8133,7 @@ class ConsolidatedMCPDashboard:
         try {
             await waitForMCP();
             const result = await MCP.Buckets.listFiles(selectedBucket, '.', true);
-            const files = (result && result.result && result.result.files) || [];
+            const files = (result && result.result && result.result.items) || [];
             
             if(files.length === 0) {
                 fileListBody.innerHTML = '<div style="color:#888;padding:12px;text-align:center;">No files in this bucket. Upload some files to get started!</div>';
@@ -9170,7 +9170,7 @@ class ConsolidatedMCPDashboard:
             
             await waitForMCP();
             const result = await MCP.Buckets.listFiles(bucketName, currentPath, showMetadata);
-            const files = (result && result.result && result.result.files) || [];
+            const files = (result && result.result && result.result.items) || [];
             
             if (files.length === 0) {
                 fileList.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No files in this directory</div>';
