@@ -3798,6 +3798,29 @@ class EnhancedUnifiedMCPServer:
                 "components": COMPONENTS
             }
         
+        @self.app.post("/api/call_mcp_tool")  
+        async def call_mcp_tool_direct(request: Request):
+            """Direct MCP tool call endpoint."""
+            try:
+                data = await request.json()
+                tool_name = data.get("tool_name")
+                arguments = data.get("arguments", {})
+                
+                result = await self.handle_mcp_request(tool_name, arguments)
+                
+                return {
+                    "jsonrpc": "2.0", 
+                    "result": result,
+                    "id": data.get("id", "1")
+                }
+            except Exception as e:
+                logger.error(f"Error in MCP tool call: {e}")
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -1, "message": str(e)},
+                    "id": "1"
+                }
+
         @self.app.get("/api/backends")
         async def get_backends():
             # Use enhanced backend manager instead of the old backend monitor
@@ -4204,27 +4227,11 @@ class EnhancedUnifiedMCPServer:
                 return {"error": str(e), "logs": []}
 
         # Simple direct API endpoints for MCP compatibility
-        @self.app.post("/api/call_mcp_tool")  
-        async def call_mcp_tool_direct(request: Request):
-            """Direct MCP tool call endpoint."""
-            try:
-                data = await request.json()
-                tool_name = data.get("tool_name")
-                arguments = data.get("arguments", {})
-                
-                result = await self.handle_mcp_request(tool_name, arguments)
-                
-                return {
-                    "jsonrpc": "2.0", 
-                    "result": result,
-                    "id": data.get("id", "1")
-                }
-            except Exception as e:
-                return {
-                    "jsonrpc": "2.0",
-                    "error": {"code": -1, "message": str(e)},
-                    "id": "1"
-                }
+
+        @self.app.get("/api/test")
+        async def test_route():
+            """Simple test route to verify routing is working."""
+            return {"message": "Route test successful", "status": "ok"}
 
         @self.app.get("/api/list_backends")
         async def list_backends_direct():
