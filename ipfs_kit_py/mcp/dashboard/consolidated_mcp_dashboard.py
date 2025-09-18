@@ -230,6 +230,53 @@ def create_default_backends():
         }
     }
 
+def create_default_buckets():
+    """Create default bucket configurations for first-time setup."""
+    from datetime import datetime, UTC
+    now = datetime.now(UTC).isoformat()
+    
+    return [
+        {
+            "name": "media",
+            "backend": "filesystem",
+            "description": "Media files, images, and documents",
+            "created_at": now,
+            "meta": {},
+            "policy": {
+                "quota": "2GB",
+                "replication": 1,
+                "retention": "90d",
+                "cache": "enabled"
+            }
+        },
+        {
+            "name": "documents", 
+            "backend": "filesystem",
+            "description": "Text documents and PDFs",
+            "created_at": now,
+            "meta": {},
+            "policy": {
+                "quota": "1GB",
+                "replication": 1,
+                "retention": "365d",
+                "cache": "enabled"
+            }
+        },
+        {
+            "name": "archive",
+            "backend": "filesystem", 
+            "description": "Long-term archival storage",
+            "created_at": now,
+            "meta": {},
+            "policy": {
+                "quota": "5GB",
+                "replication": 2,
+                "retention": "permanent",
+                "cache": "disabled"
+            }
+        }
+    ]
+
 def ensure_paths(data_dir: Optional[str]):
     base = Path(data_dir or os.path.expanduser("~/.ipfs_kit"))
     data_dir_path = base
@@ -270,11 +317,23 @@ def ensure_paths(data_dir: Optional[str]):
             with backends_file.open('w', encoding='utf-8') as fh:
                 json.dump(create_default_backends(), fh, indent=2)
     
-    for f, default in [(buckets_file, []), (pins_file, [])]:
-        if not f.exists():
-            with suppress(Exception):
-                with f.open('w', encoding='utf-8') as fh:
-                    json.dump(default, fh)
+    # Initialize buckets.json with default buckets if file doesn't exist or is empty
+    if not buckets_file.exists() or buckets_file.stat().st_size == 0:
+        with suppress(Exception):
+            default_buckets = create_default_buckets()
+            with buckets_file.open('w', encoding='utf-8') as fh:
+                json.dump(default_buckets, fh, indent=2)
+            
+            # Create VFS directories for default buckets
+            for bucket in default_buckets:
+                bucket_dir = vfs_root / bucket["name"]
+                bucket_dir.mkdir(exist_ok=True)
+    
+    # Initialize pins.json with empty array if it doesn't exist
+    if not pins_file.exists():
+        with suppress(Exception):
+            with pins_file.open('w', encoding='utf-8') as fh:
+                json.dump([], fh)
     
     return SimpleNamespace(
         base=base,
