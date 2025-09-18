@@ -611,13 +611,13 @@
             async loadBucketFiles(bucketName, path = '') {
                 try {
                     console.log(`📁 Loading files for bucket: ${bucketName}, path: ${path}`);
-                    const result = await this.mcp.callTool('list_bucket_files', { 
+                    const result = await this.mcp.callTool('bucket_list_files', { 
                         bucket: bucketName,
-                        path: path,
-                        metadata_first: true
+                        path: path || '.',
+                        show_metadata: true
                     });
                     
-                    console.log('📁 MCP list_bucket_files result:', result);
+                    console.log('📁 MCP bucket_list_files result:', result);
                     
                     // Handle both direct result and JSON-RPC wrapped result
                     let fileData = result;
@@ -627,6 +627,8 @@
                     
                     if (fileData && fileData.items) {
                         return fileData.items;
+                    } else if (fileData && fileData.files) {
+                        return fileData.files;
                     } else if (fileData && fileData.error) {
                         throw new Error(fileData.error);
                     } else {
