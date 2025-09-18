@@ -38,20 +38,15 @@ class MCPClient {
         
         for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
             try {
-                // Use the JSON-RPC format that our MCP server expects
+                // Use the correct API endpoint for our enhanced unified server
                 const payload = {
-                    jsonrpc: "2.0",
-                    method: "tools/call",
-                    params: {
-                        name: toolName,
-                        arguments: params
-                    },
-                    id: requestId
+                    tool_name: toolName,
+                    arguments: params
                 };
                 
                 console.log(`MCP call attempt ${attempt + 1}:`, toolName, JSON.stringify(params));
                 
-                const response = await fetch('/mcp/tools/call', {
+                const response = await fetch('/api/call_mcp_tool', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

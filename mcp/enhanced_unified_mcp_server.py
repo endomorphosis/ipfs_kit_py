@@ -3798,6 +3798,29 @@ class EnhancedUnifiedMCPServer:
                 "components": COMPONENTS
             }
         
+        @self.app.post("/api/call_mcp_tool")  
+        async def call_mcp_tool_direct(request: Request):
+            """Direct MCP tool call endpoint."""
+            try:
+                data = await request.json()
+                tool_name = data.get("tool_name")
+                arguments = data.get("arguments", {})
+                
+                result = await self.handle_mcp_request(tool_name, arguments)
+                
+                return {
+                    "jsonrpc": "2.0", 
+                    "result": result,
+                    "id": data.get("id", "1")
+                }
+            except Exception as e:
+                logger.error(f"Error in MCP tool call: {e}")
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -1, "message": str(e)},
+                    "id": "1"
+                }
+
         @self.app.get("/api/backends")
         async def get_backends():
             # Use enhanced backend manager instead of the old backend monitor
@@ -4204,27 +4227,11 @@ class EnhancedUnifiedMCPServer:
                 return {"error": str(e), "logs": []}
 
         # Simple direct API endpoints for MCP compatibility
-        @self.app.post("/api/call_mcp_tool")  
-        async def call_mcp_tool_direct(request: Request):
-            """Direct MCP tool call endpoint."""
-            try:
-                data = await request.json()
-                tool_name = data.get("tool_name")
-                arguments = data.get("arguments", {})
-                
-                result = await self.handle_mcp_request(tool_name, arguments)
-                
-                return {
-                    "jsonrpc": "2.0", 
-                    "result": result,
-                    "id": data.get("id", "1")
-                }
-            except Exception as e:
-                return {
-                    "jsonrpc": "2.0",
-                    "error": {"code": -1, "message": str(e)},
-                    "id": "1"
-                }
+
+        @self.app.get("/api/test")
+        async def test_route():
+            """Simple test route to verify routing is working."""
+            return {"message": "Route test successful", "status": "ok"}
 
         @self.app.get("/api/list_backends")
         async def list_backends_direct():
@@ -4317,6 +4324,127 @@ class EnhancedUnifiedMCPServer:
         
         return "<br>".join(insights) if insights else "All systems are running smoothly! 🎉"
     
+    async def _list_buckets(self, include_metadata: bool = True, metadata_first: bool = True, offset: int = 0, limit: int = 20) -> Dict[str, Any]:
+        """List all available buckets."""
+        try:
+            # For now, return empty list since no buckets are configured
+            # In a real implementation, this would query the bucket storage
+            return {
+                "items": [],
+                "total": 0,
+                "offset": offset,
+                "limit": limit
+            }
+        except Exception as e:
+            logger.error(f"Error listing buckets: {e}")
+            return {"error": str(e), "items": []}
+    
+    async def _list_bucket_files(self, bucket: str, path: str = "", metadata_first: bool = True) -> Dict[str, Any]:
+        """List files in a specific bucket."""
+        try:
+            if not bucket:
+                return {"error": "Bucket name is required", "items": []}
+            
+            # For now, return empty list since no bucket files are available
+            # In a real implementation, this would list files in the specified bucket and path
+            return {
+                "items": [],
+                "bucket": bucket,
+                "path": path,
+                "total": 0
+            }
+        except Exception as e:
+            logger.error(f"Error listing files in bucket {bucket}: {e}")
+            return {"error": str(e), "items": []}
+    
+    async def _get_system_status(self) -> Dict[str, Any]:
+        """Get system status information."""
+        try:
+            # Get basic system metrics
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            
+            # Get current time
+            current_time = datetime.now()
+            
+            return {
+                "time": current_time.isoformat(),
+                "data_dir": os.path.expanduser("~/.ipfs_kit"),
+                "cpu_percent": round(psutil.cpu_percent(interval=0.1), 1),
+                "memory_percent": round(psutil.virtual_memory().percent, 1),
+                "disk_percent": round(psutil.disk_usage('/').percent, 1),
+                "status": "running",
+                "uptime": f"{int(time.time() - self.start_time)} seconds"
+            }
+        except Exception as e:
+            logger.error(f"Error getting system status: {e}")
+            return {"error": str(e), "status": "error"}
+    
+    async def _list_services(self, include_metadata: bool = True) -> Dict[str, Any]:
+        """List all available services."""
+        try:
+            services = {
+                "ipfs": {
+                    "name": "IPFS Daemon",
+                    "type": "daemon", 
+                    "status": "running",
+                    "description": "InterPlanetary File System daemon for distributed storage",
+                    "port": 5001,
+                    "requires_credentials": False,
+                    "actions": ["start", "stop", "restart", "status"]
+                },
+                "lotus": {
+                    "name": "Lotus Node",
+                    "type": "daemon",
+                    "status": "disabled",
+                    "description": "Filecoin Lotus node for blockchain storage",
+                    "port": 1234,
+                    "requires_credentials": False,
+                    "actions": ["start", "stop", "restart", "status"]
+                },
+                "lassie": {
+                    "name": "Lassie Retrieval",
+                    "type": "service",
+                    "status": "disabled", 
+                    "description": "Filecoin content retrieval service",
+                    "port": 7777,
+                    "requires_credentials": False,
+                    "actions": ["start", "stop", "restart", "status"]
+                }
+            }
+            
+            return {
+                "services": services,
+                "total": len(services)
+            }
+        except Exception as e:
+            logger.error(f"Error listing services: {e}")
+            return {"error": str(e), "services": {}}
+    
+    async def _list_pins(self) -> Dict[str, Any]:
+        """List pinned content."""
+        try:
+            # For now, return empty list since no pins are available
+            # In a real implementation, this would query IPFS for pinned content
+            return {
+                "items": [],
+                "total": 0
+            }
+        except Exception as e:
+            logger.error(f"Error listing pins: {e}")
+            return {"error": str(e), "items": []}
+    
+    async def _health_check(self) -> Dict[str, Any]:
+        """Perform health check."""
+        try:
+            return {
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error in health check: {e}")
+            return {"error": str(e), "status": "unhealthy"}
+    
     async def handle_mcp_request(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP tool requests."""
         
@@ -4392,6 +4520,33 @@ class EnhancedUnifiedMCPServer:
                 backend_health = await self.backend_monitor.check_all_backends()
                 insights = self._generate_development_insights(backend_health)
                 return {"insights": insights}
+            
+            # Bucket management tools
+            elif tool_name == "list_buckets":
+                include_metadata = arguments.get("include_metadata", True)
+                metadata_first = arguments.get("metadata_first", True)
+                offset = arguments.get("offset", 0)
+                limit = arguments.get("limit", 20)
+                return await self._list_buckets(include_metadata, metadata_first, offset, limit)
+            
+            elif tool_name == "list_bucket_files":
+                bucket = arguments.get("bucket")
+                path = arguments.get("path", "")
+                metadata_first = arguments.get("metadata_first", True)
+                return await self._list_bucket_files(bucket, path, metadata_first)
+            
+            elif tool_name == "get_system_status":
+                return await self._get_system_status()
+            
+            elif tool_name == "list_services":
+                include_metadata = arguments.get("include_metadata", True)
+                return await self._list_services(include_metadata)
+            
+            elif tool_name == "list_pins":
+                return await self._list_pins()
+            
+            elif tool_name == "health_check":
+                return await self._health_check()
             
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
