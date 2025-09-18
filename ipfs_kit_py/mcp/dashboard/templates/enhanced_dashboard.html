@@ -3228,6 +3228,18 @@
             }
         }
         
+        // Global function for onclick handlers - Essential for Create Bucket functionality
+        function refreshBuckets() {
+            loadBucketsDataEnterprise();
+        }
+        
+        // Make it globally available for onclick handlers
+        window.refreshBuckets = refreshBuckets;
+        
+        // Make other critical functions globally available for onclick handlers
+        window.showCreateBucketModal = showCreateBucketModal;
+        window.showImportBucketModal = showImportBucketModal;
+        
         function handleResponsiveLayout() {
             // Handle responsive layout for enterprise storage hub
             function adjustLayout() {
