@@ -6015,6 +6015,7 @@ class ComprehensiveMCPDashboard:
         bucket_tools = [
             {"name": "bucket_create", "description": "Create new bucket", "category": "bucket"},
             {"name": "bucket_list", "description": "List buckets", "category": "bucket"},
+            {"name": "list_bucket_files", "description": "List files in a bucket", "category": "bucket"},
             {"name": "bucket_delete", "description": "Delete bucket", "category": "bucket"},
             {"name": "bucket_upload", "description": "Upload to bucket", "category": "bucket"},
             {"name": "bucket_download", "description": "Download from bucket", "category": "bucket"},
@@ -7692,6 +7693,84 @@ class ComprehensiveMCPDashboard:
                     "success": True,
                     "data": {
                         "buckets": buckets
+                    }
+                }
+                
+            elif tool_name == "list_bucket_files":
+                bucket_name = arguments.get("bucket")
+                path = arguments.get("path", "")
+                metadata_first = arguments.get("metadata_first", False)
+                
+                if not bucket_name:
+                    return {"success": False, "error": "bucket parameter is required"}
+                
+                bucket_dir = self.data_dir / "buckets" / bucket_name
+                
+                if not bucket_dir.exists():
+                    return {
+                        "success": True,
+                        "data": {
+                            "files": [],
+                            "directories": [],
+                            "total_count": 0
+                        }
+                    }
+                
+                # Build the full path within the bucket
+                if path and path != "/":
+                    target_dir = bucket_dir / path.lstrip("/")
+                else:
+                    target_dir = bucket_dir
+                
+                if not target_dir.exists():
+                    return {
+                        "success": True,
+                        "data": {
+                            "files": [],
+                            "directories": [],
+                            "total_count": 0
+                        }
+                    }
+                
+                files = []
+                directories = []
+                
+                try:
+                    for item in target_dir.iterdir():
+                        if item.name == "metadata.json":
+                            continue
+                            
+                        relative_path = str(item.relative_to(bucket_dir))
+                        
+                        if item.is_file():
+                            file_info = {
+                                "name": item.name,
+                                "path": relative_path,
+                                "size": item.stat().st_size,
+                                "modified": datetime.fromtimestamp(item.stat().st_mtime).isoformat(),
+                                "type": "file"
+                            }
+                            files.append(file_info)
+                        elif item.is_dir():
+                            dir_info = {
+                                "name": item.name,
+                                "path": relative_path,
+                                "type": "directory"
+                            }
+                            directories.append(dir_info)
+                            
+                except Exception as e:
+                    logger.error(f"Error listing files in bucket {bucket_name}: {e}")
+                    return {"success": False, "error": f"Failed to list files: {str(e)}"}
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "files": files,
+                        "directories": directories,
+                        "total_count": len(files) + len(directories),
+                        "bucket": bucket_name,
+                        "path": path
                     }
                 }
                 

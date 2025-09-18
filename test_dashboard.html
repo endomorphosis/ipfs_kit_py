@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Server Test Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .log { max-height: 300px; overflow-y: auto; background: #000; color: #0f0; padding: 10px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 MCP Server Test Dashboard</h1>
+        <p>This page tests the MCP server JavaScript SDK to verify the fix for "Unknown tool: list_bucket_files"</p>
+        
+        <div class="test-section">
+            <h2>Connection Status</h2>
+            <div id="connection-status" class="loading">Testing connection...</div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Available Tools Test</h2>
+            <button onclick="testHealthCheck()">Test Health Check</button>
+            <button onclick="testListBuckets()">Test List Buckets</button>
+            <button onclick="testListBucketFiles()">Test List Bucket Files</button>
+            <div id="tools-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Console Logs</h2>
+            <div id="console-log" class="log"></div>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+
+    <script src="/static/mcp-sdk.js"></script>
+    <script>
+        // Override console.log to display in our custom log area
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+        
+        const logElement = document.getElementById('console-log');
+        
+        function addToLog(level, ...args) {
+            const timestamp = new Date().toISOString().substr(11, 12);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            const logLine = document.createElement('div');
+            logLine.textContent = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+            logElement.appendChild(logLine);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            addToLog('info', ...args);
+        };
+        
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            addToLog('error', ...args);
+        };
+        
+        console.warn = function(...args) {
+            originalConsoleWarn.apply(console, args);
+            addToLog('warn', ...args);
+        };
+        
+        function clearLog() {
+            logElement.innerHTML = '';
+        }
+        
+        function setStatus(elementId, message, className) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `test-section ${className}`;
+        }
+        
+        function setResult(elementId, result, isError = false) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+            element.className = isError ? 'error' : 'success';
+        }
+        
+        // Test MCP connection on page load
+        async function testConnection() {
+            try {
+                console.log('🔧 Testing MCP connection...');
+                
+                if (!window.mcpClient) {
+                    throw new Error('MCP client not initialized');
+                }
+                
+                const result = await window.mcpClient.callTool('health_check');
+                console.log('✅ MCP connection successful:', result);
+                setStatus('connection-status', `✅ Connected to MCP server (${result.result.status})`, 'success');
+                return true;
+            } catch (error) {
+                console.error('❌ MCP connection failed:', error);
+                setStatus('connection-status', `❌ Connection failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function testHealthCheck() {
+            try {
+                console.log('🏥 Testing health_check tool...');
+                const result = await window.mcpClient.callTool('health_check');
+                console.log('✅ Health check successful:', result);
+                setResult('tools-result', result);
+            } catch (error) {
+                console.error('❌ Health check failed:', error);
+                setResult('tools-result', { error: error.message }, true);
+            }
+        }
+        
+        async function testListBuckets() {
+            try {
+                console.log('📦 Testing list_buckets tool...');
+                const result = await window.mcpClient.callTool('list_buckets', { include_metadata: true });
+                console.log('✅ List buckets successful:', result);
+                setResult('tools-result', result);
+            } catch (error) {
+                console.error('❌ List buckets failed:', error);
+                setResult('tools-result', { error: error.message }, true);
+            }
+        }
+        
+        async function testListBucketFiles() {
+            try {
+                console.log('📂 Testing list_bucket_files tool...');
+                const result = await window.mcpClient.callTool('list_bucket_files', {
+                    bucket: 'media',
+                    path: '',
+                    metadata_first: true
+                });
+                console.log('✅ List bucket files successful:', result);
+                setResult('tools-result', result);
+            } catch (error) {
+                console.error('❌ List bucket files failed:', error);
+                setResult('tools-result', { error: error.message }, true);
+            }
+        }
+        
+        // Test connection when page loads
+        window.addEventListener('load', () => {
+            setTimeout(testConnection, 1000); // Give MCP client time to initialize
+        });
+    </script>
+</body>
+</html>
