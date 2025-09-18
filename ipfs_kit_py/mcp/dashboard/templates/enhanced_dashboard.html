@@ -3239,6 +3239,9 @@
         // Make other critical functions globally available for onclick handlers
         window.showCreateBucketModal = showCreateBucketModal;
         window.showImportBucketModal = showImportBucketModal;
+        window.openBucketSettings = openBucketSettings;
+        window.showBucketSettings = showBucketSettings;
+        window.deleteBucket = deleteBucket;
         
         function handleResponsiveLayout() {
             // Handle responsive layout for enterprise storage hub
@@ -3500,6 +3503,62 @@
             if (saveSettingsBtn) {
                 saveSettingsBtn.addEventListener('click', async () => {
                     await saveBucketSettingsEnterprise();
+                });
+            }
+            
+            // Bucket Settings Modal Event Listeners
+            const closeBucketSettings = document.getElementById('close-bucket-settings');
+            if (closeBucketSettings) {
+                closeBucketSettings.addEventListener('click', () => {
+                    document.getElementById('bucket-settings-modal').classList.add('hidden');
+                });
+            }
+            
+            const cancelBucketSettings = document.getElementById('cancel-bucket-settings');
+            if (cancelBucketSettings) {
+                cancelBucketSettings.addEventListener('click', () => {
+                    document.getElementById('bucket-settings-modal').classList.add('hidden');
+                });
+            }
+            
+            const deleteBucketBtn = document.getElementById('delete-bucket-btn');
+            if (deleteBucketBtn) {
+                deleteBucketBtn.addEventListener('click', async () => {
+                    const modal = document.getElementById('bucket-settings-modal');
+                    const bucketName = modal?.querySelector('#bucket-name')?.value;
+                    if (bucketName) {
+                        await deleteBucket(bucketName);
+                    }
+                });
+            }
+            
+            const bucketSettingsForm = document.getElementById('bucket-settings-form');
+            if (bucketSettingsForm) {
+                bucketSettingsForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await saveBucketSettings();
+                });
+            }
+            
+            const syncBucketBtn = document.getElementById('sync-bucket-now-2');
+            if (syncBucketBtn) {
+                syncBucketBtn.addEventListener('click', async () => {
+                    const modal = document.getElementById('bucket-settings-modal');
+                    const bucketName = modal?.querySelector('#bucket-name')?.value;
+                    if (bucketName) {
+                        try {
+                            console.log(`🔄 Syncing bucket: ${bucketName}`);
+                            const result = await callMCPTool('bucket_sync_replicas', { bucket: bucketName, force_sync: true });
+                            if (result?.result?.ok || result?.ok) {
+                                alert(`✅ Bucket "${bucketName}" synced successfully`);
+                            } else {
+                                alert(`❌ Failed to sync bucket: ${result?.error || 'Unknown error'}`);
+                            }
+                        } catch (error) {
+                            console.error('Error syncing bucket:', error);
+                            alert(`❌ Error syncing bucket: ${error.message}`);
+                        }
+                    }
                 });
             }
         }
@@ -4270,9 +4329,128 @@
                 const nameInput = modal.querySelector('#bucket-name');
                 if (nameInput) nameInput.value = bucketName;
                 else console.warn('bucket-name input not found in bucket-settings-modal');
+                
+                // Load current bucket data and populate settings form
+                loadBucketSettings(bucketName);
             } else {
                 console.warn('bucket-settings-modal not found');
             }
+        }
+
+        async function loadBucketSettings(bucketName) {
+            try {
+                const result = await callMCPTool('get_bucket', { name: bucketName });
+                const bucket = result?.result || result;
+                
+                if (bucket) {
+                    // Populate form fields with current bucket data
+                    const modal = document.getElementById('bucket-settings-modal');
+                    if (modal) {
+                        const backendInput = modal.querySelector('#bucket-backend');
+                        if (backendInput) backendInput.value = bucket.backend || 'filesystem';
+                        
+                        const policy = bucket.policy || {};
+                        const replicationSelect = modal.querySelector('#replication-factor');
+                        if (replicationSelect) replicationSelect.value = policy.replication || 3;
+                        
+                        const cacheSelect = modal.querySelector('#cache-policy');
+                        if (cacheSelect) cacheSelect.value = policy.cache || 'memory';
+                        
+                        const retentionInput = modal.querySelector('#retention-days');
+                        if (retentionInput) retentionInput.value = policy.retention_days || 0;
+                        
+                        const quotaInput = modal.querySelector('#storage-quota');
+                        if (quotaInput) quotaInput.value = policy.quota_mb || 0;
+                        
+                        const maxFilesInput = modal.querySelector('#max-files');
+                        if (maxFilesInput) maxFilesInput.value = policy.max_files || 0;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading bucket settings:', error);
+            }
+        }
+
+        async function deleteBucket(bucketName) {
+            if (!bucketName) {
+                alert('❌ No bucket name provided');
+                return;
+            }
+            
+            const confirmed = confirm(`⚠️ Are you sure you want to delete the bucket "${bucketName}"?\n\nThis action cannot be undone and will remove all files and metadata associated with this bucket.`);
+            
+            if (!confirmed) {
+                return;
+            }
+            
+            try {
+                console.log(`🗑️ Deleting bucket: ${bucketName}`);
+                const result = await callMCPTool('delete_bucket', { name: bucketName });
+                
+                if (result?.result?.ok || result?.ok) {
+                    alert(`✅ Bucket "${bucketName}" deleted successfully`);
+                    
+                    // Close the settings modal
+                    const modal = document.getElementById('bucket-settings-modal');
+                    if (modal) modal.classList.add('hidden');
+                    
+                    // Refresh the bucket list
+                    await loadBucketsDataEnterprise();
+                } else {
+                    alert(`❌ Failed to delete bucket: ${result?.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error deleting bucket:', error);
+                alert(`❌ Error deleting bucket: ${error.message}`);
+            }
+        }
+
+        async function saveBucketSettings() {
+            const modal = document.getElementById('bucket-settings-modal');
+            if (!modal) return;
+            
+            const bucketName = modal.querySelector('#bucket-name')?.value;
+            if (!bucketName) {
+                alert('❌ No bucket name found');
+                return;
+            }
+            
+            try {
+                const updateData = {
+                    policy: {
+                        replication: parseInt(modal.querySelector('#replication-factor')?.value || 3),
+                        cache: modal.querySelector('#cache-policy')?.value || 'memory',
+                        retention_days: parseInt(modal.querySelector('#retention-days')?.value || 0),
+                        quota_mb: parseInt(modal.querySelector('#storage-quota')?.value || 0),
+                        max_files: parseInt(modal.querySelector('#max-files')?.value || 0)
+                    },
+                    advanced: {
+                        vector_search: modal.querySelector('#enable-vector-search')?.checked || false,
+                        knowledge_graph: modal.querySelector('#enable-knowledge-graph')?.checked || false,
+                        public_access: modal.querySelector('#allow-public-access')?.checked || false,
+                        versioning: modal.querySelector('#enable-versioning')?.checked || false
+                    }
+                };
+                
+                console.log('💾 Saving bucket settings:', updateData);
+                const result = await callMCPTool('update_bucket', { name: bucketName, patch: updateData });
+                
+                if (result?.result?.ok || result?.ok) {
+                    alert(`✅ Bucket "${bucketName}" settings saved successfully`);
+                    modal.classList.add('hidden');
+                    await loadBucketsDataEnterprise();
+                } else {
+                    alert(`❌ Failed to save settings: ${result?.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error saving bucket settings:', error);
+                alert(`❌ Error saving settings: ${error.message}`);
+            }
+        }
+
+        function showBucketSettings(bucketName) {
+            // Alias to openBucketSettings for consistency
+            openBucketSettings(bucketName);
         }
         
         function showBucketDetails(bucket) {
@@ -9676,10 +9854,18 @@ Shared Pins: ${pinsets.length || 0}
                             </div>
                         </div>
                         
-                        <div class="flex justify-end space-x-3 mt-6 pt-4 border-t">
-                            <button type="button" id="cancel-bucket-settings" class="px-4 py-2 border rounded-lg">Cancel</button>
-                            <button type="button" id="sync-bucket-now-2" class="px-4 py-2 bg-green-500 text-white rounded-lg">Sync Now</button>
-                            <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg">Save Configuration</button>
+                        <div class="flex justify-between items-center mt-6 pt-4 border-t">
+                            <!-- Danger Zone - Delete Bucket -->
+                            <button type="button" id="delete-bucket-btn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">
+                                <i class="fas fa-trash mr-2"></i>Delete Bucket
+                            </button>
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex space-x-3">
+                                <button type="button" id="cancel-bucket-settings" class="px-4 py-2 border rounded-lg">Cancel</button>
+                                <button type="button" id="sync-bucket-now-2" class="px-4 py-2 bg-green-500 text-white rounded-lg">Sync Now</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg">Save Configuration</button>
+                            </div>
                         </div>
                     </form>
                 </div>
