@@ -7843,10 +7843,7 @@ Shared Pins: ${pinsets.length || 0}
         // Enhanced bucket creation with proper error handling
         async function createBucket() {
             const name = document.getElementById('new-bucket-name').value.trim();
-            const description = document.getElementById('new-bucket-description').value.trim();
-            const quota = document.getElementById('new-bucket-quota').value;
-            const tier = document.getElementById('new-bucket-tier').value;
-            const replication = parseInt(document.getElementById('new-bucket-replication').value);
+            const backend = document.getElementById('new-bucket-backend').value;
 
             // Input validation
             if (!name) {
@@ -7862,28 +7859,32 @@ Shared Pins: ${pinsets.length || 0}
             try {
                 showToast('Creating bucket...', 'info');
                 
-                const bucketConfig = {
+                // MCP server expects only name and backend parameters
+                const bucketParams = {
                     name: name,
-                    description: description || `Storage bucket: ${name}`,
-                    tier: tier,
-                    replication_factor: replication
+                    backend: backend
                 };
 
-                if (quota) {
-                    bucketConfig.quota_gb = parseInt(quota);
-                }
-
-                await callMCPTool('create_bucket', bucketConfig);
+                await callMCPTool('create_bucket', bucketParams);
                 
                 showToast(`✅ Bucket "${name}" created successfully`, 'success');
                 hideCreateBucketModal();
-                await loadBucketsData(); // Refresh the bucket list
+                
+                // Refresh the bucket list using the correct function
+                if (typeof loadBucketsDataEnterprise === 'function') {
+                    await loadBucketsDataEnterprise();
+                } else if (typeof loadBucketsData === 'function') {
+                    await loadBucketsData();
+                } else {
+                    // Fallback to refreshing the page
+                    window.location.reload();
+                }
                 
             } catch (error) {
                 console.error('Error creating bucket:', error);
                 
                 // Enhanced error handling - distinguish between user errors and programming errors
-                if (error.message && error.message.toLowerCase().includes('already exists')) {
+                if (error.message && (error.message.toLowerCase().includes('already exists') || error.message.includes('Exists'))) {
                     showToast(`⚠️ Bucket "${name}" already exists. Please choose a different name.`, 'warning');
                 } else if (error.message && error.message.toLowerCase().includes('invalid name')) {
                     showToast(`⚠️ Invalid bucket name format. Use lowercase letters, numbers, and hyphens only.`, 'warning');
@@ -9735,6 +9736,72 @@ Shared Pins: ${pinsets.length || 0}
                         <div class="flex justify-end space-x-3 mt-6">
                             <button type="button" id="cancel-share-bucket" class="px-4 py-2 border rounded-lg">Cancel</button>
                             <button type="submit" class="px-4 py-2 bg-orange-500 text-white rounded-lg">Generate Link</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Bucket Modal -->
+    <div id="create-bucket-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Create New Bucket</h3>
+                        <button id="close-create-bucket-modal" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <form id="create-bucket-form" method="post" action="#">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Bucket Name *</label>
+                                <input type="text" id="new-bucket-name" name="name" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Enter bucket name" required>
+                                <p class="text-xs text-gray-500 mt-1">Use lowercase letters, numbers, and hyphens only</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                                <textarea id="new-bucket-description" name="description" class="w-full p-3 border border-gray-300 rounded-lg" rows="3" placeholder="Optional description"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Backend</label>
+                                <select id="new-bucket-backend" name="backend" class="w-full p-3 border border-gray-300 rounded-lg">
+                                    <option value="filesystem" selected>Filesystem</option>
+                                    <option value="s3">S3 Compatible</option>
+                                    <option value="ipfs">IPFS</option>
+                                    <option value="local_storage">Local Storage</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Storage Tier</label>
+                                <select id="new-bucket-tier" name="tier" class="w-full p-3 border border-gray-300 rounded-lg">
+                                    <option value="hot" selected>🔥 Hot (Frequent Access)</option>
+                                    <option value="warm">🌡️ Warm (Regular Access)</option>
+                                    <option value="cold">❄️ Cold (Infrequent Access)</option>
+                                    <option value="archive">📦 Archive (Long-term Storage)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Storage Quota (GB)</label>
+                                <input type="number" id="new-bucket-quota" name="quota" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="e.g., 10" min="1" max="1000">
+                                <p class="text-xs text-gray-500 mt-1">Leave empty for unlimited storage</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Replication Factor</label>
+                                <select id="new-bucket-replication" name="replication" class="w-full p-3 border border-gray-300 rounded-lg">
+                                    <option value="1">1 (No Replication)</option>
+                                    <option value="2">2 (Single Backup)</option>
+                                    <option value="3" selected>3 (Recommended)</option>
+                                    <option value="5">5 (High Availability)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button type="button" id="cancel-create-bucket" class="px-4 py-2 border rounded-lg">Cancel</button>
+                            <button type="submit" id="confirm-create-bucket" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Create Bucket</button>
                         </div>
                     </form>
                 </div>
