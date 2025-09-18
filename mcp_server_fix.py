@@ -15,7 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -34,6 +35,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Data directory for buckets (same as the comprehensive dashboard)
 data_dir = Path.home() / ".ipfs_kit"
@@ -203,6 +207,11 @@ async def handle_list_buckets(arguments: Dict[str, Any]) -> Dict[str, Any]:
     
     return {"items": buckets}
 
+@app.get("/test")
+async def test_dashboard():
+    """Serve the test dashboard HTML."""
+    return FileResponse("test_dashboard.html")
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -217,7 +226,14 @@ async def root():
     return JSONResponse({
         "message": "MCP Server Fix is running",
         "version": "1.0.0",
-        "tools": ["list_bucket_files", "list_buckets", "health_check"]
+        "tools": ["list_bucket_files", "list_buckets", "health_check"],
+        "endpoints": {
+            "/": "Server info",
+            "/test": "Test dashboard",
+            "/health": "Health check",
+            "/mcp/tools/call": "MCP tool calls",
+            "/static/": "Static files"
+        }
     })
 
 if __name__ == "__main__":
