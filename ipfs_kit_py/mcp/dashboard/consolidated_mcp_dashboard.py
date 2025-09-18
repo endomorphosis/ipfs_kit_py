@@ -7751,6 +7751,11 @@ class ConsolidatedMCPDashboard:
     let selectedFiles = [];
     let bucketUsageData = {};
     
+    // Global function aliases for onclick handlers (define early to ensure availability)
+    window.refreshBuckets = async function() {
+        return await loadBuckets();
+    };
+    
     // Comprehensive Bucket File Management Functions
     async function loadBuckets(){
         const container=document.getElementById('buckets-list'); 
@@ -7901,6 +7906,7 @@ class ConsolidatedMCPDashboard:
             console.error('Bucket loading error:', e);
         }
     }
+    
     async function loadPins(){
         const container=document.getElementById('pins-list'); if(!container) return; container.textContent='Loading…';
         try{ const r=await fetch('/api/pins'); const js=await r.json(); const items=js.items||[]; if(!items.length){ container.textContent='(none)'; return; }
@@ -9660,6 +9666,8 @@ class ConsolidatedMCPDashboard:
     };
 
     // Make functions globally available
+    window.refreshBuckets = loadBuckets; // Add missing function alias for onclick handlers
+
     window.refreshBucketFilesMCP = refreshBucketFilesMCP;
 
     // Make updateElement globally available for dashboard UI
