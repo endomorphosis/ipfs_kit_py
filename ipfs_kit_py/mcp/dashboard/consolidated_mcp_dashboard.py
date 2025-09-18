@@ -2865,6 +2865,29 @@ class ConsolidatedMCPDashboard:
             
             return result
 
+        # Add compatibility endpoint for JavaScript SDK
+        @app.post("/api/call_mcp_tool")
+        async def api_call_mcp_tool(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+            """JavaScript SDK compatibility endpoint."""
+            tool_name = payload.get("tool_name")
+            arguments = payload.get("arguments", {})
+            req_id = payload.get("id", "1")
+            
+            if not tool_name:
+                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "Missing tool_name"}, "id": req_id}
+            
+            try:
+                result = await self._tools_call(tool_name, arguments)
+                
+                # Ensure proper JSON-RPC response format
+                if isinstance(result, dict) and result.get("jsonrpc") == "2.0":
+                    result["id"] = req_id
+                    return result
+                else:
+                    return {"jsonrpc": "2.0", "result": result, "id": req_id}
+            except Exception as e:
+                return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": req_id}
+
     # --- PID helpers ---
     def _pid_file_path(self) -> Path:
         """Legacy primary PID file path (shared)."""
@@ -2927,6 +2950,7 @@ class ConsolidatedMCPDashboard:
             {"name": "update_bucket_policy", "description": "Update bucket policy", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "replication_factor": {"type":"number", "title":"Replication", "default":1}, "cache_policy": {"type":"string", "title":"Cache", "enum":["none","memory","disk"], "default":"none"}, "retention_days": {"type":"number", "title":"Retention Days", "default":0}}}},
             # Comprehensive bucket file management tools
             {"name": "bucket_list_files", "description": "List files in bucket with metadata priority", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"Path", "default":"."}, "show_metadata": {"type":"boolean", "title":"Show Metadata", "default":True}}}},
+            {"name": "list_bucket_files", "description": "List files in bucket (alias for bucket_list_files)", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket"}, "path": {"type":"string", "title":"Path", "default":""}, "metadata_first": {"type":"boolean", "title":"Metadata First", "default":True}}}},
             {"name": "bucket_upload_file", "description": "Upload file to bucket with replication policy", "inputSchema": {"type":"object", "required":["bucket","path","content"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "content": {"type":"string", "title":"Content", "ui": {"widget":"textarea", "rows":6}}, "mode": {"type":"string", "title":"Mode", "enum":["text","hex","base64"], "default":"text"}, "apply_policy": {"type":"boolean", "title":"Apply Bucket Policy", "default":True}}}},
             {"name": "bucket_download_file", "description": "Download file from bucket", "inputSchema": {"type":"object", "required":["bucket","path"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "format": {"type":"string", "title":"Format", "enum":["text","hex","base64"], "default":"text"}}}},
             {"name": "bucket_delete_file", "description": "Delete file from bucket", "inputSchema": {"type":"object", "required":["bucket","path"], "confirm": {"message":"This will delete the file from the bucket. Continue?"}, "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "remove_replicas": {"type":"boolean", "title":"Remove Replicas", "default":True}}}},
@@ -4111,6 +4135,42 @@ class ConsolidatedMCPDashboard:
                     files.append(file_info)
             
             return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "files": files}, "id": None}
+
+        if name == "list_bucket_files":
+            # Alias for bucket_list_files with parameter mapping
+            bucket = args.get("bucket")
+            path = args.get("path", "")
+            metadata_first = args.get("metadata_first", True)
+            if not bucket:
+                raise HTTPException(400, "Missing bucket")
+            
+            # Convert to bucket_list_files format
+            mapped_args = {
+                "bucket": bucket,
+                "path": path if path else ".",
+                "show_metadata": metadata_first
+            }
+            
+            # Call the same implementation as bucket_list_files
+            result = self._handle_buckets("bucket_list_files", mapped_args)
+            
+            # Return result with JavaScript-friendly format
+            if result and "result" in result:
+                files_data = result["result"]
+                # Convert to the format expected by JavaScript
+                return {
+                    "jsonrpc": "2.0", 
+                    "result": {
+                        "items": files_data.get("files", []),
+                        "bucket": files_data.get("bucket"),
+                        "path": files_data.get("path"),
+                        "total": len(files_data.get("files", [])),
+                        "has_more": False
+                    }, 
+                    "id": None
+                }
+            else:
+                return {"jsonrpc": "2.0", "result": {"items": [], "bucket": bucket, "path": path, "total": 0}, "id": None}
 
         if name == "bucket_upload_file":
             bucket = args.get("bucket")
