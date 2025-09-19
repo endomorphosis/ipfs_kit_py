@@ -13,7 +13,7 @@ module docstring causing the original import section to be lost and producing a
 cascade of "name is not defined" errors. This docstring has been reduced and the
 imports + helpers restored below.
 """
-import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading
+import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading, mimetypes
 from collections import deque
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -383,7 +383,42 @@ def _run_cmd(cmd: List[str], timeout: float = 10.0) -> Dict[str, Any]:
     except Exception as e:
         return {"code": -1, "error": str(e)}
 
-def _normalize_buckets(items):
+def _calculate_bucket_stats(bucket_name: str, vfs_base_path: Path) -> Dict[str, Any]:
+    """Calculate actual bucket statistics from VFS directory."""
+    bucket_path = vfs_base_path / bucket_name
+    stats = {
+        "size": 0,
+        "file_count": 0, 
+        "folder_count": 0,
+        "total_size": 0
+    }
+    
+    if not bucket_path.exists():
+        return stats
+        
+    try:
+        for root, dirs, files in os.walk(bucket_path):
+            # Count folders (excluding .gitkeep files)
+            stats["folder_count"] += len(dirs)
+            
+            # Count files and calculate size  
+            for file in files:
+                if file != '.gitkeep':  # Skip placeholder files
+                    file_path = os.path.join(root, file)
+                    try:
+                        file_size = os.path.getsize(file_path)
+                        stats["size"] += file_size
+                        stats["file_count"] += 1
+                    except OSError:
+                        continue
+                        
+        stats["total_size"] = stats["size"]
+    except Exception:
+        pass
+        
+    return stats
+
+def _normalize_buckets(items, vfs_base_path: Path = None):
     if not isinstance(items, list):
         return []
     out = []
@@ -400,7 +435,36 @@ def _normalize_buckets(items):
             'cache_policy': pol.get('cache_policy', 'none') or 'none',
             'retention_days': int(pol.get('retention_days', 0) or 0),
         }
-        out.append({"name": name, "backend": it.get('backend'), "meta": it.get('meta', {}), "policy": norm_policy})
+        
+        # Calculate actual bucket statistics if VFS path provided
+        bucket_stats = {"size": 0, "file_count": 0, "folder_count": 0, "total_size": 0}
+        if vfs_base_path:
+            bucket_stats = _calculate_bucket_stats(name, vfs_base_path)
+        
+        # Enhanced bucket info with all fields JavaScript expects
+        bucket_info = {
+            "name": name,
+            "backend": it.get('backend', 'filesystem'),
+            "meta": it.get('meta', {}),
+            "policy": norm_policy,
+            "description": it.get('description', f"Storage bucket with {bucket_stats['file_count']} files"),
+            "status": it.get('status', 'active'),
+            "tier": it.get('tier', it.get('backend', 'filesystem')),  # Use backend as tier if not specified
+            "created_at": it.get('created_at', ''),
+            "size": bucket_stats["size"],
+            "size_gb": round(bucket_stats["size"] / (1024**3), 2),  # Size in GB for JavaScript
+            "file_count": bucket_stats["file_count"],
+            "folder_count": bucket_stats["folder_count"],
+            "total_size": bucket_stats["total_size"],
+            "quota": it.get('quota', {
+                "storage": "5GB",
+                "files": 10000,
+                "bandwidth": "100GB"
+            }),
+            "backends": it.get('backends', [it.get('backend', 'filesystem')]),
+            "replica_count": it.get('replica_count', 1)
+        }
+        out.append(bucket_info)
     return out
 
 def _normalize_pins(items):
@@ -2206,7 +2270,7 @@ class ConsolidatedMCPDashboard:
                     "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat()
                 })
             
-            return {"files": sorted(files, key=lambda x: (x["type"] != "directory", x["name"].lower()))}
+            return {"items": sorted(files, key=lambda x: (x["type"] != "directory", x["name"].lower()))}
 
         @app.post("/api/buckets/{bucket_name}/upload")
         async def upload_file_to_bucket(
@@ -3010,6 +3074,7 @@ class ConsolidatedMCPDashboard:
             # Comprehensive bucket file management tools
             {"name": "bucket_list_files", "description": "List files in bucket with metadata priority", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"Path", "default":"."}, "show_metadata": {"type":"boolean", "title":"Show Metadata", "default":True}}}},
             {"name": "list_bucket_files", "description": "List files in bucket (alias for bucket_list_files)", "inputSchema": {"type":"object", "required":["bucket"], "properties": {"bucket": {"type":"string", "title":"Bucket"}, "path": {"type":"string", "title":"Path", "default":""}, "metadata_first": {"type":"boolean", "title":"Metadata First", "default":True}}}},
+            {"name": "create_folder", "description": "Create a new folder in bucket", "inputSchema": {"type":"object", "required":["bucket","name"], "properties": {"bucket": {"type":"string", "title":"Bucket"}, "name": {"type":"string", "title":"Folder Name"}}}},
             {"name": "bucket_upload_file", "description": "Upload file to bucket with replication policy", "inputSchema": {"type":"object", "required":["bucket","path","content"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "content": {"type":"string", "title":"Content", "ui": {"widget":"textarea", "rows":6}}, "mode": {"type":"string", "title":"Mode", "enum":["text","hex","base64"], "default":"text"}, "apply_policy": {"type":"boolean", "title":"Apply Bucket Policy", "default":True}}}},
             {"name": "bucket_download_file", "description": "Download file from bucket", "inputSchema": {"type":"object", "required":["bucket","path"], "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "format": {"type":"string", "title":"Format", "enum":["text","hex","base64"], "default":"text"}}}},
             {"name": "bucket_delete_file", "description": "Delete file from bucket", "inputSchema": {"type":"object", "required":["bucket","path"], "confirm": {"message":"This will delete the file from the bucket. Continue?"}, "properties": {"bucket": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}, "path": {"type":"string", "title":"File Path"}, "remove_replicas": {"type":"boolean", "title":"Remove Replicas", "default":True}}}},
@@ -4086,7 +4151,8 @@ class ConsolidatedMCPDashboard:
 
     def _handle_buckets(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if name == "list_buckets":
-            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+            vfs_path = self.paths.data_dir / "vfs"
+            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]), vfs_path)
             return {"jsonrpc": "2.0", "result": {"items": items}, "id": None}
         if name == "create_bucket":
             bname = args.get("name")
@@ -4099,6 +4165,11 @@ class ConsolidatedMCPDashboard:
             entry = {"name": bname, "backend": backend, "created_at": datetime.now(UTC).isoformat()}
             items.append(entry)
             _atomic_write_json(self.paths.buckets_file, items)
+            
+            # Create VFS directory for the new bucket
+            bucket_dir = os.path.join(self.paths.data_dir, "vfs", bname)
+            os.makedirs(bucket_dir, exist_ok=True)
+            
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
         if name == "delete_bucket":
             bname = args.get("name")
@@ -4107,6 +4178,13 @@ class ConsolidatedMCPDashboard:
             if len(new_items) == len(items):
                 raise HTTPException(404, "Not found")
             _atomic_write_json(self.paths.buckets_file, new_items)
+            
+            # Remove VFS directory for deleted bucket
+            import shutil
+            bucket_dir = os.path.join(self.paths.data_dir, "vfs", bname)
+            if os.path.exists(bucket_dir):
+                shutil.rmtree(bucket_dir)
+                
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
         if name == "get_bucket":
             bname = args.get("name")
@@ -4115,6 +4193,65 @@ class ConsolidatedMCPDashboard:
                 if b.get("name") == bname:
                     return {"jsonrpc": "2.0", "result": b, "id": None}
             raise HTTPException(404, "Not found")
+        if name == "bucket_create_folder":
+            bucket = args.get("bucket")
+            folder_name = args.get("folder_name")
+            if not bucket or not folder_name:
+                raise HTTPException(400, "Missing bucket or folder_name")
+                
+            # Create folder in VFS
+            bucket_dir = os.path.join(self.paths.data_dir, "vfs", bucket)
+            folder_path = os.path.join(bucket_dir, folder_name)
+            
+            if os.path.exists(folder_path):
+                raise HTTPException(409, f"Folder '{folder_name}' already exists")
+                
+            os.makedirs(folder_path, exist_ok=True)
+            
+            # Create a .gitkeep file to ensure the folder is tracked
+            gitkeep_path = os.path.join(folder_path, ".gitkeep")
+            with open(gitkeep_path, 'w') as f:
+                f.write("")
+                
+            return {"jsonrpc": "2.0", "result": {"ok": True, "folder": folder_name, "path": folder_path}, "id": None}
+        if name == "bucket_upload_file":
+            bucket = args.get("bucket")
+            filename = args.get("filename")
+            content = args.get("content")
+            content_type = args.get("content_type", "application/octet-stream")
+            
+            if not bucket or not filename or content is None:
+                raise HTTPException(400, "Missing bucket, filename, or content")
+                
+            # Decode base64 content
+            import base64
+            try:
+                file_content = base64.b64decode(content)
+            except Exception as e:
+                raise HTTPException(400, f"Invalid base64 content: {str(e)}")
+            
+            # Create file in VFS
+            bucket_dir = os.path.join(self.paths.data_dir, "vfs", bucket)
+            os.makedirs(bucket_dir, exist_ok=True)
+            
+            file_path = os.path.join(bucket_dir, filename)
+            
+            with open(file_path, 'wb') as f:
+                f.write(file_content)
+                
+            file_size = len(file_content)
+            
+            return {
+                "jsonrpc": "2.0", 
+                "result": {
+                    "ok": True, 
+                    "filename": filename,
+                    "size": file_size,
+                    "path": file_path,
+                    "content_type": content_type
+                }, 
+                "id": None
+            }
         if name == "update_bucket":
             bname = args.get("name")
             patch = args.get("patch", {}) or {}
@@ -4134,6 +4271,84 @@ class ConsolidatedMCPDashboard:
             _atomic_write_json(self.paths.buckets_file, items)
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
         
+        if name == "bucket_upload_file":
+            bucket = args.get("bucket")
+            filename = args.get("filename")
+            content = args.get("content", "")
+            content_type = args.get("content_type", "text/plain")
+            if not bucket or not filename:
+                raise HTTPException(400, "Missing bucket or filename")
+            
+            # Get VFS path
+            bucket_path = self.paths.vfs_root / bucket
+            if not bucket_path.exists():
+                bucket_path.mkdir(parents=True, exist_ok=True)
+            
+            # Safe file path
+            file_path = bucket_path / filename
+            if not str(file_path).startswith(str(bucket_path)):
+                raise HTTPException(400, "Invalid file path")
+            
+            # Write file
+            try:
+                if isinstance(content, str):
+                    file_path.write_text(content, encoding='utf-8')
+                else:
+                    file_path.write_bytes(content)
+                
+                # Update metadata
+                metadata_file = self.paths.data_dir / "bucket_files.json"
+                metadata = _read_json(metadata_file, {})
+                file_key = f"{bucket}:{filename}"
+                metadata[file_key] = {
+                    "uploaded": datetime.now(UTC).isoformat(),
+                    "content_type": content_type,
+                    "size": file_path.stat().st_size,
+                    "cached": True,
+                    "replicas": ["local"]
+                }
+                _atomic_write_json(metadata_file, metadata)
+                
+                return {"jsonrpc": "2.0", "result": {"ok": True, "filename": filename, "size": file_path.stat().st_size}, "id": None}
+            except Exception as e:
+                raise HTTPException(500, f"Failed to upload file: {str(e)}")
+
+        if name == "bucket_create_folder":
+            bucket = args.get("bucket")
+            folder_name = args.get("folder_name") or args.get("name")
+            if not bucket or not folder_name:
+                raise HTTPException(400, "Missing bucket or folder_name")
+            
+            # Get VFS path
+            bucket_path = self.paths.vfs_root / bucket
+            if not bucket_path.exists():
+                bucket_path.mkdir(parents=True, exist_ok=True)
+            
+            # Safe folder path
+            folder_path = bucket_path / folder_name
+            if not str(folder_path).startswith(str(bucket_path)):
+                raise HTTPException(400, "Invalid folder path")
+            
+            # Create folder
+            try:
+                folder_path.mkdir(parents=True, exist_ok=True)
+                
+                # Update metadata
+                metadata_file = self.paths.data_dir / "bucket_files.json"
+                metadata = _read_json(metadata_file, {})
+                folder_key = f"{bucket}:{folder_name}"
+                metadata[folder_key] = {
+                    "created": datetime.now(UTC).isoformat(),
+                    "type": "folder",
+                    "cached": True,
+                    "replicas": ["local"]
+                }
+                _atomic_write_json(metadata_file, metadata)
+                
+                return {"jsonrpc": "2.0", "result": {"ok": True, "folder_name": folder_name}, "id": None}
+            except Exception as e:
+                raise HTTPException(500, f"Failed to create folder: {str(e)}")
+
         # Enhanced bucket file management with metadata priority
         if name == "bucket_list_files":
             bucket = args.get("bucket")
@@ -4161,15 +4376,21 @@ class ConsolidatedMCPDashboard:
                 files.append({
                     "name": vfs_path.name,
                     "path": path,
+                    "type": "file",
                     "is_dir": False,
                     "size": stat_info.st_size,
+                    "mime_type": mimetypes.guess_type(vfs_path.name)[0],
                     "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
-                    "metadata": meta if show_metadata else None,
-                    "replicas": meta.get("replicas", []) if show_metadata else None,
-                    "cached": meta.get("cached", False) if show_metadata else None
+                    "metadata": meta if show_metadata else {},
+                    "replicas": meta.get("replicas", []) if show_metadata else [],
+                    "cached": meta.get("cached", False) if show_metadata else False
                 })
             elif vfs_path.is_dir():
                 for item in sorted(vfs_path.iterdir()):
+                    # Skip .gitkeep files
+                    if item.name == '.gitkeep':
+                        continue
+                        
                     rel_path = str(item.relative_to(bucket_path))
                     file_key = f"{bucket}:{rel_path}"
                     meta = metadata.get(file_key, {})
@@ -4177,23 +4398,24 @@ class ConsolidatedMCPDashboard:
                     file_info = {
                         "name": item.name,
                         "path": rel_path,
+                        "type": "directory" if item.is_dir() else "file",
                         "is_dir": item.is_dir(),
-                        "modified": datetime.fromtimestamp(item.stat().st_mtime, UTC).isoformat()
+                        "modified": datetime.fromtimestamp(item.stat().st_mtime, UTC).isoformat(),
+                        "metadata": meta if show_metadata else {},
+                        "replicas": meta.get("replicas", []) if show_metadata else [],
+                        "cached": meta.get("cached", False) if show_metadata else False
                     }
                     
                     if not item.is_dir():
                         file_info["size"] = item.stat().st_size
-                    
-                    if show_metadata:
-                        file_info.update({
-                            "metadata": meta,
-                            "replicas": meta.get("replicas", []),
-                            "cached": meta.get("cached", False)
-                        })
+                        file_info["mime_type"] = mimetypes.guess_type(item.name)[0]
+                    else:
+                        file_info["size"] = 0
+                        file_info["mime_type"] = None
                     
                     files.append(file_info)
             
-            return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "files": files}, "id": None}
+            return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "items": files}, "id": None}
 
         if name == "list_bucket_files":
             # Alias for bucket_list_files with parameter mapping
@@ -4203,33 +4425,34 @@ class ConsolidatedMCPDashboard:
             if not bucket:
                 raise HTTPException(400, "Missing bucket")
             
-            # Convert to bucket_list_files format
-            mapped_args = {
-                "bucket": bucket,
-                "path": path if path else ".",
-                "show_metadata": metadata_first
-            }
+            # Use the actual list_bucket_files function
+            result = await list_bucket_files(bucket, path)
+            return {"jsonrpc": "2.0", "result": result, "id": None}
+        
+        if name == "create_folder":
+            # Alias for bucket_create_folder
+            bucket = args.get("bucket")
+            folder_name = args.get("name") or args.get("folder_name")
+            if not bucket or not folder_name:
+                raise HTTPException(400, "Missing bucket or folder name")
             
-            # Call the same implementation as bucket_list_files
-            result = self._handle_buckets("bucket_list_files", mapped_args)
+            # Create folder in VFS
+            bucket_dir = os.path.join(self.paths.data_dir, "vfs", bucket)
+            os.makedirs(bucket_dir, exist_ok=True)
+            folder_path = os.path.join(bucket_dir, folder_name)
             
-            # Return result with JavaScript-friendly format
-            if result and "result" in result:
-                files_data = result["result"]
-                # Convert to the format expected by JavaScript
-                return {
-                    "jsonrpc": "2.0", 
-                    "result": {
-                        "items": files_data.get("files", []),
-                        "bucket": files_data.get("bucket"),
-                        "path": files_data.get("path"),
-                        "total": len(files_data.get("files", [])),
-                        "has_more": False
-                    }, 
-                    "id": None
-                }
-            else:
-                return {"jsonrpc": "2.0", "result": {"items": [], "bucket": bucket, "path": path, "total": 0}, "id": None}
+            if os.path.exists(folder_path):
+                return {"jsonrpc": "2.0", "result": {"ok": False, "error": f"Folder '{folder_name}' already exists"}, "id": None}
+                
+            os.makedirs(folder_path, exist_ok=True)
+            
+            # Create a .gitkeep file to ensure the folder is tracked
+            gitkeep_path = os.path.join(folder_path, ".gitkeep")
+            with open(gitkeep_path, 'w') as f:
+                f.write("")
+            
+            return {"jsonrpc": "2.0", "result": {"ok": True, "folder": folder_name, "path": folder_path}, "id": None}
+            return self._handle_buckets("bucket_list_files", mapped_args)
 
         if name == "bucket_upload_file":
             bucket = args.get("bucket")
