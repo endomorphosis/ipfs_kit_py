@@ -4343,9 +4343,15 @@
                 const bucket = result?.result || result;
                 
                 if (bucket) {
+                    // Store current bucket name for save operation
+                    window.currentBucketBeingEdited = bucketName;
+                    
                     // Populate form fields with current bucket data
                     const modal = document.getElementById('bucket-settings-modal');
                     if (modal) {
+                        const nameInput = modal.querySelector('#bucket-name');
+                        if (nameInput) nameInput.value = bucket.name || bucketName;
+                        
                         const backendInput = modal.querySelector('#bucket-backend');
                         if (backendInput) backendInput.value = bucket.backend || 'filesystem';
                         
@@ -4364,6 +4370,18 @@
                         
                         const maxFilesInput = modal.querySelector('#max-files');
                         if (maxFilesInput) maxFilesInput.value = policy.max_files || 0;
+                        
+                        // Populate advanced options - bucket-specific values
+                        const advanced = bucket.advanced_options || {};
+                        const vectorSearchEl = modal.querySelector('#enable-vector-search');
+                        const knowledgeGraphEl = modal.querySelector('#enable-knowledge-graph');
+                        const publicAccessEl = modal.querySelector('#allow-public-access');
+                        const versioningEl = modal.querySelector('#enable-versioning');
+                        
+                        if (vectorSearchEl) vectorSearchEl.checked = advanced.enable_vector_search || false;
+                        if (knowledgeGraphEl) knowledgeGraphEl.checked = advanced.enable_knowledge_graph || false;
+                        if (publicAccessEl) publicAccessEl.checked = advanced.allow_public_access || false;
+                        if (versioningEl) versioningEl.checked = advanced.enable_file_versioning || false;
                     }
                 }
             } catch (error) {
@@ -4409,7 +4427,7 @@
             const modal = document.getElementById('bucket-settings-modal');
             if (!modal) return;
             
-            const bucketName = modal.querySelector('#bucket-name')?.value;
+            const bucketName = modal.querySelector('#bucket-name')?.value || window.currentBucketBeingEdited;
             if (!bucketName) {
                 alert('❌ No bucket name found');
                 return;
@@ -4424,15 +4442,22 @@
                         quota_mb: parseInt(modal.querySelector('#storage-quota')?.value || 0),
                         max_files: parseInt(modal.querySelector('#max-files')?.value || 0)
                     },
-                    advanced: {
-                        vector_search: modal.querySelector('#enable-vector-search')?.checked || false,
-                        knowledge_graph: modal.querySelector('#enable-knowledge-graph')?.checked || false,
-                        public_access: modal.querySelector('#allow-public-access')?.checked || false,
-                        versioning: modal.querySelector('#enable-versioning')?.checked || false
-                    }
+                    // Store advanced options with bucket-specific keys to prevent cross-bucket pollution
+                    advanced_options: {}
                 };
                 
-                console.log('💾 Saving bucket settings:', updateData);
+                // Advanced options - use bucket-specific keys
+                const vectorSearchEl = modal.querySelector('#enable-vector-search');
+                const knowledgeGraphEl = modal.querySelector('#enable-knowledge-graph');
+                const publicAccessEl = modal.querySelector('#allow-public-access');
+                const versioningEl = modal.querySelector('#enable-versioning');
+                
+                updateData.advanced_options[`${bucketName}_enable_vector_search`] = vectorSearchEl?.checked || false;
+                updateData.advanced_options[`${bucketName}_enable_knowledge_graph`] = knowledgeGraphEl?.checked || false;
+                updateData.advanced_options[`${bucketName}_allow_public_access`] = publicAccessEl?.checked || false;
+                updateData.advanced_options[`${bucketName}_enable_file_versioning`] = versioningEl?.checked || false;
+                
+                console.log('💾 Saving bucket-specific settings:', updateData);
                 const result = await callMCPTool('update_bucket', { name: bucketName, patch: updateData });
                 
                 if (result?.result?.ok || result?.ok) {
