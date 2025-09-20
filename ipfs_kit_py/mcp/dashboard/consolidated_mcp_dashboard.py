@@ -4425,9 +4425,10 @@ class ConsolidatedMCPDashboard:
             if not bucket:
                 raise HTTPException(400, "Missing bucket")
             
-            # Use the actual list_bucket_files function
-            result = await list_bucket_files(bucket, path)
-            return {"jsonrpc": "2.0", "result": result, "id": None}
+            # Delegate to existing bucket_list_files implementation synchronously
+            # to avoid awaiting inside a non-async context
+            mapped_args = {"bucket": bucket, "path": path, "show_metadata": metadata_first}
+            return self._handle_buckets("bucket_list_files", mapped_args)
         
         if name == "create_folder":
             # Alias for bucket_create_folder
