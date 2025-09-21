@@ -118,6 +118,25 @@ class SimpleMCPDashboard:
         async def mcp_tools_call(request: Request):
             data = await request.json()
             return await self._handle_mcp_call(data)
+        
+        # Alternative API endpoint that JavaScript SDK expects
+        @self.app.post("/api/call_mcp_tool")
+        async def api_call_mcp_tool(request: Request):
+            data = await request.json()
+            # Convert from JavaScript SDK format to internal format
+            mcp_data = {
+                "params": {
+                    "name": data.get("tool_name"),
+                    "arguments": data.get("arguments", {})
+                }
+            }
+            result = await self._handle_mcp_call(mcp_data)
+            # Return in JSON-RPC format that the JavaScript SDK expects
+            return {
+                "jsonrpc": "2.0",
+                "result": result,
+                "id": data.get("id", "1")
+            }
             
         # MCP Tools list endpoint for client discovery
         @self.app.get("/mcp/tools/list")
@@ -132,6 +151,7 @@ class SimpleMCPDashboard:
                     {"name": "write_config_file", "description": "Write configuration file content"},
                     {"name": "get_config_metadata", "description": "Get configuration file metadata"},
                     {"name": "list_buckets", "description": "List storage buckets"},
+                    {"name": "list_bucket_files", "description": "List files in a specific bucket"},
                     {"name": "list_services", "description": "List available services"},
                     {"name": "list_backends", "description": "List storage backends"},
                     {"name": "list_peers", "description": "List connected IPFS peers"},
@@ -186,6 +206,12 @@ class SimpleMCPDashboard:
                 result = await self._get_config_metadata(arguments.get("filename"))
             elif tool_name == "list_buckets":
                 result = await self._list_buckets()
+            elif tool_name == "list_bucket_files":
+                result = await self._list_bucket_files(
+                    arguments.get("bucket"),
+                    arguments.get("path", ""),
+                    arguments.get("metadata_first", True)
+                )
             elif tool_name == "list_services":
                 result = await self._list_services()
             elif tool_name == "list_backends":
@@ -496,6 +522,98 @@ class SimpleMCPDashboard:
                 "source": "error",
                 "error": str(e)
             }
+    
+    async def _list_bucket_files(self, bucket: str, path: str = "", metadata_first: bool = True):
+        """List files in a specific bucket."""
+        try:
+            if not bucket:
+                return {"error": "Bucket name is required", "items": []}
+            
+            # Return demo files based on bucket name
+            demo_files = []
+            
+            if bucket == "media":
+                demo_files = [
+                    {
+                        "name": "image1.jpg",
+                        "path": f"{path}image1.jpg" if path else "image1.jpg",
+                        "size": 262144,  # 256KB
+                        "type": "image/jpeg",
+                        "created_at": "2024-01-15T10:30:00Z",
+                        "updated_at": "2024-01-15T10:30:00Z",
+                        "hash": "QmX1eZQe9k8mF2nD3pQ4rT5yU7iO6pL9sA2bC4dE5fG6hI",
+                        "is_directory": False
+                    },
+                    {
+                        "name": "video1.mp4", 
+                        "path": f"{path}video1.mp4" if path else "video1.mp4",
+                        "size": 52428800,  # 50MB
+                        "type": "video/mp4",
+                        "created_at": "2024-01-16T14:20:00Z",
+                        "updated_at": "2024-01-16T14:20:00Z",
+                        "hash": "QmY2fZR0l9nH3oE4qS6uI8jP7kM8tN9aB1cD2eF3gH4iJ",
+                        "is_directory": False
+                    },
+                    {
+                        "name": "thumbnails",
+                        "path": f"{path}thumbnails/" if path else "thumbnails/",
+                        "size": 0,
+                        "type": "directory", 
+                        "created_at": "2024-01-15T10:30:00Z",
+                        "updated_at": "2024-01-18T16:45:00Z",
+                        "hash": "QmZ3gAB1m0oI4pF5qR7sT8uV9wX0yL1kN2bC3dE4fG5hI",
+                        "is_directory": True
+                    }
+                ]
+            elif bucket == "documents":
+                demo_files = [
+                    {
+                        "name": "report.pdf",
+                        "path": f"{path}report.pdf" if path else "report.pdf", 
+                        "size": 2097152,  # 2MB
+                        "type": "application/pdf",
+                        "created_at": "2024-01-10T08:15:00Z",
+                        "updated_at": "2024-01-12T10:30:00Z",
+                        "hash": "QmA4bC5dE6fG7hI8jK9lM0nO1pQ2rS3tU4vW5xY6zA7bB",
+                        "is_directory": False
+                    },
+                    {
+                        "name": "presentations",
+                        "path": f"{path}presentations/" if path else "presentations/",
+                        "size": 0,
+                        "type": "directory",
+                        "created_at": "2024-01-10T08:15:00Z", 
+                        "updated_at": "2024-01-18T12:30:00Z",
+                        "hash": "QmB5cD6eF7gH8iJ9kL0mN1oP2qR3sT4uV5wX6yZ7aB8cC",
+                        "is_directory": True
+                    }
+                ]
+            elif bucket == "archive":
+                demo_files = [
+                    {
+                        "name": "backup.tar.gz",
+                        "path": f"{path}backup.tar.gz" if path else "backup.tar.gz",
+                        "size": 524288000,  # 500MB
+                        "type": "application/gzip",
+                        "created_at": "2024-01-05T14:20:00Z",
+                        "updated_at": "2024-01-05T14:20:00Z",
+                        "hash": "QmC6dD7eF8gH9iJ0kL1mN2oP3qR4sT5uV6wX7yZ8aB9cD",
+                        "is_directory": False
+                    }
+                ]
+            
+            logger.info(f"Listed {len(demo_files)} files in bucket '{bucket}' at path '{path}'")
+            
+            return {
+                "items": demo_files,
+                "bucket": bucket,
+                "path": path,
+                "total": len(demo_files),
+                "has_more": False
+            }
+        except Exception as e:
+            logger.error(f"Error listing files in bucket {bucket}: {e}")
+            return {"error": str(e), "items": []}
     
     async def _create_default_buckets(self):
         """Create default test buckets for immediate functionality."""

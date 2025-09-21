@@ -1132,6 +1132,204 @@ if imports_succeeded:
             
             return f"Error: {error_msg}"
 
+    @server.tool(name="list_buckets", description="List all available buckets with metadata")
+    async def list_buckets(ctx: Context, include_metadata: bool = True, metadata_first: bool = True, offset: int = 0, limit: int = 20) -> str:
+        """
+        List all available buckets with optional metadata.
+        
+        Args:
+            ctx: The MCP context
+            include_metadata: Whether to include metadata in the response
+            metadata_first: Whether to prioritize metadata in the response
+            offset: Pagination offset
+            limit: Maximum number of buckets to return
+        
+        Returns:
+            JSON string with bucket information
+        """
+        logger.info(f"Listing buckets: include_metadata={include_metadata}, offset={offset}, limit={limit}")
+        await ctx.info(f"Listing buckets with limit {limit}")
+        
+        try:
+            # For now, return demo buckets since we don't have a real bucket system initialized
+            demo_buckets = [
+                {
+                    "name": "media",
+                    "id": "bucket_media_001",
+                    "type": "media",
+                    "file_count": 150,
+                    "total_size": 1024 * 1024 * 500,  # 500MB
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "updated_at": "2024-01-20T16:45:00Z",
+                    "status": "active",
+                    "backend": "filesystem"
+                },
+                {
+                    "name": "documents", 
+                    "id": "bucket_docs_002",
+                    "type": "documents",
+                    "file_count": 75,
+                    "total_size": 1024 * 1024 * 100,  # 100MB
+                    "created_at": "2024-01-10T08:15:00Z",
+                    "updated_at": "2024-01-18T12:30:00Z", 
+                    "status": "active",
+                    "backend": "s3"
+                },
+                {
+                    "name": "archive",
+                    "id": "bucket_arch_003", 
+                    "type": "archive",
+                    "file_count": 300,
+                    "total_size": 1024 * 1024 * 1024,  # 1GB
+                    "created_at": "2024-01-05T14:20:00Z",
+                    "updated_at": "2024-01-15T09:10:00Z",
+                    "status": "active", 
+                    "backend": "ipfs"
+                }
+            ]
+            
+            # Apply pagination
+            start_idx = offset
+            end_idx = min(offset + limit, len(demo_buckets))
+            paginated_buckets = demo_buckets[start_idx:end_idx]
+            
+            result = {
+                "items": paginated_buckets,
+                "total": len(demo_buckets),
+                "offset": offset,
+                "limit": limit,
+                "has_more": end_idx < len(demo_buckets)
+            }
+            
+            success_msg = f"Successfully listed {len(paginated_buckets)} buckets"
+            logger.info(success_msg)
+            await ctx.info(success_msg)
+            
+            return json.dumps(result)
+            
+        except Exception as e:
+            error_msg = f"Error listing buckets: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            await ctx.error(error_msg)
+            return f"Error: {error_msg}"
+
+    @server.tool(name="list_bucket_files", description="List files in a specific bucket")
+    async def list_bucket_files(ctx: Context, bucket: str, path: str = "", metadata_first: bool = True, include_hidden: bool = False, limit: int = 100) -> str:
+        """
+        List files in a specific bucket with optional filtering.
+        
+        Args:
+            ctx: The MCP context
+            bucket: Name of the bucket to list files from
+            path: Path within the bucket (empty for root)
+            metadata_first: Whether to prioritize metadata in the response
+            include_hidden: Whether to include hidden files
+            limit: Maximum number of files to return
+        
+        Returns:
+            JSON string with file information
+        """
+        logger.info(f"Listing files in bucket '{bucket}' at path '{path}'")
+        await ctx.info(f"Listing files in bucket: {bucket}")
+        
+        try:
+            # For now, return demo files since we don't have a real bucket system
+            demo_files = []
+            
+            if bucket == "media":
+                demo_files = [
+                    {
+                        "name": "image1.jpg",
+                        "path": f"{path}image1.jpg" if path else "image1.jpg",
+                        "size": 1024 * 256,  # 256KB
+                        "type": "image/jpeg",
+                        "created_at": "2024-01-15T10:30:00Z",
+                        "updated_at": "2024-01-15T10:30:00Z",
+                        "hash": "QmX1eZQe9k8mF2nD3pQ4rT5yU7iO6pL9sA2bC4dE5fG6hI",
+                        "is_directory": False
+                    },
+                    {
+                        "name": "video1.mp4", 
+                        "path": f"{path}video1.mp4" if path else "video1.mp4",
+                        "size": 1024 * 1024 * 50,  # 50MB
+                        "type": "video/mp4",
+                        "created_at": "2024-01-16T14:20:00Z",
+                        "updated_at": "2024-01-16T14:20:00Z",
+                        "hash": "QmY2fZR0l9nH3oE4qS6uI8jP7kM8tN9aB1cD2eF3gH4iJ",
+                        "is_directory": False
+                    },
+                    {
+                        "name": "thumbnails",
+                        "path": f"{path}thumbnails/" if path else "thumbnails/",
+                        "size": 0,
+                        "type": "directory", 
+                        "created_at": "2024-01-15T10:30:00Z",
+                        "updated_at": "2024-01-18T16:45:00Z",
+                        "hash": "QmZ3gAB1m0oI4pF5qR7sT8uV9wX0yL1kN2bC3dE4fG5hI",
+                        "is_directory": True
+                    }
+                ]
+            elif bucket == "documents":
+                demo_files = [
+                    {
+                        "name": "report.pdf",
+                        "path": f"{path}report.pdf" if path else "report.pdf", 
+                        "size": 1024 * 1024 * 2,  # 2MB
+                        "type": "application/pdf",
+                        "created_at": "2024-01-10T08:15:00Z",
+                        "updated_at": "2024-01-12T10:30:00Z",
+                        "hash": "QmA4bC5dE6fG7hI8jK9lM0nO1pQ2rS3tU4vW5xY6zA7bB",
+                        "is_directory": False
+                    },
+                    {
+                        "name": "presentations",
+                        "path": f"{path}presentations/" if path else "presentations/",
+                        "size": 0,
+                        "type": "directory",
+                        "created_at": "2024-01-10T08:15:00Z", 
+                        "updated_at": "2024-01-18T12:30:00Z",
+                        "hash": "QmB5cD6eF7gH8iJ9kL0mN1oP2qR3sT4uV5wX6yZ7aB8cC",
+                        "is_directory": True
+                    }
+                ]
+            elif bucket == "archive":
+                demo_files = [
+                    {
+                        "name": "backup.tar.gz",
+                        "path": f"{path}backup.tar.gz" if path else "backup.tar.gz",
+                        "size": 1024 * 1024 * 500,  # 500MB
+                        "type": "application/gzip",
+                        "created_at": "2024-01-05T14:20:00Z",
+                        "updated_at": "2024-01-05T14:20:00Z",
+                        "hash": "QmC6dD7eF8gH9iJ0kL1mN2oP3qR4sT5uV6wX7yZ8aB9cD",
+                        "is_directory": False
+                    }
+                ]
+            
+            # Apply limit
+            limited_files = demo_files[:limit]
+            
+            result = {
+                "bucket": bucket,
+                "path": path,
+                "items": limited_files,
+                "total": len(demo_files),
+                "limit": limit,
+                "has_more": len(demo_files) > limit
+            }
+            
+            success_msg = f"Successfully listed {len(limited_files)} files in bucket '{bucket}'"
+            logger.info(success_msg)
+            await ctx.info(success_msg)
+            
+            return json.dumps(result)
+            
+        except Exception as e:
+            error_msg = f"Error listing files in bucket '{bucket}': {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            await ctx.error(error_msg)
+            return f"Error: {error_msg}"
+
 # --- Custom Raw SSE Implementation ---
 # Removed custom SSE implementation to rely on FastMCP default
 

@@ -3139,6 +3139,20 @@
             }, 5000);
         }
 
+        // Utility function to convert file to base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    // Remove the data:type/subtype;base64, prefix
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = error => reject(error);
+            });
+        }
+
         // Modal functions need to be defined before setupActionButtons
         function showToast(message, type = 'info') {
             const existing = document.querySelector('.toast');
@@ -3227,6 +3241,114 @@
                 showToast('Failed to initialize Enterprise Storage Hub', 'error');
             }
         }
+        
+        // Global function for onclick handlers - Essential for Create Bucket functionality
+        function refreshBuckets() {
+            loadBucketsDataEnterprise();
+        }
+        
+        // Global function for creating folders
+        async function createFolder() {
+            const bucketName = currentBucket;
+            const folderName = prompt('Enter folder name:');
+            if (!folderName || !bucketName) return;
+            
+            try {
+                showToast(`Creating folder: ${folderName}`, 'info');
+                
+                const result = await callMCPTool('bucket_create_folder', {
+                    bucket: bucketName,
+                    folder_name: folderName
+                });
+                
+                if (result.ok) {
+                    showToast(`Folder "${folderName}" created successfully`, 'success');
+                    // Refresh the file list
+                    if (typeof refreshBucketFilesMCP === 'function') {
+                        await refreshBucketFilesMCP();
+                    } else {
+                        loadBucketFilesInModal(bucketName);
+                    }
+                } else {
+                    showToast(`Failed to create folder: ${result.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error creating folder:', error);
+                showToast(`Error creating folder: ${error.message}`, 'error');
+            }
+        }
+
+        // Global function for uploading files
+        async function uploadFiles() {
+            const bucketName = currentBucket;
+            if (!bucketName) {
+                showToast('No bucket selected', 'error');
+                return;
+            }
+            
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.onchange = async function(event) {
+                const files = event.target.files;
+                if (!files.length) return;
+                
+                for (const file of files) {
+                    try {
+                        showToast(`Uploading: ${file.name}`, 'info');
+                        
+                        // Read file content
+                        const content = await readFileAsBase64(file);
+                        
+                        const result = await callMCPTool('bucket_upload_file', {
+                            bucket: bucketName,
+                            filename: file.name,
+                            content: content,
+                            content_type: file.type || 'application/octet-stream'
+                        });
+                        
+                        if (result.ok) {
+                            showToast(`"${file.name}" uploaded successfully`, 'success');
+                        } else {
+                            showToast(`Failed to upload "${file.name}": ${result.error || 'Unknown error'}`, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error uploading file:', error);
+                        showToast(`Error uploading "${file.name}": ${error.message}`, 'error');
+                    }
+                }
+                
+                // Refresh the file list after all uploads
+                if (typeof refreshBucketFilesMCP === 'function') {
+                    await refreshBucketFilesMCP();
+                } else {
+                    loadBucketFilesInModal(bucketName);
+                }
+            };
+            input.click();
+        }
+
+        // Helper function to read file as base64
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]); // Remove data:... prefix
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        // Make it globally available for onclick handlers
+        window.refreshBuckets = refreshBuckets;
+        
+        // Make other critical functions globally available for onclick handlers
+        window.showCreateBucketModal = showCreateBucketModal;
+        window.showImportBucketModal = showImportBucketModal;
+        window.openBucketSettings = openBucketSettings;
+        window.showBucketSettings = showBucketSettings;
+        window.deleteBucket = deleteBucket;
+        window.createFolder = createFolder;
+        window.uploadFiles = uploadFiles;
         
         function handleResponsiveLayout() {
             // Handle responsive layout for enterprise storage hub
@@ -3490,6 +3612,62 @@
                     await saveBucketSettingsEnterprise();
                 });
             }
+            
+            // Bucket Settings Modal Event Listeners
+            const closeBucketSettings = document.getElementById('close-bucket-settings');
+            if (closeBucketSettings) {
+                closeBucketSettings.addEventListener('click', () => {
+                    document.getElementById('bucket-settings-modal').classList.add('hidden');
+                });
+            }
+            
+            const cancelBucketSettings = document.getElementById('cancel-bucket-settings');
+            if (cancelBucketSettings) {
+                cancelBucketSettings.addEventListener('click', () => {
+                    document.getElementById('bucket-settings-modal').classList.add('hidden');
+                });
+            }
+            
+            const deleteBucketBtn = document.getElementById('delete-bucket-btn');
+            if (deleteBucketBtn) {
+                deleteBucketBtn.addEventListener('click', async () => {
+                    const modal = document.getElementById('bucket-settings-modal');
+                    const bucketName = modal?.querySelector('#bucket-name')?.value;
+                    if (bucketName) {
+                        await deleteBucket(bucketName);
+                    }
+                });
+            }
+            
+            const bucketSettingsForm = document.getElementById('bucket-settings-form');
+            if (bucketSettingsForm) {
+                bucketSettingsForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await saveBucketSettings();
+                });
+            }
+            
+            const syncBucketBtn = document.getElementById('sync-bucket-now-2');
+            if (syncBucketBtn) {
+                syncBucketBtn.addEventListener('click', async () => {
+                    const modal = document.getElementById('bucket-settings-modal');
+                    const bucketName = modal?.querySelector('#bucket-name')?.value;
+                    if (bucketName) {
+                        try {
+                            console.log(`🔄 Syncing bucket: ${bucketName}`);
+                            const result = await callMCPTool('bucket_sync_replicas', { bucket: bucketName, force_sync: true });
+                            if (result?.result?.ok || result?.ok) {
+                                alert(`✅ Bucket "${bucketName}" synced successfully`);
+                            } else {
+                                alert(`❌ Failed to sync bucket: ${result?.error || 'Unknown error'}`);
+                            }
+                        } catch (error) {
+                            console.error('Error syncing bucket:', error);
+                            alert(`❌ Error syncing bucket: ${error.message}`);
+                        }
+                    }
+                });
+            }
         }
         
         async function loadBucketsDataEnterprise(reset = true) {
@@ -3527,6 +3705,35 @@
                     console.warn('Unexpected bucket data structure:', result);
                     buckets = [];
                 }
+                
+                // Process and enhance bucket data from MCP server
+                buckets = buckets.map(bucket => {
+                    // Ensure all required fields are present with defaults
+                    return {
+                        name: bucket.name || 'unnamed',
+                        description: bucket.description || 'No description provided',
+                        backend: bucket.backend || 'filesystem',
+                        tier: bucket.tier || 'hot', // Default to hot storage
+                        status: bucket.status || 'active', // Default to active
+                        size: bucket.size || 0,
+                        size_gb: bucket.size_gb || 0,
+                        file_count: bucket.file_count || 0,
+                        created: bucket.created_at || bucket.created || new Date().toISOString(),
+                        last_modified: bucket.last_modified || bucket.updated_at || new Date().toISOString(),
+                        replication_factor: bucket.policy?.replication || bucket.replication_factor || 1,
+                        encryption: bucket.encryption !== false, // Default to true
+                        policy: bucket.policy || {
+                            quota: "1GB",
+                            replication: 1,
+                            retention: "30d",
+                            cache: "enabled"
+                        },
+                        meta: bucket.meta || {}
+                    };
+                });
+                
+                // Show parsed buckets count
+                console.log(`📦 Parsed ${buckets.length} buckets successfully`);
                 
                 // If no buckets found from MCP server, load demo buckets for professional demo
                 if (buckets.length === 0) {
@@ -3811,11 +4018,13 @@
         }
         
         function generateProfessionalBucketCard(bucket) {
-            const statusIcon = getStatusIcon(bucket.status);
-            const tierIcon = getTierIcon(bucket.tier);
+            const status = bucket.status || 'active';
+            const tier = bucket.tier || bucket.backend || 'filesystem';
+            const statusIcon = getStatusIcon(status);
+            const tierIcon = getTierIcon(tier);
             const sizeFormatted = formatStorageSize((bucket.size_gb || 0) * 1024 * 1024 * 1024);
-            const statusColor = getStatusColor(bucket.status);
-            const tierColor = getTierColor(bucket.tier);
+            const statusColor = getStatusColor(status);
+            const tierColor = getTierColor(tier);
             
             return `
                 <div class="bucket-card-professional bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer" data-bucket-name="${bucket.name}">
@@ -3833,10 +4042,10 @@
                                     <div class="text-lg font-medium text-gray-900">${bucket.name}</div>
                                     <div class="flex items-center space-x-2 mt-1">
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}">
-                                            ${statusIcon} ${bucket.status}
+                                            ${statusIcon} ${status}
                                         </span>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tierColor}">
-                                            ${tierIcon} ${bucket.tier}
+                                            ${tierIcon} ${tier}
                                         </span>
                                     </div>
                                 </div>
@@ -4258,9 +4467,153 @@
                 const nameInput = modal.querySelector('#bucket-name');
                 if (nameInput) nameInput.value = bucketName;
                 else console.warn('bucket-name input not found in bucket-settings-modal');
+                
+                // Load current bucket data and populate settings form
+                loadBucketSettings(bucketName);
             } else {
                 console.warn('bucket-settings-modal not found');
             }
+        }
+
+        async function loadBucketSettings(bucketName) {
+            try {
+                const result = await callMCPTool('get_bucket', { name: bucketName });
+                const bucket = result?.result || result;
+                
+                if (bucket) {
+                    // Store current bucket name for save operation
+                    window.currentBucketBeingEdited = bucketName;
+                    
+                    // Populate form fields with current bucket data
+                    const modal = document.getElementById('bucket-settings-modal');
+                    if (modal) {
+                        const nameInput = modal.querySelector('#bucket-name');
+                        if (nameInput) nameInput.value = bucket.name || bucketName;
+                        
+                        const backendInput = modal.querySelector('#bucket-backend');
+                        if (backendInput) backendInput.value = bucket.backend || 'filesystem';
+                        
+                        const policy = bucket.policy || {};
+                        const replicationSelect = modal.querySelector('#replication-factor');
+                        if (replicationSelect) replicationSelect.value = policy.replication || 3;
+                        
+                        const cacheSelect = modal.querySelector('#cache-policy');
+                        if (cacheSelect) cacheSelect.value = policy.cache || 'memory';
+                        
+                        const retentionInput = modal.querySelector('#retention-days');
+                        if (retentionInput) retentionInput.value = policy.retention_days || 0;
+                        
+                        const quotaInput = modal.querySelector('#storage-quota');
+                        if (quotaInput) quotaInput.value = policy.quota_mb || 0;
+                        
+                        const maxFilesInput = modal.querySelector('#max-files');
+                        if (maxFilesInput) maxFilesInput.value = policy.max_files || 0;
+                        
+                        // Populate advanced options - bucket-specific values
+                        const advanced = bucket.advanced_options || {};
+                        const vectorSearchEl = modal.querySelector('#enable-vector-search');
+                        const knowledgeGraphEl = modal.querySelector('#enable-knowledge-graph');
+                        const publicAccessEl = modal.querySelector('#allow-public-access');
+                        const versioningEl = modal.querySelector('#enable-versioning');
+                        
+                        if (vectorSearchEl) vectorSearchEl.checked = advanced.enable_vector_search || false;
+                        if (knowledgeGraphEl) knowledgeGraphEl.checked = advanced.enable_knowledge_graph || false;
+                        if (publicAccessEl) publicAccessEl.checked = advanced.allow_public_access || false;
+                        if (versioningEl) versioningEl.checked = advanced.enable_file_versioning || false;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading bucket settings:', error);
+            }
+        }
+
+        async function deleteBucket(bucketName) {
+            if (!bucketName) {
+                alert('❌ No bucket name provided');
+                return;
+            }
+            
+            const confirmed = confirm(`⚠️ Are you sure you want to delete the bucket "${bucketName}"?\n\nThis action cannot be undone and will remove all files and metadata associated with this bucket.`);
+            
+            if (!confirmed) {
+                return;
+            }
+            
+            try {
+                console.log(`🗑️ Deleting bucket: ${bucketName}`);
+                const result = await callMCPTool('delete_bucket', { name: bucketName });
+                
+                if (result?.result?.ok || result?.ok) {
+                    alert(`✅ Bucket "${bucketName}" deleted successfully`);
+                    
+                    // Close the settings modal
+                    const modal = document.getElementById('bucket-settings-modal');
+                    if (modal) modal.classList.add('hidden');
+                    
+                    // Refresh the bucket list
+                    await loadBucketsDataEnterprise();
+                } else {
+                    alert(`❌ Failed to delete bucket: ${result?.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error deleting bucket:', error);
+                alert(`❌ Error deleting bucket: ${error.message}`);
+            }
+        }
+
+        async function saveBucketSettings() {
+            const modal = document.getElementById('bucket-settings-modal');
+            if (!modal) return;
+            
+            const bucketName = modal.querySelector('#bucket-name')?.value || window.currentBucketBeingEdited;
+            if (!bucketName) {
+                alert('❌ No bucket name found');
+                return;
+            }
+            
+            try {
+                const updateData = {
+                    policy: {
+                        replication: parseInt(modal.querySelector('#replication-factor')?.value || 3),
+                        cache: modal.querySelector('#cache-policy')?.value || 'memory',
+                        retention_days: parseInt(modal.querySelector('#retention-days')?.value || 0),
+                        quota_mb: parseInt(modal.querySelector('#storage-quota')?.value || 0),
+                        max_files: parseInt(modal.querySelector('#max-files')?.value || 0)
+                    },
+                    // Store advanced options with bucket-specific keys to prevent cross-bucket pollution
+                    advanced_options: {}
+                };
+                
+                // Advanced options - use bucket-specific keys
+                const vectorSearchEl = modal.querySelector('#enable-vector-search');
+                const knowledgeGraphEl = modal.querySelector('#enable-knowledge-graph');
+                const publicAccessEl = modal.querySelector('#allow-public-access');
+                const versioningEl = modal.querySelector('#enable-versioning');
+                
+                updateData.advanced_options[`${bucketName}_enable_vector_search`] = vectorSearchEl?.checked || false;
+                updateData.advanced_options[`${bucketName}_enable_knowledge_graph`] = knowledgeGraphEl?.checked || false;
+                updateData.advanced_options[`${bucketName}_allow_public_access`] = publicAccessEl?.checked || false;
+                updateData.advanced_options[`${bucketName}_enable_file_versioning`] = versioningEl?.checked || false;
+                
+                console.log('💾 Saving bucket-specific settings:', updateData);
+                const result = await callMCPTool('update_bucket', { name: bucketName, patch: updateData });
+                
+                if (result?.result?.ok || result?.ok) {
+                    alert(`✅ Bucket "${bucketName}" settings saved successfully`);
+                    modal.classList.add('hidden');
+                    await loadBucketsDataEnterprise();
+                } else {
+                    alert(`❌ Failed to save settings: ${result?.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error saving bucket settings:', error);
+                alert(`❌ Error saving settings: ${error.message}`);
+            }
+        }
+
+        function showBucketSettings(bucketName) {
+            // Alias to openBucketSettings for consistency
+            openBucketSettings(bucketName);
         }
         
         function showBucketDetails(bucket) {
@@ -4321,7 +4674,9 @@
                 case 'syncing': return '🟡';
                 case 'error': return '🔴';
                 case 'offline': return '⚫';
-                default: return '⚪';
+                case 'maintenance': return '🔧';
+                case 'unknown': return '❓';
+                default: return '🟢';
             }
         }
         
@@ -4331,6 +4686,9 @@
                 case 'warm': return '🌡️';
                 case 'cold': return '❄️';
                 case 'archive': return '📦';
+                case 'filesystem': return '💾';
+                case 's3': return '☁️';
+                case 'ipfs': return '🌐';
                 default: return '💾';
             }
         }
@@ -5264,11 +5622,16 @@
                 try {
                     if (statusEl) statusEl.textContent = `Uploading ${file.name}...`;
                     
-                    await callMCPTool('upload_file_to_bucket', {
+                    // Convert file to base64 for MCP transport
+                    const fileContent = await fileToBase64(file);
+                    const filePath = currentPath === '.' ? file.name : `${currentPath}/${file.name}`;
+                    
+                    await callMCPTool('bucket_upload_file', {
                         bucket: currentBucket.name,
-                        filename: file.name,
-                        content: file,
-                        path: currentPath
+                        path: filePath,
+                        content: fileContent,
+                        mode: 'base64',
+                        apply_policy: true
                     });
                     
                     uploaded++;
@@ -7831,10 +8194,7 @@ Shared Pins: ${pinsets.length || 0}
         // Enhanced bucket creation with proper error handling
         async function createBucket() {
             const name = document.getElementById('new-bucket-name').value.trim();
-            const description = document.getElementById('new-bucket-description').value.trim();
-            const quota = document.getElementById('new-bucket-quota').value;
-            const tier = document.getElementById('new-bucket-tier').value;
-            const replication = parseInt(document.getElementById('new-bucket-replication').value);
+            const backend = document.getElementById('new-bucket-backend').value;
 
             // Input validation
             if (!name) {
@@ -7850,28 +8210,32 @@ Shared Pins: ${pinsets.length || 0}
             try {
                 showToast('Creating bucket...', 'info');
                 
-                const bucketConfig = {
+                // MCP server expects only name and backend parameters
+                const bucketParams = {
                     name: name,
-                    description: description || `Storage bucket: ${name}`,
-                    tier: tier,
-                    replication_factor: replication
+                    backend: backend
                 };
 
-                if (quota) {
-                    bucketConfig.quota_gb = parseInt(quota);
-                }
-
-                await callMCPTool('create_bucket', bucketConfig);
+                await callMCPTool('create_bucket', bucketParams);
                 
                 showToast(`✅ Bucket "${name}" created successfully`, 'success');
                 hideCreateBucketModal();
-                await loadBucketsData(); // Refresh the bucket list
+                
+                // Refresh the bucket list using the correct function
+                if (typeof loadBucketsDataEnterprise === 'function') {
+                    await loadBucketsDataEnterprise();
+                } else if (typeof loadBucketsData === 'function') {
+                    await loadBucketsData();
+                } else {
+                    // Fallback to refreshing the page
+                    window.location.reload();
+                }
                 
             } catch (error) {
                 console.error('Error creating bucket:', error);
                 
                 // Enhanced error handling - distinguish between user errors and programming errors
-                if (error.message && error.message.toLowerCase().includes('already exists')) {
+                if (error.message && (error.message.toLowerCase().includes('already exists') || error.message.includes('Exists'))) {
                     showToast(`⚠️ Bucket "${name}" already exists. Please choose a different name.`, 'warning');
                 } else if (error.message && error.message.toLowerCase().includes('invalid name')) {
                     showToast(`⚠️ Invalid bucket name format. Use lowercase letters, numbers, and hyphens only.`, 'warning');
@@ -8408,11 +8772,17 @@ Shared Pins: ${pinsets.length || 0}
         }
         
         function renderFileCard(file) {
-            const fileIcon = getFileIcon(file.name, file.type);
-            const iconClass = getFileIconClass(file.name, file.type);
-            const nameAttr = encodeURIComponent(file.name || '');
-            const typeAttr = encodeURIComponent(file.type || '');
-            const sizeAttr = Number(file.size || 0);
+            // Fix undefined values by properly extracting file properties
+            const fileName = file.name || file.path || 'Unknown';
+            const fileType = file.type || (file.is_dir ? 'directory' : 'file');
+            const fileSize = file.size || 0;
+            const fileModified = file.modified || new Date().toISOString();
+            
+            const fileIcon = getFileIcon(fileName, fileType);
+            const iconClass = getFileIconClass(fileName, fileType);
+            const nameAttr = encodeURIComponent(fileName);
+            const typeAttr = encodeURIComponent(fileType);
+            const sizeAttr = Number(fileSize);
             
             return `
                 <div class="file-card ${file.selected ? 'selected' : ''}" 
@@ -8421,14 +8791,14 @@ Shared Pins: ${pinsets.length || 0}
                         <i class="fas ${fileIcon}"></i>
                     </div>
                     <div class="flex-1">
-                        <div class="font-medium text-slate-900 text-sm truncate" title="${file.name}">
-                            ${file.name}
+                        <div class="font-medium text-slate-900 text-sm truncate" title="${fileName}">
+                            ${fileName}
                         </div>
                         <div class="text-xs text-slate-500 mt-1">
-                            ${file.type === 'folder' ? 'Folder' : formatFileSize(file.size)}
+                            ${fileType === 'directory' || fileType === 'folder' ? 'Folder' : formatFileSize(fileSize)}
                         </div>
                         <div class="text-xs text-slate-400 mt-1">
-                            ${formatDate(file.modified)}
+                            ${formatDate(fileModified)}
                         </div>
                     </div>
                     <div class="flex gap-1 mt-3">
@@ -8448,11 +8818,17 @@ Shared Pins: ${pinsets.length || 0}
         }
         
         function renderFileListItem(file) {
-            const fileIcon = getFileIcon(file.name, file.type);
-            const iconClass = getFileIconClass(file.name, file.type);
-            const nameAttr = encodeURIComponent(file.name || '');
-            const typeAttr = encodeURIComponent(file.type || '');
-            const sizeAttr = Number(file.size || 0);
+            // Fix undefined values by properly extracting file properties
+            const fileName = file.name || file.path || 'Unknown';
+            const fileType = file.type || (file.is_dir ? 'directory' : 'file');
+            const fileSize = file.size || 0;
+            const fileModified = file.modified || new Date().toISOString();
+            
+            const fileIcon = getFileIcon(fileName, fileType);
+            const iconClass = getFileIconClass(fileName, fileType);
+            const nameAttr = encodeURIComponent(fileName);
+            const typeAttr = encodeURIComponent(fileType);
+            const sizeAttr = Number(fileSize);
             
             return `
                 <div class="file-row flex items-center p-4 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-all duration-200 ${file.selected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-slate-50'}" 
@@ -8465,11 +8841,11 @@ Shared Pins: ${pinsets.length || 0}
                     
                     <div class="flex-1 min-w-0">
                         <div class="font-medium text-slate-900 truncate">
-                            ${file.name}
+                            ${fileName}
                         </div>
                         <div class="text-sm text-slate-500 mt-1">
-                            ${file.type === 'folder' ? 'Folder' : formatFileSize(file.size)} • 
-                            ${formatDate(file.modified)}
+                            ${fileType === 'directory' || fileType === 'folder' ? 'Folder' : formatFileSize(fileSize)} • 
+                            ${formatDate(fileModified)}
                         </div>
                     </div>
                     
@@ -8906,11 +9282,16 @@ Shared Pins: ${pinsets.length || 0}
                 try {
                     if (statusEl) statusEl.textContent = `Uploading ${file.name}...`;
                     
-                    await callMCPTool('upload_file_to_bucket', {
+                    // Convert file to base64 for MCP transport
+                    const fileContent = await fileToBase64(file);
+                    const filePath = currentPath === '.' ? file.name : `${currentPath}/${file.name}`;
+                    
+                    await callMCPTool('bucket_upload_file', {
                         bucket: currentBucket.name,
-                        filename: file.name,
-                        content: file,
-                        path: currentPath
+                        path: filePath,
+                        content: fileContent,
+                        mode: 'base64',
+                        apply_policy: true
                     });
                     
                     uploaded++;
@@ -9663,10 +10044,18 @@ Shared Pins: ${pinsets.length || 0}
                             </div>
                         </div>
                         
-                        <div class="flex justify-end space-x-3 mt-6 pt-4 border-t">
-                            <button type="button" id="cancel-bucket-settings" class="px-4 py-2 border rounded-lg">Cancel</button>
-                            <button type="button" id="sync-bucket-now-2" class="px-4 py-2 bg-green-500 text-white rounded-lg">Sync Now</button>
-                            <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg">Save Configuration</button>
+                        <div class="flex justify-between items-center mt-6 pt-4 border-t">
+                            <!-- Danger Zone - Delete Bucket -->
+                            <button type="button" id="delete-bucket-btn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">
+                                <i class="fas fa-trash mr-2"></i>Delete Bucket
+                            </button>
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex space-x-3">
+                                <button type="button" id="cancel-bucket-settings" class="px-4 py-2 border rounded-lg">Cancel</button>
+                                <button type="button" id="sync-bucket-now-2" class="px-4 py-2 bg-green-500 text-white rounded-lg">Sync Now</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg">Save Configuration</button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -9723,6 +10112,72 @@ Shared Pins: ${pinsets.length || 0}
                         <div class="flex justify-end space-x-3 mt-6">
                             <button type="button" id="cancel-share-bucket" class="px-4 py-2 border rounded-lg">Cancel</button>
                             <button type="submit" class="px-4 py-2 bg-orange-500 text-white rounded-lg">Generate Link</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Bucket Modal -->
+    <div id="create-bucket-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Create New Bucket</h3>
+                        <button id="close-create-bucket-modal" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <form id="create-bucket-form" onsubmit="return false;">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Bucket Name *</label>
+                                <input type="text" id="new-bucket-name" name="name" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Enter bucket name" required>
+                                <p class="text-xs text-gray-500 mt-1">Use lowercase letters, numbers, and hyphens only</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                                <textarea id="new-bucket-description" name="description" class="w-full p-3 border border-gray-300 rounded-lg" rows="3" placeholder="Optional description"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Backend</label>
+                                <select id="new-bucket-backend" name="backend" class="w-full p-3 border border-gray-300 rounded-lg">
+                                    <option value="filesystem" selected>Filesystem</option>
+                                    <option value="s3">S3 Compatible</option>
+                                    <option value="ipfs">IPFS</option>
+                                    <option value="local_storage">Local Storage</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Storage Tier</label>
+                                <select id="new-bucket-tier" name="tier" class="w-full p-3 border border-gray-300 rounded-lg">
+                                    <option value="hot" selected>🔥 Hot (Frequent Access)</option>
+                                    <option value="warm">🌡️ Warm (Regular Access)</option>
+                                    <option value="cold">❄️ Cold (Infrequent Access)</option>
+                                    <option value="archive">📦 Archive (Long-term Storage)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Storage Quota (GB)</label>
+                                <input type="number" id="new-bucket-quota" name="quota" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="e.g., 10" min="1" max="1000">
+                                <p class="text-xs text-gray-500 mt-1">Leave empty for unlimited storage</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Replication Factor</label>
+                                <select id="new-bucket-replication" name="replication" class="w-full p-3 border border-gray-300 rounded-lg">
+                                    <option value="1">1 (No Replication)</option>
+                                    <option value="2">2 (Single Backup)</option>
+                                    <option value="3" selected>3 (Recommended)</option>
+                                    <option value="5">5 (High Availability)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button type="button" id="cancel-create-bucket" class="px-4 py-2 border rounded-lg">Cancel</button>
+                            <button type="button" id="confirm-create-bucket" onclick="createBucket()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Create Bucket</button>
                         </div>
                     </form>
                 </div>
