@@ -4403,7 +4403,8 @@ class ConsolidatedMCPDashboard:
                         "modified": datetime.fromtimestamp(item.stat().st_mtime, UTC).isoformat(),
                         "metadata": meta if show_metadata else {},
                         "replicas": meta.get("replicas", []) if show_metadata else [],
-                        "cached": meta.get("cached", False) if show_metadata else False
+                        "cached": meta.get("cached", False) if show_metadata else False,
+                        "source": "vfs"
                     }
                     
                     if not item.is_dir():
@@ -4414,6 +4415,55 @@ class ConsolidatedMCPDashboard:
                         file_info["mime_type"] = None
                     
                     files.append(file_info)
+            
+            # ADD FILES FROM LOCAL STORAGE (~/.ipfs_kit/uploads/)
+            # Include files uploaded via the local-first storage system
+            local_uploads_dir = Path.home() / ".ipfs_kit" / "uploads"
+            if local_uploads_dir.exists() and path == ".":  # Only show on root level for now
+                try:
+                    for local_file in local_uploads_dir.glob("*"):
+                        if local_file.is_file():
+                            # Extract original filename from the local filename format
+                            # Format: timestamp_hash_originalname.ext
+                            filename_parts = local_file.name.split("_", 2)
+                            if len(filename_parts) >= 3:
+                                original_name = filename_parts[2]  # Original filename
+                                timestamp_str = filename_parts[0]
+                            else:
+                                original_name = local_file.name
+                                timestamp_str = "0"
+                            
+                            try:
+                                timestamp = int(timestamp_str)
+                                modified_time = datetime.fromtimestamp(timestamp, UTC).isoformat()
+                            except (ValueError, OSError):
+                                modified_time = datetime.fromtimestamp(local_file.stat().st_mtime, UTC).isoformat()
+                            
+                            stat_info = local_file.stat()
+                            
+                            # Add local file to the list
+                            files.append({
+                                "name": original_name,
+                                "path": f"uploads/{original_name}",  # Prefix with 'uploads/' to indicate source
+                                "type": "file",
+                                "is_dir": False,
+                                "size": stat_info.st_size,
+                                "mime_type": mimetypes.guess_type(original_name)[0],
+                                "modified": modified_time,
+                                "metadata": {
+                                    "local_path": str(local_file),
+                                    "local_filename": local_file.name,
+                                    "source": "local_storage",
+                                    "uploaded_via": "mcp_storage_api"
+                                } if show_metadata else {},
+                                "replicas": [],
+                                "cached": True,  # Local files are always "cached"
+                                "source": "local_storage"
+                            })
+                except Exception as e:
+                    # Log error but don't fail the entire operation
+                    import logging
+                    logging.getLogger(__name__).warning(f"Error reading local storage files: {e}")
             
             return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "items": files}, "id": None}
 
@@ -4480,17 +4530,50 @@ class ConsolidatedMCPDashboard:
             bucket_path = self.paths.vfs_root / bucket
             bucket_path.mkdir(parents=True, exist_ok=True)
             
-            # Write file
+            # Write file to VFS
             file_path = _safe_vfs_path(bucket_path, path)
             file_path.parent.mkdir(parents=True, exist_ok=True)
             
+            # Determine content as bytes for local storage
+            file_content = None
             if mode == "hex":
-                file_path.write_bytes(bytes.fromhex(content))
+                file_content = bytes.fromhex(content)
+                file_path.write_bytes(file_content)
             elif mode == "base64":
                 import base64
-                file_path.write_bytes(base64.b64decode(content))
+                file_content = base64.b64decode(content)
+                file_path.write_bytes(file_content)
             else:  # text
+                file_content = str(content).encode("utf-8")
                 file_path.write_text(str(content), encoding="utf-8")
+            
+            # ALSO SAVE TO LOCAL STORAGE (~/.ipfs_kit/uploads/) for consistency
+            # This ensures files uploaded via bucket manager are also available via storage API
+            try:
+                import time
+                import hashlib
+                
+                local_uploads_dir = Path.home() / ".ipfs_kit" / "uploads"
+                local_uploads_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Generate local filename with timestamp and hash
+                content_hash = hashlib.sha256(file_content).hexdigest()[:16]
+                timestamp = int(time.time())
+                safe_filename = os.path.basename(path).replace("/", "_").replace("\\", "_")
+                local_filename = f"{timestamp}_{content_hash}_{safe_filename}"
+                local_file_path = local_uploads_dir / local_filename
+                
+                # Save to local storage
+                with open(local_file_path, "wb") as f:
+                    f.write(file_content)
+                
+                import logging
+                logging.getLogger(__name__).info(f"File also saved to local storage: {local_file_path}")
+                
+            except Exception as e:
+                # Log error but don't fail the upload
+                import logging
+                logging.getLogger(__name__).warning(f"Could not save to local storage: {e}")
             
             # Update metadata with bucket policy
             metadata_file = self.paths.data_dir / "bucket_files.json"
