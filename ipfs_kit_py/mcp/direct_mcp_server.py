@@ -115,6 +115,31 @@ try:
 except ImportError as e:
     logger.error(f"Error importing MCP components: {e}")
     COMPONENTS_INITIALIZED = False
+    
+    # Create fallback authentication functions when full auth system is not available
+    class MockUser:
+        def __init__(self):
+            self.id = "mock_user"
+            self.username = "mock_user"
+            self.roles = ["admin"]
+    
+    # Set User type for type hints
+    User = MockUser
+    
+    def get_current_user():
+        """Fallback user when auth system is not available."""
+        return MockUser()
+    
+    def get_admin_user():
+        """Fallback admin user when auth system is not available."""
+        return MockUser()
+    
+    # Mock other auth functions
+    def check_permission(*args, **kwargs):
+        return True
+    
+    def check_backend_permission(*args, **kwargs):
+        return True
 
 
 # Global component instances
