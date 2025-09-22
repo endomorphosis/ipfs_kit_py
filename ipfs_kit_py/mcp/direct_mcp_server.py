@@ -141,45 +141,15 @@ async def initialize_components():
     jsonrpc_event_manager = initialize_jsonrpc_event_manager()
     logger.info("JSON-RPC Event Manager initialized")
     
-    # Initialize Backend Health Monitor and Manager
-    from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
-    health_monitor = BackendHealthMonitor()
-    backend_manager = BackendManager(health_monitor=health_monitor)
+    # Initialize Backend Manager
+    backend_manager = BackendManager()
+    await backend_manager.initialize_default_backends()
     logger.info(f"BackendManager instance created: {type(backend_manager)}")
     
-    # Configure default IPFS backend
-    ipfs_resources = {
-        "ipfs_host": os.environ.get("IPFS_HOST", "127.0.0.1"),
-        "ipfs_port": int(os.environ.get("IPFS_PORT", "5001")),
-        "ipfs_timeout": int(os.environ.get("IPFS_TIMEOUT", "30")),
-        "allow_mock": os.environ.get("ALLOW_MOCK", "1") == "1"
-    }
-    
-    ipfs_metadata = {
-        "backend_name": "ipfs",
-        "performance_metrics_file": os.environ.get(
-            "IPFS_METRICS_FILE",
-            os.path.join(os.path.expanduser("~"), ".ipfs_kit", "ipfs_metrics.json")
-        )
-    }
-    
-    # Create and add IPFS backend
-    try:
-        ipfs_backend = IPFSBackend(ipfs_resources, ipfs_metadata)
-        backend_manager.add_backend("ipfs", ipfs_backend)
-        logger.info(f"Added IPFS backend 'ipfs' to manager. Backend object: {ipfs_backend}")
-    except Exception as e:
-        logger.error(f"Error initializing IPFS backend: {e}")
-
-    # Add logging to verify backends in backend_manager after initialization
+    # Log available backends
     if backend_manager:
         all_backends = backend_manager.list_backends()
-        logger.info(f"Backends in manager after initialization: {all_backends}")
-        logger.info(f"Type of backend_manager.backends: {type(backend_manager.backends)}")
-        for name, backend_obj in backend_manager.backends.items():
-            logger.info(f"Backend '{name}' type: {type(backend_obj)}")
-    
-    # TODO: Add other backends as needed
+        logger.info(f"Available backends: {all_backends}")
     
     # Initialize Migration Controller
     migration_controller = MigrationController(
@@ -704,6 +674,86 @@ async def get_storage_backend_details(backend_name: str, current_user: User = De
     except Exception as e:
         logger.error(f"Error getting details for backend {backend_name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v0/storage/list/{backend}")
+async def storage_list(
+    backend: str,
+    container: Optional[str] = Query(None),
+    prefix: Optional[str] = Query(None),
+    max_keys: int = Query(1000),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List contents of a specific storage backend.
+    
+    Args:
+        backend: Backend name (e.g., 's3', 'ipfs')
+        container: Optional container/bucket name for backends that support it
+        prefix: Optional prefix to filter items
+        max_keys: Maximum number of items to return (default 1000)
+    
+    Requires read permission for the specified backend.
+    """
+    if not COMPONENTS_INITIALIZED or not backend_manager:
+        raise HTTPException(status_code=500, detail="MCP components not initialized")
+    
+    try:
+        storage_backend = backend_manager.get_backend(backend)
+        if not storage_backend:
+            raise HTTPException(status_code=404, detail=f"Backend '{backend}' not found")
+        
+        # Check if backend has list method
+        if not hasattr(storage_backend, 'list'):
+            raise HTTPException(
+                status_code=501, 
+                detail=f"Backend '{backend}' does not support listing contents"
+            )
+        
+        # Prepare options for the backend
+        options = {"max_keys": max_keys}
+        
+        # Call the backend's list method (most backends have sync list methods)
+        if asyncio.iscoroutinefunction(storage_backend.list):
+            result = await storage_backend.list(container=container, prefix=prefix, options=options)
+        else:
+            result = storage_backend.list(container=container, prefix=prefix, options=options)
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail=result.get("error", f"Failed to list contents from {backend}")
+            )
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing contents from backend {backend}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v0/storage/list/{backend}/{container}")
+async def storage_list_container(
+    backend: str,
+    container: str,
+    prefix: Optional[str] = Query(None),
+    max_keys: int = Query(1000),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List contents of a specific container/bucket in a storage backend.
+    
+    Args:
+        backend: Backend name (e.g., 's3', 'ipfs')
+        container: Container/bucket name
+        prefix: Optional prefix to filter items
+        max_keys: Maximum number of items to return (default 1000)
+    
+    Requires read permission for the specified backend.
+    """
+    # This endpoint is essentially the same as storage_list but with container in the path
+    return await storage_list(backend, container, prefix, max_keys, current_user)
 
 
 # API Router for migration

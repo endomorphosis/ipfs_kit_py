@@ -27,6 +27,10 @@ class BackendManager:
     def get_backend_names(self) -> List[str]:
         """Get list of all backend names."""
         return list(self.backends.keys())
+    
+    def list_backends(self) -> List[str]:
+        """Get list of all backend names (alias for get_backend_names for compatibility)."""
+        return self.get_backend_names()
 
     def get_backend(self, backend_name: str) -> Any:
         """Get a specific backend object by name."""
