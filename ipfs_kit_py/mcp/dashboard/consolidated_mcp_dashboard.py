@@ -4360,10 +4360,17 @@ class ConsolidatedMCPDashboard:
             try:
                 # Use proper bucket VFS architecture - read from parquet index
                 from ipfs_kit_py.simple_bucket_manager import SimpleBucketManager
+                import asyncio
                 bucket_manager = SimpleBucketManager()
                 
-                # List files from bucket VFS index (parquet file)
-                bucket_files_result = await bucket_manager.get_bucket_files(bucket)
+                # List files from bucket VFS index (parquet file) 
+                # Since _handle_buckets is not async, we need to run the async call synchronously
+                try:
+                    loop = asyncio.get_event_loop()
+                    bucket_files_result = loop.run_until_complete(bucket_manager.get_bucket_files(bucket))
+                except RuntimeError:
+                    # If no event loop is running, create a new one
+                    bucket_files_result = asyncio.run(bucket_manager.get_bucket_files(bucket))
                 
                 if not bucket_files_result.get("success"):
                     # Bucket doesn't exist or error occurred
@@ -4572,6 +4579,7 @@ class ConsolidatedMCPDashboard:
             try:
                 # Use proper bucket VFS architecture with WAL
                 from ipfs_kit_py.simple_bucket_manager import SimpleBucketManager
+                import asyncio
                 bucket_manager = SimpleBucketManager()
                 
                 # Prepare content based on mode
@@ -4589,17 +4597,32 @@ class ConsolidatedMCPDashboard:
                 # 2. Store content to CAR-based WAL (or Parquet WAL as fallback)
                 # 3. Update VFS parquet index
                 # 4. Allow IPFS-kit daemon to process WAL in background
-                result = await bucket_manager.add_file_to_bucket(
-                    bucket_name=bucket,
-                    file_path=path,
-                    content=file_content,
-                    metadata={
-                        "upload_mode": mode,
-                        "apply_policy": apply_policy,
-                        "uploaded_via": "mcp_tools",
-                        "timestamp": datetime.now(UTC).isoformat()
-                    }
-                )
+                try:
+                    loop = asyncio.get_event_loop()
+                    result = loop.run_until_complete(bucket_manager.add_file_to_bucket(
+                        bucket_name=bucket,
+                        file_path=path,
+                        content=file_content,
+                        metadata={
+                            "upload_mode": mode,
+                            "apply_policy": apply_policy,
+                            "uploaded_via": "mcp_tools",
+                            "timestamp": datetime.now(UTC).isoformat()
+                        }
+                    ))
+                except RuntimeError:
+                    # If no event loop is running, create a new one
+                    result = asyncio.run(bucket_manager.add_file_to_bucket(
+                        bucket_name=bucket,
+                        file_path=path,
+                        content=file_content,
+                        metadata={
+                            "upload_mode": mode,
+                            "apply_policy": apply_policy,
+                            "uploaded_via": "mcp_tools",
+                            "timestamp": datetime.now(UTC).isoformat()
+                        }
+                    ))
                 
                 if result.get("success"):
                     file_data = result.get("data", {})
