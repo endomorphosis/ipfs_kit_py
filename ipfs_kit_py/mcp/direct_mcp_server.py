@@ -566,34 +566,93 @@ async def storage_add(
     """
     Add content to a specific storage backend.
     
+    First saves the file locally to ~/.ipfs_kit/ then optionally syncs to remote backend.
     Requires write permission for the specified backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
     
     try:
-        storage_backend = backend_manager.get_backend(backend)
-        if not storage_backend:
-            raise HTTPException(status_code=404, detail=f"Backend '{backend}' not found")
+        # Create ~/.ipfs_kit/ directory structure if it doesn't exist
+        ipfs_kit_dir = Path.home() / ".ipfs_kit"
+        uploads_dir = ipfs_kit_dir / "uploads"
+        uploads_dir.mkdir(parents=True, exist_ok=True)
         
         # Read file content
         content = await file.read()
         
-        # Add to backend
-        result = await storage_backend.add_content(content, {"filename": file.filename})
+        # Generate a unique filename to avoid conflicts
+        import uuid
+        import hashlib
         
-        if not result.get("success", False):
-            raise HTTPException(
-                status_code=500,
-                detail=result.get("error", f"Failed to add content to {backend}")
-            )
+        # Create content hash for deduplication
+        content_hash = hashlib.sha256(content).hexdigest()[:16]
+        timestamp = int(time.time())
+        safe_filename = file.filename.replace("/", "_").replace("\\", "_") if file.filename else "unnamed_file"
+        local_filename = f"{timestamp}_{content_hash}_{safe_filename}"
+        local_file_path = uploads_dir / local_filename
         
-        # Pin if requested and supported
-        if pin and result.get("identifier") and hasattr(storage_backend, "pin_add"):
-            await storage_backend.pin_add(result["identifier"])
+        # Save file locally first
+        with open(local_file_path, "wb") as f:
+            f.write(content)
         
-        return result
+        logger.info(f"File saved locally to: {local_file_path}")
+        
+        # Create local result with file path
+        local_result = {
+            "success": True,
+            "identifier": str(local_file_path.relative_to(ipfs_kit_dir)),
+            "local_path": str(local_file_path),
+            "filename": file.filename,
+            "size": len(content),
+            "content_hash": content_hash,
+            "backend": "local",
+            "timestamp": timestamp
+        }
+        
+        # Try to sync to remote backend if available and requested
+        remote_result = None
+        if backend != "local":
+            try:
+                storage_backend = backend_manager.get_backend(backend)
+                if storage_backend:
+                    # Pass the local file path to the backend for remote sync
+                    remote_result = storage_backend.add_content(str(local_file_path), {
+                        "filename": file.filename,
+                        "local_path": str(local_file_path),
+                        "content_hash": content_hash
+                    })
+                    
+                    if remote_result.get("success"):
+                        logger.info(f"File synced to {backend}: {remote_result.get('identifier')}")
+                        # Update local result with remote identifier
+                        local_result["remote_backend"] = backend
+                        local_result["remote_identifier"] = remote_result.get("identifier")
+                        
+                        # Pin if requested and supported
+                        if pin and hasattr(storage_backend, "pin_add"):
+                            try:
+                                await storage_backend.pin_add(remote_result.get("identifier"))
+                                local_result["pinned"] = True
+                            except Exception as pin_error:
+                                logger.warning(f"Failed to pin content: {pin_error}")
+                                local_result["pin_error"] = str(pin_error)
+                    else:
+                        logger.warning(f"Failed to sync to {backend}: {remote_result.get('error')}")
+                        local_result["sync_error"] = remote_result.get("error")
+                else:
+                    logger.warning(f"Backend '{backend}' not found, file saved locally only")
+                    local_result["sync_error"] = f"Backend '{backend}' not found"
+                    
+            except Exception as sync_error:
+                logger.warning(f"Error syncing to {backend}: {sync_error}")
+                local_result["sync_error"] = str(sync_error)
+        
+        # Return local result (file is always saved locally, remote sync is optional)
+        return local_result
+        
     except Exception as e:
+        logger.error(f"Error in storage_add: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

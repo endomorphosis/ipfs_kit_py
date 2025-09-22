@@ -68,6 +68,10 @@ class BackendManager:
     
     async def initialize_default_backends(self):
         """Initialize default backends if available."""
+        
+        # Always add local backend first
+        self.add_backend("local", LocalFileBackend())
+        
         try:
             # Try to initialize IPFS backend
             from ipfs_kit_py.mcp.storage_manager.backends.ipfs_backend import IPFSBackend
@@ -108,3 +112,98 @@ class BackendManager:
             
         except Exception as e:
             self.logger.warning(f"Could not initialize S3 backend: {e}")
+
+
+class LocalFileBackend:
+    """Local file backend that manages files in ~/.ipfs_kit/uploads/"""
+    
+    def __init__(self):
+        from pathlib import Path
+        self.uploads_dir = Path.home() / ".ipfs_kit" / "uploads"
+        self.uploads_dir.mkdir(parents=True, exist_ok=True)
+    
+    def get_name(self):
+        return "local"
+    
+    def list(self, container=None, prefix=None, options=None):
+        """List local files in ~/.ipfs_kit/uploads/"""
+        try:
+            items = []
+            
+            # Get all files in uploads directory
+            for file_path in self.uploads_dir.glob("*"):
+                if file_path.is_file():
+                    # Skip if prefix doesn't match
+                    if prefix and not file_path.name.startswith(prefix):
+                        continue
+                        
+                    # Get file stats
+                    stat = file_path.stat()
+                    
+                    items.append({
+                        "identifier": str(file_path.relative_to(self.uploads_dir)),
+                        "filename": file_path.name,
+                        "size": stat.st_size,
+                        "last_modified": stat.st_mtime,
+                        "backend": "local",
+                        "local_path": str(file_path)
+                    })
+            
+            # Sort by modification time (newest first)
+            items.sort(key=lambda x: x["last_modified"], reverse=True)
+            
+            # Apply max_keys limit if specified
+            max_keys = options.get("max_keys", 1000) if options else 1000
+            if len(items) > max_keys:
+                items = items[:max_keys]
+            
+            return {
+                "success": True,
+                "items": items,
+                "backend": "local",
+                "container": container,
+                "details": {
+                    "total": len(items),
+                    "directory": str(self.uploads_dir)
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "backend": "local"
+            }
+    
+    def add_content(self, content, metadata=None):
+        """Add content is handled by the main upload endpoint for local backend"""
+        return {
+            "success": False,
+            "error": "Local backend content addition is handled by the main upload endpoint"
+        }
+    
+    def get_content(self, identifier):
+        """Get content from local storage"""
+        try:
+            file_path = self.uploads_dir / identifier
+            if file_path.exists() and file_path.is_file():
+                with open(file_path, 'rb') as f:
+                    content = f.read()
+                return {
+                    "success": True,
+                    "data": content,
+                    "backend": "local",
+                    "identifier": identifier
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"File not found: {identifier}",
+                    "backend": "local"
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "backend": "local"
+            }
