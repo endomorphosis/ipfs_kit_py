@@ -115,6 +115,31 @@ try:
 except ImportError as e:
     logger.error(f"Error importing MCP components: {e}")
     COMPONENTS_INITIALIZED = False
+    
+    # Create fallback authentication functions when full auth system is not available
+    class MockUser:
+        def __init__(self):
+            self.id = "mock_user"
+            self.username = "mock_user"
+            self.roles = ["admin"]
+    
+    # Set User type for type hints
+    User = MockUser
+    
+    def get_current_user():
+        """Fallback user when auth system is not available."""
+        return MockUser()
+    
+    def get_admin_user():
+        """Fallback admin user when auth system is not available."""
+        return MockUser()
+    
+    # Mock other auth functions
+    def check_permission(*args, **kwargs):
+        return True
+    
+    def check_backend_permission(*args, **kwargs):
+        return True
 
 
 # Global component instances
@@ -141,45 +166,15 @@ async def initialize_components():
     jsonrpc_event_manager = initialize_jsonrpc_event_manager()
     logger.info("JSON-RPC Event Manager initialized")
     
-    # Initialize Backend Health Monitor and Manager
-    from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
-    health_monitor = BackendHealthMonitor()
-    backend_manager = BackendManager(health_monitor=health_monitor)
+    # Initialize Backend Manager
+    backend_manager = BackendManager()
+    await backend_manager.initialize_default_backends()
     logger.info(f"BackendManager instance created: {type(backend_manager)}")
     
-    # Configure default IPFS backend
-    ipfs_resources = {
-        "ipfs_host": os.environ.get("IPFS_HOST", "127.0.0.1"),
-        "ipfs_port": int(os.environ.get("IPFS_PORT", "5001")),
-        "ipfs_timeout": int(os.environ.get("IPFS_TIMEOUT", "30")),
-        "allow_mock": os.environ.get("ALLOW_MOCK", "1") == "1"
-    }
-    
-    ipfs_metadata = {
-        "backend_name": "ipfs",
-        "performance_metrics_file": os.environ.get(
-            "IPFS_METRICS_FILE",
-            os.path.join(os.path.expanduser("~"), ".ipfs_kit", "ipfs_metrics.json")
-        )
-    }
-    
-    # Create and add IPFS backend
-    try:
-        ipfs_backend = IPFSBackend(ipfs_resources, ipfs_metadata)
-        backend_manager.add_backend("ipfs", ipfs_backend)
-        logger.info(f"Added IPFS backend 'ipfs' to manager. Backend object: {ipfs_backend}")
-    except Exception as e:
-        logger.error(f"Error initializing IPFS backend: {e}")
-
-    # Add logging to verify backends in backend_manager after initialization
+    # Log available backends
     if backend_manager:
         all_backends = backend_manager.list_backends()
-        logger.info(f"Backends in manager after initialization: {all_backends}")
-        logger.info(f"Type of backend_manager.backends: {type(backend_manager.backends)}")
-        for name, backend_obj in backend_manager.backends.items():
-            logger.info(f"Backend '{name}' type: {type(backend_obj)}")
-    
-    # TODO: Add other backends as needed
+        logger.info(f"Available backends: {all_backends}")
     
     # Initialize Migration Controller
     migration_controller = MigrationController(
@@ -571,34 +566,93 @@ async def storage_add(
     """
     Add content to a specific storage backend.
     
+    First saves the file locally to ~/.ipfs_kit/ then optionally syncs to remote backend.
     Requires write permission for the specified backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
     
     try:
-        storage_backend = backend_manager.get_backend(backend)
-        if not storage_backend:
-            raise HTTPException(status_code=404, detail=f"Backend '{backend}' not found")
+        # Create ~/.ipfs_kit/ directory structure if it doesn't exist
+        ipfs_kit_dir = Path.home() / ".ipfs_kit"
+        uploads_dir = ipfs_kit_dir / "uploads"
+        uploads_dir.mkdir(parents=True, exist_ok=True)
         
         # Read file content
         content = await file.read()
         
-        # Add to backend
-        result = await storage_backend.add_content(content, {"filename": file.filename})
+        # Generate a unique filename to avoid conflicts
+        import uuid
+        import hashlib
         
-        if not result.get("success", False):
-            raise HTTPException(
-                status_code=500,
-                detail=result.get("error", f"Failed to add content to {backend}")
-            )
+        # Create content hash for deduplication
+        content_hash = hashlib.sha256(content).hexdigest()[:16]
+        timestamp = int(time.time())
+        safe_filename = file.filename.replace("/", "_").replace("\\", "_") if file.filename else "unnamed_file"
+        local_filename = f"{timestamp}_{content_hash}_{safe_filename}"
+        local_file_path = uploads_dir / local_filename
         
-        # Pin if requested and supported
-        if pin and result.get("identifier") and hasattr(storage_backend, "pin_add"):
-            await storage_backend.pin_add(result["identifier"])
+        # Save file locally first
+        with open(local_file_path, "wb") as f:
+            f.write(content)
         
-        return result
+        logger.info(f"File saved locally to: {local_file_path}")
+        
+        # Create local result with file path
+        local_result = {
+            "success": True,
+            "identifier": str(local_file_path.relative_to(ipfs_kit_dir)),
+            "local_path": str(local_file_path),
+            "filename": file.filename,
+            "size": len(content),
+            "content_hash": content_hash,
+            "backend": "local",
+            "timestamp": timestamp
+        }
+        
+        # Try to sync to remote backend if available and requested
+        remote_result = None
+        if backend != "local":
+            try:
+                storage_backend = backend_manager.get_backend(backend)
+                if storage_backend:
+                    # Pass the local file path to the backend for remote sync
+                    remote_result = storage_backend.add_content(str(local_file_path), {
+                        "filename": file.filename,
+                        "local_path": str(local_file_path),
+                        "content_hash": content_hash
+                    })
+                    
+                    if remote_result.get("success"):
+                        logger.info(f"File synced to {backend}: {remote_result.get('identifier')}")
+                        # Update local result with remote identifier
+                        local_result["remote_backend"] = backend
+                        local_result["remote_identifier"] = remote_result.get("identifier")
+                        
+                        # Pin if requested and supported
+                        if pin and hasattr(storage_backend, "pin_add"):
+                            try:
+                                await storage_backend.pin_add(remote_result.get("identifier"))
+                                local_result["pinned"] = True
+                            except Exception as pin_error:
+                                logger.warning(f"Failed to pin content: {pin_error}")
+                                local_result["pin_error"] = str(pin_error)
+                    else:
+                        logger.warning(f"Failed to sync to {backend}: {remote_result.get('error')}")
+                        local_result["sync_error"] = remote_result.get("error")
+                else:
+                    logger.warning(f"Backend '{backend}' not found, file saved locally only")
+                    local_result["sync_error"] = f"Backend '{backend}' not found"
+                    
+            except Exception as sync_error:
+                logger.warning(f"Error syncing to {backend}: {sync_error}")
+                local_result["sync_error"] = str(sync_error)
+        
+        # Return local result (file is always saved locally, remote sync is optional)
+        return local_result
+        
     except Exception as e:
+        logger.error(f"Error in storage_add: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -704,6 +758,86 @@ async def get_storage_backend_details(backend_name: str, current_user: User = De
     except Exception as e:
         logger.error(f"Error getting details for backend {backend_name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v0/storage/list/{backend}")
+async def storage_list(
+    backend: str,
+    container: Optional[str] = Query(None),
+    prefix: Optional[str] = Query(None),
+    max_keys: int = Query(1000),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List contents of a specific storage backend.
+    
+    Args:
+        backend: Backend name (e.g., 's3', 'ipfs')
+        container: Optional container/bucket name for backends that support it
+        prefix: Optional prefix to filter items
+        max_keys: Maximum number of items to return (default 1000)
+    
+    Requires read permission for the specified backend.
+    """
+    if not COMPONENTS_INITIALIZED or not backend_manager:
+        raise HTTPException(status_code=500, detail="MCP components not initialized")
+    
+    try:
+        storage_backend = backend_manager.get_backend(backend)
+        if not storage_backend:
+            raise HTTPException(status_code=404, detail=f"Backend '{backend}' not found")
+        
+        # Check if backend has list method
+        if not hasattr(storage_backend, 'list'):
+            raise HTTPException(
+                status_code=501, 
+                detail=f"Backend '{backend}' does not support listing contents"
+            )
+        
+        # Prepare options for the backend
+        options = {"max_keys": max_keys}
+        
+        # Call the backend's list method (most backends have sync list methods)
+        if asyncio.iscoroutinefunction(storage_backend.list):
+            result = await storage_backend.list(container=container, prefix=prefix, options=options)
+        else:
+            result = storage_backend.list(container=container, prefix=prefix, options=options)
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail=result.get("error", f"Failed to list contents from {backend}")
+            )
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing contents from backend {backend}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v0/storage/list/{backend}/{container}")
+async def storage_list_container(
+    backend: str,
+    container: str,
+    prefix: Optional[str] = Query(None),
+    max_keys: int = Query(1000),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List contents of a specific container/bucket in a storage backend.
+    
+    Args:
+        backend: Backend name (e.g., 's3', 'ipfs')
+        container: Container/bucket name
+        prefix: Optional prefix to filter items
+        max_keys: Maximum number of items to return (default 1000)
+    
+    Requires read permission for the specified backend.
+    """
+    # This endpoint is essentially the same as storage_list but with container in the path
+    return await storage_list(backend, container, prefix, max_keys, current_user)
 
 
 # API Router for migration

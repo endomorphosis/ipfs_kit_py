@@ -4349,7 +4349,7 @@ class ConsolidatedMCPDashboard:
             except Exception as e:
                 raise HTTPException(500, f"Failed to create folder: {str(e)}")
 
-        # Enhanced bucket file management with metadata priority
+        # Enhanced bucket file management with VFS parquet indices (proper architecture)
         if name == "bucket_list_files":
             bucket = args.get("bucket")
             path = args.get("path", ".")
@@ -4357,6 +4357,67 @@ class ConsolidatedMCPDashboard:
             if not bucket:
                 raise HTTPException(400, "Missing bucket")
             
+            try:
+                # Use proper bucket VFS architecture - read from parquet index
+                from ipfs_kit_py.simple_bucket_manager import SimpleBucketManager
+                import asyncio
+                bucket_manager = SimpleBucketManager()
+                
+                # List files from bucket VFS index (parquet file) 
+                # Since _handle_buckets is not async, we need to run the async call synchronously
+                try:
+                    loop = asyncio.get_event_loop()
+                    bucket_files_result = loop.run_until_complete(bucket_manager.get_bucket_files(bucket))
+                except RuntimeError:
+                    # If no event loop is running, create a new one
+                    bucket_files_result = asyncio.run(bucket_manager.get_bucket_files(bucket))
+                
+                if not bucket_files_result.get("success"):
+                    # Bucket doesn't exist or error occurred
+                    return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "items": []}, "id": None}
+                
+                files = []
+                bucket_files = bucket_files_result.get("data", {}).get("files", [])
+                
+                # Process files from VFS index
+                for file_entry in bucket_files:
+                    file_path = file_entry.get("file_path", "")
+                    
+                    # Filter by path if specified and not root
+                    if path != "." and not file_path.startswith(path.rstrip("/")):
+                        continue
+                    
+                    file_info = {
+                        "name": os.path.basename(file_path) if file_path else "unknown",
+                        "path": file_path,
+                        "type": "file",
+                        "is_dir": False,
+                        "size": file_entry.get("file_size", 0),
+                        "mime_type": None,  # Could be enhanced with proper MIME detection
+                        "modified": file_entry.get("created_at", ""),
+                        "metadata": {
+                            "file_cid": file_entry.get("file_cid"),
+                            "bucket_name": file_entry.get("bucket_name"),
+                            "source": "vfs_index",
+                            "bucket_type": file_entry.get("bucket_type", "general"),
+                            "vfs_structure": file_entry.get("vfs_structure", "hybrid")
+                        } if show_metadata else {},
+                        "replicas": [],
+                        "cached": True,  # Files in WAL are cached locally
+                        "source": "vfs_index"
+                    }
+                    
+                    files.append(file_info)
+                
+                return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "items": files}, "id": None}
+                
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error in bucket_list_files: {e}")
+                # Fallback to old behavior if new system fails
+                pass
+            
+            # Fallback to original VFS directory approach if bucket manager fails
             # First check ~/.ipfs_kit/ metadata
             metadata_file = self.paths.data_dir / "bucket_files.json"
             metadata = _read_json(metadata_file, {})
@@ -4403,7 +4464,8 @@ class ConsolidatedMCPDashboard:
                         "modified": datetime.fromtimestamp(item.stat().st_mtime, UTC).isoformat(),
                         "metadata": meta if show_metadata else {},
                         "replicas": meta.get("replicas", []) if show_metadata else [],
-                        "cached": meta.get("cached", False) if show_metadata else False
+                        "cached": meta.get("cached", False) if show_metadata else False,
+                        "source": "vfs"
                     }
                     
                     if not item.is_dir():
@@ -4414,6 +4476,55 @@ class ConsolidatedMCPDashboard:
                         file_info["mime_type"] = None
                     
                     files.append(file_info)
+            
+            # ADD FILES FROM LOCAL STORAGE (~/.ipfs_kit/uploads/)
+            # Include files uploaded via the local-first storage system
+            local_uploads_dir = Path.home() / ".ipfs_kit" / "uploads"
+            if local_uploads_dir.exists() and path == ".":  # Only show on root level for now
+                try:
+                    for local_file in local_uploads_dir.glob("*"):
+                        if local_file.is_file():
+                            # Extract original filename from the local filename format
+                            # Format: timestamp_hash_originalname.ext
+                            filename_parts = local_file.name.split("_", 2)
+                            if len(filename_parts) >= 3:
+                                original_name = filename_parts[2]  # Original filename
+                                timestamp_str = filename_parts[0]
+                            else:
+                                original_name = local_file.name
+                                timestamp_str = "0"
+                            
+                            try:
+                                timestamp = int(timestamp_str)
+                                modified_time = datetime.fromtimestamp(timestamp, UTC).isoformat()
+                            except (ValueError, OSError):
+                                modified_time = datetime.fromtimestamp(local_file.stat().st_mtime, UTC).isoformat()
+                            
+                            stat_info = local_file.stat()
+                            
+                            # Add local file to the list
+                            files.append({
+                                "name": original_name,
+                                "path": f"uploads/{original_name}",  # Prefix with 'uploads/' to indicate source
+                                "type": "file",
+                                "is_dir": False,
+                                "size": stat_info.st_size,
+                                "mime_type": mimetypes.guess_type(original_name)[0],
+                                "modified": modified_time,
+                                "metadata": {
+                                    "local_path": str(local_file),
+                                    "local_filename": local_file.name,
+                                    "source": "local_storage",
+                                    "uploaded_via": "mcp_storage_api"
+                                } if show_metadata else {},
+                                "replicas": [],
+                                "cached": True,  # Local files are always "cached"
+                                "source": "local_storage"
+                            })
+                except Exception as e:
+                    # Log error but don't fail the entire operation
+                    import logging
+                    logging.getLogger(__name__).warning(f"Error reading local storage files: {e}")
             
             return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "items": files}, "id": None}
 
@@ -4465,6 +4576,95 @@ class ConsolidatedMCPDashboard:
             if not bucket or not path or content is None:
                 raise HTTPException(400, "Missing bucket, path, or content")
             
+            try:
+                # Use proper bucket VFS architecture with WAL
+                from ipfs_kit_py.simple_bucket_manager import SimpleBucketManager
+                import asyncio
+                bucket_manager = SimpleBucketManager()
+                
+                # Prepare content based on mode
+                if mode == "hex":
+                    file_content = bytes.fromhex(content)
+                elif mode == "base64":
+                    import base64
+                    file_content = base64.b64decode(content)
+                else:  # text
+                    file_content = content.encode("utf-8") if isinstance(content, str) else content
+                
+                # Add file to bucket using proper WAL-based approach
+                # This will:
+                # 1. Calculate CID using IPFS multiformats
+                # 2. Store content to CAR-based WAL (or Parquet WAL as fallback)
+                # 3. Update VFS parquet index
+                # 4. Allow IPFS-kit daemon to process WAL in background
+                try:
+                    loop = asyncio.get_event_loop()
+                    result = loop.run_until_complete(bucket_manager.add_file_to_bucket(
+                        bucket_name=bucket,
+                        file_path=path,
+                        content=file_content,
+                        metadata={
+                            "upload_mode": mode,
+                            "apply_policy": apply_policy,
+                            "uploaded_via": "mcp_tools",
+                            "timestamp": datetime.now(UTC).isoformat()
+                        }
+                    ))
+                except RuntimeError:
+                    # If no event loop is running, create a new one
+                    result = asyncio.run(bucket_manager.add_file_to_bucket(
+                        bucket_name=bucket,
+                        file_path=path,
+                        content=file_content,
+                        metadata={
+                            "upload_mode": mode,
+                            "apply_policy": apply_policy,
+                            "uploaded_via": "mcp_tools",
+                            "timestamp": datetime.now(UTC).isoformat()
+                        }
+                    ))
+                
+                if result.get("success"):
+                    file_data = result.get("data", {})
+                    import logging
+                    logging.getLogger(__name__).info(
+                        f"File uploaded to bucket via WAL: {path} -> CID: {file_data.get('file_cid')} "
+                        f"(WAL stored: {file_data.get('wal_stored')})"
+                    )
+                    
+                    return {
+                        "jsonrpc": "2.0", 
+                        "result": {
+                            "ok": True, 
+                            "file_path": path,
+                            "file_cid": file_data.get("file_cid"),
+                            "file_size": file_data.get("file_size"),
+                            "bucket_name": bucket,
+                            "wal_stored": file_data.get("wal_stored"),
+                            "upload_method": "vfs_wal"
+                        }, 
+                        "id": None
+                    }
+                else:
+                    error_msg = result.get("error", "Unknown error in bucket upload")
+                    import logging
+                    logging.getLogger(__name__).error(f"Bucket upload failed: {error_msg}")
+                    return {
+                        "jsonrpc": "2.0", 
+                        "result": {
+                            "ok": False, 
+                            "error": error_msg
+                        }, 
+                        "id": None
+                    }
+                    
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error in bucket_upload_file: {e}")
+                # Fallback to old method if new system fails
+                pass
+            
+            # Fallback to original VFS directory approach if bucket manager fails
             # Ensure bucket exists
             buckets_data = _read_json(self.paths.buckets_file, [])
             bucket_config = None
@@ -4480,16 +4680,21 @@ class ConsolidatedMCPDashboard:
             bucket_path = self.paths.vfs_root / bucket
             bucket_path.mkdir(parents=True, exist_ok=True)
             
-            # Write file
+            # Write file to VFS (fallback approach)
             file_path = _safe_vfs_path(bucket_path, path)
             file_path.parent.mkdir(parents=True, exist_ok=True)
             
+            # Determine content as bytes
+            file_content = None
             if mode == "hex":
-                file_path.write_bytes(bytes.fromhex(content))
+                file_content = bytes.fromhex(content)
+                file_path.write_bytes(file_content)
             elif mode == "base64":
                 import base64
-                file_path.write_bytes(base64.b64decode(content))
+                file_content = base64.b64decode(content)
+                file_path.write_bytes(file_content)
             else:  # text
+                file_content = str(content).encode("utf-8")
                 file_path.write_text(str(content), encoding="utf-8")
             
             # Update metadata with bucket policy
