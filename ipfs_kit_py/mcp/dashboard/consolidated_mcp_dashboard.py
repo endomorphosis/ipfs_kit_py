@@ -9568,7 +9568,12 @@ class ConsolidatedMCPDashboard:
             
             await waitForMCP();
             const result = await MCP.Buckets.listFiles(bucketName, currentPath, showMetadata);
-            const files = (result && result.result && result.result.items) || [];
+            // MCP client returns the unwrapped result directly, not nested in result.result
+            const files = (result && result.items) || [];
+            
+            console.log(`📂 Loading files for bucket: ${bucketName}, path: ${currentPath}`);
+            console.log(`🔧 MCP result:`, result);
+            console.log(`📂 Loaded ${files.length} files for bucket: ${bucketName}`);
             
             if (files.length === 0) {
                 fileList.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No files in this directory</div>';
