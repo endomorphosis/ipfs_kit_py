@@ -9574,6 +9574,8 @@ class ConsolidatedMCPDashboard:
             console.log(`📂 Loading files for bucket: ${bucketName}, path: ${currentPath}`);
             console.log(`🔧 MCP result:`, result);
             console.log(`🔧 Raw result.items:`, result ? result.items : 'result is null');
+            console.log(`🔧 result.items type:`, typeof result?.items, result?.items?.length);
+            console.log(`🔧 files array:`, files, files.length);
             console.log(`📂 Loaded ${files.length} files for bucket: ${bucketName}`);
             
             // Enhanced debugging to help users troubleshoot issues
