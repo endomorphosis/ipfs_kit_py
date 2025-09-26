@@ -4214,44 +4214,7 @@ class ConsolidatedMCPDashboard:
                 f.write("")
                 
             return {"jsonrpc": "2.0", "result": {"ok": True, "folder": folder_name, "path": folder_path}, "id": None}
-        if name == "bucket_upload_file":
-            bucket = args.get("bucket")
-            filename = args.get("filename")
-            content = args.get("content")
-            content_type = args.get("content_type", "application/octet-stream")
-            
-            if not bucket or not filename or content is None:
-                raise HTTPException(400, "Missing bucket, filename, or content")
-                
-            # Decode base64 content
-            import base64
-            try:
-                file_content = base64.b64decode(content)
-            except Exception as e:
-                raise HTTPException(400, f"Invalid base64 content: {str(e)}")
-            
-            # Create file in VFS
-            bucket_dir = os.path.join(self.paths.data_dir, "vfs", bucket)
-            os.makedirs(bucket_dir, exist_ok=True)
-            
-            file_path = os.path.join(bucket_dir, filename)
-            
-            with open(file_path, 'wb') as f:
-                f.write(file_content)
-                
-            file_size = len(file_content)
-            
-            return {
-                "jsonrpc": "2.0", 
-                "result": {
-                    "ok": True, 
-                    "filename": filename,
-                    "size": file_size,
-                    "path": file_path,
-                    "content_type": content_type
-                }, 
-                "id": None
-            }
+
         if name == "update_bucket":
             bname = args.get("name")
             patch = args.get("patch", {}) or {}
@@ -4271,47 +4234,7 @@ class ConsolidatedMCPDashboard:
             _atomic_write_json(self.paths.buckets_file, items)
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
         
-        if name == "bucket_upload_file":
-            bucket = args.get("bucket")
-            filename = args.get("filename")
-            content = args.get("content", "")
-            content_type = args.get("content_type", "text/plain")
-            if not bucket or not filename:
-                raise HTTPException(400, "Missing bucket or filename")
-            
-            # Get VFS path
-            bucket_path = self.paths.vfs_root / bucket
-            if not bucket_path.exists():
-                bucket_path.mkdir(parents=True, exist_ok=True)
-            
-            # Safe file path
-            file_path = bucket_path / filename
-            if not str(file_path).startswith(str(bucket_path)):
-                raise HTTPException(400, "Invalid file path")
-            
-            # Write file
-            try:
-                if isinstance(content, str):
-                    file_path.write_text(content, encoding='utf-8')
-                else:
-                    file_path.write_bytes(content)
-                
-                # Update metadata
-                metadata_file = self.paths.data_dir / "bucket_files.json"
-                metadata = _read_json(metadata_file, {})
-                file_key = f"{bucket}:{filename}"
-                metadata[file_key] = {
-                    "uploaded": datetime.now(UTC).isoformat(),
-                    "content_type": content_type,
-                    "size": file_path.stat().st_size,
-                    "cached": True,
-                    "replicas": ["local"]
-                }
-                _atomic_write_json(metadata_file, metadata)
-                
-                return {"jsonrpc": "2.0", "result": {"ok": True, "filename": filename, "size": file_path.stat().st_size}, "id": None}
-            except Exception as e:
-                raise HTTPException(500, f"Failed to upload file: {str(e)}")
+
 
         if name == "bucket_create_folder":
             bucket = args.get("bucket")
