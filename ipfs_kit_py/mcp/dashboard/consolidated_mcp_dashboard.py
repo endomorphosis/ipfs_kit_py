@@ -9575,6 +9575,14 @@ class ConsolidatedMCPDashboard:
             console.log(`🔧 MCP result:`, result);
             console.log(`📂 Loaded ${files.length} files for bucket: ${bucketName}`);
             
+            // Enhanced debugging to help users troubleshoot issues
+            if (result && result.total_count !== undefined) {
+                console.log(`📊 MCP returned ${result.total_count} total files, frontend processed ${files.length} files`);
+                if (result.total_count > 0 && files.length === 0) {
+                    console.warn(`⚠️  Potential frontend bug: MCP found files but frontend extracted none`);
+                }
+            }
+            
             if (files.length === 0) {
                 fileList.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No files in this directory</div>';
                 return;
