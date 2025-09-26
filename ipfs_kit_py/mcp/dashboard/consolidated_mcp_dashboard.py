@@ -9568,26 +9568,43 @@ class ConsolidatedMCPDashboard:
             
             await waitForMCP();
             const result = await MCP.Buckets.listFiles(bucketName, currentPath, showMetadata);
-            // MCP client returns the unwrapped result directly, not nested in result.result
-            const files = (result && result.items) || [];
-            
+            // Debug: Check if we get the result properly
             console.log(`📂 Loading files for bucket: ${bucketName}, path: ${currentPath}`);
-            console.log(`🔧 MCP result:`, result);
-            console.log(`🔧 Raw result.items:`, result ? result.items : 'result is null');
-            console.log(`🔧 result.items type:`, typeof result?.items, result?.items?.length);
-            console.log(`🔧 files array:`, files, files.length);
+            console.log(`🔧 Full MCP result:`, JSON.stringify(result, null, 2));
+            
+            // Handle both wrapped and unwrapped responses
+            let files = [];
+            if (result && result.items) {
+                files = result.items;
+            } else if (result && result.result && result.result.items) {
+                files = result.result.items;
+            } else {
+                console.warn('⚠️ Unexpected MCP response structure:', result);
+                files = [];
+            }
+            
+            console.log(`🔧 Extracted files array:`, files);
             console.log(`📂 Loaded ${files.length} files for bucket: ${bucketName}`);
             
             // Enhanced debugging to help users troubleshoot issues
-            if (result && result.total_count !== undefined) {
-                console.log(`📊 MCP returned ${result.total_count} total files, frontend processed ${files.length} files`);
-                if (result.total_count > 0 && files.length === 0) {
-                    console.warn(`⚠️  Potential frontend bug: MCP found files but frontend extracted none`);
+            if (result) {
+                const totalCount = result.total_count || (result.result && result.result.total_count);
+                if (totalCount !== undefined) {
+                    console.log(`📊 MCP returned ${totalCount} total files, frontend processed ${files.length} files`);
+                    if (totalCount > 0 && files.length === 0) {
+                        console.error(`❌ CRITICAL: MCP found ${totalCount} files but frontend extracted 0. Check response parsing!`);
+                    }
                 }
             }
             
             if (files.length === 0) {
-                fileList.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No files in this directory</div>';
+                fileList.innerHTML = `
+                    <div style="text-align:center;padding:20px;color:#888;">
+                        <div style="margin-bottom:10px;">No files in this directory</div>
+                        <div style="font-size:10px;color:#666;">
+                            Debug: Checked bucket '${bucketName}' path '${currentPath}'
+                        </div>
+                    </div>`;
                 return;
             }
             
