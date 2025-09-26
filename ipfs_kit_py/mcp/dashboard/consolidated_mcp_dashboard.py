@@ -8099,7 +8099,7 @@ class ConsolidatedMCPDashboard:
         try{ 
             await waitForMCP();
             const result = await MCP.Buckets.list();
-            const items = (result && result.result && result.result.items) || []; 
+            const items = (result && result.items) || []; 
             
             // Update bucket selector
             if(selector) {
@@ -8531,7 +8531,7 @@ class ConsolidatedMCPDashboard:
         try {
             await waitForMCP();
             const result = await MCP.Buckets.listFiles(selectedBucket, '.', true);
-            const files = (result && result.result && result.result.items) || [];
+            const files = (result && result.items) || [];
             
             if(files.length === 0) {
                 fileListBody.innerHTML = '<div style="color:#888;padding:12px;text-align:center;">No files in this bucket. Upload some files to get started!</div>';
@@ -9573,6 +9573,7 @@ class ConsolidatedMCPDashboard:
             
             console.log(`📂 Loading files for bucket: ${bucketName}, path: ${currentPath}`);
             console.log(`🔧 MCP result:`, result);
+            console.log(`🔧 Raw result.items:`, result ? result.items : 'result is null');
             console.log(`📂 Loaded ${files.length} files for bucket: ${bucketName}`);
             
             // Enhanced debugging to help users troubleshoot issues
