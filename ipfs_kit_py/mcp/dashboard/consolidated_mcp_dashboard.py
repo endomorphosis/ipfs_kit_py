@@ -4403,171 +4403,66 @@ class ConsolidatedMCPDashboard:
             if not bucket or not path or content is None:
                 raise HTTPException(400, "Missing bucket, path, or content")
             
-            try:
-                # Use proper bucket VFS architecture with WAL
-                from ipfs_kit_py.simple_bucket_manager import SimpleBucketManager
-                import asyncio
-                bucket_manager = SimpleBucketManager()
-                
-                # Prepare content based on mode
-                if mode == "hex":
-                    file_content = bytes.fromhex(content)
-                elif mode == "base64":
-                    import base64
-                    file_content = base64.b64decode(content)
-                else:  # text
-                    file_content = content.encode("utf-8") if isinstance(content, str) else content
-                
-                # Add file to bucket using proper WAL-based approach
-                # This will:
-                # 1. Calculate CID using IPFS multiformats
-                # 2. Store content to CAR-based WAL (or Parquet WAL as fallback)
-                # 3. Update VFS parquet index
-                # 4. Allow IPFS-kit daemon to process WAL in background
-                try:
-                    loop = asyncio.get_event_loop()
-                    result = loop.run_until_complete(bucket_manager.add_file_to_bucket(
-                        bucket_name=bucket,
-                        file_path=path,
-                        content=file_content,
-                        metadata={
-                            "upload_mode": mode,
-                            "apply_policy": apply_policy,
-                            "uploaded_via": "mcp_tools",
-                            "timestamp": datetime.now(UTC).isoformat()
-                        }
-                    ))
-                except RuntimeError:
-                    # If no event loop is running, create a new one
-                    result = asyncio.run(bucket_manager.add_file_to_bucket(
-                        bucket_name=bucket,
-                        file_path=path,
-                        content=file_content,
-                        metadata={
-                            "upload_mode": mode,
-                            "apply_policy": apply_policy,
-                            "uploaded_via": "mcp_tools",
-                            "timestamp": datetime.now(UTC).isoformat()
-                        }
-                    ))
-                
-                if result.get("success"):
-                    file_data = result.get("data", {})
-                    import logging
-                    logging.getLogger(__name__).info(
-                        f"File uploaded to bucket via WAL: {path} -> CID: {file_data.get('file_cid')} "
-                        f"(WAL stored: {file_data.get('wal_stored')})"
-                    )
-                    
-                    return {
-                        "jsonrpc": "2.0", 
-                        "result": {
-                            "ok": True, 
-                            "file_path": path,
-                            "file_cid": file_data.get("file_cid"),
-                            "file_size": file_data.get("file_size"),
-                            "bucket_name": bucket,
-                            "wal_stored": file_data.get("wal_stored"),
-                            "upload_method": "vfs_wal"
-                        }, 
-                        "id": None
-                    }
-                else:
-                    error_msg = result.get("error", "Unknown error in bucket upload")
-                    import logging
-                    logging.getLogger(__name__).error(f"Bucket upload failed: {error_msg}")
-                    return {
-                        "jsonrpc": "2.0", 
-                        "result": {
-                            "ok": False, 
-                            "error": error_msg
-                        }, 
-                        "id": None
-                    }
-                    
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Error in bucket_upload_file: {e}")
-                # Fallback to old method if new system fails
-                pass
-            
-            # Fallback to original VFS directory approach if bucket manager fails
             # Ensure bucket exists
             buckets_data = _read_json(self.paths.buckets_file, [])
-            bucket_config = None
-            for b in buckets_data:
-                if b.get("name") == bucket:
-                    bucket_config = b
-                    break
-            
-            if not bucket_config:
+            bucket_exists = any(b.get("name") == bucket for b in buckets_data)
+            if not bucket_exists:
                 raise HTTPException(404, "Bucket not found")
-            
-            # Create bucket directory if needed
+                
+            # Create bucket directory
             bucket_path = self.paths.vfs_root / bucket
             bucket_path.mkdir(parents=True, exist_ok=True)
             
-            # Write file to VFS (fallback approach)
-            file_path = _safe_vfs_path(bucket_path, path)
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Determine content as bytes
-            file_content = None
+            # Prepare content based on mode
             if mode == "hex":
                 file_content = bytes.fromhex(content)
-                file_path.write_bytes(file_content)
             elif mode == "base64":
                 import base64
                 file_content = base64.b64decode(content)
-                file_path.write_bytes(file_content)
             else:  # text
-                file_content = str(content).encode("utf-8")
-                file_path.write_text(str(content), encoding="utf-8")
+                file_content = content.encode("utf-8") if isinstance(content, str) else content
             
-            # Update metadata with bucket policy
-            metadata_file = self.paths.data_dir / "bucket_files.json"
-            metadata = _read_json(metadata_file, {})
-            file_key = f"{bucket}:{path}"
-            stat_info = file_path.stat()
+            # Save file to filesystem
+            file_path = _safe_vfs_path(bucket_path, path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
             
-            file_meta = {
-                "path": path,
-                "bucket": bucket,
-                "size": stat_info.st_size,
-                "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
-                "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
-                "operation": "upload",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "cached": False,
-                "replicas": []
+            with file_path.open('wb') as f:
+                f.write(file_content)
+            
+            # Store metadata
+            try:
+                metadata_file = self.paths.data_dir / "file_metadata.json"
+                metadata = _read_json(metadata_file, {})
+                file_key = f"{bucket}:{path}"
+                stat_info = file_path.stat()
+                metadata[file_key] = {
+                    "path": path,
+                    "bucket": bucket,
+                    "size": stat_info.st_size,
+                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                    "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
+                    "operation": "upload",
+                    "upload_mode": mode,
+                    "mime_type": mimetypes.guess_type(file_path)[0],
+                    "timestamp": datetime.now(UTC).isoformat()
+                }
+                _atomic_write_json(metadata_file, metadata)
+            except Exception as e:
+                # Don't fail upload if metadata update fails
+                self.log.warning(f"Failed to update file metadata: {e}")
+            
+            return {
+                "jsonrpc": "2.0", 
+                "result": {
+                    "ok": True, 
+                    "file_path": path,
+                    "file_size": len(file_content),
+                    "bucket_name": bucket,
+                    "upload_method": "direct_vfs",
+                    "mode": mode
+                }, 
+                "id": None
             }
-            
-            # Apply bucket policy if requested
-            if apply_policy and bucket_config.get("policy"):
-                policy = bucket_config["policy"]
-                replication_factor = policy.get("replication_factor", 1)
-                cache_policy = policy.get("cache_policy", "none")
-                
-                file_meta["target_replicas"] = replication_factor
-                file_meta["cache_policy"] = cache_policy
-                
-                # Simulate replication (in real implementation, would sync to backends)
-                for i in range(min(replication_factor, 3)):  # Cap at 3 for demo
-                    replica_info = {
-                        "backend": f"backend_{i}",
-                        "status": "syncing",
-                        "timestamp": datetime.now(UTC).isoformat()
-                    }
-                    file_meta["replicas"].append(replica_info)
-                
-                if cache_policy in ("memory", "disk"):
-                    file_meta["cached"] = True
-                    file_meta["cache_type"] = cache_policy
-            
-            metadata[file_key] = file_meta
-            _atomic_write_json(metadata_file, metadata)
-            
-            return {"jsonrpc": "2.0", "result": {"ok": True, "path": path, "bucket": bucket, "metadata": file_meta}, "id": None}
 
         if name == "bucket_download_file":
             bucket = args.get("bucket")
@@ -4748,17 +4643,52 @@ class ConsolidatedMCPDashboard:
             if not bucket or not path:
                 raise HTTPException(400, "Missing bucket or path")
             
-            metadata_file = self.paths.data_dir / "bucket_files.json"
-            metadata = _read_json(metadata_file, {})
-            file_key = f"{bucket}:{path}"
-            file_meta = metadata.get(file_key, {})
+            # Get file metadata from filesystem instead of relying on JSON file
+            bucket_path = self.paths.vfs_root / bucket
+            file_path = _safe_vfs_path(bucket_path, path)
             
-            if not file_meta:
-                raise HTTPException(404, "File metadata not found")
+            if not file_path.exists():
+                raise HTTPException(404, "File not found")
             
-            result = dict(file_meta)
-            if not include_replicas:
-                result.pop("replicas", None)
+            # Get basic file stats
+            stat_info = file_path.stat()
+            result = {
+                "path": path,
+                "bucket": bucket,
+                "name": file_path.name,
+                "size": stat_info.st_size,
+                "is_file": file_path.is_file(),
+                "is_directory": file_path.is_dir(),
+                "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
+                "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                "accessed": datetime.fromtimestamp(stat_info.st_atime, UTC).isoformat(),
+                "permissions": oct(stat_info.st_mode)[-3:],
+                "mime_type": mimetypes.guess_type(file_path)[0] if file_path.is_file() else None,
+                "cached": True,  # Local files are considered cached
+                "cache_type": "local_vfs"
+            }
+            
+            # Add replica info if requested
+            if include_replicas:
+                result["replicas"] = [{
+                    "backend": "local_vfs",
+                    "status": "available",
+                    "path": str(file_path),
+                    "last_sync": datetime.now(UTC).isoformat()
+                }]
+            
+            # Try to get additional metadata from stored JSON if available
+            try:
+                metadata_file = self.paths.data_dir / "file_metadata.json"
+                if metadata_file.exists():
+                    metadata = _read_json(metadata_file, {})
+                    file_key = f"{bucket}:{path}"
+                    stored_meta = metadata.get(file_key, {})
+                    if stored_meta:
+                        result.update(stored_meta)
+            except Exception as e:
+                # Log but don't fail if we can't read additional metadata
+                pass
             
             return {"jsonrpc": "2.0", "result": result, "id": None}
 
