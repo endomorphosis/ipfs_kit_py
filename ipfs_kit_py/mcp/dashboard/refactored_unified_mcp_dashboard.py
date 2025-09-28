@@ -503,6 +503,26 @@ class RefactoredUnifiedMCPDashboard:
                     content={"error": f"Failed to rename file: {str(e)}"}
                 )
 
+        @self.app.post("/api/buckets/{bucket_name}/folders")
+        async def api_create_folder_in_bucket(bucket_name: str, request: Request):
+            """Create a folder in a bucket."""
+            try:
+                data = await request.json()
+                folder_name = data.get("folder_name")
+                if not folder_name:
+                    return JSONResponse(
+                        status_code=400,
+                        content={"error": "Folder name is required"}
+                    )
+                result = await self._create_folder_in_bucket(bucket_name, folder_name)
+                return JSONResponse(content=result)
+            except Exception as e:
+                logger.error(f"Error in create_folder API: {e}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": f"Failed to create folder: {str(e)}"}
+                )
+
         @self.app.put("/api/buckets/{bucket_name}/settings")
         async def api_update_bucket_settings(bucket_name: str, request: Request):
             """Update bucket settings."""
@@ -1277,11 +1297,22 @@ class RefactoredUnifiedMCPDashboard:
             
             # Read file content
             content = await file.read()
+            
+            # Validate file size
             if len(content) > max_file_size:
                 raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_file_size // (1024*1024)}MB")
             
+            # Validate filename
+            if not file.filename or '..' in file.filename or file.filename.startswith('/'):
+                raise HTTPException(status_code=400, detail="Invalid filename")
+            
             # Save file
             file_path = bucket_path / file.filename
+            
+            # Check if file already exists
+            if file_path.exists():
+                logger.info(f"File {file.filename} already exists, overwriting...")
+            
             with open(file_path, 'wb') as f:
                 f.write(content)
             
@@ -1290,9 +1321,11 @@ class RefactoredUnifiedMCPDashboard:
                 "name": file.filename,
                 "size": len(content),
                 "uploaded_at": datetime.now().isoformat(),
-                "content_type": file.content_type,
+                "content_type": file.content_type or "application/octet-stream",
                 "path": str(file_path.relative_to(bucket_path))
             }
+            
+            logger.info(f"Successfully uploaded file: {file.filename} to bucket: {bucket_name}")
             
             return {"success": True, "message": f"File '{file.filename}' uploaded successfully", "file": file_metadata}
             
@@ -1388,6 +1421,30 @@ class RefactoredUnifiedMCPDashboard:
             
         except Exception as e:
             logger.error(f"Error renaming file: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _create_folder_in_bucket(self, bucket_name, folder_name):
+        """Create a folder in a bucket."""
+        try:
+            bucket_path = self.data_dir / "buckets" / bucket_name
+            if not bucket_path.exists():
+                return {"success": False, "error": "Bucket not found"}
+            
+            # Validate folder name
+            if not folder_name or '..' in folder_name or folder_name.startswith('/'):
+                return {"success": False, "error": "Invalid folder name"}
+            
+            folder_path = bucket_path / folder_name
+            if folder_path.exists():
+                return {"success": False, "error": "Folder already exists"}
+            
+            folder_path.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Created folder: {folder_name} in bucket: {bucket_name}")
+            
+            return {"success": True, "message": f"Folder '{folder_name}' created successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error creating folder: {e}")
             return {"success": False, "error": str(e)}
 
     async def _update_bucket_settings(self, bucket_name, settings):
