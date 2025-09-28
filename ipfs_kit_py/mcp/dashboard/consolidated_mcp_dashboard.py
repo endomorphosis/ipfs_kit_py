@@ -4214,44 +4214,7 @@ class ConsolidatedMCPDashboard:
                 f.write("")
                 
             return {"jsonrpc": "2.0", "result": {"ok": True, "folder": folder_name, "path": folder_path}, "id": None}
-        if name == "bucket_upload_file":
-            bucket = args.get("bucket")
-            filename = args.get("filename")
-            content = args.get("content")
-            content_type = args.get("content_type", "application/octet-stream")
-            
-            if not bucket or not filename or content is None:
-                raise HTTPException(400, "Missing bucket, filename, or content")
-                
-            # Decode base64 content
-            import base64
-            try:
-                file_content = base64.b64decode(content)
-            except Exception as e:
-                raise HTTPException(400, f"Invalid base64 content: {str(e)}")
-            
-            # Create file in VFS
-            bucket_dir = os.path.join(self.paths.data_dir, "vfs", bucket)
-            os.makedirs(bucket_dir, exist_ok=True)
-            
-            file_path = os.path.join(bucket_dir, filename)
-            
-            with open(file_path, 'wb') as f:
-                f.write(file_content)
-                
-            file_size = len(file_content)
-            
-            return {
-                "jsonrpc": "2.0", 
-                "result": {
-                    "ok": True, 
-                    "filename": filename,
-                    "size": file_size,
-                    "path": file_path,
-                    "content_type": content_type
-                }, 
-                "id": None
-            }
+
         if name == "update_bucket":
             bname = args.get("name")
             patch = args.get("patch", {}) or {}
@@ -4271,47 +4234,7 @@ class ConsolidatedMCPDashboard:
             _atomic_write_json(self.paths.buckets_file, items)
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
         
-        if name == "bucket_upload_file":
-            bucket = args.get("bucket")
-            filename = args.get("filename")
-            content = args.get("content", "")
-            content_type = args.get("content_type", "text/plain")
-            if not bucket or not filename:
-                raise HTTPException(400, "Missing bucket or filename")
-            
-            # Get VFS path
-            bucket_path = self.paths.vfs_root / bucket
-            if not bucket_path.exists():
-                bucket_path.mkdir(parents=True, exist_ok=True)
-            
-            # Safe file path
-            file_path = bucket_path / filename
-            if not str(file_path).startswith(str(bucket_path)):
-                raise HTTPException(400, "Invalid file path")
-            
-            # Write file
-            try:
-                if isinstance(content, str):
-                    file_path.write_text(content, encoding='utf-8')
-                else:
-                    file_path.write_bytes(content)
-                
-                # Update metadata
-                metadata_file = self.paths.data_dir / "bucket_files.json"
-                metadata = _read_json(metadata_file, {})
-                file_key = f"{bucket}:{filename}"
-                metadata[file_key] = {
-                    "uploaded": datetime.now(UTC).isoformat(),
-                    "content_type": content_type,
-                    "size": file_path.stat().st_size,
-                    "cached": True,
-                    "replicas": ["local"]
-                }
-                _atomic_write_json(metadata_file, metadata)
-                
-                return {"jsonrpc": "2.0", "result": {"ok": True, "filename": filename, "size": file_path.stat().st_size}, "id": None}
-            except Exception as e:
-                raise HTTPException(500, f"Failed to upload file: {str(e)}")
+
 
         if name == "bucket_create_folder":
             bucket = args.get("bucket")
@@ -4357,176 +4280,80 @@ class ConsolidatedMCPDashboard:
             if not bucket:
                 raise HTTPException(400, "Missing bucket")
             
-            try:
-                # Use proper bucket VFS architecture - read from parquet index
-                from ipfs_kit_py.simple_bucket_manager import SimpleBucketManager
-                import asyncio
-                bucket_manager = SimpleBucketManager()
-                
-                # List files from bucket VFS index (parquet file) 
-                # Since _handle_buckets is not async, we need to run the async call synchronously
-                try:
-                    loop = asyncio.get_event_loop()
-                    bucket_files_result = loop.run_until_complete(bucket_manager.get_bucket_files(bucket))
-                except RuntimeError:
-                    # If no event loop is running, create a new one
-                    bucket_files_result = asyncio.run(bucket_manager.get_bucket_files(bucket))
-                
-                if not bucket_files_result.get("success"):
-                    # Bucket doesn't exist or error occurred
-                    return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "items": []}, "id": None}
-                
-                files = []
-                bucket_files = bucket_files_result.get("data", {}).get("files", [])
-                
-                # Process files from VFS index
-                for file_entry in bucket_files:
-                    file_path = file_entry.get("file_path", "")
-                    
-                    # Filter by path if specified and not root
-                    if path != "." and not file_path.startswith(path.rstrip("/")):
-                        continue
-                    
-                    file_info = {
-                        "name": os.path.basename(file_path) if file_path else "unknown",
-                        "path": file_path,
-                        "type": "file",
-                        "is_dir": False,
-                        "size": file_entry.get("file_size", 0),
-                        "mime_type": None,  # Could be enhanced with proper MIME detection
-                        "modified": file_entry.get("created_at", ""),
-                        "metadata": {
-                            "file_cid": file_entry.get("file_cid"),
-                            "bucket_name": file_entry.get("bucket_name"),
-                            "source": "vfs_index",
-                            "bucket_type": file_entry.get("bucket_type", "general"),
-                            "vfs_structure": file_entry.get("vfs_structure", "hybrid")
-                        } if show_metadata else {},
-                        "replicas": [],
-                        "cached": True,  # Files in WAL are cached locally
-                        "source": "vfs_index"
-                    }
-                    
-                    files.append(file_info)
-                
-                return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "items": files}, "id": None}
-                
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Error in bucket_list_files: {e}")
-                # Fallback to old behavior if new system fails
-                pass
+            # FIXED: Use direct filesystem approach instead of complex SimpleBucketManager
+            # This ensures uploaded files are immediately visible in the UI
             
-            # Fallback to original VFS directory approach if bucket manager fails
-            # First check ~/.ipfs_kit/ metadata
-            metadata_file = self.paths.data_dir / "bucket_files.json"
-            metadata = _read_json(metadata_file, {})
-            
-            # Get VFS path
+            # Direct filesystem approach - reliable and simple
             bucket_path = self.paths.vfs_root / bucket
-            if not bucket_path.exists():
-                bucket_path.mkdir(parents=True, exist_ok=True)
+            bucket_path.mkdir(parents=True, exist_ok=True)  # Ensure bucket directory exists
             
             vfs_path = _safe_vfs_path(bucket_path, path)
             files = []
             
-            if vfs_path.is_file():
-                stat_info = vfs_path.stat()
-                file_key = f"{bucket}:{path}"
-                meta = metadata.get(file_key, {})
-                files.append({
-                    "name": vfs_path.name,
-                    "path": path,
-                    "type": "file",
-                    "is_dir": False,
-                    "size": stat_info.st_size,
-                    "mime_type": mimetypes.guess_type(vfs_path.name)[0],
-                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
-                    "metadata": meta if show_metadata else {},
-                    "replicas": meta.get("replicas", []) if show_metadata else [],
-                    "cached": meta.get("cached", False) if show_metadata else False
-                })
-            elif vfs_path.is_dir():
+            # List files directly from VFS directory
+            if vfs_path.is_dir():
                 for item in sorted(vfs_path.iterdir()):
                     # Skip .gitkeep files
                     if item.name == '.gitkeep':
                         continue
                         
                     rel_path = str(item.relative_to(bucket_path))
-                    file_key = f"{bucket}:{rel_path}"
-                    meta = metadata.get(file_key, {})
                     
                     file_info = {
                         "name": item.name,
                         "path": rel_path,
                         "type": "directory" if item.is_dir() else "file",
+                        "is_directory": item.is_dir(),
                         "is_dir": item.is_dir(),
                         "modified": datetime.fromtimestamp(item.stat().st_mtime, UTC).isoformat(),
-                        "metadata": meta if show_metadata else {},
-                        "replicas": meta.get("replicas", []) if show_metadata else [],
-                        "cached": meta.get("cached", False) if show_metadata else False,
-                        "source": "vfs"
+                        "created_at": datetime.fromtimestamp(item.stat().st_ctime, UTC).isoformat(),
+                        "updated_at": datetime.fromtimestamp(item.stat().st_mtime, UTC).isoformat(),
+                        "source": "vfs",
+                        "storage_path": f"buckets/{bucket}/{rel_path}"
                     }
                     
                     if not item.is_dir():
                         file_info["size"] = item.stat().st_size
                         file_info["mime_type"] = mimetypes.guess_type(item.name)[0]
+                        file_info["type"] = mimetypes.guess_type(item.name)[0] or "text/plain"
                     else:
                         file_info["size"] = 0
                         file_info["mime_type"] = None
                     
+                    # Add metadata if requested
+                    if show_metadata:
+                        file_info["metadata"] = {
+                            "bucket_name": bucket,
+                            "vfs_path": str(item),
+                            "source": "filesystem"
+                        }
+                    
                     files.append(file_info)
+                    
+            elif vfs_path.is_file():
+                # Single file case
+                stat_info = vfs_path.stat()
+                files.append({
+                    "name": vfs_path.name,
+                    "path": path,
+                    "type": mimetypes.guess_type(vfs_path.name)[0] or "text/plain",
+                    "is_directory": False,
+                    "is_dir": False,
+                    "size": stat_info.st_size,
+                    "mime_type": mimetypes.guess_type(vfs_path.name)[0],
+                    "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                    "created_at": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
+                    "updated_at": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                    "source": "vfs",
+                    "storage_path": f"buckets/{bucket}/{path}",
+                    "metadata": {
+                        "bucket_name": bucket,
+                        "vfs_path": str(vfs_path),
+                        "source": "filesystem"
+                    } if show_metadata else {}
+                })
             
-            # ADD FILES FROM LOCAL STORAGE (~/.ipfs_kit/uploads/)
-            # Include files uploaded via the local-first storage system
-            local_uploads_dir = Path.home() / ".ipfs_kit" / "uploads"
-            if local_uploads_dir.exists() and path == ".":  # Only show on root level for now
-                try:
-                    for local_file in local_uploads_dir.glob("*"):
-                        if local_file.is_file():
-                            # Extract original filename from the local filename format
-                            # Format: timestamp_hash_originalname.ext
-                            filename_parts = local_file.name.split("_", 2)
-                            if len(filename_parts) >= 3:
-                                original_name = filename_parts[2]  # Original filename
-                                timestamp_str = filename_parts[0]
-                            else:
-                                original_name = local_file.name
-                                timestamp_str = "0"
-                            
-                            try:
-                                timestamp = int(timestamp_str)
-                                modified_time = datetime.fromtimestamp(timestamp, UTC).isoformat()
-                            except (ValueError, OSError):
-                                modified_time = datetime.fromtimestamp(local_file.stat().st_mtime, UTC).isoformat()
-                            
-                            stat_info = local_file.stat()
-                            
-                            # Add local file to the list
-                            files.append({
-                                "name": original_name,
-                                "path": f"uploads/{original_name}",  # Prefix with 'uploads/' to indicate source
-                                "type": "file",
-                                "is_dir": False,
-                                "size": stat_info.st_size,
-                                "mime_type": mimetypes.guess_type(original_name)[0],
-                                "modified": modified_time,
-                                "metadata": {
-                                    "local_path": str(local_file),
-                                    "local_filename": local_file.name,
-                                    "source": "local_storage",
-                                    "uploaded_via": "mcp_storage_api"
-                                } if show_metadata else {},
-                                "replicas": [],
-                                "cached": True,  # Local files are always "cached"
-                                "source": "local_storage"
-                            })
-                except Exception as e:
-                    # Log error but don't fail the entire operation
-                    import logging
-                    logging.getLogger(__name__).warning(f"Error reading local storage files: {e}")
-            
-            return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "items": files}, "id": None}
+            return {"jsonrpc": "2.0", "result": {"bucket": bucket, "path": path, "items": files, "total_count": len(files)}, "id": None}
 
         if name == "list_bucket_files":
             # Alias for bucket_list_files with parameter mapping
@@ -8195,7 +8022,7 @@ class ConsolidatedMCPDashboard:
         try{ 
             await waitForMCP();
             const result = await MCP.Buckets.list();
-            const items = (result && result.result && result.result.items) || []; 
+            const items = (result && result.items) || []; 
             
             // Update bucket selector
             if(selector) {
@@ -8627,7 +8454,7 @@ class ConsolidatedMCPDashboard:
         try {
             await waitForMCP();
             const result = await MCP.Buckets.listFiles(selectedBucket, '.', true);
-            const files = (result && result.result && result.result.items) || [];
+            const files = (result && result.items) || [];
             
             if(files.length === 0) {
                 fileListBody.innerHTML = '<div style="color:#888;padding:12px;text-align:center;">No files in this bucket. Upload some files to get started!</div>';
@@ -9664,10 +9491,43 @@ class ConsolidatedMCPDashboard:
             
             await waitForMCP();
             const result = await MCP.Buckets.listFiles(bucketName, currentPath, showMetadata);
-            const files = (result && result.result && result.result.items) || [];
+            // Debug: Check if we get the result properly
+            console.log(`📂 Loading files for bucket: ${bucketName}, path: ${currentPath}`);
+            console.log(`🔧 Full MCP result:`, JSON.stringify(result, null, 2));
+            
+            // Handle both wrapped and unwrapped responses
+            let files = [];
+            if (result && result.items) {
+                files = result.items;
+            } else if (result && result.result && result.result.items) {
+                files = result.result.items;
+            } else {
+                console.warn('⚠️ Unexpected MCP response structure:', result);
+                files = [];
+            }
+            
+            console.log(`🔧 Extracted files array:`, files);
+            console.log(`📂 Loaded ${files.length} files for bucket: ${bucketName}`);
+            
+            // Enhanced debugging to help users troubleshoot issues
+            if (result) {
+                const totalCount = result.total_count || (result.result && result.result.total_count);
+                if (totalCount !== undefined) {
+                    console.log(`📊 MCP returned ${totalCount} total files, frontend processed ${files.length} files`);
+                    if (totalCount > 0 && files.length === 0) {
+                        console.error(`❌ CRITICAL: MCP found ${totalCount} files but frontend extracted 0. Check response parsing!`);
+                    }
+                }
+            }
             
             if (files.length === 0) {
-                fileList.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No files in this directory</div>';
+                fileList.innerHTML = `
+                    <div style="text-align:center;padding:20px;color:#888;">
+                        <div style="margin-bottom:10px;">No files in this directory</div>
+                        <div style="font-size:10px;color:#666;">
+                            Debug: Checked bucket '${bucketName}' path '${currentPath}'
+                        </div>
+                    </div>`;
                 return;
             }
             

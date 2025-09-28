@@ -335,7 +335,8 @@ window.MCP.Buckets = {
       return await window.mcpClient.callTool('bucket_list_files', {
         bucket: bucket,
         path: path,
-        show_metadata: showMetadata
+        show_metadata: showMetadata,
+        metadata_first: showMetadata
       });
     },
         
