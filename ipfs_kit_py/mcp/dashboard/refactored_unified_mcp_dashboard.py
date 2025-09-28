@@ -17,23 +17,38 @@ import asyncio
 import json
 import logging
 import time
-import psutil
 import sys
 import traceback
 import os
 import yaml
-import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Set, Union
 
 # Web framework imports
-from fastapi import FastAPI, Request, HTTPException, File, UploadFile, Form
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Response
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
+try:
+    from fastapi import FastAPI, Request, HTTPException, File, UploadFile, Form
+    from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Response
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.templating import Jinja2Templates
+    from fastapi.middleware.cors import CORSMiddleware
+    import uvicorn
+    FASTAPI_AVAILABLE = True
+except ImportError:
+    FASTAPI_AVAILABLE = False
+
+# Optional imports
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
 
 # MCP protocol
 try:
@@ -80,6 +95,9 @@ class RefactoredUnifiedMCPDashboard:
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize the refactored unified MCP server and dashboard."""
+        if not FASTAPI_AVAILABLE:
+            raise ImportError("FastAPI is required but not installed. Please install it with: pip install fastapi uvicorn")
+        
         if config is None:
             config = {
                 'host': '127.0.0.1',
@@ -905,42 +923,76 @@ class RefactoredUnifiedMCPDashboard:
     async def _get_buckets_data(self):
         """Get buckets data with enhanced information."""
         buckets = []
-        bucket_registry_file = self.data_dir / "bucket_index" / "bucket_registry.parquet"
         
-        if bucket_registry_file.exists():
-            try:
-                df = pd.read_parquet(bucket_registry_file)
-                for _, row in df.iterrows():
-                    bucket = row.to_dict()
-                    # Add computed fields for the UI
-                    bucket_path = self.data_dir / "buckets" / bucket.get("name", "")
-                    if bucket_path.exists():
-                        # Calculate storage usage
+        # Try to load from parquet registry if pandas is available
+        if PANDAS_AVAILABLE:
+            bucket_registry_file = self.data_dir / "bucket_index" / "bucket_registry.parquet"
+            if bucket_registry_file.exists():
+                try:
+                    df = pd.read_parquet(bucket_registry_file)
+                    for _, row in df.iterrows():
+                        bucket = row.to_dict()
+                        # Add computed fields for the UI
+                        bucket_path = self.data_dir / "buckets" / bucket.get("name", "")
+                        if bucket_path.exists():
+                            # Calculate storage usage
+                            total_size = sum(f.stat().st_size for f in bucket_path.rglob('*') if f.is_file())
+                            bucket["storage_used"] = total_size
+                            bucket["file_count"] = len(list(bucket_path.glob('*')))
+                        else:
+                            bucket["storage_used"] = 0
+                            bucket["file_count"] = 0
+                        
+                        # Check for advanced features based on bucket config
+                        bucket_config_file = self.data_dir / "bucket_configs" / f"{bucket.get('name', '')}.yaml"
+                        if bucket_config_file.exists():
+                            try:
+                                with open(bucket_config_file, 'r') as f:
+                                    config = yaml.safe_load(f) or {}
+                                    bucket["vector_search"] = config.get("vector_search", False)
+                                    bucket["knowledge_graph"] = config.get("knowledge_graph", False)
+                                    bucket["cache_enabled"] = config.get("cache_enabled", False)
+                                    bucket["settings"] = config
+                            except Exception as e:
+                                logger.warning(f"Could not load bucket config for {bucket.get('name')}: {e}")
+                        
+                        buckets.append(bucket)
+                except Exception as e:
+                    logger.warning(f"Could not load bucket registry: {e}")
+        
+        # Fallback: scan directories directly
+        if not buckets:
+            buckets_dir = self.data_dir / "buckets"
+            if buckets_dir.exists():
+                for bucket_path in buckets_dir.iterdir():
+                    if bucket_path.is_dir():
+                        file_count = len(list(bucket_path.glob('*')))
                         total_size = sum(f.stat().st_size for f in bucket_path.rglob('*') if f.is_file())
-                        bucket["storage_used"] = total_size
-                        bucket["file_count"] = len(list(bucket_path.rglob('*')))
-                    else:
-                        bucket["storage_used"] = 0
-                        bucket["file_count"] = 0
-                    
-                    # Check for advanced features based on bucket config
-                    bucket_config_file = self.data_dir / "bucket_configs" / f"{bucket.get('name', '')}.yaml"
-                    if bucket_config_file.exists():
-                        try:
-                            with open(bucket_config_file, 'r') as f:
-                                config = yaml.safe_load(f) or {}
-                                bucket["vector_search"] = config.get("vector_search", False)
-                                bucket["knowledge_graph"] = config.get("knowledge_graph", False)
-                                bucket["cache_enabled"] = config.get("cache_enabled", False)
-                                bucket["settings"] = config
-                        except Exception as e:
-                            logger.warning(f"Could not load bucket config for {bucket.get('name')}: {e}")
-                    
-                    buckets.append(bucket)
-            except Exception as e:
-                logger.warning(f"Could not load bucket registry: {e}")
+                        
+                        # Try to load config
+                        bucket_config_file = self.data_dir / "bucket_configs" / f"{bucket_path.name}.yaml"
+                        description = f"Local bucket {bucket_path.name}"
+                        if bucket_config_file.exists():
+                            try:
+                                with open(bucket_config_file, 'r') as f:
+                                    config = yaml.safe_load(f) or {}
+                                    description = config.get("description", description)
+                            except Exception as e:
+                                logger.warning(f"Could not load bucket config: {e}")
+                        
+                        buckets.append({
+                            "name": bucket_path.name,
+                            "backend": "local",
+                            "description": description,
+                            "storage_used": total_size,
+                            "file_count": file_count,
+                            "vector_search": False,
+                            "knowledge_graph": False,
+                            "cache_enabled": True,
+                            "created_at": datetime.now().isoformat()
+                        })
         
-        # If no registry exists, create sample buckets for demonstration
+        # If still no buckets, create sample
         if not buckets:
             buckets = [
                 {
@@ -1077,37 +1129,51 @@ class RefactoredUnifiedMCPDashboard:
             with open(bucket_config_file, 'w') as f:
                 yaml.dump(bucket_config, f)
             
-            # Update bucket registry
-            bucket_registry_dir = self.data_dir / "bucket_index"
-            bucket_registry_dir.mkdir(parents=True, exist_ok=True)
-            bucket_registry_file = bucket_registry_dir / "bucket_registry.parquet"
-            
-            bucket_record = {
-                "name": bucket_name,
-                "backend": "local",
-                "type": bucket_type,
-                "description": description,
-                "created_at": datetime.now().isoformat(),
-                "storage_used": 0,
-                "file_count": 0
-            }
-            
-            if bucket_registry_file.exists():
-                try:
-                    df = pd.read_parquet(bucket_registry_file)
-                    # Check if bucket already exists
-                    if bucket_name in df['name'].values:
-                        return {"success": False, "error": "Bucket already exists"}
-                    new_df = pd.concat([df, pd.DataFrame([bucket_record])], ignore_index=True)
-                except Exception as e:
-                    logger.warning(f"Error reading existing registry: {e}")
+            # Update bucket registry (if pandas is available)
+            if PANDAS_AVAILABLE:
+                bucket_registry_dir = self.data_dir / "bucket_index"
+                bucket_registry_dir.mkdir(parents=True, exist_ok=True)
+                bucket_registry_file = bucket_registry_dir / "bucket_registry.parquet"
+                
+                bucket_record = {
+                    "name": bucket_name,
+                    "backend": "local",
+                    "type": bucket_type,
+                    "description": description,
+                    "created_at": datetime.now().isoformat(),
+                    "storage_used": 0,
+                    "file_count": 0
+                }
+                
+                if bucket_registry_file.exists():
+                    try:
+                        df = pd.read_parquet(bucket_registry_file)
+                        # Check if bucket already exists
+                        if bucket_name in df['name'].values:
+                            return {"success": False, "error": "Bucket already exists"}
+                        new_df = pd.concat([df, pd.DataFrame([bucket_record])], ignore_index=True)
+                    except Exception as e:
+                        logger.warning(f"Error reading existing registry: {e}")
+                        new_df = pd.DataFrame([bucket_record])
+                else:
                     new_df = pd.DataFrame([bucket_record])
+                
+                new_df.to_parquet(bucket_registry_file)
+                
+                bucket_record_for_response = bucket_record
             else:
-                new_df = pd.DataFrame([bucket_record])
+                # Simple fallback without pandas
+                bucket_record_for_response = {
+                    "name": bucket_name,
+                    "backend": "local",
+                    "type": bucket_type,
+                    "description": description,
+                    "created_at": datetime.now().isoformat(),
+                    "storage_used": 0,
+                    "file_count": 0
+                }
             
-            new_df.to_parquet(bucket_registry_file)
-            
-            return {"success": True, "message": f"Bucket '{bucket_name}' created successfully", "bucket": bucket_record}
+            return {"success": True, "message": f"Bucket '{bucket_name}' created successfully", "bucket": bucket_record_for_response}
             
         except Exception as e:
             logger.error(f"Error creating bucket: {e}")
@@ -1127,18 +1193,19 @@ class RefactoredUnifiedMCPDashboard:
             if bucket_config_file.exists():
                 bucket_config_file.unlink()
             
-            # Update bucket registry
-            bucket_registry_file = self.data_dir / "bucket_index" / "bucket_registry.parquet"
-            if bucket_registry_file.exists():
-                try:
-                    df = pd.read_parquet(bucket_registry_file)
-                    df = df[df['name'] != bucket_name]
-                    if len(df) > 0:
-                        df.to_parquet(bucket_registry_file)
-                    else:
-                        bucket_registry_file.unlink()  # Remove empty registry
-                except Exception as e:
-                    logger.warning(f"Error updating registry after deletion: {e}")
+            # Update bucket registry (if pandas is available)
+            if PANDAS_AVAILABLE:
+                bucket_registry_file = self.data_dir / "bucket_index" / "bucket_registry.parquet"
+                if bucket_registry_file.exists():
+                    try:
+                        df = pd.read_parquet(bucket_registry_file)
+                        df = df[df['name'] != bucket_name]
+                        if len(df) > 0:
+                            df.to_parquet(bucket_registry_file)
+                        else:
+                            bucket_registry_file.unlink()  # Remove empty registry
+                    except Exception as e:
+                        logger.warning(f"Error updating registry after deletion: {e}")
             
             return {"success": True, "message": f"Bucket '{bucket_name}' deleted successfully"}
             
