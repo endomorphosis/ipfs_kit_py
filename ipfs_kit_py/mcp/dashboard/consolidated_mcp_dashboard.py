@@ -2272,52 +2272,53 @@ class ConsolidatedMCPDashboard:
             
             return {"items": sorted(files, key=lambda x: (x["type"] != "directory", x["name"].lower()))}
 
-        @app.post("/api/buckets/{bucket_name}/upload")
-        async def upload_file_to_bucket(
-            bucket_name: str, 
-            file: UploadFile = File(...),
-            path: str = Form("")
-        ) -> Dict[str, Any]:
-            """Upload a file to a bucket."""
-            # Verify bucket exists
-            items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
-            if not any(b.get("name") == bucket_name for b in items):
-                raise HTTPException(404, "Bucket not found")
-            
-            # Create bucket directory
-            bucket_path = self.paths.vfs_root / bucket_name
-            if path:
-                bucket_path = bucket_path / path.lstrip('/')
-            bucket_path.mkdir(parents=True, exist_ok=True)
-            
-            # Check file size limits (500MB default)
-            max_size = 500 * 1024 * 1024  # 500MB
-            content = await file.read()
-            if len(content) > max_size:
-                raise HTTPException(413, f"File too large. Maximum size: {max_size // (1024*1024)}MB")
-            
-            # Save file
-            file_path = bucket_path / file.filename
-            if file_path.exists():
-                raise HTTPException(409, f"File '{file.filename}' already exists")
-            
-            try:
-                with file_path.open('wb') as f:
-                    f.write(content)
-                
-                stat_info = file_path.stat()
-                return {
-                    "success": True,
-                    "file": {
-                        "name": file.filename,
-                        "path": str(file_path.relative_to(self.paths.vfs_root / bucket_name)),
-                        "size": stat_info.st_size,
-                        "mime_type": (mimetypes.guess_type(file.filename or "")[0] if (file and getattr(file, 'filename', None)) else None),
-                        "uploaded": datetime.now(UTC).isoformat()
-                    }
-                }
-            except Exception as e:
-                raise HTTPException(500, f"Failed to save file: {str(e)}")
+        # Temporarily commented out due to multipart dependency issues
+        # @app.post("/api/buckets/{bucket_name}/upload")
+        # async def upload_file_to_bucket(
+        #     bucket_name: str, 
+        #     file: UploadFile = File(...),
+        #     path: str = Form("")
+        # ) -> Dict[str, Any]:
+        #     """Upload a file to a bucket."""
+        #     # Verify bucket exists
+        #     items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
+        #     if not any(b.get("name") == bucket_name for b in items):
+        #         raise HTTPException(404, "Bucket not found")
+        #     
+        #     # Create bucket directory
+        #     bucket_path = self.paths.vfs_root / bucket_name
+        #     if path:
+        #         bucket_path = bucket_path / path.lstrip('/')
+        #     bucket_path.mkdir(parents=True, exist_ok=True)
+        #     
+        #     # Check file size limits (500MB default)
+        #     max_size = 500 * 1024 * 1024  # 500MB
+        #     content = await file.read()
+        #     if len(content) > max_size:
+        #         raise HTTPException(413, f"File too large. Maximum size: {max_size // (1024*1024)}MB")
+        #     
+        #     # Save file
+        #     file_path = bucket_path / file.filename
+        #     if file_path.exists():
+        #         raise HTTPException(409, f"File '{file.filename}' already exists")
+        #     
+        #     try:
+        #         with file_path.open('wb') as f:
+        #             f.write(content)
+        #         
+        #         stat_info = file_path.stat()
+        #         return {
+        #             "success": True,
+        #             "file": {
+        #                 "name": file.filename,
+        #                 "path": str(file_path.relative_to(self.paths.vfs_root / bucket_name)),
+        #                 "size": stat_info.st_size,
+        #                 "mime_type": (mimetypes.guess_type(file.filename or "")[0] if (file and getattr(file, 'filename', None)) else None),
+        #                 "uploaded": datetime.now(UTC).isoformat()
+        #             }
+        #         }
+        #     except Exception as e:
+        #         raise HTTPException(500, f"Failed to save file: {str(e)}")
 
         @app.get("/api/buckets/{bucket_name}/download/{file_path:path}")
         async def download_file_from_bucket(bucket_name: str, file_path: str):
