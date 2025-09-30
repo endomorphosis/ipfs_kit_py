@@ -3459,21 +3459,89 @@
             
             const createFolderBtn = document.getElementById('create-folder-btn');
             if (createFolderBtn) {
-                createFolderBtn.addEventListener('click', () => {
+                createFolderBtn.addEventListener('click', async () => {
                     const folderName = prompt('Enter folder name:');
-                    if (folderName) {
-                        showToast(`Creating folder: ${folderName}`, 'info');
-                        // TODO: Implement folder creation via MCP
+                    if (!folderName) return;
+                    
+                    const bucketName = document.getElementById('bucket-modal-name').textContent;
+                    const currentPath = document.getElementById('current-path')?.value || '.';
+                    const folderPath = currentPath === '.' ? folderName : `${currentPath}/${folderName}`;
+                    
+                    console.log(`Creating folder: ${folderPath} in bucket: ${bucketName}`);
+                    showToast(`Creating folder: ${folderName}`, 'info');
+                    
+                    try {
+                        // Call MCP bucket_mkdir tool
+                        const result = await window.mcpClient.callTool('bucket_mkdir', {
+                            bucket: bucketName,
+                            path: folderPath,
+                            create_parents: true
+                        });
+                        
+                        console.log('✅ Folder created successfully:', result);
+                        showToast(`Folder '${folderName}' created successfully`, 'success');
+                        
+                        // Refresh the file list
+                        await loadBucketFilesMCP(bucketName);
+                    } catch (error) {
+                        console.error('❌ Error creating folder:', error);
+                        showToast(`Error creating folder: ${error.message}`, 'error');
                     }
                 });
             }
             
             const viewBucketMetadataBtn = document.getElementById('view-bucket-metadata');
             if (viewBucketMetadataBtn) {
-                viewBucketMetadataBtn.addEventListener('click', () => {
+                viewBucketMetadataBtn.addEventListener('click', async () => {
                     const bucketName = document.getElementById('bucket-modal-name').textContent;
+                    console.log(`Loading full metadata for bucket: ${bucketName}`);
                     showToast(`Loading full metadata for bucket: ${bucketName}`, 'info');
-                    // TODO: Open detailed metadata modal
+                    
+                    try {
+                        // Call MCP bucket_get_metadata tool
+                        const result = await window.mcpClient.callTool('bucket_get_metadata', {
+                            bucket: bucketName,
+                            path: '.',
+                            include_replicas: true,
+                            include_caching: true
+                        });
+                        
+                        console.log('✅ Bucket metadata loaded:', result);
+                        
+                        // Display metadata in a modal
+                        const metadata = result.result || result;
+                        const metadataHTML = `
+                            <div style="max-height: 500px; overflow-y: auto; padding: 1rem;">
+                                <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem;">Bucket Metadata: ${bucketName}</h3>
+                                <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.875rem;">
+                                    <pre>${JSON.stringify(metadata, null, 2)}</pre>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Show in existing modal or create new one
+                        const metadataModal = document.getElementById('metadata-modal');
+                        if (metadataModal) {
+                            metadataModal.innerHTML = metadataHTML;
+                            metadataModal.style.display = 'block';
+                        } else {
+                            // Create a simple modal overlay
+                            const overlay = document.createElement('div');
+                            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+                            overlay.innerHTML = `
+                                <div style="background: white; padding: 2rem; border-radius: 0.5rem; max-width: 800px; width: 90%;">
+                                    ${metadataHTML}
+                                    <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem; background: #3b82f6; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.25rem; cursor: pointer;">Close</button>
+                                </div>
+                            `;
+                            document.body.appendChild(overlay);
+                        }
+                        
+                        showToast('Metadata loaded successfully', 'success');
+                    } catch (error) {
+                        console.error('❌ Error loading metadata:', error);
+                        showToast(`Error loading metadata: ${error.message}`, 'error');
+                    }
                 });
             }
             
@@ -4362,7 +4430,7 @@
             });
         }
 
-        function handleBucketFileUpload(files, bucketName) {
+        async function handleBucketFileUpload(files, bucketName) {
             if (!files || files.length === 0) return;
             
             const progressPanel = document.getElementById('upload-progress-panel');
@@ -4373,26 +4441,63 @@
             
             console.log(`📤 Uploading ${files.length} files to bucket: ${bucketName}`);
             
-            // Simulate upload progress
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 20;
-                if (progress >= 100) {
-                    progress = 100;
-                    clearInterval(interval);
-                    
-                    setTimeout(() => {
-                        if (progressPanel) progressPanel.classList.add('hidden');
-                        showToast(`✅ Uploaded ${files.length} files to ${bucketName}`, 'success');
-                        loadBucketFilesInModal(bucketName); // Refresh file list
-                    }, 500);
+            try {
+                const currentPath = document.getElementById('current-path')?.value || '.';
+                let uploadedCount = 0;
+                
+                for (const file of files) {
+                    try {
+                        console.log(`📄 Uploading file: ${file.name}`);
+                        
+                        // Read file content
+                        const content = await readFileAsText(file);
+                        const filePath = currentPath === '.' ? file.name : `${currentPath}/${file.name}`;
+                        
+                        // Upload via MCP
+                        const result = await window.mcpClient.callTool('bucket_upload_file', {
+                            bucket: bucketName,
+                            path: filePath,
+                            content: content,
+                            mode: 'text',
+                            overwrite: true
+                        });
+                        
+                        console.log(`✅ Uploaded: ${file.name}`, result);
+                        uploadedCount++;
+                        
+                        // Update progress
+                        const progress = (uploadedCount / files.length) * 100;
+                        if (progressBar) progressBar.style.width = `${progress}%`;
+                        if (progressText) progressText.textContent = `${Math.round(progress)}%`;
+                        
+                    } catch (error) {
+                        console.error(`❌ Error uploading ${file.name}:`, error);
+                        showToast(`Error uploading ${file.name}: ${error.message}`, 'error');
+                    }
                 }
                 
-                if (progressBar) progressBar.style.width = `${progress}%`;
-                if (progressText) progressText.textContent = `${Math.round(progress)}%`;
-            }, 200);
-            
-            // TODO: Implement actual file upload via MCP
+                // Complete
+                setTimeout(() => {
+                    if (progressPanel) progressPanel.classList.add('hidden');
+                    showToast(`✅ Uploaded ${uploadedCount}/${files.length} files to ${bucketName}`, 'success');
+                    loadBucketFilesInModal(bucketName); // Refresh file list
+                }, 500);
+                
+            } catch (error) {
+                console.error('❌ Upload error:', error);
+                showToast(`Upload error: ${error.message}`, 'error');
+                if (progressPanel) progressPanel.classList.add('hidden');
+            }
+        }
+        
+        // Helper function to read file as text
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
         }
 
         function getDemoBucketFiles() {
