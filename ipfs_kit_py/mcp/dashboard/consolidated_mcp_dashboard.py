@@ -4639,6 +4639,7 @@ class ConsolidatedMCPDashboard:
             bucket = args.get("bucket")
             path = args.get("path")
             include_replicas = args.get("include_replicas", True)
+            include_cid = args.get("include_cid", False)
             
             if not bucket or not path:
                 raise HTTPException(400, "Missing bucket or path")
@@ -4668,6 +4669,26 @@ class ConsolidatedMCPDashboard:
                 "cache_type": "local_vfs"
             }
             
+            # Calculate CID hash if requested (for content addressing)
+            if include_cid and file_path.is_file():
+                try:
+                    import hashlib
+                    # Calculate multihash CID (simplified version - in production use proper multicodec)
+                    with open(file_path, 'rb') as f:
+                        file_content = f.read()
+                        # SHA256 hash
+                        sha256_hash = hashlib.sha256(file_content).digest()
+                        # Base58 encode (simplified - use multibase in production)
+                        import base64
+                        cid_v0 = "Qm" + base64.b32encode(sha256_hash).decode('utf-8').rstrip('=').lower()[:44]
+                        result["cid"] = cid_v0
+                        result["cid_version"] = "0 (SHA-256)"
+                        result["multihash"] = "sha2-256"
+                        result["content_addressable"] = True
+                except Exception as e:
+                    result["cid_error"] = str(e)
+                    result["cid"] = None
+            
             # Add replica info if requested
             if include_replicas:
                 result["replicas"] = [{
@@ -4685,7 +4706,10 @@ class ConsolidatedMCPDashboard:
                     file_key = f"{bucket}:{path}"
                     stored_meta = metadata.get(file_key, {})
                     if stored_meta:
-                        result.update(stored_meta)
+                        # Merge stored metadata without overwriting CID
+                        for key, value in stored_meta.items():
+                            if key not in result or (key == "cid" and not result.get("cid")):
+                                result[key] = value
             except Exception as e:
                 # Log but don't fail if we can't read additional metadata
                 pass

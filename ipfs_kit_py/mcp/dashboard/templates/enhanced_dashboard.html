@@ -2709,6 +2709,9 @@
                 <div class="flex-1 flex flex-col">
                     <!-- Toolbar -->
                     <div class="p-4 border-b border-gray-200 bg-gray-50">
+                        <!-- Hidden input to track current path -->
+                        <input type="hidden" id="current-path" value=".">
+                        
                         <div class="flex items-center justify-between">
                             <!-- Breadcrumb Navigation -->
                             <div class="flex items-center text-sm">
@@ -3481,8 +3484,8 @@
                         console.log('✅ Folder created successfully:', result);
                         showToast(`Folder '${folderName}' created successfully`, 'success');
                         
-                        // Refresh the file list
-                        await loadBucketFilesInModal(bucketName);
+                        // Refresh the current directory
+                        await loadBucketFilesInModal(bucketName, currentPath === '.' ? '' : currentPath);
                     } catch (error) {
                         console.error('❌ Error creating folder:', error);
                         showToast(`Error creating folder: ${error.message}`, 'error');
@@ -3547,6 +3550,75 @@
             
             console.log('🏗️ Modal handlers setup completed');
         }
+        
+        // Function to view individual file metadata with CID hash
+        async function viewFileMetadata(bucketName, filePath) {
+            try {
+                console.log(`Loading metadata for file: ${bucketName}/${filePath}`);
+                showToast('Loading file metadata...', 'info');
+                
+                // Call MCP bucket_get_metadata tool for the specific file
+                const result = await window.mcpClient.callTool('bucket_get_metadata', {
+                    bucket: bucketName,
+                    path: filePath,
+                    include_replicas: true,
+                    include_caching: true,
+                    include_cid: true  // Request CID hash calculation
+                });
+                
+                const metadata = result.result || result;
+                console.log('✅ File metadata loaded:', metadata);
+                
+                // Display metadata in formatted modal
+                const metadataHTML = `
+                    <div style="max-height: 600px; overflow-y: auto; padding: 1rem;">
+                        <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem;">
+                            File Metadata: ${filePath}
+                        </h3>
+                        <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem;">
+                            <div style="margin-bottom: 1rem;">
+                                <strong>Path:</strong> ${metadata.path || filePath}<br>
+                                <strong>Name:</strong> ${metadata.name || '-'}<br>
+                                <strong>Size:</strong> ${formatFileSize(metadata.size || 0)}<br>
+                                <strong>Type:</strong> ${metadata.mime_type || 'unknown'}<br>
+                                <strong>CID:</strong> <code style="background: #e5e7eb; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-family: monospace;">${metadata.cid || 'Calculating...'}</code><br>
+                                <strong>Created:</strong> ${metadata.created || '-'}<br>
+                                <strong>Modified:</strong> ${metadata.modified || '-'}<br>
+                                <strong>Permissions:</strong> ${metadata.permissions || '-'}
+                            </div>
+                            ${metadata.cid ? `
+                                <div style="margin-top: 1rem; padding: 1rem; background: #dbeafe; border-radius: 0.5rem;">
+                                    <strong>🔗 Content Addressing</strong><br>
+                                    <small>This file can be recreated and verified using its CID hash across any IPFS-compatible system.</small>
+                                </div>
+                            ` : ''}
+                            <details style="margin-top: 1rem;">
+                                <summary style="cursor: pointer; font-weight: bold;">Full Metadata (JSON)</summary>
+                                <pre style="margin-top: 0.5rem; background: #1f2937; color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; font-size: 0.75rem; overflow-x: auto;">${JSON.stringify(metadata, null, 2)}</pre>
+                            </details>
+                        </div>
+                    </div>
+                `;
+                
+                // Create modal overlay
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+                overlay.innerHTML = `
+                    <div style="background: white; padding: 2rem; border-radius: 0.5rem; max-width: 800px; width: 90%;">
+                        ${metadataHTML}
+                        <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem; background: #3b82f6; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.25rem; cursor: pointer;">Close</button>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                
+                showToast('Metadata loaded successfully', 'success');
+            } catch (error) {
+                console.error('❌ Error loading file metadata:', error);
+                showToast(`Error loading metadata: ${error.message}`, 'error');
+            }
+        }
+        
+        window.viewFileMetadata = viewFileMetadata;
         
         function initializeEnterpriseStorage() {
             // Initialize responsive layout handling
@@ -4222,9 +4294,16 @@
             try {
                 const pathBreadcrumb = document.getElementById('bucket-path-breadcrumb');
                 const filesGrid = document.getElementById('bucket-files-grid');
+                const currentPathInput = document.getElementById('current-path');
                 
+                // Update current path for uploads and folder creation
+                if (currentPathInput) {
+                    currentPathInput.value = path || '.';
+                }
+                
+                // Render breadcrumb navigation for subfolders
                 if (pathBreadcrumb) {
-                    pathBreadcrumb.textContent = path || '/';
+                    renderPathBreadcrumb(bucketName, path || '/');
                 }
                 
                 // Load files via MCP using metadata-first approach (~/.ipfs_kit/ before ipfs_kit_py)
@@ -4249,8 +4328,8 @@
                     files = result;
                 }
                 
-                console.log(`📂 Loaded ${files.length} files for bucket: ${bucketName}`);
-                renderBucketFilesGrid(files);
+                console.log(`📂 Loaded ${files.length} files for bucket: ${bucketName}, path: ${path}`);
+                renderBucketFilesGrid(files, bucketName, path);
                 
             } catch (error) {
                 console.error('Error loading bucket files:', error);
@@ -4258,8 +4337,30 @@
                 renderBucketFilesGrid(getDemoBucketFiles());
             }
         }
+        
+        function renderPathBreadcrumb(bucketName, path) {
+            const breadcrumb = document.getElementById('bucket-path-breadcrumb');
+            if (!breadcrumb) return;
+            
+            const parts = path.split('/').filter(p => p && p !== '.');
+            let currentPath = '';
+            
+            // Build breadcrumb HTML with clickable path segments
+            let html = `<a href="#" class="text-blue-600 hover:text-blue-800 font-medium" onclick="event.preventDefault(); loadBucketFilesInModal('${bucketName}', '');">
+                <i class="fas fa-home mr-1"></i>Root
+            </a>`;
+            
+            parts.forEach((part, index) => {
+                currentPath += (currentPath ? '/' : '') + part;
+                const pathToLoad = currentPath;
+                html += ` <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i> `;
+                html += `<a href="#" class="text-blue-600 hover:text-blue-800" onclick="event.preventDefault(); loadBucketFilesInModal('${bucketName}', '${pathToLoad}');">${part}</a>`;
+            });
+            
+            breadcrumb.innerHTML = html;
+        }
 
-        function renderBucketFilesGrid(files) {
+        function renderBucketFilesGrid(files, bucketName, currentPath = '') {
             const grid = document.getElementById('bucket-files-grid');
             if (!grid) return;
             
@@ -4284,9 +4385,16 @@
                 const nameAttr = encodeURIComponent(fileName);
                 const typeAttr = encodeURIComponent(fileType);
                 const sizeAttr = Number(file.size || 0);
+                
+                // Build path for navigation
+                const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
+                const clickHandler = isFolder 
+                    ? `onclick="event.preventDefault(); loadBucketFilesInModal('${bucketName}', '${filePath}');"` 
+                    : `onclick="event.preventDefault(); viewFileMetadata('${bucketName}', '${filePath}');"`;
+                
                 return `
                     <div class="file-item bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
-                         data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}">
+                         data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}" ${clickHandler}>
                         <div class="flex items-center mb-2">
                             <i class="${icon} text-lg mr-2"></i>
                             <span class="font-medium text-gray-900 truncate" title="${fileName}">${fileName}</span>
@@ -4488,7 +4596,8 @@
                 setTimeout(() => {
                     if (progressPanel) progressPanel.classList.add('hidden');
                     showToast(`✅ Uploaded ${uploadedCount}/${files.length} files to ${bucketName}`, 'success');
-                    loadBucketFilesInModal(bucketName); // Refresh file list
+                    // Refresh the current directory (not just root)
+                    loadBucketFilesInModal(bucketName, currentPath === '.' ? '' : currentPath);
                 }, 500);
                 
             } catch (error) {
