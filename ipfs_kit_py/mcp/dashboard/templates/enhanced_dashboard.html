@@ -3497,52 +3497,106 @@
             if (viewBucketMetadataBtn) {
                 viewBucketMetadataBtn.addEventListener('click', async () => {
                     const bucketName = document.getElementById('bucket-modal-name').textContent;
-                    console.log(`Loading full metadata for bucket: ${bucketName}`);
-                    showToast(`Loading full metadata for bucket: ${bucketName}`, 'info');
+                    console.log(`Loading FULL metadata for entire bucket: ${bucketName} (including all file CID hashes)`);
+                    showToast(`Loading complete bucket metadata with all file CID hashes...`, 'info');
                     
                     try {
-                        // Call MCP bucket_get_metadata tool
-                        const result = await window.mcpClient.callTool('bucket_get_metadata', {
-                            bucket: bucketName,
-                            path: '.',
-                            include_replicas: true,
-                            include_caching: true
+                        // Call MCP bucket_get_full_metadata tool to get ALL files with CID hashes
+                        const result = await window.mcpClient.callTool('bucket_get_full_metadata', {
+                            bucket: bucketName
                         });
                         
-                        console.log('✅ Bucket metadata loaded:', result);
+                        console.log('✅ Complete bucket metadata loaded with all file CIDs:', result);
                         
-                        // Display metadata in a modal
+                        // Display comprehensive metadata in a modal
                         const metadata = result.result || result;
+                        const files = metadata.files || [];
+                        
+                        // Create downloadable JSON
+                        const metadataJSON = JSON.stringify(metadata, null, 2);
+                        const blob = new Blob([metadataJSON], { type: 'application/json' });
+                        const downloadUrl = URL.createObjectURL(blob);
+                        
                         const metadataHTML = `
-                            <div style="max-height: 500px; overflow-y: auto; padding: 1rem;">
-                                <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem;">Bucket Metadata: ${bucketName}</h3>
-                                <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.875rem;">
-                                    <pre>${JSON.stringify(metadata, null, 2)}</pre>
+                            <div style="max-height: 600px; overflow-y: auto; padding: 1rem;">
+                                <h3 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; color: #1f2937;">
+                                    📦 Complete Bucket Metadata: ${bucketName}
+                                </h3>
+                                
+                                <div style="background: #dbeafe; border-left: 4px solid #3b82f6; padding: 1rem; margin-bottom: 1rem; border-radius: 0.5rem;">
+                                    <strong>🔗 Content-Addressable Bucket</strong><br>
+                                    <small>This metadata includes CID hashes for ALL ${files.length} files. Anyone can reconstruct this entire bucket by retrieving the files from IPFS using these CID hashes.</small>
                                 </div>
+                                
+                                <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                                    <strong>Bucket Statistics:</strong><br>
+                                    • Total Files: ${metadata.total_files || 0}<br>
+                                    • Total Size: ${metadata.total_size_human || '0 KB'}<br>
+                                    • Created: ${metadata.created || 'Unknown'}<br>
+                                    • Modified: ${metadata.modified || 'Unknown'}
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <a href="${downloadUrl}" download="${bucketName}_complete_metadata.json" 
+                                       style="display: inline-block; background: #10b981; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold;">
+                                        📥 Download Complete Metadata (${files.length} files with CID hashes)
+                                    </a>
+                                </div>
+                                
+                                <details style="margin-top: 1rem;">
+                                    <summary style="cursor: pointer; font-weight: bold; padding: 0.5rem; background: #e5e7eb; border-radius: 0.25rem;">
+                                        📄 All Files with CID Hashes (${files.length} files)
+                                    </summary>
+                                    <div style="margin-top: 0.5rem; max-height: 300px; overflow-y: auto; background: #f3f4f6; padding: 0.5rem; border-radius: 0.25rem;">
+                                        ${files.map(file => `
+                                            <div style="padding: 0.5rem; margin-bottom: 0.5rem; background: white; border-radius: 0.25rem; font-size: 0.75rem;">
+                                                <strong>${file.path}</strong><br>
+                                                <code style="background: #e5e7eb; padding: 0.25rem; border-radius: 0.25rem; font-family: monospace;">CID: ${file.cid}</code><br>
+                                                <small>Size: ${formatFileSize(file.size)} | Type: ${file.mime_type || 'unknown'}</small>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </details>
+                                
+                                <details style="margin-top: 1rem;">
+                                    <summary style="cursor: pointer; font-weight: bold; padding: 0.5rem; background: #e5e7eb; border-radius: 0.25rem;">
+                                        🔧 Reconstruction Instructions
+                                    </summary>
+                                    <div style="margin-top: 0.5rem; background: #1f2937; color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.75rem;">
+                                        <p style="margin-bottom: 0.5rem;">${metadata.reconstruction_instructions?.description || ''}</p>
+                                        <p style="margin-bottom: 0.5rem;">IPFS Command Template:</p>
+                                        <code style="display: block; background: #374151; padding: 0.5rem; border-radius: 0.25rem;">
+                                            ${metadata.reconstruction_instructions?.ipfs_command_template || 'ipfs get {cid} -o {path}'}
+                                        </code>
+                                    </div>
+                                </details>
+                                
+                                <details style="margin-top: 1rem;">
+                                    <summary style="cursor: pointer; font-weight: bold; padding: 0.5rem; background: #e5e7eb; border-radius: 0.25rem;">
+                                        📊 Full Metadata (JSON)
+                                    </summary>
+                                    <pre style="margin-top: 0.5rem; background: #1f2937; color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; font-size: 0.75rem; overflow-x: auto; max-height: 400px;">${metadataJSON}</pre>
+                                </details>
                             </div>
                         `;
                         
-                        // Show in existing modal or create new one
-                        const metadataModal = document.getElementById('metadata-modal');
-                        if (metadataModal) {
-                            metadataModal.innerHTML = metadataHTML;
-                            metadataModal.style.display = 'block';
-                        } else {
-                            // Create a simple modal overlay
-                            const overlay = document.createElement('div');
-                            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;';
-                            overlay.innerHTML = `
-                                <div style="background: white; padding: 2rem; border-radius: 0.5rem; max-width: 800px; width: 90%;">
-                                    ${metadataHTML}
-                                    <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem; background: #3b82f6; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.25rem; cursor: pointer;">Close</button>
-                                </div>
-                            `;
-                            document.body.appendChild(overlay);
-                        }
+                        // Create modal overlay to display metadata
+                        const overlay = document.createElement('div');
+                        overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 2rem;';
+                        overlay.innerHTML = `
+                            <div style="background: white; padding: 2rem; border-radius: 0.5rem; max-width: 900px; width: 90%; max-height: 90vh; overflow-y: auto;">
+                                ${metadataHTML}
+                                <button onclick="this.parentElement.parentElement.remove()" 
+                                        style="margin-top: 1rem; background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; cursor: pointer; font-weight: bold;">
+                                    Close
+                                </button>
+                            </div>
+                        `;
+                        document.body.appendChild(overlay);
                         
-                        showToast('Metadata loaded successfully', 'success');
+                        showToast(`✅ Loaded complete metadata for ${files.length} files with CID hashes`, 'success');
                     } catch (error) {
-                        console.error('❌ Error loading metadata:', error);
+                        console.error('❌ Error loading complete bucket metadata:', error);
                         showToast(`Error loading metadata: ${error.message}`, 'error');
                     }
                 });

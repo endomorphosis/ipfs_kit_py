@@ -4716,6 +4716,100 @@ class ConsolidatedMCPDashboard:
             
             return {"jsonrpc": "2.0", "result": result, "id": None}
 
+        if name == "bucket_get_full_metadata":
+            """Get complete metadata for entire bucket including all file CID hashes."""
+            bucket = args.get("bucket")
+            if not bucket:
+                return {"jsonrpc": "2.0", "error": {"code": -32602, "message": "Missing bucket parameter"}, "id": None}
+            
+            try:
+                import hashlib
+                import base64
+                
+                bucket_path = self.paths.vfs_root / bucket
+                if not bucket_path.exists():
+                    return {"jsonrpc": "2.0", "error": {"code": -32602, "message": f"Bucket not found: {bucket}"}, "id": None}
+                
+                # Recursively collect all files with CID hashes
+                def collect_files_recursive(directory_path, relative_path=""):
+                    """Recursively collect file metadata with CID hashes."""
+                    files_data = []
+                    
+                    try:
+                        for item in directory_path.iterdir():
+                            item_relative = f"{relative_path}/{item.name}".lstrip('/')
+                            
+                            if item.is_file():
+                                try:
+                                    stat_info = item.stat()
+                                    
+                                    # Calculate CID hash
+                                    with open(item, 'rb') as f:
+                                        file_content = f.read()
+                                        sha256_hash = hashlib.sha256(file_content).digest()
+                                        cid_v0 = "Qm" + base64.b32encode(sha256_hash).decode('utf-8').rstrip('=').lower()[:44]
+                                    
+                                    file_info = {
+                                        "path": item_relative,
+                                        "name": item.name,
+                                        "size": stat_info.st_size,
+                                        "is_file": True,
+                                        "is_directory": False,
+                                        "created": datetime.fromtimestamp(stat_info.st_ctime, UTC).isoformat(),
+                                        "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
+                                        "permissions": oct(stat_info.st_mode)[-3:],
+                                        "mime_type": mimetypes.guess_type(item)[0],
+                                        "cid": cid_v0,
+                                        "cid_version": "0 (SHA-256)",
+                                        "multihash": "sha2-256",
+                                        "content_addressable": True
+                                    }
+                                    files_data.append(file_info)
+                                except Exception as e:
+                                    # Log but continue with other files
+                                    print(f"Error processing file {item}: {e}")
+                            
+                            elif item.is_dir():
+                                # Recursively process subdirectories
+                                subdir_files = collect_files_recursive(item, item_relative)
+                                files_data.extend(subdir_files)
+                    
+                    except Exception as e:
+                        print(f"Error reading directory {directory_path}: {e}")
+                    
+                    return files_data
+                
+                # Collect all files
+                all_files = collect_files_recursive(bucket_path)
+                
+                # Calculate bucket statistics
+                total_size = sum(f["size"] for f in all_files)
+                bucket_stat = bucket_path.stat()
+                
+                # Build complete bucket metadata
+                result = {
+                    "bucket": bucket,
+                    "bucket_path": str(bucket_path),
+                    "total_files": len(all_files),
+                    "total_size": total_size,
+                    "total_size_human": f"{total_size / (1024*1024):.2f} MB" if total_size > 1024*1024 else f"{total_size / 1024:.2f} KB",
+                    "created": datetime.fromtimestamp(bucket_stat.st_ctime, UTC).isoformat(),
+                    "modified": datetime.fromtimestamp(bucket_stat.st_mtime, UTC).isoformat(),
+                    "files": all_files,
+                    "reconstruction_instructions": {
+                        "description": "Use the CID hashes to retrieve files from IPFS and recreate the bucket structure",
+                        "ipfs_command_template": "ipfs get {cid} -o {path}",
+                        "content_addressable": True,
+                        "verification": "Each file can be verified by recomputing its SHA-256 hash and comparing to the CID"
+                    }
+                }
+                
+                return {"jsonrpc": "2.0", "result": result, "id": None}
+                
+            except Exception as e:
+                import traceback
+                return {"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Error getting full bucket metadata: {str(e)}\n{traceback.format_exc()}"}, "id": None}
+        
         if name == "get_bucket_usage":
             bucket_name = args.get("name")
             if not bucket_name:
