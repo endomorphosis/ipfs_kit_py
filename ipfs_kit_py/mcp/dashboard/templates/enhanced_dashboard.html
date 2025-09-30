@@ -3482,7 +3482,7 @@
                         showToast(`Folder '${folderName}' created successfully`, 'success');
                         
                         // Refresh the file list
-                        await loadBucketFilesMCP(bucketName);
+                        await loadBucketFilesInModal(bucketName);
                     } catch (error) {
                         console.error('❌ Error creating folder:', error);
                         showToast(`Error creating folder: ${error.message}`, 'error');
@@ -4236,7 +4236,12 @@
                 });
                 
                 let files = [];
-                if (result?.result?.files) {
+                // Parse the MCP response - check for items array (correct response format)
+                if (result?.result?.items) {
+                    files = result.result.items;
+                } else if (result?.items) {
+                    files = result.items;
+                } else if (result?.result?.files) {
                     files = result.result.files;
                 } else if (result?.files) {
                     files = result.files;
@@ -4270,18 +4275,21 @@
             }
             
             const filesHTML = files.map(file => {
-                const isFolder = file.type === 'folder' || file.type === 'directory';
-                const icon = isFolder ? 'fas fa-folder text-blue-500' : getFileIcon(file.name);
+                // Check multiple possible field names for directory status
+                const isFolder = file.type === 'folder' || file.type === 'directory' || file.is_directory === true || file.is_dir === true;
+                const icon = isFolder ? 'fas fa-folder text-blue-500' : getFileIcon(file.name || file.path);
                 const size = isFolder ? '-' : formatFileSize(file.size || 0);
-                const nameAttr = encodeURIComponent(file.name || '');
-                const typeAttr = encodeURIComponent(file.type || '');
+                const fileName = file.name || file.path || '';
+                const fileType = file.type || (isFolder ? 'directory' : 'file');
+                const nameAttr = encodeURIComponent(fileName);
+                const typeAttr = encodeURIComponent(fileType);
                 const sizeAttr = Number(file.size || 0);
                 return `
                     <div class="file-item bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
                          data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}">
                         <div class="flex items-center mb-2">
                             <i class="${icon} text-lg mr-2"></i>
-                            <span class="font-medium text-gray-900 truncate" title="${file.name}">${file.name}</span>
+                            <span class="font-medium text-gray-900 truncate" title="${fileName}">${fileName}</span>
                         </div>
                         <div class="text-xs text-gray-500">
                             <div>Size: ${size}</div>
