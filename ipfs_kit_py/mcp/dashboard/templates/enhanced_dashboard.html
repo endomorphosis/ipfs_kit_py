@@ -3605,11 +3605,21 @@
             console.log('🏗️ Modal handlers setup completed');
         }
         
-        // Function to view individual file metadata with CID hash
+        // Function to view individual file metadata with CID hash in the File Details panel
         async function viewFileMetadata(bucketName, filePath) {
             try {
                 console.log(`Loading metadata for file: ${bucketName}/${filePath}`);
-                showToast('Loading file metadata...', 'info');
+                
+                // Show loading state in file details panel
+                const fileDetailsContent = document.getElementById('file-details-content');
+                if (fileDetailsContent) {
+                    fileDetailsContent.innerHTML = `
+                        <div class="text-center py-8">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
+                            <p class="text-gray-600">Loading file details...</p>
+                        </div>
+                    `;
+                }
                 
                 // Call MCP bucket_get_metadata tool for the specific file
                 const result = await window.mcpClient.callTool('bucket_get_metadata', {
@@ -3623,51 +3633,85 @@
                 const metadata = result.result || result;
                 console.log('✅ File metadata loaded:', metadata);
                 
-                // Display metadata in formatted modal
-                const metadataHTML = `
-                    <div style="max-height: 600px; overflow-y: auto; padding: 1rem;">
-                        <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem;">
-                            File Metadata: ${filePath}
-                        </h3>
-                        <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem;">
-                            <div style="margin-bottom: 1rem;">
-                                <strong>Path:</strong> ${metadata.path || filePath}<br>
-                                <strong>Name:</strong> ${metadata.name || '-'}<br>
-                                <strong>Size:</strong> ${formatFileSize(metadata.size || 0)}<br>
-                                <strong>Type:</strong> ${metadata.mime_type || 'unknown'}<br>
-                                <strong>CID:</strong> <code style="background: #e5e7eb; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-family: monospace;">${metadata.cid || 'Calculating...'}</code><br>
-                                <strong>Created:</strong> ${metadata.created || '-'}<br>
-                                <strong>Modified:</strong> ${metadata.modified || '-'}<br>
-                                <strong>Permissions:</strong> ${metadata.permissions || '-'}
+                // Display metadata in File Details panel (not a modal)
+                if (fileDetailsContent) {
+                    fileDetailsContent.innerHTML = `
+                        <div class="space-y-4">
+                            <div class="text-center mb-4">
+                                <i class="fas fa-file-alt text-4xl text-blue-500 mb-2"></i>
+                                <h5 class="font-semibold text-gray-900 text-sm break-words">${metadata.name || filePath}</h5>
                             </div>
+                            
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Size:</span>
+                                    <span class="font-medium">${formatFileSize(metadata.size || 0)}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Type:</span>
+                                    <span class="font-medium">${metadata.mime_type || 'unknown'}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Modified:</span>
+                                    <span class="font-medium text-xs">${metadata.modified ? new Date(metadata.modified).toLocaleDateString() : '-'}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Permissions:</span>
+                                    <span class="font-medium">${metadata.permissions || '-'}</span>
+                                </div>
+                            </div>
+                            
                             ${metadata.cid ? `
-                                <div style="margin-top: 1rem; padding: 1rem; background: #dbeafe; border-radius: 0.5rem;">
-                                    <strong>🔗 Content Addressing</strong><br>
-                                    <small>This file can be recreated and verified using its CID hash across any IPFS-compatible system.</small>
+                                <div class="mt-3 p-2 bg-blue-50 rounded text-xs">
+                                    <strong class="text-blue-800">CID Hash:</strong>
+                                    <code class="block mt-1 bg-white p-1 rounded break-all font-mono text-xs">${metadata.cid}</code>
+                                    <small class="text-blue-600 block mt-1">Content-addressable via IPFS</small>
                                 </div>
                             ` : ''}
-                            <details style="margin-top: 1rem;">
-                                <summary style="cursor: pointer; font-weight: bold;">Full Metadata (JSON)</summary>
-                                <pre style="margin-top: 0.5rem; background: #1f2937; color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; font-size: 0.75rem; overflow-x: auto;">${JSON.stringify(metadata, null, 2)}</pre>
+                            
+                            ${metadata.replicas && metadata.replicas.length > 0 ? `
+                                <div class="mt-3">
+                                    <strong class="text-xs text-gray-600">Replicas:</strong>
+                                    <div class="mt-1 space-y-1">
+                                        ${metadata.replicas.map(r => `
+                                            <div class="text-xs p-1 bg-gray-100 rounded">
+                                                <span class="text-green-600">●</span> ${r.backend || r.status}
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <details class="mt-3">
+                                <summary class="cursor-pointer text-xs font-semibold text-gray-700">Full JSON</summary>
+                                <pre class="mt-2 text-xs bg-gray-900 text-gray-100 p-2 rounded overflow-x-auto max-h-48">${JSON.stringify(metadata, null, 2)}</pre>
                             </details>
+                            
+                            <div class="mt-4 space-y-2">
+                                <button onclick="downloadFile('${bucketName}', '${filePath}')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-xs hover:bg-blue-600">
+                                    <i class="fas fa-download mr-1"></i>Download
+                                </button>
+                                <button onclick="if(confirm('Delete this file?')) deleteFile('${bucketName}', '${filePath}')" class="w-full px-3 py-2 bg-red-500 text-white rounded text-xs hover:bg-red-600">
+                                    <i class="fas fa-trash mr-1"></i>Delete
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                }
                 
-                // Create modal overlay
-                const overlay = document.createElement('div');
-                overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;';
-                overlay.innerHTML = `
-                    <div style="background: white; padding: 2rem; border-radius: 0.5rem; max-width: 800px; width: 90%;">
-                        ${metadataHTML}
-                        <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 1rem; background: #3b82f6; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.25rem; cursor: pointer;">Close</button>
-                    </div>
-                `;
-                document.body.appendChild(overlay);
-                
-                showToast('Metadata loaded successfully', 'success');
+                console.log('File details displayed in panel');
             } catch (error) {
                 console.error('❌ Error loading file metadata:', error);
+                const fileDetailsContent = document.getElementById('file-details-content');
+                if (fileDetailsContent) {
+                    fileDetailsContent.innerHTML = `
+                        <div class="text-center py-8 text-red-500">
+                            <i class="fas fa-exclamation-triangle text-3xl mb-3"></i>
+                            <p class="text-sm">Error loading details</p>
+                            <p class="text-xs mt-2">${error.message}</p>
+                        </div>
+                    `;
+                }
                 showToast(`Error loading metadata: ${error.message}`, 'error');
             }
         }
