@@ -4458,9 +4458,16 @@
             breadcrumb.innerHTML = html;
         }
 
+        // Track selected files for multi-select operations
+        let selectedFilesMap = new Map(); // Map of fileName -> {name, type, size, path}
+        
         function renderBucketFilesGrid(files, bucketName, currentPath = '') {
             const grid = document.getElementById('bucket-files-grid');
             if (!grid) return;
+            
+            // Clear selection when navigating to new directory
+            selectedFilesMap.clear();
+            updateFileDetailsPanel();
             
             if (!files || files.length === 0) {
                 grid.innerHTML = `
@@ -4486,14 +4493,16 @@
                 
                 // Build path for navigation
                 const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
-                const clickHandler = isFolder 
-                    ? `onclick="event.preventDefault(); loadBucketFilesInModal('${bucketName}', '${filePath}');"` 
-                    : `onclick="event.preventDefault(); viewFileMetadata('${bucketName}', '${filePath}');"`;
                 
                 return `
-                    <div class="file-item bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
-                         data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}" ${clickHandler}>
-                        <div class="flex items-center mb-2">
+                    <div class="file-item bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer relative"
+                         data-name="${nameAttr}" data-type="${typeAttr}" data-size="${sizeAttr}" data-path="${encodeURIComponent(filePath)}" data-bucket="${bucketName}">
+                        <!-- Checkbox for selection -->
+                        <div class="absolute top-2 left-2 z-10">
+                            <input type="checkbox" class="file-checkbox w-4 h-4" data-file="${nameAttr}" 
+                                   onclick="event.stopPropagation();" onchange="toggleFileSelection(event)">
+                        </div>
+                        <div class="flex items-center mb-2 ml-6">
                             <i class="${icon} text-lg mr-2"></i>
                             <span class="font-medium text-gray-900 truncate" title="${fileName}">${fileName}</span>
                         </div>
@@ -4508,56 +4517,311 @@
 
             // Attach safe event listeners
             grid.querySelectorAll('.file-item').forEach(el => {
-                el.addEventListener('click', () => {
+                el.addEventListener('click', (event) => {
+                    // Don't navigate if clicking checkbox
+                    if (event.target.classList.contains('file-checkbox')) return;
+                    
                     const name = decodeURIComponent(el.dataset.name || '');
                     const type = decodeURIComponent(el.dataset.type || '');
+                    const path = decodeURIComponent(el.dataset.path || '');
+                    const bucket = el.dataset.bucket || bucketName;
                     const size = parseInt(el.dataset.size || '0', 10) || 0;
-                    selectFile(name, type, size);
-                });
-                el.addEventListener('dblclick', () => {
-                    const name = decodeURIComponent(el.dataset.name || '');
-                    const type = decodeURIComponent(el.dataset.type || '');
                     const isFolder = type === 'folder' || type === 'directory';
-                    if (isFolder) openFolder(name);
-                    else openFileEditor(name);
+                    
+                    if (isFolder) {
+                        // Navigate into folder
+                        loadBucketFilesInModal(bucket, path);
+                    } else {
+                        // Show file metadata in side panel
+                        viewFileMetadata(bucket, path);
+                    }
                 });
             });
         }
-
-        function selectFile(fileName, fileType, fileSize) {
-            // Update the file details panel
+        
+        function toggleFileSelection(event) {
+            const checkbox = event.target;
+            const fileItem = checkbox.closest('.file-item');
+            const fileName = decodeURIComponent(fileItem.dataset.name);
+            const fileType = decodeURIComponent(fileItem.dataset.type);
+            const fileSize = parseInt(fileItem.dataset.size || '0', 10);
+            const filePath = decodeURIComponent(fileItem.dataset.path);
+            const bucket = fileItem.dataset.bucket;
+            
+            if (checkbox.checked) {
+                // Add to selection
+                selectedFilesMap.set(fileName, {
+                    name: fileName,
+                    type: fileType,
+                    size: fileSize,
+                    path: filePath,
+                    bucket: bucket
+                });
+                fileItem.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50');
+            } else {
+                // Remove from selection
+                selectedFilesMap.delete(fileName);
+                fileItem.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50');
+            }
+            
+            updateFileDetailsPanel();
+        }
+        
+        function updateFileDetailsPanel() {
             const detailsContent = document.getElementById('file-details-content');
             if (!detailsContent) return;
             
-            const isFolder = fileType === 'folder' || fileType === 'directory';
-            const icon = isFolder ? 'fas fa-folder text-blue-500' : getFileIcon(fileName);
-                        // Build action buttons without nested template literals to avoid unterminated template issues
-                        const actionButtons = !isFolder
-                                ? (
-                                        '<button onclick="openFileEditor(\'' + fileName + '\')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">\n' +
-                                        '    <i class="fas fa-edit mr-1"></i>Edit File\n' +
-                                        '</button>\n' +
-                                        '<button onclick="downloadFile(\'' + fileName + '\')" class="w-full px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600">\n' +
-                                        '    <i class="fas fa-download mr-1"></i>Download\n' +
-                                        '</button>'
-                                    )
-                                : (
-                                        '<button onclick="openFolder(\'' + fileName + '\')" class="w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">\n' +
-                                        '    <i class="fas fa-folder-open mr-1"></i>Open Folder\n' +
-                                        '</button>'
-                                    );
+            const selectedCount = selectedFilesMap.size;
+            
+            if (selectedCount === 0) {
+                detailsContent.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-mouse-pointer text-4xl mb-3 opacity-50"></i>
+                        <p class="text-sm">Select files to view details and perform actions</p>
+                        <p class="text-xs mt-2">Use checkboxes to select multiple files</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            if (selectedCount === 1) {
+                // Show single file details
+                const file = Array.from(selectedFilesMap.values())[0];
+                showSingleFileDetails(file);
+            } else {
+                // Show multi-file summary
+                showMultiFileDetails(Array.from(selectedFilesMap.values()));
+            }
+        }
+        
+        function showSingleFileDetails(file) {
+            const detailsContent = document.getElementById('file-details-content');
+            const isFolder = file.type === 'folder' || file.type === 'directory';
+            const icon = isFolder ? 'fas fa-folder text-blue-500' : getFileIcon(file.name);
             
             detailsContent.innerHTML = `
                 <div class="text-center mb-4">
                     <i class="${icon} text-4xl mb-3"></i>
-                    <h5 class="font-medium text-gray-900">${fileName}</h5>
+                    <h5 class="font-medium text-gray-900 break-words">${file.name}</h5>
                 </div>
                 
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between">
                         <span class="text-gray-600">Type:</span>
-                        <span class="font-medium">${isFolder ? 'Folder' : fileType}</span>
+                        <span class="font-medium">${isFolder ? 'Folder' : file.type}</span>
                     </div>
+                    ${!isFolder ? `
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Size:</span>
+                        <span class="font-medium">${formatFileSize(file.size)}</span>
+                    </div>` : ''}
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Path:</span>
+                        <span class="font-medium text-xs break-all">${file.path}</span>
+                    </div>
+                </div>
+                
+                <div class="mt-6 space-y-2">
+                    ${!isFolder ? `
+                    <button onclick="downloadSingleFile('${file.bucket}', '${file.path}')" 
+                            class="w-full px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600">
+                        <i class="fas fa-download mr-1"></i>Download
+                    </button>
+                    ` : ''}
+                    <button onclick="deleteSingleFile('${file.bucket}', '${file.path}')" 
+                            class="w-full px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
+                        <i class="fas fa-trash mr-1"></i>Delete
+                    </button>
+                    <button onclick="clearFileSelection()" 
+                            class="w-full px-3 py-2 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400">
+                        <i class="fas fa-times mr-1"></i>Clear Selection
+                    </button>
+                </div>
+            `;
+        }
+        
+        function showMultiFileDetails(files) {
+            const detailsContent = document.getElementById('file-details-content');
+            const totalSize = files.reduce((sum, f) => sum + (f.size || 0), 0);
+            const folderCount = files.filter(f => f.type === 'folder' || f.type === 'directory').length;
+            const fileCount = files.length - folderCount;
+            
+            const fileListHtml = files.map(f => {
+                const icon = (f.type === 'folder' || f.type === 'directory') ? 'fas fa-folder text-blue-500' : getFileIcon(f.name);
+                return `
+                    <div class="flex items-center py-1 text-xs">
+                        <i class="${icon} mr-2"></i>
+                        <span class="truncate">${f.name}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            detailsContent.innerHTML = `
+                <div class="text-center mb-4">
+                    <i class="fas fa-layer-group text-4xl text-blue-500 mb-3"></i>
+                    <h5 class="font-medium text-gray-900">${files.length} Items Selected</h5>
+                </div>
+                
+                <div class="space-y-3 text-sm mb-4">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Files:</span>
+                        <span class="font-medium">${fileCount}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Folders:</span>
+                        <span class="font-medium">${folderCount}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Total Size:</span>
+                        <span class="font-medium">${formatFileSize(totalSize)}</span>
+                    </div>
+                </div>
+                
+                <div class="max-h-32 overflow-y-auto border border-gray-200 rounded p-2 mb-4">
+                    ${fileListHtml}
+                </div>
+                
+                <div class="space-y-2">
+                    ${fileCount > 0 ? `
+                    <button onclick="downloadMultipleFiles()" 
+                            class="w-full px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600">
+                        <i class="fas fa-download mr-1"></i>Download All (${fileCount})
+                    </button>
+                    ` : ''}
+                    <button onclick="deleteMultipleFiles()" 
+                            class="w-full px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600">
+                        <i class="fas fa-trash mr-1"></i>Delete All (${files.length})
+                    </button>
+                    <button onclick="clearFileSelection()" 
+                            class="w-full px-3 py-2 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400">
+                        <i class="fas fa-times mr-1"></i>Clear Selection
+                    </button>
+                </div>
+            `;
+        }
+        
+        function clearFileSelection() {
+            // Uncheck all checkboxes
+            document.querySelectorAll('.file-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            // Remove highlighting
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50');
+            });
+            // Clear map
+            selectedFilesMap.clear();
+            updateFileDetailsPanel();
+        }
+        
+        async function downloadSingleFile(bucket, path) {
+            try {
+                console.log(`📥 Downloading file: ${path} from bucket: ${bucket}`);
+                showToast(`Downloading ${path}...`, 'info');
+                
+                // Call MCP tool to get file content
+                const result = await callMCPTool('bucket_download_file', {
+                    bucket: bucket,
+                    path: path
+                });
+                
+                if (result && result.content) {
+                    // Create download link
+                    const blob = new Blob([result.content], { type: result.mime_type || 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = path.split('/').pop();
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showToast(`✅ Downloaded ${path}`, 'success');
+                } else {
+                    showToast(`Error downloading ${path}`, 'error');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast(`Error downloading file: ${error.message}`, 'error');
+            }
+        }
+        
+        async function deleteSingleFile(bucket, path) {
+            if (!confirm(`Are you sure you want to delete "${path}"?`)) return;
+            
+            try {
+                console.log(`🗑️ Deleting file: ${path} from bucket: ${bucket}`);
+                showToast(`Deleting ${path}...`, 'info');
+                
+                const result = await callMCPTool('bucket_delete_file', {
+                    bucket: bucket,
+                    path: path
+                });
+                
+                showToast(`✅ Deleted ${path}`, 'success');
+                clearFileSelection();
+                // Refresh file list
+                const currentPath = document.getElementById('current-path')?.value || '.';
+                await loadBucketFilesInModal(bucket, currentPath);
+            } catch (error) {
+                console.error('Delete error:', error);
+                showToast(`Error deleting file: ${error.message}`, 'error');
+            }
+        }
+        
+        async function downloadMultipleFiles() {
+            const files = Array.from(selectedFilesMap.values()).filter(f => f.type !== 'folder' && f.type !== 'directory');
+            if (files.length === 0) {
+                showToast('No files to download', 'warning');
+                return;
+            }
+            
+            showToast(`Downloading ${files.length} files...`, 'info');
+            
+            for (const file of files) {
+                try {
+                    await downloadSingleFile(file.bucket, file.path);
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay between downloads
+                } catch (error) {
+                    console.error(`Error downloading ${file.name}:`, error);
+                }
+            }
+            
+            showToast(`✅ Downloaded ${files.length} files`, 'success');
+        }
+        
+        async function deleteMultipleFiles() {
+            const files = Array.from(selectedFilesMap.values());
+            if (files.length === 0) return;
+            
+            if (!confirm(`Are you sure you want to delete ${files.length} items?`)) return;
+            
+            showToast(`Deleting ${files.length} items...`, 'info');
+            let successCount = 0;
+            
+            for (const file of files) {
+                try {
+                    await callMCPTool('bucket_delete_file', {
+                        bucket: file.bucket,
+                        path: file.path
+                    });
+                    successCount++;
+                } catch (error) {
+                    console.error(`Error deleting ${file.name}:`, error);
+                }
+            }
+            
+            showToast(`✅ Deleted ${successCount} of ${files.length} items`, 'success');
+            clearFileSelection();
+            
+            // Refresh file list
+            const bucket = files[0].bucket;
+            const currentPath = document.getElementById('current-path')?.value || '.';
+            await loadBucketFilesInModal(bucket, currentPath);
+        }
+
+
                     <div class="flex justify-between">
                         <span class="text-gray-600">Size:</span>
                         <span class="font-medium">${isFolder ? '-' : formatFileSize(fileSize)}</span>
