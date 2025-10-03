@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFS Kit - Unified Comprehensive Dashboard</title>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --success-color: #4ade80;
+            --warning-color: #fbbf24;
+            --error-color: #f87171;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .dashboard-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dashboard-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicators {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .status-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.error { background: var(--error-color); }
+        .status-dot.warning { background: var(--warning-color); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Navigation */
+        .dashboard-nav {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 2rem;
+            position: sticky;
+            top: 4rem;
+            z-index: 90;
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            gap: 0;
+        }
+
+        .nav-tab {
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover {
+            color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .nav-tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        /* Main Content */
+        .dashboard-main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-action {
+            padding: 0.5rem 1rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background 0.2s;
+        }
+
+        .card-action:hover {
+            background: var(--secondary-color);
+        }
+
+        /* Metrics */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .metric-chart {
+            height: 60px;
+            margin-top: 1rem;
+        }
+
+        /* Progress Bars */
+        .progress-bar {
+            width: 100%;
+            height: 0.5rem;
+            background: var(--border-color);
+            border-radius: 0.25rem;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            transition: width 0.5s ease;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-secondary);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            background: var(--bg-primary);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .data-table tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        /* Status badges */
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-badge.running {
+            background: rgba(74, 222, 128, 0.1);
+            color: var(--success-color);
+        }
+
+        .status-badge.stopped {
+            background: rgba(248, 113, 113, 0.1);
+            color: var(--error-color);
+        }
+
+        .status-badge.warning {
+            background: rgba(251, 191, 36, 0.1);
+            color: var(--warning-color);
+        }
+
+        /* Action buttons */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-color);
+        }
+
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--text-secondary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .btn-error {
+            background: var(--error-color);
+            color: white;
+        }
+
+        /* Log viewer */
+        .log-viewer {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.875rem;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+
+        .log-entry {
+            margin-bottom: 0.25rem;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+        }
+
+        .log-entry.error {
+            background: rgba(248, 113, 113, 0.1);
+        }
+
+        .log-entry.warning {
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .log-entry.info {
+            background: rgba(74, 222, 128, 0.1);
+        }
+
+        /* Charts container */
+        .chart-container {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Loading spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .dashboard-header {
+                padding: 1rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .dashboard-nav {
+                padding: 0 1rem;
+            }
+
+            .nav-container {
+                overflow-x: auto;
+            }
+
+            .dashboard-main {
+                padding: 1rem;
+            }
+
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .metric-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Real-time updates indicator */
+        .real-time-indicator {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: var(--success-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: var(--shadow);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .real-time-indicator.active {
+            opacity: 1;
+        }
+
+        /* Connection status */
+        .connection-status {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: var(--bg-secondary);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .connection-status.connected {
+            border-color: var(--success-color);
+            color: var(--success-color);
+        }
+
+        .connection-status.disconnected {
+            border-color: var(--error-color);
+            color: var(--error-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">
+                    🚀 IPFS Kit - Unified Comprehensive Dashboard
+                </h1>
+                <div class="status-indicators">
+                    <div class="status-indicator">
+                        <span class="status-dot" id="mcp-status"></span>
+                        <span>MCP</span>
+                    </div>
+                    <div class="status-indicator">
+                        <span class="status-dot" id="ipfs-status"></span>
+                        <span>IPFS</span>
+                    </div>
+                    <div class="status-indicator">
+                        <span class="status-dot" id="websocket-status"></span>
+                        <span>Real-time</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="dashboard-nav">
+            <div class="nav-container">
+                <button class="nav-tab active" data-tab="overview">📊 Overview</button>
+                <button class="nav-tab" data-tab="services">⚙️ Services</button>
+                <button class="nav-tab" data-tab="backends">🗄️ Backends</button>
+                <button class="nav-tab" data-tab="buckets">🪣 Buckets</button>
+                <button class="nav-tab" data-tab="pins">📌 Pins</button>
+                <button class="nav-tab" data-tab="peers">👥 Peers</button>
+                <button class="nav-tab" data-tab="logs">📝 Logs</button>
+                <button class="nav-tab" data-tab="config">⚙️ Config</button>
+                <button class="nav-tab" data-tab="mcp">🔌 MCP Tools</button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <div class="metric-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="cpu-usage">0%</div>
+                        <div class="metric-label">CPU Usage</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="cpu-progress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="memory-usage">0%</div>
+                        <div class="metric-label">Memory Usage</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="memory-progress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="disk-usage">0%</div>
+                        <div class="metric-label">Disk Usage</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="disk-progress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="peer-count">0</div>
+                        <div class="metric-label">Connected Peers</div>
+                    </div>
+                </div>
+
+                <div class="card-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">🔧 System Status</h3>
+                            <button class="card-action" onclick="refreshSystemStatus()">Refresh</button>
+                        </div>
+                        <div id="system-status-content">
+                            <div class="loading-spinner"></div> Loading system status...
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">📊 Performance Metrics</h3>
+                            <button class="card-action" onclick="toggleMetricsChart()">Toggle Chart</button>
+                        </div>
+                        <div class="chart-container" id="performance-chart" style="display: none;">
+                            <canvas id="metrics-chart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">🗄️ Storage Overview</h3>
+                        </div>
+                        <div id="storage-overview">
+                            <div class="loading-spinner"></div> Loading storage data...
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">🔌 MCP Status</h3>
+                        </div>
+                        <div id="mcp-overview">
+                            <div class="loading-spinner"></div> Loading MCP status...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Services Tab -->
+            <div id="services" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">⚙️ Service Management</h3>
+                        <button class="card-action" onclick="refreshServices()">Refresh</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Service</th>
+                                <th>Status</th>
+                                <th>PID</th>
+                                <th>Uptime</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="services-table-body">
+                            <tr>
+                                <td colspan="5" style="text-align: center;">
+                                    <div class="loading-spinner"></div> Loading services...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Backends Tab -->
+            <div id="backends" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">🗄️ Backend Management</h3>
+                        <button class="card-action" onclick="refreshBackends()">Refresh</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Backend</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Health</th>
+                                <th>Performance</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="backends-table-body">
+                            <tr>
+                                <td colspan="6" style="text-align: center;">
+                                    <div class="loading-spinner"></div> Loading backends...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Buckets Tab -->
+            <div id="buckets" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">🪣 Bucket Management</h3>
+                        <button class="card-action" onclick="createBucket()">Create Bucket</button>
+                    </div>
+                    <div id="buckets-grid" class="card-grid">
+                        <div class="card">
+                            <div class="loading-spinner"></div> Loading buckets...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pins Tab -->
+            <div id="pins" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">📌 Pin Management</h3>
+                        <button class="card-action" onclick="refreshPins()">Refresh</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>CID</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pins-table-body">
+                            <tr>
+                                <td colspan="6" style="text-align: center;">
+                                    <div class="loading-spinner"></div> Loading pins...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Peers Tab -->
+            <div id="peers" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">👥 Peer Management</h3>
+                        <button class="card-action" onclick="refreshPeers()">Refresh</button>
+                    </div>
+                    <div id="peers-content">
+                        <div class="loading-spinner"></div> Loading peer information...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div id="logs" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">📝 Log Streaming</h3>
+                        <div class="chart-controls">
+                            <select id="log-component">
+                                <option value="all">All Components</option>
+                                <option value="mcp">MCP Server</option>
+                                <option value="dashboard">Dashboard</option>
+                                <option value="ipfs">IPFS</option>
+                            </select>
+                            <select id="log-level">
+                                <option value="all">All Levels</option>
+                                <option value="ERROR">Error</option>
+                                <option value="WARNING">Warning</option>
+                                <option value="INFO">Info</option>
+                                <option value="DEBUG">Debug</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="clearLogs()">Clear</button>
+                            <button class="btn btn-primary" onclick="toggleLogStream()">
+                                <span id="log-stream-toggle">Pause</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="log-viewer" id="log-viewer">
+                        <div class="log-entry info">Log streaming starting...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Config Tab -->
+            <div id="config" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">⚙️ Configuration Management</h3>
+                        <button class="card-action" onclick="saveConfiguration()">Save Config</button>
+                    </div>
+                    <div id="config-content">
+                        <div class="loading-spinner"></div> Loading configuration...
+                    </div>
+                </div>
+            </div>
+
+            <!-- MCP Tools Tab -->
+            <div id="mcp" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">🔌 MCP Tools</h3>
+                        <button class="card-action" onclick="refreshMcpTools()">Refresh Tools</button>
+                    </div>
+                    <div class="card-grid" id="mcp-tools-grid">
+                        <div class="card">
+                            <div class="loading-spinner"></div> Loading MCP tools...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Real-time update indicator -->
+        <div class="real-time-indicator" id="update-indicator">
+            📡 Real-time update
+        </div>
+
+        <!-- Connection status -->
+        <div class="connection-status connected" id="connection-status">
+            <span class="status-dot"></span>
+            <span>Connected</span>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Dashboard state
+        let websocket = null;
+        let logStreamEnabled = true;
+        let metricsChart = null;
+        let updateInterval = null;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+        });
+
+        function initializeDashboard() {
+            console.log('🚀 Initializing Unified Comprehensive Dashboard');
+            
+            // Setup navigation
+            setupNavigation();
+            
+            // Setup WebSocket if enabled
+            if ({{ websocket_enabled | default(false) | tojson }}) {
+                setupWebSocket();
+            }
+            
+            // Initialize MCP
+            initializeMcp();
+            
+            // Load initial data
+            loadInitialData();
+            
+            // Start periodic updates
+            startPeriodicUpdates();
+            
+            console.log('✅ Dashboard initialization complete');
+        }
+
+        function setupNavigation() {
+            const tabs = document.querySelectorAll('.nav-tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const targetTab = tab.dataset.tab;
+                    
+                    // Update active tab
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Update active content
+                    contents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(targetTab).classList.add('active');
+                    
+                    // Load tab-specific data
+                    loadTabData(targetTab);
+                });
+            });
+        }
+
+        function setupWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = function() {
+                console.log('✅ WebSocket connected');
+                updateConnectionStatus(true);
+                
+                // Subscribe to system metrics
+                websocket.send(JSON.stringify({
+                    type: 'subscribe',
+                    subscription: 'system_metrics'
+                }));
+                
+                // Subscribe to logs
+                websocket.send(JSON.stringify({
+                    type: 'subscribe',
+                    subscription: 'logs'
+                }));
+            };
+            
+            websocket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                handleWebSocketMessage(message);
+            };
+            
+            websocket.onclose = function() {
+                console.log('❌ WebSocket disconnected');
+                updateConnectionStatus(false);
+                
+                // Attempt to reconnect after 5 seconds
+                setTimeout(setupWebSocket, 5000);
+            };
+            
+            websocket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus(false);
+            };
+        }
+
+        function handleWebSocketMessage(message) {
+            console.log('📡 WebSocket message:', message.type);
+            
+            switch(message.type) {
+                case 'system_metrics_update':
+                    updateSystemMetrics(message.data);
+                    showUpdateIndicator();
+                    break;
+                case 'logs':
+                    updateLogStream(message.data);
+                    break;
+                case 'service_status_update':
+                    updateServiceStatus(message.data);
+                    break;
+                case 'backend_health_update':
+                    updateBackendHealth(message.data);
+                    break;
+                default:
+                    console.log('Unknown message type:', message.type);
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusElement = document.getElementById('connection-status');
+            const wsStatusDot = document.getElementById('websocket-status');
+            
+            if (connected) {
+                statusElement.className = 'connection-status connected';
+                statusElement.innerHTML = '<span class="status-dot"></span><span>Connected</span>';
+                wsStatusDot.className = 'status-dot';
+            } else {
+                statusElement.className = 'connection-status disconnected';
+                statusElement.innerHTML = '<span class="status-dot"></span><span>Disconnected</span>';
+                wsStatusDot.className = 'status-dot error';
+            }
+        }
+
+        function showUpdateIndicator() {
+            const indicator = document.getElementById('update-indicator');
+            indicator.classList.add('active');
+            setTimeout(() => {
+                indicator.classList.remove('active');
+            }, 1000);
+        }
+
+        async function initializeMcp() {
+            try {
+                const response = await fetch('/mcp/initialize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ method: 'initialize' })
+                });
+                
+                const result = await response.json();
+                console.log('✅ MCP initialized:', result);
+                
+                document.getElementById('mcp-status').className = 'status-dot';
+            } catch (error) {
+                console.error('❌ MCP initialization failed:', error);
+                document.getElementById('mcp-status').className = 'status-dot error';
+            }
+        }
+
+        async function loadInitialData() {
+            console.log('📊 Loading initial dashboard data');
+            
+            // Load system overview
+            await loadSystemOverview();
+            
+            // Load current tab data
+            const activeTab = document.querySelector('.nav-tab.active').dataset.tab;
+            await loadTabData(activeTab);
+        }
+
+        async function loadSystemOverview() {
+            try {
+                const [statusRes, metricsRes] = await Promise.all([
+                    fetch('/api/mcp/status'),
+                    fetch('/api/metrics/system')
+                ]);
+                const statusJson = await statusRes.json();
+                const metricsJson = await metricsRes.json();
+                const status = statusJson && (statusJson.data || statusJson);
+                const sys = {
+                    cpu: { usage: metricsJson.cpu_percent || 0 },
+                    memory: metricsJson.memory || {},
+                    disk: metricsJson.disk || {}
+                };
+                updateSystemMetrics(sys);
+                updateSystemStatus({
+                    services: (status.counts||{}).services_active || 0,
+                    backends: (status.counts||{}).backends || 0,
+                    buckets: (status.counts||{}).buckets || 0
+                });
+                console.log('✅ System overview (migrated) loaded');
+            } catch (error) {
+                console.error('❌ Failed to load system overview:', error);
+            }
+        }
+
+        async function loadTabData(tabName) {
+            console.log(`📋 Loading data for tab: ${tabName}`);
+            
+            switch(tabName) {
+                case 'services':
+                    await loadServices();
+                    break;
+                case 'backends':
+                    await loadBackends();
+                    break;
+                case 'buckets':
+                    await loadBuckets();
+                    break;
+                case 'pins':
+                    await loadPins();
+                    break;
+                case 'peers':
+                    await loadPeers();
+                    break;
+                case 'logs':
+                    await loadLogs();
+                    break;
+                case 'config':
+                    await loadConfiguration();
+                    break;
+                case 'mcp':
+                    await loadMcpTools();
+                    break;
+            }
+        }
+
+        function updateSystemMetrics(metrics) {
+            if (!metrics) return;
+            
+            // Update CPU
+            if (metrics.cpu) {
+                const cpuUsage = Math.round(metrics.cpu.usage || 0);
+                document.getElementById('cpu-usage').textContent = `${cpuUsage}%`;
+                document.getElementById('cpu-progress').style.width = `${cpuUsage}%`;
+            }
+            
+            // Update Memory
+            if (metrics.memory) {
+                const memoryPercent = Math.round(metrics.memory.percent || 0);
+                document.getElementById('memory-usage').textContent = `${memoryPercent}%`;
+                document.getElementById('memory-progress').style.width = `${memoryPercent}%`;
+            }
+            
+            // Update Disk
+            if (metrics.disk) {
+                const diskPercent = Math.round(metrics.disk.percent || 0);
+                document.getElementById('disk-usage').textContent = `${diskPercent}%`;
+                document.getElementById('disk-progress').style.width = `${diskPercent}%`;
+            }
+        }
+
+        function updateSystemStatus(data) {
+            const statusContent = document.getElementById('system-status-content');
+            
+            statusContent.innerHTML = `
+                <div style="margin-bottom: 1rem;">
+                    <strong>Uptime:</strong> ${data.uptime || 'Unknown'}
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <strong>IPFS Status:</strong> 
+                    <span class="status-badge ${data.ipfs?.status === 'connected' ? 'running' : 'stopped'}">
+                        ${data.ipfs?.status || 'Unknown'}
+                    </span>
+                </div>
+                <div>
+                    <strong>Connected Peers:</strong> ${data.ipfs?.peers || 0}
+                </div>
+            `;
+            
+            // Update peer count metric
+            document.getElementById('peer-count').textContent = data.ipfs?.peers || 0;
+        }
+
+        async function loadServices() {
+            try {
+                const response = await fetch('/api/services');
+                const services = await response.json();
+                
+                const tbody = document.getElementById('services-table-body');
+                tbody.innerHTML = '';
+                
+                Object.entries(services).forEach(([name, service]) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${name}</td>
+                        <td><span class="status-badge ${service.status}">${service.status}</span></td>
+                        <td>${service.pid || 'N/A'}</td>
+                        <td>${service.uptime || 'N/A'}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-success" onclick="startService('${name}')">Start</button>
+                                <button class="btn btn-warning" onclick="stopService('${name}')">Stop</button>
+                                <button class="btn btn-secondary" onclick="restartService('${name}')">Restart</button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                console.log('✅ Services loaded');
+            } catch (error) {
+                console.error('❌ Failed to load services:', error);
+            }
+        }
+
+        async function loadBackends() {
+            try {
+                const response = await fetch('/api/backends');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('backends-table-body');
+                tbody.innerHTML = '';
+                
+                if (data.backends && data.backends.length > 0) {
+                    data.backends.forEach(backend => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${backend.name}</td>
+                            <td>${backend.type || 'Unknown'}</td>
+                            <td><span class="status-badge ${backend.status}">${backend.status}</span></td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="checkBackendHealth('${backend.name}')">
+                                    Check Health
+                                </button>
+                            </td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="viewBackendPerformance('${backend.name}')">
+                                    View Metrics
+                                </button>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-primary" onclick="configureBackend('${backend.name}')">Configure</button>
+                                    <button class="btn btn-warning" onclick="testBackend('${backend.name}')">Test</button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No backends configured</td></tr>';
+                }
+                
+                console.log('✅ Backends loaded');
+            } catch (error) {
+                console.error('❌ Failed to load backends:', error);
+            }
+        }
+
+        async function loadBuckets() {
+            try {
+                const response = await fetch('/api/buckets');
+                const data = await response.json();
+                
+                const grid = document.getElementById('buckets-grid');
+                grid.innerHTML = '';
+                
+                if (data.data && data.data.buckets && data.data.buckets.length > 0) {
+                    data.data.buckets.forEach(bucket => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        card.innerHTML = `
+                            <div class="card-header">
+                                <h4 class="card-title">🪣 ${bucket.name || 'Unnamed Bucket'}</h4>
+                                <button class="card-action" onclick="manageBucket('${bucket.name}')">Manage</button>
+                            </div>
+                            <div>
+                                <p><strong>Backend:</strong> ${bucket.backend || 'Unknown'}</p>
+                                <p><strong>Type:</strong> ${bucket.type || 'Unknown'}</p>
+                                <p><strong>Size:</strong> ${bucket.size || 'Unknown'}</p>
+                                <div class="action-buttons" style="margin-top: 1rem;">
+                                    <button class="btn btn-primary" onclick="viewBucket('${bucket.name}')">View</button>
+                                    <button class="btn btn-secondary" onclick="syncBucket('${bucket.name}')">Sync</button>
+                                    <button class="btn btn-error" onclick="deleteBucket('${bucket.name}')">Delete</button>
+                                </div>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                } else {
+                    grid.innerHTML = '<div class="card"><div style="text-align: center;">No buckets found</div></div>';
+                }
+                
+                console.log('✅ Buckets loaded');
+            } catch (error) {
+                console.error('❌ Failed to load buckets:', error);
+            }
+        }
+
+        async function loadPins() {
+            try {
+                // Initialize MCP client if not already done
+                if (!window.mcpClient) {
+                    window.mcpClient = new MCPClient({ debug: true });
+                }
+                
+                // Call MCP tool to list pins
+                const data = await window.mcpClient.callTool('list_pins', {});
+                
+                const tbody = document.getElementById('pins-table-body');
+                tbody.innerHTML = '';
+                
+                if (data.success && data.pins && data.pins.length > 0) {
+                    data.pins.forEach(pin => {
+                        const row = document.createElement('tr');
+                        const tags = (pin.metadata?.tags || []).map(tag => 
+                            `<span style="background: var(--bg-primary); padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-right: 0.25rem;">${tag}</span>`
+                        ).join('');
+                        
+                        row.innerHTML = `
+                            <td title="${pin.cid}">${pin.cid ? pin.cid.substring(0, 20) + '...' : 'Unknown'}</td>
+                            <td><span class="status-badge running">${pin.type || 'Unknown'}</span></td>
+                            <td>${pin.size || 'Unknown'}</td>
+                            <td><span class="status-badge running">${pin.status || 'Pinned'}</span></td>
+                            <td>${new Date(pin.created).toLocaleDateString() || 'Unknown'}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-secondary" onclick="viewPin('${pin.cid}')">View</button>
+                                    <button class="btn btn-error" onclick="unpinContent('${pin.cid}')">Unpin</button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No pinned content found</td></tr>';
+                }
+                
+                console.log('✅ Pins loaded via MCP SDK');
+            } catch (error) {
+                console.error('❌ Failed to load pins via MCP SDK:', error);
+                // Fallback to old method if MCP SDK fails
+                try {
+                    const response = await fetch('/api/pins');
+                    const data = await response.json();
+                    
+                    const tbody = document.getElementById('pins-table-body');
+                    tbody.innerHTML = '';
+                    
+                    if (data.pins && data.pins.length > 0) {
+                        data.pins.forEach(pin => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td title="${pin.cid}">${pin.cid ? pin.cid.substring(0, 20) + '...' : 'Unknown'}</td>
+                                <td>${pin.type || 'Unknown'}</td>
+                                <td>${pin.size || 'Unknown'}</td>
+                                <td><span class="status-badge running">Pinned</span></td>
+                                <td>${pin.created || 'Unknown'}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-secondary" onclick="viewPin('${pin.cid}')">View</button>
+                                        <button class="btn btn-error" onclick="unpinContent('${pin.cid}')">Unpin</button>
+                                    </div>
+                                </td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No pinned content found</td></tr>';
+                    }
+                    
+                    console.log('✅ Pins loaded via fallback API');
+                } catch (fallbackError) {
+                    console.error('❌ Fallback also failed:', fallbackError);
+                    const tbody = document.getElementById('pins-table-body');
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--error-color);">Error loading pins</td></tr>';
+                }
+            }
+        }
+        
+        async function unpinContent(cid) {
+            if (!confirm(`Are you sure you want to unpin ${cid}?`)) {
+                return;
+            }
+            
+            try {
+                // Initialize MCP client if not already done
+                if (!window.mcpClient) {
+                    window.mcpClient = new MCPClient({ debug: true });
+                }
+                
+                const result = await window.mcpClient.callTool('unpin_content', { cid });
+                
+                if (result.success) {
+                    console.log('✅ Content unpinned via MCP SDK');
+                    await loadPins(); // Reload pins
+                    alert('Pin removed successfully');
+                } else {
+                    console.error('❌ Failed to unpin:', result.error);
+                    alert('Failed to unpin: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('❌ Error unpinning content:', error);
+                alert('Error unpinning content: ' + error.message);
+            }
+        }
+        
+        async function viewPin(cid) {
+            try {
+                // Initialize MCP client if not already done
+                if (!window.mcpClient) {
+                    window.mcpClient = new MCPClient({ debug: true });
+                }
+                
+                const result = await window.mcpClient.callTool('get_pin_metadata', { cid });
+                
+                if (result.success && result.metadata) {
+                    const pin = result.metadata;
+                    const details = `
+CID: ${pin.cid}
+Type: ${pin.type}
+Size: ${pin.size}
+Status: ${pin.status}
+Backend: ${pin.metadata?.backend || 'unknown'}
+Tags: ${(pin.metadata?.tags || []).join(', ')}
+Created: ${new Date(pin.created).toLocaleString()}
+                    `;
+                    alert(details);
+                } else {
+                    alert('Failed to load pin details');
+                }
+            } catch (error) {
+                console.error('❌ Error viewing pin:', error);
+                alert('Error loading pin details: ' + error.message);
+            }
+        }
+
+        async function loadPeers() {
+            try {
+                const response = await fetch('/api/peers');
+                const data = await response.json();
+                
+                const content = document.getElementById('peers-content');
+                
+                if (data.peers && data.peers.length > 0) {
+                    content.innerHTML = `
+                        <div style="margin-bottom: 1rem;">
+                            <strong>Total Peers:</strong> ${data.total || data.peers.length}
+                        </div>
+                        <div class="card-grid">
+                            ${data.peers.slice(0, 12).map(peer => `
+                                <div class="card">
+                                    <h4>Peer</h4>
+                                    <p><strong>ID:</strong> ${peer.ID ? peer.ID.substring(0, 20) + '...' : 'Unknown'}</p>
+                                    <p><strong>Address:</strong> ${peer.Addr || 'Unknown'}</p>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-secondary" onclick="viewPeer('${peer.ID}')">Details</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = '<div style="text-align: center;">No peers connected</div>';
+                }
+                
+                console.log('✅ Peers loaded');
+            } catch (error) {
+                console.error('❌ Failed to load peers:', error);
+                document.getElementById('peers-content').innerHTML = '<div style="text-align: center; color: var(--error-color);">Error loading peer information</div>';
+            }
+        }
+
+        async function loadLogs() {
+            try {
+                const response = await fetch('/api/logs?limit=50');
+                const data = await response.json();
+                
+                const logViewer = document.getElementById('log-viewer');
+                
+                if (data.logs && data.logs.length > 0) {
+                    logViewer.innerHTML = data.logs.map(log => 
+                        `<div class="log-entry ${log.level.toLowerCase()}">${log.message}</div>`
+                    ).join('');
+                } else {
+                    logViewer.innerHTML = '<div class="log-entry info">No logs available</div>';
+                }
+                
+                // Scroll to bottom
+                logViewer.scrollTop = logViewer.scrollHeight;
+                
+                console.log('✅ Logs loaded');
+            } catch (error) {
+                console.error('❌ Failed to load logs:', error);
+            }
+        }
+
+        async function loadConfiguration() {
+            const content = document.getElementById('config-content');
+            content.innerHTML = `
+                <div class="card-grid">
+                    <div class="card">
+                        <h4>Dashboard Configuration</h4>
+                        <p><strong>Host:</strong> {{ host | default('127.0.0.1') }}</p>
+                        <p><strong>Port:</strong> {{ port | default(8080) }}</p>
+                        <p><strong>WebSocket:</strong> {{ websocket_enabled | default(false) }}</p>
+                        <p><strong>Log Streaming:</strong> {{ config.log_streaming | default(false) }}</p>
+                    </div>
+                    <div class="card">
+                        <h4>Component Status</h4>
+                        {% if component_status %}
+                        {% for component, available in component_status.items() %}
+                        <p><strong>{{ component }}:</strong> 
+                            <span class="status-badge {{ 'running' if available else 'stopped' }}">
+                                {{ 'Available' if available else 'Not Available' }}
+                            </span>
+                        </p>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="card">
+                        <h4>Features</h4>
+                        {% if features %}
+                        {% for feature, enabled in features.items() %}
+                        <p><strong>{{ feature }}:</strong> 
+                            <span class="status-badge {{ 'running' if enabled else 'stopped' }}">
+                                {{ 'Enabled' if enabled else 'Disabled' }}
+                            </span>
+                        </p>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            `;
+            
+            console.log('✅ Configuration loaded');
+        }
+
+        async function loadMcpTools() {
+            try {
+                const response = await fetch('/mcp/tools/list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ method: 'tools/list' })
+                });
+                const data = await response.json();
+                
+                const grid = document.getElementById('mcp-tools-grid');
+                grid.innerHTML = '';
+                
+                if (data.result && data.result.tools && data.result.tools.length > 0) {
+                    data.result.tools.forEach(tool => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        card.innerHTML = `
+                            <div class="card-header">
+                                <h4 class="card-title">🔧 ${tool.name}</h4>
+                                <button class="card-action" onclick="executeMcpTool('${tool.name}')">Execute</button>
+                            </div>
+                            <div>
+                                <p>${tool.description}</p>
+                                <div style="margin-top: 1rem;">
+                                    <strong>Parameters:</strong>
+                                    <pre style="font-size: 0.75rem; background: var(--bg-primary); padding: 0.5rem; border-radius: 0.25rem; margin-top: 0.5rem;">${JSON.stringify(tool.input_schema, null, 2)}</pre>
+                                </div>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                } else {
+                    grid.innerHTML = '<div class="card"><div style="text-align: center;">No MCP tools available</div></div>';
+                }
+                
+                console.log('✅ MCP tools loaded');
+            } catch (error) {
+                console.error('❌ Failed to load MCP tools:', error);
+            }
+        }
+
+        function startPeriodicUpdates() {
+            // Update system metrics every 5 seconds if WebSocket is not available
+            if (!websocket) {
+                updateInterval = setInterval(async () => {
+                    const activeTab = document.querySelector('.nav-tab.active').dataset.tab;
+                    if (activeTab === 'overview') {
+                        await loadSystemOverview();
+                    }
+                }, 5000);
+            }
+        }
+
+        // Action functions
+        function refreshSystemStatus() {
+            loadSystemOverview();
+        }
+
+        function refreshServices() {
+            loadServices();
+        }
+
+        function refreshBackends() {
+            loadBackends();
+        }
+
+        function refreshPins() {
+            loadPins();
+        }
+
+        function refreshPeers() {
+            loadPeers();
+        }
+
+        function refreshMcpTools() {
+            loadMcpTools();
+        }
+
+        async function startService(serviceName) {
+            try {
+                const response = await fetch(`/api/services/${serviceName}/start`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ Service ${serviceName} started`);
+                    await loadServices();
+                } else {
+                    console.error(`❌ Failed to start service ${serviceName}:`, result.error);
+                    alert(`Failed to start service: ${result.error}`);
+                }
+            } catch (error) {
+                console.error(`❌ Error starting service ${serviceName}:`, error);
+                alert(`Error starting service: ${error.message}`);
+            }
+        }
+
+        async function stopService(serviceName) {
+            try {
+                const response = await fetch(`/api/services/${serviceName}/stop`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ Service ${serviceName} stopped`);
+                    await loadServices();
+                } else {
+                    console.error(`❌ Failed to stop service ${serviceName}:`, result.error);
+                    alert(`Failed to stop service: ${result.error}`);
+                }
+            } catch (error) {
+                console.error(`❌ Error stopping service ${serviceName}:`, error);
+                alert(`Error stopping service: ${error.message}`);
+            }
+        }
+
+        async function restartService(serviceName) {
+            try {
+                const response = await fetch(`/api/services/${serviceName}/restart`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ Service ${serviceName} restarted`);
+                    await loadServices();
+                } else {
+                    console.error(`❌ Failed to restart service ${serviceName}:`, result.error);
+                    alert(`Failed to restart service: ${result.error}`);
+                }
+            } catch (error) {
+                console.error(`❌ Error restarting service ${serviceName}:`, error);
+                alert(`Error restarting service: ${error.message}`);
+            }
+        }
+
+        async function executeMcpTool(toolName) {
+            try {
+                // For demo purposes, execute with empty parameters
+                // In a real implementation, you'd show a form to collect parameters
+                const response = await fetch('/mcp/tools/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        method: 'tools/call',
+                        params: {
+                            name: toolName,
+                            arguments: {}
+                        }
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.result) {
+                    console.log(`✅ MCP tool ${toolName} executed:`, result.result);
+                    alert(`Tool executed successfully: ${JSON.stringify(result.result, null, 2)}`);
+                } else {
+                    console.error(`❌ MCP tool ${toolName} failed:`, result.error);
+                    alert(`Tool execution failed: ${result.error}`);
+                }
+            } catch (error) {
+                console.error(`❌ Error executing MCP tool ${toolName}:`, error);
+                alert(`Error executing tool: ${error.message}`);
+            }
+        }
+
+        function toggleMetricsChart() {
+            const chart = document.getElementById('performance-chart');
+            chart.style.display = chart.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function createBucket() {
+            const name = prompt('Enter bucket name:');
+            const backend = prompt('Enter backend name:');
+            if (name && backend) {
+                // Implementation would call MCP create_bucket tool
+                console.log(`Creating bucket ${name} on backend ${backend}`);
+            }
+        }
+
+        function toggleLogStream() {
+            logStreamEnabled = !logStreamEnabled;
+            const toggle = document.getElementById('log-stream-toggle');
+            toggle.textContent = logStreamEnabled ? 'Pause' : 'Resume';
+        }
+
+        function clearLogs() {
+            document.getElementById('log-viewer').innerHTML = '';
+        }
+
+        function saveConfiguration() {
+            console.log('Saving configuration...');
+            alert('Configuration saved (placeholder)');
+        }
+
+        // Additional utility functions would be implemented here...
+        
+        console.log('📋 Unified Comprehensive Dashboard JavaScript loaded');
+    </script>
+    
+    <!-- MCP SDK for proper tool integration -->
+    <script src="/static/mcp-sdk.js"></script>
+</body>
+</html>
