@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pin Management Dashboard - IPFS Kit</title>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --success-color: #4ade80;
+            --warning-color: #fbbf24;
+            --error-color: #f87171;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: var(--text-secondary);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #475569;
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ef4444;
+        }
+
+        .btn-outline {
+            background: white;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-outline:hover {
+            background: var(--bg-primary);
+        }
+
+        select {
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .pins-table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h2 {
+            font-size: 1.25rem;
+        }
+
+        .bulk-actions {
+            display: none;
+            gap: 0.5rem;
+        }
+
+        .bulk-actions.active {
+            display: flex;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: var(--bg-primary);
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        tr:hover {
+            background: var(--bg-primary);
+        }
+
+        .cid-cell {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.75rem;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .tags {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            padding: 0.125rem 0.5rem;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            padding: 0.5rem 0.75rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn-view {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .action-btn-view:hover {
+            background: #cbd5e1;
+        }
+
+        .action-btn-unpin {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .action-btn-unpin:hover {
+            background: #ef4444;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 1.25rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        .metadata-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .metadata-item {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .metadata-label {
+            font-weight: 600;
+            min-width: 120px;
+            color: var(--text-secondary);
+        }
+
+        .metadata-value {
+            flex: 1;
+            word-break: break-all;
+        }
+
+        .notification {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            gap: 1rem;
+            max-width: 400px;
+        }
+
+        .notification.active {
+            display: flex;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+
+        .notification-icon.success {
+            background: var(--success-color);
+        }
+
+        .notification-icon.error {
+            background: var(--error-color);
+        }
+
+        .pagination {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+        }
+
+        .pagination-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--bg-primary);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📌 Pin Management Dashboard</h1>
+            <p>Manage your IPFS pins with advanced filtering, bulk operations, and export capabilities</p>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Pins</div>
+                <div class="stat-value" id="stat-total">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Recursive</div>
+                <div class="stat-value" id="stat-recursive">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Direct</div>
+                <div class="stat-value" id="stat-direct">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Storage Backends</div>
+                <div class="stat-value" id="stat-backends">0</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="controls-row">
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Search by CID, name, or tags..." />
+                </div>
+                <div class="filter-group">
+                    <select id="type-filter">
+                        <option value="">All Types</option>
+                        <option value="recursive">Recursive</option>
+                        <option value="direct">Direct</option>
+                        <option value="indirect">Indirect</option>
+                    </select>
+                    <select id="backend-filter">
+                        <option value="">All Backends</option>
+                        <option value="ipfs">IPFS</option>
+                        <option value="ipfs-cluster">IPFS Cluster</option>
+                        <option value="storacha">Storacha</option>
+                    </select>
+                    <select id="sort-by">
+                        <option value="created">Sort by Date</option>
+                        <option value="cid">Sort by CID</option>
+                        <option value="size">Sort by Size</option>
+                        <option value="type">Sort by Type</option>
+                    </select>
+                    <button class="btn btn-outline" onclick="applyFilters()">Apply Filters</button>
+                    <button class="btn btn-outline" onclick="resetFilters()">Reset</button>
+                </div>
+            </div>
+            <div class="controls-row" style="margin-top: 1rem;">
+                <button class="btn btn-primary" onclick="refreshPins()">🔄 Refresh</button>
+                <button class="btn btn-success" onclick="exportPins('json')">📥 Export JSON</button>
+                <button class="btn btn-success" onclick="exportPins('csv')">📥 Export CSV</button>
+                <button class="btn btn-outline" onclick="selectAll()">☑️ Select All</button>
+                <button class="btn btn-outline" onclick="deselectAll()">☐ Deselect All</button>
+            </div>
+        </div>
+
+        <!-- Pins Table -->
+        <div class="pins-table-container">
+            <div class="table-header">
+                <h2>Pins (<span id="pins-count">0</span>)</h2>
+                <div class="bulk-actions" id="bulk-actions">
+                    <span id="selected-count">0 selected</span>
+                    <button class="btn btn-danger btn-sm" onclick="bulkUnpin()">🗑️ Bulk Unpin</button>
+                </div>
+            </div>
+            <div id="table-container">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading pins...</p>
+                </div>
+            </div>
+            <div class="pagination" id="pagination" style="display: none;">
+                <button class="pagination-btn" id="prev-btn" onclick="prevPage()" disabled>Previous</button>
+                <span class="pagination-info" id="page-info">Page 1 of 1</span>
+                <button class="pagination-btn" id="next-btn" onclick="nextPage()" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pin Details Modal -->
+    <div class="modal" id="pin-details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Pin Details</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="pin-details-body">
+                <!-- Details will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal()">Close</button>
+                <button class="btn btn-danger" onclick="unpinFromModal()">Unpin</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">
+        <div class="notification-icon" id="notification-icon"></div>
+        <div id="notification-message"></div>
+    </div>
+
+    <!-- Include MCP SDK -->
+    <script src="/static/mcp-sdk.js"></script>
+    
+    <script>
+        // Global state
+        let allPins = [];
+        let filteredPins = [];
+        let selectedPins = new Set();
+        let currentPage = 1;
+        let itemsPerPage = 20;
+        let currentPinCid = null;
+        
+        // Initialize MCP client
+        const mcpClient = new MCPClient({ debug: true });
+        
+        // Load pins on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPins();
+            loadStats();
+            setupEventListeners();
+        });
+        
+        function setupEventListeners() {
+            // Search input
+            document.getElementById('search-input').addEventListener('input', debounce(applyFilters, 300));
+        }
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        async function loadPins() {
+            try {
+                showLoading();
+                
+                // Call MCP tool to list pins
+                const result = await mcpClient.callTool('list_pins', {});
+                
+                if (result.success) {
+                    allPins = result.pins || [];
+                    filteredPins = [...allPins];
+                    updatePinsTable();
+                    updatePaginationInfo();
+                } else {
+                    showNotification('Failed to load pins: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error loading pins:', error);
+                showNotification('Error loading pins: ' + error.message, 'error');
+            }
+        }
+        
+        async function loadStats() {
+            try {
+                const result = await mcpClient.callTool('get_pin_stats', {});
+                
+                if (result.success && result.stats) {
+                    const stats = result.stats;
+                    document.getElementById('stat-total').textContent = stats.total_pins || 0;
+                    document.getElementById('stat-recursive').textContent = stats.by_type?.recursive || 0;
+                    document.getElementById('stat-direct').textContent = stats.by_type?.direct || 0;
+                    document.getElementById('stat-backends').textContent = Object.keys(stats.by_backend || {}).length;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        function showLoading() {
+            document.getElementById('table-container').innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading pins...</p>
+                </div>
+            `;
+        }
+        
+        function updatePinsTable() {
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pinsToShow = filteredPins.slice(start, end);
+            
+            document.getElementById('pins-count').textContent = filteredPins.length;
+            
+            if (pinsToShow.length === 0) {
+                document.getElementById('table-container').innerHTML = `
+                    <div class="loading">
+                        <p>No pins found matching your criteria</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const tableHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="select-all-checkbox" onclick="toggleSelectAll()"></th>
+                            <th>CID</th>
+                            <th>Type</th>
+                            <th>Size</th>
+                            <th>Backend</th>
+                            <th>Tags</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${pinsToShow.map(pin => `
+                            <tr>
+                                <td><input type="checkbox" class="pin-checkbox" data-cid="${pin.cid}" 
+                                     ${selectedPins.has(pin.cid) ? 'checked' : ''} 
+                                     onchange="togglePinSelection('${pin.cid}')"></td>
+                                <td class="cid-cell" title="${pin.cid}">${pin.cid}</td>
+                                <td><span class="badge badge-info">${pin.type}</span></td>
+                                <td>${pin.size}</td>
+                                <td>${pin.metadata?.backend || 'unknown'}</td>
+                                <td>
+                                    <div class="tags">
+                                        ${(pin.metadata?.tags || []).map(tag => 
+                                            `<span class="tag">${tag}</span>`
+                                        ).join('')}
+                                    </div>
+                                </td>
+                                <td>${new Date(pin.created).toLocaleDateString()}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="action-btn action-btn-view" onclick="viewPinDetails('${pin.cid}')">View</button>
+                                        <button class="action-btn action-btn-unpin" onclick="unpinSingle('${pin.cid}')">Unpin</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('table-container').innerHTML = tableHtml;
+            updateBulkActionsVisibility();
+        }
+        
+        function updatePaginationInfo() {
+            const totalPages = Math.ceil(filteredPins.length / itemsPerPage);
+            document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('prev-btn').disabled = currentPage === 1;
+            document.getElementById('next-btn').disabled = currentPage === totalPages;
+            
+            if (totalPages > 1) {
+                document.getElementById('pagination').style.display = 'flex';
+            } else {
+                document.getElementById('pagination').style.display = 'none';
+            }
+        }
+        
+        function applyFilters() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const typeFilter = document.getElementById('type-filter').value;
+            const backendFilter = document.getElementById('backend-filter').value;
+            const sortBy = document.getElementById('sort-by').value;
+            
+            filteredPins = allPins.filter(pin => {
+                const matchesSearch = !searchTerm || 
+                    pin.cid.toLowerCase().includes(searchTerm) ||
+                    (pin.metadata?.name || '').toLowerCase().includes(searchTerm) ||
+                    (pin.metadata?.tags || []).some(tag => tag.toLowerCase().includes(searchTerm));
+                
+                const matchesType = !typeFilter || pin.type === typeFilter;
+                const matchesBackend = !backendFilter || pin.metadata?.backend === backendFilter;
+                
+                return matchesSearch && matchesType && matchesBackend;
+            });
+            
+            // Sort
+            filteredPins.sort((a, b) => {
+                switch (sortBy) {
+                    case 'created':
+                        return new Date(b.created) - new Date(a.created);
+                    case 'cid':
+                        return a.cid.localeCompare(b.cid);
+                    case 'type':
+                        return a.type.localeCompare(b.type);
+                    default:
+                        return 0;
+                }
+            });
+            
+            currentPage = 1;
+            updatePinsTable();
+            updatePaginationInfo();
+        }
+        
+        function resetFilters() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('type-filter').value = '';
+            document.getElementById('backend-filter').value = '';
+            document.getElementById('sort-by').value = 'created';
+            applyFilters();
+        }
+        
+        function togglePinSelection(cid) {
+            if (selectedPins.has(cid)) {
+                selectedPins.delete(cid);
+            } else {
+                selectedPins.add(cid);
+            }
+            updateBulkActionsVisibility();
+        }
+        
+        function toggleSelectAll() {
+            const checkbox = document.getElementById('select-all-checkbox');
+            const checkboxes = document.querySelectorAll('.pin-checkbox');
+            
+            checkboxes.forEach(cb => {
+                const cid = cb.getAttribute('data-cid');
+                if (checkbox.checked) {
+                    selectedPins.add(cid);
+                    cb.checked = true;
+                } else {
+                    selectedPins.delete(cid);
+                    cb.checked = false;
+                }
+            });
+            
+            updateBulkActionsVisibility();
+        }
+        
+        function selectAll() {
+            filteredPins.forEach(pin => selectedPins.add(pin.cid));
+            updatePinsTable();
+        }
+        
+        function deselectAll() {
+            selectedPins.clear();
+            updatePinsTable();
+        }
+        
+        function updateBulkActionsVisibility() {
+            const bulkActions = document.getElementById('bulk-actions');
+            const selectedCount = document.getElementById('selected-count');
+            
+            if (selectedPins.size > 0) {
+                bulkActions.classList.add('active');
+                selectedCount.textContent = `${selectedPins.size} selected`;
+            } else {
+                bulkActions.classList.remove('active');
+            }
+        }
+        
+        async function viewPinDetails(cid) {
+            try {
+                const result = await mcpClient.callTool('get_pin_metadata', { cid });
+                
+                if (result.success && result.metadata) {
+                    const pin = result.metadata;
+                    const detailsHtml = `
+                        <div class="metadata-grid">
+                            <div class="metadata-item">
+                                <div class="metadata-label">CID:</div>
+                                <div class="metadata-value">${pin.cid}</div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-label">Type:</div>
+                                <div class="metadata-value"><span class="badge badge-info">${pin.type}</span></div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-label">Size:</div>
+                                <div class="metadata-value">${pin.size}</div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-label">Status:</div>
+                                <div class="metadata-value"><span class="badge badge-success">${pin.status}</span></div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-label">Backend:</div>
+                                <div class="metadata-value">${pin.metadata?.backend || 'unknown'}</div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-label">Replication:</div>
+                                <div class="metadata-value">${pin.metadata?.replication_count || 1} copies</div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-label">Tags:</div>
+                                <div class="metadata-value">
+                                    <div class="tags">
+                                        ${(pin.metadata?.tags || []).map(tag => 
+                                            `<span class="tag">${tag}</span>`
+                                        ).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-label">Name:</div>
+                                <div class="metadata-value">${pin.metadata?.name || 'N/A'}</div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-label">Description:</div>
+                                <div class="metadata-value">${pin.metadata?.description || 'N/A'}</div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-label">Created:</div>
+                                <div class="metadata-value">${new Date(pin.created).toLocaleString()}</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('pin-details-body').innerHTML = detailsHtml;
+                    currentPinCid = cid;
+                    document.getElementById('pin-details-modal').classList.add('active');
+                } else {
+                    showNotification('Failed to load pin details', 'error');
+                }
+            } catch (error) {
+                console.error('Error viewing pin details:', error);
+                showNotification('Error loading pin details: ' + error.message, 'error');
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('pin-details-modal').classList.remove('active');
+            currentPinCid = null;
+        }
+        
+        async function unpinSingle(cid) {
+            if (!confirm(`Are you sure you want to unpin ${cid}?`)) {
+                return;
+            }
+            
+            try {
+                const result = await mcpClient.callTool('unpin_content', { cid });
+                
+                if (result.success) {
+                    showNotification('Pin removed successfully', 'success');
+                    await loadPins();
+                    await loadStats();
+                } else {
+                    showNotification('Failed to unpin: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error unpinning:', error);
+                showNotification('Error unpinning: ' + error.message, 'error');
+            }
+        }
+        
+        async function unpinFromModal() {
+            if (currentPinCid) {
+                closeModal();
+                await unpinSingle(currentPinCid);
+            }
+        }
+        
+        async function bulkUnpin() {
+            const cids = Array.from(selectedPins);
+            
+            if (cids.length === 0) {
+                showNotification('No pins selected', 'error');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to unpin ${cids.length} pin(s)?`)) {
+                return;
+            }
+            
+            try {
+                const result = await mcpClient.callTool('bulk_unpin', { cids });
+                
+                if (result.success) {
+                    showNotification(
+                        `Unpinned ${result.success_count} of ${result.total} pins`, 
+                        result.error_count === 0 ? 'success' : 'error'
+                    );
+                    selectedPins.clear();
+                    await loadPins();
+                    await loadStats();
+                } else {
+                    showNotification('Failed to bulk unpin: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error bulk unpinning:', error);
+                showNotification('Error bulk unpinning: ' + error.message, 'error');
+            }
+        }
+        
+        async function exportPins(format) {
+            try {
+                const typeFilter = document.getElementById('type-filter').value;
+                const result = await mcpClient.callTool('export_pins', { 
+                    format,
+                    filter_type: typeFilter || null
+                });
+                
+                if (result.success) {
+                    // Create download link
+                    const blob = new Blob([result.data], { 
+                        type: format === 'json' ? 'application/json' : 'text/csv' 
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `pins_export_${Date.now()}.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showNotification(`Exported ${result.count} pins to ${format.toUpperCase()}`, 'success');
+                } else {
+                    showNotification('Failed to export: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error exporting:', error);
+                showNotification('Error exporting: ' + error.message, 'error');
+            }
+        }
+        
+        function refreshPins() {
+            loadPins();
+            loadStats();
+            showNotification('Refreshing pins...', 'success');
+        }
+        
+        function nextPage() {
+            const totalPages = Math.ceil(filteredPins.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                updatePinsTable();
+                updatePaginationInfo();
+            }
+        }
+        
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                updatePinsTable();
+                updatePaginationInfo();
+            }
+        }
+        
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            const icon = document.getElementById('notification-icon');
+            const messageEl = document.getElementById('notification-message');
+            
+            icon.className = 'notification-icon ' + type;
+            messageEl.textContent = message;
+            notification.classList.add('active');
+            
+            setTimeout(() => {
+                notification.classList.remove('active');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1207,21 +1207,30 @@
 
         async function loadPins() {
             try {
-                const response = await fetch('/api/pins');
-                const data = await response.json();
+                // Initialize MCP client if not already done
+                if (!window.mcpClient) {
+                    window.mcpClient = new MCPClient({ debug: true });
+                }
+                
+                // Call MCP tool to list pins
+                const data = await window.mcpClient.callTool('list_pins', {});
                 
                 const tbody = document.getElementById('pins-table-body');
                 tbody.innerHTML = '';
                 
-                if (data.pins && data.pins.length > 0) {
+                if (data.success && data.pins && data.pins.length > 0) {
                     data.pins.forEach(pin => {
                         const row = document.createElement('tr');
+                        const tags = (pin.metadata?.tags || []).map(tag => 
+                            `<span style="background: var(--bg-primary); padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-right: 0.25rem;">${tag}</span>`
+                        ).join('');
+                        
                         row.innerHTML = `
                             <td title="${pin.cid}">${pin.cid ? pin.cid.substring(0, 20) + '...' : 'Unknown'}</td>
-                            <td>${pin.type || 'Unknown'}</td>
+                            <td><span class="status-badge running">${pin.type || 'Unknown'}</span></td>
                             <td>${pin.size || 'Unknown'}</td>
-                            <td><span class="status-badge running">Pinned</span></td>
-                            <td>${pin.created || 'Unknown'}</td>
+                            <td><span class="status-badge running">${pin.status || 'Pinned'}</span></td>
+                            <td>${new Date(pin.created).toLocaleDateString() || 'Unknown'}</td>
                             <td>
                                 <div class="action-buttons">
                                     <button class="btn btn-secondary" onclick="viewPin('${pin.cid}')">View</button>
@@ -1235,9 +1244,102 @@
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No pinned content found</td></tr>';
                 }
                 
-                console.log('✅ Pins loaded');
+                console.log('✅ Pins loaded via MCP SDK');
             } catch (error) {
-                console.error('❌ Failed to load pins:', error);
+                console.error('❌ Failed to load pins via MCP SDK:', error);
+                // Fallback to old method if MCP SDK fails
+                try {
+                    const response = await fetch('/api/pins');
+                    const data = await response.json();
+                    
+                    const tbody = document.getElementById('pins-table-body');
+                    tbody.innerHTML = '';
+                    
+                    if (data.pins && data.pins.length > 0) {
+                        data.pins.forEach(pin => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td title="${pin.cid}">${pin.cid ? pin.cid.substring(0, 20) + '...' : 'Unknown'}</td>
+                                <td>${pin.type || 'Unknown'}</td>
+                                <td>${pin.size || 'Unknown'}</td>
+                                <td><span class="status-badge running">Pinned</span></td>
+                                <td>${pin.created || 'Unknown'}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-secondary" onclick="viewPin('${pin.cid}')">View</button>
+                                        <button class="btn btn-error" onclick="unpinContent('${pin.cid}')">Unpin</button>
+                                    </div>
+                                </td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No pinned content found</td></tr>';
+                    }
+                    
+                    console.log('✅ Pins loaded via fallback API');
+                } catch (fallbackError) {
+                    console.error('❌ Fallback also failed:', fallbackError);
+                    const tbody = document.getElementById('pins-table-body');
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--error-color);">Error loading pins</td></tr>';
+                }
+            }
+        }
+        
+        async function unpinContent(cid) {
+            if (!confirm(`Are you sure you want to unpin ${cid}?`)) {
+                return;
+            }
+            
+            try {
+                // Initialize MCP client if not already done
+                if (!window.mcpClient) {
+                    window.mcpClient = new MCPClient({ debug: true });
+                }
+                
+                const result = await window.mcpClient.callTool('unpin_content', { cid });
+                
+                if (result.success) {
+                    console.log('✅ Content unpinned via MCP SDK');
+                    await loadPins(); // Reload pins
+                    alert('Pin removed successfully');
+                } else {
+                    console.error('❌ Failed to unpin:', result.error);
+                    alert('Failed to unpin: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('❌ Error unpinning content:', error);
+                alert('Error unpinning content: ' + error.message);
+            }
+        }
+        
+        async function viewPin(cid) {
+            try {
+                // Initialize MCP client if not already done
+                if (!window.mcpClient) {
+                    window.mcpClient = new MCPClient({ debug: true });
+                }
+                
+                const result = await window.mcpClient.callTool('get_pin_metadata', { cid });
+                
+                if (result.success && result.metadata) {
+                    const pin = result.metadata;
+                    const details = `
+CID: ${pin.cid}
+Type: ${pin.type}
+Size: ${pin.size}
+Status: ${pin.status}
+Backend: ${pin.metadata?.backend || 'unknown'}
+Tags: ${(pin.metadata?.tags || []).join(', ')}
+Created: ${new Date(pin.created).toLocaleString()}
+                    `;
+                    alert(details);
+                } else {
+                    alert('Failed to load pin details');
+                }
+            } catch (error) {
+                console.error('❌ Error viewing pin:', error);
+                alert('Error loading pin details: ' + error.message);
             }
         }
 
@@ -1544,5 +1646,8 @@
         
         console.log('📋 Unified Comprehensive Dashboard JavaScript loaded');
     </script>
+    
+    <!-- MCP SDK for proper tool integration -->
+    <script src="/static/mcp-sdk.js"></script>
 </body>
 </html>
