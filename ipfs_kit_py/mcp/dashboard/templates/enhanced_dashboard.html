@@ -2990,22 +2990,30 @@
             if (discoverPeersBtn) {
                 discoverPeersBtn.addEventListener('click', async () => {
                     console.log('Starting peer discovery...');
-                    showToast('Starting peer discovery...', 'info');
+                    showToast('🔍 Starting peer discovery...', 'info');
                     
                     try {
-                        const result = await callMCPTool('discover_peers', {});
+                        const result = await callMCPTool('discover_peers', { limit: 50, timeout: 15 });
                         const discovered = result?.result?.total_discovered || 0;
+                        const peers = result?.result?.peers || [];
+                        const source = result?.result?.source || 'unknown';
+                        
+                        console.log('Discovery result:', { discovered, source, peers });
                         
                         if (discovered > 0) {
-                            showToast(`Discovered ${discovered} new peers`, 'success');
+                            showToast(`✅ Discovered ${discovered} peers from ${source}`, 'success');
                             await loadPeersData();
                             await loadPeerStats();
                         } else {
-                            showToast('No new peers discovered', 'info');
+                            if (source === 'fallback') {
+                                showToast('⚠️ No new peers discovered. IPFS daemon may not be running or no peers are available.', 'warning');
+                            } else {
+                                showToast('ℹ️ No new peers discovered at this time. Try again in a few moments.', 'info');
+                            }
                         }
                     } catch (error) {
                         console.error('Error discovering peers:', error);
-                        showToast('Failed to discover peers', 'error');
+                        showToast('❌ Failed to discover peers: ' + error.message, 'error');
                     }
                 });
             }
@@ -3014,22 +3022,39 @@
             if (bootstrapPeersBtn) {
                 bootstrapPeersBtn.addEventListener('click', async () => {
                     console.log('Bootstrapping peers...');
-                    showToast('Bootstrapping peers...', 'info');
+                    showToast('Fetching bootstrap peers list...', 'info');
                     
                     try {
-                        const result = await callMCPTool('bootstrap_peers', {});
-                        const bootstrapped = result?.result?.total_bootstrapped || 0;
+                        // First, list the bootstrap peers
+                        const listResult = await callMCPTool('bootstrap_peers', { action: 'list' });
+                        const peers = listResult?.result?.peers || [];
                         
-                        if (bootstrapped > 0) {
-                            showToast(`Bootstrapped ${bootstrapped} peers`, 'success');
-                            await loadPeersData();
-                            await loadPeerStats();
+                        if (peers.length > 0) {
+                            showToast(`Found ${peers.length} bootstrap peers configured`, 'success');
+                            
+                            // Show the list in the console
+                            console.log('Bootstrap peers:', peers);
+                            
+                            // Update UI to show success
+                            showToast(`✅ ${peers.length} bootstrap peers are configured and available`, 'success');
+                            
+                            // Optionally try to connect via discover_peers
+                            const discoverResult = await callMCPTool('discover_peers', { limit: 20, timeout: 10 });
+                            const discovered = discoverResult?.result?.total_discovered || 0;
+                            
+                            if (discovered > 0) {
+                                showToast(`Discovered ${discovered} peers from the network`, 'success');
+                                await loadPeersData();
+                                await loadPeerStats();
+                            } else {
+                                showToast('No active peers discovered yet. Try again in a few moments.', 'info');
+                            }
                         } else {
-                            showToast('No peers bootstrapped', 'info');
+                            showToast('⚠️ No bootstrap peers configured. IPFS daemon may not be running.', 'warning');
                         }
                     } catch (error) {
                         console.error('Error bootstrapping peers:', error);
-                        showToast('Failed to bootstrap peers', 'error');
+                        showToast('❌ Failed to bootstrap peers. Ensure IPFS daemon is running.', 'error');
                     }
                 });
             }
@@ -8273,13 +8298,27 @@
 
             if (!peers || peers.length === 0) {
                 list.innerHTML = `
-                    <div class="text-center py-12 text-gray-500">
+                    <div class="text-center py-12 text-gray-600">
                         <div class="text-4xl mb-4">🌐</div>
-                        <h3 class="text-lg font-medium mb-2">No Peers Connected</h3>
-                        <p class="text-sm mb-4">IPFS network peers will appear here when connected</p>
-                        <button onclick="loadPeersData()" class="btn btn-blue">
-                            <i class="fas fa-sync mr-2"></i>Refresh
-                        </button>
+                        <h3 class="text-lg font-bold mb-3">No Peers Connected</h3>
+                        <div class="max-w-2xl mx-auto text-left bg-blue-50 rounded-lg p-6 mb-4">
+                            <h4 class="font-semibold mb-2 text-blue-900">To connect to IPFS peers:</h4>
+                            <ol class="list-decimal list-inside space-y-2 text-sm text-blue-800">
+                                <li>Ensure IPFS daemon is running: <code class="bg-blue-100 px-2 py-1 rounded">ipfs daemon</code></li>
+                                <li>Wait a few moments for automatic peer discovery</li>
+                                <li>Or click "Bootstrap Peers" to connect to default IPFS bootstrap nodes</li>
+                                <li>Or click "Discover Peers" to search for nearby peers</li>
+                                <li>Or use "Connect Peer" to manually add a peer by multiaddr</li>
+                            </ol>
+                        </div>
+                        <div class="flex gap-2 justify-center">
+                            <button onclick="loadPeersData()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                                <i class="fas fa-sync mr-2"></i>Refresh
+                            </button>
+                            <button onclick="checkIPFSStatus()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                                <i class="fas fa-heartbeat mr-2"></i>Check IPFS Status
+                            </button>
+                        </div>
                     </div>
                 `;
                 return;
@@ -8411,15 +8450,40 @@
                 const discoveryActiveEl = document.getElementById('discovery-active');
                 const protocolsCountEl = document.getElementById('protocols-count');
                 
-                if (totalPeersEl) totalPeersEl.textContent = stats.total_peers || 0;
-                if (connectedPeersEl) connectedPeersEl.textContent = stats.connected_peers || 0;
-                if (discoveryActiveEl) discoveryActiveEl.textContent = stats.discovery_active ? 'Yes' : 'No';
-                if (protocolsCountEl) protocolsCountEl.textContent = (stats.protocols_supported || []).length;
+                const totalPeers = stats.total_peers || stats.total || 0;
+                const connectedPeers = stats.connected_peers || stats.connected || 0;
+                const discoveryActive = stats.discovery_active || false;
+                const protocols = stats.protocols_supported || [];
                 
-                console.log('📊 Peer statistics updated');
+                if (totalPeersEl) totalPeersEl.textContent = totalPeers;
+                if (connectedPeersEl) connectedPeersEl.textContent = connectedPeers;
+                if (discoveryActiveEl) {
+                    if (totalPeers === 0 && connectedPeers === 0) {
+                        discoveryActiveEl.textContent = 'N/A';
+                        discoveryActiveEl.parentElement.classList.remove('bg-yellow-50');
+                        discoveryActiveEl.parentElement.classList.add('bg-gray-50');
+                    } else {
+                        discoveryActiveEl.textContent = discoveryActive ? 'Yes' : 'No';
+                        discoveryActiveEl.parentElement.classList.remove('bg-gray-50');
+                        discoveryActiveEl.parentElement.classList.add('bg-yellow-50');
+                    }
+                }
+                if (protocolsCountEl) protocolsCountEl.textContent = Array.isArray(protocols) ? protocols.length : 0;
+                
+                console.log('📊 Peer statistics updated:', { totalPeers, connectedPeers, discoveryActive, protocols: protocols.length });
                 
             } catch (error) {
                 console.error('Error loading peer stats:', error);
+                // Set to zero/N/A on error
+                const totalPeersEl = document.getElementById('total-peers');
+                const connectedPeersEl = document.getElementById('connected-peers');
+                const discoveryActiveEl = document.getElementById('discovery-active');
+                const protocolsCountEl = document.getElementById('protocols-count');
+                
+                if (totalPeersEl) totalPeersEl.textContent = '0';
+                if (connectedPeersEl) connectedPeersEl.textContent = '0';
+                if (discoveryActiveEl) discoveryActiveEl.textContent = 'N/A';
+                if (protocolsCountEl) protocolsCountEl.textContent = '0';
             }
         }
 
@@ -8497,6 +8561,37 @@ Shared Pins: ${pinsets.length || 0}
             } catch (error) {
                 console.error('Error getting peer info:', error);
                 showToast(`Error getting peer info: ${error.message}`, 'error');
+            }
+        }
+
+        // Check IPFS daemon status
+        async function checkIPFSStatus() {
+            try {
+                console.log('Checking IPFS daemon status...');
+                showToast('Checking IPFS daemon status...', 'info');
+                
+                // Try to get IPFS version as a health check
+                const result = await callMCPTool('ipfs_version', {});
+                
+                if (result?.result?.ok || result?.result?.Version) {
+                    const version = result?.result?.Version || result?.result?.version || 'Unknown';
+                    showToast(`✅ IPFS daemon is running (version: ${version})`, 'success');
+                    
+                    // Also try to get bootstrap peers
+                    const bootstrapResult = await callMCPTool('bootstrap_peers', { action: 'list' });
+                    const bootstrapPeers = bootstrapResult?.result?.peers || [];
+                    
+                    if (bootstrapPeers.length > 0) {
+                        showToast(`Found ${bootstrapPeers.length} bootstrap peers configured`, 'info');
+                    } else {
+                        showToast('No bootstrap peers configured. Click "Bootstrap Peers" to add them.', 'warning');
+                    }
+                } else {
+                    showToast('⚠️ IPFS daemon may not be running. Please start it with: ipfs daemon', 'warning');
+                }
+            } catch (error) {
+                console.error('Error checking IPFS status:', error);
+                showToast('❌ Unable to connect to IPFS daemon. Please ensure it is running.', 'error');
             }
         }
 
