@@ -8176,12 +8176,16 @@ Shared Pins: ${pinsets.length || 0}
                     config: config
                 });
                 
-                if (result?.ok || result?.success) {
+                // The result is wrapped: { result: actualResponse }
+                const updateResult = result?.result || result;
+                
+                if (updateResult?.ok || updateResult?.success) {
                     showToast(`✅ Configuration for ${backendName} saved successfully`, 'success');
                     document.getElementById('backend-config-modal').classList.add('hidden');
                     await loadBackendsData();
                 } else {
-                    showToast(`❌ Failed to save configuration: ${result?.error || 'Unknown error'}`, 'error');
+                    const errorMsg = updateResult?.error || updateResult?.message || 'Unknown error';
+                    showToast(`❌ Failed to save configuration: ${errorMsg}`, 'error');
                 }
             } catch (error) {
                 console.error('Error saving backend configuration:', error);
@@ -8212,10 +8216,16 @@ Shared Pins: ${pinsets.length || 0}
                     name: backendName
                 });
                 
-                if (result?.ok || result?.success) {
-                    showToast(`✅ Connection to ${backendName} successful`, 'success');
+                // The result is wrapped: { result: actualResponse }
+                // test_backend returns { name, type, reachable, response_time, details, errors }
+                const testResult = result?.result || result;
+                
+                if (testResult?.reachable) {
+                    const responseTime = testResult.response_time ? ` (${(testResult.response_time * 1000).toFixed(0)}ms)` : '';
+                    showToast(`✅ Connection to ${backendName} successful${responseTime}`, 'success');
                 } else {
-                    showToast(`❌ Connection test failed: ${result?.error || 'Unknown error'}`, 'error');
+                    const errorMsg = testResult?.errors?.[0] || testResult?.error || 'Unknown error';
+                    showToast(`❌ Connection test failed: ${errorMsg}`, 'error');
                 }
             } catch (error) {
                 console.error('Error testing backend connection:', error);
@@ -8257,10 +8267,16 @@ Shared Pins: ${pinsets.length || 0}
                     force_sync: false
                 });
                 
-                if (result?.ok || result?.success) {
-                    showToast(`✅ Policy applied to ${backendName} successfully`, 'success');
+                // The result is wrapped: { result: actualResponse }
+                // apply_backend_policy returns { ok, message, synced, backend }
+                const policyResult = result?.result || result;
+                
+                if (policyResult?.ok) {
+                    const syncMsg = policyResult.synced ? ' and synced' : '';
+                    showToast(`✅ Policy applied to ${backendName} successfully${syncMsg}`, 'success');
                 } else {
-                    showToast(`❌ Failed to apply policy: ${result?.error || 'Unknown error'}`, 'error');
+                    const errorMsg = policyResult?.error || policyResult?.message || 'Unknown error';
+                    showToast(`❌ Failed to apply policy: ${errorMsg}`, 'error');
                 }
             } catch (error) {
                 console.error('Error applying backend policy:', error);
