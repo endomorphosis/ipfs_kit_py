@@ -8170,9 +8170,9 @@ Shared Pins: ${pinsets.length || 0}
                 showToast(`Saving configuration for ${backendName}...`, 'info');
                 
                 // Use MCP SDK to save backend configuration
-                const result = await callMCPTool('update_backend_config', {
-                    backend_name: backendName,
-                    backend_type: backendType,
+                // Note: update_backend requires 'name' and 'config' parameters
+                const result = await callMCPTool('update_backend', {
+                    name: backendName,
                     config: config
                 });
                 
@@ -8207,9 +8207,9 @@ Shared Pins: ${pinsets.length || 0}
                 showToast(`Testing connection to ${backendName}...`, 'info');
                 
                 // Use MCP SDK to test backend connection
-                const result = await callMCPTool('test_backend_connection', {
-                    backend_name: backendName,
-                    backend_type: backendType
+                // Note: test_backend requires only 'name' parameter
+                const result = await callMCPTool('test_backend', {
+                    name: backendName
                 });
                 
                 if (result?.ok || result?.success) {
@@ -8250,9 +8250,11 @@ Shared Pins: ${pinsets.length || 0}
                 showToast(`Applying policy to ${backendName}...`, 'info');
                 
                 // Use MCP SDK to apply backend policy
+                // Note: apply_backend_policy requires 'name', 'policy', and optional 'force_sync'
                 const result = await callMCPTool('apply_backend_policy', {
-                    backend_name: backendName,
-                    policy: policy
+                    name: backendName,
+                    policy: policy,
+                    force_sync: false
                 });
                 
                 if (result?.ok || result?.success) {
@@ -8326,11 +8328,11 @@ Shared Pins: ${pinsets.length || 0}
                 showToast(`Creating backend instance ${backendName}...`, 'info');
                 
                 // Use MCP SDK to create backend instance
+                // Note: create_backend_instance requires 'service_type' and 'instance_name'
                 const result = await callMCPTool('create_backend_instance', {
-                    backend_type: backendType,
-                    backend_name: backendName,
-                    description: description || '',
-                    config: {}
+                    service_type: backendType,
+                    instance_name: backendName,
+                    description: description || ''
                 });
                 
                 if (result?.ok || result?.success) {
