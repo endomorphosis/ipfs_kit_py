@@ -4624,55 +4624,61 @@ class EnhancedUnifiedMCPServer:
     async def _list_pins(self, pin_type: str = "all", cid: Optional[str] = None) -> Dict[str, Any]:
         """List pinned content with metadata."""
         try:
-            # Try to get IPFS model for real pin data
-            pins_data = []
-            
+            # Try to use the new pin management tools
             try:
-                # Import IPFS model
-                from ipfs_kit_py.mcp.models.ipfs_model_fix import fix_ipfs_model
-                from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+                # Import pin management tools
+                from ipfs_kit.tools.pin_management_tools import handle_list_pins
                 
-                # Initialize IPFS model
-                ipfs_model = IPFSModel()
-                fix_ipfs_model(IPFSModel)
+                # Call the tool
+                params = {
+                    "type": pin_type,
+                    "include_metadata": True
+                }
+                result = handle_list_pins(params)
                 
-                # List pins
-                result = ipfs_model.pin_ls(cid=cid, type=pin_type)
-                
-                if result.get("success") and result.get("pins"):
-                    # Transform pin data to include metadata
-                    for pin in result["pins"]:
-                        pin_entry = {
-                            "cid": pin["cid"],
-                            "type": pin.get("type", "recursive"),
-                            "size": pin.get("size", "Unknown"),
-                            "status": "pinned",
-                            "created": pin.get("created", datetime.now().isoformat()),
-                            "metadata": {
-                                "backend": "ipfs",
-                                "replication_count": 1,
-                                "tags": pin.get("tags", [])
-                            }
+                if result.get("success"):
+                    pins_data = result.get("pins", [])
+                    
+                    # If a specific CID was requested, filter for it
+                    if cid:
+                        pins_data = [p for p in pins_data if p["cid"] == cid]
+                    
+                    return {
+                        "success": True,
+                        "pins": pins_data,
+                        "total": len(pins_data),
+                        "filter": {
+                            "type": pin_type,
+                            "cid": cid
                         }
-                        pins_data.append(pin_entry)
+                    }
                 else:
-                    # Fallback to simulated data for testing
-                    logger.info("Using simulated pin data")
+                    # Fallback to simulated data
+                    logger.warning(f"Pin tools returned error: {result.get('error')}, using simulation")
                     pins_data = self._generate_simulated_pins()
+                    return {
+                        "success": True,
+                        "pins": pins_data,
+                        "total": len(pins_data),
+                        "filter": {
+                            "type": pin_type,
+                            "cid": cid
+                        }
+                    }
                     
             except Exception as e:
-                logger.warning(f"Could not load real pin data: {e}, using simulation")
+                logger.warning(f"Could not load pin management tools: {e}, using simulation")
                 pins_data = self._generate_simulated_pins()
-            
-            return {
-                "success": True,
-                "pins": pins_data,
-                "total": len(pins_data),
-                "filter": {
-                    "type": pin_type,
-                    "cid": cid
+                return {
+                    "success": True,
+                    "pins": pins_data,
+                    "total": len(pins_data),
+                    "filter": {
+                        "type": pin_type,
+                        "cid": cid
+                    }
                 }
-            }
+            
         except Exception as e:
             logger.error(f"Error listing pins: {e}")
             return {"success": False, "error": str(e), "pins": [], "total": 0}
@@ -4750,19 +4756,20 @@ class EnhancedUnifiedMCPServer:
         """Unpin content from IPFS."""
         try:
             try:
-                from ipfs_kit_py.mcp.models.ipfs_model_fix import fix_ipfs_model
-                from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+                from ipfs_kit.tools.pin_management_tools import handle_unpin_content
                 
-                ipfs_model = IPFSModel()
-                fix_ipfs_model(IPFSModel)
-                
-                result = ipfs_model.pin_rm(cid, recursive=recursive)
+                params = {
+                    "cid": cid,
+                    "recursive": recursive
+                }
+                result = handle_unpin_content(params)
                 
                 if result.get("success"):
                     return {
                         "success": True,
                         "cid": cid,
                         "unpinned": True,
+                        "pins": result.get("pins", []),
                         "message": f"Successfully unpinned {cid}"
                     }
                 else:
@@ -4782,140 +4789,217 @@ class EnhancedUnifiedMCPServer:
     
     async def _bulk_unpin(self, cids: List[str]) -> Dict[str, Any]:
         """Unpin multiple CIDs."""
-        results = []
-        success_count = 0
-        error_count = 0
-        
-        for cid in cids:
-            result = await self._unpin_content(cid)
-            results.append({
-                "cid": cid,
-                "success": result.get("success", False),
-                "error": result.get("error")
-            })
+        try:
+            from ipfs_kit.tools.pin_management_tools import handle_bulk_unpin
+            
+            params = {
+                "cids": cids,
+                "recursive": True
+            }
+            result = handle_bulk_unpin(params)
+            
             if result.get("success"):
-                success_count += 1
+                return {
+                    "success": True,
+                    "total": result.get("total", len(cids)),
+                    "success_count": result.get("success_count", 0),
+                    "error_count": result.get("error_count", 0),
+                    "errors": result.get("errors", [])
+                }
             else:
-                error_count += 1
-        
-        return {
-            "success": True,
-            "total": len(cids),
-            "success_count": success_count,
-            "error_count": error_count,
-            "results": results
-        }
+                return {"success": False, "error": result.get("error", "Unknown error")}
+        except Exception as e:
+            logger.error(f"Error bulk unpinning: {e}")
+            # Fallback to sequential unpinning
+            results = []
+            success_count = 0
+            error_count = 0
+            
+            for cid in cids:
+                result = await self._unpin_content(cid)
+                results.append({
+                    "cid": cid,
+                    "success": result.get("success", False),
+                    "error": result.get("error")
+                })
+                if result.get("success"):
+                    success_count += 1
+                else:
+                    error_count += 1
+            
+            return {
+                "success": True,
+                "total": len(cids),
+                "success_count": success_count,
+                "error_count": error_count,
+                "results": results
+            }
     
     async def _get_pin_metadata(self, cid: str) -> Dict[str, Any]:
         """Get metadata for a specific pin."""
         try:
-            # Get pin list and find the specific pin
-            pins_result = await self._list_pins(cid=cid)
+            from ipfs_kit.tools.pin_management_tools import handle_get_pin_metadata
             
-            if pins_result.get("success") and pins_result.get("pins"):
-                pin = pins_result["pins"][0]
+            params = {"cid": cid}
+            result = handle_get_pin_metadata(params)
+            
+            if result.get("success"):
                 return {
                     "success": True,
                     "cid": cid,
-                    "metadata": pin
+                    "metadata": result.get("metadata", {})
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"Pin not found for CID: {cid}"
+                    "error": result.get("error", f"Pin not found for CID: {cid}")
                 }
         except Exception as e:
             logger.error(f"Error getting pin metadata: {e}")
-            return {"success": False, "error": str(e)}
+            # Fallback to listing pins
+            try:
+                pins_result = await self._list_pins(cid=cid)
+                
+                if pins_result.get("success") and pins_result.get("pins"):
+                    pin = pins_result["pins"][0]
+                    return {
+                        "success": True,
+                        "cid": cid,
+                        "metadata": pin
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": f"Pin not found for CID: {cid}"
+                    }
+            except Exception as fallback_e:
+                logger.error(f"Fallback also failed: {fallback_e}")
+                return {"success": False, "error": str(e)}
     
     async def _export_pins(self, format: str = "json", filter_type: Optional[str] = None) -> Dict[str, Any]:
         """Export pins in the specified format."""
         try:
-            # Get all pins
-            pins_result = await self._list_pins(pin_type=filter_type or "all")
+            from ipfs_kit.tools.pin_management_tools import handle_export_pins
             
-            if not pins_result.get("success"):
-                return {"success": False, "error": "Failed to retrieve pins"}
+            params = {
+                "format": format,
+                "filter_type": filter_type
+            }
+            result = handle_export_pins(params)
             
-            pins = pins_result.get("pins", [])
-            
-            if format == "json":
+            if result.get("success"):
                 return {
                     "success": True,
-                    "format": "json",
-                    "data": json.dumps(pins, indent=2),
-                    "count": len(pins)
-                }
-            elif format == "csv":
-                # Convert to CSV format
-                if not pins:
-                    csv_data = "cid,type,size,status,created,backend,tags\n"
-                else:
-                    csv_lines = ["cid,type,size,status,created,backend,tags"]
-                    for pin in pins:
-                        tags = ",".join(pin.get("metadata", {}).get("tags", []))
-                        csv_lines.append(
-                            f"{pin['cid']},{pin['type']},{pin['size']},{pin['status']},"
-                            f"{pin['created']},{pin.get('metadata', {}).get('backend', 'unknown')},{tags}"
-                        )
-                    csv_data = "\n".join(csv_lines)
-                
-                return {
-                    "success": True,
-                    "format": "csv",
-                    "data": csv_data,
-                    "count": len(pins)
+                    "format": format,
+                    "data": result.get("data", ""),
+                    "count": result.get("count", 0)
                 }
             else:
-                return {"success": False, "error": f"Unsupported format: {format}"}
+                return {"success": False, "error": result.get("error", "Failed to export pins")}
         except Exception as e:
             logger.error(f"Error exporting pins: {e}")
-            return {"success": False, "error": str(e)}
+            # Fallback implementation
+            try:
+                pins_result = await self._list_pins(pin_type=filter_type or "all")
+                
+                if not pins_result.get("success"):
+                    return {"success": False, "error": "Failed to retrieve pins"}
+                
+                pins = pins_result.get("pins", [])
+                
+                if format == "json":
+                    return {
+                        "success": True,
+                        "format": "json",
+                        "data": json.dumps(pins, indent=2),
+                        "count": len(pins)
+                    }
+                elif format == "csv":
+                    # Convert to CSV format
+                    if not pins:
+                        csv_data = "cid,type,size,status,created,backend,tags\n"
+                    else:
+                        csv_lines = ["cid,type,size,status,created,backend,tags"]
+                        for pin in pins:
+                            tags = ",".join(pin.get("metadata", {}).get("tags", []))
+                            csv_lines.append(
+                                f"{pin['cid']},{pin['type']},{pin['size']},{pin['status']},"
+                                f"{pin['created']},{pin.get('metadata', {}).get('backend', 'unknown')},{tags}"
+                            )
+                        csv_data = "\n".join(csv_lines)
+                    
+                    return {
+                        "success": True,
+                        "format": "csv",
+                        "data": csv_data,
+                        "count": len(pins)
+                    }
+                else:
+                    return {"success": False, "error": f"Unsupported format: {format}"}
+            except Exception as fallback_e:
+                logger.error(f"Fallback export also failed: {fallback_e}")
+                return {"success": False, "error": str(e)}
     
     async def _get_pin_stats(self) -> Dict[str, Any]:
         """Get statistics about pins."""
         try:
-            pins_result = await self._list_pins()
+            from ipfs_kit.tools.pin_management_tools import handle_get_pin_stats
             
-            if not pins_result.get("success"):
-                return {"success": False, "error": "Failed to retrieve pins"}
+            params = {}
+            result = handle_get_pin_stats(params)
             
-            pins = pins_result.get("pins", [])
-            
-            # Calculate statistics
-            stats = {
-                "total_pins": len(pins),
-                "by_type": {},
-                "by_backend": {},
-                "by_status": {},
-                "total_size": 0,
-                "tags": {}
-            }
-            
-            for pin in pins:
-                # Count by type
-                pin_type = pin.get("type", "unknown")
-                stats["by_type"][pin_type] = stats["by_type"].get(pin_type, 0) + 1
-                
-                # Count by backend
-                backend = pin.get("metadata", {}).get("backend", "unknown")
-                stats["by_backend"][backend] = stats["by_backend"].get(backend, 0) + 1
-                
-                # Count by status
-                status = pin.get("status", "unknown")
-                stats["by_status"][status] = stats["by_status"].get(status, 0) + 1
-                
-                # Count tags
-                for tag in pin.get("metadata", {}).get("tags", []):
-                    stats["tags"][tag] = stats["tags"].get(tag, 0) + 1
-            
-            return {
-                "success": True,
-                "stats": stats
-            }
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "stats": result.get("stats", {})
+                }
+            else:
+                return {"success": False, "error": result.get("error", "Failed to get pin stats")}
         except Exception as e:
             logger.error(f"Error getting pin stats: {e}")
-            return {"success": False, "error": str(e)}
+            # Fallback implementation
+            try:
+                pins_result = await self._list_pins()
+                
+                if not pins_result.get("success"):
+                    return {"success": False, "error": "Failed to retrieve pins"}
+                
+                pins = pins_result.get("pins", [])
+                
+                # Calculate statistics
+                stats = {
+                    "total_pins": len(pins),
+                    "by_type": {},
+                    "by_backend": {},
+                    "by_status": {},
+                    "total_size": 0,
+                    "tags": {}
+                }
+                
+                for pin in pins:
+                    # Count by type
+                    pin_type = pin.get("type", "unknown")
+                    stats["by_type"][pin_type] = stats["by_type"].get(pin_type, 0) + 1
+                    
+                    # Count by backend
+                    backend = pin.get("metadata", {}).get("backend", "unknown")
+                    stats["by_backend"][backend] = stats["by_backend"].get(backend, 0) + 1
+                    
+                    # Count by status
+                    status = pin.get("status", "unknown")
+                    stats["by_status"][status] = stats["by_status"].get(status, 0) + 1
+                    
+                    # Count tags
+                    for tag in pin.get("metadata", {}).get("tags", []):
+                        stats["tags"][tag] = stats["tags"].get(tag, 0) + 1
+                
+                return {
+                    "success": True,
+                    "stats": stats
+                }
+            except Exception as fallback_e:
+                logger.error(f"Fallback stats also failed: {fallback_e}")
+                return {"success": False, "error": str(e)}
     
     async def _health_check(self) -> Dict[str, Any]:
         """Perform health check."""
