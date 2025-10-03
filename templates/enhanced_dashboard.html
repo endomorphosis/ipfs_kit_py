@@ -8123,9 +8123,9 @@ Shared Pins: ${pinsets.length || 0}
             }
             
             // Backend configuration modal apply policy button
-            const applyBackendPolicy = document.getElementById('apply-backend-policy-btn');
-            if (applyBackendPolicy) {
-                applyBackendPolicy.addEventListener('click', async () => {
+            const applyBackendPolicyBtn = document.getElementById('apply-backend-policy-btn');
+            if (applyBackendPolicyBtn) {
+                applyBackendPolicyBtn.addEventListener('click', async () => {
                     await applyBackendPolicy();
                 });
             }
@@ -8139,9 +8139,9 @@ Shared Pins: ${pinsets.length || 0}
             }
             
             // Create backend instance button
-            const createBackendInstance = document.getElementById('create-backend-instance-btn');
-            if (createBackendInstance) {
-                createBackendInstance.addEventListener('click', async () => {
+            const createBackendInstanceBtn = document.getElementById('create-backend-instance-btn');
+            if (createBackendInstanceBtn) {
+                createBackendInstanceBtn.addEventListener('click', async () => {
                     await createBackendInstance();
                 });
             }
@@ -8304,6 +8304,53 @@ Shared Pins: ${pinsets.length || 0}
             }
             
             return config;
+        }
+        
+        // Create a new backend instance using MCP SDK
+        async function createBackendInstance() {
+            try {
+                const backendType = document.getElementById('new-backend-type')?.value;
+                const backendName = document.getElementById('new-backend-name')?.value;
+                const description = document.getElementById('new-backend-description')?.value;
+                
+                if (!backendType) {
+                    showToast('Please select a backend type', 'error');
+                    return;
+                }
+                
+                if (!backendName) {
+                    showToast('Please provide a backend name', 'error');
+                    return;
+                }
+                
+                showToast(`Creating backend instance ${backendName}...`, 'info');
+                
+                // Use MCP SDK to create backend instance
+                const result = await callMCPTool('create_backend_instance', {
+                    backend_type: backendType,
+                    backend_name: backendName,
+                    description: description || '',
+                    config: {}
+                });
+                
+                if (result?.ok || result?.success) {
+                    showToast(`✅ Backend instance ${backendName} created successfully`, 'success');
+                    document.getElementById('add-backend-instance-modal').classList.add('hidden');
+                    
+                    // Clear form fields
+                    document.getElementById('new-backend-type').value = '';
+                    document.getElementById('new-backend-name').value = '';
+                    document.getElementById('new-backend-description').value = '';
+                    
+                    // Reload backends list
+                    await loadBackendsData();
+                } else {
+                    showToast(`❌ Failed to create backend: ${result?.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error creating backend instance:', error);
+                showToast(`Error creating backend: ${error.message}`, 'error');
+            }
         }
         
         let currentBucket = null;
