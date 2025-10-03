@@ -2920,6 +2920,9 @@
             // Bucket Management
             setupBucketManagement();
             
+            // Backend Management
+            setupBackendManagement();
+            
             // Drag and Drop
             setupDragAndDropForFiles();
             
@@ -8081,6 +8084,226 @@ Shared Pins: ${pinsets.length || 0}
                     </label>
                 </div>
             `;
+        }
+        
+        // Setup Backend Management Event Listeners
+        function setupBackendManagement() {
+            console.log('🖥️ Setting up backend management event listeners...');
+            
+            // Backend configuration modal close button
+            const closeBackendConfigModal = document.getElementById('close-backend-config-modal');
+            if (closeBackendConfigModal) {
+                closeBackendConfigModal.addEventListener('click', () => {
+                    document.getElementById('backend-config-modal').classList.add('hidden');
+                });
+            }
+            
+            // Backend configuration modal cancel button
+            const cancelBackendConfig = document.getElementById('cancel-backend-config-btn');
+            if (cancelBackendConfig) {
+                cancelBackendConfig.addEventListener('click', () => {
+                    document.getElementById('backend-config-modal').classList.add('hidden');
+                });
+            }
+            
+            // Backend configuration modal save button
+            const saveBackendConfig = document.getElementById('save-backend-config-btn');
+            if (saveBackendConfig) {
+                saveBackendConfig.addEventListener('click', async () => {
+                    await saveBackendConfiguration();
+                });
+            }
+            
+            // Backend configuration modal test button
+            const testBackendConfig = document.getElementById('test-backend-config-btn');
+            if (testBackendConfig) {
+                testBackendConfig.addEventListener('click', async () => {
+                    await testBackendConfiguration();
+                });
+            }
+            
+            // Backend configuration modal apply policy button
+            const applyBackendPolicy = document.getElementById('apply-backend-policy-btn');
+            if (applyBackendPolicy) {
+                applyBackendPolicy.addEventListener('click', async () => {
+                    await applyBackendPolicy();
+                });
+            }
+            
+            // Add backend instance modal cancel button
+            const cancelAddBackend = document.getElementById('cancel-add-backend-btn');
+            if (cancelAddBackend) {
+                cancelAddBackend.addEventListener('click', () => {
+                    document.getElementById('add-backend-instance-modal').classList.add('hidden');
+                });
+            }
+            
+            // Create backend instance button
+            const createBackendInstance = document.getElementById('create-backend-instance-btn');
+            if (createBackendInstance) {
+                createBackendInstance.addEventListener('click', async () => {
+                    await createBackendInstance();
+                });
+            }
+            
+            console.log('✅ Backend management event listeners set up successfully');
+        }
+        
+        // Save backend configuration using MCP SDK
+        async function saveBackendConfiguration() {
+            try {
+                const modal = document.getElementById('backend-config-modal');
+                const title = document.getElementById('backend-config-modal-title').textContent;
+                
+                // Extract backend name and type from title
+                const match = title.match(/Configure (.+?) \((.+?)\)/);
+                if (!match) {
+                    showToast('Unable to determine backend information', 'error');
+                    return;
+                }
+                
+                const [, backendName, backendType] = match;
+                
+                // Collect configuration values based on backend type
+                const config = collectBackendConfig(backendType);
+                
+                showToast(`Saving configuration for ${backendName}...`, 'info');
+                
+                // Use MCP SDK to save backend configuration
+                const result = await callMCPTool('update_backend_config', {
+                    backend_name: backendName,
+                    backend_type: backendType,
+                    config: config
+                });
+                
+                if (result?.ok || result?.success) {
+                    showToast(`✅ Configuration for ${backendName} saved successfully`, 'success');
+                    document.getElementById('backend-config-modal').classList.add('hidden');
+                    await loadBackendsData();
+                } else {
+                    showToast(`❌ Failed to save configuration: ${result?.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving backend configuration:', error);
+                showToast(`Error saving configuration: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test backend configuration using MCP SDK
+        async function testBackendConfiguration() {
+            try {
+                const modal = document.getElementById('backend-config-modal');
+                const title = document.getElementById('backend-config-modal-title').textContent;
+                
+                // Extract backend name and type from title
+                const match = title.match(/Configure (.+?) \((.+?)\)/);
+                if (!match) {
+                    showToast('Unable to determine backend information', 'error');
+                    return;
+                }
+                
+                const [, backendName, backendType] = match;
+                
+                showToast(`Testing connection to ${backendName}...`, 'info');
+                
+                // Use MCP SDK to test backend connection
+                const result = await callMCPTool('test_backend_connection', {
+                    backend_name: backendName,
+                    backend_type: backendType
+                });
+                
+                if (result?.ok || result?.success) {
+                    showToast(`✅ Connection to ${backendName} successful`, 'success');
+                } else {
+                    showToast(`❌ Connection test failed: ${result?.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error testing backend connection:', error);
+                showToast(`Error testing connection: ${error.message}`, 'error');
+            }
+        }
+        
+        // Apply backend policy using MCP SDK
+        async function applyBackendPolicy() {
+            try {
+                const modal = document.getElementById('backend-config-modal');
+                const title = document.getElementById('backend-config-modal-title').textContent;
+                
+                // Extract backend name and type from title
+                const match = title.match(/Configure (.+?) \((.+?)\)/);
+                if (!match) {
+                    showToast('Unable to determine backend information', 'error');
+                    return;
+                }
+                
+                const [, backendName, backendType] = match;
+                
+                // Collect policy values
+                const policy = {
+                    replication_factor: parseInt(document.getElementById('policy-replication-factor')?.value || 1),
+                    retention_days: parseInt(document.getElementById('policy-retention-days')?.value || 30),
+                    sync_strategy: document.getElementById('policy-sync-strategy')?.value || 'immediate',
+                    auto_cleanup: document.getElementById('policy-auto-cleanup')?.checked || false,
+                    versioning: document.getElementById('policy-versioning')?.checked || false
+                };
+                
+                showToast(`Applying policy to ${backendName}...`, 'info');
+                
+                // Use MCP SDK to apply backend policy
+                const result = await callMCPTool('apply_backend_policy', {
+                    backend_name: backendName,
+                    policy: policy
+                });
+                
+                if (result?.ok || result?.success) {
+                    showToast(`✅ Policy applied to ${backendName} successfully`, 'success');
+                } else {
+                    showToast(`❌ Failed to apply policy: ${result?.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error applying backend policy:', error);
+                showToast(`Error applying policy: ${error.message}`, 'error');
+            }
+        }
+        
+        // Helper function to collect backend configuration from form
+        function collectBackendConfig(backendType) {
+            const config = {};
+            
+            switch(backendType) {
+                case 's3':
+                    config.endpoint = document.getElementById('config-endpoint')?.value || '';
+                    config.access_key = document.getElementById('config-access-key')?.value || '';
+                    config.secret_key = document.getElementById('config-secret-key')?.value || '';
+                    config.bucket = document.getElementById('config-bucket')?.value || '';
+                    config.region = document.getElementById('config-region')?.value || 'us-east-1';
+                    break;
+                case 'github':
+                    config.token = document.getElementById('config-token-3')?.value || '';
+                    config.owner = document.getElementById('config-owner')?.value || '';
+                    config.repo = document.getElementById('config-repo')?.value || '';
+                    config.branch = document.getElementById('config-branch')?.value || 'main';
+                    break;
+                case 'ipfs':
+                    config.api_url = document.getElementById('config-api-url')?.value || 'http://127.0.0.1:5001';
+                    config.gateway_url = document.getElementById('config-gateway-url')?.value || 'http://127.0.0.1:8080';
+                    config.timeout = parseInt(document.getElementById('config-timeout')?.value || 30);
+                    break;
+                default:
+                    // Generic config for other backend types
+                    const form = document.getElementById('backend-config-form');
+                    if (form) {
+                        form.querySelectorAll('input, select, textarea').forEach(field => {
+                            if (field.id && field.id.startsWith('config-')) {
+                                const key = field.id.replace('config-', '').replace(/-/g, '_');
+                                config[key] = field.value;
+                            }
+                        });
+                    }
+                    break;
+            }
+            
+            return config;
         }
         
         let currentBucket = null;
