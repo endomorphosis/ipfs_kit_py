@@ -30,6 +30,32 @@ The MCP dashboard template file had:
 - NO handler functions (saveBackendConfiguration, testBackendConfiguration, etc.)
 - NO call to setupBackendManagement() in the initialization
 
+### 3. Incorrect MCP Tool Names and Parameters (BOTH FILES)
+The JavaScript functions were calling non-existent MCP tools with incorrect parameters:
+
+```javascript
+// BAD - Tool doesn't exist
+const result = await callMCPTool('test_backend_connection', {
+    backend_name: backendName,
+    backend_type: backendType
+});
+
+// BAD - Tool doesn't exist
+const result = await callMCPTool('update_backend_config', {
+    backend_name: backendName,
+    backend_type: backendType,
+    config: config
+});
+```
+
+The MCP server only has these tools:
+- `test_backend` (not `test_backend_connection`)
+- `update_backend` (not `update_backend_config`)
+- `apply_backend_policy`
+- `create_backend_instance`
+
+And they require different parameters than what was being sent.
+
 ## Solutions Implemented
 
 ### Fix 1: Rename Variables to Avoid Shadowing
@@ -56,14 +82,55 @@ Added to MCP dashboard template:
 6. **collectBackendConfig()** - Helper to collect form data by backend type
 7. **Call to setupBackendManagement()** in setupEventListeners()
 
+### Fix 3: Correct MCP Tool Names and Parameters
+Updated all MCP tool calls to use the correct names and parameters:
+
+```javascript
+// GOOD - Correct tool name and parameters
+const result = await callMCPTool('test_backend', {
+    name: backendName  // Only 'name' parameter required
+});
+
+// GOOD - Correct tool name and parameters
+const result = await callMCPTool('update_backend', {
+    name: backendName,
+    config: config  // 'name' and 'config' parameters
+});
+
+// GOOD - Correct parameters
+const result = await callMCPTool('apply_backend_policy', {
+    name: backendName,
+    policy: policy,
+    force_sync: false
+});
+
+// GOOD - Correct parameters
+const result = await callMCPTool('create_backend_instance', {
+    service_type: backendType,
+    instance_name: backendName,
+    description: description || ''
+});
+```
+
+## MCP Tool Mapping
+
+| Frontend Function | Old (Incorrect) Tool | New (Correct) Tool | Old Parameters | New Parameters |
+|-------------------|---------------------|-------------------|----------------|----------------|
+| `saveBackendConfiguration()` | `update_backend_config` | `update_backend` | `backend_name`, `backend_type`, `config` | `name`, `config` |
+| `testBackendConfiguration()` | `test_backend_connection` | `test_backend` | `backend_name`, `backend_type` | `name` |
+| `applyBackendPolicy()` | `apply_backend_policy` | `apply_backend_policy` | `backend_name`, `policy` | `name`, `policy`, `force_sync` |
+| `createBackendInstance()` | `create_backend_instance` | `create_backend_instance` | `backend_type`, `backend_name`, `description`, `config` | `service_type`, `instance_name`, `description` |
+
 ## Files Modified
 
-1. **templates/enhanced_dashboard.html** (53 lines added/modified)
-   - Fixed variable naming conflicts
+1. **templates/enhanced_dashboard.html** (57 lines added/modified)
+   - Fixed variable naming conflicts (2 variables)
    - Added createBackendInstance() function
+   - Fixed MCP tool calls (4 functions)
 
-2. **ipfs_kit_py/mcp/dashboard/templates/enhanced_dashboard.html** (270 lines added)
+2. **ipfs_kit_py/mcp/dashboard/templates/enhanced_dashboard.html** (274 lines added)
    - Added complete backend management functionality
+   - Fixed MCP tool calls (4 functions)
    - All buttons now have proper event handlers
 
 3. **tests/e2e/backend_modal.spec.js** (NEW - 202 lines)
