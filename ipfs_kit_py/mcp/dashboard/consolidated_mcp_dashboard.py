@@ -3254,18 +3254,32 @@ class ConsolidatedMCPDashboard:
                     self.log.error(f"Error using service manager: {e}")
                     # Fall back to the old implementation if service manager fails
             
-            # Fallback to hardcoded services if service manager is not available or fails
+            
+            # If service manager fails or returns no services, return minimal IPFS check
+            # Don't include docker/kubectl as they're not relevant to IPFS Kit
             services: Dict[str, Any] = {
-                "services": {
-                    "ipfs": {"name": "IPFS Daemon", "type": "daemon", "bin": _which("ipfs"), "api_port_open": _port_open("127.0.0.1", 5001), "status": "unknown"},
-                    "docker": {"name": "Docker", "type": "system", "bin": _which("docker"), "status": "unknown"},
-                    "kubectl": {"name": "kubectl", "type": "system", "bin": _which("kubectl"), "status": "unknown"},
-                }
+                "services": {}
             }
+            
+            # Only check for IPFS as fallback
+            ipfs_bin = _which("ipfs")
+            if ipfs_bin:
+                ipfs_api_open = _port_open("127.0.0.1", 5001)
+                services["services"]["ipfs"] = {
+                    "name": "IPFS Daemon",
+                    "type": "daemon",
+                    "status": "running" if ipfs_api_open else "stopped",
+                    "description": "InterPlanetary File System daemon",
+                    "bin": ipfs_bin,
+                    "api_port_open": ipfs_api_open,
+                    "actions": ["start", "stop", "restart"] if ipfs_bin else []
+                }
+            
             total = len(services["services"])
             services["metadata"] = {
                 "total": total,
-                "running": 0,
+                "running": sum(1 for v in services["services"].values() if v.get("status") == "running"),
+                "stopped": sum(1 for v in services["services"].values() if v.get("status") == "stopped"),
                 "configured": sum(1 for v in services["services"].values() if v.get("bin"))
             }
             return {"jsonrpc": "2.0", "result": services, "id": None}
