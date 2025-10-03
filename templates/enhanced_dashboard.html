@@ -8123,9 +8123,9 @@ Shared Pins: ${pinsets.length || 0}
             }
             
             // Backend configuration modal apply policy button
-            const applyBackendPolicy = document.getElementById('apply-backend-policy-btn');
-            if (applyBackendPolicy) {
-                applyBackendPolicy.addEventListener('click', async () => {
+            const applyBackendPolicyBtn = document.getElementById('apply-backend-policy-btn');
+            if (applyBackendPolicyBtn) {
+                applyBackendPolicyBtn.addEventListener('click', async () => {
                     await applyBackendPolicy();
                 });
             }
@@ -8139,9 +8139,9 @@ Shared Pins: ${pinsets.length || 0}
             }
             
             // Create backend instance button
-            const createBackendInstance = document.getElementById('create-backend-instance-btn');
-            if (createBackendInstance) {
-                createBackendInstance.addEventListener('click', async () => {
+            const createBackendInstanceBtn = document.getElementById('create-backend-instance-btn');
+            if (createBackendInstanceBtn) {
+                createBackendInstanceBtn.addEventListener('click', async () => {
                     await createBackendInstance();
                 });
             }
@@ -8170,18 +8170,22 @@ Shared Pins: ${pinsets.length || 0}
                 showToast(`Saving configuration for ${backendName}...`, 'info');
                 
                 // Use MCP SDK to save backend configuration
-                const result = await callMCPTool('update_backend_config', {
-                    backend_name: backendName,
-                    backend_type: backendType,
+                // Note: update_backend requires 'name' and 'config' parameters
+                const result = await callMCPTool('update_backend', {
+                    name: backendName,
                     config: config
                 });
                 
-                if (result?.ok || result?.success) {
+                // The result is wrapped: { result: actualResponse }
+                const updateResult = result?.result || result;
+                
+                if (updateResult?.ok || updateResult?.success) {
                     showToast(`✅ Configuration for ${backendName} saved successfully`, 'success');
                     document.getElementById('backend-config-modal').classList.add('hidden');
                     await loadBackendsData();
                 } else {
-                    showToast(`❌ Failed to save configuration: ${result?.error || 'Unknown error'}`, 'error');
+                    const errorMsg = updateResult?.error || updateResult?.message || 'Unknown error';
+                    showToast(`❌ Failed to save configuration: ${errorMsg}`, 'error');
                 }
             } catch (error) {
                 console.error('Error saving backend configuration:', error);
@@ -8207,15 +8211,21 @@ Shared Pins: ${pinsets.length || 0}
                 showToast(`Testing connection to ${backendName}...`, 'info');
                 
                 // Use MCP SDK to test backend connection
-                const result = await callMCPTool('test_backend_connection', {
-                    backend_name: backendName,
-                    backend_type: backendType
+                // Note: test_backend requires only 'name' parameter
+                const result = await callMCPTool('test_backend', {
+                    name: backendName
                 });
                 
-                if (result?.ok || result?.success) {
-                    showToast(`✅ Connection to ${backendName} successful`, 'success');
+                // The result is wrapped: { result: actualResponse }
+                // test_backend returns { name, type, reachable, response_time, details, errors }
+                const testResult = result?.result || result;
+                
+                if (testResult?.reachable) {
+                    const responseTime = testResult.response_time ? ` (${(testResult.response_time * 1000).toFixed(0)}ms)` : '';
+                    showToast(`✅ Connection to ${backendName} successful${responseTime}`, 'success');
                 } else {
-                    showToast(`❌ Connection test failed: ${result?.error || 'Unknown error'}`, 'error');
+                    const errorMsg = testResult?.errors?.[0] || testResult?.error || 'Unknown error';
+                    showToast(`❌ Connection test failed: ${errorMsg}`, 'error');
                 }
             } catch (error) {
                 console.error('Error testing backend connection:', error);
@@ -8250,15 +8260,23 @@ Shared Pins: ${pinsets.length || 0}
                 showToast(`Applying policy to ${backendName}...`, 'info');
                 
                 // Use MCP SDK to apply backend policy
+                // Note: apply_backend_policy requires 'name', 'policy', and optional 'force_sync'
                 const result = await callMCPTool('apply_backend_policy', {
-                    backend_name: backendName,
-                    policy: policy
+                    name: backendName,
+                    policy: policy,
+                    force_sync: false
                 });
                 
-                if (result?.ok || result?.success) {
-                    showToast(`✅ Policy applied to ${backendName} successfully`, 'success');
+                // The result is wrapped: { result: actualResponse }
+                // apply_backend_policy returns { ok, message, synced, backend }
+                const policyResult = result?.result || result;
+                
+                if (policyResult?.ok) {
+                    const syncMsg = policyResult.synced ? ' and synced' : '';
+                    showToast(`✅ Policy applied to ${backendName} successfully${syncMsg}`, 'success');
                 } else {
-                    showToast(`❌ Failed to apply policy: ${result?.error || 'Unknown error'}`, 'error');
+                    const errorMsg = policyResult?.error || policyResult?.message || 'Unknown error';
+                    showToast(`❌ Failed to apply policy: ${errorMsg}`, 'error');
                 }
             } catch (error) {
                 console.error('Error applying backend policy:', error);
@@ -8304,6 +8322,53 @@ Shared Pins: ${pinsets.length || 0}
             }
             
             return config;
+        }
+        
+        // Create a new backend instance using MCP SDK
+        async function createBackendInstance() {
+            try {
+                const backendType = document.getElementById('new-backend-type')?.value;
+                const backendName = document.getElementById('new-backend-name')?.value;
+                const description = document.getElementById('new-backend-description')?.value;
+                
+                if (!backendType) {
+                    showToast('Please select a backend type', 'error');
+                    return;
+                }
+                
+                if (!backendName) {
+                    showToast('Please provide a backend name', 'error');
+                    return;
+                }
+                
+                showToast(`Creating backend instance ${backendName}...`, 'info');
+                
+                // Use MCP SDK to create backend instance
+                // Note: create_backend_instance requires 'service_type' and 'instance_name'
+                const result = await callMCPTool('create_backend_instance', {
+                    service_type: backendType,
+                    instance_name: backendName,
+                    description: description || ''
+                });
+                
+                if (result?.ok || result?.success) {
+                    showToast(`✅ Backend instance ${backendName} created successfully`, 'success');
+                    document.getElementById('add-backend-instance-modal').classList.add('hidden');
+                    
+                    // Clear form fields
+                    document.getElementById('new-backend-type').value = '';
+                    document.getElementById('new-backend-name').value = '';
+                    document.getElementById('new-backend-description').value = '';
+                    
+                    // Reload backends list
+                    await loadBackendsData();
+                } else {
+                    showToast(`❌ Failed to create backend: ${result?.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error creating backend instance:', error);
+                showToast(`Error creating backend: ${error.message}`, 'error');
+            }
         }
         
         let currentBucket = null;
