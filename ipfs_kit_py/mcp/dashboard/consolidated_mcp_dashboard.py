@@ -3221,7 +3221,7 @@ class ConsolidatedMCPDashboard:
             if service_manager:
                 try:
                     # Get all services (enabled and disabled) for comprehensive dashboard view
-                    services_data = await self._list_all_services(service_manager)
+                    services_data = await service_manager.list_all_services()  # Call service manager's method directly
                     # Transform the service manager format to match the expected dashboard format
                     services: Dict[str, Any] = {"services": {}}
                     
@@ -3252,6 +3252,8 @@ class ConsolidatedMCPDashboard:
                     return {"jsonrpc": "2.0", "result": services, "id": None}
                 except Exception as e:
                     self.log.error(f"Error using service manager: {e}")
+                    import traceback
+                    self.log.error(f"Traceback: {traceback.format_exc()}")
                     # Fall back to the old implementation if service manager fails
             
             
