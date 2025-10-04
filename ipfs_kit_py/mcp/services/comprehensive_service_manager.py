@@ -198,6 +198,24 @@ class ComprehensiveServiceManager:
                     "config_dir": str(Path.home() / ".lassie"),
                     "enabled": False,
                     "auto_start": False
+                },
+                "libp2p": {
+                    "type": ServiceType.DAEMON.value,
+                    "name": "libp2p-py Daemon",
+                    "description": "Python libp2p networking daemon for peer-to-peer communication",
+                    "port": 4002,
+                    "config_dir": str(Path.home() / ".libp2p"),
+                    "enabled": False,
+                    "auto_start": False
+                },
+                "ipfs_kit": {
+                    "type": ServiceType.DAEMON.value,
+                    "name": "IPFS Kit Daemon",
+                    "description": "IPFS Kit background daemon for automated operations",
+                    "port": 5002,
+                    "config_dir": str(Path.home() / ".ipfs_kit"),
+                    "enabled": True,
+                    "auto_start": False
                 }
             },
             "storage_backends": {
@@ -366,45 +384,94 @@ class ComprehensiveServiceManager:
         }
     
     async def _check_daemon_status(self, daemon_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Check the status of a daemon service."""
+        """Check the status of a daemon service using port checking and process detection."""
         try:
-            # Try to import and use the daemon manager
-            if daemon_id not in self._daemon_managers:
-                # Lazy import to avoid circular dependencies
-                import sys
-                import importlib.util
-                
-                # Try to import the daemon manager
-                daemon_manager_path = Path(__file__).parent.parent.parent.parent / "scripts" / "daemon" / "daemon_manager.py"
-                if daemon_manager_path.exists():
-                    spec = importlib.util.spec_from_file_location("daemon_manager", daemon_manager_path)
-                    daemon_manager_module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(daemon_manager_module)
-                    DaemonManager = daemon_manager_module.DaemonManager
-                    
-                    self._daemon_managers[daemon_id] = DaemonManager(
-                        daemon_type=daemon_id,
-                        config_dir=config.get("config_dir"),
-                        api_port=config.get("port")
-                    )
-                else:
-                    # Fallback to mock daemon manager
-                    logger.warning(f"Daemon manager not found, using mock for {daemon_id}")
-                    self._daemon_managers[daemon_id] = MockDaemonManager(daemon_id)
+            import socket
+            import shutil
             
-            daemon_manager = self._daemon_managers[daemon_id]
-            status_info = daemon_manager.get_status()
-            
-            return {
-                "status": ServiceStatus.RUNNING.value if status_info.get("running", False) else ServiceStatus.STOPPED.value,
-                "last_check": datetime.now().isoformat(),
-                "details": {
-                    "initialized": status_info.get("initialized", False),
-                    "config_dir": status_info.get("config_dir"),
-                    "api_port": status_info.get("api_port"),
-                    "pid": status_info.get("pid")
-                }
+            # Check if binary exists
+            binary_map = {
+                "ipfs": "ipfs",
+                "lotus": "lotus",
+                "aria2": "aria2c",
+                "ipfs_cluster": "ipfs-cluster-service",
+                "ipfs_cluster_follow": "ipfs-cluster-follow",
+                "lassie": "lassie",
+                "libp2p": "libp2p-daemon",
+                "ipfs_kit": "ipfs-kit"
             }
+            
+            binary_name = binary_map.get(daemon_id)
+            binary_path = shutil.which(binary_name) if binary_name else None
+            
+            if not binary_path:
+                return {
+                    "status": ServiceStatus.MISSING.value,
+                    "last_check": datetime.now().isoformat(),
+                    "details": {
+                        "binary": binary_name,
+                        "error": f"Binary '{binary_name}' not found in PATH"
+                    }
+                }
+            
+            # Check if service is running by checking the port
+            port = config.get("port")
+            if port:
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(1)
+                    result = sock.connect_ex(('127.0.0.1', port))
+                    sock.close()
+                    
+                    if result == 0:
+                        # Port is open, service is running
+                        return {
+                            "status": ServiceStatus.RUNNING.value,
+                            "last_check": datetime.now().isoformat(),
+                            "details": {
+                                "binary_path": binary_path,
+                                "config_dir": config.get("config_dir"),
+                                "api_port": port,
+                                "api_port_open": True
+                            }
+                        }
+                    else:
+                        # Port is closed, service is stopped
+                        return {
+                            "status": ServiceStatus.STOPPED.value,
+                            "last_check": datetime.now().isoformat(),
+                            "details": {
+                                "binary_path": binary_path,
+                                "config_dir": config.get("config_dir"),
+                                "api_port": port,
+                                "api_port_open": False,
+                                "reason": "Port not accessible"
+                            }
+                        }
+                except Exception as port_error:
+                    logger.debug(f"Port check failed for {daemon_id}: {port_error}")
+                    return {
+                        "status": ServiceStatus.STOPPED.value,
+                        "last_check": datetime.now().isoformat(),
+                        "details": {
+                            "binary_path": binary_path,
+                            "config_dir": config.get("config_dir"),
+                            "api_port": port,
+                            "api_port_open": False,
+                            "reason": str(port_error)
+                        }
+                    }
+            else:
+                # No port configured, can't check status, assume configured
+                return {
+                    "status": ServiceStatus.CONFIGURED.value,
+                    "last_check": datetime.now().isoformat(),
+                    "details": {
+                        "binary_path": binary_path,
+                        "config_dir": config.get("config_dir"),
+                        "reason": "No port configured to check status"
+                    }
+                }
         except Exception as e:
             logger.error(f"Error checking daemon {daemon_id} status: {e}")
             return {
@@ -680,7 +747,10 @@ class ComprehensiveServiceManager:
         daemon_checks = {
             "lotus": "lotus",
             "aria2": "aria2c",
-            "ipfs_cluster": "ipfs-cluster-service"
+            "ipfs_cluster": "ipfs-cluster-service",
+            "ipfs_cluster_follow": "ipfs-cluster-follow",
+            "lassie": "lassie",
+            "libp2p": "libp2p-daemon"
         }
         
         for daemon_id, binary_name in daemon_checks.items():
