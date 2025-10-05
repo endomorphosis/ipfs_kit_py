@@ -896,6 +896,31 @@ class ConsolidatedMCPDashboard:
         async def index() -> str:
             return dashboard.render_beta_toolrunner()
 
+        @app.get("/services", response_class=HTMLResponse)
+        @app.get("/service-monitoring", response_class=HTMLResponse)
+        async def service_monitoring_page() -> str:
+            """Enhanced service monitoring page."""
+            try:
+                # Try to load from dashboard_templates directory
+                base_dir = Path(__file__).parent.parent  # ipfs_kit_py/mcp
+                template_path = base_dir / "dashboard_templates" / "enhanced_service_monitoring.html"
+                
+                if template_path.exists():
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        return f.read()
+                
+                # Fallback: try relative to this file
+                alt_path = Path(__file__).parent / "templates" / "enhanced_service_monitoring.html"
+                if alt_path.exists():
+                    with open(alt_path, 'r', encoding='utf-8') as f:
+                        return f.read()
+                        
+                self.log.warning(f"Service monitoring template not found at: {template_path}")
+                return "<html><body><h1>Service Monitoring</h1><p>Template not found</p></body></html>"
+            except Exception as e:
+                self.log.error(f"Error loading service monitoring template: {e}")
+                return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>"
+
         # Simple request counter middleware (registered once)
         @app.middleware("http")
         async def _count_requests(request: Request, call_next):  # type: ignore
