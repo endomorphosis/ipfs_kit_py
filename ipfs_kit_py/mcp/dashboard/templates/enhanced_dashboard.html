@@ -7680,17 +7680,20 @@
                 
                 // Field metadata for better UX
                 const fieldMetadata = {
-                    'access_key': { label: 'Access Key ID', type: 'text', placeholder: 'AKIA...', required: true },
-                    'secret_key': { label: 'Secret Access Key', type: 'password', placeholder: 'Enter secret key', required: true },
-                    'region': { label: 'Region', type: 'text', placeholder: 'us-east-1', required: false },
-                    'bucket': { label: 'Bucket Name', type: 'text', placeholder: 'my-bucket', required: false },
+                    // S3 actual API parameters (s3_kit.py)
+                    'accessKey': { label: 'Access Key ID', type: 'text', placeholder: 'AKIA...', required: true },
+                    'secretKey': { label: 'Secret Access Key', type: 'password', placeholder: 'Enter secret key', required: true },
+                    'endpoint': { label: 'Endpoint URL', type: 'url', placeholder: 'https://s3.amazonaws.com', required: true },
+                    // HuggingFace actual API parameters (huggingface_kit.py)
+                    'token': { label: 'HuggingFace Token', type: 'password', placeholder: 'hf_...', required: true },
+                    // GitHub actual API parameters
+                    'access_token': { label: 'GitHub Access Token', type: 'password', placeholder: 'ghp_...', required: true },
+                    // Other storage backends
                     'api_token': { label: 'API Token', type: 'password', placeholder: 'Enter your API token', required: true },
                     'api_key': { label: 'API Key', type: 'password', placeholder: 'Enter your API key', required: true },
-                    'access_token': { label: 'Access Token', type: 'password', placeholder: 'ghp_...', required: true },
                     'username': { label: 'Username', type: 'text', placeholder: 'your-username', required: false },
                     'repository': { label: 'Repository', type: 'text', placeholder: 'owner/repo', required: false },
                     'node_url': { label: 'Node URL', type: 'url', placeholder: 'http://localhost:1234', required: false },
-                    'token': { label: 'Authentication Token', type: 'password', placeholder: 'Enter token', required: false },
                     'homeserver_url': { label: 'Homeserver URL', type: 'url', placeholder: 'https://matrix.org', required: false },
                     'room_id': { label: 'Room ID', type: 'text', placeholder: '!roomid:server', required: false },
                     'client_id': { label: 'Client ID', type: 'text', placeholder: 'OAuth client ID', required: true },
@@ -7706,6 +7709,26 @@
                     'row_group_size': { label: 'Row Group Size', type: 'number', placeholder: '1000000', required: false },
                     'schema_validation': { label: 'Schema Validation', type: 'checkbox', placeholder: '', required: false }
                 };
+                
+                // Use config_hints from service if available
+                if (service.config_hints) {
+                    for (const key of configKeys) {
+                        if (service.config_hints[key] && !fieldMetadata[key]) {
+                            // Infer type from hint or key name
+                            const hint = service.config_hints[key];
+                            const isSecret = key.toLowerCase().includes('secret') || key.toLowerCase().includes('password') || key.toLowerCase().includes('token') || key.toLowerCase().includes('key');
+                            const isUrl = hint.toLowerCase().includes('url') || hint.toLowerCase().includes('endpoint');
+                            const isNumber = hint.toLowerCase().includes('port') || hint.toLowerCase().includes('size');
+                            
+                            fieldMetadata[key] = {
+                                label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                                type: isUrl ? 'url' : (isSecret ? 'password' : (isNumber ? 'number' : 'text')),
+                                placeholder: hint,
+                                required: key.toLowerCase().includes('key') || key.toLowerCase().includes('secret') || key.toLowerCase().includes('token')
+                            };
+                        }
+                    }
+                }
                 
                 // Generate fields based on config_keys
                 for (const key of configKeys) {
@@ -7726,6 +7749,7 @@
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">${meta.label} ${requiredMarker}</label>
                                 <input type="${meta.type}" id="config-${key}" class="w-full p-3 border rounded-lg" placeholder="${meta.placeholder}" ${meta.required ? 'required' : ''}>
+                                ${meta.placeholder && meta.placeholder.length > 30 ? `<p class="text-xs text-gray-500 mt-1">${meta.placeholder}</p>` : ''}
                             </div>
                         `;
                     }

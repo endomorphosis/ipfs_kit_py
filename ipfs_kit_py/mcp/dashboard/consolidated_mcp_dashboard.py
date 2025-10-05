@@ -726,6 +726,7 @@ class ConsolidatedMCPDashboard:
                 "status": status["status"],
                 "requires_credentials": config.get("requires_credentials", False),
                 "config_keys": config.get("config_keys", []),
+                "config_hints": config.get("config_hints", {}),
                 "actions": actions,
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {}),

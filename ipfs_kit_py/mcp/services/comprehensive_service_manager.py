@@ -224,7 +224,12 @@ class ComprehensiveServiceManager:
                     "name": "Amazon S3",
                     "description": "Amazon Simple Storage Service backend",
                     "requires_credentials": True,
-                    "config_keys": ["access_key", "secret_key", "region", "bucket"],
+                    "config_keys": ["accessKey", "secretKey", "endpoint"],
+                    "config_hints": {
+                        "accessKey": "AWS Access Key ID (e.g., AKIA...)",
+                        "secretKey": "AWS Secret Access Key",
+                        "endpoint": "S3 endpoint URL (e.g., https://s3.amazonaws.com)"
+                    },
                     "enabled": False
                 },
                 "huggingface": {
@@ -232,7 +237,10 @@ class ComprehensiveServiceManager:
                     "name": "HuggingFace Hub",
                     "description": "HuggingFace model and dataset repository",
                     "requires_credentials": True,
-                    "config_keys": ["api_token", "username"],
+                    "config_keys": ["token"],
+                    "config_hints": {
+                        "token": "HuggingFace API token (from huggingface.co/settings/tokens)"
+                    },
                     "enabled": False
                 },
                 "github": {
@@ -240,7 +248,10 @@ class ComprehensiveServiceManager:
                     "name": "GitHub Storage",
                     "description": "GitHub repository storage backend",
                     "requires_credentials": True,
-                    "config_keys": ["access_token", "username", "repository"],
+                    "config_keys": ["access_token"],
+                    "config_hints": {
+                        "access_token": "GitHub Personal Access Token (from github.com/settings/tokens)"
+                    },
                     "enabled": False
                 },
                 "storacha": {
