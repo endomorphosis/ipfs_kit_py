@@ -7562,18 +7562,27 @@
 
         async function testServiceConnection(serviceId) {
             try {
-                const result = await window.MCP?.callTool('test_service_connection', { 
-                    service: serviceId 
+                // Use REST API endpoint instead of MCP tool
+                const response = await fetch(`/api/services/${serviceId}/action`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'health_check'
+                    })
                 });
                 
-                if (result?.result?.success) {
-                    alert(`✅ Service ${serviceId} connection test successful!\n\nDetails: ${result.result.message}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Service ${serviceId} health check successful!\n\nStatus: ${result.status}\nDetails: ${result.message}`);
                 } else {
-                    alert(`❌ Service ${serviceId} connection test failed!\n\nError: ${result.result?.message || 'Unknown error'}`);
+                    alert(`❌ Service ${serviceId} health check failed!\n\nError: ${result.error || result.message || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error('Error testing service connection:', error);
-                alert(`❌ Connection test failed: ${error.message}`);
+                alert(`❌ Health check failed: ${error.message}`);
             }
         }
 
