@@ -1734,6 +1734,7 @@ class ConsolidatedMCPDashboard:
                             "last_check": service.get("last_check"),
                             "details": service.get("details", {}),
                             "config_keys": service.get("config_keys", []),
+                            "config_hints": service.get("config_hints", {}),
                             "requires_credentials": service.get("requires_credentials", False)
                         }
                     return {"services": services}
