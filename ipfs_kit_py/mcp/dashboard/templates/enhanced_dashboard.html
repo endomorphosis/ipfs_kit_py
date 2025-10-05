@@ -7608,17 +7608,62 @@
         }
 
         function generateEnhancedConfigForm(serviceId, service, groupKey) {
+            // Handle daemon service configuration
+            if (service.type === 'daemon') {
+                const configDir = service.config_dir || service.details?.config_dir || 'Not specified';
+                const port = service.port || service.config?.port || '';
+                
+                return `
+                    <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Daemon services are typically configured through their respective configuration files.
+                                <br><br>
+                                For <strong>${service.name || serviceId}</strong>: Please refer to the service documentation for detailed configuration options.
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Configuration Directory</label>
+                            <input type="text" id="config-dir" class="w-full p-3 border rounded-lg bg-gray-100" value="${configDir}" readonly>
+                            <p class="text-xs text-gray-500 mt-1">Location of the service configuration files</p>
+                        </div>
+                        ${port ? `
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Port</label>
+                            <input type="number" id="config-port" class="w-full p-3 border rounded-lg" value="${port}" placeholder="Port number">
+                            <p class="text-xs text-gray-500 mt-1">Port number for the service</p>
+                        </div>
+                        ` : ''}
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Auto-start on Boot</label>
+                            <select id="config-auto-start" class="w-full p-3 border rounded-lg">
+                                <option value="true">Enabled</option>
+                                <option value="false" selected>Disabled</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Whether the service should start automatically</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
             const configForms = {
                 's3': `
                     <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Configure credentials and settings for <strong>Amazon S3</strong>
+                            </p>
+                        </div>
                         <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Access Key ID</label>
-                                <input type="text" id="config-access-key" class="w-full p-3 border rounded-lg" value="${service.access_key || ''}" placeholder="AKIA...">
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Access Key ID <span class="text-red-500">*</span></label>
+                                <input type="text" id="config-access-key" class="w-full p-3 border rounded-lg" value="${service.access_key || ''}" placeholder="AKIA..." required>
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Secret Access Key</label>
-                                <input type="password" id="config-secret-key" class="w-full p-3 border rounded-lg" value="${service.secret_key || ''}" placeholder="Secret key">
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Secret Access Key <span class="text-red-500">*</span></label>
+                                <input type="password" id="config-secret-key" class="w-full p-3 border rounded-lg" value="${service.secret_key || ''}" placeholder="Secret key" required>
                             </div>
                         </div>
                         <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
@@ -7639,9 +7684,15 @@
                 `,
                 'github': `
                     <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Configure credentials and settings for <strong>GitHub Storage</strong>
+                            </p>
+                        </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Personal Access Token</label>
-                            <input type="password" id="config-token-github" class="w-full p-3 border rounded-lg" value="${service.token || ''}" placeholder="ghp_...">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Personal Access Token <span class="text-red-500">*</span></label>
+                            <input type="password" id="config-token-github" class="w-full p-3 border rounded-lg" value="${service.token || ''}" placeholder="ghp_..." required>
                         </div>
                         <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
                             <div>
@@ -7661,9 +7712,15 @@
                 `,
                 'huggingface': `
                     <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Configure credentials and settings for <strong>HuggingFace Hub</strong>
+                            </p>
+                        </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">HuggingFace API Token</label>
-                            <input type="password" id="config-token-huggingface" class="w-full p-3 border rounded-lg" value="${service.token || ''}" placeholder="hf_...">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">HuggingFace API Token <span class="text-red-500">*</span></label>
+                            <input type="password" id="config-token-huggingface" class="w-full p-3 border rounded-lg" value="${service.token || ''}" placeholder="hf_..." required>
                         </div>
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Username</label>
@@ -7677,17 +7734,48 @@
                 `
             };
             
-            return configForms[service.type] || `
+            // Check if we have a specific form for this service type
+            if (configForms[service.type]) {
+                return configForms[service.type];
+            }
+            
+            // For storage services without specific forms, show generic credential form
+            if (service.type === 'storage' || groupKey === 'storage') {
+                return `
+                    <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Configure credentials and settings for <strong>${service.name || serviceId}</strong>
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">API Token / Access Key <span class="text-red-500">*</span></label>
+                            <input type="password" id="config-access-token" class="w-full p-3 border rounded-lg" placeholder="Enter your API token or access key" required>
+                            <p class="text-xs text-gray-500 mt-1">Your ${service.name || serviceId} authentication credentials</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Additional Configuration (JSON)</label>
+                            <textarea id="config-json" class="w-full p-3 border rounded-lg font-mono text-sm" rows="6" placeholder='{"key": "value"}'>${JSON.stringify(service.config || {}, null, 2)}</textarea>
+                            <p class="text-xs text-gray-500 mt-1">Additional configuration in JSON format (optional)</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Default fallback for other service types
+            return `
                 <div class="space-y-4">
-                    <div class="p-4 bg-yellow-50 rounded-lg">
-                        <p class="text-sm text-yellow-800">
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <p class="text-sm text-blue-800">
                             <i class="fas fa-info-circle mr-2"></i>
-                            Configuration form for <strong>${service.type}</strong> services is not yet implemented.
+                            Configure <strong>${service.name || serviceId}</strong>
                         </p>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">Raw Configuration (JSON)</label>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Configuration (JSON)</label>
                         <textarea id="config-raw" class="w-full p-3 border rounded-lg font-mono text-sm" rows="8" placeholder='{"key": "value"}'>${JSON.stringify(service.config || {}, null, 2)}</textarea>
+                        <p class="text-xs text-gray-500 mt-1">Enter configuration in JSON format</p>
                     </div>
                 </div>
             `;
@@ -7700,23 +7788,43 @@
                 const config = {};
                 
                 // Collect configuration based on service type
-                if (service.type === 's3') {
+                if (service.type === 'daemon') {
+                    // Daemon configuration
+                    const port = document.getElementById('config-port')?.value;
+                    const autoStart = document.getElementById('config-auto-start')?.value;
+                    if (port) config.port = parseInt(port);
+                    if (autoStart) config.auto_start = autoStart === 'true';
+                } else if (service.type === 's3') {
                     config.access_key = document.getElementById('config-access-key')?.value;
                     config.secret_key = document.getElementById('config-secret-key')?.value;
                     config.region = document.getElementById('config-region')?.value;
                     config.bucket = document.getElementById('config-bucket')?.value;
                     config.endpoint = document.getElementById('config-endpoint')?.value;
                 } else if (service.type === 'github') {
-                    config.token = document.getElementById('config-token')?.value;
+                    config.token = document.getElementById('config-token-github')?.value;
                     config.username = document.getElementById('config-username')?.value;
                     config.repo = document.getElementById('config-repo')?.value;
                     config.branch = document.getElementById('config-branch')?.value;
                 } else if (service.type === 'huggingface') {
-                    config.token = document.getElementById('config-token')?.value;
+                    config.token = document.getElementById('config-token-huggingface')?.value;
                     config.username = document.getElementById('config-username')?.value;
                     config.model = document.getElementById('config-model')?.value;
+                } else if (service.type === 'storage') {
+                    // Generic storage backend configuration
+                    const accessToken = document.getElementById('config-access-token')?.value;
+                    const configJson = document.getElementById('config-json')?.value;
+                    
+                    if (accessToken) config.access_token = accessToken;
+                    if (configJson) {
+                        try {
+                            const parsedJson = JSON.parse(configJson);
+                            Object.assign(config, parsedJson);
+                        } catch (e) {
+                            console.warn('Invalid JSON in additional configuration, skipping');
+                        }
+                    }
                 } else {
-                    // Raw JSON configuration
+                    // Raw JSON configuration fallback
                     const rawConfig = document.getElementById('config-raw')?.value;
                     if (rawConfig) {
                         Object.assign(config, JSON.parse(rawConfig));
