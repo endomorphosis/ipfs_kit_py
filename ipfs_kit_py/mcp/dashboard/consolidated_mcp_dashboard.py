@@ -1726,7 +1726,9 @@ class ConsolidatedMCPDashboard:
                             "port": service.get("port"),
                             "actions": service.get("actions", []),
                             "last_check": service.get("last_check"),
-                            "details": service.get("details", {})
+                            "details": service.get("details", {}),
+                            "config_keys": service.get("config_keys", []),
+                            "requires_credentials": service.get("requires_credentials", False)
                         }
                     return {"services": services}
                 else:
@@ -1777,17 +1779,19 @@ class ConsolidatedMCPDashboard:
             try:
                 data = await request.json()
                 action = data.get("action", "")
+                params = data.get("params", {})
             except Exception:
                 action = ""
+                params = {}
                 
-            if action not in ("start", "stop", "restart", "enable", "disable", "health_check"):
+            if action not in ("start", "stop", "restart", "enable", "disable", "health_check", "configure", "view_logs"):
                 raise HTTPException(status_code=400, detail="Invalid action")
             
             try:
                 service_manager = self._get_service_manager()
                 if service_manager:
                     # Use comprehensive service manager for service actions
-                    result = await service_manager.perform_service_action(name, action, {})
+                    result = await service_manager.perform_service_action(name, action, params)
                     if result.get("success", False):
                         return {
                             "ok": True,

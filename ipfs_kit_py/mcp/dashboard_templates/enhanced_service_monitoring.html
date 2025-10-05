@@ -284,6 +284,127 @@
             font-size: 3rem;
             margin-bottom: 1rem;
         }
+
+        /* Configuration Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border-color);
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .form-label.required::after {
+            content: " *";
+            color: var(--error-color);
+        }
+
+        .form-input,
+        .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-help {
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn-cancel {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-cancel:hover {
+            background: var(--text-secondary);
+        }
     </style>
 </head>
 <body>
@@ -341,6 +462,19 @@
             <div class="loading">
                 <div class="loading-spinner"></div>
                 <p>Loading network services...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Modal -->
+    <div id="config-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="config-modal-title">Configure Service</h3>
+                <button class="modal-close" onclick="closeConfigModal()">&times;</button>
+            </div>
+            <div id="config-modal-body">
+                <!-- Form will be dynamically generated -->
             </div>
         </div>
     </div>
@@ -508,6 +642,12 @@
         }
 
         async function performServiceAction(serviceId, action) {
+            // Special handling for configure action - show modal instead
+            if (action === 'configure') {
+                showConfigModal(serviceId);
+                return;
+            }
+
             try {
                 const response = await fetch(`/api/services/${serviceId}/action`, {
                     method: 'POST',
@@ -579,6 +719,261 @@
                 container.innerHTML = '';
             }, 3000);
         }
+
+        // Configuration Modal Functions
+        function showConfigModal(serviceId) {
+            const service = servicesData[serviceId];
+            if (!service) {
+                showError('Service not found');
+                return;
+            }
+
+            const modal = document.getElementById('config-modal');
+            const title = document.getElementById('config-modal-title');
+            const body = document.getElementById('config-modal-body');
+
+            title.textContent = `Configure ${service.name}`;
+
+            // Generate configuration form based on service type
+            let formHtml = '';
+
+            if (service.type === 'daemon') {
+                formHtml = `
+                    <div class="form-group">
+                        <p class="form-help" style="padding: 1rem; background: rgba(251, 191, 36, 0.1); border: 1px solid var(--warning-color); border-radius: 0.5rem; color: var(--warning-color);">
+                            <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>
+                            Daemon services are typically configured through their respective configuration files.<br><br>
+                            For <strong>${service.name}</strong>:
+                        </p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Configuration Directory</label>
+                        <input type="text" class="form-input" id="config_dir" value="${service.details?.config_dir || ''}" readonly />
+                        <div class="form-help">Location of the service configuration files</div>
+                    </div>
+                    ${service.port ? `
+                    <div class="form-group">
+                        <label class="form-label">Port</label>
+                        <input type="number" class="form-input" id="port" value="${service.port}" />
+                        <div class="form-help">Port number for the service</div>
+                    </div>
+                    ` : ''}
+                    <div class="form-group">
+                        <label class="form-label">Auto-start on Boot</label>
+                        <select class="form-input" id="auto_start">
+                            <option value="true">Enabled</option>
+                            <option value="false" selected>Disabled</option>
+                        </select>
+                        <div class="form-help">Whether the service should start automatically</div>
+                    </div>
+                `;
+            } else if (service.type === 'storage') {
+                // Get configuration keys from service (top level, not in details)
+                const configKeys = service.config_keys || [];
+                
+                formHtml = `
+                    <div class="form-group">
+                        <p class="form-help" style="padding: 1rem; background: rgba(102, 126, 234, 0.1); border: 1px solid var(--primary-color); border-radius: 0.5rem;">
+                            <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>
+                            Configure credentials and settings for <strong>${service.name}</strong>
+                        </p>
+                    </div>
+                `;
+
+                // If no config_keys defined, show generic credential fields
+                if (configKeys.length === 0) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label required">API Token / Access Key</label>
+                        <input type="password" class="form-input" id="access_token" placeholder="Enter your API token or access key" />
+                        <div class="form-help">Your ${service.name} authentication credentials</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Additional Configuration (JSON)</label>
+                        <textarea class="form-textarea" id="config_json" placeholder='{"key": "value"}' rows="4"></textarea>
+                        <div class="form-help">Additional configuration in JSON format (optional)</div>
+                    </div>
+                    `;
+                } else {
+                    // Generate form fields based on known config keys
+                if (configKeys.includes('api_token') || configKeys.includes('access_token')) {
+                    const keyName = configKeys.includes('api_token') ? 'api_token' : 'access_token';
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label required">API Token</label>
+                        <input type="password" class="form-input" id="${keyName}" placeholder="Enter API token" />
+                        <div class="form-help">Your ${service.name} API access token</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('username')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label ${configKeys.includes('api_token') ? '' : 'required'}">Username</label>
+                        <input type="text" class="form-input" id="username" placeholder="Enter username" />
+                        <div class="form-help">Your ${service.name} username</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('access_key')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label required">Access Key</label>
+                        <input type="text" class="form-input" id="access_key" placeholder="Enter access key" />
+                        <div class="form-help">Your AWS access key ID</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('secret_key')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label required">Secret Key</label>
+                        <input type="password" class="form-input" id="secret_key" placeholder="Enter secret key" />
+                        <div class="form-help">Your AWS secret access key</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('bucket')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Bucket Name</label>
+                        <input type="text" class="form-input" id="bucket" placeholder="Enter bucket name" />
+                        <div class="form-help">S3 bucket name</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('region')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Region</label>
+                        <input type="text" class="form-input" id="region" placeholder="us-east-1" value="us-east-1" />
+                        <div class="form-help">AWS region</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('repository')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Repository</label>
+                        <input type="text" class="form-input" id="repository" placeholder="username/repo" />
+                        <div class="form-help">GitHub repository (format: owner/repo)</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('host')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label required">Host</label>
+                        <input type="text" class="form-input" id="host" placeholder="ftp.example.com" />
+                        <div class="form-help">Server hostname or IP address</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('port') && service.id !== 'ipfs') {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Port</label>
+                        <input type="number" class="form-input" id="port" placeholder="21" />
+                        <div class="form-help">Server port number</div>
+                    </div>
+                    `;
+                }
+                } // End of else block for configKeys.length > 0
+            } else {
+                formHtml = `
+                    <div class="form-group">
+                        <p class="form-help">Configuration options for this service type are not yet available.</p>
+                    </div>
+                `;
+            }
+
+            formHtml += `
+                <div class="modal-actions">
+                    <button class="btn btn-cancel" onclick="closeConfigModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveServiceConfig('${serviceId}')">Save Configuration</button>
+                </div>
+            `;
+
+            body.innerHTML = formHtml;
+            modal.classList.add('show');
+        }
+
+        function closeConfigModal() {
+            const modal = document.getElementById('config-modal');
+            modal.classList.remove('show');
+        }
+
+        async function saveServiceConfig(serviceId) {
+            const service = servicesData[serviceId];
+            if (!service) return;
+
+            // Collect configuration data from form
+            const config = {};
+            const inputs = document.querySelectorAll('#config-modal-body input, #config-modal-body select');
+            
+            inputs.forEach(input => {
+                if (input.id && input.value && !input.readOnly) {
+                    config[input.id] = input.value;
+                }
+            });
+
+            // Validate required fields
+            const requiredLabels = document.querySelectorAll('#config-modal-body .form-label.required');
+            let hasErrors = false;
+            
+            requiredLabels.forEach(label => {
+                const fieldId = label.getAttribute('for') || label.nextElementSibling?.id;
+                if (fieldId && !config[fieldId]) {
+                    hasErrors = true;
+                    showError(`Please fill in the required field: ${label.textContent.replace('*', '').trim()}`);
+                }
+            });
+
+            if (hasErrors) return;
+
+            // Send configuration to backend
+            try {
+                const response = await fetch(`/api/services/${serviceId}/action`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        action: 'configure',
+                        params: config
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success || result.ok) {
+                    showSuccess(`${service.name} configured successfully`);
+                    closeConfigModal();
+                    setTimeout(refreshServices, 1000);
+                } else {
+                    showError(`Failed to configure ${service.name}: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error configuring service:', error);
+                showError(`Error configuring service: ${error.message}`);
+            }
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('config-modal');
+            if (e.target === modal) {
+                closeConfigModal();
+            }
+        });
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
