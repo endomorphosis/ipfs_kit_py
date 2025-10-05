@@ -842,6 +842,7 @@ class ComprehensiveServiceManager:
                 "enabled": config.get("enabled", False),
                 "requires_credentials": config.get("requires_credentials", False),
                 "config_keys": config.get("config_keys", []),
+                "config_hints": config.get("config_hints", {}),
                 "actions": self._get_available_actions_for_dashboard(backend_id, status["status"], config.get("enabled", False)),
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {})
