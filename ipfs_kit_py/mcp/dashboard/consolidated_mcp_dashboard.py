@@ -631,7 +631,9 @@ class ConsolidatedMCPDashboard:
         if self._service_manager is None:
             try:
                 from ipfs_kit_py.mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
-                self._service_manager = ComprehensiveServiceManager(self.paths.base)
+                # Use data_dir instead of base for service manager
+                data_dir = self.paths.data_dir if hasattr(self.paths, 'data_dir') else self.paths.base
+                self._service_manager = ComprehensiveServiceManager(data_dir)
                 
                 # Auto-enable detectable services
                 try:
@@ -641,12 +643,12 @@ class ConsolidatedMCPDashboard:
                 except Exception as e:
                     self.log.warning(f"Failed to auto-enable services: {e}")
                 
-                self.log.info("Initialized ComprehensiveServiceManager")
+                self.log.info(f"Initialized ComprehensiveServiceManager with data_dir: {data_dir}")
             except ImportError as e:
                 self.log.error(f"Failed to import ComprehensiveServiceManager: {e}")
                 self._service_manager = None
             except Exception as e:
-                self.log.error(f"Failed to initialize ComprehensiveServiceManager: {e}")
+                self.log.error(f"Failed to initialize ComprehensiveServiceManager: {e}", exc_info=True)
                 self._service_manager = None
         return self._service_manager
 
