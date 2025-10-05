@@ -7597,7 +7597,7 @@
             showAddServiceModal(service.type, newName, service);
         }
 
-        function openEnhancedConfigModal(serviceId, groupKey) {
+        async function openEnhancedConfigModal(serviceId, groupKey) {
             const service = (window.servicesData && window.servicesData[serviceId]) || null;
             if (!service) return;
             
@@ -7606,6 +7606,21 @@
             const content = document.getElementById('config-form-content');
             
             title.textContent = `Configure ${service.name || serviceId}`;
+            
+            // Try to load existing configuration via MCP tools
+            try {
+                const configResult = await window.MCP.callTool('service_status', {
+                    service: serviceId
+                });
+                
+                // Merge existing config with service data
+                if (configResult && configResult.config) {
+                    Object.assign(service, configResult.config);
+                }
+            } catch (error) {
+                console.log('No existing configuration found for', serviceId);
+            }
+            
             content.innerHTML = generateEnhancedConfigForm(serviceId, service, groupKey);
             modal.classList.remove('hidden');
             
@@ -7665,9 +7680,9 @@
                             </p>
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Configuration Directory</label>
-                            <input type="text" id="config-dir" class="w-full p-3 border rounded-lg bg-gray-100" value="${configDir}" readonly>
-                            <p class="text-xs text-gray-500 mt-1">Location of daemon configuration files</p>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Configuration Directory <span class="text-red-500">*</span></label>
+                            <input type="text" id="config-dir" class="w-full p-3 border rounded-lg" value="${configDir}" placeholder="/path/to/config">
+                            <p class="text-xs text-gray-500 mt-1">Location where daemon configuration files will be stored</p>
                         </div>
                         ${portsHTML}
                         <div>
@@ -7828,11 +7843,13 @@
                 // Collect configuration based on service type
                 if (service.type === 'daemon') {
                     // Daemon configuration
+                    const configDir = document.getElementById('config-dir')?.value;
                     const port = document.getElementById('config-port')?.value;
                     const gatewayPort = document.getElementById('config-gateway-port')?.value;
                     const swarmPort = document.getElementById('config-swarm-port')?.value;
                     const autoStart = document.getElementById('config-auto-start')?.value;
                     
+                    if (configDir) config.config_dir = configDir;
                     if (port) config.port = parseInt(port);
                     if (gatewayPort) config.gateway_port = parseInt(gatewayPort);
                     if (swarmPort) config.swarm_port = parseInt(swarmPort);
@@ -7886,19 +7903,13 @@
                     }
                 }
                 
-                // Save configuration via service action endpoint
-                const response = await fetch(`/api/services/${serviceId}/action`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'configure',
-                        params: config
-                    })
+                // Save configuration via MCP server tools
+                // Use service_control tool with 'configure' action
+                const result = await window.MCP.callTool('service_control', {
+                    service: serviceId,
+                    action: 'configure',
+                    params: config
                 });
-                
-                const result = await response.json();
                 
                 if (result?.success || result?.ok) {
                     document.getElementById('service-config-modal').classList.add('hidden');
