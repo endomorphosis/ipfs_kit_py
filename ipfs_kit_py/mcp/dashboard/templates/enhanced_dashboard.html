@@ -8080,18 +8080,26 @@
         // Enhanced configuration modal system
         function openConfigurationModal(serviceId) {
             const service = (window.servicesData && window.servicesData[serviceId]) || null;
-            if (!service) return;
+            if (!service) {
+                console.error('Service not found:', serviceId);
+                return;
+            }
             
             const modal = document.getElementById('service-config-modal');
             const content = document.getElementById('config-form-content');
+            const title = document.getElementById('config-modal-title');
             
-            // Generate configuration form based on service type
-            content.innerHTML = generateConfigurationForm(serviceId, service);
+            // Set modal title
+            title.textContent = `Configure ${service.name || serviceId}`;
+            
+            // Generate configuration form using the enhanced form generator
+            content.innerHTML = generateEnhancedConfigForm(serviceId, service, service.type);
             modal.classList.remove('hidden');
             
             // Set up modal event handlers
-            document.getElementById('save-config-btn').onclick = () => saveServiceConfiguration(serviceId);
+            document.getElementById('save-config-btn').onclick = () => saveEnhancedServiceConfig(serviceId);
             document.getElementById('cancel-config-btn').onclick = () => modal.classList.add('hidden');
+            document.getElementById('close-config-modal').onclick = () => modal.classList.add('hidden');
         }
 
         function generateConfigurationForm(serviceId, service) {
