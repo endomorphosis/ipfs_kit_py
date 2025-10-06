@@ -7605,6 +7605,11 @@
                 return;
             }
             
+            console.log(`🔧 Opening config modal for ${serviceId}:`, service);
+            console.log(`  - type: ${service.type}`);
+            console.log(`  - config_keys: ${JSON.stringify(service.config_keys)}`);
+            console.log(`  - config_hints: ${JSON.stringify(service.config_hints)}`);
+            
             const modal = document.getElementById('service-config-modal');
             const title = document.getElementById('config-modal-title');
             const content = document.getElementById('config-form-content');
@@ -7632,6 +7637,7 @@
             }
             
             // Generate form with potentially merged config
+            console.log(`🎨 Generating form for ${serviceId} with service:`, service);
             content.innerHTML = generateEnhancedConfigForm(serviceId, service, groupKey);
             
             // Pre-fill form fields with existing values
@@ -7662,6 +7668,8 @@
         }
 
         function generateEnhancedConfigForm(serviceId, service, groupKey) {
+            console.log(`🎨 generateEnhancedConfigForm called for ${serviceId}:`, { type: service.type, config_keys: service.config_keys, groupKey });
+            
             // Handle daemon service configuration
             if (service.type === 'daemon') {
                 const configDir = service.config_dir || service.details?.config_dir || 'Not specified';
