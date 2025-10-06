@@ -3381,12 +3381,34 @@ class ConsolidatedMCPDashboard:
                 return {"jsonrpc": "2.0", "error": {"code": 400, "message": "Unsupported action"}, "id": None}
         if name == "service_status":
             svc = str(args.get("service", "")).strip()
+            
+            # Try to get status from ComprehensiveServiceManager if available
+            service_manager = self._get_service_manager()
+            if service_manager:
+                try:
+                    # get_service_details returns detailed service information including config and status
+                    status_result = await service_manager.get_service_details(svc)
+                    
+                    if status_result and "error" not in status_result:
+                        # Extract the actual status and config for the response
+                        result = {
+                            **status_result.get("status", {}),
+                            "config": status_result.get("config", {}),
+                            "actions": status_result.get("actions", [])
+                        }
+                        return {"jsonrpc": "2.0", "result": result, "id": None}
+                except Exception as e:
+                    logger.warning(f"Error getting service status from service_manager for {svc}: {e}")
+            
+            # Fallback for ipfs only if service_manager not available
             if svc == "ipfs":
                 info = {
                     "bin": _which("ipfs"),
                     "api_port_open": _port_open("127.0.0.1", 5001),
                 }
                 return {"jsonrpc": "2.0", "result": info, "id": None}
+            
+            # Return error for unsupported services
             raise HTTPException(400, "Unsupported service")
         return None
 
