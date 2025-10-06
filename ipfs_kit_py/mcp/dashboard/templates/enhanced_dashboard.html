@@ -7599,7 +7599,11 @@
 
         async function openEnhancedConfigModal(serviceId, groupKey) {
             const service = (window.servicesData && window.servicesData[serviceId]) || null;
-            if (!service) return;
+            if (!service) {
+                console.error(`Service not found: ${serviceId}`);
+                showNotification(`Service ${serviceId} not found`, 'error');
+                return;
+            }
             
             const modal = document.getElementById('service-config-modal');
             const title = document.getElementById('config-modal-title');
@@ -7613,15 +7617,41 @@
                     service: serviceId
                 });
                 
+                console.log(`Loaded existing config for ${serviceId}:`, configResult);
+                
                 // Merge existing config with service data
-                if (configResult && configResult.config) {
-                    Object.assign(service, configResult.config);
+                if (configResult && configResult.result) {
+                    const existingConfig = configResult.result.config || configResult.result;
+                    if (existingConfig && typeof existingConfig === 'object') {
+                        Object.assign(service, existingConfig);
+                        console.log(`Merged config for ${serviceId}:`, service);
+                    }
                 }
             } catch (error) {
-                console.log('No existing configuration found for', serviceId);
+                console.log(`No existing configuration found for ${serviceId}:`, error);
             }
             
+            // Generate form with potentially merged config
             content.innerHTML = generateEnhancedConfigForm(serviceId, service, groupKey);
+            
+            // Pre-fill form fields with existing values
+            if (service.config || service.details) {
+                const existingValues = { ...service.config, ...service.details };
+                console.log(`Pre-filling form for ${serviceId} with:`, existingValues);
+                
+                // Fill in fields based on their IDs
+                Object.keys(existingValues).forEach(key => {
+                    const element = document.getElementById(`config-${key}`);
+                    if (element && existingValues[key] !== undefined && existingValues[key] !== null) {
+                        if (element.type === 'checkbox') {
+                            element.checked = !!existingValues[key];
+                        } else {
+                            element.value = existingValues[key];
+                        }
+                    }
+                });
+            }
+            
             modal.classList.remove('hidden');
             
             // Set up modal event handlers
@@ -7838,6 +7868,8 @@
             try {
         const service = (window.servicesData && window.servicesData[serviceId]) || null;
         if (!service) throw new Error('Service not found');
+                
+                console.log(`📝 Saving configuration for ${serviceId}:`, service);
                 const config = {};
                 
                 // Collect configuration based on service type
@@ -7854,8 +7886,12 @@
                     if (gatewayPort) config.gateway_port = parseInt(gatewayPort);
                     if (swarmPort) config.swarm_port = parseInt(swarmPort);
                     if (autoStart) config.auto_start = autoStart === 'true';
+                    
+                    console.log(`🛠️ Daemon config collected for ${serviceId}:`, config);
                 } else if (service.type === 'storage' && service.config_keys && service.config_keys.length > 0) {
                     // Storage backend configuration - collect values based on config_keys
+                    console.log(`📦 Collecting storage config based on config_keys:`, service.config_keys);
+                    
                     for (const key of service.config_keys) {
                         const element = document.getElementById(`config-${key}`);
                         if (element) {
@@ -7867,8 +7903,13 @@
                             } else {
                                 config[key] = element.value;
                             }
+                            console.log(`  - ${key}: ${config[key]} (from element type: ${element.type})`);
+                        } else {
+                            console.warn(`  - ${key}: element not found (id: config-${key})`);
                         }
                     }
+                    
+                    console.log(`📦 Storage config collected for ${serviceId}:`, config);
                 } else if (service.type === 'storage') {
                     // Generic storage backend configuration
                     const accessToken = document.getElementById('config-access-token')?.value;
@@ -7883,25 +7924,39 @@
                             console.warn('Invalid JSON in additional configuration, skipping');
                         }
                     }
+                    
+                    console.log(`📦 Generic storage config collected for ${serviceId}:`, config);
                 } else {
                     // Raw JSON configuration fallback
                     const rawConfig = document.getElementById('config-raw')?.value;
                     if (rawConfig) {
                         Object.assign(config, JSON.parse(rawConfig));
                     }
+                    
+                    console.log(`⚙️ Raw config collected for ${serviceId}:`, config);
                 }
                 
                 // Validate required fields based on config_keys
                 if (service.config_keys && service.config_keys.length > 0) {
-                    const requiredKeys = ['access_key', 'secret_key', 'api_token', 'api_key', 'access_token', 'client_id', 'client_secret', 'host', 'password'];
-                    const missingRequired = service.config_keys.filter(key => 
-                        requiredKeys.includes(key) && !config[key]
-                    );
+                    // Updated required field detection - check against actual config_keys and field metadata
+                    const requiredKeys = service.config_keys.filter(key => {
+                        // Keys ending with 'key', 'secret', 'token' are typically required
+                        const keyLower = key.toLowerCase();
+                        return keyLower.includes('key') || keyLower.includes('secret') || 
+                               keyLower.includes('token') || keyLower.includes('password');
+                    });
+                    
+                    const missingRequired = requiredKeys.filter(key => !config[key] || config[key] === '');
                     
                     if (missingRequired.length > 0) {
+                        console.error(`❌ Missing required fields:`, missingRequired);
                         throw new Error(`Missing required fields: ${missingRequired.join(', ')}`);
                     }
+                    
+                    console.log(`✅ All required fields present for ${serviceId}`);
                 }
+                
+                console.log(`🚀 Calling service_control MCP tool for ${serviceId} with config:`, config);
                 
                 // Save configuration via MCP server tools
                 // Use service_control tool with 'configure' action
@@ -7911,17 +7966,53 @@
                     params: config
                 });
                 
-                if (result?.success || result?.ok) {
+                console.log(`📡 MCP service_control result for ${serviceId}:`, result);
+                
+                if (result?.result?.success || result?.success || result?.ok) {
+                    console.log(`✅ Service ${serviceId} configured successfully`);
                     document.getElementById('service-config-modal').classList.add('hidden');
                     await loadServicesData(); // Refresh
-                    alert(`✅ Service ${serviceId} configured successfully!`);
+                    showNotification(`Service ${service.name || serviceId} configured successfully!`, 'success');
                 } else {
-                    throw new Error(result?.error || result?.message || 'Configuration failed');
+                    const errorMsg = result?.result?.error || result?.error || result?.message || 'Configuration failed';
+                    console.error(`❌ Configuration failed for ${serviceId}:`, errorMsg);
+                    throw new Error(errorMsg);
                 }
             } catch (error) {
-                console.error('Error saving service configuration:', error);
-                alert(`❌ Configuration failed: ${error.message}`);
+                console.error(`❌ Error saving service configuration for ${serviceId}:`, error);
+                showNotification(`Configuration failed: ${error.message}`, 'error');
             }
+        }
+
+
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 animate-slide-in`;
+            
+            const colors = {
+                'success': 'bg-green-500 text-white',
+                'error': 'bg-red-500 text-white',
+                'warning': 'bg-yellow-500 text-white',
+                'info': 'bg-blue-500 text-white'
+            };
+            
+            notification.className += ` ${colors[type] || colors.info}`;
+            notification.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
         }
 
         function showAddServiceModal(preselectedType = '', preselectedName = '', templateService = null) {
