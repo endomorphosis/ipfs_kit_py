@@ -631,7 +631,9 @@ class ConsolidatedMCPDashboard:
         if self._service_manager is None:
             try:
                 from ipfs_kit_py.mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
-                self._service_manager = ComprehensiveServiceManager(self.paths.base)
+                # Use data_dir instead of base for service manager
+                data_dir = self.paths.data_dir if hasattr(self.paths, 'data_dir') else self.paths.base
+                self._service_manager = ComprehensiveServiceManager(data_dir)
                 
                 # Auto-enable detectable services
                 try:
@@ -641,12 +643,12 @@ class ConsolidatedMCPDashboard:
                 except Exception as e:
                     self.log.warning(f"Failed to auto-enable services: {e}")
                 
-                self.log.info("Initialized ComprehensiveServiceManager")
+                self.log.info(f"Initialized ComprehensiveServiceManager with data_dir: {data_dir}")
             except ImportError as e:
                 self.log.error(f"Failed to import ComprehensiveServiceManager: {e}")
                 self._service_manager = None
             except Exception as e:
-                self.log.error(f"Failed to initialize ComprehensiveServiceManager: {e}")
+                self.log.error(f"Failed to initialize ComprehensiveServiceManager: {e}", exc_info=True)
                 self._service_manager = None
         return self._service_manager
 
@@ -691,6 +693,10 @@ class ConsolidatedMCPDashboard:
                 "description": config["description"],
                 "status": status["status"],
                 "port": config.get("port"),
+                "gateway_port": config.get("gateway_port"),
+                "swarm_port": config.get("swarm_port"),
+                "config_dir": config.get("config_dir"),
+                "auto_start": config.get("auto_start", False),
                 "actions": actions,
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {}),
@@ -719,6 +725,8 @@ class ConsolidatedMCPDashboard:
                 "description": config["description"],
                 "status": status["status"],
                 "requires_credentials": config.get("requires_credentials", False),
+                "config_keys": config.get("config_keys", []),
+                "config_hints": config.get("config_hints", {}),
                 "actions": actions,
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {}),
@@ -895,6 +903,31 @@ class ConsolidatedMCPDashboard:
         @app.get("/", response_class=HTMLResponse)
         async def index() -> str:
             return dashboard.render_beta_toolrunner()
+
+        @app.get("/services", response_class=HTMLResponse)
+        @app.get("/service-monitoring", response_class=HTMLResponse)
+        async def service_monitoring_page() -> str:
+            """Enhanced service monitoring page."""
+            try:
+                # Try to load from dashboard_templates directory
+                base_dir = Path(__file__).parent.parent  # ipfs_kit_py/mcp
+                template_path = base_dir / "dashboard_templates" / "enhanced_service_monitoring.html"
+                
+                if template_path.exists():
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        return f.read()
+                
+                # Fallback: try relative to this file
+                alt_path = Path(__file__).parent / "templates" / "enhanced_service_monitoring.html"
+                if alt_path.exists():
+                    with open(alt_path, 'r', encoding='utf-8') as f:
+                        return f.read()
+                        
+                self.log.warning(f"Service monitoring template not found at: {template_path}")
+                return "<html><body><h1>Service Monitoring</h1><p>Template not found</p></body></html>"
+            except Exception as e:
+                self.log.error(f"Error loading service monitoring template: {e}")
+                return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>"
 
         # Simple request counter middleware (registered once)
         @app.middleware("http")
@@ -1691,7 +1724,7 @@ class ConsolidatedMCPDashboard:
                     # Transform the data format to match the expected API response
                     services = {}
                     for service in services_data.get("services", []):
-                        services[service["id"]] = {
+                        service_dict = {
                             "name": service["name"],
                             "type": service["type"],
                             "status": service["status"],
@@ -1699,8 +1732,20 @@ class ConsolidatedMCPDashboard:
                             "port": service.get("port"),
                             "actions": service.get("actions", []),
                             "last_check": service.get("last_check"),
-                            "details": service.get("details", {})
+                            "details": service.get("details", {}),
+                            "config_keys": service.get("config_keys", []),
+                            "config_hints": service.get("config_hints", {}),
+                            "requires_credentials": service.get("requires_credentials", False)
                         }
+                        
+                        # Add daemon-specific fields
+                        if service["type"] == "daemon":
+                            service_dict["gateway_port"] = service.get("gateway_port")
+                            service_dict["swarm_port"] = service.get("swarm_port")
+                            service_dict["config_dir"] = service.get("config_dir")
+                            service_dict["auto_start"] = service.get("auto_start", False)
+                        
+                        services[service["id"]] = service_dict
                     return {"services": services}
                 else:
                     # Fallback to basic service detection if service manager fails
@@ -1750,17 +1795,19 @@ class ConsolidatedMCPDashboard:
             try:
                 data = await request.json()
                 action = data.get("action", "")
+                params = data.get("params", {})
             except Exception:
                 action = ""
+                params = {}
                 
-            if action not in ("start", "stop", "restart", "enable", "disable", "health_check"):
+            if action not in ("start", "stop", "restart", "enable", "disable", "health_check", "configure", "view_logs"):
                 raise HTTPException(status_code=400, detail="Invalid action")
             
             try:
                 service_manager = self._get_service_manager()
                 if service_manager:
                     # Use comprehensive service manager for service actions
-                    result = await service_manager.perform_service_action(name, action, {})
+                    result = await service_manager.perform_service_action(name, action, params)
                     if result.get("success", False):
                         return {
                             "ok": True,
@@ -3343,12 +3390,34 @@ class ConsolidatedMCPDashboard:
                 return {"jsonrpc": "2.0", "error": {"code": 400, "message": "Unsupported action"}, "id": None}
         if name == "service_status":
             svc = str(args.get("service", "")).strip()
+            
+            # Try to get status from ComprehensiveServiceManager if available
+            service_manager = self._get_service_manager()
+            if service_manager:
+                try:
+                    # get_service_details returns detailed service information including config and status
+                    status_result = await service_manager.get_service_details(svc)
+                    
+                    if status_result and "error" not in status_result:
+                        # Extract the actual status and config for the response
+                        result = {
+                            **status_result.get("status", {}),
+                            "config": status_result.get("config", {}),
+                            "actions": status_result.get("actions", [])
+                        }
+                        return {"jsonrpc": "2.0", "result": result, "id": None}
+                except Exception as e:
+                    logger.warning(f"Error getting service status from service_manager for {svc}: {e}")
+            
+            # Fallback for ipfs only if service_manager not available
             if svc == "ipfs":
                 info = {
                     "bin": _which("ipfs"),
                     "api_port_open": _port_open("127.0.0.1", 5001),
                 }
                 return {"jsonrpc": "2.0", "result": info, "id": None}
+            
+            # Return error for unsupported services
             raise HTTPException(400, "Unsupported service")
         return None
 

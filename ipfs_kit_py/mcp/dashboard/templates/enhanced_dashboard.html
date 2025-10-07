@@ -7562,18 +7562,27 @@
 
         async function testServiceConnection(serviceId) {
             try {
-                const result = await window.MCP?.callTool('test_service_connection', { 
-                    service: serviceId 
+                // Use REST API endpoint instead of MCP tool
+                const response = await fetch(`/api/services/${serviceId}/action`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'health_check'
+                    })
                 });
                 
-                if (result?.result?.success) {
-                    alert(`✅ Service ${serviceId} connection test successful!\n\nDetails: ${result.result.message}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Service ${serviceId} health check successful!\n\nStatus: ${result.status}\nDetails: ${result.message}`);
                 } else {
-                    alert(`❌ Service ${serviceId} connection test failed!\n\nError: ${result.result?.message || 'Unknown error'}`);
+                    alert(`❌ Service ${serviceId} health check failed!\n\nError: ${result.error || result.message || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error('Error testing service connection:', error);
-                alert(`❌ Connection test failed: ${error.message}`);
+                alert(`❌ Health check failed: ${error.message}`);
             }
         }
 
@@ -7588,16 +7597,67 @@
             showAddServiceModal(service.type, newName, service);
         }
 
-        function openEnhancedConfigModal(serviceId, groupKey) {
+        async function openEnhancedConfigModal(serviceId, groupKey) {
             const service = (window.servicesData && window.servicesData[serviceId]) || null;
-            if (!service) return;
+            if (!service) {
+                console.error(`Service not found: ${serviceId}`);
+                showNotification(`Service ${serviceId} not found`, 'error');
+                return;
+            }
+            
+            console.log(`🔧 Opening config modal for ${serviceId}:`, service);
+            console.log(`  - type: ${service.type}`);
+            console.log(`  - config_keys: ${JSON.stringify(service.config_keys)}`);
+            console.log(`  - config_hints: ${JSON.stringify(service.config_hints)}`);
             
             const modal = document.getElementById('service-config-modal');
             const title = document.getElementById('config-modal-title');
             const content = document.getElementById('config-form-content');
             
             title.textContent = `Configure ${service.name || serviceId}`;
+            
+            // Try to load existing configuration via MCP tools
+            try {
+                const configResult = await window.MCP.callTool('service_status', {
+                    service: serviceId
+                });
+                
+                console.log(`Loaded existing config for ${serviceId}:`, configResult);
+                
+                // Merge existing config with service data
+                if (configResult && configResult.result) {
+                    const existingConfig = configResult.result.config || configResult.result;
+                    if (existingConfig && typeof existingConfig === 'object') {
+                        Object.assign(service, existingConfig);
+                        console.log(`Merged config for ${serviceId}:`, service);
+                    }
+                }
+            } catch (error) {
+                console.log(`No existing configuration found for ${serviceId}:`, error);
+            }
+            
+            // Generate form with potentially merged config
+            console.log(`🎨 Generating form for ${serviceId} with service:`, service);
             content.innerHTML = generateEnhancedConfigForm(serviceId, service, groupKey);
+            
+            // Pre-fill form fields with existing values
+            if (service.config || service.details) {
+                const existingValues = { ...service.config, ...service.details };
+                console.log(`Pre-filling form for ${serviceId} with:`, existingValues);
+                
+                // Fill in fields based on their IDs
+                Object.keys(existingValues).forEach(key => {
+                    const element = document.getElementById(`config-${key}`);
+                    if (element && existingValues[key] !== undefined && existingValues[key] !== null) {
+                        if (element.type === 'checkbox') {
+                            element.checked = !!existingValues[key];
+                        } else {
+                            element.value = existingValues[key];
+                        }
+                    }
+                });
+            }
+            
             modal.classList.remove('hidden');
             
             // Set up modal event handlers
@@ -7608,86 +7668,205 @@
         }
 
         function generateEnhancedConfigForm(serviceId, service, groupKey) {
-            const configForms = {
-                's3': `
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Access Key ID</label>
-                                <input type="text" id="config-access-key" class="w-full p-3 border rounded-lg" value="${service.access_key || ''}" placeholder="AKIA...">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Secret Access Key</label>
-                                <input type="password" id="config-secret-key" class="w-full p-3 border rounded-lg" value="${service.secret_key || ''}" placeholder="Secret key">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Region</label>
-                                <input type="text" id="config-region" class="w-full p-3 border rounded-lg" value="${service.region || 'us-east-1'}" placeholder="us-east-1">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Bucket Name</label>
-                                <input type="text" id="config-bucket" class="w-full p-3 border rounded-lg" value="${service.bucket || ''}" placeholder="my-bucket">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Endpoint URL (Optional - for S3-compatible services)</label>
-                            <input type="url" id="config-endpoint" class="w-full p-3 border rounded-lg" value="${service.endpoint || ''}" placeholder="https://s3.amazonaws.com">
-                        </div>
-                    </div>
-                `,
-                'github': `
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Personal Access Token</label>
-                            <input type="password" id="config-token-github" class="w-full p-3 border rounded-lg" value="${service.token || ''}" placeholder="ghp_...">
-                        </div>
-                        <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Username/Organization</label>
-                                <input type="text" id="config-username" class="w-full p-3 border rounded-lg" value="${service.username || ''}" placeholder="octocat">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Repository</label>
-                                <input type="text" id="config-repo" class="w-full p-3 border rounded-lg" value="${service.repo || ''}" placeholder="my-repo">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Branch</label>
-                            <input type="text" id="config-branch" class="w-full p-3 border rounded-lg" value="${service.branch || 'main'}" placeholder="main">
-                        </div>
-                    </div>
-                `,
-                'huggingface': `
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">HuggingFace API Token</label>
-                            <input type="password" id="config-token-huggingface" class="w-full p-3 border rounded-lg" value="${service.token || ''}" placeholder="hf_...">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Username</label>
-                            <input type="text" id="config-username" class="w-full p-3 border rounded-lg" value="${service.username || ''}" placeholder="your-username">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Default Model/Dataset</label>
-                            <input type="text" id="config-model" class="w-full p-3 border rounded-lg" value="${service.model || ''}" placeholder="sentence-transformers/all-MiniLM-L6-v2">
-                        </div>
-                    </div>
-                `
-            };
+            console.log(`🎨 generateEnhancedConfigForm called for ${serviceId}:`, { type: service.type, config_keys: service.config_keys, groupKey });
             
-            return configForms[service.type] || `
+            // Handle daemon service configuration
+            if (service.type === 'daemon') {
+                const configDir = service.config_dir || service.details?.config_dir || 'Not specified';
+                const port = service.port || service.config?.port || '';
+                const gatewayPort = service.gateway_port || '';
+                const swarmPort = service.swarm_port || '';
+                const autoStart = service.auto_start || false;
+                
+                let portsHTML = '';
+                if (port) {
+                    portsHTML += `
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">API Port</label>
+                            <input type="number" id="config-port" class="w-full p-3 border rounded-lg" value="${port}" placeholder="Port number">
+                            <p class="text-xs text-gray-500 mt-1">API port for the daemon</p>
+                        </div>
+                    `;
+                }
+                if (gatewayPort) {
+                    portsHTML += `
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Gateway Port</label>
+                            <input type="number" id="config-gateway-port" class="w-full p-3 border rounded-lg" value="${gatewayPort}" placeholder="Gateway port">
+                            <p class="text-xs text-gray-500 mt-1">HTTP gateway port</p>
+                        </div>
+                    `;
+                }
+                if (swarmPort) {
+                    portsHTML += `
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Swarm Port</label>
+                            <input type="number" id="config-swarm-port" class="w-full p-3 border rounded-lg" value="${swarmPort}" placeholder="Swarm port">
+                            <p class="text-xs text-gray-500 mt-1">P2P swarm port</p>
+                        </div>
+                    `;
+                }
+                
+                return `
+                    <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Configure <strong>${service.name || serviceId}</strong> daemon settings.
+                                <br><br>
+                                Advanced configuration files are located in the configuration directory below.
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Configuration Directory <span class="text-red-500">*</span></label>
+                            <input type="text" id="config-dir" class="w-full p-3 border rounded-lg" value="${configDir}" placeholder="/path/to/config">
+                            <p class="text-xs text-gray-500 mt-1">Location where daemon configuration files will be stored</p>
+                        </div>
+                        ${portsHTML}
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Auto-start on Boot</label>
+                            <select id="config-auto-start" class="w-full p-3 border rounded-lg">
+                                <option value="true" ${autoStart ? 'selected' : ''}>Enabled</option>
+                                <option value="false" ${!autoStart ? 'selected' : ''}>Disabled</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Whether the daemon should start automatically on system boot</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // For storage services, generate form dynamically based on config_keys
+            if (service.type === 'storage' && service.config_keys && service.config_keys.length > 0) {
+                const configKeys = service.config_keys;
+                let fieldsHTML = '';
+                
+                // Field metadata for better UX
+                const fieldMetadata = {
+                    // S3 actual API parameters (s3_kit.py)
+                    'accessKey': { label: 'Access Key ID', type: 'text', placeholder: 'AKIA...', required: true },
+                    'secretKey': { label: 'Secret Access Key', type: 'password', placeholder: 'Enter secret key', required: true },
+                    'endpoint': { label: 'Endpoint URL', type: 'url', placeholder: 'https://s3.amazonaws.com', required: true },
+                    // HuggingFace actual API parameters (huggingface_kit.py)
+                    'token': { label: 'HuggingFace Token', type: 'password', placeholder: 'hf_...', required: true },
+                    // GitHub actual API parameters
+                    'access_token': { label: 'GitHub Access Token', type: 'password', placeholder: 'ghp_...', required: true },
+                    // Other storage backends
+                    'api_token': { label: 'API Token', type: 'password', placeholder: 'Enter your API token', required: true },
+                    'api_key': { label: 'API Key', type: 'password', placeholder: 'Enter your API key', required: true },
+                    'username': { label: 'Username', type: 'text', placeholder: 'your-username', required: false },
+                    'repository': { label: 'Repository', type: 'text', placeholder: 'owner/repo', required: false },
+                    'node_url': { label: 'Node URL', type: 'url', placeholder: 'http://localhost:1234', required: false },
+                    'homeserver_url': { label: 'Homeserver URL', type: 'url', placeholder: 'https://matrix.org', required: false },
+                    'room_id': { label: 'Room ID', type: 'text', placeholder: '!roomid:server', required: false },
+                    'client_id': { label: 'Client ID', type: 'text', placeholder: 'OAuth client ID', required: true },
+                    'client_secret': { label: 'Client Secret', type: 'password', placeholder: 'OAuth client secret', required: true },
+                    'refresh_token': { label: 'Refresh Token', type: 'password', placeholder: 'OAuth refresh token', required: false },
+                    'host': { label: 'Host', type: 'text', placeholder: 'ftp.example.com', required: true },
+                    'port': { label: 'Port', type: 'number', placeholder: '21', required: false },
+                    'password': { label: 'Password', type: 'password', placeholder: 'Enter password', required: true },
+                    'private_key_path': { label: 'Private Key Path', type: 'text', placeholder: '~/.ssh/id_rsa', required: false },
+                    'memory_pool': { label: 'Memory Pool', type: 'text', placeholder: 'default', required: false },
+                    'compression': { label: 'Compression', type: 'text', placeholder: 'snappy', required: false },
+                    'compression_codec': { label: 'Compression Codec', type: 'text', placeholder: 'snappy', required: false },
+                    'row_group_size': { label: 'Row Group Size', type: 'number', placeholder: '1000000', required: false },
+                    'schema_validation': { label: 'Schema Validation', type: 'checkbox', placeholder: '', required: false }
+                };
+                
+                // Use config_hints from service if available
+                if (service.config_hints) {
+                    for (const key of configKeys) {
+                        if (service.config_hints[key] && !fieldMetadata[key]) {
+                            // Infer type from hint or key name
+                            const hint = service.config_hints[key];
+                            const isSecret = key.toLowerCase().includes('secret') || key.toLowerCase().includes('password') || key.toLowerCase().includes('token') || key.toLowerCase().includes('key');
+                            const isUrl = hint.toLowerCase().includes('url') || hint.toLowerCase().includes('endpoint');
+                            const isNumber = hint.toLowerCase().includes('port') || hint.toLowerCase().includes('size');
+                            
+                            fieldMetadata[key] = {
+                                label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                                type: isUrl ? 'url' : (isSecret ? 'password' : (isNumber ? 'number' : 'text')),
+                                placeholder: hint,
+                                required: key.toLowerCase().includes('key') || key.toLowerCase().includes('secret') || key.toLowerCase().includes('token')
+                            };
+                        }
+                    }
+                }
+                
+                // Generate fields based on config_keys
+                for (const key of configKeys) {
+                    const meta = fieldMetadata[key] || { label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), type: 'text', placeholder: `Enter ${key}`, required: false };
+                    const requiredMarker = meta.required ? '<span class="text-red-500">*</span>' : '';
+                    
+                    if (meta.type === 'checkbox') {
+                        fieldsHTML += `
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="config-${key}" class="mr-2">
+                                    <span class="text-sm font-bold text-gray-700">${meta.label} ${requiredMarker}</span>
+                                </label>
+                            </div>
+                        `;
+                    } else {
+                        fieldsHTML += `
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">${meta.label} ${requiredMarker}</label>
+                                <input type="${meta.type}" id="config-${key}" class="w-full p-3 border rounded-lg" placeholder="${meta.placeholder}" ${meta.required ? 'required' : ''}>
+                                ${meta.placeholder && meta.placeholder.length > 30 ? `<p class="text-xs text-gray-500 mt-1">${meta.placeholder}</p>` : ''}
+                            </div>
+                        `;
+                    }
+                }
+                
+                return `
+                    <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Configure credentials and settings for <strong>${service.name || serviceId}</strong>
+                            </p>
+                        </div>
+                        ${fieldsHTML}
+                    </div>
+                `;
+            }
+            
+            // For storage services without config_keys, show generic form
+            if (service.type === 'storage' || groupKey === 'storage') {
+                return `
+                    <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Configure credentials and settings for <strong>${service.name || serviceId}</strong>
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">API Token / Access Key <span class="text-red-500">*</span></label>
+                            <input type="password" id="config-access-token" class="w-full p-3 border rounded-lg" placeholder="Enter your API token or access key" required>
+                            <p class="text-xs text-gray-500 mt-1">Your ${service.name || serviceId} authentication credentials</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Additional Configuration (JSON)</label>
+                            <textarea id="config-json" class="w-full p-3 border rounded-lg font-mono text-sm" rows="6" placeholder='{"key": "value"}'>${JSON.stringify(service.config || {}, null, 2)}</textarea>
+                            <p class="text-xs text-gray-500 mt-1">Additional configuration in JSON format (optional)</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Default fallback for other service types
+            return `
                 <div class="space-y-4">
-                    <div class="p-4 bg-yellow-50 rounded-lg">
-                        <p class="text-sm text-yellow-800">
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <p class="text-sm text-blue-800">
                             <i class="fas fa-info-circle mr-2"></i>
-                            Configuration form for <strong>${service.type}</strong> services is not yet implemented.
+                            Configure <strong>${service.name || serviceId}</strong>
                         </p>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">Raw Configuration (JSON)</label>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Configuration (JSON)</label>
                         <textarea id="config-raw" class="w-full p-3 border rounded-lg font-mono text-sm" rows="8" placeholder='{"key": "value"}'>${JSON.stringify(service.config || {}, null, 2)}</textarea>
+                        <p class="text-xs text-gray-500 mt-1">Enter configuration in JSON format</p>
                     </div>
                 </div>
             `;
@@ -7697,49 +7876,151 @@
             try {
         const service = (window.servicesData && window.servicesData[serviceId]) || null;
         if (!service) throw new Error('Service not found');
+                
+                console.log(`📝 Saving configuration for ${serviceId}:`, service);
                 const config = {};
                 
                 // Collect configuration based on service type
-                if (service.type === 's3') {
-                    config.access_key = document.getElementById('config-access-key')?.value;
-                    config.secret_key = document.getElementById('config-secret-key')?.value;
-                    config.region = document.getElementById('config-region')?.value;
-                    config.bucket = document.getElementById('config-bucket')?.value;
-                    config.endpoint = document.getElementById('config-endpoint')?.value;
-                } else if (service.type === 'github') {
-                    config.token = document.getElementById('config-token')?.value;
-                    config.username = document.getElementById('config-username')?.value;
-                    config.repo = document.getElementById('config-repo')?.value;
-                    config.branch = document.getElementById('config-branch')?.value;
-                } else if (service.type === 'huggingface') {
-                    config.token = document.getElementById('config-token')?.value;
-                    config.username = document.getElementById('config-username')?.value;
-                    config.model = document.getElementById('config-model')?.value;
+                if (service.type === 'daemon') {
+                    // Daemon configuration
+                    const configDir = document.getElementById('config-dir')?.value;
+                    const port = document.getElementById('config-port')?.value;
+                    const gatewayPort = document.getElementById('config-gateway-port')?.value;
+                    const swarmPort = document.getElementById('config-swarm-port')?.value;
+                    const autoStart = document.getElementById('config-auto-start')?.value;
+                    
+                    if (configDir) config.config_dir = configDir;
+                    if (port) config.port = parseInt(port);
+                    if (gatewayPort) config.gateway_port = parseInt(gatewayPort);
+                    if (swarmPort) config.swarm_port = parseInt(swarmPort);
+                    if (autoStart) config.auto_start = autoStart === 'true';
+                    
+                    console.log(`🛠️ Daemon config collected for ${serviceId}:`, config);
+                } else if (service.type === 'storage' && service.config_keys && service.config_keys.length > 0) {
+                    // Storage backend configuration - collect values based on config_keys
+                    console.log(`📦 Collecting storage config based on config_keys:`, service.config_keys);
+                    
+                    for (const key of service.config_keys) {
+                        const element = document.getElementById(`config-${key}`);
+                        if (element) {
+                            if (element.type === 'checkbox') {
+                                config[key] = element.checked;
+                            } else if (element.type === 'number') {
+                                const value = element.value;
+                                config[key] = value ? parseInt(value) : null;
+                            } else {
+                                config[key] = element.value;
+                            }
+                            console.log(`  - ${key}: ${config[key]} (from element type: ${element.type})`);
+                        } else {
+                            console.warn(`  - ${key}: element not found (id: config-${key})`);
+                        }
+                    }
+                    
+                    console.log(`📦 Storage config collected for ${serviceId}:`, config);
+                } else if (service.type === 'storage') {
+                    // Generic storage backend configuration
+                    const accessToken = document.getElementById('config-access-token')?.value;
+                    const configJson = document.getElementById('config-json')?.value;
+                    
+                    if (accessToken) config.access_token = accessToken;
+                    if (configJson) {
+                        try {
+                            const parsedJson = JSON.parse(configJson);
+                            Object.assign(config, parsedJson);
+                        } catch (e) {
+                            console.warn('Invalid JSON in additional configuration, skipping');
+                        }
+                    }
+                    
+                    console.log(`📦 Generic storage config collected for ${serviceId}:`, config);
                 } else {
-                    // Raw JSON configuration
+                    // Raw JSON configuration fallback
                     const rawConfig = document.getElementById('config-raw')?.value;
                     if (rawConfig) {
                         Object.assign(config, JSON.parse(rawConfig));
                     }
+                    
+                    console.log(`⚙️ Raw config collected for ${serviceId}:`, config);
                 }
                 
-                // Save via MCP SDK
-                const result = await window.MCP?.callTool('configure_service', {
+                // Validate required fields based on config_keys
+                if (service.config_keys && service.config_keys.length > 0) {
+                    // Updated required field detection - check against actual config_keys and field metadata
+                    const requiredKeys = service.config_keys.filter(key => {
+                        // Keys ending with 'key', 'secret', 'token' are typically required
+                        const keyLower = key.toLowerCase();
+                        return keyLower.includes('key') || keyLower.includes('secret') || 
+                               keyLower.includes('token') || keyLower.includes('password');
+                    });
+                    
+                    const missingRequired = requiredKeys.filter(key => !config[key] || config[key] === '');
+                    
+                    if (missingRequired.length > 0) {
+                        console.error(`❌ Missing required fields:`, missingRequired);
+                        throw new Error(`Missing required fields: ${missingRequired.join(', ')}`);
+                    }
+                    
+                    console.log(`✅ All required fields present for ${serviceId}`);
+                }
+                
+                console.log(`🚀 Calling service_control MCP tool for ${serviceId} with config:`, config);
+                
+                // Save configuration via MCP server tools
+                // Use service_control tool with 'configure' action
+                const result = await window.MCP.callTool('service_control', {
                     service: serviceId,
-                    config: config
+                    action: 'configure',
+                    params: config
                 });
                 
-                if (result?.result?.success) {
+                console.log(`📡 MCP service_control result for ${serviceId}:`, result);
+                
+                if (result?.result?.success || result?.success || result?.ok) {
+                    console.log(`✅ Service ${serviceId} configured successfully`);
                     document.getElementById('service-config-modal').classList.add('hidden');
                     await loadServicesData(); // Refresh
-                    alert(`✅ Service ${serviceId} configured successfully!`);
+                    showNotification(`Service ${service.name || serviceId} configured successfully!`, 'success');
                 } else {
-                    throw new Error(result?.result?.message || 'Configuration failed');
+                    const errorMsg = result?.result?.error || result?.error || result?.message || 'Configuration failed';
+                    console.error(`❌ Configuration failed for ${serviceId}:`, errorMsg);
+                    throw new Error(errorMsg);
                 }
             } catch (error) {
-                console.error('Error saving service configuration:', error);
-                alert(`❌ Configuration failed: ${error.message}`);
+                console.error(`❌ Error saving service configuration for ${serviceId}:`, error);
+                showNotification(`Configuration failed: ${error.message}`, 'error');
             }
+        }
+
+
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 animate-slide-in`;
+            
+            const colors = {
+                'success': 'bg-green-500 text-white',
+                'error': 'bg-red-500 text-white',
+                'warning': 'bg-yellow-500 text-white',
+                'info': 'bg-blue-500 text-white'
+            };
+            
+            notification.className += ` ${colors[type] || colors.info}`;
+            notification.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
         }
 
         function showAddServiceModal(preselectedType = '', preselectedName = '', templateService = null) {
@@ -7942,18 +8223,26 @@
         // Enhanced configuration modal system
         function openConfigurationModal(serviceId) {
             const service = (window.servicesData && window.servicesData[serviceId]) || null;
-            if (!service) return;
+            if (!service) {
+                console.error('Service not found:', serviceId);
+                return;
+            }
             
             const modal = document.getElementById('service-config-modal');
             const content = document.getElementById('config-form-content');
+            const title = document.getElementById('config-modal-title');
             
-            // Generate configuration form based on service type
-            content.innerHTML = generateConfigurationForm(serviceId, service);
+            // Set modal title
+            title.textContent = `Configure ${service.name || serviceId}`;
+            
+            // Generate configuration form using the enhanced form generator
+            content.innerHTML = generateEnhancedConfigForm(serviceId, service, service.type);
             modal.classList.remove('hidden');
             
             // Set up modal event handlers
-            document.getElementById('save-config-btn').onclick = () => saveServiceConfiguration(serviceId);
+            document.getElementById('save-config-btn').onclick = () => saveEnhancedServiceConfig(serviceId);
             document.getElementById('cancel-config-btn').onclick = () => modal.classList.add('hidden');
+            document.getElementById('close-config-modal').onclick = () => modal.classList.add('hidden');
         }
 
         function generateConfigurationForm(serviceId, service) {

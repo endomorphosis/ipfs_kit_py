@@ -224,7 +224,12 @@ class ComprehensiveServiceManager:
                     "name": "Amazon S3",
                     "description": "Amazon Simple Storage Service backend",
                     "requires_credentials": True,
-                    "config_keys": ["access_key", "secret_key", "region", "bucket"],
+                    "config_keys": ["accessKey", "secretKey", "endpoint"],
+                    "config_hints": {
+                        "accessKey": "AWS Access Key ID (e.g., AKIA...)",
+                        "secretKey": "AWS Secret Access Key",
+                        "endpoint": "S3 endpoint URL (e.g., https://s3.amazonaws.com)"
+                    },
                     "enabled": False
                 },
                 "huggingface": {
@@ -232,7 +237,10 @@ class ComprehensiveServiceManager:
                     "name": "HuggingFace Hub",
                     "description": "HuggingFace model and dataset repository",
                     "requires_credentials": True,
-                    "config_keys": ["api_token", "username"],
+                    "config_keys": ["token"],
+                    "config_hints": {
+                        "token": "HuggingFace API token (from huggingface.co/settings/tokens)"
+                    },
                     "enabled": False
                 },
                 "github": {
@@ -240,7 +248,10 @@ class ComprehensiveServiceManager:
                     "name": "GitHub Storage",
                     "description": "GitHub repository storage backend",
                     "requires_credentials": True,
-                    "config_keys": ["access_token", "username", "repository"],
+                    "config_keys": ["access_token"],
+                    "config_hints": {
+                        "access_token": "GitHub Personal Access Token (from github.com/settings/tokens)"
+                    },
                     "enabled": False
                 },
                 "storacha": {
@@ -797,6 +808,10 @@ class ComprehensiveServiceManager:
                 "status": status["status"],
                 "enabled": config.get("enabled", False),
                 "port": config.get("port"),
+                "gateway_port": config.get("gateway_port"),
+                "swarm_port": config.get("swarm_port"),
+                "config_dir": config.get("config_dir"),
+                "auto_start": config.get("auto_start", False),
                 "actions": self._get_available_actions_for_dashboard(daemon_id, status["status"], config.get("enabled", False)),
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {})
@@ -831,6 +846,7 @@ class ComprehensiveServiceManager:
                 "enabled": config.get("enabled", False),
                 "requires_credentials": config.get("requires_credentials", False),
                 "config_keys": config.get("config_keys", []),
+                "config_hints": config.get("config_hints", {}),
                 "actions": self._get_available_actions_for_dashboard(backend_id, status["status"], config.get("enabled", False)),
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {})
