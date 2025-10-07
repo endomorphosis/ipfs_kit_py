@@ -917,7 +917,7 @@
 
             // Collect configuration data from form
             const config = {};
-            const inputs = document.querySelectorAll('#config-modal-body input, #config-modal-body select');
+            const inputs = document.querySelectorAll('#config-modal-body input, #config-modal-body select, #config-modal-body textarea');
             
             inputs.forEach(input => {
                 if (input.id && input.value && !input.readOnly) {
@@ -948,7 +948,9 @@
                     },
                     body: JSON.stringify({ 
                         action: 'configure',
-                        params: config
+                        params: {
+                            config: config
+                        }
                     })
                 });
 
