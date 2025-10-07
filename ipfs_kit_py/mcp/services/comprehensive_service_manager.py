@@ -808,6 +808,10 @@ class ComprehensiveServiceManager:
                 "status": status["status"],
                 "enabled": config.get("enabled", False),
                 "port": config.get("port"),
+                "gateway_port": config.get("gateway_port"),
+                "swarm_port": config.get("swarm_port"),
+                "config_dir": config.get("config_dir"),
+                "auto_start": config.get("auto_start", False),
                 "actions": self._get_available_actions_for_dashboard(daemon_id, status["status"], config.get("enabled", False)),
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {})

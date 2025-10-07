@@ -1724,7 +1724,7 @@ class ConsolidatedMCPDashboard:
                     # Transform the data format to match the expected API response
                     services = {}
                     for service in services_data.get("services", []):
-                        services[service["id"]] = {
+                        service_dict = {
                             "name": service["name"],
                             "type": service["type"],
                             "status": service["status"],
@@ -1737,6 +1737,15 @@ class ConsolidatedMCPDashboard:
                             "config_hints": service.get("config_hints", {}),
                             "requires_credentials": service.get("requires_credentials", False)
                         }
+                        
+                        # Add daemon-specific fields
+                        if service["type"] == "daemon":
+                            service_dict["gateway_port"] = service.get("gateway_port")
+                            service_dict["swarm_port"] = service.get("swarm_port")
+                            service_dict["config_dir"] = service.get("config_dir")
+                            service_dict["auto_start"] = service.get("auto_start", False)
+                        
+                        services[service["id"]] = service_dict
                     return {"services": services}
                 else:
                     # Fallback to basic service detection if service manager fails
