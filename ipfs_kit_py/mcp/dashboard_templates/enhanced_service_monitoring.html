@@ -925,6 +925,10 @@
                 }
             });
 
+            // Add instance name and service type
+            config.instance_name = config.instance_name || serviceId;
+            config.service_type = serviceId;
+
             // Validate required fields
             const requiredLabels = document.querySelectorAll('#config-modal-body .form-label.required');
             let hasErrors = false;
@@ -939,24 +943,21 @@
 
             if (hasErrors) return;
 
-            // Send configuration to backend
+            // Send configuration directly to configure endpoint
             try {
-                const response = await fetch(`/api/services/${serviceId}/action`, {
+                const response = await fetch(`/api/services/${serviceId}/configure`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
-                        action: 'configure',
-                        params: {
-                            config: config
-                        }
+                        config: config
                     })
                 });
 
                 const result = await response.json();
                 
-                if (result.success || result.ok) {
+                if (result.success) {
                     showSuccess(`${service.name} configured successfully`);
                     closeConfigModal();
                     setTimeout(refreshServices, 1000);

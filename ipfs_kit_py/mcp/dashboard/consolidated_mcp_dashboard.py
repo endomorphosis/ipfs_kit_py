@@ -668,6 +668,62 @@ class ConsolidatedMCPDashboard:
                 self._peer_manager = None
         return self._peer_manager
     
+    def _transform_config_for_backend(self, service_type: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform user configuration to backend-specific format.
+        
+        This method converts the form input into the format expected by backend modules
+        like s3_kit, github_kit, etc.
+        """
+        if service_type == "s3":
+            # Transform to s3cfg format expected by s3_kit
+            return {
+                "s3cfg": {
+                    "accessKey": config.get("access_key", ""),
+                    "secretKey": config.get("secret_key", ""),
+                    "endpoint": config.get("endpoint", f"https://s3.{config.get('region', 'us-east-1')}.amazonaws.com"),
+                    "bucket": config.get("bucket", ""),
+                    "region": config.get("region", "us-east-1")
+                }
+            }
+        elif service_type == "github":
+            # Transform to github_kit format
+            return {
+                "github_token": config.get("api_token", ""),
+                "repository": config.get("repository", ""),
+                "username": config.get("username", "")
+            }
+        elif service_type == "huggingface":
+            # Transform to huggingface_kit format  
+            return {
+                "hf_token": config.get("api_token", ""),
+                "username": config.get("username", ""),
+                "repository": config.get("repository", "")
+            }
+        elif service_type == "gdrive":
+            # Transform to gdrive_kit format
+            return {
+                "credentials": config.get("credentials", {}),
+                "folder_id": config.get("folder_id", "")
+            }
+        elif service_type in ["ftp", "sftp"]:
+            # Transform to FTP/SFTP format
+            return {
+                "host": config.get("host", ""),
+                "port": config.get("port", 21 if service_type == "ftp" else 22),
+                "username": config.get("username", ""),
+                "password": config.get("password", ""),
+                "path": config.get("path", "/")
+            }
+        elif service_type == "storacha":
+            # Transform to storacha_kit format
+            return {
+                "api_token": config.get("api_token", ""),
+                "space": config.get("space", "")
+            }
+        else:
+            # Generic passthrough for other services
+            return config
+    
     async def _list_all_services(self, service_manager):
         """List all services (enabled and disabled) for comprehensive dashboard view."""
         services = []
@@ -1901,7 +1957,7 @@ class ConsolidatedMCPDashboard:
 
         @app.post("/api/services/{name}/configure")
         async def configure_service(name: str, request: Request) -> Dict[str, Any]:
-            """Configure a service with enhanced multi-instance support and backend settings."""
+            """Configure a service with proper backend integration."""
             try:
                 _auth_dep(request)
             except HTTPException:
@@ -1911,118 +1967,68 @@ class ConsolidatedMCPDashboard:
                 data = await request.json()
                 config = data.get("config", {})
                 
-                # Enhanced configuration with multi-instance support
-                enhanced_config = {
-                    "basic": {
-                        "instance_name": config.get("instance_name", name),
-                        "service_type": config.get("service_type", name),
-                        "description": config.get("description", f"Instance of {name}"),
-                        "enabled": config.get("enabled", True)
-                    },
-                    "cache": {
-                        "cache_policy": config.get("cache_policy", "none"),
-                        "cache_size_mb": int(config.get("cache_size_mb", 1024)),
-                        "cache_ttl_seconds": int(config.get("cache_ttl_seconds", 3600))
-                    },
-                    "storage": {
-                        "storage_quota_gb": float(config.get("storage_quota_gb", 100)),
-                        "max_files": int(config.get("max_files", 10000)),
-                        "max_file_size_mb": int(config.get("max_file_size_mb", 500))
-                    },
-                    "retention": {
-                        "retention_days": int(config.get("retention_days", 365)),
-                        "auto_cleanup": config.get("auto_cleanup", False),
-                        "versioning": config.get("versioning", False)
-                    },
-                    "replication": {
-                        "replication_factor": int(config.get("replication_factor", 3)),
-                        "sync_strategy": config.get("sync_strategy", "immediate")
-                    },
-                    "service_specific": config.get("service_specific", {})
-                }
+                # Transform config to backend-specific format
+                backend_config = self._transform_config_for_backend(name, config)
                 
-                service_manager = self._get_service_manager()
-                if service_manager:
-                    # Use comprehensive service manager for service configuration
-                    result = await service_manager.configure_service(name, enhanced_config)
-                    if result.get("success", False):
-                        return {
-                            "success": True,
-                            "service": name,
-                            "message": f"Service {name} configured successfully with enhanced settings",
-                            "config_saved": True,
-                            "config": enhanced_config
+                # Save configuration in proper format for backend modules
+                config_dir = self.paths.data_dir / "backend_configs"
+                config_dir.mkdir(exist_ok=True)
+                
+                instance_name = config.get("instance_name", name)
+                config_file = config_dir / f"{instance_name}.json"
+                
+                # Save the backend-specific configuration
+                with open(config_file, 'w') as f:
+                    json.dump(backend_config, f, indent=2)
+                
+                # Also save to ipfs_kit metadata format
+                metadata_dir = self.paths.data_dir / "metadata"
+                metadata_dir.mkdir(exist_ok=True)
+                metadata_file = metadata_dir / f"{instance_name}_meta.json"
+                
+                with open(metadata_file, 'w') as f:
+                    json.dump({"config": backend_config, "service_type": name}, f, indent=2)
+                
+                # Update backends.json for UI
+                backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
+                backend_found = False
+                
+                for i, backend in enumerate(backends):
+                    if backend.get("name") == instance_name:
+                        backends[i] = {
+                            "name": instance_name,
+                            "type": name,
+                            "tier": "standard",
+                            "description": config.get("description", f"{name} instance"),
+                            "config": backend_config,
+                            "enabled": True,
+                            "last_updated": datetime.now(UTC).isoformat()
                         }
-                    else:
-                        return {
-                            "success": False,
-                            "service": name,
-                            "error": result.get("error", f"Failed to configure service {name}")
-                        }
-                else:
-                    # Enhanced fallback with backend configuration support
-                    config_dir = self.paths.data_dir / "service_configs"
-                    config_dir.mkdir(exist_ok=True)
-                    
-                    # Save instance-specific configuration
-                    instance_name = enhanced_config["basic"]["instance_name"]
-                    config_file = config_dir / f"{instance_name}_config.json"
-                    
-                    with open(config_file, 'w') as f:
-                        json.dump(enhanced_config, f, indent=2)
-                    
-                    # Update backends configuration for storage services
-                    if enhanced_config["basic"]["service_type"] in ["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]:
-                        backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
-                        
-                        # Update or create backend entry
-                        backend_found = False
-                        for i, backend in enumerate(backends):
-                            if backend.get("name") == instance_name:
-                                backends[i] = {
-                                    "name": instance_name,
-                                    "type": enhanced_config["basic"]["service_type"],
-                                    "tier": "standard",
-                                    "description": enhanced_config["basic"]["description"],
-                                    "config": enhanced_config,
-                                    "policy": {
-                                        "replication_factor": enhanced_config["replication"]["replication_factor"],
-                                        "cache_policy": enhanced_config["cache"]["cache_policy"],
-                                        "retention_days": enhanced_config["retention"]["retention_days"]
-                                    },
-                                    "enabled": enhanced_config["basic"]["enabled"],
-                                    "last_updated": datetime.now(UTC).isoformat()
-                                }
-                                backend_found = True
-                                break
-                        
-                        if not backend_found:
-                            backends.append({
-                                "name": instance_name,
-                                "type": enhanced_config["basic"]["service_type"],
-                                "tier": "standard", 
-                                "description": enhanced_config["basic"]["description"],
-                                "config": enhanced_config,
-                                "policy": {
-                                    "replication_factor": enhanced_config["replication"]["replication_factor"],
-                                    "cache_policy": enhanced_config["cache"]["cache_policy"],
-                                    "retention_days": enhanced_config["retention"]["retention_days"]
-                                },
-                                "enabled": enhanced_config["basic"]["enabled"],
-                                "created_at": datetime.now(UTC).isoformat(),
-                                "last_updated": datetime.now(UTC).isoformat()
-                            })
-                        
-                        _atomic_write_json(self.paths.backends_file, backends)
-                    
-                    return {
-                        "success": True,
-                        "service": name,
-                        "instance_name": instance_name,
-                        "message": f"Service {instance_name} configured successfully with enhanced backend settings",
-                        "config_saved": True,
-                        "config": enhanced_config
-                    }
+                        backend_found = True
+                        break
+                
+                if not backend_found:
+                    backends.append({
+                        "name": instance_name,
+                        "type": name,
+                        "tier": "standard",
+                        "description": config.get("description", f"{name} instance"),
+                        "config": backend_config,
+                        "enabled": True,
+                        "created_at": datetime.now(UTC).isoformat(),
+                        "last_updated": datetime.now(UTC).isoformat()
+                    })
+                
+                _atomic_write_json(self.paths.backends_file, backends)
+                
+                return {
+                    "success": True,
+                    "service": name,
+                    "instance_name": instance_name,
+                    "message": f"Service {instance_name} configured successfully",
+                    "config_saved": True,
+                    "config_file": str(config_file)
+                }
                     
             except Exception as e:
                 self.log.error(f"Error configuring service {name}: {e}")
