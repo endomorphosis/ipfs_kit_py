@@ -224,11 +224,13 @@ class ComprehensiveServiceManager:
                     "name": "Amazon S3",
                     "description": "Amazon Simple Storage Service backend",
                     "requires_credentials": True,
-                    "config_keys": ["accessKey", "secretKey", "endpoint"],
+                    "config_keys": ["access_key", "secret_key", "endpoint", "bucket", "region"],
                     "config_hints": {
-                        "accessKey": "AWS Access Key ID (e.g., AKIA...)",
-                        "secretKey": "AWS Secret Access Key",
-                        "endpoint": "S3 endpoint URL (e.g., https://s3.amazonaws.com)"
+                        "access_key": "AWS Access Key ID (e.g., AKIA...)",
+                        "secret_key": "AWS Secret Access Key",
+                        "endpoint": "S3 endpoint URL (optional, defaults to AWS)",
+                        "bucket": "S3 bucket name",
+                        "region": "AWS region (e.g., us-east-1)"
                     },
                     "enabled": False
                 },
@@ -237,9 +239,11 @@ class ComprehensiveServiceManager:
                     "name": "HuggingFace Hub",
                     "description": "HuggingFace model and dataset repository",
                     "requires_credentials": True,
-                    "config_keys": ["token"],
+                    "config_keys": ["api_token", "username", "repository"],
                     "config_hints": {
-                        "token": "HuggingFace API token (from huggingface.co/settings/tokens)"
+                        "api_token": "HuggingFace API token (from huggingface.co/settings/tokens)",
+                        "username": "HuggingFace username",
+                        "repository": "Repository name (optional)"
                     },
                     "enabled": False
                 },
@@ -248,9 +252,11 @@ class ComprehensiveServiceManager:
                     "name": "GitHub Storage",
                     "description": "GitHub repository storage backend",
                     "requires_credentials": True,
-                    "config_keys": ["access_token"],
+                    "config_keys": ["api_token", "repository", "username"],
                     "config_hints": {
-                        "access_token": "GitHub Personal Access Token (from github.com/settings/tokens)"
+                        "api_token": "GitHub Personal Access Token (from github.com/settings/tokens)",
+                        "repository": "Repository (owner/repo format)",
+                        "username": "GitHub username"
                     },
                     "enabled": False
                 },
@@ -259,7 +265,11 @@ class ComprehensiveServiceManager:
                     "name": "Storacha",
                     "description": "Storacha decentralized storage service",
                     "requires_credentials": True,
-                    "config_keys": ["api_key"],
+                    "config_keys": ["api_token", "space"],
+                    "config_hints": {
+                        "api_token": "Storacha API token",
+                        "space": "Storacha space identifier"
+                    },
                     "enabled": False
                 },
                 "lotus": {
@@ -292,6 +302,12 @@ class ComprehensiveServiceManager:
                     "description": "File Transfer Protocol storage backend",
                     "requires_credentials": True,
                     "config_keys": ["host", "port", "username", "password"],
+                    "config_hints": {
+                        "host": "FTP server hostname or IP",
+                        "port": "FTP port (default: 21)",
+                        "username": "FTP username",
+                        "password": "FTP password"
+                    },
                     "enabled": False
                 },
                 "sshfs": {
@@ -299,7 +315,13 @@ class ComprehensiveServiceManager:
                     "name": "SSHFS",
                     "description": "SSH Filesystem storage backend",
                     "requires_credentials": True,
-                    "config_keys": ["host", "port", "username", "private_key_path"],
+                    "config_keys": ["host", "port", "username", "password"],
+                    "config_hints": {
+                        "host": "SSH server hostname or IP",
+                        "port": "SSH port (default: 22)",
+                        "username": "SSH username",
+                        "password": "SSH password or leave empty for key-based auth"
+                    },
                     "enabled": False
                 },
                 "apache_arrow": {
