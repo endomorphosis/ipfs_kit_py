@@ -768,8 +768,9 @@
                     </div>
                 `;
             } else if (service.type === 'storage') {
-                // Get configuration keys from service (top level, not in details)
+                // Get configuration keys and hints from service (top level, not in details)
                 const configKeys = service.config_keys || [];
+                const configHints = service.config_hints || {};
                 
                 formHtml = `
                     <div class="form-group">
@@ -779,6 +780,11 @@
                         </p>
                     </div>
                 `;
+
+                // Helper function to get hint for a field
+                const getHint = (fieldName) => {
+                    return configHints[fieldName] || `${fieldName} configuration`;
+                };
 
                 // If no config_keys defined, show generic credential fields
                 if (configKeys.length === 0) {
@@ -802,7 +808,7 @@
                     <div class="form-group">
                         <label class="form-label required">API Token</label>
                         <input type="password" class="form-input" id="${keyName}" placeholder="Enter API token" />
-                        <div class="form-help">Your ${service.name} API access token</div>
+                        <div class="form-help">${getHint(keyName)}</div>
                     </div>
                     `;
                 }
@@ -812,7 +818,7 @@
                     <div class="form-group">
                         <label class="form-label ${configKeys.includes('api_token') ? '' : 'required'}">Username</label>
                         <input type="text" class="form-input" id="username" placeholder="Enter username" />
-                        <div class="form-help">Your ${service.name} username</div>
+                        <div class="form-help">${getHint('username')}</div>
                     </div>
                     `;
                 }
@@ -822,7 +828,7 @@
                     <div class="form-group">
                         <label class="form-label required">Access Key</label>
                         <input type="text" class="form-input" id="access_key" placeholder="Enter access key" />
-                        <div class="form-help">Your AWS access key ID</div>
+                        <div class="form-help">${getHint('access_key')}</div>
                     </div>
                     `;
                 }
@@ -832,7 +838,7 @@
                     <div class="form-group">
                         <label class="form-label required">Secret Key</label>
                         <input type="password" class="form-input" id="secret_key" placeholder="Enter secret key" />
-                        <div class="form-help">Your AWS secret access key</div>
+                        <div class="form-help">${getHint('secret_key')}</div>
                     </div>
                     `;
                 }
@@ -842,7 +848,7 @@
                     <div class="form-group">
                         <label class="form-label">Bucket Name</label>
                         <input type="text" class="form-input" id="bucket" placeholder="Enter bucket name" />
-                        <div class="form-help">S3 bucket name</div>
+                        <div class="form-help">${getHint('bucket')}</div>
                     </div>
                     `;
                 }
@@ -852,7 +858,7 @@
                     <div class="form-group">
                         <label class="form-label">Region</label>
                         <input type="text" class="form-input" id="region" placeholder="us-east-1" value="us-east-1" />
-                        <div class="form-help">AWS region</div>
+                        <div class="form-help">${getHint('region')}</div>
                     </div>
                     `;
                 }
@@ -862,7 +868,7 @@
                     <div class="form-group">
                         <label class="form-label">Repository</label>
                         <input type="text" class="form-input" id="repository" placeholder="username/repo" />
-                        <div class="form-help">GitHub repository (format: owner/repo)</div>
+                        <div class="form-help">${getHint('repository')}</div>
                     </div>
                     `;
                 }
@@ -872,7 +878,7 @@
                     <div class="form-group">
                         <label class="form-label required">Host</label>
                         <input type="text" class="form-input" id="host" placeholder="ftp.example.com" />
-                        <div class="form-help">Server hostname or IP address</div>
+                        <div class="form-help">${getHint('host')}</div>
                     </div>
                     `;
                 }
@@ -882,7 +888,184 @@
                     <div class="form-group">
                         <label class="form-label">Port</label>
                         <input type="number" class="form-input" id="port" placeholder="21" />
-                        <div class="form-help">Server port number</div>
+                        <div class="form-help">${getHint('port')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('password')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label required">Password</label>
+                        <input type="password" class="form-input" id="password" placeholder="Enter password" />
+                        <div class="form-help">${getHint('password')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('endpoint')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Endpoint</label>
+                        <input type="text" class="form-input" id="endpoint" placeholder="https://s3.amazonaws.com" />
+                        <div class="form-help">${getHint('endpoint')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('space')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Space</label>
+                        <input type="text" class="form-input" id="space" placeholder="Enter space identifier" />
+                        <div class="form-help">${getHint('space')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('path')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Path</label>
+                        <input type="text" class="form-input" id="path" placeholder="/remote/path" value="/" />
+                        <div class="form-help">${getHint('path')}</div>
+                    </div>
+                    `;
+                }
+
+                // Additional config fields for various services
+                if (configKeys.includes('node_url')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label required">Node URL</label>
+                        <input type="text" class="form-input" id="node_url" placeholder="http://localhost:1234" />
+                        <div class="form-help">${getHint('node_url')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('token') && !configKeys.includes('api_token')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Token</label>
+                        <input type="password" class="form-input" id="token" placeholder="Enter token" />
+                        <div class="form-help">${getHint('token')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('homeserver_url')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label required">Homeserver URL</label>
+                        <input type="text" class="form-input" id="homeserver_url" placeholder="https://matrix.org" />
+                        <div class="form-help">${getHint('homeserver_url')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('room_id')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Room ID</label>
+                        <input type="text" class="form-input" id="room_id" placeholder="!roomid:matrix.org" />
+                        <div class="form-help">${getHint('room_id')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('client_id')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label required">Client ID</label>
+                        <input type="text" class="form-input" id="client_id" placeholder="Enter client ID" />
+                        <div class="form-help">${getHint('client_id')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('client_secret')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label required">Client Secret</label>
+                        <input type="password" class="form-input" id="client_secret" placeholder="Enter client secret" />
+                        <div class="form-help">${getHint('client_secret')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('refresh_token')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Refresh Token</label>
+                        <input type="password" class="form-input" id="refresh_token" placeholder="Enter refresh token" />
+                        <div class="form-help">${getHint('refresh_token')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('memory_pool')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Memory Pool</label>
+                        <input type="text" class="form-input" id="memory_pool" placeholder="default" value="default" />
+                        <div class="form-help">${getHint('memory_pool')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('compression')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Compression</label>
+                        <select class="form-input" id="compression">
+                            <option value="none">None</option>
+                            <option value="gzip">GZIP</option>
+                            <option value="lz4">LZ4</option>
+                            <option value="snappy">Snappy</option>
+                            <option value="zstd">ZSTD</option>
+                        </select>
+                        <div class="form-help">${getHint('compression')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('compression_codec')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Compression Codec</label>
+                        <select class="form-input" id="compression_codec">
+                            <option value="none">None</option>
+                            <option value="snappy">Snappy</option>
+                            <option value="gzip">GZIP</option>
+                            <option value="lz4">LZ4</option>
+                            <option value="brotli">Brotli</option>
+                            <option value="zstd">ZSTD</option>
+                        </select>
+                        <div class="form-help">${getHint('compression_codec')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('row_group_size')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Row Group Size</label>
+                        <input type="number" class="form-input" id="row_group_size" placeholder="1000000" value="1000000" />
+                        <div class="form-help">${getHint('row_group_size')}</div>
+                    </div>
+                    `;
+                }
+
+                if (configKeys.includes('schema_validation')) {
+                    formHtml += `
+                    <div class="form-group">
+                        <label class="form-label">Schema Validation</label>
+                        <select class="form-input" id="schema_validation">
+                            <option value="true">Enabled</option>
+                            <option value="false">Disabled</option>
+                        </select>
+                        <div class="form-help">${getHint('schema_validation')}</div>
                     </div>
                     `;
                 }
