@@ -7742,6 +7742,15 @@
             }
             
             // For storage services, generate form dynamically based on config_keys
+            console.log(`🔍 Checking storage form condition for ${serviceId}:`, {
+                'service.type': service.type,
+                'is storage?': service.type === 'storage',
+                'config_keys exists?': !!service.config_keys,
+                'config_keys value': service.config_keys,
+                'config_keys.length': service.config_keys ? service.config_keys.length : 'N/A',
+                'condition met?': (service.type === 'storage' && service.config_keys && service.config_keys.length > 0)
+            });
+            
             if (service.type === 'storage' && service.config_keys && service.config_keys.length > 0) {
                 console.log(`✅ Generating DYNAMIC form for ${serviceId} with config_keys:`, service.config_keys);
                 const configKeys = service.config_keys;
