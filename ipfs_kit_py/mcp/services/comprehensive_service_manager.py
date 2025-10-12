@@ -864,6 +864,17 @@ class ComprehensiveServiceManager:
                         "last_check": datetime.now().isoformat(), 
                         "details": {"enabled": False, "configured": True}
                     }
+            
+            # Get config_keys and config_hints from config, or fall back to defaults
+            config_keys = config.get("config_keys", [])
+            config_hints = config.get("config_hints", {})
+            
+            # If config_keys is missing, get it from default config (for backwards compatibility)
+            if not config_keys:
+                default_config = self._get_default_services_config()
+                default_backend = default_config.get("storage_backends", {}).get(backend_id, {})
+                config_keys = default_backend.get("config_keys", [])
+                config_hints = default_backend.get("config_hints", {})
                         
             services.append({
                 "id": backend_id,
@@ -873,8 +884,8 @@ class ComprehensiveServiceManager:
                 "status": status["status"],
                 "enabled": config.get("enabled", False),
                 "requires_credentials": config.get("requires_credentials", False),
-                "config_keys": config.get("config_keys", []),
-                "config_hints": config.get("config_hints", {}),
+                "config_keys": config_keys,
+                "config_hints": config_hints,
                 "actions": self._get_available_actions_for_dashboard(backend_id, status["status"], config.get("enabled", False)),
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {})
