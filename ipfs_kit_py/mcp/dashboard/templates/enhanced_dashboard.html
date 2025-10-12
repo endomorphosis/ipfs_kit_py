@@ -7668,7 +7668,13 @@
         }
 
         function generateEnhancedConfigForm(serviceId, service, groupKey) {
-            console.log(`🎨 generateEnhancedConfigForm called for ${serviceId}:`, { type: service.type, config_keys: service.config_keys, groupKey });
+            console.log(`🎨 generateEnhancedConfigForm called for ${serviceId}:`, { 
+                type: service.type, 
+                config_keys: service.config_keys, 
+                config_keys_length: service.config_keys ? service.config_keys.length : 0,
+                groupKey,
+                full_service: service
+            });
             
             // Handle daemon service configuration
             if (service.type === 'daemon') {
@@ -7737,6 +7743,7 @@
             
             // For storage services, generate form dynamically based on config_keys
             if (service.type === 'storage' && service.config_keys && service.config_keys.length > 0) {
+                console.log(`✅ Generating DYNAMIC form for ${serviceId} with config_keys:`, service.config_keys);
                 const configKeys = service.config_keys;
                 let fieldsHTML = '';
                 
@@ -7839,6 +7846,7 @@
             
             // For storage services without config_keys, show generic form
             if (service.type === 'storage' || groupKey === 'storage') {
+                console.warn(`⚠️ Using GENERIC form for ${serviceId} - config_keys:`, service.config_keys, 'length:', service.config_keys ? service.config_keys.length : 0);
                 return `
                     <div class="space-y-4">
                         <div class="p-4 bg-blue-50 rounded-lg">
