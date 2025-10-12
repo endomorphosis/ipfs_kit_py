@@ -7742,10 +7742,15 @@
                 
                 // Field metadata for better UX
                 const fieldMetadata = {
-                    // S3 actual API parameters (s3_kit.py)
+                    // S3 camelCase parameters (s3_kit.py module uses these)
                     'accessKey': { label: 'Access Key ID', type: 'text', placeholder: 'AKIA...', required: true },
                     'secretKey': { label: 'Secret Access Key', type: 'password', placeholder: 'Enter secret key', required: true },
-                    'endpoint': { label: 'Endpoint URL', type: 'url', placeholder: 'https://s3.amazonaws.com', required: true },
+                    'endpoint': { label: 'Endpoint URL', type: 'url', placeholder: 'https://s3.amazonaws.com', required: false },
+                    // S3 snake_case parameters (service manager config_keys use these)
+                    'access_key': { label: 'Access Key ID', type: 'text', placeholder: 'AKIA...', required: true },
+                    'secret_key': { label: 'Secret Access Key', type: 'password', placeholder: 'Enter secret key', required: true },
+                    'bucket': { label: 'Bucket Name', type: 'text', placeholder: 'my-bucket', required: false },
+                    'region': { label: 'AWS Region', type: 'text', placeholder: 'us-east-1', required: false },
                     // HuggingFace actual API parameters (huggingface_kit.py)
                     'token': { label: 'HuggingFace Token', type: 'password', placeholder: 'hf_...', required: true },
                     // GitHub actual API parameters
@@ -7753,6 +7758,8 @@
                     // Other storage backends
                     'api_token': { label: 'API Token', type: 'password', placeholder: 'Enter your API token', required: true },
                     'api_key': { label: 'API Key', type: 'password', placeholder: 'Enter your API key', required: true },
+                    'space': { label: 'Space', type: 'text', placeholder: 'Enter space identifier', required: false },
+                    'path': { label: 'Path', type: 'text', placeholder: '/remote/path', required: false },
                     'username': { label: 'Username', type: 'text', placeholder: 'your-username', required: false },
                     'repository': { label: 'Repository', type: 'text', placeholder: 'owner/repo', required: false },
                     'node_url': { label: 'Node URL', type: 'url', placeholder: 'http://localhost:1234', required: false },
