@@ -377,7 +377,7 @@ class ComprehensiveServiceManager:
         for backend_id, config in self.services_config.get("storage_backends", {}).items():
             if config.get("enabled", False):
                 status = await self._check_storage_backend_status(backend_id, config)
-                services.append({
+                service_info = {
                     "id": backend_id,
                     "name": config["name"],
                     "type": config["type"],
@@ -387,7 +387,13 @@ class ComprehensiveServiceManager:
                     "actions": self._get_available_actions(backend_id, status["status"]),
                     "last_check": status.get("last_check"),
                     "details": status.get("details", {})
-                })
+                }
+                # Add config_keys and config_hints if available
+                if "config_keys" in config:
+                    service_info["config_keys"] = config["config_keys"]
+                if "config_hints" in config:
+                    service_info["config_hints"] = config["config_hints"]
+                services.append(service_info)
         
         # Add network services
         for service_id, config in self.services_config.get("network_services", {}).items():
