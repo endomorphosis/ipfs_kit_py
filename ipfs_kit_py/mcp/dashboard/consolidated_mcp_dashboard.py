@@ -3291,6 +3291,9 @@ class ConsolidatedMCPDashboard:
                                 "actions": service.get("actions", []),
                                 "last_check": service.get("last_check"),
                                 "details": service.get("details", {}),
+                                # Add config_keys and config_hints for storage backends
+                                "config_keys": service.get("config_keys"),
+                                "config_hints": service.get("config_hints"),
                                 # Add compatibility fields for existing UI
                                 "bin": service.get("details", {}).get("binary_path") if service.get("type") == "daemon" else None,
                                 "api_port_open": service.get("details", {}).get("api_port_open", False) if service.get("type") == "daemon" else None
