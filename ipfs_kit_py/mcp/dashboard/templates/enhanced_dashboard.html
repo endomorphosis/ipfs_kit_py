@@ -7676,7 +7676,84 @@
                 full_service: service
             });
             
-            // Handle daemon service configuration
+            // Handle daemon service configuration with config_keys (new approach)
+            if (service.type === 'daemon' && service.config_keys && service.config_keys.length > 0) {
+                console.log(`✅ Generating DYNAMIC form for daemon ${serviceId} with config_keys:`, service.config_keys);
+                const configKeys = service.config_keys;
+                let fieldsHTML = '';
+                
+                // Daemon field metadata
+                const daemonFieldMetadata = {
+                    'config_dir': { label: 'Configuration Directory', type: 'text', placeholder: '/home/user/.ipfs', required: true },
+                    'port': { label: 'API Port', type: 'number', placeholder: '5001', required: false },
+                    'gateway_port': { label: 'Gateway Port', type: 'number', placeholder: '8080', required: false },
+                    'swarm_port': { label: 'Swarm Port', type: 'number', placeholder: '4001', required: false },
+                    'auto_start': { label: 'Auto-start on Boot', type: 'select', options: [{value: 'true', label: 'Enabled'}, {value: 'false', label: 'Disabled'}], required: false },
+                    'cluster_secret': { label: 'Cluster Secret', type: 'password', placeholder: 'Enter shared cluster secret', required: false },
+                    'bootstrap_peers': { label: 'Bootstrap Peers', type: 'textarea', placeholder: '/ip4/...', required: false },
+                    'remote_cluster': { label: 'Remote Cluster', type: 'text', placeholder: '/ip4/.../p2p/...', required: false },
+                    'rpc_secret': { label: 'RPC Secret', type: 'password', placeholder: 'Enter RPC secret token', required: false }
+                };
+                
+                // Helper function to get hint from service
+                const getDaemonHint = (key) => {
+                    if (service.config_hints && service.config_hints[key]) {
+                        return service.config_hints[key];
+                    }
+                    return daemonFieldMetadata[key]?.placeholder || '';
+                };
+                
+                for (const key of configKeys) {
+                    const meta = daemonFieldMetadata[key] || { label: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '), type: 'text', placeholder: '', required: false };
+                    const hint = getDaemonHint(key);
+                    const requiredMark = meta.required ? '<span class="text-red-500">*</span>' : '';
+                    
+                    if (meta.type === 'select' && meta.options) {
+                        const currentValue = service[key] || service.config?.[key] || 'false';
+                        fieldsHTML += `
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">${meta.label} ${requiredMark}</label>
+                                <select id="config-${key}" class="w-full p-3 border rounded-lg" ${meta.required ? 'required' : ''}>
+                                    ${meta.options.map(opt => `<option value="${opt.value}" ${currentValue == opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                                </select>
+                                ${hint ? `<p class="text-xs text-gray-500 mt-1">${hint}</p>` : ''}
+                            </div>
+                        `;
+                    } else if (meta.type === 'textarea') {
+                        const currentValue = service[key] || service.config?.[key] || '';
+                        fieldsHTML += `
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">${meta.label} ${requiredMark}</label>
+                                <textarea id="config-${key}" class="w-full p-3 border rounded-lg" rows="3" placeholder="${meta.placeholder}" ${meta.required ? 'required' : ''}>${currentValue}</textarea>
+                                ${hint ? `<p class="text-xs text-gray-500 mt-1">${hint}</p>` : ''}
+                            </div>
+                        `;
+                    } else {
+                        const currentValue = service[key] || service.config?.[key] || service.details?.[key] || '';
+                        fieldsHTML += `
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">${meta.label} ${requiredMark}</label>
+                                <input type="${meta.type}" id="config-${key}" class="w-full p-3 border rounded-lg" placeholder="${meta.placeholder}" value="${currentValue}" ${meta.required ? 'required' : ''}>
+                                ${hint ? `<p class="text-xs text-gray-500 mt-1">${hint}</p>` : ''}
+                            </div>
+                        `;
+                    }
+                }
+                
+                return `
+                    <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Configure <strong>${service.name || serviceId}</strong> daemon settings.
+                            </p>
+                        </div>
+                        ${fieldsHTML}
+                    </div>
+                `;
+            }
+            
+            // Handle daemon service configuration without config_keys (legacy daemons)
             if (service.type === 'daemon') {
                 const configDir = service.config_dir || service.details?.config_dir || 'Not specified';
                 const port = service.port || service.config?.port || '';
@@ -7758,6 +7835,17 @@
                 
                 // Field metadata for better UX
                 const fieldMetadata = {
+                    // Daemon configuration fields
+                    'config_dir': { label: 'Configuration Directory', type: 'text', placeholder: '/home/user/.ipfs', required: true },
+                    'port': { label: 'API Port', type: 'number', placeholder: '5001', required: false },
+                    'gateway_port': { label: 'Gateway Port', type: 'number', placeholder: '8080', required: false },
+                    'swarm_port': { label: 'Swarm Port', type: 'number', placeholder: '4001', required: false },
+                    'auto_start': { label: 'Auto-start on Boot', type: 'select', options: [{value: 'true', label: 'Enabled'}, {value: 'false', label: 'Disabled'}], required: false },
+                    'cluster_secret': { label: 'Cluster Secret', type: 'password', placeholder: 'Enter shared cluster secret', required: false },
+                    'bootstrap_peers': { label: 'Bootstrap Peers', type: 'textarea', placeholder: '/ip4/...', required: false },
+                    'remote_cluster': { label: 'Remote Cluster', type: 'text', placeholder: '/ip4/.../p2p/...', required: false },
+                    'rpc_secret': { label: 'RPC Secret', type: 'password', placeholder: 'Enter RPC secret token', required: false },
+                    
                     // S3 camelCase parameters (s3_kit.py module uses these)
                     'accessKey': { label: 'Access Key ID', type: 'text', placeholder: 'AKIA...', required: true },
                     'secretKey': { label: 'Secret Access Key', type: 'password', placeholder: 'Enter secret key', required: true },

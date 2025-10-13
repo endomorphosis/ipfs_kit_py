@@ -152,7 +152,15 @@ class ComprehensiveServiceManager:
                     "swarm_port": 4001,
                     "config_dir": str(Path.home() / ".ipfs"),
                     "enabled": True,
-                    "auto_start": True
+                    "auto_start": True,
+                    "config_keys": ["config_dir", "port", "gateway_port", "swarm_port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS configuration and data files are stored",
+                        "port": "IPFS API port (default: 5001)",
+                        "gateway_port": "IPFS Gateway port for HTTP access (default: 8080)",
+                        "swarm_port": "IPFS Swarm port for peer communication (default: 4001)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 },
                 "lotus": {
                     "type": ServiceType.DAEMON.value,
@@ -161,7 +169,13 @@ class ComprehensiveServiceManager:
                     "port": 1234,
                     "config_dir": str(Path.home() / ".lotus"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where Lotus configuration and data files are stored",
+                        "port": "Lotus API port (default: 1234)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 },
                 "aria2": {
                     "type": ServiceType.DAEMON.value,
@@ -170,7 +184,14 @@ class ComprehensiveServiceManager:
                     "port": 6800,
                     "config_dir": str(Path.home() / ".aria2"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start", "rpc_secret"],
+                    "config_hints": {
+                        "config_dir": "Directory where Aria2 configuration files are stored",
+                        "port": "Aria2 RPC port (default: 6800)",
+                        "auto_start": "Automatically start daemon on system boot",
+                        "rpc_secret": "RPC secret token for authentication"
+                    }
                 },
                 "ipfs_cluster": {
                     "type": ServiceType.DAEMON.value,
@@ -179,7 +200,15 @@ class ComprehensiveServiceManager:
                     "port": 9094,
                     "config_dir": str(Path.home() / ".ipfs-cluster"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start", "cluster_secret", "bootstrap_peers"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS Cluster configuration is stored",
+                        "port": "IPFS Cluster API port (default: 9094)",
+                        "auto_start": "Automatically start daemon on system boot",
+                        "cluster_secret": "Shared secret for cluster authentication",
+                        "bootstrap_peers": "Comma-separated list of bootstrap peer multiaddresses"
+                    }
                 },
                 "ipfs_cluster_follow": {
                     "type": ServiceType.DAEMON.value,
@@ -188,7 +217,14 @@ class ComprehensiveServiceManager:
                     "port": 9096,
                     "config_dir": str(Path.home() / ".ipfs-cluster-follow"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start", "remote_cluster"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS Cluster Follow configuration is stored",
+                        "port": "IPFS Cluster Follow API port (default: 9096)",
+                        "auto_start": "Automatically start daemon on system boot",
+                        "remote_cluster": "Remote cluster multiaddress to follow"
+                    }
                 },
                 "lassie": {
                     "type": ServiceType.DAEMON.value,
@@ -197,7 +233,13 @@ class ComprehensiveServiceManager:
                     "port": 8080,
                     "config_dir": str(Path.home() / ".lassie"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where Lassie configuration is stored",
+                        "port": "Lassie HTTP server port (default: 8080)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 },
                 "libp2p": {
                     "type": ServiceType.DAEMON.value,
@@ -206,7 +248,13 @@ class ComprehensiveServiceManager:
                     "port": 4002,
                     "config_dir": str(Path.home() / ".libp2p"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where libp2p configuration is stored",
+                        "port": "libp2p listening port (default: 4002)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 },
                 "ipfs_kit": {
                     "type": ServiceType.DAEMON.value,
@@ -215,7 +263,13 @@ class ComprehensiveServiceManager:
                     "port": 5002,
                     "config_dir": str(Path.home() / ".ipfs_kit"),
                     "enabled": True,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS Kit configuration and data are stored",
+                        "port": "IPFS Kit daemon API port (default: 5002)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 }
             },
             "storage_backends": {
@@ -828,7 +882,7 @@ class ComprehensiveServiceManager:
                     "details": {"enabled": False}
                 }
             
-            services.append({
+            daemon_info = {
                 "id": daemon_id,
                 "name": config["name"],
                 "type": config["type"],
@@ -843,7 +897,25 @@ class ComprehensiveServiceManager:
                 "actions": self._get_available_actions_for_dashboard(daemon_id, status["status"], config.get("enabled", False)),
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {})
-            })
+            }
+            
+            # Add config_keys and config_hints for daemon configuration
+            config_keys = config.get("config_keys", [])
+            config_hints = config.get("config_hints", {})
+            
+            # If config_keys is missing, get it from default config (for backwards compatibility)
+            if not config_keys:
+                default_config = self._get_default_services_config()
+                default_daemon = default_config.get("daemons", {}).get(daemon_id, {})
+                config_keys = default_daemon.get("config_keys", [])
+                config_hints = default_daemon.get("config_hints", {})
+            
+            if config_keys:
+                daemon_info["config_keys"] = config_keys
+            if config_hints:
+                daemon_info["config_hints"] = config_hints
+            
+            services.append(daemon_info)
         
         # Add ALL storage backend services (regardless of enabled status)  
         for backend_id, config in self.services_config.get("storage_backends", {}).items():
