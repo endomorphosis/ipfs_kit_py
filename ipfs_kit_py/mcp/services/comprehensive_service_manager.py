@@ -152,7 +152,15 @@ class ComprehensiveServiceManager:
                     "swarm_port": 4001,
                     "config_dir": str(Path.home() / ".ipfs"),
                     "enabled": True,
-                    "auto_start": True
+                    "auto_start": True,
+                    "config_keys": ["config_dir", "port", "gateway_port", "swarm_port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS configuration and data files are stored",
+                        "port": "IPFS API port (default: 5001)",
+                        "gateway_port": "IPFS Gateway port for HTTP access (default: 8080)",
+                        "swarm_port": "IPFS Swarm port for peer communication (default: 4001)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 },
                 "lotus": {
                     "type": ServiceType.DAEMON.value,
@@ -161,7 +169,13 @@ class ComprehensiveServiceManager:
                     "port": 1234,
                     "config_dir": str(Path.home() / ".lotus"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where Lotus configuration and data files are stored",
+                        "port": "Lotus API port (default: 1234)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 },
                 "aria2": {
                     "type": ServiceType.DAEMON.value,
@@ -170,7 +184,14 @@ class ComprehensiveServiceManager:
                     "port": 6800,
                     "config_dir": str(Path.home() / ".aria2"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start", "rpc_secret"],
+                    "config_hints": {
+                        "config_dir": "Directory where Aria2 configuration files are stored",
+                        "port": "Aria2 RPC port (default: 6800)",
+                        "auto_start": "Automatically start daemon on system boot",
+                        "rpc_secret": "RPC secret token for authentication"
+                    }
                 },
                 "ipfs_cluster": {
                     "type": ServiceType.DAEMON.value,
@@ -179,7 +200,15 @@ class ComprehensiveServiceManager:
                     "port": 9094,
                     "config_dir": str(Path.home() / ".ipfs-cluster"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start", "cluster_secret", "bootstrap_peers"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS Cluster configuration is stored",
+                        "port": "IPFS Cluster API port (default: 9094)",
+                        "auto_start": "Automatically start daemon on system boot",
+                        "cluster_secret": "Shared secret for cluster authentication",
+                        "bootstrap_peers": "Comma-separated list of bootstrap peer multiaddresses"
+                    }
                 },
                 "ipfs_cluster_follow": {
                     "type": ServiceType.DAEMON.value,
@@ -188,7 +217,14 @@ class ComprehensiveServiceManager:
                     "port": 9096,
                     "config_dir": str(Path.home() / ".ipfs-cluster-follow"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start", "remote_cluster"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS Cluster Follow configuration is stored",
+                        "port": "IPFS Cluster Follow API port (default: 9096)",
+                        "auto_start": "Automatically start daemon on system boot",
+                        "remote_cluster": "Remote cluster multiaddress to follow"
+                    }
                 },
                 "lassie": {
                     "type": ServiceType.DAEMON.value,
@@ -197,7 +233,13 @@ class ComprehensiveServiceManager:
                     "port": 8080,
                     "config_dir": str(Path.home() / ".lassie"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where Lassie configuration is stored",
+                        "port": "Lassie HTTP server port (default: 8080)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 },
                 "libp2p": {
                     "type": ServiceType.DAEMON.value,
@@ -206,7 +248,13 @@ class ComprehensiveServiceManager:
                     "port": 4002,
                     "config_dir": str(Path.home() / ".libp2p"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where libp2p configuration is stored",
+                        "port": "libp2p listening port (default: 4002)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 },
                 "ipfs_kit": {
                     "type": ServiceType.DAEMON.value,
@@ -215,7 +263,13 @@ class ComprehensiveServiceManager:
                     "port": 5002,
                     "config_dir": str(Path.home() / ".ipfs_kit"),
                     "enabled": True,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS Kit configuration and data are stored",
+                        "port": "IPFS Kit daemon API port (default: 5002)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 }
             },
             "storage_backends": {
@@ -224,11 +278,13 @@ class ComprehensiveServiceManager:
                     "name": "Amazon S3",
                     "description": "Amazon Simple Storage Service backend",
                     "requires_credentials": True,
-                    "config_keys": ["accessKey", "secretKey", "endpoint"],
+                    "config_keys": ["access_key", "secret_key", "endpoint", "bucket", "region"],
                     "config_hints": {
-                        "accessKey": "AWS Access Key ID (e.g., AKIA...)",
-                        "secretKey": "AWS Secret Access Key",
-                        "endpoint": "S3 endpoint URL (e.g., https://s3.amazonaws.com)"
+                        "access_key": "AWS Access Key ID (e.g., AKIA...)",
+                        "secret_key": "AWS Secret Access Key",
+                        "endpoint": "S3 endpoint URL (optional, defaults to AWS)",
+                        "bucket": "S3 bucket name",
+                        "region": "AWS region (e.g., us-east-1)"
                     },
                     "enabled": False
                 },
@@ -237,9 +293,11 @@ class ComprehensiveServiceManager:
                     "name": "HuggingFace Hub",
                     "description": "HuggingFace model and dataset repository",
                     "requires_credentials": True,
-                    "config_keys": ["token"],
+                    "config_keys": ["api_token", "username", "repository"],
                     "config_hints": {
-                        "token": "HuggingFace API token (from huggingface.co/settings/tokens)"
+                        "api_token": "HuggingFace API token (from huggingface.co/settings/tokens)",
+                        "username": "HuggingFace username",
+                        "repository": "Repository name (optional)"
                     },
                     "enabled": False
                 },
@@ -248,9 +306,11 @@ class ComprehensiveServiceManager:
                     "name": "GitHub Storage",
                     "description": "GitHub repository storage backend",
                     "requires_credentials": True,
-                    "config_keys": ["access_token"],
+                    "config_keys": ["api_token", "repository", "username"],
                     "config_hints": {
-                        "access_token": "GitHub Personal Access Token (from github.com/settings/tokens)"
+                        "api_token": "GitHub Personal Access Token (from github.com/settings/tokens)",
+                        "repository": "Repository (owner/repo format)",
+                        "username": "GitHub username"
                     },
                     "enabled": False
                 },
@@ -259,7 +319,11 @@ class ComprehensiveServiceManager:
                     "name": "Storacha",
                     "description": "Storacha decentralized storage service",
                     "requires_credentials": True,
-                    "config_keys": ["api_key"],
+                    "config_keys": ["api_token", "space"],
+                    "config_hints": {
+                        "api_token": "Storacha API token",
+                        "space": "Storacha space identifier"
+                    },
                     "enabled": False
                 },
                 "lotus": {
@@ -292,6 +356,12 @@ class ComprehensiveServiceManager:
                     "description": "File Transfer Protocol storage backend",
                     "requires_credentials": True,
                     "config_keys": ["host", "port", "username", "password"],
+                    "config_hints": {
+                        "host": "FTP server hostname or IP",
+                        "port": "FTP port (default: 21)",
+                        "username": "FTP username",
+                        "password": "FTP password"
+                    },
                     "enabled": False
                 },
                 "sshfs": {
@@ -299,7 +369,13 @@ class ComprehensiveServiceManager:
                     "name": "SSHFS",
                     "description": "SSH Filesystem storage backend",
                     "requires_credentials": True,
-                    "config_keys": ["host", "port", "username", "private_key_path"],
+                    "config_keys": ["host", "port", "username", "password"],
+                    "config_hints": {
+                        "host": "SSH server hostname or IP",
+                        "port": "SSH port (default: 22)",
+                        "username": "SSH username",
+                        "password": "SSH password or leave empty for key-based auth"
+                    },
                     "enabled": False
                 },
                 "apache_arrow": {
@@ -355,7 +431,7 @@ class ComprehensiveServiceManager:
         for backend_id, config in self.services_config.get("storage_backends", {}).items():
             if config.get("enabled", False):
                 status = await self._check_storage_backend_status(backend_id, config)
-                services.append({
+                service_info = {
                     "id": backend_id,
                     "name": config["name"],
                     "type": config["type"],
@@ -365,7 +441,13 @@ class ComprehensiveServiceManager:
                     "actions": self._get_available_actions(backend_id, status["status"]),
                     "last_check": status.get("last_check"),
                     "details": status.get("details", {})
-                })
+                }
+                # Add config_keys and config_hints if available
+                if "config_keys" in config:
+                    service_info["config_keys"] = config["config_keys"]
+                if "config_hints" in config:
+                    service_info["config_hints"] = config["config_hints"]
+                services.append(service_info)
         
         # Add network services
         for service_id, config in self.services_config.get("network_services", {}).items():
@@ -800,7 +882,7 @@ class ComprehensiveServiceManager:
                     "details": {"enabled": False}
                 }
             
-            services.append({
+            daemon_info = {
                 "id": daemon_id,
                 "name": config["name"],
                 "type": config["type"],
@@ -815,7 +897,25 @@ class ComprehensiveServiceManager:
                 "actions": self._get_available_actions_for_dashboard(daemon_id, status["status"], config.get("enabled", False)),
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {})
-            })
+            }
+            
+            # Add config_keys and config_hints for daemon configuration
+            config_keys = config.get("config_keys", [])
+            config_hints = config.get("config_hints", {})
+            
+            # If config_keys is missing, get it from default config (for backwards compatibility)
+            if not config_keys:
+                default_config = self._get_default_services_config()
+                default_daemon = default_config.get("daemons", {}).get(daemon_id, {})
+                config_keys = default_daemon.get("config_keys", [])
+                config_hints = default_daemon.get("config_hints", {})
+            
+            if config_keys:
+                daemon_info["config_keys"] = config_keys
+            if config_hints:
+                daemon_info["config_hints"] = config_hints
+            
+            services.append(daemon_info)
         
         # Add ALL storage backend services (regardless of enabled status)  
         for backend_id, config in self.services_config.get("storage_backends", {}).items():
@@ -836,6 +936,17 @@ class ComprehensiveServiceManager:
                         "last_check": datetime.now().isoformat(), 
                         "details": {"enabled": False, "configured": True}
                     }
+            
+            # Get config_keys and config_hints from config, or fall back to defaults
+            config_keys = config.get("config_keys", [])
+            config_hints = config.get("config_hints", {})
+            
+            # If config_keys is missing, get it from default config (for backwards compatibility)
+            if not config_keys:
+                default_config = self._get_default_services_config()
+                default_backend = default_config.get("storage_backends", {}).get(backend_id, {})
+                config_keys = default_backend.get("config_keys", [])
+                config_hints = default_backend.get("config_hints", {})
                         
             services.append({
                 "id": backend_id,
@@ -845,8 +956,8 @@ class ComprehensiveServiceManager:
                 "status": status["status"],
                 "enabled": config.get("enabled", False),
                 "requires_credentials": config.get("requires_credentials", False),
-                "config_keys": config.get("config_keys", []),
-                "config_hints": config.get("config_hints", {}),
+                "config_keys": config_keys,
+                "config_hints": config_hints,
                 "actions": self._get_available_actions_for_dashboard(backend_id, status["status"], config.get("enabled", False)),
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {})
