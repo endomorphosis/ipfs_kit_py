@@ -568,7 +568,7 @@ class ComprehensiveServiceManager:
                             }
                         }
                 except Exception as port_error:
-                    logger.debug(f"Port check failed for {daemon_id}: {port_error}")
+                    # Port check failed, service is stopped
                     return {
                         "status": ServiceStatus.STOPPED.value,
                         "last_check": datetime.now().isoformat(),
@@ -592,7 +592,7 @@ class ComprehensiveServiceManager:
                     }
                 }
         except Exception as e:
-            logger.error(f"Error checking daemon {daemon_id} status: {e}")
+            # Return error status without logging
             return {
                 "status": ServiceStatus.ERROR.value,
                 "last_check": datetime.now().isoformat(),
