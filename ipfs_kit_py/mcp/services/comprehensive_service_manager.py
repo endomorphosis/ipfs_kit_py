@@ -1019,23 +1019,38 @@ class ComprehensiveServiceManager:
     async def configure_service(self, service_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Configure a service with the provided configuration."""
         try:
-            # Save service configuration
+            # Save service configuration to JSON
             config_file = self.data_dir / f"{service_id}_config.json"
             with open(config_file, 'w') as f:
                 json.dump(config, f, indent=2)
+            
+            # Apply configuration to the actual service
+            apply_result = await self._apply_service_config(service_id, config)
+            
+            # Update service configuration in services_config
+            service_config = self._find_service_config(service_id)
+            if service_config:
+                # Update the configuration values in the services_config
+                for key, value in config.items():
+                    if key in service_config.get("config_keys", []):
+                        service_config[key] = value
+                self._save_services_config()
             
             # Update service status to configured if it was not_configured
             if service_id in self.service_states:
                 if self.service_states[service_id].get("status") == "not_configured":
                     self.service_states[service_id]["status"] = "configured"
-                    self.service_states[service_id]["last_configured"] = datetime.now().isoformat()
-                    self._save_service_states()
+                self.service_states[service_id]["last_configured"] = datetime.now().isoformat()
+                self.service_states[service_id]["config_applied"] = apply_result.get("applied", False)
+                self._save_service_states()
             
             logger.info(f"Service {service_id} configured successfully")
             return {
                 "success": True,
                 "message": f"Service {service_id} configured successfully",
-                "config_saved": True
+                "config_saved": True,
+                "config_applied": apply_result.get("applied", False),
+                "apply_message": apply_result.get("message", "")
             }
             
         except Exception as e:
@@ -1044,6 +1059,250 @@ class ComprehensiveServiceManager:
                 "success": False,
                 "error": str(e)
             }
+    
+    async def _apply_service_config(self, service_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply configuration to the actual service by generating the appropriate config file."""
+        try:
+            service_config = self._find_service_config(service_id)
+            if not service_config:
+                return {"applied": False, "message": "Service configuration not found"}
+            
+            # Determine the service type and apply configuration accordingly
+            if service_id == "ipfs":
+                return await self._apply_ipfs_config(config)
+            elif service_id == "ipfs_cluster":
+                return await self._apply_ipfs_cluster_config(config)
+            elif service_id == "lotus":
+                return await self._apply_lotus_config(config)
+            elif service_id == "aria2":
+                return await self._apply_aria2_config(config)
+            elif service_id == "lassie":
+                return await self._apply_lassie_config(config)
+            elif service_config.get("type") == ServiceType.STORAGE.value:
+                # For storage backends, configuration is credential-based
+                return await self._apply_storage_backend_config(service_id, config)
+            else:
+                # For other services, just save the config
+                return {"applied": False, "message": "Service does not support automatic configuration"}
+            
+        except Exception as e:
+            logger.error(f"Error applying configuration for {service_id}: {e}")
+            return {"applied": False, "message": f"Error: {str(e)}"}
+    
+    async def _apply_ipfs_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply IPFS configuration by modifying the IPFS config file."""
+        try:
+            import subprocess
+            
+            # IPFS uses JSON configuration
+            config_dir = Path(config.get("config_dir", Path.home() / ".ipfs"))
+            config_file = config_dir / "config"
+            
+            if not config_file.exists():
+                return {"applied": False, "message": "IPFS not initialized. Run 'ipfs init' first."}
+            
+            # Read existing config
+            with open(config_file, 'r') as f:
+                ipfs_config = json.load(f)
+            
+            # Apply configuration changes
+            if "port" in config:
+                if "Addresses" not in ipfs_config:
+                    ipfs_config["Addresses"] = {}
+                ipfs_config["Addresses"]["API"] = f"/ip4/127.0.0.1/tcp/{config['port']}"
+            
+            if "gateway_port" in config:
+                if "Addresses" not in ipfs_config:
+                    ipfs_config["Addresses"] = {}
+                ipfs_config["Addresses"]["Gateway"] = f"/ip4/127.0.0.1/tcp/{config['gateway_port']}"
+            
+            if "swarm_port" in config:
+                if "Addresses" not in ipfs_config:
+                    ipfs_config["Addresses"] = {}
+                ipfs_config["Addresses"]["Swarm"] = [
+                    f"/ip4/0.0.0.0/tcp/{config['swarm_port']}",
+                    f"/ip6/::/tcp/{config['swarm_port']}"
+                ]
+            
+            # Write back the configuration
+            with open(config_file, 'w') as f:
+                json.dump(ipfs_config, f, indent=2)
+            
+            return {"applied": True, "message": "IPFS configuration applied successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error applying IPFS config: {e}")
+            return {"applied": False, "message": f"Failed to apply IPFS config: {str(e)}"}
+    
+    async def _apply_ipfs_cluster_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply IPFS Cluster configuration."""
+        try:
+            # IPFS Cluster uses JSON configuration
+            config_dir = Path(config.get("config_dir", Path.home() / ".ipfs-cluster"))
+            config_file = config_dir / "service.json"
+            
+            if not config_file.exists():
+                return {"applied": False, "message": "IPFS Cluster not initialized. Run 'ipfs-cluster-service init' first."}
+            
+            # Read existing config
+            with open(config_file, 'r') as f:
+                cluster_config = json.load(f)
+            
+            # Apply configuration changes
+            if "port" in config:
+                if "api" not in cluster_config:
+                    cluster_config["api"] = {}
+                if "restapi" not in cluster_config["api"]:
+                    cluster_config["api"]["restapi"] = {}
+                cluster_config["api"]["restapi"]["http_listen_multiaddress"] = f"/ip4/127.0.0.1/tcp/{config['port']}"
+            
+            if "cluster_secret" in config:
+                cluster_config["cluster"]["secret"] = config["cluster_secret"]
+            
+            if "bootstrap_peers" in config and config["bootstrap_peers"]:
+                peers = [p.strip() for p in config["bootstrap_peers"].split(",") if p.strip()]
+                cluster_config["cluster"]["leave_on_shutdown"] = False
+                cluster_config["cluster"]["listen_multiaddress"] = [f"/ip4/0.0.0.0/tcp/9096"]
+                if "bootstrap" not in cluster_config["cluster"]:
+                    cluster_config["cluster"]["bootstrap"] = peers
+                else:
+                    cluster_config["cluster"]["bootstrap"] = peers
+            
+            # Write back the configuration
+            with open(config_file, 'w') as f:
+                json.dump(cluster_config, f, indent=2)
+            
+            return {"applied": True, "message": "IPFS Cluster configuration applied successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error applying IPFS Cluster config: {e}")
+            return {"applied": False, "message": f"Failed to apply IPFS Cluster config: {str(e)}"}
+    
+    async def _apply_lotus_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply Lotus configuration."""
+        try:
+            # Lotus uses TOML configuration
+            config_dir = Path(config.get("config_dir", Path.home() / ".lotus"))
+            config_file = config_dir / "config.toml"
+            
+            if not config_file.exists():
+                return {"applied": False, "message": "Lotus not initialized."}
+            
+            # For TOML, we need the toml library
+            try:
+                import toml
+            except ImportError:
+                logger.warning("toml library not available, saving as JSON comment")
+                # Fallback: save as a separate JSON file that can be manually converted
+                fallback_file = config_dir / "config_updates.json"
+                with open(fallback_file, 'w') as f:
+                    json.dump(config, f, indent=2)
+                return {"applied": False, "message": "TOML library not available. Configuration saved to config_updates.json for manual application."}
+            
+            # Read existing config
+            with open(config_file, 'r') as f:
+                lotus_config = toml.load(f)
+            
+            # Apply configuration changes
+            if "port" in config:
+                if "API" not in lotus_config:
+                    lotus_config["API"] = {}
+                lotus_config["API"]["ListenAddress"] = f"/ip4/127.0.0.1/tcp/{config['port']}/http"
+            
+            # Write back the configuration
+            with open(config_file, 'w') as f:
+                toml.dump(lotus_config, f)
+            
+            return {"applied": True, "message": "Lotus configuration applied successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error applying Lotus config: {e}")
+            return {"applied": False, "message": f"Failed to apply Lotus config: {str(e)}"}
+    
+    async def _apply_aria2_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply Aria2 configuration."""
+        try:
+            # Aria2 uses a simple key=value configuration format
+            config_dir = Path(config.get("config_dir", Path.home() / ".aria2"))
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_file = config_dir / "aria2.conf"
+            
+            # Build aria2 configuration
+            aria2_config_lines = []
+            
+            if "port" in config:
+                aria2_config_lines.append(f"rpc-listen-port={config['port']}")
+            
+            if "rpc_secret" in config:
+                aria2_config_lines.append(f"rpc-secret={config['rpc_secret']}")
+            
+            # Add some default settings
+            aria2_config_lines.extend([
+                "enable-rpc=true",
+                "rpc-allow-origin-all=true",
+                "rpc-listen-all=false",
+                "continue=true",
+                "max-connection-per-server=16",
+                "min-split-size=10M",
+                "split=10",
+                "max-concurrent-downloads=5",
+            ])
+            
+            # Write configuration
+            with open(config_file, 'w') as f:
+                f.write('\n'.join(aria2_config_lines))
+            
+            return {"applied": True, "message": "Aria2 configuration applied successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error applying Aria2 config: {e}")
+            return {"applied": False, "message": f"Failed to apply Aria2 config: {str(e)}"}
+    
+    async def _apply_lassie_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply Lassie configuration."""
+        try:
+            # Lassie typically uses environment variables or CLI flags
+            # We'll save a JSON config file that can be used with the daemon
+            config_dir = Path(config.get("config_dir", Path.home() / ".lassie"))
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_file = config_dir / "config.json"
+            
+            lassie_config = {
+                "port": config.get("port", 8080),
+                "host": "127.0.0.1"
+            }
+            
+            with open(config_file, 'w') as f:
+                json.dump(lassie_config, f, indent=2)
+            
+            return {"applied": True, "message": "Lassie configuration applied successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error applying Lassie config: {e}")
+            return {"applied": False, "message": f"Failed to apply Lassie config: {str(e)}"}
+    
+    async def _apply_storage_backend_config(self, service_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply configuration for storage backends (credential-based services)."""
+        try:
+            # Storage backends are configured through environment variables or credential files
+            # We'll save credentials securely
+            credentials_file = self.data_dir / f"{service_id}_credentials.json"
+            
+            # Save credentials
+            with open(credentials_file, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            # Set restrictive permissions on credentials file (Unix-like systems)
+            try:
+                os.chmod(credentials_file, 0o600)
+            except Exception:
+                pass  # Windows or permission error
+            
+            return {"applied": True, "message": f"{service_id} credentials saved successfully"}
+            
+        except Exception as e:
+            logger.error(f"Error applying {service_id} config: {e}")
+            return {"applied": False, "message": f"Failed to save {service_id} credentials: {str(e)}"}
 
     def enable_service(self, service_id: str) -> Dict[str, Any]:
         """Enable a service."""
