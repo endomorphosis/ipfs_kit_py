@@ -780,18 +780,8 @@ class ComprehensiveServiceManager:
         if not params:
             return {"success": False, "error": "Configuration parameters required"}
         
-        # Save configuration for credentialed services
-        service_config = self._find_service_config(service_id)
-        if service_config and service_config.get("requires_credentials", False):
-            credentials_file = self.data_dir / f"{service_id}_credentials.json"
-            try:
-                with open(credentials_file, 'w') as f:
-                    json.dump(params, f, indent=2)
-                return {"success": True, "message": f"Service {service_id} configured successfully"}
-            except Exception as e:
-                return {"success": False, "error": f"Failed to save configuration: {str(e)}"}
-        
-        return {"success": False, "error": f"Service {service_id} does not support configuration"}
+        # Use the comprehensive configure_service method for all services
+        return await self.configure_service(service_id, params)
     
     async def _health_check_service(self, service_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Perform health check on a service."""
@@ -830,23 +820,42 @@ class ComprehensiveServiceManager:
         """Get detailed information about a specific service."""
         service_config = self._find_service_config(service_id)
         if not service_config:
-            return {"error": f"Service {service_id} not found"}
+            return {"success": False, "error": f"Service {service_id} not found"}
+        
+        # Load saved configuration if it exists
+        config_file = self.data_dir / f"{service_id}_config.json"
+        saved_config = {}
+        if config_file.exists():
+            try:
+                with open(config_file, 'r') as f:
+                    saved_config = json.load(f)
+                logger.info(f"Loaded saved configuration for {service_id}: {saved_config}")
+            except Exception as e:
+                logger.error(f"Error loading saved config for {service_id}: {e}")
+        
+        # Merge saved config with service config for the response
+        merged_config = service_config.copy()
+        for key, value in saved_config.items():
+            merged_config[key] = value
         
         # Get current status
         if service_config["type"] == ServiceType.DAEMON.value:
-            status = await self._check_daemon_status(service_id, service_config)
+            status = await self._check_daemon_status(service_id, merged_config)
         elif service_config["type"] == ServiceType.STORAGE.value:
-            status = await self._check_storage_backend_status(service_id, service_config)
+            status = await self._check_storage_backend_status(service_id, merged_config)
         elif service_config["type"] == ServiceType.NETWORK.value:
-            status = await self._check_network_service_status(service_id, service_config)
+            status = await self._check_network_service_status(service_id, merged_config)
         else:
             status = {"status": ServiceStatus.UNKNOWN.value, "details": {}}
         
         return {
+            "success": True,
             "id": service_id,
-            "config": service_config,
-            "status": status,
-            "actions": self._get_available_actions(service_id, status["status"])
+            "config": merged_config,
+            "status": status.get("status", ServiceStatus.UNKNOWN.value),
+            "last_check": status.get("last_check", ""),
+            "details": status.get("details", {}),
+            "actions": self._get_available_actions(service_id, status.get("status", ServiceStatus.UNKNOWN.value))
         }
     
     def enable_service(self, service_id: str) -> Dict[str, Any]:
@@ -1380,37 +1389,6 @@ class ComprehensiveServiceManager:
                 "error": str(e)
             }
 
-    async def perform_service_action(self, service_id: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform an action on a service."""
-        try:
-            if action == "enable":
-                return self.enable_service(service_id)
-            elif action == "configure":
-                config = params.get("config", {})
-                return await self.configure_service(service_id, config)
-            elif action == "start":
-                # Implementation for starting services would go here
-                return {"success": True, "message": f"Service {service_id} start initiated", "status": "starting"}
-            elif action == "stop":
-                # Implementation for stopping services would go here  
-                return {"success": True, "message": f"Service {service_id} stop initiated", "status": "stopping"}
-            elif action == "restart":
-                # Implementation for restarting services would go here
-                return {"success": True, "message": f"Service {service_id} restart initiated", "status": "restarting"}
-            elif action == "health_check":
-                # Implementation for health checks would go here
-                return {"success": True, "message": f"Service {service_id} health check completed", "status": "healthy"}
-            else:
-                return {
-                    "success": False,
-                    "error": f"Unknown action: {action}"
-                }
-                
-        except Exception as e:
-            logger.error(f"Error performing action {action} on service {service_id}: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+
         
         return actions

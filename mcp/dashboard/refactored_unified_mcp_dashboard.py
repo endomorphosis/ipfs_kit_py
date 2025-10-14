@@ -2065,13 +2065,13 @@ class RefactoredUnifiedMCPDashboard:
             # Get detailed service status
             service_details = await self.service_manager.get_service_details(service_id)
             
-            if not service_details or not service_details.get("success"):
+            if not service_details or (service_details.get("success") == False):
                 return {
                     "success": False,
-                    "error": f"Service {service_id} not found or unavailable"
+                    "error": service_details.get("error", f"Service {service_id} not found or unavailable")
                 }
             
-            # Return the service details
+            # Return the service details (now includes saved configuration)
             return service_details
             
         except Exception as e:
