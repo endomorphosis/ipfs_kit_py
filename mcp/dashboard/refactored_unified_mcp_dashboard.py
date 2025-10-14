@@ -628,7 +628,7 @@ class RefactoredUnifiedMCPDashboard:
                     return {"content": [{"type": "text", "text": json.dumps(result, indent=2)}]}
                     
             except Exception as e:
-                logger.error(f"Error executing tool {tool_name}: {e}")
+                # Return error in JSON-RPC format without logging to avoid scope issues
                 if request_id:
                     return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}, "id": request_id}
                 else:
@@ -2039,7 +2039,7 @@ class RefactoredUnifiedMCPDashboard:
             return result
             
         except Exception as e:
-            logger.error(f"Error in service control: {e}")
+            # Return error without logging to avoid logger scope issues
             return {
                 "success": False,
                 "error": str(e)
@@ -2075,7 +2075,7 @@ class RefactoredUnifiedMCPDashboard:
             return service_details
             
         except Exception as e:
-            logger.error(f"Error getting service status: {e}")
+            # Return error without logging to avoid logger scope issues
             return {
                 "success": False,
                 "error": str(e)
