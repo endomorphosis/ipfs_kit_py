@@ -721,7 +721,7 @@ class ComprehensiveServiceManager:
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}
         except Exception as e:
-            logger.error(f"Error performing action {action} on service {service_id}: {e}")
+            # Return error without logging
             return {"success": False, "error": str(e)}
     
     async def _start_service(self, service_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -1097,7 +1097,7 @@ class ComprehensiveServiceManager:
                 self.service_states[service_id]["config_applied"] = apply_result.get("applied", False)
                 self._save_service_states()
             
-            logger.info(f"Service {service_id} configured successfully")
+            # Configuration saved and applied successfully
             return {
                 "success": True,
                 "message": f"Service {service_id} configured successfully",
@@ -1107,7 +1107,7 @@ class ComprehensiveServiceManager:
             }
             
         except Exception as e:
-            logger.error(f"Error configuring service {service_id}: {e}")
+            # Return error without logging
             return {
                 "success": False,
                 "error": str(e)
@@ -1139,7 +1139,7 @@ class ComprehensiveServiceManager:
                 return {"applied": False, "message": "Service does not support automatic configuration"}
             
         except Exception as e:
-            logger.error(f"Error applying configuration for {service_id}: {e}")
+            # Return error without logging
             return {"applied": False, "message": f"Error: {str(e)}"}
     
     async def _apply_ipfs_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -1184,7 +1184,7 @@ class ComprehensiveServiceManager:
             return {"applied": True, "message": "IPFS configuration applied successfully"}
             
         except Exception as e:
-            logger.error(f"Error applying IPFS config: {e}")
+            # Return error without logging
             return {"applied": False, "message": f"Failed to apply IPFS config: {str(e)}"}
     
     async def _apply_ipfs_cluster_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -1228,7 +1228,7 @@ class ComprehensiveServiceManager:
             return {"applied": True, "message": "IPFS Cluster configuration applied successfully"}
             
         except Exception as e:
-            logger.error(f"Error applying IPFS Cluster config: {e}")
+            # Return error without logging
             return {"applied": False, "message": f"Failed to apply IPFS Cluster config: {str(e)}"}
     
     async def _apply_lotus_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -1245,8 +1245,7 @@ class ComprehensiveServiceManager:
             try:
                 import toml
             except ImportError:
-                logger.warning("toml library not available, saving as JSON comment")
-                # Fallback: save as a separate JSON file that can be manually converted
+                # TOML library not available, save as JSON instead
                 fallback_file = config_dir / "config_updates.json"
                 with open(fallback_file, 'w') as f:
                     json.dump(config, f, indent=2)
@@ -1269,7 +1268,7 @@ class ComprehensiveServiceManager:
             return {"applied": True, "message": "Lotus configuration applied successfully"}
             
         except Exception as e:
-            logger.error(f"Error applying Lotus config: {e}")
+            # Return error without logging
             return {"applied": False, "message": f"Failed to apply Lotus config: {str(e)}"}
     
     async def _apply_aria2_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -1308,7 +1307,7 @@ class ComprehensiveServiceManager:
             return {"applied": True, "message": "Aria2 configuration applied successfully"}
             
         except Exception as e:
-            logger.error(f"Error applying Aria2 config: {e}")
+            # Return error without logging
             return {"applied": False, "message": f"Failed to apply Aria2 config: {str(e)}"}
     
     async def _apply_lassie_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -1331,7 +1330,7 @@ class ComprehensiveServiceManager:
             return {"applied": True, "message": "Lassie configuration applied successfully"}
             
         except Exception as e:
-            logger.error(f"Error applying Lassie config: {e}")
+            # Return error without logging
             return {"applied": False, "message": f"Failed to apply Lassie config: {str(e)}"}
     
     async def _apply_storage_backend_config(self, service_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -1354,7 +1353,7 @@ class ComprehensiveServiceManager:
             return {"applied": True, "message": f"{service_id} credentials saved successfully"}
             
         except Exception as e:
-            logger.error(f"Error applying {service_id} config: {e}")
+            # Return error without logging
             return {"applied": False, "message": f"Failed to save {service_id} credentials: {str(e)}"}
 
     def enable_service(self, service_id: str) -> Dict[str, Any]:
@@ -1376,14 +1375,14 @@ class ComprehensiveServiceManager:
             
             self._save_services_config()
             
-            logger.info(f"Service {service_id} enabled successfully")
+            # Service enabled successfully  
             return {
                 "success": True,
                 "message": f"Service {service_id} enabled successfully"
             }
             
         except Exception as e:
-            logger.error(f"Error enabling service {service_id}: {e}")
+            # Return error without logging
             return {
                 "success": False,
                 "error": str(e)
