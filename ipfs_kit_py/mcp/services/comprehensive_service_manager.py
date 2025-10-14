@@ -95,10 +95,36 @@ class ComprehensiveServiceManager:
         self.services_config = self._load_services_config()
         self.service_states = self._load_service_states()
         
+        # Load and merge individual service configurations
+        self._load_individual_service_configs()
+        
         # Initialize daemon manager references
         self._daemon_managers = {}
         
         logger.info("Comprehensive Service Manager initialized")
+    
+    def _load_individual_service_configs(self):
+        """Load individual service configuration files and merge them with the main config."""
+        try:
+            # Check for individual service config files
+            for config_file in self.data_dir.glob("*_config.json"):
+                try:
+                    service_id = config_file.stem.replace("_config", "")
+                    with open(config_file, 'r') as f:
+                        saved_config = json.load(f)
+                    
+                    # Find the service in services_config and merge the saved config
+                    service_config = self._find_service_config(service_id)
+                    if service_config:
+                        # Merge saved configuration into service config
+                        for key, value in saved_config.items():
+                            if key in service_config.get("config_keys", []):
+                                service_config[key] = value
+                        logger.info(f"Loaded saved configuration for {service_id}")
+                except Exception as e:
+                    logger.error(f"Error loading config file {config_file}: {e}")
+        except Exception as e:
+            logger.error(f"Error loading individual service configs: {e}")
     
     def _load_services_config(self) -> Dict[str, Any]:
         """Load services configuration."""
@@ -700,15 +726,33 @@ class ComprehensiveServiceManager:
     
     async def _start_service(self, service_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Start a service."""
-        if service_id in self._daemon_managers:
-            daemon_manager = self._daemon_managers[service_id]
-            success = daemon_manager.start()
-            return {
-                "success": success,
-                "message": f"Service {service_id} {'started successfully' if success else 'failed to start'}"
-            }
-        
-        return {"success": False, "error": f"Service {service_id} cannot be started"}
+        try:
+            # Load and apply saved configuration before starting
+            config_file = self.data_dir / f"{service_id}_config.json"
+            if config_file.exists():
+                try:
+                    with open(config_file, 'r') as f:
+                        saved_config = json.load(f)
+                    
+                    # Apply the saved configuration
+                    apply_result = await self._apply_service_config(service_id, saved_config)
+                    logger.info(f"Applied saved configuration for {service_id}: {apply_result.get('message', '')}")
+                except Exception as e:
+                    logger.warning(f"Could not apply saved configuration for {service_id}: {e}")
+            
+            # Now start the service
+            if service_id in self._daemon_managers:
+                daemon_manager = self._daemon_managers[service_id]
+                success = daemon_manager.start()
+                return {
+                    "success": success,
+                    "message": f"Service {service_id} {'started successfully' if success else 'failed to start'}"
+                }
+            
+            return {"success": False, "error": f"Service {service_id} cannot be started"}
+        except Exception as e:
+            logger.error(f"Error starting service {service_id}: {e}")
+            return {"success": False, "error": str(e)}
     
     async def _stop_service(self, service_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Stop a service."""
