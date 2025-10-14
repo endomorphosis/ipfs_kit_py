@@ -829,9 +829,9 @@ class ComprehensiveServiceManager:
             try:
                 with open(config_file, 'r') as f:
                     saved_config = json.load(f)
-                logger.info(f"Loaded saved configuration for {service_id}: {saved_config}")
             except Exception as e:
-                logger.error(f"Error loading saved config for {service_id}: {e}")
+                # Silently continue if config file can't be read
+                pass
         
         # Merge saved config with service config for the response
         merged_config = service_config.copy()
