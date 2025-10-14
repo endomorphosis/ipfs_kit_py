@@ -100,8 +100,6 @@ class ComprehensiveServiceManager:
         
         # Initialize daemon manager references
         self._daemon_managers = {}
-        
-        logger.info("Comprehensive Service Manager initialized")
     
     def _load_individual_service_configs(self):
         """Load individual service configuration files and merge them with the main config."""
@@ -120,11 +118,10 @@ class ComprehensiveServiceManager:
                         for key, value in saved_config.items():
                             if key in service_config.get("config_keys", []):
                                 service_config[key] = value
-                        logger.info(f"Loaded saved configuration for {service_id}")
                 except Exception as e:
-                    logger.error(f"Error loading config file {config_file}: {e}")
+                    pass  # Silent failure
         except Exception as e:
-            logger.error(f"Error loading individual service configs: {e}")
+            pass  # Silent failure
     
     def _load_services_config(self) -> Dict[str, Any]:
         """Load services configuration."""
@@ -133,7 +130,7 @@ class ComprehensiveServiceManager:
                 with open(self.services_config_file, 'r') as f:
                     return json.load(f)
             except Exception as e:
-                logger.error(f"Error loading services config: {e}")
+                pass  # Silent failure
         
         # Return default services configuration
         return self._get_default_services_config()
@@ -145,7 +142,7 @@ class ComprehensiveServiceManager:
                 with open(self.service_states_file, 'r') as f:
                     return json.load(f)
             except Exception as e:
-                logger.error(f"Error loading service states: {e}")
+                pass  # Silent failure
         
         return {}
     
@@ -155,7 +152,7 @@ class ComprehensiveServiceManager:
             with open(self.services_config_file, 'w') as f:
                 json.dump(self.services_config, f, indent=2)
         except Exception as e:
-            logger.error(f"Error saving services config: {e}")
+            pass  # Silent failure
     
     def _save_service_states(self):
         """Save service states."""
@@ -163,7 +160,7 @@ class ComprehensiveServiceManager:
             with open(self.service_states_file, 'w') as f:
                 json.dump(self.service_states, f, indent=2)
         except Exception as e:
-            logger.error(f"Error saving service states: {e}")
+            pass  # Silent failure
     
     def _get_default_services_config(self) -> Dict[str, Any]:
         """Get default services configuration."""
@@ -736,9 +733,8 @@ class ComprehensiveServiceManager:
                     
                     # Apply the saved configuration
                     apply_result = await self._apply_service_config(service_id, saved_config)
-                    logger.info(f"Applied saved configuration for {service_id}: {apply_result.get('message', '')}")
                 except Exception as e:
-                    logger.warning(f"Could not apply saved configuration for {service_id}: {e}")
+                    pass  # Silent failure
             
             # Now start the service
             if service_id in self._daemon_managers:
@@ -751,7 +747,6 @@ class ComprehensiveServiceManager:
             
             return {"success": False, "error": f"Service {service_id} cannot be started"}
         except Exception as e:
-            logger.error(f"Error starting service {service_id}: {e}")
             return {"success": False, "error": str(e)}
     
     async def _stop_service(self, service_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
