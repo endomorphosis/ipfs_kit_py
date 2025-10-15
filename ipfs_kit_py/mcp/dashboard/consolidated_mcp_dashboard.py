@@ -3416,7 +3416,7 @@ class ConsolidatedMCPDashboard:
                         }
                         return {"jsonrpc": "2.0", "result": result, "id": None}
                 except Exception as e:
-                    logger.warning(f"Error getting service status from service_manager for {svc}: {e}")
+                    self.log.warning(f"Error getting service status from service_manager for {svc}: {e}")
             
             # Fallback for ipfs only if service_manager not available
             if svc == "ipfs":
