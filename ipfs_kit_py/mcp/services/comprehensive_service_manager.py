@@ -18,7 +18,8 @@ from typing import Dict, Any, List, Optional, Union
 from enum import Enum
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+# Logger removed to avoid NameError in dynamic import contexts
+# logger = logging.getLogger(__name__)
 
 
 class MockDaemonManager:
