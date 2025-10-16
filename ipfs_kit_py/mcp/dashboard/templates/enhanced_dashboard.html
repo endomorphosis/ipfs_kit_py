@@ -7642,20 +7642,32 @@
             
             // Pre-fill form fields with existing values
             if (service.config || service.details) {
-                const existingValues = { ...service.config, ...service.details };
+                // Prefill only known config fields; prefer values from service.config
+                const existingValues = { ...service.details, ...service.config };
                 console.log(`Pre-filling form for ${serviceId} with:`, existingValues);
-                
-                // Fill in fields based on their IDs
-                Object.keys(existingValues).forEach(key => {
-                    const element = document.getElementById(`config-${key}`);
-                    if (element && existingValues[key] !== undefined && existingValues[key] !== null) {
-                        if (element.type === 'checkbox') {
-                            element.checked = !!existingValues[key];
-                        } else {
-                            element.value = existingValues[key];
+                if (Array.isArray(service.config_keys) && service.config_keys.length > 0){
+                    for (const key of service.config_keys){
+                        const element = document.getElementById(`config-${key}`);
+                        const val = existingValues[key];
+                        if (element && val !== undefined && val !== null){
+                            if (element.type === 'checkbox') element.checked = !!val;
+                            else element.value = val;
                         }
                     }
-                });
+                } else {
+                    // Legacy fallback: try common daemon fields
+                    const map = {
+                        'config-dir': existingValues['config_dir'],
+                        'config-port': existingValues['port'],
+                        'config-gateway-port': existingValues['gateway_port'],
+                        'config-swarm-port': existingValues['swarm_port'],
+                        'config-auto-start': existingValues['auto_start'] ? 'true' : 'false'
+                    };
+                    Object.entries(map).forEach(([id, v])=>{
+                        const el = document.getElementById(id);
+                        if (el && v !== undefined && v !== null) el.value = v;
+                    });
+                }
             }
             
             modal.classList.remove('hidden');
@@ -7680,6 +7692,8 @@
             if (service.type === 'daemon' && service.config_keys && service.config_keys.length > 0) {
                 console.log(`✅ Generating DYNAMIC form for daemon ${serviceId} with config_keys:`, service.config_keys);
                 const configKeys = service.config_keys;
+                // Ensure we have a config object to prefill/save values consistently
+                service.config = service.config || {};
                 let fieldsHTML = '';
                 
                 // Daemon field metadata
@@ -7729,7 +7743,7 @@
                             </div>
                         `;
                     } else {
-                        const currentValue = service[key] || service.config?.[key] || service.details?.[key] || '';
+                        const currentValue = service.config?.[key] ?? service[key] ?? service.details?.[key] ?? '';
                         fieldsHTML += `
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">${meta.label} ${requiredMark}</label>
@@ -7994,18 +8008,40 @@
                 
                 // Collect configuration based on service type
                 if (service.type === 'daemon') {
-                    // Daemon configuration
-                    const configDir = document.getElementById('config-dir')?.value;
-                    const port = document.getElementById('config-port')?.value;
-                    const gatewayPort = document.getElementById('config-gateway-port')?.value;
-                    const swarmPort = document.getElementById('config-swarm-port')?.value;
-                    const autoStart = document.getElementById('config-auto-start')?.value;
-                    
-                    if (configDir) config.config_dir = configDir;
-                    if (port) config.port = parseInt(port);
-                    if (gatewayPort) config.gateway_port = parseInt(gatewayPort);
-                    if (swarmPort) config.swarm_port = parseInt(swarmPort);
-                    if (autoStart) config.auto_start = autoStart === 'true';
+                    // If dynamic daemon form with config_keys was rendered, read those fields by underscored keys
+                    if (Array.isArray(service.config_keys) && service.config_keys.length > 0) {
+                        for (const key of service.config_keys) {
+                            const el = document.getElementById(`config-${key}`);
+                            if (!el) {
+                                console.warn(`  - ${key}: element not found (id: config-${key})`);
+                                continue;
+                            }
+                            if (el.type === 'checkbox') {
+                                config[key] = el.checked;
+                            } else if (el.type === 'number') {
+                                const v = el.value?.trim();
+                                config[key] = v ? Number(v) : null;
+                            } else {
+                                const v = el.value;
+                                // Coerce common boolean string values for select/text inputs
+                                if (v === 'true') config[key] = true;
+                                else if (v === 'false') config[key] = false;
+                                else config[key] = v;
+                            }
+                        }
+                    } else {
+                        // Legacy daemon form fallback (hyphenated ids)
+                        const configDir = document.getElementById('config-dir')?.value;
+                        const port = document.getElementById('config-port')?.value;
+                        const gatewayPort = document.getElementById('config-gateway-port')?.value;
+                        const swarmPort = document.getElementById('config-swarm-port')?.value;
+                        const autoStart = document.getElementById('config-auto-start')?.value;
+                        if (configDir) config.config_dir = configDir;
+                        if (port) config.port = parseInt(port);
+                        if (gatewayPort) config.gateway_port = parseInt(gatewayPort);
+                        if (swarmPort) config.swarm_port = parseInt(swarmPort);
+                        if (autoStart) config.auto_start = autoStart === 'true';
+                    }
                     
                     console.log(`🛠️ Daemon config collected for ${serviceId}:`, config);
                 } else if (service.type === 'storage' && service.config_keys && service.config_keys.length > 0) {

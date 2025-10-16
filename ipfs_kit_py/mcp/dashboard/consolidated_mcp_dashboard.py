@@ -1021,7 +1021,7 @@ class ConsolidatedMCPDashboard:
                    "      g.MCP.status = async function(){ const r = await fetch('/api/mcp/status'); const js = await r.json(); const data = (js && (js.data||js)) || {}; const tools = Array.isArray(data.tools)?data.tools:[]; return Object.assign({ initialized: !!data, tools }, data); };\n" \
                    "    }\n" \
                    "    function ensureNS(ns, obj){ g.MCP[ns] = g.MCP[ns] || {}; var t=g.MCP[ns]; for (var k in obj){ if (!(k in t)) t[k]=obj[k]; } }\n" \
-                   "    ensureNS('Services', { list:()=>rpcCall('list_services',{}), control:(s,a)=>rpcCall('service_control',{service:s, action:a}), status:(s)=>rpcCall('service_status',{service:s}) });\n" \
+                   "    ensureNS('Services', { list:()=>rpcCall('list_services',{}), control:(s,a,p)=>rpcCall('service_control',{service:s, action:a, params:p}), status:(s)=>rpcCall('service_status',{service:s}) });\n" \
                    "    ensureNS('Backends', { list:()=>rpcCall('list_backends',{}), get:(n)=>rpcCall('get_backend',{name:n}), create:(n,c)=>rpcCall('create_backend',{name:n, config:c}), update:(n,c)=>rpcCall('update_backend',{name:n, config:c}), delete:(n)=>rpcCall('delete_backend',{name:n}), test:(n)=>rpcCall('test_backend',{name:n}), listInstances:()=>rpcCall('list_backend_instances',{}), createInstance:(type,name,desc)=>rpcCall('create_backend_instance',{service_type:type, instance_name:name, description:desc}), configureInstance:(name,type,config)=>rpcCall('configure_backend_instance',{instance_name:name, service_type:type, config:config}), getPerformanceMetrics:(name,range,history)=>rpcCall('get_backend_performance_metrics',{backend_name:name, time_range:range, include_history:history}), getTemplate:(type,template)=>rpcCall('get_backend_configuration_template',{backend_type:type, template_type:template}), clone:(source,newName,modifyConfig)=>rpcCall('clone_backend_configuration',{source_backend:source, new_backend_name:newName, modify_config:modifyConfig}), backup:(name,backupName,includeData)=>rpcCall('backup_backend_configuration',{backend_name:name, backup_name:backupName, include_data:includeData}), restore:(name,backupId,force)=>rpcCall('restore_backend_configuration',{backend_name:name, backup_id:backupId, force_restore:force}) });\n" \
                    "    ensureNS('Buckets', { list:()=>rpcCall('list_buckets',{}), get:(n)=>rpcCall('get_bucket',{name:n}), create:(n,b)=>rpcCall('create_bucket',{name:n, backend:b}), update:(n,p)=>rpcCall('update_bucket',{name:n, patch:p}), delete:(n)=>rpcCall('delete_bucket',{name:n}), getPolicy:(n)=>rpcCall('get_bucket_policy',{name:n}), updatePolicy:(n,pol)=>rpcCall('update_bucket_policy',{name:n, policy:pol}), listFiles:(bucket,path,meta)=>rpcCall('bucket_list_files',{bucket,path:(path||'.'),show_metadata:!!meta}), uploadFile:(bucket,path,content,mode,policy)=>rpcCall('bucket_upload_file',{bucket,path,content,mode:(mode||'text'),apply_policy:!!policy}), downloadFile:(bucket,path,format)=>rpcCall('bucket_download_file',{bucket,path,format:(format||'text')}), deleteFile:(bucket,path,replicas)=>rpcCall('bucket_delete_file',{bucket,path,remove_replicas:!!replicas}), renameFile:(bucket,src,dst,replicas)=>rpcCall('bucket_rename_file',{bucket,src,dst,update_replicas:!!replicas}), mkdir:(bucket,path,parents)=>rpcCall('bucket_mkdir',{bucket,path,create_parents:!!parents}), syncReplicas:(bucket,force)=>rpcCall('bucket_sync_replicas',{bucket,force_sync:!!force}), getMetadata:(bucket,path,replicas)=>rpcCall('bucket_get_metadata',{bucket,path,include_replicas:!!replicas}) });\n" \
                    "    ensureNS('Pins', { list:()=>rpcCall('list_pins',{}), create:(cid,name)=>rpcCall('create_pin',{cid, name}), delete:(cid)=>rpcCall('delete_pin',{cid}), export:()=>rpcCall('pins_export',{}), import:(items)=>rpcCall('pins_import',{items}) });\n" \
@@ -3359,7 +3359,11 @@ class ConsolidatedMCPDashboard:
                             result = service_manager.enable_service(svc)
                         else:
                             # Use the perform_service_action method
-                            result = await service_manager.perform_service_action(svc, action, args)
+                            # Only pass the inner params payload to the service layer
+                            params = None
+                            if isinstance(args, dict):
+                                params = args.get("params") if action == "configure" else args.get("params", None)
+                            result = await service_manager.perform_service_action(svc, action, params)
                         return {"jsonrpc": "2.0", "result": result, "id": None}
                     else:
                         return {"jsonrpc": "2.0", "error": {"code": 400, "message": f"Unsupported action: {action}"}, "id": None}
@@ -3416,7 +3420,7 @@ class ConsolidatedMCPDashboard:
                         }
                         return {"jsonrpc": "2.0", "result": result, "id": None}
                 except Exception as e:
-                    logger.warning(f"Error getting service status from service_manager for {svc}: {e}")
+                    self.log.warning(f"Error getting service status from service_manager for {svc}: {e}")
             
             # Fallback for ipfs only if service_manager not available
             if svc == "ipfs":
@@ -6736,6 +6740,12 @@ class ConsolidatedMCPDashboard:
                     if(st==='running'){ addBtn('Stop','stop'); addBtn('Restart','restart'); }
                     else if(st==='starting' || st==='stopping' || st==='restarting'){ const span=document.createElement('span'); span.textContent='(transition '+st+')'; wrap.append(span); }
                     else { addBtn('Start','start'); }
+                    // If service supports configure, surface a Configure button
+                    if (serviceActions.includes('configure')){
+                        const cfg=document.createElement('button'); cfg.textContent='Configure'; cfg.style.marginRight='4px'; cfg.style.fontSize='11px';
+                        cfg.onclick=()=> configureService(name, info);
+                        wrap.append(cfg);
+                    }
                     const statusSpan=document.createElement('span'); statusSpan.textContent=' status='+st; statusSpan.style.marginLeft='6px'; wrap.append(statusSpan);
                     containerBtns.append(wrap);
                 });
@@ -6749,6 +6759,41 @@ class ConsolidatedMCPDashboard:
             loadServices(); 
         }catch(e){
             console.error('Service action failed:', e);
+        }
+    }
+    // Simple configure flow: prompt for known config keys and send as params
+    async function configureService(name, info){
+        try{
+            const keys = (info && info.config_keys) || [];
+            let params = {};
+            if (Array.isArray(keys) && keys.length){
+                for (const k of keys){
+                    const current = (info && info.details && (info.details[k]!==undefined? String(info.details[k]) : '')) || '';
+                    const val = window.prompt(`Configure ${name}: enter value for ${k}`, current);
+                    if (val===null) { /* cancelled */ return; }
+                    // Try to coerce numbers and booleans, otherwise keep string
+                    if (val==='true' || val==='false') params[k] = (val==='true');
+                    else if (!Number.isNaN(Number(val)) && val.trim()!=='' && /^-?\d+(\.\d+)?$/.test(val.trim())) params[k] = Number(val);
+                    else params[k] = val;
+                }
+            } else {
+                const json = window.prompt(`Configure ${name}: enter params JSON`, '{"port":5001}');
+                if (json===null) return;
+                try{ params = JSON.parse(json); }catch(e){ alert('Invalid JSON'); return; }
+            }
+            const res = await window.MCP.Services.control(name, 'configure', params);
+            // Normalize result shape whether JSON-RPC wrapped or not
+            const payload = (res && res.result) ? res.result : res;
+            if (payload && payload.success){
+                const p = payload.saved_path || payload.config_file || '';
+                alert(`Configured ${name} successfully` + (p? `\nSaved to: ${p}` : ''));
+            } else {
+                alert(`Configure failed for ${name}: ${payload && (payload.error||payload.message) || 'unknown error'}`);
+            }
+            loadServices();
+        }catch(e){
+            console.error('Configure failed:', e);
+            alert(`Configure failed: ${e && e.message || e}`);
         }
     }
     // Polling for services when services view active
@@ -9485,7 +9530,7 @@ class ConsolidatedMCPDashboard:
 
                 const r=await fetch('/mcp/tools/list',{method:'POST'}); const js=await r.json(); toolDefs=(js && js.result && js.result.tools)||[];
     const Services = {
-        control: (service, action) => rpcCall('service_control', {service, action}),
+    control: (service, action, params) => rpcCall('service_control', {service, action, params}),
         status: (service) => rpcCall('service_status', {service}),
     };
 
