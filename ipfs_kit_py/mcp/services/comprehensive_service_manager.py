@@ -312,7 +312,7 @@ class ComprehensiveServiceManager:
                         "bucket": "S3 bucket name",
                         "region": "AWS region (e.g., us-east-1)"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "huggingface": {
                     "type": ServiceType.STORAGE.value,
@@ -325,7 +325,7 @@ class ComprehensiveServiceManager:
                         "username": "HuggingFace username",
                         "repository": "Repository name (optional)"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "github": {
                     "type": ServiceType.STORAGE.value,
@@ -350,7 +350,7 @@ class ComprehensiveServiceManager:
                         "api_token": "Storacha API token",
                         "space": "Storacha space identifier"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "lotus": {
                     "type": ServiceType.STORAGE.value,
