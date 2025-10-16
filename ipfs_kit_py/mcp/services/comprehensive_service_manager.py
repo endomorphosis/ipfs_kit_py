@@ -1160,7 +1160,8 @@ class ComprehensiveServiceManager:
                 "message": f"Service {service_id} configured successfully",
                 "config_saved": True,
                 "config_applied": apply_result.get("applied", False),
-                "apply_message": apply_result.get("message", "")
+                "apply_message": apply_result.get("message", ""),
+                "saved_path": str(config_file)
             }
             
         except Exception as e:
