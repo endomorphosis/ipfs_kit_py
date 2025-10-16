@@ -3359,7 +3359,11 @@ class ConsolidatedMCPDashboard:
                             result = service_manager.enable_service(svc)
                         else:
                             # Use the perform_service_action method
-                            result = await service_manager.perform_service_action(svc, action, args)
+                            # Only pass the inner params payload to the service layer
+                            params = None
+                            if isinstance(args, dict):
+                                params = args.get("params") if action == "configure" else args.get("params", None)
+                            result = await service_manager.perform_service_action(svc, action, params)
                         return {"jsonrpc": "2.0", "result": result, "id": None}
                     else:
                         return {"jsonrpc": "2.0", "error": {"code": 400, "message": f"Unsupported action: {action}"}, "id": None}

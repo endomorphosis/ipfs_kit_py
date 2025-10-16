@@ -111,12 +111,14 @@ class ComprehensiveServiceManager:
                     service_id = config_file.stem.replace("_config", "")
                     with open(config_file, 'r') as f:
                         saved_config = json.load(f)
+                    # Unwrap any legacy envelopes and filter only allowed keys
+                    sanitized = self._sanitize_config(service_id, saved_config)
                     
                     # Find the service in services_config and merge the saved config
                     service_config = self._find_service_config(service_id)
                     if service_config:
                         # Merge saved configuration into service config
-                        for key, value in saved_config.items():
+                        for key, value in sanitized.items():
                             if key in service_config.get("config_keys", []):
                                 service_config[key] = value
                 except Exception as e:
@@ -730,7 +732,16 @@ class ComprehensiveServiceManager:
             if config_file.exists():
                 try:
                     with open(config_file, 'r') as f:
-                        saved_config = json.load(f)
+                        raw = json.load(f)
+                    # Unwrap any legacy envelope and filter only allowed keys
+                    saved_config = self._sanitize_config(service_id, raw)
+                    # If sanitized differs from raw, rewrite to correct legacy files
+                    try:
+                        if isinstance(raw, dict) and raw != saved_config and isinstance(saved_config, dict):
+                            with open(config_file, 'w') as wf:
+                                json.dump(saved_config, wf, indent=2)
+                    except Exception:
+                        pass
                     
                     # Apply the saved configuration
                     apply_result = await self._apply_service_config(service_id, saved_config)
@@ -776,6 +787,11 @@ class ComprehensiveServiceManager:
         if not params:
             return {"success": False, "error": "Configuration parameters required"}
         
+        # Back-compat: some clients send { params: { config: {...} } }
+        config_payload = params.get("config") if isinstance(params, dict) else None
+        if isinstance(config_payload, dict):
+            return await self.configure_service(service_id, config_payload)
+        
         # Use the comprehensive configure_service method for all services
         return await self.configure_service(service_id, params)
     
@@ -811,6 +827,40 @@ class ComprehensiveServiceManager:
             if service_id in self.services_config.get(category, {}):
                 return self.services_config[category][service_id]
         return None
+
+    def _sanitize_config(self, service_id: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+        """Unwrap legacy envelopes and keep only allowed config keys for a service.
+        
+        Accepts either a plain params dict or an MCP-style envelope like
+        {"service": ..., "action": "configure", "params": {...}}. Returns a
+        filtered dict containing only keys declared in the service's config_keys.
+        Falls back to default config_keys when missing to preserve backwards compatibility.
+        """
+        try:
+            if not isinstance(raw, dict):
+                return {}
+            # Unwrap legacy MCP envelope
+            if "params" in raw and ("service" in raw or "action" in raw):
+                raw = raw.get("params", {}) or {}
+
+            service_cfg = self._find_service_config(service_id) or {}
+            allowed = list(service_cfg.get("config_keys", []))
+            if not allowed:
+                # Fallback to default config keys if not present
+                defaults = self._get_default_services_config()
+                for group in ("daemons", "storage_backends", "network_services"):
+                    if service_id in defaults.get(group, {}):
+                        allowed = list(defaults[group][service_id].get("config_keys", []))
+                        break
+
+            if not allowed:
+                # If still unknown, return only simple JSON-serializable scalars to be safe
+                return {k: v for k, v in raw.items() if isinstance(v, (str, int, float, bool)) or v is None}
+
+            return {k: v for k, v in raw.items() if k in allowed}
+        except Exception:
+            # On any error, prefer a safe minimal return
+            return {}
     
     async def get_service_details(self, service_id: str) -> Dict[str, Any]:
         """Get detailed information about a specific service."""
@@ -824,7 +874,16 @@ class ComprehensiveServiceManager:
         if config_file.exists():
             try:
                 with open(config_file, 'r') as f:
-                    saved_config = json.load(f)
+                    raw = json.load(f)
+                # Unwrap legacy envelope and keep only allowed keys
+                saved_config = self._sanitize_config(service_id, raw)
+                # If sanitized differs from raw, rewrite to correct legacy files
+                try:
+                    if isinstance(raw, dict) and raw != saved_config and isinstance(saved_config, dict):
+                        with open(config_file, 'w') as wf:
+                            json.dump(saved_config, wf, indent=2)
+                except Exception:
+                    pass
             except Exception as e:
                 # Silently continue if config file can't be read
                 pass
@@ -1068,6 +1127,8 @@ class ComprehensiveServiceManager:
     async def configure_service(self, service_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Configure a service with the provided configuration."""
         try:
+            # Always sanitize incoming config to avoid persisting envelopes or unknown keys
+            config = self._sanitize_config(service_id, config or {})
             # Save service configuration to JSON
             config_file = self.data_dir / f"{service_id}_config.json"
             with open(config_file, 'w') as f:
@@ -1352,38 +1413,4 @@ class ComprehensiveServiceManager:
             # Return error without logging
             return {"applied": False, "message": f"Failed to save {service_id} credentials: {str(e)}"}
 
-    def enable_service(self, service_id: str) -> Dict[str, Any]:
-        """Enable a service."""
-        try:
-            # Update service configuration to enable it
-            service_found = False
-            for service_group in ["daemons", "storage_backends", "network_services"]:
-                if service_id in self.services_config.get(service_group, {}):
-                    self.services_config[service_group][service_id]["enabled"] = True
-                    service_found = True
-                    break
-            
-            if not service_found:
-                return {
-                    "success": False,
-                    "error": f"Service {service_id} not found"
-                }
-            
-            self._save_services_config()
-            
-            # Service enabled successfully  
-            return {
-                "success": True,
-                "message": f"Service {service_id} enabled successfully"
-            }
-            
-        except Exception as e:
-            # Return error without logging
-            return {
-                "success": False,
-                "error": str(e)
-            }
-
-
-        
-        return actions
+    
