@@ -127,16 +127,49 @@ class ComprehensiveServiceManager:
             pass  # Silent failure
     
     def _load_services_config(self) -> Dict[str, Any]:
-        """Load services configuration."""
+        """Load services configuration, merging saved config with defaults.
+        
+        This ensures that:
+        1. Newly added services in defaults are picked up with their default enabled state
+        2. User-configured settings (ports, paths, etc.) are preserved
+        3. The enabled state from defaults is used unless explicitly overridden by user
+        """
+        # Always start with default configuration
+        config = self._get_default_services_config()
+        
+        # If saved config exists, merge specific user settings
         if self.services_config_file.exists():
             try:
                 with open(self.services_config_file, 'r') as f:
-                    return json.load(f)
+                    saved_config = json.load(f)
+                
+                # Merge saved config into default config
+                # Only preserve user-configured fields, not structural defaults
+                for category in ["daemons", "storage_backends", "network_services"]:
+                    if category in saved_config:
+                        for service_id, saved_service in saved_config[category].items():
+                            if service_id in config[category]:
+                                # Start with default config for this service
+                                merged_service = config[category][service_id].copy()
+                                
+                                # Only merge user-configurable fields from saved config
+                                # Don't override 'enabled', 'type', 'name', 'description', 'config_keys', 'config_hints'
+                                # These should always come from defaults to pick up updates
+                                user_fields = ['port', 'gateway_port', 'swarm_port', 'config_dir', 
+                                             'auto_start', 'requires_credentials']
+                                
+                                for field in user_fields:
+                                    if field in saved_service:
+                                        merged_service[field] = saved_service[field]
+                                
+                                config[category][service_id] = merged_service
+                
+                return config
             except Exception as e:
-                pass  # Silent failure
+                pass  # Silent failure, return defaults
         
         # Return default services configuration
-        return self._get_default_services_config()
+        return config
     
     def _load_service_states(self) -> Dict[str, Any]:
         """Load service states."""
