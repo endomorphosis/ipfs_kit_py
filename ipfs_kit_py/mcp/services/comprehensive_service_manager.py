@@ -338,7 +338,7 @@ class ComprehensiveServiceManager:
                         "repository": "Repository (owner/repo format)",
                         "username": "GitHub username"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "storacha": {
                     "type": ServiceType.STORAGE.value,
@@ -358,7 +358,11 @@ class ComprehensiveServiceManager:
                     "description": "Filecoin Lotus storage provider integration",
                     "requires_credentials": False,
                     "config_keys": ["node_url", "token"],
-                    "enabled": False
+                    "config_hints": {
+                        "node_url": "Lotus node API endpoint URL (e.g., http://127.0.0.1:1234/rpc/v0)",
+                        "token": "Lotus authentication token (optional)"
+                    },
+                    "enabled": True
                 },
                 "synapse": {
                     "type": ServiceType.STORAGE.value,
@@ -366,7 +370,12 @@ class ComprehensiveServiceManager:
                     "description": "Matrix Synapse server storage backend",
                     "requires_credentials": True,
                     "config_keys": ["homeserver_url", "access_token", "room_id"],
-                    "enabled": False
+                    "config_hints": {
+                        "homeserver_url": "Matrix homeserver URL (e.g., https://matrix.org)",
+                        "access_token": "Matrix access token for authentication",
+                        "room_id": "Matrix room ID for storage operations"
+                    },
+                    "enabled": True
                 },
                 "gdrive": {
                     "type": ServiceType.STORAGE.value,
@@ -374,7 +383,12 @@ class ComprehensiveServiceManager:
                     "description": "Google Drive cloud storage backend",
                     "requires_credentials": True,
                     "config_keys": ["client_id", "client_secret", "refresh_token"],
-                    "enabled": False
+                    "config_hints": {
+                        "client_id": "Google OAuth 2.0 Client ID",
+                        "client_secret": "Google OAuth 2.0 Client Secret",
+                        "refresh_token": "Google OAuth 2.0 Refresh Token"
+                    },
+                    "enabled": True
                 },
                 "ftp": {
                     "type": ServiceType.STORAGE.value,
@@ -388,21 +402,22 @@ class ComprehensiveServiceManager:
                         "username": "FTP username",
                         "password": "FTP password"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "sshfs": {
                     "type": ServiceType.STORAGE.value,
                     "name": "SSHFS",
                     "description": "SSH Filesystem storage backend",
                     "requires_credentials": True,
-                    "config_keys": ["host", "port", "username", "password"],
+                    "config_keys": ["host", "port", "username", "password", "key_file"],
                     "config_hints": {
                         "host": "SSH server hostname or IP",
                         "port": "SSH port (default: 22)",
                         "username": "SSH username",
-                        "password": "SSH password or leave empty for key-based auth"
+                        "password": "SSH password (leave empty for key-based auth)",
+                        "key_file": "Path to SSH private key file (optional, for key-based auth)"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "apache_arrow": {
                     "type": ServiceType.STORAGE.value,
@@ -410,6 +425,10 @@ class ComprehensiveServiceManager:
                     "description": "In-memory columnar data format for analytics and data processing",
                     "requires_credentials": False,
                     "config_keys": ["memory_pool", "compression"],
+                    "config_hints": {
+                        "memory_pool": "Memory pool type (e.g., 'default', 'jemalloc', 'mimalloc')",
+                        "compression": "Compression algorithm (e.g., 'snappy', 'gzip', 'lz4', 'zstd')"
+                    },
                     "enabled": True
                 },
                 "parquet": {
@@ -418,6 +437,11 @@ class ComprehensiveServiceManager:
                     "description": "Columnar storage format optimized for analytics workloads",
                     "requires_credentials": False,
                     "config_keys": ["compression_codec", "row_group_size", "schema_validation"],
+                    "config_hints": {
+                        "compression_codec": "Compression codec (e.g., 'snappy', 'gzip', 'brotli', 'lz4', 'zstd')",
+                        "row_group_size": "Number of rows per row group (default: 1000000)",
+                        "schema_validation": "Enable schema validation (true/false)"
+                    },
                     "enabled": True
                 }
             },
