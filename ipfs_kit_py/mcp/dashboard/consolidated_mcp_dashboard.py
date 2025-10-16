@@ -3411,12 +3411,14 @@ class ConsolidatedMCPDashboard:
                     # get_service_details returns detailed service information including config and status
                     status_result = await service_manager.get_service_details(svc)
                     
-                    if status_result and "error" not in status_result:
+                    # Check for success flag instead of absence of error
+                    if status_result and status_result.get("success"):
                         # Extract the actual status and config for the response
                         result = {
-                            **status_result.get("status", {}),
+                            **status_result.get("details", {}),
                             "config": status_result.get("config", {}),
-                            "actions": status_result.get("actions", [])
+                            "actions": status_result.get("actions", []),
+                            "status": status_result.get("status", "unknown")
                         }
                         return {"jsonrpc": "2.0", "result": result, "id": None}
                 except Exception as e:
