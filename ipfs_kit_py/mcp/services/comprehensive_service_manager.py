@@ -127,16 +127,49 @@ class ComprehensiveServiceManager:
             pass  # Silent failure
     
     def _load_services_config(self) -> Dict[str, Any]:
-        """Load services configuration."""
+        """Load services configuration, merging saved config with defaults.
+        
+        This ensures that:
+        1. Newly added services in defaults are picked up with their default enabled state
+        2. User-configured settings (ports, paths, etc.) are preserved
+        3. The enabled state from defaults is used unless explicitly overridden by user
+        """
+        # Always start with default configuration
+        config = self._get_default_services_config()
+        
+        # If saved config exists, merge specific user settings
         if self.services_config_file.exists():
             try:
                 with open(self.services_config_file, 'r') as f:
-                    return json.load(f)
+                    saved_config = json.load(f)
+                
+                # Merge saved config into default config
+                # Only preserve user-configured fields, not structural defaults
+                for category in ["daemons", "storage_backends", "network_services"]:
+                    if category in saved_config:
+                        for service_id, saved_service in saved_config[category].items():
+                            if service_id in config[category]:
+                                # Start with default config for this service
+                                merged_service = config[category][service_id].copy()
+                                
+                                # Only merge user-configurable fields from saved config
+                                # Don't override 'enabled', 'type', 'name', 'description', 'config_keys', 'config_hints'
+                                # These should always come from defaults to pick up updates
+                                user_fields = ['port', 'gateway_port', 'swarm_port', 'config_dir', 
+                                             'auto_start', 'requires_credentials']
+                                
+                                for field in user_fields:
+                                    if field in saved_service:
+                                        merged_service[field] = saved_service[field]
+                                
+                                config[category][service_id] = merged_service
+                
+                return config
             except Exception as e:
-                pass  # Silent failure
+                pass  # Silent failure, return defaults
         
         # Return default services configuration
-        return self._get_default_services_config()
+        return config
     
     def _load_service_states(self) -> Dict[str, Any]:
         """Load service states."""
@@ -312,7 +345,7 @@ class ComprehensiveServiceManager:
                         "bucket": "S3 bucket name",
                         "region": "AWS region (e.g., us-east-1)"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "huggingface": {
                     "type": ServiceType.STORAGE.value,
@@ -325,7 +358,7 @@ class ComprehensiveServiceManager:
                         "username": "HuggingFace username",
                         "repository": "Repository name (optional)"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "github": {
                     "type": ServiceType.STORAGE.value,
@@ -338,7 +371,7 @@ class ComprehensiveServiceManager:
                         "repository": "Repository (owner/repo format)",
                         "username": "GitHub username"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "storacha": {
                     "type": ServiceType.STORAGE.value,
@@ -350,15 +383,19 @@ class ComprehensiveServiceManager:
                         "api_token": "Storacha API token",
                         "space": "Storacha space identifier"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
-                "lotus": {
+                "lotus_storage": {
                     "type": ServiceType.STORAGE.value,
                     "name": "Lotus Storage",
                     "description": "Filecoin Lotus storage provider integration",
                     "requires_credentials": False,
                     "config_keys": ["node_url", "token"],
-                    "enabled": False
+                    "config_hints": {
+                        "node_url": "Lotus node API endpoint URL (e.g., http://127.0.0.1:1234/rpc/v0)",
+                        "token": "Lotus authentication token (optional)"
+                    },
+                    "enabled": True
                 },
                 "synapse": {
                     "type": ServiceType.STORAGE.value,
@@ -366,7 +403,12 @@ class ComprehensiveServiceManager:
                     "description": "Matrix Synapse server storage backend",
                     "requires_credentials": True,
                     "config_keys": ["homeserver_url", "access_token", "room_id"],
-                    "enabled": False
+                    "config_hints": {
+                        "homeserver_url": "Matrix homeserver URL (e.g., https://matrix.org)",
+                        "access_token": "Matrix access token for authentication",
+                        "room_id": "Matrix room ID for storage operations"
+                    },
+                    "enabled": True
                 },
                 "gdrive": {
                     "type": ServiceType.STORAGE.value,
@@ -374,7 +416,12 @@ class ComprehensiveServiceManager:
                     "description": "Google Drive cloud storage backend",
                     "requires_credentials": True,
                     "config_keys": ["client_id", "client_secret", "refresh_token"],
-                    "enabled": False
+                    "config_hints": {
+                        "client_id": "Google OAuth 2.0 Client ID",
+                        "client_secret": "Google OAuth 2.0 Client Secret",
+                        "refresh_token": "Google OAuth 2.0 Refresh Token"
+                    },
+                    "enabled": True
                 },
                 "ftp": {
                     "type": ServiceType.STORAGE.value,
@@ -388,21 +435,22 @@ class ComprehensiveServiceManager:
                         "username": "FTP username",
                         "password": "FTP password"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "sshfs": {
                     "type": ServiceType.STORAGE.value,
                     "name": "SSHFS",
                     "description": "SSH Filesystem storage backend",
                     "requires_credentials": True,
-                    "config_keys": ["host", "port", "username", "password"],
+                    "config_keys": ["host", "port", "username", "password", "key_file"],
                     "config_hints": {
                         "host": "SSH server hostname or IP",
                         "port": "SSH port (default: 22)",
                         "username": "SSH username",
-                        "password": "SSH password or leave empty for key-based auth"
+                        "password": "SSH password (leave empty for key-based auth)",
+                        "key_file": "Path to SSH private key file (optional, for key-based auth)"
                     },
-                    "enabled": False
+                    "enabled": True
                 },
                 "apache_arrow": {
                     "type": ServiceType.STORAGE.value,
@@ -410,6 +458,10 @@ class ComprehensiveServiceManager:
                     "description": "In-memory columnar data format for analytics and data processing",
                     "requires_credentials": False,
                     "config_keys": ["memory_pool", "compression"],
+                    "config_hints": {
+                        "memory_pool": "Memory pool type (e.g., 'default', 'jemalloc', 'mimalloc')",
+                        "compression": "Compression algorithm (e.g., 'snappy', 'gzip', 'lz4', 'zstd')"
+                    },
                     "enabled": True
                 },
                 "parquet": {
@@ -418,6 +470,11 @@ class ComprehensiveServiceManager:
                     "description": "Columnar storage format optimized for analytics workloads",
                     "requires_credentials": False,
                     "config_keys": ["compression_codec", "row_group_size", "schema_validation"],
+                    "config_hints": {
+                        "compression_codec": "Compression codec (e.g., 'snappy', 'gzip', 'brotli', 'lz4', 'zstd')",
+                        "row_group_size": "Number of rows per row group (default: 1000000)",
+                        "schema_validation": "Enable schema validation (true/false)"
+                    },
                     "enabled": True
                 }
             },
@@ -887,6 +944,18 @@ class ComprehensiveServiceManager:
             except Exception as e:
                 # Silently continue if config file can't be read
                 pass
+        
+        # For storage backends, also load from credentials file if config is empty
+        # This handles the case where credentials were saved but config file is missing
+        if service_config.get("type") == ServiceType.STORAGE.value and not saved_config:
+            credentials_file = self.data_dir / f"{service_id}_credentials.json"
+            if credentials_file.exists():
+                try:
+                    with open(credentials_file, 'r') as f:
+                        creds = json.load(f)
+                    saved_config = self._sanitize_config(service_id, creds)
+                except Exception:
+                    pass  # Silently continue if credentials can't be read
         
         # Merge saved config with service config for the response
         merged_config = service_config.copy()
