@@ -945,6 +945,18 @@ class ComprehensiveServiceManager:
                 # Silently continue if config file can't be read
                 pass
         
+        # For storage backends, also load from credentials file if config is empty
+        # This handles the case where credentials were saved but config file is missing
+        if service_config.get("type") == ServiceType.STORAGE.value and not saved_config:
+            credentials_file = self.data_dir / f"{service_id}_credentials.json"
+            if credentials_file.exists():
+                try:
+                    with open(credentials_file, 'r') as f:
+                        creds = json.load(f)
+                    saved_config = self._sanitize_config(service_id, creds)
+                except Exception:
+                    pass  # Silently continue if credentials can't be read
+        
         # Merge saved config with service config for the response
         merged_config = service_config.copy()
         for key, value in saved_config.items():
