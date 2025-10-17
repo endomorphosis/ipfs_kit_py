@@ -385,7 +385,7 @@ class ComprehensiveServiceManager:
                     },
                     "enabled": True
                 },
-                "lotus": {
+                "lotus_storage": {
                     "type": ServiceType.STORAGE.value,
                     "name": "Lotus Storage",
                     "description": "Filecoin Lotus storage provider integration",
