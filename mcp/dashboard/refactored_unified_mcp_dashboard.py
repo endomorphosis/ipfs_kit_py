@@ -2088,8 +2088,44 @@ class RefactoredUnifiedMCPDashboard:
         return self.pins_cache
 
     async def _get_config_data(self):
-        """Get configuration data."""
-        return {"config": {}}
+        """Get configuration data including main config and backends."""
+        config_data = {
+            "config": {
+                "main": {},
+                "backends": {}
+            }
+        }
+        
+        try:
+            # Load backends.json if it exists
+            backends_result = await self._read_config_file("backends.json")
+            if backends_result.get("success") and backends_result.get("content"):
+                backends_content = backends_result["content"]
+                # If backends.json has a 'backends' key (list or dict), use it
+                if isinstance(backends_content, dict):
+                    if "backends" in backends_content:
+                        backends_list = backends_content["backends"]
+                        # Convert list to dict keyed by backend name
+                        if isinstance(backends_list, list):
+                            config_data["config"]["backends"] = {
+                                backend.get("name", f"backend_{i}"): backend
+                                for i, backend in enumerate(backends_list)
+                            }
+                        elif isinstance(backends_list, dict):
+                            config_data["config"]["backends"] = backends_list
+                    else:
+                        # Treat the whole content as backends dict
+                        config_data["config"]["backends"] = backends_content
+            
+            # Load main config if it exists
+            main_result = await self._read_config_file("config.json")
+            if main_result.get("success") and main_result.get("content"):
+                config_data["config"]["main"] = main_result["content"]
+                
+        except Exception as e:
+            logger.error(f"Error loading config data: {e}")
+        
+        return config_data
 
     async def _read_config_file(self, filename: str):
         """Read configuration file from ~/.ipfs_kit/ directory first, then fallback to ipfs_kit_py backends."""
@@ -2435,12 +2471,66 @@ class RefactoredUnifiedMCPDashboard:
         return {"status": "updated"}
 
     async def _get_backend_configs(self):
-        """Get backend configurations."""
-        return {}
+        """Get backend configurations from backends.json."""
+        try:
+            backends_result = await self._read_config_file("backends.json")
+            if backends_result.get("success") and backends_result.get("content"):
+                backends_content = backends_result["content"]
+                
+                # Return the backends structure
+                if isinstance(backends_content, dict):
+                    if "backends" in backends_content:
+                        return backends_content["backends"]
+                    else:
+                        # Treat the whole content as backends
+                        return backends_content
+                        
+            return {}
+        except Exception as e:
+            logger.error(f"Error loading backend configs: {e}")
+            return {}
 
     async def _update_backend_config(self, backend_name, config_data):
-        """Update backend configuration."""
-        return {"status": "updated"}
+        """Update backend configuration in backends.json."""
+        try:
+            # Read current backends config
+            backends_result = await self._read_config_file("backends.json")
+            
+            if backends_result.get("success"):
+                backends_content = backends_result.get("content", {})
+                
+                # Ensure we have a backends structure
+                if "backends" not in backends_content:
+                    backends_content = {"backends": {}}
+                
+                # Update the specific backend config
+                if isinstance(backends_content["backends"], dict):
+                    if backend_name in backends_content["backends"]:
+                        # Merge the config data with existing backend
+                        backends_content["backends"][backend_name]["config"] = {
+                            **backends_content["backends"][backend_name].get("config", {}),
+                            **config_data.get("config", config_data)
+                        }
+                    else:
+                        # Create new backend entry
+                        backends_content["backends"][backend_name] = {
+                            "name": backend_name,
+                            "config": config_data.get("config", config_data)
+                        }
+                
+                # Write updated config back
+                write_result = await self._write_config_file("backends.json", backends_content)
+                
+                if write_result.get("success"):
+                    return {"status": "updated", "backend": backend_name}
+                else:
+                    return {"status": "error", "error": write_result.get("error", "Failed to write config")}
+            else:
+                return {"status": "error", "error": backends_result.get("error", "Failed to read config")}
+                
+        except Exception as e:
+            logger.error(f"Error updating backend config for {backend_name}: {e}")
+            return {"status": "error", "error": str(e)}
 
     async def _create_backend_config(self, backend_data):
         """Create backend configuration."""
