@@ -1,0 +1,98 @@
+name: Multi-Architecture CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-x86:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", "3.11"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install wheel setuptools
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f pyproject.toml ]; then pip install -e .; fi
+        pip install pytest pytest-cov flake8
+    
+    - name: Lint and test
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        pytest --cov=ipfs_kit_py -v
+
+  test-arm64:
+    runs-on: [self-hosted, arm64, dgx]
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-arm64'))
+    
+    strategy:
+      matrix:
+        python-version: [3.9, "3.10", "3.11"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      run: |
+        # Use pyenv or system python for ARM64
+        python${{ matrix.python-version }} -m venv venv
+        source venv/bin/activate
+        python --version
+    
+    - name: Install dependencies
+      run: |
+        source venv/bin/activate
+        python -m pip install --upgrade pip
+        pip install wheel setuptools
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f pyproject.toml ]; then pip install -e .; fi
+        pip install pytest pytest-cov flake8
+    
+    - name: ARM64 specific tests
+      run: |
+        source venv/bin/activate
+        echo "Running on ARM64: $(uname -m)"
+        pytest --cov=ipfs_kit_py -v -m "not slow"
+    
+    - name: Clean up
+      if: always()
+      run: |
+        rm -rf venv
+
+  compatibility-check:
+    needs: [test-x86, test-arm64]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check compatibility results
+      run: |
+        echo "X86-64 tests: ${{ needs.test-x86.result }}"
+        echo "ARM64 tests: ${{ needs.test-arm64.result }}"
+        
+        if [[ "${{ needs.test-x86.result }}" == "success" ]]; then
+          echo "✅ X86-64 compatibility confirmed"
+        else
+          echo "❌ X86-64 compatibility issues detected"
+        fi
+        
+        if [[ "${{ needs.test-arm64.result }}" == "success" ]]; then
+          echo "✅ ARM64 compatibility confirmed"
+        elif [[ "${{ needs.test-arm64.result }}" == "skipped" ]]; then
+          echo "⏭️ ARM64 tests skipped (normal for PRs without 'test-arm64' label)"
+        else
+          echo "❌ ARM64 compatibility issues detected"
+        fi
