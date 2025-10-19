@@ -324,8 +324,14 @@ class install_ipfs:
         architecture = platform.architecture()
         system = platform.system()
         processor = platform.processor()
+        machine = platform.machine()
 
-        results = {"system": system, "processor": processor, "architecture": architecture}
+        results = {
+            "system": system, 
+            "processor": processor, 
+            "architecture": architecture,
+            "machine": machine
+        }
         return results
 
     def install_tar_cmd(self):
@@ -334,39 +340,266 @@ class install_ipfs:
             subprocess.run(command, shell=True, check=True)
 
     def dist_select(self):
+        """
+        Select the appropriate distribution based on hardware detection.
+        Uses platform.machine() as primary detection method for better ARM64 support.
+        
+        Returns:
+            String identifier for the platform (e.g., "linux arm64")
+        """
         hardware = self.hardware_detect()
         hardware["architecture"] = " ".join([str(x) for x in hardware["architecture"]])
+        machine = hardware.get("machine", "").lower()
+        processor = hardware.get("processor", "").upper()
+        
+        # Determine architecture - prioritize platform.machine() for reliability
         aarch = ""
-        if "Intel" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "x86_64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "AMD" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "x86_64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "Qualcomm" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "arm"
-        elif "Apple" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "ARM" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "arm"
-        else:
+        
+        # First check machine type (most reliable on ARM systems)
+        if machine in ["aarch64", "arm64"]:
+            aarch = "arm64"
+        elif machine in ["armv7l", "armv6l", "arm"]:
+            aarch = "arm"
+        elif machine in ["x86_64", "amd64"]:
             aarch = "x86_64"
-            pass
+        elif machine in ["i386", "i686", "x86"]:
+            aarch = "x86"
+        # Fallback to processor-based detection
+        elif "ARM" in processor or "AARCH" in processor:
+            if "64" in hardware["architecture"]:
+                aarch = "arm64"
+            else:
+                aarch = "arm"
+        elif "INTEL" in processor or "AMD" in processor:
+            if "64" in hardware["architecture"]:
+                aarch = "x86_64"
+            else:
+                aarch = "x86"
+        elif "APPLE" in processor:
+            # Apple Silicon is ARM64
+            if machine.lower() == "arm64":
+                aarch = "arm64"
+            elif "64" in hardware["architecture"]:
+                aarch = "arm64"  # Modern Macs are ARM64
+            else:
+                aarch = "x86_64"
+        # Final fallback based on architecture bits
+        else:
+            if "64" in hardware["architecture"]:
+                aarch = "x86_64"
+            else:
+                aarch = "x86"
+        
         results = str(hardware["system"]).lower() + " " + aarch
         return results
+
+    def build_ipfs_from_source(self, version="v0.35.0"):
+        """
+        Build IPFS (Kubo) from source when binary is not available.
+        
+        Args:
+            version: Version to build (default: v0.35.0)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        print(f"Building IPFS from source (version {version})...")
+        
+        # Check if Go is installed
+        try:
+            go_version_output = subprocess.check_output(["go", "version"], stderr=subprocess.STDOUT)
+            print(f"Go is installed: {go_version_output.decode().strip()}")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print("Go is not installed. Installing Go...")
+            if not self._install_go():
+                print("Failed to install Go. Cannot build from source.")
+                return False
+        
+        # Create temporary directory for building
+        build_dir = tempfile.mkdtemp(prefix="kubo_build_")
+        try:
+            print(f"Using build directory: {build_dir}")
+            
+            # Clone Kubo repository
+            print("Cloning Kubo repository...")
+            clone_cmd = ["git", "clone", "--depth=1", "--branch", version, 
+                        "https://github.com/ipfs/kubo.git", build_dir]
+            subprocess.run(clone_cmd, check=True, capture_output=True)
+            
+            # Build the binary
+            print("Building IPFS binary...")
+            build_cmd = ["make", "build"]
+            env = os.environ.copy()
+            env["GO111MODULE"] = "on"
+            
+            result = subprocess.run(
+                build_cmd,
+                cwd=build_dir,
+                env=env,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode != 0:
+                print(f"Build failed: {result.stderr}")
+                return False
+            
+            print("Build successful!")
+            
+            # Copy the built binary to bin directory
+            built_binary = os.path.join(build_dir, "cmd", "ipfs", "ipfs")
+            if not os.path.exists(built_binary):
+                # Try alternative location
+                built_binary = os.path.join(build_dir, "ipfs")
+            
+            if not os.path.exists(built_binary):
+                print("Could not find built binary")
+                return False
+            
+            dest_binary = os.path.join(self.bin_path, "ipfs")
+            if platform.system() == "Windows":
+                dest_binary += ".exe"
+            
+            # Ensure bin directory exists
+            os.makedirs(self.bin_path, exist_ok=True)
+            
+            # Copy binary
+            shutil.copy2(built_binary, dest_binary)
+            
+            # Make executable on Unix-like systems
+            if platform.system() != "Windows":
+                os.chmod(dest_binary, 0o755)
+            
+            print(f"Installed built binary to {dest_binary}")
+            
+            # Verify the binary works
+            try:
+                version_output = subprocess.check_output([dest_binary, "--version"])
+                print(f"Verification successful: {version_output.decode().strip()}")
+                return True
+            except subprocess.CalledProcessError as e:
+                print(f"Binary verification failed: {e}")
+                return False
+            
+        except subprocess.CalledProcessError as e:
+            print(f"Error during build: {e}")
+            if e.output:
+                print(f"Output: {e.output}")
+            return False
+        except Exception as e:
+            print(f"Unexpected error during build: {e}")
+            return False
+        finally:
+            # Clean up build directory
+            try:
+                shutil.rmtree(build_dir)
+                print(f"Cleaned up build directory: {build_dir}")
+            except Exception as e:
+                print(f"Warning: Could not clean up build directory: {e}")
+    
+    def _install_go(self):
+        """
+        Install Go if not present.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        print("Attempting to install Go...")
+        
+        system = platform.system()
+        machine = platform.machine()
+        
+        # Determine Go download URL based on system and architecture
+        go_version = "1.21.5"  # Use a stable version
+        
+        if system == "Linux":
+            if "aarch64" in machine or "arm64" in machine.lower():
+                go_url = f"https://go.dev/dl/go{go_version}.linux-arm64.tar.gz"
+            elif "x86_64" in machine or "amd64" in machine:
+                go_url = f"https://go.dev/dl/go{go_version}.linux-amd64.tar.gz"
+            else:
+                print(f"Unsupported architecture for Go installation: {machine}")
+                return False
+        elif system == "Darwin":
+            if "arm64" in machine.lower():
+                go_url = f"https://go.dev/dl/go{go_version}.darwin-arm64.tar.gz"
+            else:
+                go_url = f"https://go.dev/dl/go{go_version}.darwin-amd64.tar.gz"
+        else:
+            print(f"Unsupported system for automatic Go installation: {system}")
+            print("Please install Go manually from https://go.dev/dl/")
+            return False
+        
+        try:
+            # Download Go
+            print(f"Downloading Go from {go_url}...")
+            go_tar = os.path.join(self.tmp_path, f"go{go_version}.tar.gz")
+            
+            if system == "Linux":
+                subprocess.run(["wget", "-O", go_tar, go_url], check=True)
+            elif system == "Darwin":
+                subprocess.run(["curl", "-L", "-o", go_tar, go_url], check=True)
+            
+            # Extract Go
+            go_install_dir = os.path.join(os.path.expanduser("~"), ".local")
+            os.makedirs(go_install_dir, exist_ok=True)
+            
+            print(f"Extracting Go to {go_install_dir}...")
+            subprocess.run(["tar", "-C", go_install_dir, "-xzf", go_tar], check=True)
+            
+            # Update PATH for current process
+            go_bin = os.path.join(go_install_dir, "go", "bin")
+            os.environ["PATH"] = f"{go_bin}:{os.environ.get('PATH', '')}"
+            
+            # Verify installation
+            go_version_output = subprocess.check_output(["go", "version"])
+            print(f"Go installed successfully: {go_version_output.decode().strip()}")
+            
+            # Add to path permanently (user-specific)
+            self._add_to_user_path(go_bin)
+            
+            return True
+            
+        except subprocess.CalledProcessError as e:
+            print(f"Error installing Go: {e}")
+            return False
+        except Exception as e:
+            print(f"Unexpected error installing Go: {e}")
+            return False
+    
+    def _add_to_user_path(self, path_to_add):
+        """
+        Add a directory to the user's PATH (for future sessions).
+        
+        Args:
+            path_to_add: Directory to add to PATH
+        """
+        system = platform.system()
+        
+        if system == "Linux" or system == "Darwin":
+            # Add to .bashrc or .zshrc
+            shell_rc_files = [
+                os.path.expanduser("~/.bashrc"),
+                os.path.expanduser("~/.zshrc"),
+                os.path.expanduser("~/.profile")
+            ]
+            
+            path_export = f'\nexport PATH="{path_to_add}:$PATH"\n'
+            
+            for rc_file in shell_rc_files:
+                if os.path.exists(rc_file):
+                    try:
+                        with open(rc_file, "r") as f:
+                            content = f.read()
+                        
+                        if path_to_add not in content:
+                            with open(rc_file, "a") as f:
+                                f.write(path_export)
+                            print(f"Added {path_to_add} to {rc_file}")
+                    except Exception as e:
+                        print(f"Warning: Could not update {rc_file}: {e}")
+        else:
+            print("Note: PATH not updated permanently on this system")
 
     def install_ipfs_daemon(self):
         # Check for latest version and update URLs
@@ -423,30 +656,77 @@ class install_ipfs:
         if current_version is None or self.should_update_kubo(current_version, latest_version):        
             # Binary not found, proceed with download and installation
             dist = self.dist_select()
+            
+            # Check if distribution is available
+            if dist not in self.ipfs_dists:
+                print(f"Warning: No pre-built binary available for {dist}")
+                print("Attempting to build IPFS from source...")
+                if self.build_ipfs_from_source(latest_version):
+                    print("Successfully built and installed IPFS from source")
+                    return True
+                else:
+                    print("Failed to build IPFS from source")
+                    return False
+            
             dist_tar = self.ipfs_dists[dist]
             url = self.ipfs_dists[self.dist_select()]
+            
+            # Verify the release URL is accessible before attempting download
+            if not self.verify_release_url(url):
+                print(f"Warning: Release URL not accessible: {url}")
+                print("Attempting to build IPFS from source...")
+                if self.build_ipfs_from_source(latest_version):
+                    print("Successfully built and installed IPFS from source")
+                    return True
+                else:
+                    print("Failed to build IPFS from source")
+                    return False
+            
             if ".tar.gz" in url:
                 url_suffix = ".tar.gz"
             else:
                 url_suffix = "." + url.split(".")[-1]
-            with tempfile.NamedTemporaryFile(
-                suffix=url_suffix, dir=self.tmp_path, delete=False
-            ) as this_tempfile:
-                if platform.system() == "Linux":
-                    command = "wget " + url + " -O " + this_tempfile.name
-                elif platform.system() == "Windows":
-                    drive, path = os.path.splitdrive(this_tempfile.name)
-                    temp_path = this_tempfile.name.replace("\\", "/")
-                    temp_path = temp_path.split("/")
-                    temp_path = "/".join(temp_path)
-                    # temp_path = drive + temp_path
-                    this_tempfile.close()
-                    command = f"powershell -Command \"Invoke-WebRequest -Uri '{url}' -OutFile '{temp_path}'\""
-                    command = command.replace("'", "")
-                elif platform.system() == "Darwin":
-                    command = "curl " + url + " -o " + this_tempfile.name
+            
+            try:
+                with tempfile.NamedTemporaryFile(
+                    suffix=url_suffix, dir=self.tmp_path, delete=False
+                ) as this_tempfile:
+                    if platform.system() == "Linux":
+                        command = "wget " + url + " -O " + this_tempfile.name
+                    elif platform.system() == "Windows":
+                        drive, path = os.path.splitdrive(this_tempfile.name)
+                        temp_path = this_tempfile.name.replace("\\", "/")
+                        temp_path = temp_path.split("/")
+                        temp_path = "/".join(temp_path)
+                        # temp_path = drive + temp_path
+                        this_tempfile.close()
+                        command = f"powershell -Command \"Invoke-WebRequest -Uri '{url}' -OutFile '{temp_path}'\""
+                        command = command.replace("'", "")
+                    elif platform.system() == "Darwin":
+                        command = "curl " + url + " -o " + this_tempfile.name
 
-                results = subprocess.check_output(command, shell=True)
+                    results = subprocess.check_output(command, shell=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to download binary from {url}: {e}")
+                print("Attempting to build IPFS from source as fallback...")
+                if self.build_ipfs_from_source(latest_version):
+                    print("Successfully built and installed IPFS from source")
+                    return True
+                else:
+                    print("Failed to build IPFS from source")
+                    return False
+            except Exception as e:
+                print(f"Unexpected error during download: {e}")
+                print("Attempting to build IPFS from source as fallback...")
+                if self.build_ipfs_from_source(latest_version):
+                    print("Successfully built and installed IPFS from source")
+                    return True
+                else:
+                    print("Failed to build IPFS from source")
+                    return False
+            
+            # Continue with extraction and installation if download was successful
+            try:
                 if url_suffix == ".zip":
                     if platform.system() == "Windows":
                         move_source_path = os.path.join(self.tmp_path, "kubo", "ipfs.exe").replace(
@@ -540,6 +820,17 @@ class install_ipfs:
                     command = f"cd {self.tmp_path}/kubo && mkdir -p \"{self.this_dir}/bin/\" && mv ipfs \"{self.this_dir}/bin/\" && chmod +x \"{self.this_dir}/bin/ipfs\""
                     results = subprocess.check_output(command, shell=True)
                     pass
+            except Exception as e:
+                print(f"Error during extraction/installation: {e}")
+                print("Attempting to build IPFS from source as fallback...")
+                if self.build_ipfs_from_source(latest_version):
+                    print("Successfully built and installed IPFS from source")
+                    # Continue to verification
+                else:
+                    print("Failed to build IPFS from source")
+                    return False
+                    
+        # Verify installation
         bin_path = self.bin_path
         bin_path = os.path.join(str(bin_path), "ipfs.exe") if platform.system() == "Windows" else os.path.join(str(bin_path), "ipfs") if dir(bin_path) else os.path.join("~", "ipfs")
         bin_path = bin_path.replace("\\", "/")
@@ -1416,6 +1707,32 @@ class install_ipfs:
             "openbsd x86": f"{base_url}_openbsd-386.tar.gz",
             "openbsd arm": f"{base_url}_openbsd-arm.tar.gz",
         }
+    
+    def verify_release_url(self, url):
+        """
+        Verify that a release URL is accessible.
+        
+        Args:
+            url: URL to verify
+            
+        Returns:
+            True if URL is accessible, False otherwise
+        """
+        try:
+            if requests is None:
+                # Can't verify without requests, assume it's valid
+                return True
+            
+            # Use HEAD request to check if URL exists without downloading
+            response = requests.head(url, timeout=10, allow_redirects=True)
+            if response.status_code == 200:
+                return True
+            else:
+                print(f"Release URL returned status {response.status_code}: {url}")
+                return False
+        except Exception as e:
+            print(f"Could not verify release URL {url}: {e}")
+            return False
     
     def get_installed_kubo_version(self):
         """Get the currently installed Kubo version."""
