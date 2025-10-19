@@ -1,19 +1,70 @@
-# ARM64 Dependency Installation Monitoring
+# CI/CD Monitoring Scripts
 
-This directory contains monitoring and verification scripts for ARM64 dependency installation in GitHub Actions workflows.
+This directory contains monitoring and verification scripts for GitHub Actions workflows, ARM64 dependency installation, and first-time package installations.
 
 ## Overview
 
 The monitoring system provides:
 
-1. **Real-time progress tracking** - Monitor installation steps as they execute
+1. **Real-time progress tracking** - Monitor installation steps and workflow execution as they occur
 2. **Detailed logging** - Capture stdout, stderr, and combined logs for all operations
 3. **System metrics** - Collect CPU, memory, disk, and architecture information
-4. **Error detection** - Identify and report installation failures
+4. **Error detection** - Identify and report installation failures and workflow issues
 5. **GitHub Actions integration** - Automatically add results to workflow summaries
 6. **Artifact generation** - Create downloadable reports and logs
 
 ## Scripts
+
+### Workflow Monitoring Scripts
+
+#### trigger_and_monitor_workflow.py
+
+**NEW** - Trigger and monitor GitHub Actions workflows in real-time.
+
+**Features:**
+- List available workflows and recent runs
+- Trigger workflows on specific branches
+- Monitor workflow execution with live updates
+- Display job statuses and logs for failed jobs
+- Generate comprehensive summary reports
+
+**Usage:**
+```bash
+# List workflows
+python scripts/ci/trigger_and_monitor_workflow.py --list-workflows
+
+# Trigger and monitor a workflow
+python scripts/ci/trigger_and_monitor_workflow.py \
+  --workflow daemon-config-tests.yml \
+  --trigger --monitor
+```
+
+See [WORKFLOW_MONITORING.md](./WORKFLOW_MONITORING.md) for detailed documentation.
+
+#### monitor_first_install.py
+
+**NEW** - Monitor first-time installation and configuration of the package.
+
+**Features:**
+- Monitor pip installation with detailed progress
+- Pre and post-installation verification
+- Configuration file detection
+- Binary and package availability checks
+- Comprehensive reporting with metrics
+
+**Usage:**
+```bash
+# Monitor installation
+python scripts/ci/monitor_first_install.py \
+  --command "pip install ipfs-kit-py"
+
+# Verify existing installation
+python scripts/ci/monitor_first_install.py --verify
+```
+
+See [WORKFLOW_MONITORING.md](./WORKFLOW_MONITORING.md) for detailed documentation.
+
+### ARM64 Dependency Monitoring Scripts
 
 ### monitor_arm64_installation.py
 
@@ -237,6 +288,54 @@ When adding new monitoring features:
 3. Update this README with new functionality
 4. Add error handling for all external commands
 5. Test on actual ARM64 hardware when possible
+
+## Quick Reference
+
+### Workflow Monitoring
+```bash
+# List workflows
+python scripts/ci/trigger_and_monitor_workflow.py --list-workflows
+
+# Trigger and monitor
+python scripts/ci/trigger_and_monitor_workflow.py \
+  --workflow daemon-config-tests.yml --trigger --monitor
+
+# Monitor existing run
+python scripts/ci/trigger_and_monitor_workflow.py \
+  --run-id 1234567890 --monitor
+```
+
+### Installation Monitoring
+```bash
+# Monitor new installation
+python scripts/ci/monitor_first_install.py \
+  --command "pip install ipfs-kit-py"
+
+# Verify installation
+python scripts/ci/monitor_first_install.py --verify
+
+# Check configuration
+python scripts/ci/monitor_first_install.py --config-only
+```
+
+### ARM64 Monitoring
+```bash
+# Initialize monitoring
+python scripts/ci/monitor_arm64_installation.py
+
+# Verify dependencies
+python scripts/ci/verify_arm64_dependencies.py
+
+# Wrap installation command
+./scripts/ci/installation_wrapper.sh system_deps \
+  sudo apt-get install -y build-essential
+```
+
+## Documentation
+
+- [Workflow Monitoring Guide](./WORKFLOW_MONITORING.md) - Detailed documentation for workflow and installation monitoring
+- [ARM64 Monitoring Guide](../../ARM64_MONITORING_GUIDE.md) - ARM64-specific monitoring documentation
+- [ARM64 Implementation](../../ARM64_MONITORING_IMPLEMENTATION.md) - Implementation details
 
 ## License
 
