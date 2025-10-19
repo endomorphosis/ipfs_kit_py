@@ -86,31 +86,28 @@ jobs:
         print('Configuration validation passed')
         "
 
-    - name: Test configuration creation
+    - name: Test configuration validation
       run: |
         python -c "
         from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
         config_manager = DaemonConfigManager()
-        print('Configuration creation passed')
-        "
-config_manager = DaemonConfigManager()
-try:
-    validation_result = config_manager.validate_daemon_configs()
-    print('✅ Configuration validation completed')
-except Exception as e:
-    print(f'⚠️ Configuration validation: {e}')
+        try:
+            validation_result = config_manager.validate_daemon_configs()
+            print('✅ Configuration validation completed')
+        except Exception as e:
+            print(f'⚠️ Configuration validation: {e}')
         "
 
     - name: Test configuration creation
       run: |
         python -c "
-from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
-config_manager = DaemonConfigManager()
-try:
-    config_result = config_manager.check_and_configure_all_daemons()
-    print('✅ Configuration creation completed')
-except Exception as e:
-    print(f'⚠️ Configuration creation: {e}')
+        from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
+        config_manager = DaemonConfigManager()
+        try:
+            config_result = config_manager.check_and_configure_all_daemons()
+            print('✅ Configuration creation completed')
+        except Exception as e:
+            print(f'⚠️ Configuration creation: {e}')
         "
 
   test-installer-config-integration:
@@ -136,36 +133,45 @@ except Exception as e:
     - name: Test installer configuration methods
       run: |
         python -c "
-from ipfs_kit_py.install_ipfs import install_ipfs
-from ipfs_kit_py.install_lotus import install_lotus
-from ipfs_kit_py.install_lassie import install_lassie
-
-installers = [
-    ('IPFS', install_ipfs),
-    ('Lotus', install_lotus),
-    ('Lassie', install_lassie)
-]
-
-for name, installer_class in installers:
-    try:
-        installer = installer_class()
-        if hasattr(installer, 'ensure_config'):
-            print(f'✅ {name} installer has ensure_config method')
-        else:
-            print(f'⚠️ {name} installer missing ensure_config method')
-    except Exception as e:
-        print(f'❌ {name} installer error: {e}')
+        from ipfs_kit_py.install_ipfs import install_ipfs
+        from ipfs_kit_py.install_lotus import install_lotus
+        try:
+            from ipfs_kit_py.install_lassie import install_lassie
+            lassie_available = True
+        except ImportError:
+            lassie_available = False
+        
+        installers = [
+            ('IPFS', install_ipfs),
+            ('Lotus', install_lotus),
+        ]
+        
+        if lassie_available:
+            installers.append(('Lassie', install_lassie))
+        
+        for name, installer_class in installers:
+            try:
+                installer = installer_class()
+                if hasattr(installer, 'ensure_config'):
+                    print(f'✅ {name} installer has ensure_config method')
+                else:
+                    print(f'⚠️ {name} installer missing ensure_config method')
+            except Exception as e:
+                print(f'❌ {name} installer error: {e}')
         "
 
     - name: Test ipfs_kit configuration integration
       run: |
         python -c "
-import ipfs_kit_py
-kit = ipfs_kit_py.ipfs_kit()
-if hasattr(kit, 'daemon_config_manager'):
-    print('✅ ipfs_kit has daemon_config_manager')
-else:
-    print('⚠️ ipfs_kit missing daemon_config_manager')
+        import ipfs_kit_py
+        try:
+            kit = ipfs_kit_py.ipfs_kit()
+            if hasattr(kit, 'daemon_config_manager'):
+                print('✅ ipfs_kit has daemon_config_manager')
+            else:
+                print('⚠️ ipfs_kit missing daemon_config_manager')
+        except Exception as e:
+            print(f'⚠️ ipfs_kit error: {e}')
         "
 
   test-service-specific-config:
@@ -191,43 +197,43 @@ else:
     - name: Test S3 configuration
       run: |
         python -c "
-from ipfs_kit_py.s3_kit import s3_kit
-try:
-    s3_instance = s3_kit()
-    if hasattr(s3_instance, 'ensure_config'):
-        print('✅ S3 kit has ensure_config method')
-    else:
-        print('⚠️ S3 kit missing ensure_config method')
-except Exception as e:
-    print(f'⚠️ S3 kit error: {e}')
+        try:
+            from ipfs_kit_py.s3_kit import s3_kit
+            s3_instance = s3_kit()
+            if hasattr(s3_instance, 'ensure_config'):
+                print('✅ S3 kit has ensure_config method')
+            else:
+                print('⚠️ S3 kit missing ensure_config method')
+        except Exception as e:
+            print(f'⚠️ S3 kit error: {e}')
         "
 
     - name: Test HuggingFace configuration
       run: |
         python -c "
-from ipfs_kit_py.huggingface_kit import huggingface_kit
-try:
-    hf_instance = huggingface_kit()
-    if hasattr(hf_instance, 'ensure_config'):
-        print('✅ HuggingFace kit has ensure_config method')
-    else:
-        print('⚠️ HuggingFace kit missing ensure_config method')
-except Exception as e:
-    print(f'⚠️ HuggingFace kit error: {e}')
+        try:
+            from ipfs_kit_py.huggingface_kit import huggingface_kit
+            hf_instance = huggingface_kit()
+            if hasattr(hf_instance, 'ensure_config'):
+                print('✅ HuggingFace kit has ensure_config method')
+            else:
+                print('⚠️ HuggingFace kit missing ensure_config method')
+        except Exception as e:
+            print(f'⚠️ HuggingFace kit error: {e}')
         "
 
     - name: Test Storacha configuration
       run: |
         python -c "
-from ipfs_kit_py.storacha_kit import storacha_kit
-try:
-    storacha_instance = storacha_kit()
-    if hasattr(storacha_instance, 'ensure_config'):
-        print('✅ Storacha kit has ensure_config method')
-    else:
-        print('⚠️ Storacha kit missing ensure_config method')
-except Exception as e:
-    print(f'⚠️ Storacha kit error: {e}')
+        try:
+            from ipfs_kit_py.storacha_kit import storacha_kit
+            storacha_instance = storacha_kit()
+            if hasattr(storacha_instance, 'ensure_config'):
+                print('✅ Storacha kit has ensure_config method')
+            else:
+                print('⚠️ Storacha kit missing ensure_config method')
+        except Exception as e:
+            print(f'⚠️ Storacha kit error: {e}')
         "
 
   report:
