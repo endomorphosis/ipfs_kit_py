@@ -322,12 +322,20 @@ def main():
     build_tools = ["gcc", "g++", "make", "go", "git"]
     for tool in build_tools:
         result = monitor.check_binary(tool)
+        # Add status for the metrics
+        result["status"] = "success" if result["installed"] else "missing"
+        result["duration"] = 0
+        result["command"] = f"which {tool}"
         monitor.metrics["installations"][f"build_tool_{tool}"] = result
     
     # Check Python packages
     python_packages = ["ipfs_kit_py", "pytest", "requests"]
     for package in python_packages:
         result = monitor.check_python_package(package)
+        # Add status for the metrics
+        result["status"] = "success" if result["installed"] else "missing"
+        result["duration"] = 0
+        result["command"] = f"import {package}"
         monitor.metrics["installations"][f"python_{package}"] = result
     
     # Save reports
