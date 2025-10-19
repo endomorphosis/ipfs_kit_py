@@ -364,33 +364,50 @@ class install_lotus:
     def dist_select(self):
         """
         Select the appropriate distribution based on hardware detection.
+        Uses platform.machine() as primary detection method for better ARM64 support.
         
         Returns:
-            String identifier for the platform (e.g., "linux x86_64")
+            String identifier for the platform (e.g., "linux arm64")
         """
         hardware = self.hardware_detect()
         hardware["architecture"] = " ".join([str(x) for x in hardware["architecture"]])
+        machine = hardware.get("machine", "").lower()
+        processor = hardware.get("processor", "").upper()
+        
+        # Determine architecture - prioritize platform.machine() for reliability
         aarch = ""
         
-        # Determine architecture
-        if "Intel" in hardware["processor"] or "AMD" in hardware["processor"]:
+        # First check machine type (most reliable on ARM systems)
+        if machine in ["aarch64", "arm64"]:
+            aarch = "arm64"
+        elif machine in ["armv7l", "armv6l", "arm"]:
+            aarch = "arm"
+        elif machine in ["x86_64", "amd64"]:
+            aarch = "x86_64"
+        elif machine in ["i386", "i686", "x86"]:
+            aarch = "x86"
+        # Fallback to processor-based detection
+        elif "ARM" in processor or "AARCH" in processor:
             if "64" in hardware["architecture"]:
-                aarch = "x86_64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "Qualcomm" in hardware["processor"] or "ARM" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "arm"
-        elif "Apple" in hardware["processor"]:
-            if "64" in hardware["architecture"] or "arm64" in hardware["machine"].lower():
                 aarch = "arm64"
             else:
+                aarch = "arm"
+        elif "INTEL" in processor or "AMD" in processor:
+            if "64" in hardware["architecture"]:
                 aarch = "x86_64"
-        # Default to x86_64 if we can't determine architecture
+            else:
+                aarch = "x86"
+        elif "APPLE" in processor:
+            # Apple Silicon is ARM64
+            if machine == "arm64":
+                aarch = "arm64"
+            elif "64" in hardware["architecture"]:
+                aarch = "arm64"  # Modern Macs are ARM64
+            else:
+                aarch = "x86_64"
+        # Final fallback based on architecture bits
         else:
-            if "64" in hardware["architecture"] or "64" in hardware["machine"].lower():
+            if "64" in hardware["architecture"]:
                 aarch = "x86_64"
             else:
                 aarch = "x86"

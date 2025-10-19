@@ -324,8 +324,14 @@ class install_ipfs:
         architecture = platform.architecture()
         system = platform.system()
         processor = platform.processor()
+        machine = platform.machine()
 
-        results = {"system": system, "processor": processor, "architecture": architecture}
+        results = {
+            "system": system, 
+            "processor": processor, 
+            "architecture": architecture,
+            "machine": machine
+        }
         return results
 
     def install_tar_cmd(self):
@@ -334,37 +340,56 @@ class install_ipfs:
             subprocess.run(command, shell=True, check=True)
 
     def dist_select(self):
+        """
+        Select the appropriate distribution based on hardware detection.
+        Uses platform.machine() as primary detection method for better ARM64 support.
+        
+        Returns:
+            String identifier for the platform (e.g., "linux arm64")
+        """
         hardware = self.hardware_detect()
         hardware["architecture"] = " ".join([str(x) for x in hardware["architecture"]])
+        machine = hardware.get("machine", "").lower()
+        processor = hardware.get("processor", "").upper()
+        
+        # Determine architecture - prioritize platform.machine() for reliability
         aarch = ""
-        if "Intel" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "x86_64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "AMD" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "x86_64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "Qualcomm" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "arm"
-        elif "Apple" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "ARM" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "arm"
-        else:
+        
+        # First check machine type (most reliable on ARM systems)
+        if machine in ["aarch64", "arm64"]:
+            aarch = "arm64"
+        elif machine in ["armv7l", "armv6l", "arm"]:
+            aarch = "arm"
+        elif machine in ["x86_64", "amd64"]:
             aarch = "x86_64"
-            pass
+        elif machine in ["i386", "i686", "x86"]:
+            aarch = "x86"
+        # Fallback to processor-based detection
+        elif "ARM" in processor or "AARCH" in processor:
+            if "64" in hardware["architecture"]:
+                aarch = "arm64"
+            else:
+                aarch = "arm"
+        elif "INTEL" in processor or "AMD" in processor:
+            if "64" in hardware["architecture"]:
+                aarch = "x86_64"
+            else:
+                aarch = "x86"
+        elif "APPLE" in processor:
+            # Apple Silicon is ARM64
+            if machine.lower() == "arm64":
+                aarch = "arm64"
+            elif "64" in hardware["architecture"]:
+                aarch = "arm64"  # Modern Macs are ARM64
+            else:
+                aarch = "x86_64"
+        # Final fallback based on architecture bits
+        else:
+            if "64" in hardware["architecture"]:
+                aarch = "x86_64"
+            else:
+                aarch = "x86"
+        
         results = str(hardware["system"]).lower() + " " + aarch
         return results
 
@@ -645,6 +670,18 @@ class install_ipfs:
             
             dist_tar = self.ipfs_dists[dist]
             url = self.ipfs_dists[self.dist_select()]
+            
+            # Verify the release URL is accessible before attempting download
+            if not self.verify_release_url(url):
+                print(f"Warning: Release URL not accessible: {url}")
+                print("Attempting to build IPFS from source...")
+                if self.build_ipfs_from_source(latest_version):
+                    print("Successfully built and installed IPFS from source")
+                    return True
+                else:
+                    print("Failed to build IPFS from source")
+                    return False
+            
             if ".tar.gz" in url:
                 url_suffix = ".tar.gz"
             else:
@@ -1670,6 +1707,32 @@ class install_ipfs:
             "openbsd x86": f"{base_url}_openbsd-386.tar.gz",
             "openbsd arm": f"{base_url}_openbsd-arm.tar.gz",
         }
+    
+    def verify_release_url(self, url):
+        """
+        Verify that a release URL is accessible.
+        
+        Args:
+            url: URL to verify
+            
+        Returns:
+            True if URL is accessible, False otherwise
+        """
+        try:
+            if requests is None:
+                # Can't verify without requests, assume it's valid
+                return True
+            
+            # Use HEAD request to check if URL exists without downloading
+            response = requests.head(url, timeout=10, allow_redirects=True)
+            if response.status_code == 200:
+                return True
+            else:
+                print(f"Release URL returned status {response.status_code}: {url}")
+                return False
+        except Exception as e:
+            print(f"Could not verify release URL {url}: {e}")
+            return False
     
     def get_installed_kubo_version(self):
         """Get the currently installed Kubo version."""
