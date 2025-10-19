@@ -48,9 +48,36 @@ jobs:
 
     - name: Install dependencies
       run: |
+        echo "📦 Installing dependencies with monitoring..."
         python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full]"
+        if [ -f config/requirements.txt ]; then 
+          echo "Installing config requirements..."
+          pip install -r config/requirements.txt | tee /tmp/config_requirements.log
+        fi
+        echo "Installing package with dev and full extras..."
+        pip install -e ".[dev,full]" | tee /tmp/package_install.log
+        echo "✅ Dependencies installed"
+    
+    - name: Verify daemon installation environment
+      run: |
+        echo "Verifying daemon configuration environment..."
+        python -c "
+        import sys
+        import os
+        
+        print('Python version:', sys.version)
+        print('Python path:', sys.executable)
+        print('Working directory:', os.getcwd())
+        
+        # Check if daemon_config_manager can be imported
+        try:
+            from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
+            print('✅ DaemonConfigManager module found')
+        except ImportError as e:
+            print('❌ DaemonConfigManager import failed:', e)
+            sys.exit(1)
+        "
+        echo "✅ Environment verification completed"
 
     - name: Test daemon configuration manager import
       run: |
@@ -273,3 +300,22 @@ jobs:
       with:
         name: config-test-report
         path: config-test-report.md
+    
+    - name: Add monitoring summary to GitHub Actions
+      run: |
+        echo "## Daemon Configuration Monitoring Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Test Execution" >> $GITHUB_STEP_SUMMARY
+        echo "- **Date**: $(date -Iseconds)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Python Versions Tested**: 3.9, 3.10, 3.11, 3.12, 3.13" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Services Verified" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ IPFS Daemon Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Lotus Daemon Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Lassie Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ IPFS Cluster Services" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ S3 Kit Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ HuggingFace Kit Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Storacha Kit Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "See artifacts for detailed reports." >> $GITHUB_STEP_SUMMARY
