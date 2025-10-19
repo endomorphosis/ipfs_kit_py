@@ -483,7 +483,7 @@ class install_lotus:
                 arch = arch_map.get(platform_info[1], "amd64")
         
         # Construct expected asset name pattern
-        asset_pattern = f"lotus_.*_{os_name}_{arch}(?:_v\d+)?\\.(tar\\.gz|zip)$"
+        asset_pattern = f"lotus_.*_{os_name}_{arch}(?:_v\\d+)?\\.(tar\\.gz|zip)$"
         
         for asset in release_info.get("assets", []):
             name = asset.get("name", "")
