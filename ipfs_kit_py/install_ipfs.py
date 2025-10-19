@@ -336,35 +336,51 @@ class install_ipfs:
     def dist_select(self):
         hardware = self.hardware_detect()
         hardware["architecture"] = " ".join([str(x) for x in hardware["architecture"]])
-        aarch = ""
-        if "Intel" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "x86_64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "AMD" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "x86_64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "Qualcomm" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "arm"
-        elif "Apple" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "ARM" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "arm"
-        else:
+        
+        # Use platform.machine() as primary method for ARM64 detection
+        machine = platform.machine().lower()
+        
+        # ARM64 detection using platform.machine() which is more reliable
+        if machine in ['aarch64', 'arm64']:
+            aarch = "arm64"
+        elif machine in ['armv7l', 'armv6l', 'arm']:
+            aarch = "arm"
+        elif machine in ['x86_64', 'amd64']:
             aarch = "x86_64"
-            pass
+        elif machine in ['i386', 'i686', 'x86']:
+            aarch = "x86"
+        else:
+            # Fallback to processor-based detection
+            aarch = ""
+            if "Intel" in hardware["processor"]:
+                if "64" in hardware["architecture"]:
+                    aarch = "x86_64"
+                elif "32" in hardware["architecture"]:
+                    aarch = "x86"
+            elif "AMD" in hardware["processor"]:
+                if "64" in hardware["architecture"]:
+                    aarch = "x86_64"
+                elif "32" in hardware["architecture"]:
+                    aarch = "x86"
+            elif "Qualcomm" in hardware["processor"]:
+                if "64" in hardware["architecture"]:
+                    aarch = "arm64"
+                elif "32" in hardware["architecture"]:
+                    aarch = "arm"
+            elif "Apple" in hardware["processor"]:
+                if "64" in hardware["architecture"]:
+                    aarch = "arm64"
+                elif "32" in hardware["architecture"]:
+                    aarch = "x86"
+            elif "ARM" in hardware["processor"] or "aarch64" in hardware["processor"]:
+                if "64" in hardware["architecture"]:
+                    aarch = "arm64"
+                elif "32" in hardware["architecture"]:
+                    aarch = "arm"
+            else:
+                aarch = "x86_64"
+                pass
+        
         results = str(hardware["system"]).lower() + " " + aarch
         return results
 
@@ -1531,4 +1547,107 @@ class install_ipfs:
             
         except Exception as e:
             print(f"Error during repository migration/reset: {e}")
+            return False
+
+    def _install_go(self):
+        """Install Go programming language for building from source."""
+        try:
+            print("Installing Go for building IPFS from source...")
+            
+            # Check if Go is already installed
+            if shutil.which('go'):
+                print("Go is already installed")
+                return True
+            
+            # Download and install Go for ARM64
+            go_version = "1.21.5"
+            go_url = f"https://golang.org/dl/go{go_version}.linux-arm64.tar.gz"
+            
+            with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp_file:
+                print(f"Downloading Go from {go_url}")
+                command = f"wget {go_url} -O {tmp_file.name}"
+                subprocess.run(command, shell=True, check=True)
+                
+                # Extract Go to /usr/local
+                print("Extracting Go...")
+                command = f"sudo tar -C /usr/local -xzf {tmp_file.name}"
+                subprocess.run(command, shell=True, check=True)
+                
+                # Add Go to PATH
+                go_path = "/usr/local/go/bin"
+                if go_path not in os.environ.get("PATH", ""):
+                    os.environ["PATH"] = f"{go_path}:{os.environ.get('PATH', '')}"
+                
+                print("Go installation completed")
+                return True
+                
+        except Exception as e:
+            print(f"Error installing Go: {e}")
+            return False
+
+    def build_ipfs_from_source(self, version=None):
+        """Build IPFS from source code as fallback when binaries are not available."""
+        try:
+            print("Building IPFS from source...")
+            
+            # Install Go if not available
+            if not shutil.which('go') and not self._install_go():
+                raise Exception("Failed to install Go")
+            
+            # Use latest version if not specified
+            if version is None:
+                version = self.get_latest_kubo_version()
+            
+            # Remove 'v' prefix if present
+            version = version.lstrip('v')
+            
+            with tempfile.TemporaryDirectory() as build_dir:
+                print(f"Building Kubo {version} in {build_dir}")
+                
+                # Clone the Kubo repository
+                repo_url = "https://github.com/ipfs/kubo.git"
+                repo_path = os.path.join(build_dir, "kubo")
+                
+                command = f"git clone --branch v{version} --depth 1 {repo_url} {repo_path}"
+                subprocess.run(command, shell=True, check=True, cwd=build_dir)
+                
+                # Build IPFS
+                print("Compiling IPFS...")
+                command = "make build"
+                subprocess.run(command, shell=True, check=True, cwd=repo_path, timeout=1800)
+                
+                # Install the binary
+                built_binary = os.path.join(repo_path, "cmd", "ipfs", "ipfs")
+                if not os.path.exists(built_binary):
+                    # Try alternative location
+                    built_binary = os.path.join(repo_path, "ipfs")
+                
+                if os.path.exists(built_binary):
+                    # Create bin directory if it doesn't exist
+                    os.makedirs(self.bin_path, exist_ok=True)
+                    
+                    # Copy binary to bin directory
+                    dest_path = os.path.join(self.bin_path, "ipfs")
+                    shutil.copy2(built_binary, dest_path)
+                    os.chmod(dest_path, 0o755)
+                    
+                    print(f"IPFS built and installed successfully to {dest_path}")
+                    return True
+                else:
+                    raise Exception("Built binary not found")
+                    
+        except subprocess.TimeoutExpired:
+            print("Build timed out after 30 minutes")
+            return False
+        except Exception as e:
+            print(f"Error building IPFS from source: {e}")
+            return False
+
+    def verify_release_url(self, url):
+        """Verify that a release URL is accessible."""
+        try:
+            import requests
+            response = requests.head(url, timeout=10)
+            return response.status_code == 200
+        except Exception:
             return False
