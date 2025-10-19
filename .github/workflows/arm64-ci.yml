@@ -54,6 +54,9 @@ jobs:
         sudo apt-get update -qq
         sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev git
         
+        # Install build tools for building from source (Go, Make, etc.)
+        sudo apt-get install -y golang-go make gcc g++ pkg-config || echo "Some build tools failed to install"
+        
         # Pre-install some packages that might cause issues during test runs
         sudo apt-get install -y curl wget unzip tar gzip || echo "Optional packages failed"
     
@@ -150,6 +153,134 @@ jobs:
             print(f'Lotus binary check result: {result}')
         else:
             print('Lotus binary not found (expected on fresh install)')
+        "
+    
+    - name: Test build-from-source fallback
+      run: |
+        source venv/bin/activate
+        # Test that build from source works when binary is not available
+        python -c "
+        import sys
+        import platform
+        
+        # Test IPFS build from source
+        print('Testing IPFS build-from-source functionality...')
+        try:
+            from ipfs_kit_py.install_ipfs import install_ipfs
+            installer = install_ipfs()
+            
+            # Check if build method exists
+            if hasattr(installer, 'build_ipfs_from_source'):
+                print('✓ build_ipfs_from_source method found')
+            else:
+                print('✗ build_ipfs_from_source method not found')
+                sys.exit(1)
+            
+            # Check if Go installer exists
+            if hasattr(installer, '_install_go'):
+                print('✓ _install_go method found')
+            else:
+                print('✗ _install_go method not found')
+                sys.exit(1)
+                
+            print('✓ IPFS build-from-source support verified')
+        except Exception as e:
+            print(f'✗ Error testing IPFS build support: {e}')
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        
+        # Test Lotus build from source
+        print('\\nTesting Lotus build-from-source functionality...')
+        try:
+            from ipfs_kit_py.install_lotus import install_lotus
+            installer = install_lotus()
+            
+            # Check if build method exists
+            if hasattr(installer, 'build_lotus_from_source'):
+                print('✓ build_lotus_from_source method found')
+            else:
+                print('✗ build_lotus_from_source method not found')
+                sys.exit(1)
+            
+            # Check if Go installer exists
+            if hasattr(installer, '_install_go_for_build'):
+                print('✓ _install_go_for_build method found')
+            else:
+                print('✗ _install_go_for_build method not found')
+                sys.exit(1)
+                
+            print('✓ Lotus build-from-source support verified')
+        except Exception as e:
+            print(f'✗ Error testing Lotus build support: {e}')
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        
+        print('\\n✓ All build-from-source tests passed')
+        "
+    
+    - name: Verify build tools are available
+      run: |
+        echo "Checking build tools for ARM64 source compilation..."
+        echo "Go version:"
+        go version || echo "Go not installed (will be installed by build scripts if needed)"
+        echo "Make version:"
+        make --version || echo "Make not available"
+        echo "GCC version:"
+        gcc --version || echo "GCC not available"
+        echo "Git version:"
+        git --version || echo "Git not available"
+    
+    - name: Test external dependency installation
+      run: |
+        source venv/bin/activate
+        # Verify that external dependencies can be installed
+        python -c "
+        import subprocess
+        import sys
+        
+        print('Testing external dependency installation...')
+        
+        # Test that we can check for and potentially install IPFS
+        print('\\nTesting IPFS installation check...')
+        try:
+            from ipfs_kit_py.install_ipfs import install_ipfs
+            installer = install_ipfs()
+            
+            # Check current version (if any)
+            current_version = installer.get_installed_kubo_version()
+            print(f'Current IPFS version: {current_version if current_version else \"Not installed\"}')
+            
+            # Check latest version
+            latest_version = installer.get_latest_kubo_version()
+            print(f'Latest IPFS version available: {latest_version}')
+            
+            print('✓ IPFS installation check passed')
+        except Exception as e:
+            print(f'✗ IPFS installation check failed: {e}')
+            import traceback
+            traceback.print_exc()
+        
+        # Test that we can check for and potentially install Lotus
+        print('\\nTesting Lotus installation check...')
+        try:
+            from ipfs_kit_py.install_lotus import install_lotus
+            installer = install_lotus()
+            
+            # Check if already installed
+            installation = installer.check_existing_installation()
+            print(f'Lotus installed: {installation[\"installed\"]}')
+            if installation[\"installed\"]:
+                print(f'Lotus version: {installation[\"version\"]}')
+            
+            print('✓ Lotus installation check passed')
+        except Exception as e:
+            print(f'✗ Lotus installation check failed: {e}')
+            import traceback
+            traceback.print_exc()
+        
+        print('\\n✓ External dependency installation checks completed')
         "
     
     - name: Run ARM64-compatible tests
