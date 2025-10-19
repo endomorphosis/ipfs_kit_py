@@ -1,0 +1,138 @@
+# Development Dockerfile with debugging and hot-reload support
+# Based on development patterns from protein design tools
+
+ARG PYTHON_VERSION=3.11
+
+FROM python:${PYTHON_VERSION}-slim-bookworm AS dev-base
+
+# Set environment variables for development
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    DEVELOPMENT=1 \
+    LOG_LEVEL=DEBUG
+
+# Install system dependencies for development
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    curl \
+    wget \
+    ca-certificates \
+    gnupg2 \
+    software-properties-common \
+    vim \
+    nano \
+    tree \
+    htop \
+    procps \
+    strace \
+    gdb \
+    valgrind \
+    net-tools \
+    iputils-ping \
+    telnet \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user with sudo access
+RUN groupadd -r appuser && \
+    useradd -r -g appuser -m -s /bin/bash appuser && \
+    mkdir -p /app && \
+    chown appuser:appuser /app
+
+# Install Node.js for frontend development (if needed)
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get install -y nodejs
+
+WORKDIR /app
+
+# Install Python development tools
+RUN pip install --upgrade pip setuptools wheel
+
+# Install core development dependencies
+RUN pip install \
+    debugpy \
+    ipython \
+    jupyter \
+    notebook \
+    jupyterlab \
+    black \
+    isort \
+    flake8 \
+    mypy \
+    pylint \
+    bandit \
+    safety \
+    pre-commit \
+    pytest \
+    pytest-cov \
+    pytest-xdist \
+    pytest-mock \
+    pytest-benchmark \
+    pytest-timeout \
+    hypothesis \
+    factory-boy \
+    freezegun \
+    responses \
+    httpx \
+    watchdog
+
+# Copy requirements files
+COPY requirements*.txt ./
+
+# Install project dependencies
+RUN pip install -r requirements.txt || true
+RUN pip install -r requirements-dev.txt || true
+RUN pip install -r requirements-test.txt || true
+
+# Copy source code
+COPY --chown=appuser:appuser . .
+
+# Install package in editable mode
+RUN pip install -e ".[dev,test]" || pip install -e .
+
+# Create development directories
+RUN mkdir -p \
+    /app/data \
+    /app/logs \
+    /app/config \
+    /app/notebooks \
+    /app/scripts \
+    /app/tmp \
+    && chown -R appuser:appuser /app
+
+# Set up git configuration
+RUN git config --global --add safe.directory /app
+
+# Install pre-commit hooks
+RUN pre-commit install --install-hooks || true
+
+# Switch to non-root user
+USER appuser
+
+# Create useful aliases and environment
+RUN echo 'alias ll="ls -la"' >> ~/.bashrc && \
+    echo 'alias la="ls -la"' >> ~/.bashrc && \
+    echo 'alias ..="cd .."' >> ~/.bashrc && \
+    echo 'alias pytest="python -m pytest"' >> ~/.bashrc && \
+    echo 'alias ipython="python -m IPython"' >> ~/.bashrc && \
+    echo 'export PYTHONPATH=/app:$PYTHONPATH' >> ~/.bashrc
+
+# Set up Jupyter configuration
+RUN jupyter notebook --generate-config && \
+    echo "c.NotebookApp.ip = '0.0.0.0'" >> ~/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.port = 8888" >> ~/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.open_browser = False" >> ~/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.allow_root = True" >> ~/.jupyter/jupyter_notebook_config.py
+
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import ipfs_kit_py; print('Development environment OK')" || exit 1
+
+# Expose ports for development services
+EXPOSE 8000 5678 8888 8080
+
+# Default command for development
+CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "--wait-for-client", "-m", "ipfs_kit_py"]

@@ -1,0 +1,164 @@
+# Documentation Dockerfile with MkDocs and Sphinx support
+# Based on documentation patterns from protein design projects
+
+ARG PYTHON_VERSION=3.11
+
+FROM python:${PYTHON_VERSION}-slim-bookworm AS docs-base
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies for documentation
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    curl \
+    wget \
+    ca-certificates \
+    pandoc \
+    texlive-latex-base \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    latexmk \
+    graphviz \
+    plantuml \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create docs user
+RUN groupadd -r docsuser && \
+    useradd -r -g docsuser -m -s /bin/bash docsuser && \
+    mkdir -p /app && \
+    chown docsuser:docsuser /app
+
+WORKDIR /app
+
+# Install Python documentation tools
+RUN pip install --upgrade pip setuptools wheel
+
+# Install comprehensive documentation stack
+RUN pip install \
+    mkdocs \
+    mkdocs-material \
+    mkdocs-mermaid2-plugin \
+    mkdocs-jupyter \
+    mkdocs-pdf-export-plugin \
+    mkdocs-print-site-plugin \
+    mkdocs-git-revision-date-localized-plugin \
+    mkdocs-git-authors-plugin \
+    mkdocs-minify-plugin \
+    mkdocs-redirects \
+    mkdocs-macros-plugin \
+    mkdocs-include-markdown-plugin \
+    mkdocstrings[python] \
+    mkdocs-autorefs \
+    mkdocs-section-index \
+    mkdocs-literate-nav \
+    mkdocs-gen-files \
+    sphinx \
+    sphinx-rtd-theme \
+    sphinx-autoapi \
+    sphinx-autobuild \
+    myst-parser \
+    jupyter \
+    notebook \
+    nbconvert \
+    nbformat \
+    ipykernel
+
+# Install additional documentation dependencies
+RUN pip install \
+    matplotlib \
+    seaborn \
+    plotly \
+    kaleido \
+    pillow \
+    cairosvg
+
+# Copy requirements files
+COPY requirements*.txt ./
+
+# Install project dependencies (needed for API docs)
+RUN pip install -r requirements.txt || true
+
+# Copy source code and documentation
+COPY --chown=docsuser:docsuser . .
+
+# Install package (needed for mkdocstrings)
+RUN pip install -e . || echo "Package installation failed - docs may be limited"
+
+# Create documentation directories
+RUN mkdir -p \
+    /app/docs \
+    /app/docs-build \
+    /app/site \
+    /app/notebooks \
+    /app/examples \
+    && chown -R docsuser:docsuser /app
+
+# Create default MkDocs configuration if it doesn't exist
+RUN if [ ! -f mkdocs.yml ]; then \
+        echo "site_name: IPFS Kit Python" > mkdocs.yml && \
+        echo "site_description: Python toolkit for IPFS operations" >> mkdocs.yml && \
+        echo "site_url: https://ipfs-kit-py.readthedocs.io/" >> mkdocs.yml && \
+        echo "" >> mkdocs.yml && \
+        echo "theme:" >> mkdocs.yml && \
+        echo "  name: material" >> mkdocs.yml && \
+        echo "  palette:" >> mkdocs.yml && \
+        echo "    - scheme: default" >> mkdocs.yml && \
+        echo "      primary: blue" >> mkdocs.yml && \
+        echo "      accent: blue" >> mkdocs.yml && \
+        echo "" >> mkdocs.yml && \
+        echo "plugins:" >> mkdocs.yml && \
+        echo "  - search" >> mkdocs.yml && \
+        echo "  - mkdocstrings:" >> mkdocs.yml && \
+        echo "      handlers:" >> mkdocs.yml && \
+        echo "        python:" >> mkdocs.yml && \
+        echo "          options:" >> mkdocs.yml && \
+        echo "            show_source: true" >> mkdocs.yml && \
+        echo "" >> mkdocs.yml && \
+        echo "nav:" >> mkdocs.yml && \
+        echo "  - Home: index.md" >> mkdocs.yml && \
+        echo "  - API Reference: reference/" >> mkdocs.yml; \
+    fi
+
+# Create default docs structure if it doesn't exist
+RUN if [ ! -d docs ]; then \
+        mkdir -p docs && \
+        echo "# IPFS Kit Python" > docs/index.md && \
+        echo "" >> docs/index.md && \
+        echo "Welcome to the IPFS Kit Python documentation." >> docs/index.md && \
+        echo "" >> docs/index.md && \
+        echo "## Features" >> docs/index.md && \
+        echo "" >> docs/index.md && \
+        echo "- Feature 1" >> docs/index.md && \
+        echo "- Feature 2" >> docs/index.md && \
+        echo "- Feature 3" >> docs/index.md && \
+        mkdir -p docs/reference; \
+    fi
+
+# Switch to docs user
+USER docsuser
+
+# Verify documentation tools
+RUN mkdocs --version && sphinx-build --version
+
+# Health check for documentation service
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8080/ || exit 1
+
+# Expose documentation ports
+EXPOSE 8080 8000
+
+# Default command serves documentation
+CMD ["mkdocs", "serve", "--dev-addr", "0.0.0.0:8080", "--livereload"]
+
+# Alternative commands for different doc operations
+LABEL docs.build="mkdocs build --clean --site-dir /app/site"
+LABEL docs.serve="mkdocs serve --dev-addr 0.0.0.0:8080"
+LABEL docs.pdf="mkdocs build && mkdocs-pdf-export-plugin"
+LABEL sphinx.build="sphinx-build -b html docs docs-build"
+LABEL sphinx.serve="sphinx-autobuild docs docs-build --host 0.0.0.0 --port 8000"

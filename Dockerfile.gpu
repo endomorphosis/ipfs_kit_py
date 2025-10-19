@@ -1,0 +1,198 @@
+# GPU-enabled Dockerfile with CUDA support
+# Based on CUDA container patterns from main.yml
+
+ARG CUDA_VERSION=12.1
+ARG PYTHON_VERSION=3.11
+ARG BUILD_TYPE=production
+
+# Base CUDA stage
+FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04 AS cuda-base
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    CUDA_HOME=/usr/local/cuda \
+    PATH=/usr/local/cuda/bin:$PATH \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python${PYTHON_VERSION} \
+    python${PYTHON_VERSION}-dev \
+    python${PYTHON_VERSION}-venv \
+    python3-pip \
+    build-essential \
+    git \
+    curl \
+    wget \
+    ca-certificates \
+    gnupg2 \
+    software-properties-common \
+    libcudnn8 \
+    libcudnn8-dev \
+    libnccl2 \
+    libnccl-dev \
+    && ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python \
+    && ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify CUDA installation
+RUN nvcc --version && nvidia-smi
+
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN mkdir -p /app && chown appuser:appuser /app
+
+WORKDIR /app
+
+# Development stage with GPU support
+FROM cuda-base AS gpu-development
+ENV DEVELOPMENT=1
+
+# Install development dependencies
+RUN apt-get update && apt-get install -y \
+    vim \
+    nano \
+    tree \
+    htop \
+    nvtop \
+    strace \
+    gdb \
+    valgrind \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PyTorch with CUDA support
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Copy requirements
+COPY requirements-dev.txt requirements-gpu.txt ./
+RUN pip install -r requirements-dev.txt -r requirements-gpu.txt
+
+# Copy source code
+COPY --chown=appuser:appuser . .
+
+# Install package in editable mode with GPU extras
+RUN pip install -e ".[dev,test,gpu]"
+
+# Verify GPU access
+RUN python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'CUDA version: {torch.version.cuda}') if torch.cuda.is_available() else None"
+
+USER appuser
+EXPOSE 8000 5678
+CMD ["python", "-m", "ipfs_kit_py"]
+
+# Testing stage with GPU
+FROM gpu-development AS gpu-testing
+ENV TESTING=1
+
+# Install additional testing tools
+COPY requirements-test.txt ./
+RUN pip install -r requirements-test.txt
+
+# Install GPU-specific testing tools
+RUN pip install pytest-benchmark pytest-xdist pytest-timeout memory-profiler
+
+# Run GPU tests by default
+CMD ["pytest", "tests/", "--verbose", "--cov=ipfs_kit_py", "-k", "gpu"]
+
+# Benchmark stage with GPU optimizations
+FROM cuda-base AS gpu-benchmark
+ENV BUILD_TYPE=benchmark
+
+# Install PyTorch with CUDA support (optimized)
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Install performance monitoring tools
+RUN pip install \
+    pytest-benchmark \
+    memory-profiler \
+    py-spy \
+    line-profiler \
+    nvidia-ml-py
+
+# Copy and install package
+COPY . /app/src/
+WORKDIR /app/src
+RUN pip install -e ".[gpu,benchmark]"
+
+# Verify optimizations
+RUN python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'cuDNN enabled: {torch.backends.cudnn.enabled}') if torch.cuda.is_available() else None"
+
+USER appuser
+WORKDIR /app
+
+# Set optimization flags
+ENV TORCH_CUDNN_V8_API_ENABLED=1
+ENV CUDA_LAUNCH_BLOCKING=0
+
+CMD ["python", "-m", "pytest", "tests/benchmarks/", "--benchmark-only"]
+
+# Production build stage with GPU
+FROM cuda-base AS gpu-builder
+
+# Install build dependencies
+RUN pip install --upgrade pip setuptools wheel build
+
+# Install PyTorch
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Copy source files
+COPY . /app/src/
+WORKDIR /app/src
+
+# Build wheel with GPU support
+RUN python -m build --wheel
+
+# GPU Production stage
+FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu22.04 AS gpu-production
+ENV BUILD_TYPE=production
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    python${PYTHON_VERSION:-3.11} \
+    python3-pip \
+    libcudnn8 \
+    libnccl2 \
+    && ln -sf /usr/bin/python${PYTHON_VERSION:-3.11} /usr/bin/python \
+    && ln -sf /usr/bin/python${PYTHON_VERSION:-3.11} /usr/bin/python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create user and directories
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN mkdir -p /app/data /app/logs /app/config && \
+    chown -R appuser:appuser /app
+
+WORKDIR /app
+
+# Install PyTorch
+RUN pip install --upgrade pip
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Copy and install wheel from builder
+COPY --from=gpu-builder /app/src/dist/*.whl /tmp/
+RUN pip install /tmp/*.whl && rm -rf /tmp/*.whl
+
+# Copy config files if they exist
+COPY --chown=appuser:appuser . /tmp/src/
+RUN if [ -d /tmp/src/config ]; then cp -r /tmp/src/config/* /app/config/; fi && rm -rf /tmp/src
+
+USER appuser
+
+# Set GPU optimizations
+ENV CUDA_VISIBLE_DEVICES=all \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    TORCH_CUDNN_V8_API_ENABLED=1 \
+    CUDA_LAUNCH_BLOCKING=0
+
+# Health check with GPU verification
+HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 \
+    CMD python -c "import torch; import ipfs_kit_py; assert torch.cuda.is_available(); print('GPU OK')" || exit 1
+
+EXPOSE 8000
+CMD ["python", "-m", "ipfs_kit_py"]

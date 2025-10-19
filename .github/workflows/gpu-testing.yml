@@ -1,0 +1,267 @@
+# GPU-accelerated Testing Pipeline
+# Based on main.yml CUDA testing patterns
+
+name: GPU Testing Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**/*.md' 
+      - 'docs/**'
+  schedule:
+    # Run weekly on Mondays at 2 AM UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+env:
+  CUDA_VERSION: "12.1"
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python-changed: ${{ steps.changes.outputs.python }}
+      docker-changed: ${{ steps.changes.outputs.docker }}
+      
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - uses: dorny/paths-filter@v2
+      id: changes
+      with:
+        filters: |
+          python:
+            - '**/*.py'
+            - 'requirements*.txt'
+            - 'setup.py'
+            - 'pyproject.toml'
+          docker:
+            - 'Dockerfile*'
+            - 'docker-compose*.yml'
+            - '.dockerignore'
+
+  gpu-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python-changed == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: 
+      - self-hosted
+      - gpu
+      - nvidia
+    container:
+      image: nvidia/cuda:12.1-runtime-ubuntu22.04
+      options: --gpus all --shm-size=2gb
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        test-type: [unit, integration, performance]
+        
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install system dependencies
+      run: |
+        apt-get update && apt-get install -y \
+          python${{ env.PYTHON_VERSION }} \
+          python${{ env.PYTHON_VERSION }}-dev \
+          python${{ env.PYTHON_VERSION }}-venv \
+          python3-pip \
+          build-essential \
+          git \
+          wget \
+          curl
+        
+        ln -sf /usr/bin/python${{ env.PYTHON_VERSION }} /usr/bin/python
+        ln -sf /usr/bin/python${{ env.PYTHON_VERSION }} /usr/bin/python3
+    
+    - name: Verify GPU availability
+      run: |
+        nvidia-smi
+        python -c "
+        import torch
+        print(f'CUDA available: {torch.cuda.is_available()}')
+        if torch.cuda.is_available():
+            print(f'CUDA devices: {torch.cuda.device_count()}')
+            for i in range(torch.cuda.device_count()):
+                print(f'Device {i}: {torch.cuda.get_device_name(i)}')
+        "
+    
+    - name: Setup Python environment
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    
+    - name: Install package and dependencies
+      run: |
+        pip install -e ".[test,gpu]"
+        pip install pytest-xdist pytest-benchmark pytest-timeout
+    
+    - name: Run unit tests
+      if: matrix.test-type == 'unit'
+      run: |
+        pytest tests/unit/ \
+          --verbose \
+          --tb=short \
+          --durations=10 \
+          --timeout=300 \
+          --junit-xml=test-results-unit.xml \
+          --cov=ipfs_kit_py \
+          --cov-report=xml:coverage-unit.xml
+    
+    - name: Run integration tests
+      if: matrix.test-type == 'integration'
+      run: |
+        pytest tests/integration/ \
+          --verbose \
+          --tb=short \
+          --durations=20 \
+          --timeout=600 \
+          --junit-xml=test-results-integration.xml \
+          --cov=ipfs_kit_py \
+          --cov-report=xml:coverage-integration.xml
+    
+    - name: Run performance benchmarks
+      if: matrix.test-type == 'performance'
+      run: |
+        pytest tests/benchmarks/ \
+          --verbose \
+          --benchmark-only \
+          --benchmark-json=benchmark-results.json \
+          --timeout=1200
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-gpu-${{ matrix.test-type }}
+        path: |
+          test-results-*.xml
+          coverage-*.xml
+          benchmark-results.json
+    
+    - name: Upload coverage to Codecov
+      if: matrix.test-type != 'performance'
+      uses: codecov/codecov-action@v3
+      with:
+        file: coverage-${{ matrix.test-type }}.xml
+        flags: gpu,${{ matrix.test-type }}
+        name: gpu-${{ matrix.test-type }}
+
+  docker-gpu-tests:
+    needs: detect-changes  
+    if: needs.detect-changes.outputs.docker-changed == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on:
+      - self-hosted
+      - gpu
+      - nvidia
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build GPU Docker image
+      run: |
+        docker build \
+          --build-arg CUDA_VERSION=${{ env.CUDA_VERSION }} \
+          --build-arg PYTHON_VERSION=${{ env.PYTHON_VERSION }} \
+          --tag ipfs-kit-py:gpu-test \
+          --file Dockerfile.gpu \
+          .
+    
+    - name: Test Docker container with GPU
+      run: |
+        docker run --rm --gpus all \
+          -v ${{ github.workspace }}:/workspace \
+          ipfs-kit-py:gpu-test \
+          bash -c "
+            cd /workspace &&
+            python -c 'import torch; print(f\"CUDA available: {torch.cuda.is_available()}\")' &&
+            pytest tests/docker/ --verbose
+          "
+    
+    - name: Clean up Docker images
+      if: always()
+      run: |
+        docker image prune -f
+        docker system prune -f
+
+  memory-leak-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python-changed == 'true' || github.event_name == 'schedule'
+    runs-on:
+      - self-hosted
+      - gpu
+      - nvidia
+    container:
+      image: nvidia/cuda:12.1-runtime-ubuntu22.04
+      options: --gpus all --shm-size=4gb
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        apt-get update && apt-get install -y \
+          python${{ env.PYTHON_VERSION }} \
+          python${{ env.PYTHON_VERSION }}-dev \
+          python3-pip \
+          valgrind
+        
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+        pip install -e ".[test]"
+        pip install pytest-memray memory-profiler
+    
+    - name: Run memory leak detection
+      run: |
+        pytest tests/memory/ \
+          --memray \
+          --memray-bin-path=memory-profiles/ \
+          --verbose \
+          --timeout=1800
+    
+    - name: Upload memory profiles
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: memory-profiles
+        path: memory-profiles/
+
+  report-results:
+    needs: [gpu-tests, docker-gpu-tests, memory-leak-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+    
+    - name: Generate test report
+      run: |
+        echo "# GPU Testing Pipeline Results" > test-report.md
+        echo "" >> test-report.md
+        echo "## Test Summary" >> test-report.md
+        echo "- GPU Tests: ${{ needs.gpu-tests.result }}" >> test-report.md
+        echo "- Docker GPU Tests: ${{ needs.docker-gpu-tests.result }}" >> test-report.md
+        echo "- Memory Leak Tests: ${{ needs.memory-leak-tests.result }}" >> test-report.md
+        echo "" >> test-report.md
+        
+        # Add artifact listing
+        echo "## Generated Artifacts" >> test-report.md
+        find . -name "*.xml" -o -name "*.json" | sort >> test-report.md
+    
+    - name: Upload combined report
+      uses: actions/upload-artifact@v3
+      with:
+        name: gpu-pipeline-report
+        path: test-report.md
