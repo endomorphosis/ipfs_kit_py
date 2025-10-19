@@ -107,7 +107,9 @@ jobs:
     - name: Test package installation
       run: |
         source venv/bin/activate
-        python setup.py bdist_wheel || echo "Wheel build failed but continuing"
+        # Build wheel without isolation to avoid network timeouts
+        python -m pip install --timeout=300 --retries=5 build || echo "Build tool installation failed"
+        python -m build --wheel --no-isolation || echo "Wheel build failed but continuing"
         if [ -d dist ] && [ "$(ls -A dist/*.whl 2>/dev/null)" ]; then
           pip install --timeout=300 --retries=5 dist/*.whl --force-reinstall || echo "Wheel installation failed"
           python -c "import ipfs_kit_py; print('Package imported successfully on ARM64')" || echo "Package import failed"
