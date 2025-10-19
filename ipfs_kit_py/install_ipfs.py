@@ -410,8 +410,20 @@ class install_ipfs:
     def dist_select(self):
         hardware = self.hardware_detect()
         hardware["architecture"] = " ".join([str(x) for x in hardware["architecture"]])
+        
+        # Use platform.machine() for more reliable architecture detection
+        machine = platform.machine()
+        
         aarch = ""
-        if "Intel" in hardware["processor"]:
+        if machine in ["aarch64", "arm64"]:
+            aarch = "arm64"
+        elif machine in ["armv7l", "armv6l", "arm"]:
+            aarch = "arm"
+        elif machine in ["x86_64", "amd64"]:
+            aarch = "x86_64"
+        elif machine in ["i386", "i686"]:
+            aarch = "x86"
+        elif "Intel" in hardware["processor"]:
             if "64" in hardware["architecture"]:
                 aarch = "x86_64"
             elif "32" in hardware["architecture"]:
@@ -431,12 +443,13 @@ class install_ipfs:
                 aarch = "arm64"
             elif "32" in hardware["architecture"]:
                 aarch = "x86"
-        elif "ARM" in hardware["processor"]:
+        elif "ARM" in hardware["processor"] or "aarch64" in hardware["processor"]:
             if "64" in hardware["architecture"]:
                 aarch = "arm64"
             elif "32" in hardware["architecture"]:
                 aarch = "arm"
         else:
+            # Default fallback
             aarch = "x86_64"
             pass
         results = str(hardware["system"]).lower() + " " + aarch
