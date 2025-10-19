@@ -11,7 +11,7 @@ authors = [
 description = "Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration"
 readme = "README.md"
 requires-python = ">=3.8"
-license = "AGPL-3.0-or-later"
+license = {text = "AGPL-3.0-or-later"}
 keywords = ["ipfs", "distributed", "storage", "content-addressed", "cluster", "arrow", "fsspec", "ai", "ml"]
 classifiers = [
     "Development Status :: 4 - Beta",
