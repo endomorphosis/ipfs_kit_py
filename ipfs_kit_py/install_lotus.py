@@ -371,43 +371,27 @@ class install_lotus:
         """
         hardware = self.hardware_detect()
         hardware["architecture"] = " ".join([str(x) for x in hardware["architecture"]])
-        machine = hardware.get("machine", "").lower()
-        processor = hardware.get("processor", "").upper()
-        
-        # Determine architecture - prioritize platform.machine() for reliability
         aarch = ""
         
-        # First check machine type (most reliable on ARM systems)
-        if machine in ["aarch64", "arm64"]:
-            aarch = "arm64"
-        elif machine in ["armv7l", "armv6l", "arm"]:
-            aarch = "arm"
-        elif machine in ["x86_64", "amd64"]:
-            aarch = "x86_64"
-        elif machine in ["i386", "i686", "x86"]:
-            aarch = "x86"
-        # Fallback to processor-based detection
-        elif "ARM" in processor or "AARCH" in processor:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            else:
-                aarch = "arm"
-        elif "INTEL" in processor or "AMD" in processor:
+        # Determine architecture
+        if "Intel" in hardware["processor"] or "AMD" in hardware["processor"]:
             if "64" in hardware["architecture"]:
                 aarch = "x86_64"
-            else:
+            elif "32" in hardware["architecture"]:
                 aarch = "x86"
-        elif "APPLE" in processor:
-            # Apple Silicon is ARM64
-            if machine == "arm64":
+        elif "Qualcomm" in hardware["processor"] or "ARM" in hardware["processor"]:
+            if "64" in hardware["architecture"]:
                 aarch = "arm64"
-            elif "64" in hardware["architecture"]:
-                aarch = "arm64"  # Modern Macs are ARM64
+            elif "32" in hardware["architecture"]:
+                aarch = "arm"
+        elif "Apple" in hardware["processor"]:
+            if "64" in hardware["architecture"] or "arm64" in hardware["machine"].lower():
+                aarch = "arm64"
             else:
                 aarch = "x86_64"
-        # Final fallback based on architecture bits
+        # Default to x86_64 if we can't determine architecture
         else:
-            if "64" in hardware["architecture"]:
+            if "64" in hardware["architecture"] or "64" in hardware["machine"].lower():
                 aarch = "x86_64"
             else:
                 aarch = "x86"
@@ -2826,6 +2810,104 @@ WantedBy=multi-user.target
         logger.info("To completely remove Lotus data, manually delete these directories")
         
         return True
+
+    def _install_go_for_build(self):
+        """Install Go programming language for building from source."""
+        try:
+            print("Installing Go for building Lotus from source...")
+            
+            # Check if Go is already installed
+            if shutil.which('go'):
+                print("Go is already installed")
+                return True
+            
+            # Download and install Go for ARM64
+            go_version = "1.21.5"
+            go_url = f"https://golang.org/dl/go{go_version}.linux-arm64.tar.gz"
+            
+            with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp_file:
+                print(f"Downloading Go from {go_url}")
+                command = f"wget {go_url} -O {tmp_file.name}"
+                subprocess.run(command, shell=True, check=True)
+                
+                # Extract Go to /usr/local
+                print("Extracting Go...")
+                command = f"sudo tar -C /usr/local -xzf {tmp_file.name}"
+                subprocess.run(command, shell=True, check=True)
+                
+                # Add Go to PATH
+                go_path = "/usr/local/go/bin"
+                if go_path not in os.environ.get("PATH", ""):
+                    os.environ["PATH"] = f"{go_path}:{os.environ.get('PATH', '')}"
+                
+                print("Go installation completed")
+                return True
+                
+        except Exception as e:
+            print(f"Error installing Go: {e}")
+            return False
+
+    def build_lotus_from_source(self, version=None):
+        """Build Lotus from source code as fallback when binaries are not available."""
+        try:
+            print("Building Lotus from source...")
+            
+            # Install Go if not available
+            if not shutil.which('go') and not self._install_go_for_build():
+                raise Exception("Failed to install Go")
+            
+            # Use latest version if not specified
+            if version is None:
+                version = self.get_latest_lotus_version()
+            
+            # Remove 'v' prefix if present
+            version = version.lstrip('v')
+            
+            with tempfile.TemporaryDirectory() as build_dir:
+                print(f"Building Lotus {version} in {build_dir}")
+                
+                # Clone the Lotus repository
+                repo_url = "https://github.com/filecoin-project/lotus.git"
+                repo_path = os.path.join(build_dir, "lotus")
+                
+                command = f"git clone --branch v{version} --depth 1 {repo_url} {repo_path}"
+                subprocess.run(command, shell=True, check=True, cwd=build_dir)
+                
+                # Build Lotus
+                print("Compiling Lotus (this may take a while)...")
+                command = "make clean && make all"
+                subprocess.run(command, shell=True, check=True, cwd=repo_path, timeout=3600)
+                
+                # Install the binaries
+                built_binaries = []
+                for binary in LOTUS_BINARIES:
+                    built_binary = os.path.join(repo_path, binary)
+                    if os.path.exists(built_binary):
+                        built_binaries.append(built_binary)
+                
+                if built_binaries:
+                    # Create bin directory if it doesn't exist
+                    os.makedirs(self.bin_path, exist_ok=True)
+                    
+                    # Copy binaries to bin directory
+                    for binary_path in built_binaries:
+                        binary_name = os.path.basename(binary_path)
+                        dest_path = os.path.join(self.bin_path, binary_name)
+                        shutil.copy2(binary_path, dest_path)
+                        os.chmod(dest_path, 0o755)
+                        print(f"Installed {binary_name} to {dest_path}")
+                    
+                    print(f"Lotus built and installed successfully ({len(built_binaries)} binaries)")
+                    return True
+                else:
+                    raise Exception("No built binaries found")
+                    
+        except subprocess.TimeoutExpired:
+            print("Build timed out after 60 minutes")
+            return False
+        except Exception as e:
+            print(f"Error building Lotus from source: {e}")
+            return False
 
 
 def main():

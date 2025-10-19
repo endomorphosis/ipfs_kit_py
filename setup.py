@@ -29,9 +29,9 @@ setup(
             'multiformats>=0.2.0',  # For content addressing
             'base58>=2.1.1',  # Used by CIDs and peer IDs
             'cryptography>=38.0.0',  # For key generation and encryption
-            'protobuf>=3.20.1,<4.0.0',  # For protocol buffer support (compatible with libp2p 0.2.8)
-            'eth-hash>=0.3.3',  # Optional for ETH integration
-            'eth-keys>=0.4.0',  # Optional for ETH integration
+            'protobuf>=3.20.1,<5.0.0',  # For protocol buffer support (compatible with libp2p 0.2.8)
+            'eth-hash[pycryptodome]>=0.3.3',  # ETH integration with crypto backend
+            'eth-keys>=0.4.0',  # ETH integration for key management
         ],
     },
     # All other configurations come from pyproject.toml
