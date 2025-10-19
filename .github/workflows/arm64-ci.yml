@@ -1,10 +1,14 @@
 name: ARM64 CI/CD Pipeline
 
+# This workflow tests the package on ARM64 architecture using self-hosted runners
+# It validates that the package builds correctly and tests pass on ARM64 systems
+
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering of the workflow
 
 jobs:
   test-arm64:
@@ -127,6 +131,27 @@ jobs:
         # Add any ARM64-specific performance tests here
         print(f'ARM64 Performance test completed in {time.time() - start:.2f}s')
         "
+    
+    - name: Generate test summary
+      if: always()
+      run: |
+        echo "## ARM64 Build and Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### System Information" >> $GITHUB_STEP_SUMMARY
+        echo "- **Architecture**: $(uname -m)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Python Version**: $(python --version 2>&1)" >> $GITHUB_STEP_SUMMARY
+        echo "- **OS**: $(lsb_release -ds 2>/dev/null || echo 'Unknown')" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Build Status" >> $GITHUB_STEP_SUMMARY
+        if [ -d dist ] && [ "$(ls -A dist/*.whl 2>/dev/null)" ]; then
+          echo "✅ Package wheel built successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- Wheel file: $(ls -h dist/*.whl | tail -1)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Package wheel build failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Test Status" >> $GITHUB_STEP_SUMMARY
+        echo "See test results above for details" >> $GITHUB_STEP_SUMMARY
 
   build-docker-arm64:
     runs-on: [self-hosted, arm64, dgx]
