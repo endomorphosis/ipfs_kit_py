@@ -1,0 +1,127 @@
+{
+  "total": 11,
+  "success": 6,
+  "results": [
+    {
+      "name": "check_monitoring_health.py",
+      "path": "scripts/ci/check_monitoring_health.py",
+      "executable": true,
+      "help_works": false,
+      "runs": false,
+      "exit_code": null,
+      "stdout_lines": 42,
+      "stderr_lines": 0,
+      "error": "Unknown error"
+    },
+    {
+      "name": "generate_performance_report.py",
+      "path": "scripts/ci/generate_performance_report.py",
+      "executable": true,
+      "help_works": true,
+      "runs": false,
+      "exit_code": null,
+      "stdout_lines": 0,
+      "stderr_lines": 3,
+      "error": "2025-10-20 22:28:47,414 - performance_report - WARNING - Plotting dependencies not available. Install with: pip install pandas matplotlib numpy\n2025-10-20 22:28:47,417 - performance_report - ERROR - N"
+    },
+    {
+      "name": "monitor_amd64_installation.py",
+      "path": "scripts/ci/monitor_amd64_installation.py",
+      "executable": true,
+      "help_works": true,
+      "runs": true,
+      "exit_code": null,
+      "stdout_lines": 53,
+      "stderr_lines": 0,
+      "error": null
+    },
+    {
+      "name": "monitor_arm64_installation.py",
+      "path": "scripts/ci/monitor_arm64_installation.py",
+      "executable": true,
+      "help_works": true,
+      "runs": true,
+      "exit_code": null,
+      "stdout_lines": 53,
+      "stderr_lines": 0,
+      "error": null
+    },
+    {
+      "name": "monitor_deployment.py",
+      "path": "scripts/ci/monitor_deployment.py",
+      "executable": true,
+      "help_works": true,
+      "runs": false,
+      "exit_code": null,
+      "stdout_lines": 0,
+      "stderr_lines": 1,
+      "error": "Script timed out after 30 seconds"
+    },
+    {
+      "name": "monitor_first_install.py",
+      "path": "scripts/ci/monitor_first_install.py",
+      "executable": true,
+      "help_works": true,
+      "runs": false,
+      "exit_code": null,
+      "stdout_lines": 31,
+      "stderr_lines": 0,
+      "error": "Unknown error"
+    },
+    {
+      "name": "test_ci_scripts.py",
+      "path": "scripts/ci/test_ci_scripts.py",
+      "executable": true,
+      "help_works": true,
+      "runs": false,
+      "exit_code": null,
+      "stdout_lines": 0,
+      "stderr_lines": 1,
+      "error": "Script timed out after 30 seconds"
+    },
+    {
+      "name": "trigger_and_monitor_workflow.py",
+      "path": "scripts/ci/trigger_and_monitor_workflow.py",
+      "executable": true,
+      "help_works": true,
+      "runs": true,
+      "exit_code": null,
+      "stdout_lines": 40,
+      "stderr_lines": 0,
+      "error": null
+    },
+    {
+      "name": "validate_ci_workflows.py",
+      "path": "scripts/ci/validate_ci_workflows.py",
+      "executable": true,
+      "help_works": true,
+      "runs": true,
+      "exit_code": null,
+      "stdout_lines": 46,
+      "stderr_lines": 0,
+      "error": null
+    },
+    {
+      "name": "verify_amd64_dependencies.py",
+      "path": "scripts/ci/verify_amd64_dependencies.py",
+      "executable": true,
+      "help_works": true,
+      "runs": true,
+      "exit_code": null,
+      "stdout_lines": 46,
+      "stderr_lines": 0,
+      "error": null
+    },
+    {
+      "name": "verify_arm64_dependencies.py",
+      "path": "scripts/ci/verify_arm64_dependencies.py",
+      "executable": true,
+      "help_works": true,
+      "runs": true,
+      "exit_code": null,
+      "stdout_lines": 46,
+      "stderr_lines": 0,
+      "error": null
+    }
+  ]
+}
