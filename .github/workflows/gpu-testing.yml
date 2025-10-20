@@ -139,7 +139,7 @@ jobs:
           --timeout=1200
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results-gpu-${{ matrix.test-type }}
@@ -231,7 +231,7 @@ jobs:
           --timeout=1800
     
     - name: Upload memory profiles
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: memory-profiles
@@ -244,7 +244,7 @@ jobs:
     
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
     
     - name: Generate test report
       run: |
@@ -261,7 +261,7 @@ jobs:
         find . -name "*.xml" -o -name "*.json" | sort >> test-report.md
     
     - name: Upload combined report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: gpu-pipeline-report
         path: test-report.md

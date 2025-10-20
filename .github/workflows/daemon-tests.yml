@@ -54,7 +54,7 @@ jobs:
           python test_daemon_multiprocessing_comprehensive.py
           
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: daemon-test-results-${{ matrix.python-version }}
@@ -84,7 +84,7 @@ jobs:
           python test_performance_multiprocessing.py
           
       - name: Upload performance results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: daemon-performance-results
           path: performance-results.json
@@ -254,7 +254,7 @@ jobs:
           python stress_test.py
           
       - name: Upload stress test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: stress-test-results
           path: stress-test-results.json
