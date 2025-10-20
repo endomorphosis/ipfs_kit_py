@@ -1,9 +1,11 @@
 # Testing Dockerfile optimized for CI/CD pipelines
 # Based on testing patterns from GitHub Actions workflows
 
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
 ARG PYTHON_VERSION=3.11
 
-FROM python:${PYTHON_VERSION}-slim-bookworm AS test-base
+FROM --platform=$TARGETPLATFORM python:${PYTHON_VERSION}-slim-bookworm AS test-base
 
 # Set environment variables for testing
 ENV PYTHONUNBUFFERED=1 \
