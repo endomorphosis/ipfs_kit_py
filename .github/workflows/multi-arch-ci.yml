@@ -16,13 +16,11 @@ jobs:
       fail-fast: false
       matrix:
         arch: [amd64, arm64, armv7]
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
         exclude:
           # Skip some combinations to save CI time
           - arch: armv7
-            python-version: '3.9'
-          - arch: armv7
-            python-version: '3.11'
+            python-version: '3.12'
     
     steps:
     - uses: actions/checkout@v4
@@ -62,13 +60,10 @@ jobs:
         COPY requirements.txt setup.py pyproject.toml ./
         COPY ipfs_kit_py ipfs_kit_py/
         
-        # Install dependencies with retries for flaky network
+        # Install dependencies
         RUN --mount=type=cache,target=/root/.cache/pip \
             pip install --upgrade pip setuptools wheel && \
-            pip install -e . && \
-            pip install -e .[libp2p] || \
-            (sleep 5 && pip install -e .[libp2p]) || \
-            (sleep 10 && pip install -e .[libp2p])
+            pip install -e .
         
         # Copy test files
         COPY tests tests/
