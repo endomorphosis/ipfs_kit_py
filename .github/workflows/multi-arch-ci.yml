@@ -63,7 +63,7 @@ jobs:
         # Install dependencies
         RUN --mount=type=cache,target=/root/.cache/pip \
             pip install --upgrade pip setuptools wheel && \
-            pip install -e . && \
+            pip install -e .[api] && \
             pip install pytest pytest-asyncio pytest-timeout pytest-cov
         
         # Copy test files
