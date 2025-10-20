@@ -1,0 +1,160 @@
+name: Docker Architecture Tests
+
+on:
+  push:
+    branches: [ main, develop, copilot/** ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  # Test Docker images on multiple architectures
+  docker-multi-arch-test:
+    name: Docker Test on ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        python-version: ['3.9', '3.10', '3.11']
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Set up QEMU
+      if: matrix.arch != 'amd64'
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: ${{ matrix.arch }}
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build test image for ${{ matrix.arch }}
+      run: |
+        docker buildx build \
+          --platform linux/${{ matrix.arch }} \
+          --build-arg PYTHON_VERSION=${{ matrix.python-version }} \
+          --build-arg BUILD_TYPE=testing \
+          -f Dockerfile \
+          -t ipfs-kit-py-test:${{ matrix.arch }}-py${{ matrix.python-version }} \
+          --load \
+          .
+    
+    - name: Run architecture tests in Docker
+      run: |
+        docker run --rm \
+          --platform linux/${{ matrix.arch }} \
+          ipfs-kit-py-test:${{ matrix.arch }}-py${{ matrix.python-version }} \
+          bash -c "
+            pip install pytest pytest-asyncio --quiet && \
+            python -m pytest tests/test_architecture_support.py -v --tb=short
+          "
+    
+    - name: Run basic package import test in Docker
+      run: |
+        docker run --rm \
+          --platform linux/${{ matrix.arch }} \
+          ipfs-kit-py-test:${{ matrix.arch }}-py${{ matrix.python-version }} \
+          python -c "import platform; import ipfs_kit_py; print(f'✓ Package imported on {platform.machine()}'); print(f'  System: {platform.system()}'); print(f'  Architecture: {platform.architecture()}')"
+    
+    - name: Test install_ipfs architecture detection in Docker
+      run: |
+        docker run --rm \
+          --platform linux/${{ matrix.arch }} \
+          ipfs-kit-py-test:${{ matrix.arch }}-py${{ matrix.python-version }} \
+          python -c "import platform; from ipfs_kit_py.install_ipfs import install_ipfs; installer = install_ipfs(); hw_info = installer.hardware_detect(); platform_str = installer.dist_select(); print(f'✓ Architecture detection working on {platform.machine()}'); print(f'  Detected platform: {platform_str}'); print(f'  Machine: {hw_info[\"machine\"]}')"
+    
+    - name: Test install_lotus architecture detection in Docker
+      run: |
+        docker run --rm \
+          --platform linux/${{ matrix.arch }} \
+          ipfs-kit-py-test:${{ matrix.arch }}-py${{ matrix.python-version }} \
+          python -c "import platform; from ipfs_kit_py.install_lotus import install_lotus; installer = install_lotus(metadata={'auto_install_deps': False}); hw_info = installer.hardware_detect(); platform_str = installer.dist_select(); print(f'✓ Lotus architecture detection working on {platform.machine()}'); print(f'  Detected platform: {platform_str}'); print(f'  Machine: {hw_info[\"machine\"]}')"
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-test-results-${{ matrix.arch }}-py${{ matrix.python-version }}
+        path: test-results/
+        retention-days: 7
+
+  # Test on self-hosted runners with Docker
+  docker-native-test:
+    name: Docker Test on Native ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: [self-hosted, arm64]
+            arch: arm64
+            platform: linux/arm64
+          - runner: [self-hosted, amd64]
+            arch: amd64
+            platform: linux/amd64
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build test image natively
+      run: |
+        docker buildx build \
+          --platform ${{ matrix.platform }} \
+          --build-arg PYTHON_VERSION=3.11 \
+          --build-arg BUILD_TYPE=testing \
+          -f Dockerfile \
+          -t ipfs-kit-py-test:${{ matrix.arch }}-native \
+          --load \
+          .
+    
+    - name: Run architecture tests in native Docker
+      run: |
+        docker run --rm \
+          ipfs-kit-py-test:${{ matrix.arch }}-native \
+          bash -c "
+            pip install pytest pytest-asyncio --quiet && \
+            python -m pytest tests/test_architecture_support.py -v --tb=short
+          "
+    
+    - name: Verify architecture matches runner
+      run: |
+        docker run --rm \
+          ipfs-kit-py-test:${{ matrix.arch }}-native \
+          python -c "import platform; expected_arch = '${{ matrix.arch }}'; actual_arch = platform.machine().lower(); arch_map = {'x86_64': 'amd64', 'amd64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}; actual_normalized = arch_map.get(actual_arch, actual_arch); expected_normalized = expected_arch.lower(); print(f'✓ Architecture matches: {actual_arch} -> {actual_normalized}') if actual_normalized == expected_normalized else (print(f'✗ Architecture mismatch: expected {expected_normalized}, got {actual_normalized}'), exit(1))"
+    
+    - name: Clean up Docker images
+      if: always()
+      run: |
+        docker image prune -f
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-native-test-results-${{ matrix.arch }}
+        path: test-results/
+        retention-days: 7
+
+  # Summary job
+  docker-test-summary:
+    name: Docker Test Summary
+    runs-on: ubuntu-latest
+    needs: [docker-multi-arch-test, docker-native-test]
+    if: always()
+    
+    steps:
+    - name: Check test results
+      run: |
+        echo "Docker multi-architecture testing completed"
+        echo "QEMU emulated tests: ${{ needs.docker-multi-arch-test.result }}"
+        echo "Native runner tests: ${{ needs.docker-native-test.result }}"

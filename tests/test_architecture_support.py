@@ -72,20 +72,11 @@ class TestArchitectureSupport:
     def test_install_lotus_architecture_detection(self):
         """Test that install_lotus correctly detects the architecture."""
         try:
-            import signal
-            
-            # Set a timeout for this test to avoid hanging
-            def timeout_handler(signum, frame):
-                pytest.skip("install_lotus initialization timed out (likely waiting for package locks)")
-            
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(5)  # 5 second timeout
-            
             from ipfs_kit_py.install_lotus import install_lotus
             
-            installer = install_lotus()
-            
-            signal.alarm(0)  # Cancel the timeout
+            # Initialize with auto_install_deps=False to avoid waiting for package locks
+            # This allows the test to run in CI environments without hanging
+            installer = install_lotus(metadata={"auto_install_deps": False})
             
             # Get hardware info
             hardware_info = installer.hardware_detect()
@@ -119,10 +110,6 @@ class TestArchitectureSupport:
             
         except ImportError:
             pytest.skip("install_lotus module not available")
-        except Exception as e:
-            if "timed out" in str(e).lower():
-                pytest.skip(f"Test timed out: {e}")
-            raise
     
     def test_core_modules_import_on_architecture(self):
         """Test that core modules can be imported on current architecture."""

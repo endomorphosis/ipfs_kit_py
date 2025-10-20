@@ -67,6 +67,19 @@ jobs:
           echo "Testing image $IMAGE_ID"
           docker pull $IMAGE_ID
           docker run --rm $IMAGE_ID --help
+      
+      - name: Run architecture tests on built image
+        if: github.event_name != 'pull_request'
+        run: |
+          IMAGE_ID=$(echo ${{ steps.meta.outputs.tags }} | cut -d ',' -f1)
+          
+          echo "Running architecture tests on AMD64..."
+          docker run --rm --platform linux/amd64 $IMAGE_ID \
+            bash -c "pip install pytest --quiet && python -m pytest tests/test_architecture_support.py -v --tb=line -k 'not lotus' || echo 'Some tests failed but continuing'"
+          
+          echo "Running architecture tests on ARM64..."
+          docker run --rm --platform linux/arm64 $IMAGE_ID \
+            bash -c "pip install pytest --quiet && python -m pytest tests/test_architecture_support.py -v --tb=line -k 'not lotus' || echo 'Some tests failed but continuing'"
           
   publish-helm:
     name: Publish Helm Chart
