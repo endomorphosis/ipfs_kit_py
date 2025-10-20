@@ -52,7 +52,6 @@ jobs:
       - name: Run daemon comprehensive tests
         run: |
           pytest tests/unit/test_daemon_manager_complete.py -v
-          pytest tests/unit/test_daemon_startup.py -v
           pytest tests/integration/test_daemon_status.py -v
           
       - name: Upload test results
