@@ -37,6 +37,13 @@ fi
 
 log "Starting IPFS-Kit in '$MODE' mode..."
 
+# Start supervisord in the background
+log "Starting supervisord..."
+/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+
+# Wait for supervisord to be ready
+sleep 3
+
 case "$MODE" in
   "daemon-only")
     log "Starting daemon-only mode (IPFS-Kit daemon API on port 9999)"
