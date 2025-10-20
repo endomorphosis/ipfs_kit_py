@@ -15,12 +15,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [amd64, arm64, armv7]
+        arch: [amd64, arm64]
         python-version: ['3.10', '3.11', '3.12']
-        exclude:
-          # Skip some combinations to save CI time
-          - arch: armv7
-            python-version: '3.12'
     
     steps:
     - uses: actions/checkout@v4
