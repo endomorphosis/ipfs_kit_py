@@ -20,7 +20,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system dependencies including Go for building from source
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
@@ -29,6 +29,9 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gnupg2 \
     software-properties-common \
+    golang-go \
+    make \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user

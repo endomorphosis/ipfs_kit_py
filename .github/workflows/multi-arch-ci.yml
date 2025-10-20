@@ -146,7 +146,21 @@ jobs:
           libssl-dev \
           git \
           curl \
+          golang-go \
+          pkg-config \
+          wget \
+          unzip \
+          tar \
+          gzip \
           || echo "Some system packages failed to install, continuing..."
+    
+    - name: Verify build tools
+      run: |
+        echo "Checking build tools availability..."
+        go version || echo "⚠️  Go not available"
+        make --version || echo "⚠️  Make not available"
+        gcc --version || echo "⚠️  GCC not available"
+        git --version || echo "⚠️  Git not available"
     
     - name: Create virtual environment
       run: |
@@ -275,7 +289,21 @@ jobs:
           libssl-dev \
           git \
           curl \
+          golang-go \
+          pkg-config \
+          wget \
+          unzip \
+          tar \
+          gzip \
           || echo "Some system packages failed to install, continuing..."
+    
+    - name: Verify build tools
+      run: |
+        echo "Checking build tools availability..."
+        go version || echo "⚠️  Go not available"
+        make --version || echo "⚠️  Make not available"
+        gcc --version || echo "⚠️  GCC not available"
+        git --version || echo "⚠️  Git not available"
     
     - name: Create virtual environment
       run: |

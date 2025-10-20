@@ -15,7 +15,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install system dependencies including Go for building from source
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libffi-dev \
     libssl-dev \
+    golang-go \
     && rm -rf /var/lib/apt/lists/*
 
 # Create application user
