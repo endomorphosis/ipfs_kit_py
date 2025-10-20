@@ -2,7 +2,7 @@ import tempfile
 import shutil
 import unittest
 from fastapi.testclient import TestClient
-from consolidated_mcp_dashboard import ConsolidatedMCPDashboard
+from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDashboard
 
 
 class TestDashboardLogsClear(unittest.TestCase):

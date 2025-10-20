@@ -1,6 +1,6 @@
 import unittest, time
 from fastapi.testclient import TestClient
-from consolidated_mcp_dashboard import ConsolidatedMCPDashboard
+from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDashboard
 
 class TestServicesLifecycle(unittest.TestCase):
     def setUp(self):
