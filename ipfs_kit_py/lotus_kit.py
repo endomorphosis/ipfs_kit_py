@@ -1166,12 +1166,14 @@ class lotus_kit:
                 # Simply return the CID in simulated mode
                 if isinstance(signed_message, dict) and "Message" in signed_message:
                     msg = signed_message["Message"]
+                    msg_hash = hashlib.sha256(f"msg_{msg.get('From', '')}_{time.time()}".encode()).hexdigest()[:32]
                     result["result"] = {
-                        "/": f"bafy2bzacea{hashlib.sha256(f'msg_{msg.get('From', '')}_{time.time()}'.encode()).hexdigest()[:32]}"
+                        "/": f"bafy2bzacea{msg_hash}"
                     }
                 else:
+                    msg_hash = hashlib.sha256(str(signed_message).encode()).hexdigest()[:32]
                     result["result"] = {
-                        "/": f"bafy2bzacea{hashlib.sha256(str(signed_message).encode()).hexdigest()[:32]}"
+                        "/": f"bafy2bzacea{msg_hash}"
                     }
             else:
                 result["error"] = "Missing signed message parameter"
