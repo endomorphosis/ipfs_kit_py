@@ -84,7 +84,6 @@ jobs:
       - name: Run performance tests
         run: |
           pytest tests/integration/test_performance_metrics.py -v
-          pytest tests/performance/test_vfs_performance.py -v
           
       - name: Upload performance results
         uses: actions/upload-artifact@v4

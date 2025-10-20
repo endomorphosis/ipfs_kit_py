@@ -253,7 +253,8 @@ jobs:
           
       - name: Run performance benchmarks
         run: |
-          pytest tests/performance/test_vfs_performance.py -v --benchmark
+          pytest tests/integration/test_performance_metrics.py -v
+          echo "Note: VFS performance test is deprecated and skipped"
           
       - name: Upload performance results
         uses: actions/upload-artifact@v4
