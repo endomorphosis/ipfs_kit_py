@@ -34,9 +34,15 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-RUN mkdir -p /app && chown appuser:appuser /app
+# Create non-root user and home directory with proper ownership
+RUN groupadd -r appuser && useradd -r -g appuser -d /home/appuser -m appuser \
+    && mkdir -p /app /home/appuser/.cache /home/appuser/.local \
+    && chown -R appuser:appuser /app /home/appuser \
+    && chmod -R 0777 /home/appuser
+
+# Ensure HOME points to a writable directory for pip and other tools
+ENV HOME=/home/appuser \
+    PIP_CACHE_DIR=/home/appuser/.cache/pip
 
 WORKDIR /app
 
@@ -67,6 +73,7 @@ COPY --chown=appuser:appuser . .
 RUN pip install -e ".[dev,test]"
 
 USER appuser
+ENV HOME=/home/appuser
 EXPOSE 8000 5678
 CMD ["python", "-m", "ipfs_kit_py"]
 
@@ -111,9 +118,11 @@ RUN mkdir -p /app/data /app/logs /app/config && \
     chown -R appuser:appuser /app
 
 # Copy config files if they exist
-COPY --chown=appuser:appuser config/ /app/config/ 2>/dev/null || true
+# Copy config files from build context (directory exists in repo)
+COPY --chown=appuser:appuser config/ /app/config/
 
 USER appuser
+ENV HOME=/home/appuser
 WORKDIR /app
 
 # Health check
@@ -165,6 +174,7 @@ COPY --chown=appuser:appuser . /app/src/
 RUN pip install -e /app/src/
 
 USER appuser
+ENV HOME=/home/appuser
 WORKDIR /app
 
 EXPOSE 8080
