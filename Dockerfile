@@ -1,11 +1,17 @@
 # Multi-stage Dockerfile for production builds
 # Based on generative-protein-binder-design Docker patterns
+# Supports multi-architecture builds (amd64, arm64)
 
 ARG PYTHON_VERSION=3.11
 ARG BUILD_TYPE=production
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 # Base stage with Python and system dependencies
 FROM python:${PYTHON_VERSION}-slim-bookworm AS base
+
+# Platform information for debugging
+RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -14,7 +20,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system dependencies including Go for building from source
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
@@ -23,6 +29,9 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gnupg2 \
     software-properties-common \
+    golang-go \
+    make \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -129,7 +138,27 @@ RUN pip install mkdocs mkdocs-material mkdocstrings[python] \
     mkdocs-jupyter mkdocs-mermaid2-plugin
 
 COPY --chown=appuser:appuser docs/ /app/docs/
-COPY --chown=appuser:appuser mkdocs.yml /app/
+# Create default mkdocs.yml if it doesn't exist in the repo
+RUN if [ ! -f mkdocs.yml ]; then \
+        echo "site_name: IPFS Kit Python" > mkdocs.yml && \
+        echo "site_description: Python toolkit for IPFS operations" >> mkdocs.yml && \
+        echo "site_url: https://ipfs-kit-py.readthedocs.io/" >> mkdocs.yml && \
+        echo "" >> mkdocs.yml && \
+        echo "theme:" >> mkdocs.yml && \
+        echo "  name: material" >> mkdocs.yml && \
+        echo "" >> mkdocs.yml && \
+        echo "plugins:" >> mkdocs.yml && \
+        echo "  - search" >> mkdocs.yml && \
+        echo "  - mkdocstrings:" >> mkdocs.yml && \
+        echo "      handlers:" >> mkdocs.yml && \
+        echo "        python:" >> mkdocs.yml && \
+        echo "          options:" >> mkdocs.yml && \
+        echo "            show_source: true" >> mkdocs.yml && \
+        echo "" >> mkdocs.yml && \
+        echo "nav:" >> mkdocs.yml && \
+        echo "  - Home: index.md" >> mkdocs.yml && \
+        echo "  - API Reference: reference/" >> mkdocs.yml; \
+    fi
 COPY --chown=appuser:appuser . /app/src/
 
 # Install package for documentation

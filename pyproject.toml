@@ -10,7 +10,7 @@ authors = [
 ]
 description = "Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {text = "AGPL-3.0-or-later"}
 keywords = ["ipfs", "distributed", "storage", "content-addressed", "cluster", "arrow", "fsspec", "ai", "ml"]
 classifiers = [
@@ -19,18 +19,23 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries",
     "Topic :: System :: Distributed Computing",
     "Topic :: Database",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    # Architecture support
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
 ]
 dependencies = [
     "requests>=2.28.0",
     "httpx>=0.24.0",  # For async HTTP requests
+    "aiohttp>=3.8.4",  # For async HTTP operations
+    "aiofiles>=23.1.0",  # For async file operations
+    "watchdog>=3.0.0",  # For file system monitoring
     "psutil>=5.9.0",
     "pyyaml>=6.0",
     "base58>=2.1.1",

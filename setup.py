@@ -13,6 +13,10 @@ setup(
     python_requires='>=3.8',
     install_requires=[
         'requests>=2.28.0',
+        'httpx>=0.24.0',
+        'aiohttp>=3.8.4',
+        'aiofiles>=23.1.0',
+        'watchdog>=3.0.0',
         'psutil>=5.9.0',
         'pyyaml>=6.0',
         'base58>=2.1.1',

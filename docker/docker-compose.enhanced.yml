@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   ipfs-kit:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.enhanced
     container_name: ipfs-kit-daemon
     ports:
@@ -23,7 +21,7 @@ services:
       - PYTHONPATH=/app
     restart: unless-stopped
     healthcheck:
-      test: ["/healthcheck.sh"]
+      test: ["CMD-SHELL", "/healthcheck.sh"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,7 +30,7 @@ services:
 
   ipfs-kit-cluster:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.enhanced
     container_name: ipfs-kit-cluster
     ports:
@@ -64,7 +62,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -83,8 +81,8 @@ services:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false

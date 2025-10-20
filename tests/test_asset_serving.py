@@ -4,7 +4,7 @@ import tempfile
 from fastapi.testclient import TestClient
 
 # Import the dashboard app
-from consolidated_mcp_dashboard import ConsolidatedMCPDashboard
+from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDashboard
 
 
 class TestAssetServing(unittest.TestCase):

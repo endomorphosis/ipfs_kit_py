@@ -1,5 +1,13 @@
 # Multi-stage Dockerfile for IPFS Kit MCP Server with Cluster Support
+# Supports multi-architecture builds (amd64, arm64)
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
 FROM python:3.11-slim as base
+
+# Platform information for debugging
+RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -7,7 +15,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install system dependencies including Go for building from source
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -19,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libffi-dev \
     libssl-dev \
+    golang-go \
     && rm -rf /var/lib/apt/lists/*
 
 # Create application user

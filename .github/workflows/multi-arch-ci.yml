@@ -15,14 +15,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [amd64, arm64, armv7]
-        python-version: ['3.9', '3.10', '3.11']
-        exclude:
-          # Skip some combinations to save CI time
-          - arch: armv7
-            python-version: '3.9'
-          - arch: armv7
-            python-version: '3.11'
+        arch: [amd64, arm64]
+        python-version: ['3.10', '3.11', '3.12']
     
     steps:
     - uses: actions/checkout@v4
@@ -41,7 +35,9 @@ jobs:
     - name: Build and test in container
       run: |
         cat > Dockerfile.test <<'EOF'
-        FROM --platform=$BUILDPLATFORM python:$PYTHON_VERSION-slim
+        ARG PYTHON_VERSION=3.11
+        
+        FROM python:${PYTHON_VERSION}-slim-bookworm
         
         # Install system dependencies
         RUN apt-get update && apt-get install -y \
@@ -60,13 +56,11 @@ jobs:
         COPY requirements.txt setup.py pyproject.toml ./
         COPY ipfs_kit_py ipfs_kit_py/
         
-        # Install dependencies with retries for flaky network
+        # Install dependencies
         RUN --mount=type=cache,target=/root/.cache/pip \
             pip install --upgrade pip setuptools wheel && \
-            pip install -e . && \
-            pip install -e .[libp2p] || \
-            (sleep 5 && pip install -e .[libp2p]) || \
-            (sleep 10 && pip install -e .[libp2p])
+            pip install -e .[api] && \
+            pip install pytest pytest-asyncio pytest-timeout pytest-cov
         
         # Copy test files
         COPY tests tests/
@@ -97,11 +91,11 @@ jobs:
   # Native ARM64 testing on self-hosted runner
   test-arm64-native:
     name: Test on Native ARM64 (NVIDIA DGX)
-    runs-on: [self-hosted, ARM64]
+    runs-on: [self-hosted, arm64]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
     
     steps:
     - uses: actions/checkout@v4
@@ -146,7 +140,21 @@ jobs:
           libssl-dev \
           git \
           curl \
+          golang-go \
+          pkg-config \
+          wget \
+          unzip \
+          tar \
+          gzip \
           || echo "Some system packages failed to install, continuing..."
+    
+    - name: Verify build tools
+      run: |
+        echo "Checking build tools availability..."
+        go version || echo "⚠️  Go not available"
+        make --version || echo "⚠️  Make not available"
+        gcc --version || echo "⚠️  GCC not available"
+        git --version || echo "⚠️  Git not available"
     
     - name: Create virtual environment
       run: |
@@ -225,12 +233,12 @@ jobs:
 
   # Native AMD64 testing on self-hosted runner
   test-amd64-native:
-    name: Test on Native AMD64
+    name: Test on Native AMD64 (x86_64)
     runs-on: [self-hosted, amd64]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
     
     steps:
     - uses: actions/checkout@v4
@@ -275,7 +283,21 @@ jobs:
           libssl-dev \
           git \
           curl \
+          golang-go \
+          pkg-config \
+          wget \
+          unzip \
+          tar \
+          gzip \
           || echo "Some system packages failed to install, continuing..."
+    
+    - name: Verify build tools
+      run: |
+        echo "Checking build tools availability..."
+        go version || echo "⚠️  Go not available"
+        make --version || echo "⚠️  Make not available"
+        gcc --version || echo "⚠️  GCC not available"
+        git --version || echo "⚠️  Git not available"
     
     - name: Create virtual environment
       run: |

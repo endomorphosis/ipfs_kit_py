@@ -126,7 +126,7 @@ jobs:
           fi
       
       - name: Upload Benchmark Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: webrtc-benchmark-results
           path: ~/.ipfs_kit/webrtc_benchmarks

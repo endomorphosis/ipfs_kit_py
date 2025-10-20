@@ -129,7 +129,7 @@ jobs:
         fi
     
     - name: Upload AMD64 test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: amd64-test-results-py${{ matrix.python-version }}
@@ -196,7 +196,7 @@ jobs:
         done
     
     - name: Upload AMD64 build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: amd64-python-packages
         path: dist/
@@ -327,7 +327,7 @@ jobs:
     
     steps:
     - name: Download AMD64 build artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: amd64-python-packages
         path: dist/
@@ -348,7 +348,7 @@ jobs:
         fetch-depth: 0
     
     - name: Download AMD64 build artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: amd64-python-packages
         path: dist/
