@@ -41,7 +41,11 @@ jobs:
     - name: Build and test in container
       run: |
         cat > Dockerfile.test <<'EOF'
-        FROM --platform=$BUILDPLATFORM python:$PYTHON_VERSION-slim
+        ARG BUILDPLATFORM
+        ARG TARGETPLATFORM
+        ARG PYTHON_VERSION=3.11
+        
+        FROM --platform=$TARGETPLATFORM python:${PYTHON_VERSION}-slim
         
         # Install system dependencies
         RUN apt-get update && apt-get install -y \
