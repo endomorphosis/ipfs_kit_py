@@ -138,7 +138,27 @@ RUN pip install mkdocs mkdocs-material mkdocstrings[python] \
     mkdocs-jupyter mkdocs-mermaid2-plugin
 
 COPY --chown=appuser:appuser docs/ /app/docs/
-COPY --chown=appuser:appuser mkdocs.yml /app/
+# Create default mkdocs.yml if it doesn't exist in the repo
+RUN if [ ! -f mkdocs.yml ]; then \
+        echo "site_name: IPFS Kit Python" > mkdocs.yml && \
+        echo "site_description: Python toolkit for IPFS operations" >> mkdocs.yml && \
+        echo "site_url: https://ipfs-kit-py.readthedocs.io/" >> mkdocs.yml && \
+        echo "" >> mkdocs.yml && \
+        echo "theme:" >> mkdocs.yml && \
+        echo "  name: material" >> mkdocs.yml && \
+        echo "" >> mkdocs.yml && \
+        echo "plugins:" >> mkdocs.yml && \
+        echo "  - search" >> mkdocs.yml && \
+        echo "  - mkdocstrings:" >> mkdocs.yml && \
+        echo "      handlers:" >> mkdocs.yml && \
+        echo "        python:" >> mkdocs.yml && \
+        echo "          options:" >> mkdocs.yml && \
+        echo "            show_source: true" >> mkdocs.yml && \
+        echo "" >> mkdocs.yml && \
+        echo "nav:" >> mkdocs.yml && \
+        echo "  - Home: index.md" >> mkdocs.yml && \
+        echo "  - API Reference: reference/" >> mkdocs.yml; \
+    fi
 COPY --chown=appuser:appuser . /app/src/
 
 # Install package for documentation
