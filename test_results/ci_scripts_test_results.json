@@ -22,7 +22,7 @@
       "exit_code": null,
       "stdout_lines": 0,
       "stderr_lines": 3,
-      "error": "2025-10-20 22:28:47,414 - performance_report - WARNING - Plotting dependencies not available. Install with: pip install pandas matplotlib numpy\n2025-10-20 22:28:47,417 - performance_report - ERROR - N"
+      "error": "2025-10-20 22:33:42,493 - performance_report - WARNING - Plotting dependencies not available. Install with: pip install pandas matplotlib numpy\n2025-10-20 22:33:42,497 - performance_report - ERROR - N"
     },
     {
       "name": "monitor_amd64_installation.py",
@@ -97,7 +97,7 @@
       "help_works": true,
       "runs": true,
       "exit_code": null,
-      "stdout_lines": 46,
+      "stdout_lines": 47,
       "stderr_lines": 0,
       "error": null
     },
