@@ -201,11 +201,11 @@ class MetadataFirstMCP:
 _mcp_wrapper = None
 
 
-def get_mcp_wrapper() -> MCPMetadataWrapper:
+def get_mcp_wrapper() -> MetadataFirstMCP:
     """Get the global MCP metadata wrapper instance."""
     global _mcp_wrapper
     if _mcp_wrapper is None:
-        _mcp_wrapper = MCPMetadataWrapper()
+        _mcp_wrapper = MetadataFirstMCP()
     return _mcp_wrapper
 
 
