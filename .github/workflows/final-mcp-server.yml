@@ -219,7 +219,7 @@ jobs:
     - name: Test Docker Compose
       run: |
         # Start services
-        docker-compose -f docker-compose.final.yml up -d
+        docker compose -f docker-compose.final.yml up -d
         
         # Wait for service to be ready
         sleep 15
@@ -233,7 +233,7 @@ jobs:
           sleep 3
           if [ $i -eq 20 ]; then
             echo "❌ Docker Compose service failed to respond"
-            docker-compose -f docker-compose.final.yml logs
+            docker compose -f docker-compose.final.yml logs
             exit 1
           fi
         done
@@ -243,7 +243,7 @@ jobs:
         curl -f http://localhost:9998/mcp/tools
         
         # Cleanup
-        docker-compose -f docker-compose.final.yml down
+        docker compose -f docker-compose.final.yml down
         
         echo "✅ Docker Compose tests passed!"
 

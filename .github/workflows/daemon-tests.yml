@@ -181,7 +181,7 @@ jobs:
       - name: Test cluster deployment
         run: |
           cd docker
-          docker-compose -f docker-compose.enhanced.yml up -d ipfs-kit
+          docker compose -f docker-compose.enhanced.yml up -d ipfs-kit
           
           # Wait for services to be ready
           sleep 60
@@ -195,7 +195,7 @@ jobs:
           echo "✅ Primary node healthy"
           
           # Cleanup
-          docker-compose -f docker-compose.enhanced.yml down
+          docker compose -f docker-compose.enhanced.yml down
           
   daemon-stress-tests:
     name: Daemon Stress Tests
