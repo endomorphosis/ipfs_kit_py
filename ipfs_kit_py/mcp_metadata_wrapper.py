@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional, Callable, Union
 from pathlib import Path
 
 from .metadata_manager import get_metadata_manager
+from .service_registry import get_service_registry
 
 logger = logging.getLogger(__name__)
 
