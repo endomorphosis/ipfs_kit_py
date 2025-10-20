@@ -75,56 +75,6 @@ class MetadataFirstMCP:
                     return result
                 except Exception as e:
                     logger.error(f"Library call failed for {func.__name__}: {e}")
-=======
-        self._cache = {}
-        
-    def metadata_first(self, metadata_key: Optional[str] = None, cache_ttl: int = 300):
-        """
-        Decorator that checks metadata first before calling the wrapped function.
-        
-        Args:
-            metadata_key: Key to check in metadata (if None, uses function name)
-            cache_ttl: Cache time-to-live in seconds
-        """
-        def decorator(func: Callable) -> Callable:
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                # Determine metadata key
-                key = metadata_key or func.__name__
-                
-                # Check cache first
-                cache_key = f"{key}:{hash(str(args) + str(sorted(kwargs.items())))}"
-                cached_result = self._get_cached_result(cache_key, cache_ttl)
-                if cached_result is not None:
-                    logger.debug(f"Returning cached result for {key}")
-                    return cached_result
-                
-                # Check metadata
-                metadata_result = self.metadata_manager.get_metadata(key)
-                if metadata_result is not None:
-                    logger.info(f"Found metadata for {key}, using local data")
-                    self._cache_result(cache_key, metadata_result)
-                    return metadata_result
-                
-                # Fall back to original function
-                logger.debug(f"No metadata found for {key}, calling original function")
-                try:
-                    result = func(*args, **kwargs)
-                    
-                    # Store result in metadata for future use
-                    if result is not None:
-                        self.metadata_manager.set_metadata(key, result)
-                        self._cache_result(cache_key, result)
-                    
-                    return result
-                    
-                except Exception as e:
-                    logger.error(f"Error in {func.__name__}: {e}")
-                    # Check if we have stale metadata as fallback
-                    stale_metadata = self.metadata_manager.get_metadata(f"{key}_stale")
-                    if stale_metadata is not None:
-                        logger.warning(f"Using stale metadata for {key} due to error")
-                        return stale_metadata
                     raise
                     
             return wrapper
