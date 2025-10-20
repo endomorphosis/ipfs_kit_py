@@ -1,11 +1,17 @@
 # Multi-stage Dockerfile for production builds
 # Based on generative-protein-binder-design Docker patterns
+# Supports multi-architecture builds (amd64, arm64)
 
 ARG PYTHON_VERSION=3.11
 ARG BUILD_TYPE=production
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 # Base stage with Python and system dependencies
 FROM python:${PYTHON_VERSION}-slim-bookworm AS base
+
+# Platform information for debugging
+RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

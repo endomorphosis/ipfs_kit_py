@@ -97,7 +97,7 @@ jobs:
   # Native ARM64 testing on self-hosted runner
   test-arm64-native:
     name: Test on Native ARM64 (NVIDIA DGX)
-    runs-on: [self-hosted, ARM64]
+    runs-on: [self-hosted, arm64]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
@@ -225,7 +225,7 @@ jobs:
 
   # Native AMD64 testing on self-hosted runner
   test-amd64-native:
-    name: Test on Native AMD64
+    name: Test on Native AMD64 (x86_64)
     runs-on: [self-hosted, amd64]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:

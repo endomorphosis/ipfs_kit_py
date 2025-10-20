@@ -1,5 +1,13 @@
 # Multi-stage Dockerfile for IPFS Kit MCP Server with Cluster Support
+# Supports multi-architecture builds (amd64, arm64)
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
 FROM python:3.11-slim as base
+
+# Platform information for debugging
+RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

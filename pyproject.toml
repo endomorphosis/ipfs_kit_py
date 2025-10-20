@@ -27,6 +27,9 @@ classifiers = [
     "Topic :: System :: Distributed Computing",
     "Topic :: Database",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    # Architecture support
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
 ]
 dependencies = [
     "requests>=2.28.0",
