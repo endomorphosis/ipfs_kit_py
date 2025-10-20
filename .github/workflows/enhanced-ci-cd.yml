@@ -91,11 +91,11 @@ jobs:
           
       - name: Run comprehensive tests
         run: |
-          python test_daemon_multiprocessing_comprehensive.py
+          pytest tests/unit/test_daemon_manager_complete.py -v
           
       - name: Run performance tests
         run: |
-          python test_performance_multiprocessing.py
+          pytest tests/integration/test_performance_metrics.py -v
           
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -253,7 +253,7 @@ jobs:
           
       - name: Run performance benchmarks
         run: |
-          python test_performance_multiprocessing.py --benchmark
+          pytest tests/performance/test_vfs_performance.py -v --benchmark
           
       - name: Upload performance results
         uses: actions/upload-artifact@v4

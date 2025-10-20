@@ -51,7 +51,9 @@ jobs:
           
       - name: Run daemon comprehensive tests
         run: |
-          python test_daemon_multiprocessing_comprehensive.py
+          pytest tests/unit/test_daemon_manager_complete.py -v
+          pytest tests/unit/test_daemon_startup.py -v
+          pytest tests/integration/test_daemon_status.py -v
           
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -81,7 +83,8 @@ jobs:
           
       - name: Run performance tests
         run: |
-          python test_performance_multiprocessing.py
+          pytest tests/integration/test_performance_metrics.py -v
+          pytest tests/performance/test_vfs_performance.py -v
           
       - name: Upload performance results
         uses: actions/upload-artifact@v4
