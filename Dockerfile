@@ -63,8 +63,6 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python development tools
 RUN pip install --upgrade pip setuptools wheel
-COPY requirements-dev.txt requirements-dev.txt
-RUN pip install -r requirements-dev.txt
 
 # Copy source code
 COPY --chown=appuser:appuser . .
@@ -81,9 +79,7 @@ CMD ["python", "-m", "ipfs_kit_py"]
 FROM development AS testing
 ENV TESTING=1
 
-# Install testing dependencies
-COPY requirements-test.txt requirements-test.txt
-RUN pip install -r requirements-test.txt
+# Install testing dependencies are provided by dev/test extras in previous stage
 
 # Run tests by default
 CMD ["pytest", "tests/", "--verbose", "--cov=ipfs_kit_py"]
