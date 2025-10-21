@@ -1971,6 +1971,10 @@ if __name__ == "__main__":
             except (subprocess.CalledProcessError, FileNotFoundError):
                 logger.error(f"Required build tool '{tool}' not found")
                 return False
+
+        if not self._ensure_jq_available():
+            logger.error("jq is required for Lotus source builds")
+            return False
         
         # Create temporary directory for building
         build_dir = tempfile.mkdtemp(prefix="lotus_build_")
@@ -2150,6 +2154,53 @@ if __name__ == "__main__":
         except Exception as e:
             logger.error(f"Unexpected error installing Go: {e}")
             return False
+
+    def _ensure_jq_available(self):
+        """Ensure jq is available for Lotus source builds."""
+        if shutil.which("jq"):
+            return True
+
+        system = platform.system().lower()
+        arch = platform.machine().lower()
+
+        jq_downloads = {
+            ("linux", "x86_64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64", "jq"),
+            ("linux", "amd64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64", "jq"),
+            ("darwin", "x86_64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-amd64", "jq"),
+            ("darwin", "arm64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-arm64", "jq"),
+            ("windows", "x86_64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-win64.exe", "jq.exe"),
+            ("windows", "amd64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-win64.exe", "jq.exe"),
+        }
+
+        download_key = (system, arch)
+        if download_key not in jq_downloads:
+            logger.error(
+                "jq is required for Lotus builds but cannot be automatically installed on %s/%s.",
+                system,
+                arch,
+            )
+            return False
+
+        jq_url, jq_filename = jq_downloads[download_key]
+        target_dir = os.path.join(self.bin_path, "build-tools")
+        os.makedirs(target_dir, exist_ok=True)
+        jq_path = os.path.join(target_dir, jq_filename)
+
+        logger.info("jq not found; downloading portable binary for Lotus build...")
+        try:
+            urllib.request.urlretrieve(jq_url, jq_path)
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.error("Failed to download jq: %s", exc)
+            if os.path.exists(jq_path):
+                os.remove(jq_path)
+            return False
+
+        if system != "windows":
+            os.chmod(jq_path, 0o755)
+
+        os.environ["PATH"] = f"{target_dir}:{os.environ.get('PATH', '')}"
+        logger.info("jq installed at %s", jq_path)
+        return True
 
     def install_lotus_daemon(self):
         """
