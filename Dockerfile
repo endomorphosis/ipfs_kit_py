@@ -82,8 +82,8 @@ ENV TESTING=1
 
 # Install testing dependencies are provided by dev/test extras in previous stage
 
-# Run tests by default
-CMD ["pytest", "tests/", "--verbose", "--cov=ipfs_kit_py"]
+# Run tests by default; pass '.' to ignore restrictive testpaths and discover root tests
+CMD ["pytest", "--verbose", "--cov=ipfs_kit_py", "."]
 
 # Production build stage
 FROM base AS builder
