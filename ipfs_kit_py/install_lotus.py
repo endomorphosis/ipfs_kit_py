@@ -2090,7 +2090,7 @@ if __name__ == "__main__":
             return True
             
         # Get release information
-    version = self.metadata.get("version") or self.get_latest_lotus_version()
+        version = self.metadata.get("version") or self.get_latest_lotus_version()
         logger.info(f"Installing Lotus version {version}")
         
         release_info = self.get_release_info(version)
