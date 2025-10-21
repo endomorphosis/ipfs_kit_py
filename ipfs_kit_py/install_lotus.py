@@ -46,6 +46,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger("install_lotus")
 
+DEFAULT_AUTO_INSTALL_DEPS = False
+APT_LIKE_DISTROS = {
+    "debian",
+    "ubuntu",
+    "linuxmint",
+    "pop",
+    "pop-os",
+    "raspbian",
+    "elementary",
+    "zorin",
+}
+RPM_DISTROS = {"fedora", "centos", "rhel", "rocky", "almalinux", "amazon", "oracle"}
+APK_DISTROS = {"alpine"}
+PACMAN_DISTROS = {"arch", "manjaro"}
+REQUIRED_DEPENDENCY_PACKAGES = {
+    "apt": ["hwloc", "libhwloc-dev", "mesa-opencl-icd", "ocl-icd-opencl-dev"],
+    "rpm": ["hwloc", "hwloc-devel", "opencl-headers", "ocl-icd-devel"],
+    "apk": ["hwloc", "hwloc-dev", "opencl-headers", "opencl-icd-loader-dev"],
+    "pacman": ["hwloc", "opencl-headers", "opencl-icd-loader"],
+}
+BREW_DEPENDENCIES = ["hwloc"]
+
 # Default Lotus release information
 DEFAULT_LOTUS_VERSION = "1.24.0"
 LOTUS_GITHUB_API_URL = "https://api.github.com/repos/filecoin-project/lotus/releases"
@@ -85,7 +107,8 @@ class install_lotus:
                     - force: Force reinstallation even if already installed
                     - bin_dir: Custom binary directory path
                     - skip_params: Skip parameter download
-                    - auto_install_deps: Automatically install dependencies (default: True)
+                                        - auto_install_deps: Automatically install dependencies (default: False).
+                                            Set to True or export IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS=1 to opt-in.
         """
         # Initialize basic properties first
         self.resources = resources or {}
@@ -102,9 +125,22 @@ class install_lotus:
         self.bin_path = "/".join(self.bin_path)
         os.makedirs(self.bin_path, exist_ok=True)
         
+        # Determine whether system dependency installation is allowed
+        metadata_auto_install = self.metadata.get("auto_install_deps")
+        if metadata_auto_install is None:
+            env_value = (
+                os.environ.get("IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS", "")
+                or os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "")
+            ).strip().lower()
+            if env_value:
+                self.auto_install_deps = env_value in {"1", "true", "yes", "on"}
+            else:
+                self.auto_install_deps = DEFAULT_AUTO_INSTALL_DEPS
+        else:
+            self.auto_install_deps = bool(metadata_auto_install)
+
         # Check and install system dependencies if needed
-        if self.metadata.get("auto_install_deps", True):
-            self._install_system_dependencies()
+        self._install_system_dependencies()
         
         # Import multiformat handler if available
         if "ipfs_multiformats" in list(self.resources.keys()):
@@ -745,6 +781,24 @@ class install_lotus:
         if self._check_hwloc_library_direct():
             logger.info("Found libhwloc library installed on the system")
             return True
+
+        if not getattr(self, "auto_install_deps", False):
+            hint = self._dependency_install_hint(os_name)
+            logger.error(
+                "Required Lotus system dependencies are missing and automatic installation"
+                " is disabled."
+            )
+            if hint:
+                logger.error(hint)
+            message = (
+                "Lotus system dependencies were not detected. Install them before rerunning the"
+                " installer or opt-in via metadata['auto_install_deps']=True."
+            )
+            if hint:
+                message = f"{message}\n{hint}"
+            raise RuntimeError(message)
+
+        logger.info("Automatic dependency installation enabled; attempting to install prerequisites.")
             
         # Continue with OS-specific package management
         if os_name == "linux":
@@ -840,6 +894,59 @@ class install_lotus:
                 
         # Library not found
         return False
+
+    def _dependency_install_hint(self, os_name):
+        """Provide installation guidance for system dependencies."""
+        distro = ""
+        if os_name == "linux":
+            try:
+                distro = (self._detect_linux_distribution() or "").lower()
+            except Exception:
+                distro = ""
+
+        if distro in APT_LIKE_DISTROS:
+            packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["apt"])
+            return (
+                "Install Lotus prerequisites with:"
+                f" sudo apt-get update && sudo apt-get install -y {packages}"
+            )
+
+        if distro in RPM_DISTROS:
+            packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["rpm"])
+            install_cmd = "dnf" if distro == "fedora" else "yum"
+            return (
+                "Install Lotus prerequisites with:"
+                f" sudo {install_cmd} install -y {packages}"
+            )
+
+        if distro in APK_DISTROS:
+            packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["apk"])
+            return (
+                "Install Lotus prerequisites with:"
+                f" sudo apk add {packages}"
+            )
+
+        if distro in PACMAN_DISTROS:
+            packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["pacman"])
+            return (
+                "Install Lotus prerequisites with:"
+                f" sudo pacman -S --needed {packages}"
+            )
+
+        if os_name == "darwin":
+            packages = " ".join(BREW_DEPENDENCIES)
+            return f"Install Lotus prerequisites with: brew install {packages}"
+
+        if os_name == "windows":
+            return (
+                "Install Lotus prerequisites by installing hwloc and the OpenCL ICD loader,"
+                " then ensure their DLLs are discoverable via PATH."
+            )
+
+        return (
+            "Install Lotus prerequisites by ensuring libhwloc and an OpenCL ICD loader"
+            " are installed via your system package manager."
+        )
 
     def _check_package_manager_available(self, distro_deps):
         """

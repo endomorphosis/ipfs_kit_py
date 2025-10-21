@@ -32,6 +32,10 @@ RUN apt-get update && apt-get install -y \
     golang-go \
     make \
     pkg-config \
+    hwloc \
+    libhwloc-dev \
+    mesa-opencl-icd \
+    ocl-icd-opencl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user and home directory with proper ownership

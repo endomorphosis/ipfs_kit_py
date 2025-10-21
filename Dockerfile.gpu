@@ -31,6 +31,10 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gnupg2 \
     software-properties-common \
+    hwloc \
+    libhwloc-dev \
+    mesa-opencl-icd \
+    ocl-icd-opencl-dev \
     libcudnn8 \
     libcudnn8-dev \
     libnccl2 \
@@ -156,6 +160,10 @@ ENV BUILD_TYPE=production
 RUN apt-get update && apt-get install -y \
     python${PYTHON_VERSION:-3.11} \
     python3-pip \
+    hwloc \
+    libhwloc-dev \
+    mesa-opencl-icd \
+    ocl-icd-opencl-dev \
     libcudnn8 \
     libnccl2 \
     && ln -sf /usr/bin/python${PYTHON_VERSION:-3.11} /usr/bin/python \
