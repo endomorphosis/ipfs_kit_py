@@ -106,14 +106,52 @@ class IPFSKitDaemon:
             description="Backend daemon for IPFS Kit filesystem management",
             version="1.0.0"
         )
+        # Simple status endpoint expected by CI scripts
+        @app.get("/api/v1/status")
+        async def get_status():
+            now = datetime.now()
+            uptime = None
+            if self.start_time:
+                uptime = (now - self.start_time).total_seconds()
+            return JSONResponse(content={
+                "status": "ok",
+                "running": bool(self.running),
+                "host": self.host,
+                "port": self.port,
+                "uptime_seconds": uptime,
+                "timestamp": now.isoformat(),
+            })
         
         # Health endpoints
         @app.get("/health")
         async def get_health():
             """Get comprehensive daemon health status."""
             if not self.health_monitor:
-                raise HTTPException(status_code=503, detail="Health monitor not initialized")
+                # Provide minimal health response for early probes
+                now = datetime.now().isoformat()
+                return JSONResponse(content={
+                    "status": "starting",
+                    "running": bool(self.running),
+                    "host": self.host,
+                    "port": self.port,
+                    "timestamp": now,
+                })
             
+            health_status = await self.health_monitor.get_comprehensive_health_status()
+            return JSONResponse(content=health_status)
+
+        # Alias expected by CI scripts
+        @app.get("/api/v1/health")
+        async def get_health_v1():
+            if not self.health_monitor:
+                now = datetime.now().isoformat()
+                return JSONResponse(content={
+                    "status": "starting",
+                    "running": bool(self.running),
+                    "host": self.host,
+                    "port": self.port,
+                    "timestamp": now,
+                })
             health_status = await self.health_monitor.get_comprehensive_health_status()
             return JSONResponse(content=health_status)
         

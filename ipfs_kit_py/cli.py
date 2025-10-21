@@ -264,9 +264,14 @@ class FastCLI:
         
         # Import and start the daemon
         try:
-            from mcp.ipfs_kit.daemon.ipfs_kit_daemon import main as daemon_main
+            from mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
             print(f"Starting IPFS-Kit daemon API server on {host}:{port}")
-            await daemon_main()
+            daemon = IPFSKitDaemon(host=host, port=port, config_dir=config_dir, data_dir=data_dir)
+            # Adjust logging if requested
+            if debug:
+                import logging
+                logging.getLogger().setLevel(logging.DEBUG)
+            await daemon.start()
         except ImportError as e:
             print(f"Failed to import daemon module: {e}")
             print("Make sure ipfs_kit_py is properly installed with daemon support")
