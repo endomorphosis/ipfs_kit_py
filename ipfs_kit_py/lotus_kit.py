@@ -22,13 +22,19 @@ import requests
 # Flag to indicate lotus_kit is available
 LOTUS_KIT_AVAILABLE = True
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+try:
+    from urllib3.util.retry import Retry
+except Exception:  # Fallback for older requests vendoring
+    from requests.packages.urllib3.util.retry import Retry  # type: ignore
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 # For storing the exact path to the lotus binary when found
 LOTUS_BINARY_PATH = None
+
+# Precompute package directory for relative bin lookups
+package_dir = os.path.dirname(os.path.realpath(__file__))
 
 # Check if Lotus is actually available by trying to run it
 try:
@@ -37,8 +43,6 @@ try:
 except (subprocess.SubprocessError, FileNotFoundError, OSError):
     # Try with specific binary path in bin directory
     try:
-        # Use absolute path to the package's bin directory
-        package_dir = os.path.dirname(os.path.realpath(__file__))
         bin_path = os.path.join(package_dir, "bin", "lotus")
         result = subprocess.run([bin_path, "--version"], capture_output=True, timeout=2)
         LOTUS_AVAILABLE = result.returncode == 0
@@ -185,8 +189,20 @@ class lotus_kit:
         # Thread pool for parallel operations
         self._executor = ThreadPoolExecutor(max_workers=self.metadata.get("max_workers", 5))
         
-        # Check and install dependencies if needed
-        install_deps = self.metadata.get("install_dependencies", True)
+        # Check and install dependencies if needed (respect environment flags)
+        def _env_flag(name: str) -> bool:
+            val = os.environ.get(name, "").strip().lower()
+            return val in {"1", "true", "yes", "on"}
+
+        # Determine whether we're allowed to auto-install heavy Lotus deps
+        env_auto_install = _env_flag("IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS") or _env_flag("IPFS_KIT_AUTO_INSTALL_DEPS")
+
+        install_deps = self.metadata.get("install_dependencies", None)
+        if install_deps is None:
+            # Default to environment preference; if not set, default to False in containers
+            install_deps = bool(env_auto_install)
+            self.metadata["install_dependencies"] = install_deps
+
         if install_deps and not LOTUS_AVAILABLE:
             self._check_and_install_dependencies()
         
@@ -354,22 +370,12 @@ class lotus_kit:
         3. LOTUS_TOKEN environment variable
         4. Default token file location
         
-        Returns:
-            str: The authorization token or empty string if not found
-        """
-        # Check direct metadata
-        token = self.metadata.get("token", "")
-        if token:
-            return token
-            
-        # Check token file specified in metadata
-        token_file = self.metadata.get("token_file")
-        if token_file and os.path.exists(token_file):
-            try:
-                with open(token_file, 'r') as f:
-                    return f.read().strip()
-            except Exception as e:
-                logger.warning(f"Failed to read token from {token_file}: {str(e)}")
+        retry_strategy = Retry(
+            total=max_retries,
+            backoff_factor=backoff_factor,
+            status_forcelist=status_forcelist,
+            allowed_methods=["GET", "POST"]
+        )
                 
         # Check environment variable
         token = os.environ.get("LOTUS_TOKEN", "")
@@ -605,14 +611,24 @@ class lotus_kit:
             return True
             
         try:
+            # Respect environment flags overriding any defaults to avoid heavy installs in containers
+            def _env_flag(name: str) -> bool:
+                val = os.environ.get(name, "").strip().lower()
+                return val in {"1", "true", "yes", "on"}
+
+            env_auto_install = _env_flag("IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS") or _env_flag("IPFS_KIT_AUTO_INSTALL_DEPS")
+            if not env_auto_install:
+                logger.info("Lotus auto-install disabled by environment; skipping dependency installation")
+                return False
             # Try to import and use the install_lotus module
             from .install_lotus import install_lotus as LotusInstaller
             
-            # Create installer with auto_install_deps set to True
+            # Create installer with auto_install_deps respecting env flags
             installer_metadata = {
-                "auto_install_deps": True,
+                "auto_install_deps": True if env_auto_install else False,
                 "force": False,  # Only install if not already installed
-                "skip_params": True,  # Skip parameter download for faster setup,
+                "skip_params": True,  # Skip parameter download for faster setup
+                "download_params": False,
                 "bin_dir": os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "bin")
             }
             

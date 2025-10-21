@@ -264,7 +264,11 @@ class FastCLI:
         
         # Import and start the daemon
         try:
-            from mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
+            try:
+                from mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
+            except ImportError:
+                # Fallback to packaged path
+                from ipfs_kit_py.mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
             print(f"Starting IPFS-Kit daemon API server on {host}:{port}")
             daemon = IPFSKitDaemon(host=host, port=port, config_dir=config_dir, data_dir=data_dir)
             # Adjust logging if requested
