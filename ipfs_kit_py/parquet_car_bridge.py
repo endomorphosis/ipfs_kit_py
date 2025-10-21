@@ -13,6 +13,8 @@ Features:
 6. Dashboard API endpoints for monitoring and querying
 """
 
+from __future__ import annotations
+
 import os
 import json
 import logging
@@ -31,6 +33,11 @@ try:
     from pyarrow.dataset import dataset
     ARROW_AVAILABLE = True
 except ImportError:
+    # Keep names bound to avoid import-time NameError in annotations when PyArrow isn't installed
+    pa = None  # type: ignore[assignment]
+    pq = None  # type: ignore[assignment]
+    pc = None  # type: ignore[assignment]
+    dataset = None  # type: ignore[assignment]
     ARROW_AVAILABLE = False
 
 # Import IPLD CAR dependencies

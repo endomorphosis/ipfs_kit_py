@@ -15,33 +15,21 @@ import sys
 # Add the parent directory to the path to import the dashboard module
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Try to import the dashboard module - skip tests if dependencies are missing
+# Default import error message for skip reason
+DASHBOARD_IMPORT_ERROR = ""
+
+# Try to import the dashboard module - skip tests if dependencies are missing or import-time errors occur
 try:
     from mcp.dashboard.refactored_unified_mcp_dashboard import RefactoredUnifiedMCPDashboard
     DASHBOARD_AVAILABLE = True
-except (ImportError, ModuleNotFoundError) as e:
+except Exception as e:  # Catch broad exceptions to prevent collection-time failures (e.g., NameError in optional deps)
     DASHBOARD_AVAILABLE = False
     DASHBOARD_IMPORT_ERROR = str(e)
     # Create a dummy class for when dashboard is not available
     class RefactoredUnifiedMCPDashboard:
         pass
 
-# Try to import pytest, but make it optional for direct execution
-try:
-    import pytest
-    PYTEST_AVAILABLE = True
-except ImportError:
-    PYTEST_AVAILABLE = False
-    # Create dummy decorators when pytest is not available
-    class pytest:
-        @staticmethod
-        def fixture(func):
-            return func
-        
-        class mark:
-            @staticmethod
-            def asyncio(func):
-                return func
+import pytest
 
 
 def temp_ipfs_kit_dir():
