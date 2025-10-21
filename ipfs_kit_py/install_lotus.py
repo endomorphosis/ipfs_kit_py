@@ -1910,19 +1910,58 @@ if __name__ == "__main__":
         Returns:
             True if successful, False otherwise
         """
-    logger.info(f"Building Lotus from source (version {version})...")
+        # Default to string form for consistent logging and git branch usage.
+        version_str = str(version) if version is not None else "v1.24.0"
+        branch = version_str if version_str.startswith("v") else f"v{version_str}"
 
-    branch = version if isinstance(version, str) and version.startswith("v") else f"v{version}"
+        logger.info(f"Building Lotus from source (version {version_str})...")
         
-        # Check if Go is installed
+        required_go = (1, 23, 10)
+        required_go_str = ".".join(str(part) for part in required_go)
+
+        def _parse_go_version(output):
+            match = re.search(r"go(\d+)\.(\d+)(?:\.(\d+))?", output)
+            if not match:
+                return None
+            major, minor, patch = match.groups()
+            return int(major), int(minor), int(patch or 0)
+
+        go_version_str = None
         try:
-            go_version_output = subprocess.check_output(["go", "version"], stderr=subprocess.STDOUT)
-            logger.info(f"Go is installed: {go_version_output.decode().strip()}")
+            go_version_str = subprocess.check_output(
+                ["go", "version"],
+                stderr=subprocess.STDOUT,
+                text=True,
+            ).strip()
+            logger.info(f"Go is installed: {go_version_str}")
         except (subprocess.CalledProcessError, FileNotFoundError):
             logger.info("Go is not installed. Installing Go...")
             if not self._install_go_for_build():
                 logger.error("Failed to install Go. Cannot build from source.")
                 return False
+        else:
+            go_version_tuple = _parse_go_version(go_version_str)
+            if go_version_tuple is None or go_version_tuple < required_go:
+                reported_version = go_version_str.split()[2] if go_version_str else "unknown"
+                logger.info(
+                    "Go version %s is below required go%s. Upgrading Go for Lotus build...",
+                    reported_version,
+                    required_go_str,
+                )
+                if not self._install_go_for_build():
+                    logger.error("Failed to upgrade Go. Cannot build from source.")
+                    return False
+
+        try:
+            go_version_str = subprocess.check_output(
+                ["go", "version"],
+                stderr=subprocess.STDOUT,
+                text=True,
+            ).strip()
+            logger.info(f"Using Go version: {go_version_str}")
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            logger.error(f"Unable to verify Go installation: {exc}")
+            return False
         
         # Check for required build tools
         required_tools = ["make", "git"]
@@ -2050,7 +2089,7 @@ if __name__ == "__main__":
         machine = platform.machine()
         
         # Determine Go download URL based on system and architecture
-        go_version = "1.21.5"  # Use a stable version compatible with Lotus
+        go_version = "1.24.1"  # Minimum version required for current Lotus builds
         
         if system == "Linux":
             if "aarch64" in machine or "arm64" in machine.lower():
@@ -2085,7 +2124,15 @@ if __name__ == "__main__":
             os.makedirs(go_install_dir, exist_ok=True)
             
             logger.info(f"Extracting Go to {go_install_dir}...")
+            existing_go_dir = os.path.join(go_install_dir, "go")
+            if os.path.exists(existing_go_dir):
+                shutil.rmtree(existing_go_dir, ignore_errors=True)
+
             subprocess.run(["tar", "-C", go_install_dir, "-xzf", go_tar], check=True)
+            try:
+                os.remove(go_tar)
+            except OSError:
+                pass
             
             # Update PATH for current process
             go_bin = os.path.join(go_install_dir, "go", "bin")

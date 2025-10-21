@@ -1900,16 +1900,56 @@ if __name__ == "__main__":
 
     def build_lotus_from_source(self, version="v1.24.0"):
         """Build Lotus from source when the prebuilt binary is unusable."""
-        logger.info(f"Building Lotus from source (version {version})...")
+        version_str = str(version) if version is not None else "v1.24.0"
+        branch = version_str if version_str.startswith("v") else f"v{version_str}"
+        logger.info(f"Building Lotus from source (version {version_str})...")
 
+        required_go = (1, 23, 10)
+        required_go_str = ".".join(str(part) for part in required_go)
+
+        def _parse_go_version(output):
+            match = re.search(r"go(\d+)\.(\d+)(?:\.(\d+))?", output)
+            if not match:
+                return None
+            major, minor, patch = match.groups()
+            return int(major), int(minor), int(patch or 0)
+
+        go_version_str = None
         try:
-            go_version_output = subprocess.check_output(["go", "version"], stderr=subprocess.STDOUT)
-            logger.info(f"Go is installed: {go_version_output.decode().strip()}")
+            go_version_str = subprocess.check_output(
+                ["go", "version"],
+                stderr=subprocess.STDOUT,
+                text=True,
+            ).strip()
+            logger.info(f"Go is installed: {go_version_str}")
         except (subprocess.CalledProcessError, FileNotFoundError):
             logger.info("Go is not installed. Installing Go...")
             if not self._install_go_for_build():
                 logger.error("Failed to install Go. Cannot build from source.")
                 return False
+        else:
+            go_version_tuple = _parse_go_version(go_version_str)
+            if go_version_tuple is None or go_version_tuple < required_go:
+                reported_version = go_version_str.split()[2] if go_version_str else "unknown"
+                logger.info(
+                    "Go version %s is below required go%s. Upgrading Go for Lotus build...",
+                    reported_version,
+                    required_go_str,
+                )
+                if not self._install_go_for_build():
+                    logger.error("Failed to upgrade Go. Cannot build from source.")
+                    return False
+
+        try:
+            go_version_str = subprocess.check_output(
+                ["go", "version"],
+                stderr=subprocess.STDOUT,
+                text=True,
+            ).strip()
+            logger.info(f"Using Go version: {go_version_str}")
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            logger.error(f"Unable to verify Go installation: {exc}")
+            return False
 
         for tool in ["make", "git"]:
             try:
@@ -1927,7 +1967,7 @@ if __name__ == "__main__":
                 "clone",
                 "--depth=1",
                 "--branch",
-                version,
+                branch,
                 "https://github.com/filecoin-project/lotus.git",
                 build_dir,
             ]
