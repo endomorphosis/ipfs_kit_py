@@ -6,6 +6,7 @@ __pycache__/
 build/
 *.egg-info/
 *.egg/
+ipfs_kit_py-*
 config.toml
 *config.toml
 config/config.toml

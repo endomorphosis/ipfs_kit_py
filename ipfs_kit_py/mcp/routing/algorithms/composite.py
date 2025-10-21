@@ -37,14 +37,8 @@ class CompositeRouter(RoutingStrategy):
                        The weights should sum to approximately 1.0
         """
         self.strategies = strategies
-        
-        # Normalize weights to ensure they sum to 1.0
-        total_weight = sum(weight for _, weight in strategies.values())
-        if total_weight > 0:
-            self.strategies = {
-                name: (strategy, weight / total_weight)
-                for name, (strategy, weight) in strategies.items()
-            }
+        # Normalize and correct for floating-point rounding so sum == 1.0
+        self._renormalize_weights()
         
         logger.info(f"Initialized composite router with {len(strategies)} strategies")
     
@@ -170,14 +164,8 @@ class CompositeRouter(RoutingStrategy):
             weight: Strategy weight
         """
         self.strategies[name] = (strategy, weight)
-        
-        # Renormalize weights
-        total_weight = sum(w for _, w in self.strategies.values())
-        if total_weight > 0:
-            self.strategies = {
-                n: (s, w / total_weight)
-                for n, (s, w) in self.strategies.items()
-            }
+        # Renormalize weights (with rounding correction)
+        self._renormalize_weights()
         
         logger.info(f"Added strategy {name} with weight {weight}")
     
@@ -191,13 +179,8 @@ class CompositeRouter(RoutingStrategy):
         if name in self.strategies:
             del self.strategies[name]
             
-            # Renormalize weights
-            total_weight = sum(w for _, w in self.strategies.values())
-            if total_weight > 0:
-                self.strategies = {
-                    n: (s, w / total_weight)
-                    for n, (s, w) in self.strategies.items()
-                }
+            # Renormalize weights (with rounding correction)
+            self._renormalize_weights()
             
             logger.info(f"Removed strategy {name}")
     
@@ -213,13 +196,8 @@ class CompositeRouter(RoutingStrategy):
             strategy, _ = self.strategies[name]
             self.strategies[name] = (strategy, weight)
             
-            # Renormalize weights
-            total_weight = sum(w for _, w in self.strategies.values())
-            if total_weight > 0:
-                self.strategies = {
-                    n: (s, w / total_weight)
-                    for n, (s, w) in self.strategies.items()
-                }
+            # Renormalize weights (with rounding correction)
+            self._renormalize_weights()
             
             logger.info(f"Adjusted weight for {name} to {weight}")
     
@@ -231,3 +209,28 @@ class CompositeRouter(RoutingStrategy):
             Dict[str, float]: Dictionary mapping strategy names to weights
         """
         return {name: weight for name, (_, weight) in self.strategies.items()}
+
+    def _renormalize_weights(self) -> None:
+        """Normalize weights to sum to exactly 1.0 (within float precision).
+
+        This method divides each weight by the total weight and then applies a small
+        correction to the first entry to ensure the exact sum is 1.0 to avoid test
+        failures that compare with strict equality.
+        """
+        if not self.strategies:
+            return
+        total_weight = sum(w for _, w in self.strategies.values())
+        if total_weight <= 0:
+            return
+        items = list(self.strategies.items())  # [(name, (strategy, weight))]
+        normalized = []  # [(name, strategy, norm_weight)]
+        for name, (strategy, w) in items:
+            normalized.append((name, strategy, w / total_weight))
+        # Apply correction for floating point accumulation to guarantee exact 1.0
+        sum_w = sum(w for _, _, w in normalized)
+        delta = 1.0 - sum_w
+        # Add correction to the first entry deterministically
+        name0, strat0, w0 = normalized[0]
+        normalized[0] = (name0, strat0, w0 + delta)
+        # Write back
+        self.strategies = {name: (strategy, w) for name, strategy, w in normalized}
