@@ -212,6 +212,4 @@ ignore = ["E203", "E501"]
 "__init__.py" = ["F401", "F403"]  # Allow unused imports in __init__.py files
 
 [tool.pytest.ini_options]
-testpaths = ["test"]
-python_files = "test_*.py"
-python_functions = "test_*"
+# Keep minimal here; pytest.ini is authoritative for discovery patterns

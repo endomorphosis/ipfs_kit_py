@@ -91,6 +91,7 @@ import logging
 import os
 import platform
 import sys
+from typing import Optional, Any, Callable, TypeVar
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -117,13 +118,13 @@ except ImportError as e:
     
     jit_manager = MockJITManager()
     
-    def require_feature(feature_name: str, error_message: str = None):
-        def decorator(func):
+    def require_feature(feature_name: str, error_message: Optional[str] = None) -> Any:
+        def decorator(func: Any) -> Any:
             return func
         return decorator
     
-    def optional_feature(feature_name: str, fallback_result=None):
-        def decorator(func):
+    def optional_feature(feature_name: str, fallback_result: Optional[Any] = None) -> Any:
+        def decorator(func: Any) -> Any:
             return func
         return decorator
 
@@ -318,16 +319,16 @@ if _DOWNLOAD_BINARIES_AUTOMATICALLY:
             logger.info("Binaries will be downloaded when specific functions are called")
 
 # Use try/except for all imports to handle optional dependencies gracefully
-# Import the transformers integration (DISABLED due to protobuf conflicts)
+# Import the transformers integration (DISABLED by default due to protobuf conflicts)
 try:
-    # DISABLED: from .transformers_integration import TransformersIntegration
-    # The transformers integration causes protobuf conflicts with libp2p
-    raise ImportError("TransformersIntegration disabled to avoid protobuf conflicts")
-    
-    # Create alias for the integration
-    transformers = TransformersIntegration()
-    print(f"TransformersIntegration is instantiated successfully")
-except ImportError:
+    # Keep import guarded; only instantiate if explicitly enabled via env flag
+    if os.environ.get("IPFS_KIT_ENABLE_TRANSFORMERS", "0") == "1":
+        from .transformers_integration import TransformersIntegration  # type: ignore
+        transformers = TransformersIntegration()
+        logger.info("TransformersIntegration enabled via IPFS_KIT_ENABLE_TRANSFORMERS=1")
+    else:
+        raise ImportError("TransformersIntegration disabled by default")
+except Exception:
     # Simple transformers integration using JIT imports
     class SimpleTransformers:
         """Simplified transformers integration with JIT loading."""
@@ -353,7 +354,7 @@ except ImportError:
             raise NotImplementedError("Direct IPFS loading not implemented in this simplified version")
 
     # Export the simple transformers integration - made lazy
-    transformers = None
+    transformers = None  # type: ignore[assignment]
     
     def get_transformers():
         """Get the transformers integration, loading it lazily if needed."""

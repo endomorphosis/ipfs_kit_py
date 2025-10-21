@@ -16,7 +16,7 @@ import logging
 import time
 import json
 import os
-from typing import Dict, List, Optional, Set, Union, Any
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 import hashlib
 import hmac
@@ -26,9 +26,11 @@ import sqlite3
 import tempfile
 import uuid
 
-# Optional JWT support
+# Optional JWT support (stabilize name for type checkers)
+jwt: Any = None  # Will hold the jwt module if available
 try:
-    import jwt
+    import jwt as _pyjwt  # type: ignore
+    jwt = _pyjwt
     HAS_JWT = True
 except ImportError:
     HAS_JWT = False
@@ -58,10 +60,12 @@ class TokenBlacklist:
         self._lock = threading.RLock()
         
         # Set up database path
-        self._db_path = db_path
-        if not self._db_path:
+        _db_path_local = db_path
+        if not _db_path_local:
             temp_dir = tempfile.gettempdir()
-            self._db_path = os.path.join(temp_dir, "mcp_token_blacklist.db")
+            _db_path_local = os.path.join(temp_dir, "mcp_token_blacklist.db")
+        # Ensure it's always a str for sqlite3.connect
+        self._db_path: str = str(_db_path_local)
             
         # Initialize database
         self._init_db()
@@ -838,4 +842,3 @@ class CSRFProtection:
     def header_name(self) -> str:
         """Get the CSRF header name."""
         return self._header_name
-"""
