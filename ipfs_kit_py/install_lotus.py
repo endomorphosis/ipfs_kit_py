@@ -1638,7 +1638,19 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
 
             logger.info("Fetching Filecoin parameters (this may take a while)")
 
-            def _supports_proving_flag() -> bool:
+            sector_size = (
+                self.metadata.get("params_sector_size")
+                or self.metadata.get("sector_size")
+                or os.environ.get("LOTUS_FETCH_PARAMS_SECTOR_SIZE")
+                or "32GiB"
+            )
+
+            def _fetch_params_capabilities() -> Dict[str, bool]:
+                info = {
+                    "proving_flag": False,
+                    "sector_flag": False,
+                    "positional_sector": False,
+                }
                 try:
                     help_result = subprocess.run(
                         [lotus_bin, "fetch-params", "--help"],
@@ -1647,11 +1659,14 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                         text=True,
                         check=False,
                     )
-                    help_text = (help_result.stdout or "") + (help_result.stderr or "")
-                    return "--proving-params" in help_text
+                    help_text = ((help_result.stdout or "") + (help_result.stderr or "")).lower()
+                    info["proving_flag"] = "--proving-params" in help_text
+                    info["sector_flag"] = "--sector-size" in help_text
+                    if "[sectorsize]" in help_text or "<sectorsize>" in help_text:
+                        info["positional_sector"] = True
                 except Exception as exc:  # pragma: no cover - defensive
                     logger.debug("Failed to detect fetch-params flags: %s", exc)
-                    return False
+                return info
 
             def _run_and_log(command):
                 process = subprocess.Popen(
@@ -1672,32 +1687,34 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                 return process.returncode, "".join(output_lines)
 
             base_command = [lotus_bin, "fetch-params"]
-            if _supports_proving_flag():
-                return_code, _ = _run_and_log(base_command + ["--proving-params"])
-                if return_code == 0:
+            capabilities = _fetch_params_capabilities()
+
+            commands_to_try: List[List[str]] = []
+            if capabilities.get("proving_flag"):
+                commands_to_try.append(base_command + ["--proving-params"])
+            if capabilities.get("sector_flag"):
+                commands_to_try.append(base_command + ["--sector-size", sector_size])
+            if capabilities.get("positional_sector"):
+                commands_to_try.append(base_command + [sector_size])
+            commands_to_try.append(base_command)
+
+            seen_commands = set()
+            deduped_commands = []
+            for command in commands_to_try:
+                key = tuple(command)
+                if key not in seen_commands:
+                    deduped_commands.append(command)
+                    seen_commands.add(key)
+
+            last_code = None
+            for command in deduped_commands:
+                logger.info("Running: %s", " ".join(command))
+                last_code, _ = _run_and_log(command)
+                if last_code == 0:
                     logger.info("Parameter download completed")
                     return True
-                logger.error("Parameter download failed with return code %s", return_code)
-                return False
 
-            return_code, output = _run_and_log(base_command)
-            if return_code == 0:
-                logger.info("Parameter download completed")
-                return True
-
-            logger.info("Retrying parameter download with explicit sector size")
-            sector_size = (
-                self.metadata.get("params_sector_size")
-                or self.metadata.get("sector_size")
-                or os.environ.get("LOTUS_FETCH_PARAMS_SECTOR_SIZE")
-                or "32GiB"
-            )
-            return_code, _ = _run_and_log(base_command + [sector_size])
-            if return_code == 0:
-                logger.info("Parameter download completed")
-                return True
-
-            logger.error("Parameter download failed with return code %s", return_code)
+            logger.error("Parameter download failed with return code %s", last_code)
             return False
 
         except subprocess.SubprocessError as exc:
