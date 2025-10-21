@@ -2101,6 +2101,9 @@ if __name__ == "__main__":
             go_bin = os.path.join(go_install_dir, "go", "bin")
             os.environ["PATH"] = f"{go_bin}:{os.environ.get('PATH', '')}"
 
+            go_version_output = subprocess.check_output(["go", "version"], text=True).strip()
+            logger.info(f"Go installed successfully: {go_version_output}")
+
             return True
         except subprocess.CalledProcessError as exc:
             logger.error(f"Failed to install Go: {exc}")

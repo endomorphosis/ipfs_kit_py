@@ -3028,8 +3028,8 @@ WantedBy=multi-user.target
                 return True
             
             # Download and install Go for ARM64
-            go_version = "1.21.5"
-            go_url = f"https://golang.org/dl/go{go_version}.linux-arm64.tar.gz"
+            go_version = "1.24.1"
+            go_url = f"https://go.dev/dl/go{go_version}.linux-arm64.tar.gz"
             
             with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp_file:
                 print(f"Downloading Go from {go_url}")
