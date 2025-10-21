@@ -119,10 +119,17 @@ class install_lotus:
         self.env_path = os.environ.get("PATH", "")
         
         # Bin directory setup - MUST be before _install_system_dependencies
-        self.bin_path = os.path.join(self.this_dir, "bin")
-        self.bin_path = self.bin_path.replace("\\", "/")
-        self.bin_path = self.bin_path.split("/")
-        self.bin_path = "/".join(self.bin_path)
+        default_bin_dir = os.path.join(self.this_dir, "bin")
+        metadata_bin_dir = self.metadata.get("bin_dir")
+        if metadata_bin_dir:
+            if not os.path.isabs(metadata_bin_dir):
+                metadata_bin_dir = os.path.abspath(metadata_bin_dir)
+            self.bin_path = os.path.normpath(metadata_bin_dir)
+        else:
+            self.bin_path = os.path.normpath(default_bin_dir)
+
+        # Keep metadata in sync so downstream helpers see the resolved path
+        self.metadata["bin_dir"] = self.bin_path
         os.makedirs(self.bin_path, exist_ok=True)
         
         # Determine whether system dependency installation is allowed
@@ -1626,36 +1633,73 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
         try:
             env = os.environ.copy()
             env["LOTUS_PATH"] = self.lotus_path
-            
+
             logger.info("Fetching Filecoin parameters (this may take a while)")
-            
-            # Use subprocess.Popen to show real-time output
-            process = subprocess.Popen(
-                [lotus_bin, "fetch-params", "--proving-params"], 
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                universal_newlines=True
-            )
-            
-            # Print output in real-time
-            for line in process.stdout:
-                line = line.strip()
-                if line:
-                    logger.info(line)
-            
-            # Wait for the process to complete
-            process.wait()
-            
-            if process.returncode == 0:
+
+            def _supports_proving_flag() -> bool:
+                try:
+                    help_result = subprocess.run(
+                        [lotus_bin, "fetch-params", "--help"],
+                        env=env,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    help_text = (help_result.stdout or "") + (help_result.stderr or "")
+                    return "--proving-params" in help_text
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.debug("Failed to detect fetch-params flags: %s", exc)
+                    return False
+
+            def _run_and_log(command):
+                process = subprocess.Popen(
+                    command,
+                    env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=True,
+                )
+                output_lines = []
+                if process.stdout is not None:
+                    for line in process.stdout:
+                        clean = line.strip()
+                        if clean:
+                            logger.info(clean)
+                        output_lines.append(line)
+                process.wait()
+                return process.returncode, "".join(output_lines)
+
+            base_command = [lotus_bin, "fetch-params"]
+            if _supports_proving_flag():
+                return_code, _ = _run_and_log(base_command + ["--proving-params"])
+                if return_code == 0:
+                    logger.info("Parameter download completed")
+                    return True
+                logger.error("Parameter download failed with return code %s", return_code)
+                return False
+
+            return_code, output = _run_and_log(base_command)
+            if return_code == 0:
                 logger.info("Parameter download completed")
                 return True
-            else:
-                logger.error(f"Parameter download failed with return code {process.returncode}")
-                return False
-                
-        except subprocess.SubprocessError as e:
-            logger.error(f"Error downloading parameters: {e}")
+
+            logger.info("Retrying parameter download with explicit sector size")
+            sector_size = (
+                self.metadata.get("params_sector_size")
+                or self.metadata.get("sector_size")
+                or os.environ.get("LOTUS_FETCH_PARAMS_SECTOR_SIZE")
+                or "32GiB"
+            )
+            return_code, _ = _run_and_log(base_command + [sector_size])
+            if return_code == 0:
+                logger.info("Parameter download completed")
+                return True
+
+            logger.error("Parameter download failed with return code %s", return_code)
+            return False
+
+        except subprocess.SubprocessError as exc:
+            logger.error(f"Error downloading parameters: {exc}")
             logger.warning("You may need to download parameters manually using 'lotus fetch-params'")
             return False
 
@@ -1728,7 +1772,7 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
             Path to the generated script
         """
         if bin_dir is None:
-            bin_dir = "bin"
+            bin_dir = self.bin_path
             
         script_path = os.path.join("tools", "lotus_helper.py")
         os.makedirs("tools", exist_ok=True)
@@ -3007,12 +3051,15 @@ def main():
     parser = argparse.ArgumentParser(description="Install Lotus for ipfs_kit_py")
     parser.add_argument("--version", help=f"Lotus version to install (default: latest)")
     parser.add_argument("--force", action="store_true", help="Force reinstallation")
-    parser.add_argument("--bin-dir", default="bin", help="Binary directory (default: bin)")
+    parser.add_argument("--bin-dir", default="bin", help="Binary directory (default: bin relative to installer)")
     parser.add_argument("--skip-params", action="store_true", help="Skip parameter download")
     args = parser.parse_args()
     
     # Resolve bin directory to absolute path
-    bin_dir = os.path.abspath(args.bin_dir)
+    if os.path.isabs(args.bin_dir):
+        bin_dir = os.path.normpath(args.bin_dir)
+    else:
+        bin_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), args.bin_dir))
     
     # Create installer with metadata
     metadata = {
