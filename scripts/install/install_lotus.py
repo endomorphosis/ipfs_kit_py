@@ -70,6 +70,7 @@ BREW_DEPENDENCIES = ["hwloc"]
 
 # Default Lotus release information
 DEFAULT_LOTUS_VERSION = "1.24.0"
+DEFAULT_PARAMS_SECTOR_SIZE = "2KiB"
 LOTUS_GITHUB_API_URL = "https://api.github.com/repos/filecoin-project/lotus/releases"
 LOTUS_RELEASE_BASE_URL = "https://github.com/filecoin-project/lotus/releases/download"
 LOTUS_RELEASE_INFO_URL = "https://api.github.com/repos/filecoin-project/lotus/releases/tags/v{version}"
@@ -106,7 +107,7 @@ class install_lotus:
                     - version: Specific Lotus version to install
                     - force: Force reinstallation even if already installed
                     - bin_dir: Custom binary directory path
-                    - skip_params: Skip parameter download
+                    - skip_params: Skip parameter download (default: True)
                                         - auto_install_deps: Automatically install dependencies (default: False).
                                             Set to True or export IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS=1 to opt-in.
         """
@@ -1640,8 +1641,9 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                 self.metadata.get("params_sector_size")
                 or self.metadata.get("sector_size")
                 or os.environ.get("LOTUS_FETCH_PARAMS_SECTOR_SIZE")
-                or "32GiB"
+                or DEFAULT_PARAMS_SECTOR_SIZE
             )
+            logger.info("Parameter download target sector size: %s", sector_size)
 
             def _fetch_params_capabilities() -> Dict[str, bool]:
                 info = {
@@ -3069,7 +3071,23 @@ def main():
     parser.add_argument("--version", help=f"Lotus version to install (default: latest)")
     parser.add_argument("--force", action="store_true", help="Force reinstallation")
     parser.add_argument("--bin-dir", default="bin", help="Binary directory (default: bin relative to installer)")
-    parser.add_argument("--skip-params", action="store_true", help="Skip parameter download")
+    parser.add_argument(
+        "--download-params",
+        dest="skip_params",
+        action="store_false",
+        help="Download Filecoin proving parameters during installation",
+    )
+    parser.add_argument(
+        "--skip-params",
+        dest="skip_params",
+        action="store_true",
+        help="Skip parameter download (default)",
+    )
+    parser.set_defaults(skip_params=True)
+    parser.add_argument(
+        "--params-sector-size",
+        help=f"Sector size hint for fetch-params (default: {DEFAULT_PARAMS_SECTOR_SIZE})",
+    )
     args = parser.parse_args()
     
     # Resolve bin directory to absolute path
@@ -3082,8 +3100,10 @@ def main():
     metadata = {
         "force": args.force,
         "bin_dir": bin_dir,
-        "skip_params": args.skip_params
+        "skip_params": args.skip_params,
     }
+    if args.params_sector_size:
+        metadata["params_sector_size"] = args.params_sector_size
     if args.version:
         metadata["version"] = args.version
     installer = install_lotus(metadata=metadata)
@@ -3106,7 +3126,9 @@ def main():
         installer.generate_lotus_helper_script(bin_dir)
         
         # Download parameters if not skipped
-        if not args.skip_params:
+        if args.skip_params:
+            logger.info("Skipping Filecoin parameter download (enable --download-params to fetch proving files during install)")
+        else:
             installer.download_params()
         
         # Test installation
