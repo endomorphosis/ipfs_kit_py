@@ -42,7 +42,8 @@ RUN groupadd -r appuser && useradd -r -g appuser -d /home/appuser -m appuser \
 
 # Ensure HOME points to a writable directory for pip and other tools
 ENV HOME=/home/appuser \
-    PIP_CACHE_DIR=/home/appuser/.cache/pip
+    PIP_CACHE_DIR=/home/appuser/.cache/pip \
+    PATH=/home/appuser/.local/bin:$PATH
 
 WORKDIR /app
 
