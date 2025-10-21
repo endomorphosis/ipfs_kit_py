@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+SUPERVISOR_CONF="/etc/supervisor/conf.d/supervisord.conf"
+SUPERVISORD_BIN="/usr/bin/supervisord"
+SUPERVISORCTL_BIN="/usr/bin/supervisorctl"
+SUPERVISORD_PID=""
+
 # Default mode is all services if not specified
 MODE=${1:-"all"}
 
@@ -12,7 +17,12 @@ log() {
 # Function to handle signals
 handle_signal() {
   log "Caught signal, shutting down gracefully..."
-  supervisorctl stop all || true
+  if ! "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" stop all >/dev/null 2>&1; then
+    log "Failed to stop services via supervisorctl"
+  fi
+  if [ -n "$SUPERVISORD_PID" ] && kill -0 "$SUPERVISORD_PID" >/dev/null 2>&1; then
+    kill "$SUPERVISORD_PID" >/dev/null 2>&1 || true
+  fi
   exit 0
 }
 
@@ -39,34 +49,45 @@ log "Starting IPFS-Kit in '$MODE' mode..."
 
 # Start supervisord in the background
 log "Starting supervisord..."
-/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+"$SUPERVISORD_BIN" -c "$SUPERVISOR_CONF" &
+SUPERVISORD_PID=$!
 
 # Wait for supervisord to be ready
-sleep 3
+for attempt in $(seq 1 20); do
+  if "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" status >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+done
+
+if ! "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" status >/dev/null 2>&1; then
+  log "supervisord did not become ready"
+  exit 1
+fi
 
 case "$MODE" in
   "daemon-only")
     log "Starting daemon-only mode (IPFS-Kit daemon API on port 9999)"
     # Start only the IPFS-Kit daemon
-    supervisorctl start ipfs-kit-daemon
+    "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" start ipfs-kit-daemon
     ;;
     
   "ipfs-only")
     log "Starting IPFS-only mode (IPFS daemon on ports 4001, 5001, 8080)"
     # Start only IPFS daemon
-    supervisorctl start ipfs
+    "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" start ipfs
     ;;
     
   "all")
     log "Starting all services (IPFS + IPFS-Kit daemon)"
     # Start all default services
-    supervisorctl start ipfs ipfs-kit-daemon
+    "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" start ipfs ipfs-kit-daemon
     ;;
     
   "full")
     log "Starting full stack (IPFS + Cluster + IPFS-Kit daemon + MCP)"
     # Start everything including optional services
-    supervisorctl start ipfs ipfs-cluster ipfs-kit-daemon mcp-server
+    "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" start ipfs ipfs-cluster ipfs-kit-daemon mcp-server
     ;;
     
   *)
