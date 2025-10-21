@@ -690,6 +690,37 @@ class install_lotus:
         
         logger.info("Binary installation completed")
         return installed_binaries
+
+    def _remove_installed_binaries(self, binaries):
+        """Remove previously installed binaries when a fallback path is required."""
+        for binary_path in binaries:
+            try:
+                os.remove(binary_path)
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                logger.warning(f"Failed to remove binary {binary_path}: {exc}")
+
+    def _verify_lotus_binary_execution(self):
+        """Run `lotus --version` to confirm the binary is executable on this system."""
+        lotus_path = os.path.join(self.bin_path, "lotus")
+        if platform.system() == "Windows":
+            lotus_path += ".exe"
+
+        try:
+            output = subprocess.check_output(
+                [lotus_path, "--version"],
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+            )
+            logger.info(output.strip())
+            return True, output.strip()
+        except (subprocess.SubprocessError, FileNotFoundError, OSError) as exc:
+            if isinstance(exc, subprocess.SubprocessError) and hasattr(exc, "output") and exc.output:
+                message = exc.output
+            else:
+                message = str(exc)
+            return False, message
         
     def _install_system_dependencies(self):
         """
@@ -1867,6 +1898,169 @@ if __name__ == "__main__":
         
         return script_path
 
+    def build_lotus_from_source(self, version="v1.24.0"):
+        """Build Lotus from source when the prebuilt binary is unusable."""
+        logger.info(f"Building Lotus from source (version {version})...")
+
+        try:
+            go_version_output = subprocess.check_output(["go", "version"], stderr=subprocess.STDOUT)
+            logger.info(f"Go is installed: {go_version_output.decode().strip()}")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            logger.info("Go is not installed. Installing Go...")
+            if not self._install_go_for_build():
+                logger.error("Failed to install Go. Cannot build from source.")
+                return False
+
+        for tool in ["make", "git"]:
+            try:
+                subprocess.run([tool, "--version"], check=True, capture_output=True)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                logger.error(f"Required build tool '{tool}' not found")
+                return False
+
+        build_dir = tempfile.mkdtemp(prefix="lotus_build_")
+        try:
+            logger.info(f"Using build directory: {build_dir}")
+
+            clone_cmd = [
+                "git",
+                "clone",
+                "--depth=1",
+                "--branch",
+                version,
+                "https://github.com/filecoin-project/lotus.git",
+                build_dir,
+            ]
+            subprocess.run(clone_cmd, check=True, capture_output=True)
+
+            logger.info("Building Lotus binaries (this may take several minutes)...")
+            env = os.environ.copy()
+            env["GO111MODULE"] = "on"
+            env["CGO_ENABLED"] = "1"
+
+            machine = platform.machine().lower()
+            if "aarch64" in machine or "arm64" in machine:
+                env["GOARCH"] = "arm64"
+
+            build_result = subprocess.run(
+                ["make", "all"],
+                cwd=build_dir,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=1800,
+            )
+
+            if build_result.returncode != 0:
+                logger.error(f"Build failed: {build_result.stderr}")
+                return False
+
+            logger.info("Build successful!")
+            os.makedirs(self.bin_path, exist_ok=True)
+
+            binaries_installed = 0
+            for binary in LOTUS_BINARIES:
+                binary_name = binary + (".exe" if platform.system() == "Windows" else "")
+                built_binary = os.path.join(build_dir, binary_name)
+                if not os.path.exists(built_binary):
+                    logger.warning(f"Binary {binary_name} not found after build")
+                    continue
+
+                dest_binary = os.path.join(self.bin_path, binary_name)
+                shutil.copy2(built_binary, dest_binary)
+                if platform.system() != "Windows":
+                    os.chmod(dest_binary, 0o755)
+
+                logger.info(f"Installed {binary_name}")
+                binaries_installed += 1
+
+            if binaries_installed == 0:
+                logger.error("No binaries were installed")
+                return False
+
+            logger.info(f"Installed {binaries_installed} binaries to {self.bin_path}")
+
+            try:
+                lotus_binary = os.path.join(self.bin_path, "lotus")
+                if platform.system() == "Windows":
+                    lotus_binary += ".exe"
+
+                version_output = subprocess.check_output([lotus_binary, "--version"])
+                logger.info(f"Verification successful: {version_output.decode().strip()}")
+                return True
+            except subprocess.CalledProcessError as exc:
+                logger.error(f"Binary verification failed: {exc}")
+                return False
+
+        except subprocess.TimeoutExpired:
+            logger.error("Build timed out after 30 minutes")
+            return False
+        except subprocess.CalledProcessError as exc:
+            logger.error(f"Error during build: {exc}")
+            if hasattr(exc, "output") and exc.output:
+                logger.error(f"Output: {exc.output}")
+            return False
+        except Exception as exc:
+            logger.error(f"Unexpected error during build: {exc}")
+            return False
+        finally:
+            try:
+                shutil.rmtree(build_dir)
+                logger.info(f"Cleaned up build directory: {build_dir}")
+            except Exception as cleanup_exc:
+                logger.warning(f"Could not clean up build directory: {cleanup_exc}")
+
+    def _install_go_for_build(self):
+        """Install Go if required to support source builds."""
+        logger.info("Attempting to install Go...")
+
+        system = platform.system()
+        machine = platform.machine()
+        go_version = "1.21.5"
+
+        if system == "Linux":
+            if "aarch64" in machine or "arm64" in machine.lower():
+                go_url = f"https://go.dev/dl/go{go_version}.linux-arm64.tar.gz"
+            elif "x86_64" in machine or "amd64" in machine:
+                go_url = f"https://go.dev/dl/go{go_version}.linux-amd64.tar.gz"
+            else:
+                logger.error(f"Unsupported architecture for Go installation: {machine}")
+                return False
+        elif system == "Darwin":
+            if "arm64" in machine.lower():
+                go_url = f"https://go.dev/dl/go{go_version}.darwin-arm64.tar.gz"
+            else:
+                go_url = f"https://go.dev/dl/go{go_version}.darwin-amd64.tar.gz"
+        else:
+            logger.error(f"Unsupported system for automatic Go installation: {system}")
+            logger.error("Please install Go manually from https://go.dev/dl/")
+            return False
+
+        try:
+            go_tar = os.path.join(self.tmp_path, f"go{go_version}.tar.gz")
+
+            if system == "Linux":
+                subprocess.run(["wget", "-O", go_tar, go_url], check=True)
+            else:
+                subprocess.run(["curl", "-L", "-o", go_tar, go_url], check=True)
+
+            go_install_dir = os.path.join(os.path.expanduser("~"), ".local")
+            os.makedirs(go_install_dir, exist_ok=True)
+
+            logger.info(f"Extracting Go to {go_install_dir}...")
+            subprocess.run(["tar", "-C", go_install_dir, "-xzf", go_tar], check=True)
+
+            go_bin = os.path.join(go_install_dir, "go", "bin")
+            os.environ["PATH"] = f"{go_bin}:{os.environ.get('PATH', '')}"
+
+            return True
+        except subprocess.CalledProcessError as exc:
+            logger.error(f"Failed to install Go: {exc}")
+            return False
+        except Exception as exc:
+            logger.error(f"Unexpected error during Go installation: {exc}")
+            return False
+
     def install_lotus_daemon(self):
         """
         Install the Lotus daemon binary.
@@ -1921,7 +2115,29 @@ if __name__ == "__main__":
             installed_binaries = self.install_binaries(extract_dir, self.bin_path)
             if not installed_binaries:
                 logger.error("Failed to install Lotus binaries")
-                return False
+                logger.info("Attempting to build Lotus from source as fallback...")
+                if self.build_lotus_from_source(version):
+                    logger.info("Successfully built and installed Lotus from source")
+                    return True
+                else:
+                    logger.error("Failed to build Lotus from source")
+                    return False
+
+            binary_ok, binary_output = self._verify_lotus_binary_execution()
+            if not binary_ok:
+                logger.error("Prebuilt Lotus binary failed to execute:")
+                for line in binary_output.splitlines():
+                    logger.error(line)
+
+                self._remove_installed_binaries(installed_binaries)
+
+                logger.info("Attempting to build Lotus from source as fallback...")
+                if self.build_lotus_from_source(version):
+                    logger.info("Successfully built and installed Lotus from source")
+                    return True
+                else:
+                    logger.error("Failed to build Lotus from source")
+                    return False
         
         # Verify installation
         installation = self.check_existing_installation()

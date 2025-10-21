@@ -691,6 +691,38 @@ class install_lotus:
         
         logger.info("Binary installation completed")
         return installed_binaries
+
+    def _remove_installed_binaries(self, binaries):
+        """Remove previously installed binaries when a fallback path is required."""
+        for binary_path in binaries:
+            try:
+                os.remove(binary_path)
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                logger.warning(f"Failed to remove binary {binary_path}: {exc}")
+
+    def _verify_lotus_binary_execution(self):
+        """Run `lotus --version` to confirm the binary is executable on this system."""
+        lotus_path = os.path.join(self.bin_path, "lotus")
+        if platform.system() == "Windows":
+            lotus_path += ".exe"
+
+        try:
+            output = subprocess.check_output(
+                [lotus_path, "--version"],
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+            )
+            logger.info(output.strip())
+            return True, output.strip()
+        except (subprocess.SubprocessError, FileNotFoundError, OSError) as exc:
+            # Capture as much diagnostic detail as possible for logging.
+            if isinstance(exc, subprocess.SubprocessError) and hasattr(exc, "output") and exc.output:
+                message = exc.output
+            else:
+                message = str(exc)
+            return False, message
         
     def _install_system_dependencies(self):
         """
@@ -1878,7 +1910,9 @@ if __name__ == "__main__":
         Returns:
             True if successful, False otherwise
         """
-        logger.info(f"Building Lotus from source (version {version})...")
+    logger.info(f"Building Lotus from source (version {version})...")
+
+    branch = version if isinstance(version, str) and version.startswith("v") else f"v{version}"
         
         # Check if Go is installed
         try:
@@ -1906,7 +1940,7 @@ if __name__ == "__main__":
             
             # Clone Lotus repository
             logger.info("Cloning Lotus repository...")
-            clone_cmd = ["git", "clone", "--depth=1", "--branch", version, 
+            clone_cmd = ["git", "clone", "--depth=1", "--branch", branch, 
                         "https://github.com/filecoin-project/lotus.git", build_dir]
             subprocess.run(clone_cmd, check=True, capture_output=True)
             
@@ -2150,6 +2184,24 @@ if __name__ == "__main__":
             installed_binaries = self.install_binaries(extract_dir, self.bin_path)
             if not installed_binaries:
                 logger.error("Failed to install Lotus binaries")
+                logger.info("Attempting to build Lotus from source as fallback...")
+                if self.build_lotus_from_source(version):
+                    logger.info("Successfully built and installed Lotus from source")
+                    return True
+                else:
+                    logger.error("Failed to build Lotus from source")
+                    return False
+
+            # Execute the binary to confirm runtime compatibility before proceeding.
+            binary_ok, binary_output = self._verify_lotus_binary_execution()
+            if not binary_ok:
+                logger.error("Prebuilt Lotus binary failed to execute:")
+                for line in binary_output.splitlines():
+                    logger.error(line)
+
+                # Remove incompatible binaries so the source build can proceed cleanly.
+                self._remove_installed_binaries(installed_binaries)
+
                 logger.info("Attempting to build Lotus from source as fallback...")
                 if self.build_lotus_from_source(version):
                     logger.info("Successfully built and installed Lotus from source")
