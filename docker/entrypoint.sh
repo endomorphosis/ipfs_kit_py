@@ -52,8 +52,8 @@ log "Starting supervisord..."
 "$SUPERVISORD_BIN" -c "$SUPERVISOR_CONF" &
 SUPERVISORD_PID=$!
 
-# Wait for supervisord to be ready
-for attempt in $(seq 1 20); do
+# Wait for supervisord to be ready (up to ~20s)
+for attempt in $(seq 1 40); do
   if "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" status >/dev/null 2>&1; then
     break
   fi
@@ -62,13 +62,19 @@ done
 
 if ! "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" status >/dev/null 2>&1; then
   log "supervisord did not become ready"
-  exit 1
+  if [ -f /tmp/supervisord.log ]; then
+    log "supervisord.log (tail):"
+    tail -n 100 /tmp/supervisord.log || true
+  fi
+  # Do not exit; attempt to continue starting services
 fi
 
 case "$MODE" in
   "daemon-only")
     log "Starting daemon-only mode (IPFS-Kit daemon API on port 9999)"
     # Start only the IPFS-Kit daemon
+    # Ensure IPFS is running as a dependency for the daemon
+    "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" start ipfs || true
     "$SUPERVISORCTL_BIN" -c "$SUPERVISOR_CONF" start ipfs-kit-daemon
     ;;
     
