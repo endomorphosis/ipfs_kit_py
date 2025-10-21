@@ -2056,7 +2056,7 @@ if __name__ == "__main__":
 
         system = platform.system()
         machine = platform.machine()
-        go_version = "1.21.5"
+        go_version = "1.24.1"
 
         if system == "Linux":
             if "aarch64" in machine or "arm64" in machine.lower():
@@ -2088,7 +2088,15 @@ if __name__ == "__main__":
             os.makedirs(go_install_dir, exist_ok=True)
 
             logger.info(f"Extracting Go to {go_install_dir}...")
+            existing_go_dir = os.path.join(go_install_dir, "go")
+            if os.path.exists(existing_go_dir):
+                shutil.rmtree(existing_go_dir, ignore_errors=True)
+
             subprocess.run(["tar", "-C", go_install_dir, "-xzf", go_tar], check=True)
+            try:
+                os.remove(go_tar)
+            except OSError:
+                pass
 
             go_bin = os.path.join(go_install_dir, "go", "bin")
             os.environ["PATH"] = f"{go_bin}:{os.environ.get('PATH', '')}"

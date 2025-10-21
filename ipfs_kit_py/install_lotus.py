@@ -2139,8 +2139,8 @@ if __name__ == "__main__":
             os.environ["PATH"] = f"{go_bin}:{os.environ.get('PATH', '')}"
             
             # Verify installation
-            go_version_output = subprocess.check_output(["go", "version"])
-            logger.info(f"Go installed successfully: {go_version_output.decode().strip()}")
+            go_version_output = subprocess.check_output(["go", "version"], text=True).strip()
+            logger.info(f"Go installed successfully: {go_version_output}")
             
             return True
             
