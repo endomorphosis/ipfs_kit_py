@@ -1887,7 +1887,7 @@ if __name__ == "__main__":
             return True
             
         # Get release information
-        version = self.metadata.get("version", self.get_latest_lotus_version())
+        version = self.metadata.get("version") or self.get_latest_lotus_version()
         logger.info(f"Installing Lotus version {version}")
         
         release_info = self.get_release_info(version)
@@ -2698,11 +2698,12 @@ def main():
     
     # Create installer with metadata
     metadata = {
-        "version": args.version,
         "force": args.force,
         "bin_dir": bin_dir,
         "skip_params": args.skip_params
     }
+    if args.version:
+        metadata["version"] = args.version
     installer = install_lotus(metadata=metadata)
     
     # Check if already installed
