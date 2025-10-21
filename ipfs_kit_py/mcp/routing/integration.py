@@ -17,7 +17,8 @@ from .router import (
     Backend, ContentType, OperationType, RouteMetrics, 
     RoutingContext, RoutingDecision, DataRouter
 )
-from . import initialize_router, get_router
+# Local routing setup utilities are not exported from the package root; we'll
+# initialize our own router instance using the native DataRouter API.
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +39,45 @@ class MCPRoutingIntegration:
             config: Optional configuration for the routing system
         """
         self.config = config or {}
-        self.router = initialize_router(self.config)
+        # Initialize a basic DataRouter instance
+        self.router = DataRouter(config=self.config)
+        # Register default strategies and metrics collectors as needed by tests
+        try:
+            from .algorithms.content_aware import ContentAwareRouter
+            from .algorithms.cost_based import CostBasedRouter
+            from .algorithms.geographic import GeographicRouter
+            from .algorithms.performance import PerformanceRouter
+            from .metrics import ContentTypeAnalyzer, CostCalculator, GeographicOptimizer, PerformanceMetrics
+            # Metrics collectors
+            self.router.register_metrics_collector('content', ContentTypeAnalyzer())
+            self.router.register_metrics_collector('cost', CostCalculator(backend_costs=self.config.get('backend_costs')))
+            self.router.register_metrics_collector('geo', GeographicOptimizer())
+            self.router.register_metrics_collector('performance', PerformanceMetrics())
+            # Strategies with default weights (normalized inside Composite where applicable)
+            from .algorithms.composite import CompositeRouter
+            strategies = {
+                'content': (ContentAwareRouter(), self.config.get('strategy_weights', {}).get('content', 0.3)),
+                'cost': (CostBasedRouter(), self.config.get('strategy_weights', {}).get('cost', 0.3)),
+                'geo': (GeographicRouter(), self.config.get('strategy_weights', {}).get('geo', 0.2)),
+                'performance': (PerformanceRouter(), self.config.get('strategy_weights', {}).get('performance', 0.2)),
+            }
+            composite = CompositeRouter(strategies)
+            self.router.set_primary_strategy(composite)
+            # Also register strategies by name for direct selection in tests
+            self.router.add_strategy('composite', composite)
+            self.router.add_strategy('content', strategies['content'][0])
+            self.router.add_strategy('cost', strategies['cost'][0])
+            self.router.add_strategy('geographic', strategies['geo'][0])
+            self.router.add_strategy('performance', strategies['performance'][0])
+        except Exception as e:
+            logger.warning(f"Routing initialization encountered an issue: {e}")
         
         # Cache for performance data
         self.performance_data = {}
         
         logger.info("Initialized MCP routing integration")
     
-    def register_backend(self, backend: Backend, info: Dict[str, Any] = None) -> None:
+    def register_backend(self, backend: Backend, info: Optional[Dict[str, Any]] = None) -> None:
         """
         Register a storage backend with the router.
         
@@ -53,7 +85,7 @@ class MCPRoutingIntegration:
             backend: Backend identifier
             info: Additional backend information
         """
-        self.router.register_backend(backend, info)
+        self.router.register_backend(backend, info or {})
         logger.info(f"Registered backend with router: {backend}")
     
     def unregister_backend(self, backend: Backend) -> None:
@@ -218,11 +250,27 @@ class MCPRoutingIntegration:
         # Collect metrics from each collector
         for name, collector in self.router.metrics_collectors.items():
             try:
-                collector_metrics = collector.collect_metrics(backend)
-                metrics[name] = collector_metrics
+                if hasattr(collector, 'collect_metrics'):
+                    collector_metrics = collector.collect_metrics(backend)
+                    metrics[name] = collector_metrics
             except Exception as e:
                 logger.warning(f"Error collecting {name} metrics for {backend}: {e}")
         
+        # Convenience grouping expected by tests
+        if 'performance' in metrics:
+            perf = metrics['performance']
+            metrics.setdefault('bandwidth', {})
+            metrics.setdefault('latency', {})
+            if isinstance(perf, dict):
+                if 'throughput_mbps' in perf:
+                    metrics['bandwidth']['throughput_mbps'] = perf['throughput_mbps']
+                    if 'max_throughput_mbps' in perf:
+                        metrics['bandwidth']['max_throughput_mbps'] = perf['max_throughput_mbps']
+                if 'latency_ms' in perf:
+                    metrics['latency']['latency_ms'] = perf['latency_ms']
+                if 'success_rate' in perf:
+                    metrics['latency']['success_rate'] = perf['success_rate']
+
         return metrics
     
     def get_routing_history(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:

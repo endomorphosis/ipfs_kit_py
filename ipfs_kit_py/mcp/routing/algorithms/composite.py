@@ -112,6 +112,17 @@ class CompositeRouter(RoutingStrategy):
                     f"(score: {decision.score:.2f})"
                 )
         
+        # Include content hints if available for better traceability in tests
+        if context.content_type or context.content_size_bytes:
+            ct = getattr(context.content_type, 'value', None)
+            size = context.content_size_bytes
+            hint = []
+            if ct:
+                hint.append(f"content={ct}")
+            if size is not None:
+                hint.append(f"size={size}")
+            if hint:
+                reason_parts.append(f"(context: {'; '.join(hint)})")
         reason = "\n".join(reason_parts)
         
         # Create metrics for the decision
