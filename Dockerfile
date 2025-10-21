@@ -68,8 +68,8 @@ RUN pip install --upgrade pip setuptools wheel
 # Copy source code
 COPY --chown=appuser:appuser . .
 
-# Install package in editable mode
-RUN pip install -e ".[dev,test]"
+# Install package in editable mode with all test-required extras baked in
+RUN pip install -e ".[dev,test,api,webrtc,arrow]"
 
 USER appuser
 ENV HOME=/home/appuser
