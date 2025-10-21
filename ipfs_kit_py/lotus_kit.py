@@ -361,7 +361,7 @@ class lotus_kit:
                 except Exception as start_error:
                     logger.error(f"Failed to start daemon during error recovery: {str(start_error)}")
     
-    def _get_auth_token(self) -> str:
+    def _get_auth_token(self):
         """Get authentication token from various sources.
         
         Checks in priority order:
@@ -369,7 +369,7 @@ class lotus_kit:
         2. Token file specified in metadata
         3. LOTUS_TOKEN environment variable
         4. Default token file location
-        
+        """
         retry_strategy = Retry(
             total=max_retries,
             backoff_factor=backoff_factor,
@@ -393,7 +393,7 @@ class lotus_kit:
                 logger.warning(f"Failed to read token from default location {default_token_file}: {str(e)}")
                 
         # No token found
-        return ""
+        return None
         
     def _setup_request_session(self) -> requests.Session:
         """Set up a requests session with connection pooling and retries.
@@ -529,7 +529,7 @@ class lotus_kit:
         
         This method is called before making API requests to ensure
         the daemon is running and healthy. If auto_start_daemon is enabled
-        and the daemon isn't running, it will attempt to start it.
+        and the daemon is not running, it will attempt to start it.
         
         Returns:
             bool: True if the daemon is running or in simulation mode, False otherwise
@@ -567,7 +567,7 @@ class lotus_kit:
         
         This helper method wraps API operations to ensure the daemon is running
         before attempting the operation. For operations that already implement
-        simulation mode, it falls back to simulation if the daemon can't be started.
+        simulation mode, it falls back to simulation if the daemon cannot be started.
         
         Args:
             operation: Function name to create result dictionary
@@ -1471,7 +1471,7 @@ class lotus_kit:
                     "id": peer.get("ID", ""),
                     "addresses": peer.get("Addrs", []),
                     "peer_id": peer.get("ID", ""),  # Alias for compatibility
-                    "connected": True  # If returned in peers list, it's connected
+                    "connected": True  # If returned in peers list, it is connected
                 }
                 peers.append(formatted_peer)
                 
@@ -1484,7 +1484,7 @@ class lotus_kit:
         """Get network information from the Lotus node.
         
         This method makes multiple API calls in parallel to gather
-        comprehensive information about the node's network status.
+        comprehensive information about the node network status.
         
         Args:
             **kwargs: Additional arguments
@@ -2819,7 +2819,7 @@ class lotus_kit:
         
         # If in simulation mode
         if self.simulation_mode:
-            # Create simulated message pool if doesn't exist
+            # Create simulated message pool if does not exist
             if "message_pool" not in self.sim_cache:
                 self.sim_cache["message_pool"] = {}
                 
@@ -3081,7 +3081,7 @@ class lotus_kit:
                         logger.error(f"Failed to import macOS monitor module: {str(e)}")
                         raise LotusError(f"Lotus macOS monitor functionality not available: {str(e)}")
                 else:
-                    # For other platforms, we don't yet have specific monitors
+                    # For other platforms, we do not yet have specific monitors
                     # In the future, this could handle Windows or Linux monitors
                     logger.info(f"No specialized monitor available for platform: {current_platform}")
                     return None
@@ -3096,7 +3096,7 @@ class lotus_kit:
     def daemon_start(self, **kwargs):
         """Start the Lotus daemon.
         
-        This method delegates to the lotus_daemon's daemon_start method,
+        This method delegates to the lotus_daemon daemon_start method,
         handling all platform-specific details of starting a Lotus daemon
         (systemd, Windows service, or direct process). It also updates
         internal tracking for automatic daemon management.
@@ -3166,10 +3166,10 @@ class lotus_kit:
                     result["snapshot_import_failed"] = True
                     result["snapshot_error"] = snapshot_result.get("error")
             
-            # Use the daemon property to ensure it's initialized
+            # Use the daemon property to ensure it is initialized
             daemon_start_result = self.daemon.daemon_start(**kwargs)
             
-            # Update our result with the daemon's result
+            # Update our result with the daemon result
             result.update(daemon_start_result)
             
             # Update internal tracking if start was successful
@@ -3195,7 +3195,7 @@ class lotus_kit:
     def daemon_stop(self, **kwargs):
         """Stop the Lotus daemon.
         
-        This method delegates to the lotus_daemon's daemon_stop method,
+        This method delegates to the lotus_daemon daemon_stop method,
         handling all platform-specific details of stopping a Lotus daemon
         (systemd, Windows service, or direct process termination).
         
@@ -3223,10 +3223,10 @@ class lotus_kit:
                 result["message"] = "Lotus daemon is not running"
                 return result
             
-            # Use the daemon property to ensure it's initialized
+            # Use the daemon property to ensure it is initialized
             daemon_stop_result = self.daemon.daemon_stop(**kwargs)
             
-            # Update our result with the daemon's result
+            # Update our result with the daemon result
             result.update(daemon_stop_result)
             
             # Update internal tracking if stop was successful
@@ -3262,7 +3262,7 @@ class lotus_kit:
     def daemon_status(self, **kwargs):
         """Get the status of the Lotus daemon.
         
-        This method delegates to the lotus_daemon's daemon_status method,
+        This method delegates to the lotus_daemon daemon_status method,
         checking if the Lotus daemon is running through multiple detection methods.
         
         Args:
@@ -3276,13 +3276,13 @@ class lotus_kit:
         result = create_result_dict(operation, correlation_id)
         
         try:
-            # Use the daemon property to ensure it's initialized
+            # Use the daemon property to ensure it is initialized
             daemon_status_result = self.daemon.daemon_status(**kwargs)
             
             # Record health check
             self._record_daemon_health(daemon_status_result)
             
-            # Update our result with the daemon's result
+            # Update our result with the daemon result
             result.update(daemon_status_result)
             
             # Log the result
@@ -3349,7 +3349,7 @@ class lotus_kit:
     def uninstall_service(self, **kwargs):
         """Uninstall Lotus daemon system service.
         
-        This method delegates to the lotus_daemon's uninstall_service method,
+        This method delegates to the lotus_daemon uninstall_service method,
         handling all platform-specific details of uninstalling a system service.
         
         Args:
@@ -3363,10 +3363,10 @@ class lotus_kit:
         result = create_result_dict(operation, correlation_id)
         
         try:
-            # Use the daemon property to ensure it's initialized
+            # Use the daemon property to ensure it is initialized
             uninstall_result = self.daemon.uninstall_service(**kwargs)
             
-            # Update our result with the daemon's result
+            # Update our result with the daemon result
             result.update(uninstall_result)
             
             # Log the result
@@ -3385,7 +3385,7 @@ class lotus_kit:
         """Ensure the Lotus daemon is running, starting it if necessary.
         
         This method checks if the Lotus daemon is running and attempts to
-        start it if it's not running and auto_start_daemon is enabled.
+        start it if it is not running and auto_start_daemon is enabled.
         
         Args:
             correlation_id: ID for tracking operations
@@ -3643,7 +3643,7 @@ class lotus_kit:
             # If we found the original file path, try to read its content
             if original_file_path and os.path.exists(original_file_path):
                 try:
-                    # Try to determine if it's a text file by extension
+                    # Try to determine if it is a text file by extension
                     text_extensions = ['.txt', '.json', '.md', '.py', '.js', '.html', '.css', '.csv', '.yml', '.yaml']
                     is_text_file = any(original_file_path.endswith(ext) for ext in text_extensions)
                     
@@ -3654,7 +3654,7 @@ class lotus_kit:
                                 source_content = src_file.read().encode('utf-8')
                                 logger.debug(f"Successfully read {len(source_content)} bytes as text from original file")
                         except UnicodeDecodeError:
-                            # If it's not valid UTF-8, fall back to binary
+                            # If it is not valid UTF-8, fall back to binary
                             is_text_file = False
                             logger.debug(f"File looks like text but has non-UTF-8 content, falling back to binary")
                     
@@ -3667,7 +3667,7 @@ class lotus_kit:
                 except Exception as e:
                     logger.warning(f"Could not read original file {original_file_path}: {str(e)}")
             
-            # If we couldn't get the original content, generate simulated content
+            # If we could not get the original content, generate simulated content
             if not source_content:
                 logger.debug(f"Generating simulated content for CID: {cid}")
                 # Create simulated content that matches the test content format more closely
@@ -4043,7 +4043,7 @@ class lotus_kit:
                         result["result"] = response.get("result", {})
                         return result
                     
-                    # API request failed - check error type to see if it's a connection error
+                    # API request failed - check error type to see if it is a connection error
                     error_type = response.get("error_type", "")
                     error_msg = response.get("error", "")
                     
@@ -4126,10 +4126,10 @@ class lotus_kit:
                         return self.check_connection(correlation_id=correlation_id)
                 
                 except Exception as e:
-                    # Unexpected error, don't retry
+                    # Unexpected error, do not retry
                     return handle_error(result, e)
             
-            # If we've exhausted retries or can't retry further
+            # If we've exhausted retries or cannot retry further
             if simulation_mode_fallback:
                 logger.info(f"Failed to connect after {max_retries} attempts, enabling simulation mode")
                 self.simulation_mode = True
@@ -4433,7 +4433,7 @@ class lotus_kit:
                     import_id = uuid.uuid4()
                     timestamp = time.time()
                     
-                    # Initialize imports in simulation cache if it doesn't exist
+                    # Initialize imports in simulation cache if it does not exist
                     if "imports" not in self.sim_cache:
                         self.sim_cache["imports"] = {}
                         
@@ -4640,7 +4640,7 @@ class lotus_kit:
                     result["result"] = self.sim_cache["deals"][deal_id]
                     return result
                 else:
-                    # If deal doesn't exist, return error
+                    # If deal does not exist, return error
                     return handle_error(
                         result, 
                         LotusError(f"Deal {deal_id} not found"), 
@@ -4725,7 +4725,7 @@ class lotus_kit:
                 
                 # Check if the miner exists in simulation cache
                 if miner not in self.sim_cache["miners"]:
-                    # Add miner if it doesn't exist
+                    # Add miner if it does not exist
                     self.sim_cache["miners"][miner] = {
                         "Address": miner,
                         "Power": random.randint(1, 100) * 1024 * 1024 * 1024 * 1024,  # 1-100 TiB
@@ -4837,7 +4837,7 @@ class lotus_kit:
             try:
                 # Check if the data CID exists in our simulation cache
                 if data_cid in self.sim_cache["contents"] or data_cid in self.sim_cache["imports"]:
-                    # Create directory if it doesn't exist
+                    # Create directory if it does not exist
                     os.makedirs(os.path.dirname(os.path.abspath(out_file)), exist_ok=True)
                     
                     # Determine content size
@@ -4861,11 +4861,11 @@ class lotus_kit:
                         else:
                             size = self.sim_cache["imports"][data_cid].get("Size", 1024)
                     
-                    # If we didn't copy from original or the copy failed (file is empty), generate simulated content
+                    # If we did not copy from original or the copy failed (file is empty), generate simulated content
                     if not os.path.exists(out_file) or os.path.getsize(out_file) == 0:
                         # For text files, generate content that matches the test expectation format
                         text_extensions = ['.txt', '.json', '.md', '.py', '.js', '.html', '.css', '.csv', '.yml', '.yaml']
-                        # For now, let's override the extension check since we know this is a text file
+                        # For now, let us override the extension check since we know this is a text file
                         is_text_file = True
                         logger.debug(f"Checking file extension for {out_file}: OVERRIDING to is_text_file={is_text_file}")
                         
@@ -4889,7 +4889,7 @@ class lotus_kit:
                             # Use part of the hash as a deterministic UUID
                             det_uuid = f"{cid_hash[8:16]}-{cid_hash[16:20]}-{cid_hash[20:24]}-{cid_hash[24:28]}-{cid_hash[28:40]}"
                             
-                            # Generate deterministic content that's still identifiable as binary
+                            # Generate deterministic content that is still identifiable as binary
                             content = f"Test content generated at {timestamp} with random data: {det_uuid} (binary file)".encode('utf-8')
                             logger.debug(f"Generated deterministic binary file content with timestamp {timestamp} and uuid {det_uuid}")
                             
@@ -5274,7 +5274,7 @@ class lotus_kit:
     def paych_fund(self, from_address, to_address, amount, **kwargs):
         """Fund a new or existing payment channel.
         
-        Creates a new payment channel if one doesn't exist between from_address and to_address.
+        Creates a new payment channel if one does not exist between from_address and to_address.
         
         Args:
             from_address (str): Sender address
@@ -5313,7 +5313,7 @@ class lotus_kit:
         # If in simulation mode, return simulated payment channels
         if self.simulation_mode:
             try:
-                # Initialize channels list if it doesn't exist in the simulation cache
+                # Initialize channels list if it does not exist in the simulation cache
                 if "channels" not in self.sim_cache:
                     self.sim_cache["channels"] = {}
                     
@@ -5942,7 +5942,7 @@ class lotus_kit:
         result = create_result_dict(operation, correlation_id)
         
         try:
-            # Convert message to hex if it's not already
+            # Convert message to hex if it is not already
             if isinstance(message, str):
                 if not message.startswith("0x"):
                     # Assume UTF-8 string
@@ -6040,7 +6040,7 @@ class lotus_kit:
         """Import a wallet using key information.
 
         Args:
-            key_info: Dictionary containing the wallet's key information.
+            key_info: Dictionary containing the wallet us key information.
             **kwargs: Additional arguments.
 
         Returns:
@@ -6858,7 +6858,7 @@ class lotus_kit:
             # Set as default if requested
             if kwargs.get("as_default", False) and imported_addresses:
                 default_addr = imported_addresses[0]
-                # Currently Lotus doesn't have a direct API to set default,
+                # Currently Lotus does not have a direct API to set default,
                 # but can be done by storing the address preference
                 result["set_as_default"] = True
                 result["default_address"] = default_addr
@@ -7198,7 +7198,7 @@ class lotus_kit:
             return handle_error(result, e)
         
     def miner_get_address(self, **kwargs):
-        """Get the miner's actor address.
+        """Get the miner actor address.
         
         Returns:
             dict: Result dictionary with miner address
@@ -7482,7 +7482,7 @@ class lotus_kit:
         result = create_result_dict(operation, correlation_id)
         
         try:
-            # Call API endpoint directly since there's no RPC method
+            # Call API endpoint directly since there is no RPC method
             metrics_url = self.api_url.replace("/rpc/v0", "/metrics")
             
             response = requests.get(metrics_url, headers={
@@ -7555,21 +7555,23 @@ class lotus_kit:
             # Create config with proper endpoint
             api_host = self.api_url.split("://")[1].split("/")[0]
             
-            config = f"""
-# Prometheus configuration for Lotus monitoring
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
-
-scrape_configs:
-  - job_name: "lotus"
-    static_configs:
-      - targets: ["{api_host}"]
-    metrics_path: /metrics
-    scheme: http
-    authorization:
-      credentials: "{self.token}"
-"""
+            # Build YAML config using string concatenation to avoid parsing issues
+            config_lines = [
+                "# Prometheus configuration for Lotus monitoring",
+                "global:",
+                "  scrape_interval: 15s",
+                "  evaluation_interval: 15s",
+                "",
+                "scrape_configs:",
+                "  - job_name: \"lotus\"",
+                "    static_configs:",
+                f"      - targets: [\"{api_host}\"]",
+                "    metrics_path: /metrics",
+                "    scheme: http",
+                "    authorization:",
+                f"      credentials: \"{self.token}\"",
+            ]
+            config = "\n".join(config_lines) + "\n"
 
             # Write configuration file
             with open(output_path, "w") as f:
@@ -8016,13 +8018,13 @@ scrape_configs:
             
         # Try to determine format if not provided
         if format_type is None:
-            # Check if it's JSON
+            # Check if it is JSON
             if data.strip().startswith('{') and data.strip().endswith('}'):
                 format_type = 'json'
-            # Check if it's a hex string (64 hex chars)
+            # Check if it is a hex string (64 hex chars)
             elif re.match(r'^[0-9a-fA-F]{64}$', data.strip()):
                 format_type = 'hex'
-            # Check if it's a key file format (multiline with headers)
+            # Check if it is a key file format (multiline with headers)
             elif 'Type:' in data and 'PrivateKey:' in data:
                 format_type = 'key'
             else:
@@ -8095,7 +8097,7 @@ scrape_configs:
             if check_writeable:
                 dir_path = os.path.dirname(abs_path)
                 
-                # Create directory if it doesn't exist
+                # Create directory if it does not exist
                 if not os.path.exists(dir_path):
                     try:
                         os.makedirs(dir_path, exist_ok=True)
@@ -8137,7 +8139,7 @@ scrape_configs:
                 result["error"] = error_msg
                 return result
                 
-            # Create directory if it doesn't exist
+            # Create directory if it does not exist
             output_dir = os.path.dirname(output_path)
             if output_dir and not os.path.exists(output_dir):
                 os.makedirs(output_dir, exist_ok=True)
@@ -8187,7 +8189,7 @@ scrape_configs:
                 result["error"] = error_msg
                 return result
                 
-            # Create directory if it doesn't exist
+            # Create directory if it does not exist
             output_dir = os.path.dirname(output_path)
             if output_dir and not os.path.exists(output_dir):
                 os.makedirs(output_dir, exist_ok=True)
@@ -8907,7 +8909,7 @@ scrape_configs:
         """Generate a performance and health report for the Lotus daemon.
         
         This method uses the platform-specific monitoring tool to generate
-        a comprehensive report about the Lotus daemon's performance and health.
+        a comprehensive report about the Lotus daemon performance and health.
         
         Args:
             **kwargs: Additional arguments for report generation

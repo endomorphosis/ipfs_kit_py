@@ -4,7 +4,7 @@
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
-FROM python:3.11-slim as base
+FROM python:3.12-slim as base
 
 # Platform information for debugging
 RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
