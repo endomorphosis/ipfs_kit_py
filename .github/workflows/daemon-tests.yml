@@ -117,18 +117,19 @@ jobs:
             -d -p 9999:9999 \
             ipfs-kit:test daemon-only
           
-          # Wait for daemon to start
-          sleep 15
-          
-          # Test daemon API
-          for i in {1..10}; do
-            if curl -f http://localhost:9999/api/v1/status; then
-              echo "✅ Daemon API responding"
-              break
+          # Wait for daemon readiness (up to ~60s)
+          i=0
+          until curl -fsS http://localhost:9999/api/v1/status > /dev/null; do
+            i=$((i+1))
+            if [ "$i" -gt 30 ]; then
+              echo "❌ Daemon did not become ready in time"
+              docker logs ipfs-kit-daemon-test || true
+              exit 1
             fi
-            echo "⏳ Waiting for daemon... ($i/10)"
-            sleep 3
+            echo "⏳ Waiting for daemon... ($i)"
+            sleep 2
           done
+          echo "✅ Daemon API responding"
           
           # Stop container
           docker stop ipfs-kit-daemon-test
@@ -139,15 +140,32 @@ jobs:
             -d -p 9998:9999 -p 5001:5001 \
             ipfs-kit:test all
           
-          # Wait for all services to start
-          sleep 45
-          
-          # Test IPFS API
-          curl -f http://localhost:5001/api/v0/version || exit 1
+          # Wait for IPFS API readiness (up to ~60s)
+          i=0
+          until curl -fsS http://localhost:5001/api/v0/version > /dev/null; do
+            i=$((i+1))
+            if [ "$i" -gt 30 ]; then
+              echo "❌ IPFS API did not become ready in time"
+              docker logs ipfs-kit-full-test || true
+              exit 1
+            fi
+            echo "⏳ Waiting for IPFS API... ($i)"
+            sleep 2
+          done
           echo "✅ IPFS API responding"
           
-          # Test daemon API
-          curl -f http://localhost:9998/api/v1/status || exit 1
+          # Test daemon API (container maps 9998->9999)
+          i=0
+          until curl -fsS http://localhost:9998/api/v1/status > /dev/null; do
+            i=$((i+1))
+            if [ "$i" -gt 30 ]; then
+              echo "❌ Daemon API (9998) did not become ready in time"
+              docker logs ipfs-kit-full-test || true
+              exit 1
+            fi
+            echo "⏳ Waiting for daemon API (9998)... ($i)"
+            sleep 2
+          done
           echo "✅ Daemon API responding"
           
           # Test health check

@@ -76,6 +76,18 @@ case "$MODE" in
     ;;
 esac
 
-# Keep container running by tailing logs
+# Keep container running by tailing logs (robust if files don't exist yet)
 log "Services started. Monitoring logs..."
-tail -f /tmp/ipfs_kit_logs/*.log
+
+# Ensure log files exist so tail doesn't exit if glob is empty
+touch /tmp/ipfs_kit_logs/ipfs_out.log \
+  /tmp/ipfs_kit_logs/ipfs_error.log \
+  /tmp/ipfs_kit_logs/daemon_out.log \
+  /tmp/ipfs_kit_logs/daemon_error.log \
+  /tmp/ipfs_kit_logs/cluster_out.log \
+  /tmp/ipfs_kit_logs/cluster_error.log \
+  /tmp/ipfs_kit_logs/mcp_out.log \
+  /tmp/ipfs_kit_logs/mcp_error.log
+
+# Follow all logs and never exit; if tail fails for any reason, sleep to keep container alive
+tail -F /tmp/ipfs_kit_logs/*.log || sleep infinity
