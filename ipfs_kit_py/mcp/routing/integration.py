@@ -13,7 +13,7 @@ import logging
 import time
 from typing import Dict, List, Optional, Any, Tuple, Union
 
-from ..router import (
+from .router import (
     Backend, ContentType, OperationType, RouteMetrics, 
     RoutingContext, RoutingDecision, DataRouter
 )
