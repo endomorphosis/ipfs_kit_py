@@ -8,7 +8,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system dependencies including Lotus prerequisites
+# This ensures the installer will detect they're already present and skip installation
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -25,6 +26,10 @@ RUN apt-get update && apt-get install -y \
     htop \
     nano \
     jq \
+    hwloc \
+    libhwloc-dev \
+    mesa-opencl-icd \
+    ocl-icd-opencl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Go for IPFS binaries

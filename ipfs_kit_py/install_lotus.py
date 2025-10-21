@@ -874,6 +874,9 @@ class install_lotus:
         # Common library paths to check
         lib_paths = [
             "/usr/lib", 
+            "/usr/lib/x86_64-linux-gnu",  # Debian/Ubuntu x86_64
+            "/usr/lib/aarch64-linux-gnu",  # Debian/Ubuntu ARM64
+            "/usr/lib/arm-linux-gnueabihf",  # Debian/Ubuntu ARM32
             "/usr/local/lib", 
             "/lib", 
             "/lib64", 

@@ -16,6 +16,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Install system dependencies including Go for building from source
+# Also include Lotus prerequisites (hwloc, OpenCL) so installer detects them
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -28,6 +29,10 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     libssl-dev \
     golang-go \
+    hwloc \
+    libhwloc-dev \
+    mesa-opencl-icd \
+    ocl-icd-opencl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create application user
