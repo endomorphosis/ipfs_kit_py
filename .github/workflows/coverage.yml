@@ -11,14 +11,31 @@ permissions:
 
 jobs:
   coverage:
-    runs-on: ubuntu-20.04
+    name: Coverage on ${{ matrix.arch }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
+    - name: Set up Python (AMD64)
+      if: matrix.arch == 'amd64'
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+    
+    - name: Set up Python (ARM64)
+      if: matrix.arch == 'arm64'
+      run: |
+        if command -v python3.11 >/dev/null 2>&1; then
+          python3.11 -m venv venv
+        else
+          python3 -m venv venv
+        fi
+        source venv/bin/activate
+        echo "venv/bin" >> $GITHUB_PATH
     
     - name: Install dependencies
       run: |
@@ -44,6 +61,6 @@ jobs:
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
       with:
-        name: coverage-report
+        name: coverage-report-${{ matrix.arch }}
         path: coverage_html/
         retention-days: 7

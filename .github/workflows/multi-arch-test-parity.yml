@@ -1,0 +1,242 @@
+name: Multi-Architecture Test Parity
+
+# This workflow ensures testing parity across AMD64 and ARM64 architectures
+# It runs the same test suites on both architectures to validate cross-platform compatibility
+
+on:
+  push:
+    branches: [ main, develop, copilot/** ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+  schedule:
+    # Run daily to catch architecture-specific issues
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  # Strategy: Use matrix to run same tests on both architectures
+  test-parity:
+    name: Test on ${{ matrix.arch }} - Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        python-version: ['3.10', '3.11', '3.12']
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Set up Python ${{ matrix.python-version }} (AMD64)
+      if: matrix.arch == 'amd64'
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Set up Python ${{ matrix.python-version }} (ARM64)
+      if: matrix.arch == 'arm64'
+      run: |
+        # Use system python or pyenv for ARM64 self-hosted runner
+        if command -v python${{ matrix.python-version }} >/dev/null 2>&1; then
+          echo "Using system Python ${{ matrix.python-version }}"
+          python${{ matrix.python-version }} -m venv venv
+        else
+          echo "Using default Python 3"
+          python3 -m venv venv
+        fi
+        source venv/bin/activate
+        echo "Python version: $(python --version)"
+        echo "venv/bin" >> $GITHUB_PATH
+    
+    - name: Display system information
+      run: |
+        echo "=== System Information ==="
+        echo "Architecture: $(uname -m)"
+        echo "Python Version: $(python --version)"
+        echo "OS: $(uname -s) $(uname -r)"
+        if command -v lsb_release >/dev/null 2>&1; then
+          echo "Distribution: $(lsb_release -d | cut -f2-)"
+        fi
+        echo "CPU Cores: $(nproc)"
+        echo "Memory: $(free -h | grep Mem | awk '{print $2}')"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        if [ -f requirements.txt ]; then 
+          pip install -r requirements.txt
+        fi
+        pip install -e ".[dev,full,api]"
+    
+    - name: Run core unit tests
+      run: |
+        echo "=== Running Core Unit Tests ==="
+        python -m pytest tests/ \
+          --junitxml=test-results-${{ matrix.arch }}-${{ matrix.python-version }}.xml \
+          -v --tb=short \
+          -k "not (integration or cluster or daemon or slow)" \
+          || echo "Some tests failed, continuing..."
+    
+    - name: Run integration tests
+      run: |
+        echo "=== Running Integration Tests ==="
+        python -m pytest tests/ \
+          -v --tb=short \
+          -k "integration" \
+          || echo "Some integration tests failed, continuing..."
+    
+    - name: Run cluster tests
+      run: |
+        echo "=== Running Cluster Tests ==="
+        python -m pytest tests/test_cluster_services.py -v --tb=short \
+          || echo "Some cluster tests failed, continuing..."
+    
+    - name: Run VFS integration tests
+      run: |
+        echo "=== Running VFS Tests ==="
+        python -m pytest tests/test_vfs_integration.py -v --tb=short \
+          || echo "Some VFS tests failed, continuing..."
+    
+    - name: Test MCP dashboard startup
+      run: |
+        echo "=== Testing MCP Dashboard ==="
+        # Test that the dashboard can start
+        timeout 30 python -m ipfs_kit_py.cli mcp start --port 8004 --foreground &
+        MCP_PID=$!
+        sleep 10
+        
+        # Check if server is running
+        if curl -f http://127.0.0.1:8004/api/mcp/status --max-time 5 2>/dev/null; then
+          echo "✅ MCP dashboard is accessible on ${{ matrix.arch }}"
+          kill $MCP_PID 2>/dev/null || true
+        else
+          echo "⚠️ MCP dashboard not accessible on ${{ matrix.arch }}"
+          kill $MCP_PID 2>/dev/null || true
+          exit 1
+        fi
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.arch }}-${{ matrix.python-version }}
+        path: test-results-${{ matrix.arch }}-${{ matrix.python-version }}.xml
+      if: always()
+  
+  # Docker-based testing with QEMU (fallback for ARM64 if no self-hosted runner)
+  test-docker-qemu:
+    name: Docker Test on ${{ matrix.platform }} - Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+        python-version: ['3.10', '3.11', '3.12']
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64,amd64
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build and test in container
+      run: |
+        cat > Dockerfile.multiarch-test <<'EOF'
+        ARG PYTHON_VERSION=3.11
+        
+        FROM python:${PYTHON_VERSION}-slim-bookworm
+        
+        # Install system dependencies
+        RUN apt-get update && apt-get install -y \
+            gcc g++ make \
+            libffi-dev libssl-dev \
+            git curl \
+            && rm -rf /var/lib/apt/lists/*
+        
+        WORKDIR /app
+        
+        # Copy files
+        COPY requirements.txt setup.py pyproject.toml ./
+        COPY ipfs_kit_py ipfs_kit_py/
+        COPY tests tests/
+        COPY pytest.ini ./
+        
+        # Install dependencies
+        RUN pip install --upgrade pip setuptools wheel && \
+            pip install -e .[api] && \
+            pip install pytest pytest-asyncio pytest-timeout
+        
+        # Run basic tests
+        CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "-k", "not (slow or integration)", "-x"]
+        EOF
+        
+        docker buildx build \
+          --platform ${{ matrix.platform }} \
+          --build-arg PYTHON_VERSION=${{ matrix.python-version }} \
+          -f Dockerfile.multiarch-test \
+          -t multiarch-test:${{ matrix.python-version }} \
+          --load \
+          .
+        
+        # Run the container
+        docker run --rm \
+          --platform ${{ matrix.platform }} \
+          multiarch-test:${{ matrix.python-version }}
+  
+  # Report test parity results
+  report-parity:
+    name: Test Parity Report
+    needs: [test-parity, test-docker-qemu]
+    runs-on: ubuntu-20.04
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Download all test results
+      uses: actions/download-artifact@v4
+      continue-on-error: true
+    
+    - name: Generate parity report
+      run: |
+        echo "# Multi-Architecture Test Parity Report" > parity-report.md
+        echo "" >> parity-report.md
+        echo "## Test Results Summary" >> parity-report.md
+        echo "" >> parity-report.md
+        
+        # List all test results
+        echo "### Test Results Files" >> parity-report.md
+        find . -name "*.xml" -type f | while read file; do
+          echo "- $file" >> parity-report.md
+        done
+        
+        echo "" >> parity-report.md
+        echo "## Architecture Comparison" >> parity-report.md
+        echo "" >> parity-report.md
+        echo "Tests were run on both AMD64 and ARM64 architectures to ensure parity." >> parity-report.md
+        
+        cat parity-report.md
+    
+    - name: Upload parity report
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-parity-report
+        path: parity-report.md

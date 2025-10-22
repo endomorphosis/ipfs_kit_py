@@ -12,18 +12,33 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-20.04
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.arch }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
     strategy:
+      fail-fast: false
       matrix:
+        arch: [amd64, arm64]
         python-version: [3.8, 3.9, '3.10', '3.11', '3.12', '3.13']
 
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python ${{ matrix.python-version }} (AMD64)
+      if: matrix.arch == 'amd64'
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+    
+    - name: Set up Python ${{ matrix.python-version }} (ARM64)
+      if: matrix.arch == 'arm64'
+      run: |
+        if command -v python${{ matrix.python-version }} >/dev/null 2>&1; then
+          python${{ matrix.python-version }} -m venv venv
+        else
+          python3 -m venv venv
+        fi
+        source venv/bin/activate
+        echo "venv/bin" >> $GITHUB_PATH
     
     - name: Install dependencies
       run: |
@@ -47,7 +62,7 @@ jobs:
     - name: Upload test results
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.python-version }}
+        name: test-results-${{ matrix.arch }}-${{ matrix.python-version }}
         path: test-results-${{ matrix.python-version }}.xml
       # Always run this step even if previous steps fail
       if: ${{ always() }}
