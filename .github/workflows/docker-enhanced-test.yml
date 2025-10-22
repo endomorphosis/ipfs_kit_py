@@ -1,0 +1,246 @@
+name: Enhanced Docker Build and Test
+
+on:
+  push:
+    branches: [ main, master, known_good ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Build on self-hosted x86_64 runner
+  build-amd64:
+    name: Build AMD64 Docker Image
+    runs-on: [self-hosted, amd64]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short,prefix=amd64-
+            
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+            
+      - name: Build Docker image (AMD64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.enhanced
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: ipfs-kit:test-amd64
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,mode=max,scope=amd64
+          
+      - name: Test AMD64 image - Lotus dependencies
+        run: |
+          echo "Testing Lotus dependency detection on AMD64..."
+          docker run --rm ipfs-kit:test-amd64 \
+            python3 -c "from ipfs_kit_py.install_lotus import install_lotus; i = install_lotus(); assert i._check_hwloc_library_direct(), 'Lotus deps missing'; print('✅ AMD64: Lotus dependencies OK')"
+          
+      - name: Test AMD64 image - Container startup
+        run: |
+          echo "Testing container startup on AMD64..."
+          docker run -d --name test-amd64 -p 9999:9999 \
+            -e IPFS_KIT_AUTO_INSTALL_DEPS=0 \
+            -e IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS=0 \
+            ipfs-kit:test-amd64 daemon-only
+          
+          # Wait for startup
+          sleep 10
+          
+          # Check API
+          curl -f http://localhost:9999/api/v1/status || (docker logs test-amd64 && exit 1)
+          
+          # Check logs for no package manager operations
+          ! docker logs test-amd64 2>&1 | grep -E "apt-get|dpkg.*install" || (echo "❌ Package manager operations detected" && exit 1)
+          
+          echo "✅ AMD64: Container startup successful"
+          
+          # Cleanup
+          docker stop test-amd64
+          docker rm test-amd64
+          
+      - name: Push AMD64 image
+        if: github.event_name != 'pull_request'
+        run: |
+          docker tag ipfs-kit:test-amd64 ghcr.io/${{ github.repository }}:amd64-latest
+          docker push ghcr.io/${{ github.repository }}:amd64-latest
+
+  # Build on self-hosted ARM64 runner (if available)
+  build-arm64:
+    name: Build ARM64 Docker Image
+    runs-on: [self-hosted, arm64]
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'test-arm64')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short,prefix=arm64-
+            
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+            
+      - name: Build Docker image (ARM64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.enhanced
+          platforms: linux/arm64
+          push: false
+          load: true
+          tags: ipfs-kit:test-arm64
+          cache-from: type=gha,scope=arm64
+          cache-to: type=gha,mode=max,scope=arm64
+          
+      - name: Test ARM64 image - Lotus dependencies
+        run: |
+          echo "Testing Lotus dependency detection on ARM64..."
+          docker run --rm ipfs-kit:test-arm64 \
+            python3 -c "from ipfs_kit_py.install_lotus import install_lotus; i = install_lotus(); assert i._check_hwloc_library_direct(), 'Lotus deps missing'; print('✅ ARM64: Lotus dependencies OK')"
+          
+      - name: Test ARM64 image - Container startup
+        run: |
+          echo "Testing container startup on ARM64..."
+          docker run -d --name test-arm64 -p 9999:9999 \
+            -e IPFS_KIT_AUTO_INSTALL_DEPS=0 \
+            -e IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS=0 \
+            ipfs-kit:test-arm64 daemon-only
+          
+          # Wait for startup
+          sleep 10
+          
+          # Check API
+          curl -f http://localhost:9999/api/v1/status || (docker logs test-arm64 && exit 1)
+          
+          # Check logs for no package manager operations
+          ! docker logs test-arm64 2>&1 | grep -E "apt-get|dpkg.*install" || (echo "❌ Package manager operations detected" && exit 1)
+          
+          echo "✅ ARM64: Container startup successful"
+          
+          # Cleanup
+          docker stop test-arm64
+          docker rm test-arm64
+          
+      - name: Push ARM64 image
+        if: github.event_name != 'pull_request'
+        run: |
+          docker tag ipfs-kit:test-arm64 ghcr.io/${{ github.repository }}:arm64-latest
+          docker push ghcr.io/${{ github.repository }}:arm64-latest
+
+  # Create multi-arch manifest
+  create-manifest:
+    name: Create Multi-Arch Manifest
+    needs: [build-amd64, build-arm64]
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Create and push multi-arch manifest
+        run: |
+          docker manifest create ghcr.io/${{ github.repository }}:latest \
+            --amend ghcr.io/${{ github.repository }}:amd64-latest \
+            --amend ghcr.io/${{ github.repository }}:arm64-latest
+          
+          docker manifest push ghcr.io/${{ github.repository }}:latest
+          
+          # Also create version-tagged manifests if this is a release
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            docker manifest create ghcr.io/${{ github.repository }}:${VERSION} \
+              --amend ghcr.io/${{ github.repository }}:amd64-latest \
+              --amend ghcr.io/${{ github.repository }}:arm64-latest
+            docker manifest push ghcr.io/${{ github.repository }}:${VERSION}
+          fi
+
+  # Summary report
+  test-summary:
+    name: Test Summary
+    needs: [build-amd64, build-arm64]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# Docker Build and Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.build-amd64.result }}" == "success" ]]; then
+            echo "✅ **AMD64 Build**: Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **AMD64 Build**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.build-arm64.result }}" == "success" ]]; then
+            echo "✅ **ARM64 Build**: Passed" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.build-arm64.result }}" == "skipped" ]]; then
+            echo "⏭️  **ARM64 Build**: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **ARM64 Build**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Key Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- Lotus dependency pre-installation verification" >> $GITHUB_STEP_SUMMARY
+          echo "- Container daemon startup without package manager operations" >> $GITHUB_STEP_SUMMARY
+          echo "- API responsiveness test" >> $GITHUB_STEP_SUMMARY
