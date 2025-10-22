@@ -109,9 +109,9 @@ ENV BUILD_TYPE=production
 # Copy wheel from builder
 COPY --from=builder /app/src/dist/*.whl /tmp/
 
-# Install package
+# Install package with API support for daemon functionality
 RUN pip install --upgrade pip && \
-    pip install /tmp/*.whl && \
+    find /tmp -name "*.whl" -exec pip install "{}[api,full]" \; && \
     rm -rf /tmp/*.whl
 
 # Create necessary directories
