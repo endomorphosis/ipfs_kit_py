@@ -120,8 +120,10 @@ RUN chmod +x /healthcheck.sh
 # Switch to application user
 USER ipfs_user
 
-# Initialize IPFS repository
-RUN ipfs init --profile server
+# Initialize IPFS repository and configure API to listen on all interfaces
+RUN ipfs init --profile server && \
+    ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001 && \
+    ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080
 
 # Expose ports
 # 4001: IPFS swarm
