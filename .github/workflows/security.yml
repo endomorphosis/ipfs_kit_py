@@ -16,10 +16,11 @@ jobs:
   dependency-check:
     name: Dependency Check on ${{ matrix.arch }}
     runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
     strategy:
       fail-fast: false
       matrix:
-        arch: [amd64, arm64]
+        arch: [amd64]  # Only AMD64 by default
     steps:
     - uses: actions/checkout@v4
     
@@ -51,10 +52,11 @@ jobs:
   bandit-scan:
     name: Bandit Scan on ${{ matrix.arch }}
     runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
     strategy:
       fail-fast: false
       matrix:
-        arch: [amd64, arm64]
+        arch: [amd64]  # Only AMD64 by default
     steps:
     - uses: actions/checkout@v4
     

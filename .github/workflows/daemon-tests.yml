@@ -24,11 +24,16 @@ jobs:
   daemon-unit-tests:
     name: Daemon Unit Tests - ${{ matrix.arch }} - Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-latest' }}
+    continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
     strategy:
       fail-fast: false
       matrix:
-        arch: [amd64, arm64]
+        arch: [amd64]  # Only AMD64 by default
         python-version: ['3.10', '3.11', '3.12']
+        include:
+          # ARM64 jobs - optional, only if self-hosted runners available
+          - arch: arm64
+            python-version: '3.11'
         
     steps:
       - name: Checkout repository
