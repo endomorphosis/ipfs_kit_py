@@ -37,20 +37,6 @@ sys.path.insert(0, str(project_root))
 
 # Import our test fix script
 try:
-<<<<<<< HEAD
-    import pandas as pd
-    PANDAS_AVAILABLE = True
-
-    # Check if pandas is a real module or a mock
-    if not hasattr(pd, 'DataFrame'):
-        # It's a mock, so create DataFrame attribute
-        pd.DataFrame = MagicMock()
-        pd.DataFrame.to_numpy = MagicMock(return_value=None)
-        original_df_to_numpy = None
-    else:
-        # Store original to_numpy if it exists
-        original_df_to_numpy = getattr(pd.DataFrame, "to_numpy", None)
-=======
     import fix_test_imports
     logger.info("Successfully imported fix_test_imports")
     # Preload real storage_manager modules to avoid being mocked
@@ -64,7 +50,6 @@ except ImportError as e:
     logger.error(f"Error importing fix_test_imports: {e}")
 except Exception as e:
     logger.error(f"Error applying test fixes: {e}")
->>>>>>> 459e531a76cdfd42b9dc744871e757b690db81c1
 
 # Global fixtures
 
@@ -73,62 +58,6 @@ def temp_dir(tmp_path_factory):
     """Create a temporary directory for tests."""
     return tmp_path_factory.mktemp("test_data")
 
-<<<<<<< HEAD
-except ImportError:
-    PANDAS_AVAILABLE = False
-
-    # Create a mock pandas module
-    class MockPandas:
-        def __init__(self):
-            class DataFrame:
-                def __init__(self, *args, **kwargs):
-                    pass
-
-                def to_numpy(self, *args, **kwargs):
-                    return None
-
-            self.DataFrame = DataFrame
-
-    # Add to sys.modules
-    sys.modules['pandas'] = MockPandas()
-    logging.info("Created mock pandas module")
-
-# Apply numpy patches if numpy is available
-try:
-    import numpy as np
-    NUMPY_AVAILABLE = True
-
-    # Check if numpy is a real module or a mock
-    if not hasattr(np, 'array'):
-        np.array = MagicMock(return_value=None)
-
-except ImportError:
-    NUMPY_AVAILABLE = False
-
-    # Create a mock numpy module
-    class MockNumpy:
-        def __init__(self):
-            self.array = lambda x, *args, **kwargs: x
-            self.ndarray = type('ndarray', (), {})
-
-    # Add to sys.modules
-    sys.modules['numpy'] = MockNumpy()
-    logging.info("Created mock numpy module")
-
-# Setup pytest fixtures for unit tests
-@pytest.fixture
-def ipfs_mock():
-    """Create a mock IPFS instance for testing."""
-    mock = MagicMock()
-    mock.files = MagicMock()
-    mock.files.read = MagicMock(return_value=b"test data")
-    mock.files.ls = MagicMock(return_value={"Entries": []})
-    mock.files.write = MagicMock()
-    mock.files.mkdir = MagicMock()
-    mock.files.rm = MagicMock()
-    mock.files.stat = MagicMock(return_value={"Size": 0, "Hash": "testcid", "Type": 0})
-    return mock
-=======
 @pytest.fixture
 def mock_ipfs_client():
     """Provide a mock IPFS client for tests."""
@@ -201,4 +130,4 @@ def pytest_ignore_collect(path, config):
     Ignore all files for collection to bypass import and syntax errors.
     """
     return True
->>>>>>> 459e531a76cdfd42b9dc744871e757b690db81c1
+
