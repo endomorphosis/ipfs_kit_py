@@ -121,13 +121,3 @@ try:
 except Exception:
     pass
 
-def pytest_collection_modifyitems(config, items):
-    for item in items:
-        item.add_marker(pytest.mark.skip(reason="Auto-skipping all tests until comprehensive fixes are applied"))
-
-def pytest_ignore_collect(path, config):
-    """
-    Ignore all files for collection to bypass import and syntax errors.
-    """
-    return True
-
