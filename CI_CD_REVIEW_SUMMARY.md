@@ -3,7 +3,24 @@
 ## Overview
 This document summarizes the CI/CD review and fixes applied to ensure GitHub Actions workflows work correctly together.
 
-## Issues Found and Fixed
+## Latest Updates (2025-10-23)
+
+### Issues Found in Most Recent Workflow Run
+
+After the initial fixes, new issues were discovered in workflow run #18762938202:
+
+1. **Merge Conflict in test/conftest.py** ✅ FIXED
+   - Git conflict markers (`<<<<<<< HEAD`, `=======`, `>>>>>>>`) were present in the file
+   - Caused SyntaxError preventing pytest from running
+   - **Fix**: Resolved conflicts, keeping the cleaner incoming branch version
+
+2. **Python 3.8 Build Failure** ✅ FIXED  
+   - `setuptools>=77.0.0` is not available for Python 3.8 (maximum version 75.3.2)
+   - **Fix**: Reverted to `setuptools>=61.0` for compatibility with all Python versions
+   - Removed modern `license` and `license-files` fields (require setuptools 77+)
+   - Added license via classifier: `"License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)"`
+
+## Issues Found and Fixed (Initial Review)
 
 ### 1. ✅ pyproject.toml License Configuration (CRITICAL)
 **Issue**: The `project.license` field was using a deprecated string format that caused build failures across all Python versions (3.8, 3.9, 3.10, 3.11).
