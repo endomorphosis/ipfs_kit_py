@@ -14,14 +14,32 @@ permissions:
 
 jobs:
   dependency-check:
-    runs-on: ubuntu-20.04
+    name: Dependency Check on ${{ matrix.arch }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64]  # Only AMD64 by default
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
+    - name: Set up Python (AMD64)
+      if: matrix.arch == 'amd64'
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+    
+    - name: Set up Python (ARM64)
+      if: matrix.arch == 'arm64'
+      run: |
+        if command -v python3.11 >/dev/null 2>&1; then
+          python3.11 -m venv venv
+        else
+          python3 -m venv venv
+        fi
+        source venv/bin/activate
+        echo "venv/bin" >> $GITHUB_PATH
     
     - name: Install safety
       run: pip install safety
@@ -32,14 +50,32 @@ jobs:
         safety check
 
   bandit-scan:
-    runs-on: ubuntu-20.04
+    name: Bandit Scan on ${{ matrix.arch }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64]  # Only AMD64 by default
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
+    - name: Set up Python (AMD64)
+      if: matrix.arch == 'amd64'
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+    
+    - name: Set up Python (ARM64)
+      if: matrix.arch == 'arm64'
+      run: |
+        if command -v python3.11 >/dev/null 2>&1; then
+          python3.11 -m venv venv
+        else
+          python3 -m venv venv
+        fi
+        source venv/bin/activate
+        echo "venv/bin" >> $GITHUB_PATH
     
     - name: Install bandit
       run: pip install bandit
