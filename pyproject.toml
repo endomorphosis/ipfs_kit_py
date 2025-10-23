@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=77.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -12,6 +12,7 @@ description = "Python toolkit for IPFS with high-level API, cluster management, 
 readme = "README.md"
 requires-python = ">=3.8"
 license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 keywords = ["ipfs", "distributed", "storage", "content-addressed", "cluster", "arrow", "fsspec", "ai", "ml"]
 classifiers = [
     "Development Status :: 4 - Beta",
