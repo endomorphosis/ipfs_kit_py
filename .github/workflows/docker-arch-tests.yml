@@ -104,11 +104,12 @@ jobs:
       with:
         submodules: recursive
     
-    - name: Add user to docker group
+    - name: Fix Docker permissions
       run: |
+        # Add user to docker group
         sudo usermod -aG docker $USER || true
-        # Refresh group membership without logout
-        newgrp docker || true
+        # Change Docker socket permissions as a fallback
+        sudo chmod 666 /var/run/docker.sock || true
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
