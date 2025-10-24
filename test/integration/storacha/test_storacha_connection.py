@@ -34,9 +34,12 @@ sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__f
 try:
     from applied_patches.enhanced_storacha_storage import EnhancedStorachaStorage
     from ipfs_kit_py.mcp.extensions.storacha_connection import StorachaConnectionManager
+    STORACHA_AVAILABLE = True
 except ImportError as e:
     logger.error(f"Import error: {e}")
-    sys.exit(1)
+    STORACHA_AVAILABLE = False
+    # Skip this module's tests if dependencies aren't available
+    pytestmark = __import__('pytest').mark.skip(reason="Storacha dependencies not available")
 
 def test_connection_manager(api_key: Optional[str] = None, api_endpoint: Optional[str] = None) -> None:
     """
