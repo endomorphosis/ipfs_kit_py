@@ -65,32 +65,5 @@ setup(
     author_email='starworks5@gmail.com',
     url='https://github.com/endomorphosis/ipfs_kit_py/',
     python_requires='>=3.10',
-    install_requires=[
-        'requests>=2.28.0',
-        'httpx>=0.24.0',
-        'aiohttp>=3.8.4',
-        'aiofiles>=23.1.0',
-        'watchdog>=3.0.0',
-        'psutil>=5.9.0',
-        'pyyaml>=6.0',
-        'base58>=2.1.1',
-        'multiaddr>=0.0.9',  # For libp2p multiaddress support
-        'python-magic>=0.4.27',  # For file type detection
-        'anyio>=3.7.0',  # For async operations with backend flexibility
-        'trio>=0.22.0',  # Optional backend for anyio
-        'cryptography>=38.0.0',  # Required for libp2p
-    ],
-    extras_require={
-        'libp2p': [
-            'libp2p>=0.2.8',  # Core libp2p functionality
-            'multiaddr>=0.0.9',  # For peer addressing
-            'multiformats>=0.2.0',  # For content addressing
-            'base58>=2.1.1',  # Used by CIDs and peer IDs
-            'cryptography>=38.0.0',  # For key generation and encryption
-            'protobuf>=3.20.1,<5.0.0',  # For protocol buffer support (compatible with libp2p 0.2.8)
-            'eth-hash[pycryptodome]>=0.3.3',  # ETH integration with crypto backend
-            'eth-keys>=0.4.0',  # ETH integration for key management
-        ],
-    },
-    # All other configurations come from pyproject.toml
+    # All other configurations (including dependencies and extras) come from pyproject.toml
 )
