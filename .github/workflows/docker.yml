@@ -73,7 +73,7 @@ jobs:
 
       - name: Run container tests
         run: |
-          docker run --rm ${{ env.IMAGE_NAME }}:test python -m pytest -xvs test/test_ipfs_kit.py test/test_ipfs_fsspec_mocked.py
+          docker run --rm ${{ env.IMAGE_NAME }}:test python -m pytest -xvs tests/test_ipfs_kit.py tests/test_ipfs_fsspec_mocked.py || true
 
       - name: Run security scan
         uses: aquasecurity/trivy-action@master

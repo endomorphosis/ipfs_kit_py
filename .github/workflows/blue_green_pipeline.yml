@@ -6,15 +6,15 @@ on:
     paths:
       - 'ipfs_kit_py/mcp/**'
       - 'ipfs_kit_py/mcp_server/**'
-      - 'test/mcp/**'
-      - 'test/integration/**'
+      - 'tests/mcp/**'
+      - 'tests/integration/**'
   pull_request:
     branches: [ main, develop ]
     paths:
       - 'ipfs_kit_py/mcp/**'
       - 'ipfs_kit_py/mcp_server/**'
-      - 'test/mcp/**'
-      - 'test/integration/**'
+      - 'tests/mcp/**'
+      - 'tests/integration/**'
   workflow_dispatch:
     inputs:
       environment:
@@ -75,19 +75,19 @@ jobs:
       
       - name: Create test directories
         run: |
-          mkdir -p test/data/storage_blue test/data/storage_green test/data/stats test/logs
+          mkdir -p tests/data/storage_blue tests/data/storage_green tests/data/stats tests/logs
       
       - name: Run unit tests
         run: |
-          pytest test/unit/ --cov=ipfs_kit_py/mcp_server --cov-report=xml
+          pytest tests/unit/ --cov=ipfs_kit_py/mcp_server --cov-report=xml
       
       - name: Run integration tests
         run: |
-          pytest test/integration/test_blue_green_deployment.py -v
+          pytest tests/integration/test_blue_green_deployment.py -v
       
       - name: Run end-to-end tests
         run: |
-          python test/integration/run_blue_green_e2e_test.py --config test/integration/test_blue_green_config.json
+          python tests/integration/run_blue_green_e2e_test.py --config tests/integration/test_blue_green_config.json
       
       - name: Upload test coverage
         uses: codecov/codecov-action@v3
@@ -100,8 +100,8 @@ jobs:
         with:
           name: test-results
           path: |
-            test/logs/
-            test/data/stats/
+            tests/logs/
+            tests/data/stats/
             .coverage
             coverage.xml
 

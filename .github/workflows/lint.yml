@@ -46,16 +46,16 @@ jobs:
     
     - name: Check formatting with Black
       run: |
-        black --check ipfs_kit_py test examples
+        black --check ipfs_kit_py tests examples
     
     - name: Check imports with isort
       run: |
-        isort --check ipfs_kit_py test examples
+        isort --check ipfs_kit_py tests examples
     
     - name: Lint with Ruff
       run: |
         pip install ruff
-        ruff check ipfs_kit_py test examples
+        ruff check ipfs_kit_py tests examples
     
     - name: Type check with MyPy
       run: |

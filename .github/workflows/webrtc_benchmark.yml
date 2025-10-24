@@ -7,14 +7,14 @@ on:
     paths:
       - 'ipfs_kit_py/webrtc_*.py'
       - 'ipfs_kit_py/high_level_api.py'
-      - 'test/test_webrtc_*.py'
+      - 'tests/test_webrtc_*.py'
   
   # Run on relevant pull requests
   pull_request:
     paths:
       - 'ipfs_kit_py/webrtc_*.py'
       - 'ipfs_kit_py/high_level_api.py'
-      - 'test/test_webrtc_*.py'
+      - 'tests/test_webrtc_*.py'
   
   # Run on schedule (weekly)
   schedule:

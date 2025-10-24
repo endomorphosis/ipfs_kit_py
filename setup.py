@@ -64,7 +64,7 @@ setup(
     author='Benjamin Barber',
     author_email='starworks5@gmail.com',
     url='https://github.com/endomorphosis/ipfs_kit_py/',
-    python_requires='>=3.8',
+    python_requires='>=3.10',
     install_requires=[
         'requests>=2.28.0',
         'httpx>=0.24.0',
