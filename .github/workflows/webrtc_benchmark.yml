@@ -43,7 +43,7 @@ permissions:
 jobs:
   benchmark:
     name: Run WebRTC Benchmarks
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     
     steps:
       - name: Checkout Repository
@@ -145,7 +145,7 @@ jobs:
   # Scheduled job to update baseline
   update-baseline:
     name: Update Benchmark Baseline
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.event_name == 'schedule'
     needs: benchmark
     

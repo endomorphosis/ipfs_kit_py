@@ -15,7 +15,7 @@ permissions:
 jobs:
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.arch }}
-    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-22.04' }}
     continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
     strategy:
       fail-fast: false
@@ -89,7 +89,7 @@ jobs:
     needs: test
     name: Build and publish Python distributions to PyPI
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v4
@@ -116,7 +116,7 @@ jobs:
     needs: test
     name: Build and publish Python distributions to TestPyPI
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v4

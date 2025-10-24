@@ -19,7 +19,7 @@ permissions:
 jobs:
   docker-lint:
     name: Docker Lint
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
 
   build-and-test:
     name: Build and Test Docker Image
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: docker-lint
     permissions:
       contents: read
@@ -87,7 +87,7 @@ jobs:
 
   publish:
     name: Publish Docker image
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: build-and-test
     if: github.event_name != 'pull_request'
     permissions:
@@ -135,7 +135,7 @@ jobs:
 
   helm-lint:
     name: Lint Helm Chart
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -151,7 +151,7 @@ jobs:
 
   deploy-to-staging:
     name: Deploy to Staging
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: publish
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     environment:

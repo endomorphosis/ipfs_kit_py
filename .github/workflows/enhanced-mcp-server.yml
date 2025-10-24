@@ -45,7 +45,7 @@ env:
 jobs:
   test-enhanced-mcp-server:
     name: Test Enhanced MCP Server
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13']
@@ -109,7 +109,7 @@ jobs:
 
   test-configuration-management:
     name: Test Configuration Management
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: test-enhanced-mcp-server
 
     steps:
@@ -155,7 +155,7 @@ jobs:
 
   integration-test:
     name: Integration Tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: test-configuration-management
 
     steps:
@@ -206,7 +206,7 @@ jobs:
 
   docker-test:
     name: Test Docker Build with Enhanced Features
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: integration-test
 
     steps:
@@ -279,7 +279,7 @@ jobs:
 
   report:
     name: Generate Test Report
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [test-enhanced-mcp-server, test-configuration-management, integration-test, docker-test]
     if: always()
 

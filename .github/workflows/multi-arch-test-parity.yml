@@ -22,7 +22,7 @@ jobs:
   # This job is optional and will use QEMU if runners unavailable
   test-parity:
     name: Test on ${{ matrix.arch }} - Python ${{ matrix.python-version }}
-    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-22.04' }}
     continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 native testing is optional
     if: github.event_name != 'push' || contains(github.ref, 'main') || contains(github.ref, 'develop')  # Skip on feature branches
     
@@ -208,7 +208,7 @@ jobs:
   report-parity:
     name: Test Parity Report
     needs: [test-parity, test-docker-qemu]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: always()
     
     steps:

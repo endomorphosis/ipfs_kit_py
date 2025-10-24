@@ -32,7 +32,7 @@ permissions:
 jobs:
   test-daemon-config:
     name: Test Daemon Configuration Management
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13']
@@ -80,7 +80,7 @@ jobs:
 
   test-installer-config-integration:
     name: Test Installer Configuration Integration
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -112,7 +112,7 @@ jobs:
 
   test-s3-config:
     name: Test S3 Configuration
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -142,7 +142,7 @@ jobs:
 
   test-comprehensive-config:
     name: Test Comprehensive Configuration
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-version: ['3.11', '3.12']

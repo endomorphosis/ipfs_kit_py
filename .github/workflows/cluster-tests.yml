@@ -27,7 +27,7 @@ permissions:
 jobs:
   cluster-unit-tests:
     name: Cluster Unit Tests - ${{ matrix.arch }} - Python ${{ matrix.python-version }}
-    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-22.04' }}
     continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
     strategy:
       fail-fast: false
@@ -93,7 +93,7 @@ jobs:
 
   vfs-integration-tests:
     name: VFS Integration Tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-version: ['3.9', '3.11']
@@ -140,7 +140,7 @@ jobs:
 
   http-api-integration-tests:
     name: HTTP API Integration Tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-version: ['3.11']
@@ -187,7 +187,7 @@ jobs:
 
   integration-tests:
     name: Full Integration Tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [cluster-unit-tests, vfs-integration-tests]
     
     steps:
@@ -240,7 +240,7 @@ jobs:
 
   performance-tests:
     name: Performance Tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [cluster-unit-tests]
     
     steps:
@@ -283,7 +283,7 @@ jobs:
 
   test-summary:
     name: Test Summary
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [cluster-unit-tests, vfs-integration-tests, http-api-integration-tests, integration-tests, performance-tests]
     if: always()
     
