@@ -104,6 +104,12 @@ jobs:
       with:
         submodules: recursive
     
+    - name: Add user to docker group
+      run: |
+        sudo usermod -aG docker $USER || true
+        # Refresh group membership without logout
+        newgrp docker || true
+    
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     
