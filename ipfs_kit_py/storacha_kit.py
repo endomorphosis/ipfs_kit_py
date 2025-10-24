@@ -416,6 +416,71 @@ class storacha_kit:
         logger.debug(f"Generated mock response for {method} {endpoint_path}")
         return result
 
+    def config(self, **kwargs):
+        """Configure storacha_kit with provided settings.
+
+        Args:
+            **kwargs: Configuration parameters including:
+                - api_key: Storacha API key
+                - api_url: Custom API endpoint URL
+                - mock_mode: Enable mock mode for testing
+                - spaces: List of space DIDs to configure
+
+        Returns:
+            Dictionary with configuration status
+        """
+        correlation_id = kwargs.get("correlation_id", self.correlation_id)
+        result = create_result_dict("config", correlation_id)
+
+        try:
+            # Update API key if provided
+            if "api_key" in kwargs:
+                self.api_key = kwargs["api_key"]
+                self.metadata["api_key"] = kwargs["api_key"]
+                
+                # Check if this triggers mock mode
+                if self.api_key and self.api_key.startswith("mock_"):
+                    self.mock_mode = True
+                    logger.info("Mock mode enabled via API key")
+
+            # Update API URL if provided
+            if "api_url" in kwargs:
+                self.api_url = kwargs["api_url"]
+                self.metadata["api_url"] = kwargs["api_url"]
+                logger.info(f"API URL configured: {self.api_url}")
+
+            # Update mock mode if explicitly provided
+            if "mock_mode" in kwargs:
+                self.mock_mode = kwargs["mock_mode"]
+                self.metadata["mock_mode"] = kwargs["mock_mode"]
+                if self.mock_mode:
+                    self._setup_mock_storage()
+
+            # Configure spaces if provided
+            if "spaces" in kwargs:
+                spaces = kwargs["spaces"]
+                if isinstance(spaces, list) and spaces:
+                    # Set the first space as current
+                    self.space = spaces[0]
+                    result["configured_spaces"] = spaces
+                    logger.info(f"Configured {len(spaces)} space(s)")
+
+            # Update any other metadata
+            for key, value in kwargs.items():
+                if key not in ["api_key", "api_url", "mock_mode", "spaces", "correlation_id"]:
+                    self.metadata[key] = value
+
+            result["success"] = True
+            result["message"] = "Configuration updated successfully"
+            result["mock_mode"] = self.mock_mode
+            result["api_url"] = self.api_url
+
+            return result
+
+        except Exception as e:
+            logger.exception(f"Error in config: {str(e)}")
+            return handle_error(result, e, f"Failed to configure storacha_kit: {str(e)}")
+
     def install(self, **kwargs):
         """Install the required dependencies for storacha_kit.
 

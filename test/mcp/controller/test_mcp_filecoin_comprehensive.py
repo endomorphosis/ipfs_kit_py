@@ -58,10 +58,16 @@ try:
     except ImportError as e:
         print(f"Warning: Could not import ipfs_kit: {e}")
         HAVE_IPFS_KIT = False
+    
+    DEPENDENCIES_AVAILABLE = True
 
 except ImportError as e:
     print(f"Error importing core modules: {e}")
-    sys.exit(1)
+    DEPENDENCIES_AVAILABLE = False
+    # Skip this module's tests if dependencies aren't available
+    pytestmark = __import__('pytest').mark.skip(reason="Filecoin MCP dependencies not available")
+    HAVE_MCP_SERVER = False
+    HAVE_IPFS_KIT = False
 
 # Constants
 TEST_RESULTS_DIR = "test_results"
