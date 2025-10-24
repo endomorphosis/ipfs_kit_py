@@ -36,10 +36,13 @@ try:
     import requests
     from fastapi import FastAPI, APIRouter
     from fastapi.testclient import TestClient
+    DEPENDENCIES_AVAILABLE = True
 except ImportError:
     logger.error("Missing required dependencies. Install with:")
     logger.error("pip install anyio sniffio fastapi uvicorn requests")
-    sys.exit(1)
+    DEPENDENCIES_AVAILABLE = False
+    # Skip this module's tests if dependencies aren't available
+    pytestmark = __import__('pytest').mark.skip(reason="WebRTC AnyIO dependencies not available")
 
 # Mock classes to simulate WebRTC operations
 class MockWebRTCManager:
