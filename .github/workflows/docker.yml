@@ -140,12 +140,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Check if Helm chart exists
+        id: check_helm
+        run: |
+          if [ -d "./helm/ipfs-kit" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Helm chart directory not found, skipping helm lint"
+          fi
+      
       - name: Set up Helm
+        if: steps.check_helm.outputs.exists == 'true'
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
       
       - name: Lint Helm Chart
+        if: steps.check_helm.outputs.exists == 'true'
         run: |
           helm lint ./helm/ipfs-kit
 
@@ -161,21 +173,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Check if Helm chart exists
+        id: check_helm
+        run: |
+          if [ -d "./helm/ipfs-kit" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Helm chart directory not found, skipping deployment"
+            exit 0
+          fi
+      
       - name: Set up kubectl
+        if: steps.check_helm.outputs.exists == 'true'
         uses: azure/setup-kubectl@v3
       
       - name: Set up Helm
+        if: steps.check_helm.outputs.exists == 'true'
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
       
       - name: Configure kubectl
+        if: steps.check_helm.outputs.exists == 'true'
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
       
       - name: Deploy to staging
+        if: steps.check_helm.outputs.exists == 'true'
         run: |
           helm upgrade --install ipfs-kit ./helm/ipfs-kit \
             --namespace ipfs-kit-staging \
@@ -185,6 +212,7 @@ jobs:
             --set environment=staging
       
       - name: Verify deployment
+        if: steps.check_helm.outputs.exists == 'true'
         run: |
           kubectl rollout status deployment/ipfs-kit-master -n ipfs-kit-staging
           kubectl rollout status deployment/ipfs-kit-worker -n ipfs-kit-staging

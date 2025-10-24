@@ -177,48 +177,43 @@ jobs:
       
       - name: Package Helm charts
         run: |
-          mkdir -p public/helm-repo
+          mkdir -p public/helm-repo public/helm
           
-          # Package Helm chart
-          helm package ./helm/ipfs-kit -d public/helm-repo/
-          
-          # Generate Helm repository index
-          helm repo index public/helm-repo/ --url https://endomorphosis.github.io/ipfs_kit_py/helm-repo
-          
-          # Create Helm documentation
-          cat > public/helm/index.md << EOF
+          # Check if Helm chart exists
+          if [ -d "./helm/ipfs-kit" ]; then
+            # Package Helm chart
+            helm package ./helm/ipfs-kit -d public/helm-repo/
+            
+            # Generate Helm repository index
+            helm repo index public/helm-repo/ --url https://endomorphosis.github.io/ipfs_kit_py/helm-repo
+            
+            # Create Helm documentation
+            cat > public/helm/index.md << EOF
           # Helm Charts
           
           IPFS Kit provides a Helm chart for easy deployment on Kubernetes.
           
           ## Add the Helm repository
           
-          ```bash
+          \`\`\`bash
           helm repo add ipfs-kit https://endomorphosis.github.io/ipfs_kit_py/helm-repo
           helm repo update
-          ```
+          \`\`\`
           
           ## Install the chart
           
-          ```bash
+          \`\`\`bash
           helm install ipfs-kit ipfs-kit/ipfs-kit
-          ```
-          
-          ## Configuration values
-          
-          The following table lists the configurable parameters of the IPFS Kit chart and their default values.
-          
-          | Parameter | Description | Default |
-          |-----------|-------------|---------|
-          | \`image.repository\` | Image repository | \`ghcr.io/endomorphosis/ipfs_kit_py\` |
-          | \`image.tag\` | Image tag | \`latest\` |
-          | \`image.pullPolicy\` | Image pull policy | \`Always\` |
-          | \`replicaCount.master\` | Number of master nodes | \`1\` |
-          | \`replicaCount.worker\` | Number of worker nodes | \`2\` |
-          | \`replicaCount.leecher\` | Number of leecher nodes | \`1\` |
-          
-          For more configuration options, see the \`values.yaml\` file in the chart.
+          \`\`\`
           EOF
+          else
+            echo "⚠️ Helm chart directory not found, skipping helm packaging"
+            cat > public/helm/index.md << EOF
+          # Helm Charts
+          
+          Helm charts are not yet available for this project.
+          EOF
+          fi
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2

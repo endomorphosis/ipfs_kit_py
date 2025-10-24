@@ -90,17 +90,31 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      
+      - name: Check if Helm chart exists
+        id: check_helm
+        run: |
+          if [ -d "./helm/ipfs-kit" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Helm chart directory not found, skipping helm package"
+            exit 0
+          fi
         
       - name: Set up Helm
+        if: steps.check_helm.outputs.exists == 'true'
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
           
       - name: Package Helm chart
+        if: steps.check_helm.outputs.exists == 'true'
         run: |
           helm package helm/ipfs-kit --destination ./helm-dist
           
       - name: Upload artifact
+        if: steps.check_helm.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: helm-charts
