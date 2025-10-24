@@ -15,7 +15,7 @@ permissions:
 jobs:
   dependency-check:
     name: Dependency Check on ${{ matrix.arch }}
-    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-22.04' }}
     continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
     strategy:
       fail-fast: false
@@ -51,7 +51,7 @@ jobs:
 
   bandit-scan:
     name: Bandit Scan on ${{ matrix.arch }}
-    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-22.04' }}
     continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
     strategy:
       fail-fast: false
@@ -84,7 +84,7 @@ jobs:
       run: bandit -r ipfs_kit_py -ll
       
   docker-scan:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.event_name != 'pull_request'
     steps:
     - uses: actions/checkout@v4

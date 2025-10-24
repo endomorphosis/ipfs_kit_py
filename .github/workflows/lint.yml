@@ -12,7 +12,7 @@ permissions:
 jobs:
   lint:
     name: Lint on ${{ matrix.arch }}
-    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-22.04' }}
     continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
     strategy:
       fail-fast: false
@@ -46,16 +46,16 @@ jobs:
     
     - name: Check formatting with Black
       run: |
-        black --check ipfs_kit_py test examples
+        black --check ipfs_kit_py tests examples
     
     - name: Check imports with isort
       run: |
-        isort --check ipfs_kit_py test examples
+        isort --check ipfs_kit_py tests examples
     
     - name: Lint with Ruff
       run: |
         pip install ruff
-        ruff check ipfs_kit_py test examples
+        ruff check ipfs_kit_py tests examples
     
     - name: Type check with MyPy
       run: |

@@ -29,7 +29,7 @@ jobs:
 
   integration-summary:
     name: Integration Summary
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [basic-tests, configuration-tests, mcp-server-tests, package-tests]
     if: always()
 

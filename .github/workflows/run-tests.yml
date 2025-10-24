@@ -13,13 +13,13 @@ permissions:
 jobs:
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.arch }}
-    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-20.04' }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-22.04' }}
     continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional if runners unavailable
     strategy:
       fail-fast: false
       matrix:
         arch: [amd64]  # Only AMD64 by default - ARM64 requires self-hosted runners
-        python-version: [3.8, 3.9, '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
         include:
           # ARM64 jobs - only run if self-hosted runners are available
           - arch: arm64
@@ -98,7 +98,7 @@ jobs:
 
   report:
     needs: test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: always()
     
     steps:
