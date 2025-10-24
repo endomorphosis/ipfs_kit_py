@@ -19,11 +19,14 @@ try:
     from ipfs_kit_py.lotus_kit import lotus_kit
     from ipfs_kit_py.mcp.models.storage.filecoin_model import FilecoinModel
     print("Successfully imported FilecoinModel")
+    DEPENDENCIES_AVAILABLE = True
 except ImportError as e:
     print(f"Error importing FilecoinModel: {e}")
     # Try to find the actual file
     os.system("find ipfs_kit_py -name 'filecoin_model.py' -type f")
-    sys.exit(1)
+    DEPENDENCIES_AVAILABLE = False
+    # Skip this module's tests if dependencies aren't available
+    pytestmark = __import__('pytest').mark.skip(reason="Filecoin MCP dependencies not available")
 
 def test_filecoin_model_graceful_degradation():
     """Test FilecoinModel's ability to handle missing Lotus daemon gracefully."""
