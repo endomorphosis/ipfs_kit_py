@@ -91,6 +91,10 @@ graphql = [
 s3 = [
     "boto3>=1.26.0",
 ]
+storacha = [
+    "requests>=2.28.0",  # For HTTP API calls
+    "urllib3>=1.26.0",  # Required by requests
+]
 performance = [
     "matplotlib>=3.5.0",
     "numpy>=1.20.0",
@@ -134,6 +138,7 @@ full = [
     "py-ipld-car>=0.1.0",
     "py-ipld-dag-pb>=0.1.0",
     "py-ipld-unixfs>=0.1.0",
+    "urllib3>=1.26.0",  # For storacha support
 ]
 
 [project.scripts]
