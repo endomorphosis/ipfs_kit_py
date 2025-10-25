@@ -26,7 +26,7 @@ on:
         type: boolean
 
 env:
-  PYTHON_VERSION: "3.11"
+  PYTHON_VERSION: '3.12'
   DOCKER_REGISTRY: "ghcr.io"
   IMAGE_NAME: "ipfs-kit-py"
   AMD64_ARCH: "linux/amd64"
@@ -85,7 +85,7 @@ jobs:
     
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.12", "3.13"]
         
     steps:
     - uses: actions/checkout@v4

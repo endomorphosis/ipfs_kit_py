@@ -10,7 +10,7 @@ authors = [
 ]
 description = "Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = {text = "AGPL-3.0-or-later"}
 keywords = ["ipfs", "distributed", "storage", "content-addressed", "cluster", "arrow", "fsspec", "ai", "ml"]
 classifiers = [
@@ -19,9 +19,8 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries",
     "Topic :: System :: Distributed Computing",
     "Topic :: Database",
@@ -40,7 +39,6 @@ dependencies = [
     "pyyaml>=6.0",
     "base58>=2.1.1",
     "multiaddr>=0.0.9",  # For libp2p multiaddress support
-    "importlib-metadata>=4.12.0; python_version < '3.10'",
     "python-magic>=0.4.27", # For file type detection
     "anyio>=3.7.0", # For async operations with backend flexibility
     "trio>=0.22.0", # Optional backend for anyio
@@ -202,7 +200,7 @@ include = ["ipfs_kit_py*", "external*"]
 
 [tool.black]
 line-length = 100
-target-version = ["py38", "py39", "py310", "py311"]
+target-version = ["py312", "py313"]
 
 [tool.isort]
 profile = "black"
@@ -210,7 +208,7 @@ line_length = 100
 
 [tool.ruff]
 line-length = 100
-target-version = "py38"
+target-version = "py312"
 exclude = [".git", "__pycache__", "build", "dist"]
 ignore = ["E203", "E501"]
 
