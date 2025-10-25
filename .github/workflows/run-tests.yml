@@ -24,6 +24,8 @@ jobs:
           # ARM64 jobs - only run if self-hosted runners are available
           - arch: arm64
             python-version: '3.12'
+          - arch: arm64
+            python-version: '3.13'
 
     steps:
     - uses: actions/checkout@v4
