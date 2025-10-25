@@ -1,0 +1,12 @@
+{
+  "passed": [
+    "\u2705 MCP server is healthy (total_tools: unknown)",
+    "\u2705 UI is accessible and rendering",
+    "\u2705 MCP tools endpoint working (94 tools)",
+    "\u2705 Buckets API is functional",
+    "\u2705 Services API is functional"
+  ],
+  "failed": [],
+  "warnings": [],
+  "timestamp": "2025-10-22 04:04:04"
+}

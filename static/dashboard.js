@@ -609,3 +609,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     initDashboard();
 });
+// Quick fix for Enterprise Storage Hub upload functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Add file upload handler
+    const fileInput = document.getElementById('upload-file-input');
+    if (fileInput) {
+        fileInput.addEventListener('change', async function(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+            
+            const file = files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Use test3 bucket as default for now
+            const bucketName = 'test3';
+            
+            try {
+                console.log(`📤 Uploading ${file.name} to bucket ${bucketName}...`);
+                const response = await fetch(`/api/v0/buckets/${bucketName}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                console.log('✅ Upload result:', result);
+                
+                if (result.status === 'success') {
+                    alert(`File ${file.name} uploaded successfully to ~/.ipfs_kit/buckets/${bucketName}/`);
+                    // Refresh file list if possible
+                    if (typeof loadBucketFiles === 'function') {
+                        loadBucketFiles(bucketName);
+                    }
+                } else {
+                    alert(`Upload failed: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert(`Upload failed: ${error.message}`);
+            }
+        });
+    }
+    
+    // Add missing buckets-list container if it doesn't exist
+    const bucketsContainer = document.getElementById('buckets-list');
+    if (!bucketsContainer) {
+        // Create the missing container
+        const bucketsSection = document.querySelector('[data-tab="buckets"]');
+        if (bucketsSection) {
+            const container = document.createElement('div');
+            container.id = 'buckets-list';
+            container.innerHTML = '<div class="text-gray-500 text-center py-8">Loading buckets...</div>';
+            bucketsSection.appendChild(container);
+            console.log('✅ Added missing buckets-list container');
+        }
+    }
+});

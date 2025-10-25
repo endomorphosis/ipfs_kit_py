@@ -129,7 +129,7 @@ class ConfigEndpoints:
                 try:
                     updated_config["advanced"]["custom_headers"] = json.loads(config_data["advanced.custom_headers"])
                 except json.JSONDecodeError:
-                    logger.warning(f"Invalid JSON for custom_headers: {config_data["advanced.custom_headers"]}")
+                    logger.warning(f"Invalid JSON for custom_headers: {config_data['advanced.custom_headers']}")
                     # Optionally, add an error to validation_errors or return an error response
 
             # Special handling for custom_options (JSON string to dict)
@@ -137,7 +137,7 @@ class ConfigEndpoints:
                 try:
                     updated_config["advanced"]["custom_options"] = json.loads(config_data["advanced.custom_options"])
                 except json.JSONDecodeError:
-                    logger.warning(f"Invalid JSON for custom_options: {config_data["advanced.custom_options"]}")
+                    logger.warning(f"Invalid JSON for custom_options: {config_data['advanced.custom_options']}")
                     # Optionally, add an error to validation_errors or return an error response
 
             # Validate the fully formed updated_config

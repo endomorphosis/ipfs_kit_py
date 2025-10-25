@@ -1999,6 +1999,276 @@ class ComprehensiveMCPDashboard:
                         logsContainer.innerHTML = '<div class="text-gray-400">Logs cleared</div>';
                     }
                 }
+                
+                // Backend Configuration Functions
+                let currentEditingBackend = null;
+                
+                async function refreshBackendConfigs() {
+                    try {
+                        const response = await fetch('/api/backend_configs');
+                        const data = await response.json();
+                        
+                        if (data.success && data.configs) {
+                            displayBackendConfigs(data.configs);
+                        }
+                    } catch (error) {
+                        console.error('Error refreshing backend configs:', error);
+                    }
+                }
+                
+                function displayBackendConfigs(configs) {
+                    const container = document.getElementById('backend-configs-list');
+                    if (!container) return;
+                    
+                    let html = '';
+                    for (const [name, config] of Object.entries(configs)) {
+                        html += `
+                            <div class="border rounded p-4 mb-3">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <h5 class="font-semibold">${config.name || name}</h5>
+                                        <p class="text-sm text-gray-500">${config.type || 'Unknown type'}</p>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button onclick="editBackendConfig('${name}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                                            Edit
+                                        </button>
+                                        <button onclick="testBackendConfig('${name}')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+                                            Test
+                                        </button>
+                                        <button onclick="deleteBackendConfig('${name}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    container.innerHTML = html || '<p class="text-gray-500">No backend configurations found</p>';
+                }
+                
+                function showCreateBackendModal() {
+                    currentEditingBackend = null;
+                    document.getElementById('backend-modal-title').textContent = 'Create Backend Configuration';
+                    document.getElementById('backend-name').value = '';
+                    document.getElementById('backend-type').value = 'ipfs';
+                    document.getElementById('backend-config-fields').innerHTML = '';
+                    updateBackendConfigFields();
+                    document.getElementById('backend-config-modal').style.display = 'flex';
+                }
+                
+                async function editBackendConfig(backendName) {
+                    try {
+                        const response = await fetch(`/api/backend_configs/${backendName}`);
+                        const data = await response.json();
+                        
+                        if (data.success && data.config) {
+                            currentEditingBackend = backendName;
+                            document.getElementById('backend-modal-title').textContent = 'Edit Backend Configuration';
+                            document.getElementById('backend-name').value = backendName;
+                            document.getElementById('backend-name').disabled = true;
+                            document.getElementById('backend-type').value = data.config.type || 'ipfs';
+                            
+                            // Populate config fields
+                            updateBackendConfigFields();
+                            
+                            // Fill in existing values
+                            for (const [key, value] of Object.entries(data.config)) {
+                                const input = document.getElementById(`config-${key}`);
+                                if (input) {
+                                    input.value = value;
+                                }
+                            }
+                            
+                            document.getElementById('backend-config-modal').style.display = 'flex';
+                        }
+                    } catch (error) {
+                        console.error('Error loading backend config:', error);
+                        alert('Failed to load backend configuration');
+                    }
+                }
+                
+                function updateBackendConfigFields() {
+                    const type = document.getElementById('backend-type').value;
+                    const container = document.getElementById('backend-config-fields');
+                    
+                    // Define config fields for each backend type
+                    const fieldDefinitions = {
+                        'ipfs': [
+                            { name: 'config_dir', label: 'Config Directory', type: 'text', placeholder: '~/.ipfs' },
+                            { name: 'port', label: 'API Port', type: 'number', placeholder: '5001' },
+                            { name: 'gateway_port', label: 'Gateway Port', type: 'number', placeholder: '8080' },
+                            { name: 'swarm_port', label: 'Swarm Port', type: 'number', placeholder: '4001' },
+                            { name: 'auto_start', label: 'Auto Start', type: 'checkbox' }
+                        ],
+                        's3': [
+                            { name: 'access_key', label: 'Access Key', type: 'text', placeholder: 'AWS Access Key' },
+                            { name: 'secret_key', label: 'Secret Key', type: 'password', placeholder: 'AWS Secret Key' },
+                            { name: 'endpoint', label: 'Endpoint', type: 'text', placeholder: 'https://s3.amazonaws.com' },
+                            { name: 'bucket', label: 'Bucket Name', type: 'text', placeholder: 'my-bucket' },
+                            { name: 'region', label: 'Region', type: 'text', placeholder: 'us-east-1' }
+                        ],
+                        'ftp': [
+                            { name: 'host', label: 'Host', type: 'text', placeholder: 'ftp.example.com' },
+                            { name: 'port', label: 'Port', type: 'number', placeholder: '21' },
+                            { name: 'username', label: 'Username', type: 'text', placeholder: 'username' },
+                            { name: 'password', label: 'Password', type: 'password', placeholder: 'password' },
+                            { name: 'directory', label: 'Directory', type: 'text', placeholder: '/uploads' }
+                        ],
+                        'huggingface': [
+                            { name: 'api_token', label: 'API Token', type: 'password', placeholder: 'HuggingFace API Token' },
+                            { name: 'username', label: 'Username', type: 'text', placeholder: 'HF Username' },
+                            { name: 'repository', label: 'Repository', type: 'text', placeholder: 'username/repo' }
+                        ]
+                    };
+                    
+                    const fields = fieldDefinitions[type] || [];
+                    let html = '';
+                    
+                    fields.forEach(field => {
+                        if (field.type === 'checkbox') {
+                            html += `
+                                <div class="mb-4">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" id="config-${field.name}" class="mr-2">
+                                        <span class="text-sm font-medium text-gray-700">${field.label}</span>
+                                    </label>
+                                </div>
+                            `;
+                        } else {
+                            html += `
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700">${field.label}</label>
+                                    <input type="${field.type}" 
+                                           id="config-${field.name}" 
+                                           placeholder="${field.placeholder}"
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2">
+                                </div>
+                            `;
+                        }
+                    });
+                    
+                    container.innerHTML = html;
+                }
+                
+                function hideBackendConfigModal() {
+                    document.getElementById('backend-config-modal').style.display = 'none';
+                    document.getElementById('backend-name').disabled = false;
+                    currentEditingBackend = null;
+                }
+                
+                async function saveBackendConfig() {
+                    const backendName = document.getElementById('backend-name').value;
+                    const backendType = document.getElementById('backend-type').value;
+                    
+                    if (!backendName) {
+                        alert('Please enter a backend name');
+                        return;
+                    }
+                    
+                    // Collect configuration values
+                    const config = { type: backendType };
+                    const inputs = document.querySelectorAll('#backend-config-fields input');
+                    
+                    inputs.forEach(input => {
+                        const fieldName = input.id.replace('config-', '');
+                        if (input.type === 'checkbox') {
+                            config[fieldName] = input.checked;
+                        } else if (input.value) {
+                            config[fieldName] = input.type === 'number' ? parseInt(input.value) : input.value;
+                        }
+                    });
+                    
+                    try {
+                        const saveBtn = document.getElementById('save-backend-btn');
+                        saveBtn.disabled = true;
+                        saveBtn.textContent = 'Saving...';
+                        
+                        let response;
+                        if (currentEditingBackend) {
+                            // Update existing backend
+                            response = await fetch(`/api/backend_configs/${currentEditingBackend}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(config)
+                            });
+                        } else {
+                            // Create new backend
+                            response = await fetch('/api/backend_configs', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ name: backendName, ...config })
+                            });
+                        }
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            alert('Backend configuration saved successfully!');
+                            hideBackendConfigModal();
+                            await refreshBackendConfigs();
+                        } else {
+                            alert('Failed to save backend configuration: ' + (data.error || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        console.error('Error saving backend config:', error);
+                        alert('Error saving backend configuration: ' + error.message);
+                    } finally {
+                        const saveBtn = document.getElementById('save-backend-btn');
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save Configuration';
+                    }
+                }
+                
+                async function testBackendConfig(backendName) {
+                    try {
+                        const response = await fetch(`/api/backend_configs/${backendName}/test`, {
+                            method: 'POST'
+                        });
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            alert(`Backend ${backendName} test successful!`);
+                        } else {
+                            alert(`Backend ${backendName} test failed: ` + (data.error || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        console.error('Error testing backend:', error);
+                        alert('Error testing backend: ' + error.message);
+                    }
+                }
+                
+                async function deleteBackendConfig(backendName) {
+                    if (!confirm(`Are you sure you want to delete backend configuration for ${backendName}?`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/backend_configs/${backendName}`, {
+                            method: 'DELETE'
+                        });
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            alert('Backend configuration deleted successfully');
+                            await refreshBackendConfigs();
+                        } else {
+                            alert('Failed to delete backend configuration: ' + (data.error || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        console.error('Error deleting backend:', error);
+                        alert('Error deleting backend: ' + error.message);
+                    }
+                }
+                
+                // Update backend type selector change handler
+                document.addEventListener('DOMContentLoaded', function() {
+                    const backendTypeSelect = document.getElementById('backend-type');
+                    if (backendTypeSelect) {
+                        backendTypeSelect.addEventListener('change', updateBackendConfigFields);
+                    }
+                });
             </script>
         </body>
         </html>
@@ -2259,33 +2529,154 @@ class ComprehensiveMCPDashboard:
     
     async def _get_all_backend_configs(self):
         """Get all backend configs."""
-        # This is a placeholder
-        return {"configs": []}
+        try:
+            backend_configs = {}
+            backend_config_dir = self.data_dir / "backend_configs"
+            backend_config_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Read all JSON config files
+            for config_file in backend_config_dir.glob("*.json"):
+                try:
+                    with open(config_file, 'r') as f:
+                        config = json.load(f)
+                        backend_name = config_file.stem
+                        backend_configs[backend_name] = config
+                except Exception as e:
+                    logger.error(f"Error reading backend config {config_file}: {e}")
+            
+            return {"success": True, "configs": backend_configs}
+        except Exception as e:
+            logger.error(f"Error getting backend configs: {e}")
+            return {"success": False, "error": str(e), "configs": {}}
     
     async def _get_backend_config(self, backend_name):
         """Get a backend config."""
-        # This is a placeholder
-        return {"name": backend_name, "type": "s3", "config": {"..."}}
+        try:
+            config_file = self.data_dir / "backend_configs" / f"{backend_name}.json"
+            if not config_file.exists():
+                return {"success": False, "error": "Backend configuration not found"}
+            
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+            
+            return {"success": True, "config": config}
+        except Exception as e:
+            logger.error(f"Error getting backend config {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
     
     async def _create_backend_config(self, data):
         """Create a backend config."""
-        # This is a placeholder
-        return {"status": "created"}
+        try:
+            backend_name = data.get("name")
+            if not backend_name:
+                return {"success": False, "error": "Backend name is required"}
+            
+            backend_config_dir = self.data_dir / "backend_configs"
+            backend_config_dir.mkdir(parents=True, exist_ok=True)
+            
+            config_file = backend_config_dir / f"{backend_name}.json"
+            if config_file.exists():
+                return {"success": False, "error": "Backend configuration already exists"}
+            
+            # Remove 'name' from config data as it's used as filename
+            config_data = {k: v for k, v in data.items() if k != "name"}
+            
+            # Save configuration
+            with open(config_file, 'w') as f:
+                json.dump(config_data, f, indent=2)
+            
+            logger.info(f"Created backend configuration for {backend_name}")
+            return {"success": True, "message": f"Backend {backend_name} configured successfully"}
+        except Exception as e:
+            logger.error(f"Error creating backend config: {e}")
+            return {"success": False, "error": str(e)}
     
     async def _update_backend_config(self, backend_name, data):
         """Update a backend config."""
-        # This is a placeholder
-        return {"status": "updated"}
+        try:
+            config_file = self.data_dir / "backend_configs" / f"{backend_name}.json"
+            if not config_file.exists():
+                return {"success": False, "error": "Backend configuration not found"}
+            
+            # Read existing config
+            with open(config_file, 'r') as f:
+                existing_config = json.load(f)
+            
+            # Update with new data
+            existing_config.update(data)
+            
+            # Save updated configuration
+            with open(config_file, 'w') as f:
+                json.dump(existing_config, f, indent=2)
+            
+            logger.info(f"Updated backend configuration for {backend_name}")
+            return {"success": True, "message": f"Backend {backend_name} updated successfully"}
+        except Exception as e:
+            logger.error(f"Error updating backend config {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
     
     async def _delete_backend_config(self, backend_name):
         """Delete a backend config."""
-        # This is a placeholder
-        return {"status": "deleted"}
+        try:
+            config_file = self.data_dir / "backend_configs" / f"{backend_name}.json"
+            if not config_file.exists():
+                return {"success": False, "error": "Backend configuration not found"}
+            
+            config_file.unlink()
+            logger.info(f"Deleted backend configuration for {backend_name}")
+            return {"success": True, "message": f"Backend {backend_name} deleted successfully"}
+        except Exception as e:
+            logger.error(f"Error deleting backend config {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
     
     async def _test_backend_config(self, backend_name):
         """Test a backend config."""
-        # This is a placeholder
-        return {"status": "ok"}
+        try:
+            config_file = self.data_dir / "backend_configs" / f"{backend_name}.json"
+            if not config_file.exists():
+                return {"success": False, "error": "Backend configuration not found"}
+            
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+            
+            backend_type = config.get("type", "unknown")
+            
+            # Perform basic validation based on backend type
+            if backend_type == "ipfs":
+                # Try to connect to IPFS API
+                api_port = config.get("port", 5001)
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(f"http://127.0.0.1:{api_port}/api/v0/version", timeout=2) as resp:
+                            if resp.status == 200:
+                                return {"success": True, "message": "IPFS connection successful"}
+                            else:
+                                return {"success": False, "error": f"IPFS API returned status {resp.status}"}
+                except Exception as e:
+                    return {"success": False, "error": f"Cannot connect to IPFS: {str(e)}"}
+            
+            elif backend_type == "s3":
+                # Validate S3 credentials are present
+                required_fields = ["access_key", "secret_key", "bucket"]
+                missing_fields = [f for f in required_fields if not config.get(f)]
+                if missing_fields:
+                    return {"success": False, "error": f"Missing required fields: {', '.join(missing_fields)}"}
+                return {"success": True, "message": "S3 configuration validated (connection test not implemented)"}
+            
+            elif backend_type == "ftp":
+                # Validate FTP configuration
+                required_fields = ["host", "username"]
+                missing_fields = [f for f in required_fields if not config.get(f)]
+                if missing_fields:
+                    return {"success": False, "error": f"Missing required fields: {', '.join(missing_fields)}"}
+                return {"success": True, "message": "FTP configuration validated (connection test not implemented)"}
+            
+            else:
+                return {"success": True, "message": f"Configuration validated for {backend_type}"}
+                
+        except Exception as e:
+            logger.error(f"Error testing backend config {backend_name}: {e}")
+            return {"success": False, "error": str(e)}
     
     async def _get_backend_pins(self, backend_name):
         """Get backend pins."""

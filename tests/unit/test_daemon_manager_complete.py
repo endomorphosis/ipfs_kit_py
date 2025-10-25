@@ -13,6 +13,7 @@ import json
 import sys
 import time
 from pathlib import Path
+import pytest
 
 # Add the project to the path
 sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
@@ -86,16 +87,17 @@ def test_daemon_manager():
         print(f"  ✅ Port Management: {'Working' if final_status.get('processes') else 'No processes detected'}")
         print(f"  ✅ Comprehensive Solution: COMPLETE")
         
-        return True
+        # Assert success instead of returning
+        assert True, "Daemon manager test completed successfully"
         
     except ImportError as e:
         print(f"❌ Import Error: {e}")
-        return False
+        pytest.fail(f"Import Error: {e}")
     except Exception as e:
         print(f"❌ Error during daemon manager test: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(f"Error during daemon manager test: {e}")
 
 def test_integration_status():
     """Test the current state of ipfs_py integration."""
@@ -134,11 +136,12 @@ def test_integration_status():
             except Exception as e:
                 print(f"❌ get_daemon_status call failed: {e}")
         
-        return True
+        # Assert success instead of returning
+        assert True, "Integration test completed successfully"
         
     except Exception as e:
         print(f"❌ Integration test error: {e}")
-        return False
+        pytest.fail(f"Integration test error: {e}")
 
 if __name__ == "__main__":
     print("🎯 IPFS Daemon Manager - Complete Solution Test")
@@ -151,10 +154,20 @@ if __name__ == "__main__":
     print()
     
     # Test standalone daemon manager
-    dm_success = test_daemon_manager()
+    dm_success = True
+    try:
+        test_daemon_manager()
+    except Exception as e:
+        print(f"❌ Daemon manager test failed: {e}")
+        dm_success = False
     
     # Test integration status
-    integration_success = test_integration_status()
+    integration_success = True
+    try:
+        test_integration_status()
+    except Exception as e:
+        print(f"❌ Integration test failed: {e}")
+        integration_success = False
     
     print("\n" + "=" * 60)
     print("🏁 FINAL RESULTS:")

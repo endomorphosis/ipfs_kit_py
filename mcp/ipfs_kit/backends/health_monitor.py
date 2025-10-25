@@ -1637,7 +1637,7 @@ class BackendHealthMonitor:
                     logger.info(f"✓ Restarted {backend_name} backend")
                     return True
                 else:
-                    logger.error(f"Failed to restart {backend_name}: {result.get("error", "Unknown error")}")
+                    logger.error(f"Failed to restart {backend_name}: {result.get('error', 'Unknown error')}")
                     return False
             else:
                 logger.warning(f"Restart not supported for {backend_name}")

@@ -15,6 +15,11 @@
 > Note: A minimal consolidated MCP dashboard is included for lightweight local use. See CONSOLIDATED_MCP_DASHBOARD.md and start it via:
 > - Foreground: `ipfs-kit mcp start --foreground` or `python -m ipfs_kit_py.cli mcp start --foreground`
 > - Background: `ipfs-kit mcp start` or `python -m ipfs_kit_py.cli mcp start`
+>
+> Notes:
+> - The CLI prefers the packaged dashboard server `ipfs_kit_py/mcp/dashboard/consolidated_server.py` to ensure correct assets and templates. You can override with `--server-path` or `IPFS_KIT_SERVER_FILE`.
+> - Default ports: CLI uses `8004` by default. The root wrapper `consolidated_mcp_dashboard.py` defaults to `8081` (or `MCP_PORT` if set). Align with `--port` for consistency.
+> - Background runs write PID and logs under `~/.ipfs_kit` as `mcp_<port>.pid` and `mcp_<port>.log`.
 > Then open http://127.0.0.1:8004/
 
 PID files and CLI semantics:
@@ -87,6 +92,13 @@ Start the dashboard server:
 ipfs-kit mcp start --host 127.0.0.1 --port 8004
 # or Python module
 python -m ipfs_kit_py.cli mcp start --host 127.0.0.1 --port 8004
+
+When starting in the background, the CLI will re-invoke itself in foreground mode and write management files:
+
+```
+~/.ipfs_kit/mcp_8004.pid  # PID of the running dashboard
+~/.ipfs_kit/mcp_8004.log  # Combined stdout/stderr log
+```
 ```
 
 Open the UI at [http://127.0.0.1:8004/](http://127.0.0.1:8004/)
@@ -171,6 +183,27 @@ Notes:
 - When run directly, the server still writes both PID files: `~/.ipfs_kit/dashboard.pid` and `~/.ipfs_kit/mcp_{port}.pid`.
 - The CLI `status` and `stop` subcommands look only at the port-specific file (e.g., `mcp_8099.pid`).
 
+### Environment Defaults
+
+- `MCP_HOST` and `MCP_PORT`: Preferred environment variables used by the root wrapper (`consolidated_mcp_dashboard.py`) and test harness. If unset, `HOST` and `PORT` are used as a fallback; otherwise defaults are `127.0.0.1` and `8081` for the wrapper.
+
+CLI selection of dashboard server:
+
+- Prefers `ipfs_kit_py/mcp/dashboard/consolidated_server.py` (stable, packaged).
+- Falls back to `IPFS_KIT_SERVER_FILE`, `--server-path`, or common repo-local files during development.
+- CLI defaults may use a different port (examples use `8004`). When invoking via the CLI, explicit `--host/--port` flags take precedence.
+- Examples:
+
+```bash
+# Override via environment for direct script/testing flows
+export MCP_HOST=127.0.0.1
+export MCP_PORT=8099
+python consolidated_mcp_dashboard.py --debug
+
+# Or fully explicit via flags (overrides env)
+python consolidated_mcp_dashboard.py --host 127.0.0.1 --port 8099 --debug
+```
+
 ---
 
 ## 🧑‍💻 Tool Runner UI
@@ -187,6 +220,11 @@ Notes:
 - Methods: `listTools()`, `callTool(name, args)`, `status()`, plus per-namespace helpers
 - Header: `X-MCP-SDK-Source: inline|static` indicates whether the SDK is embedded or served from `ipfs_kit_py/static/mcp-sdk.js`
 - Compatibility shim ensures core methods and namespaces are available even with a custom static SDK
+
+Frontend behavior and fallbacks:
+- The dashboard prefers the packaged server’s full HTML which includes the Tools view and the beta runner container.
+- If a minimal shell is served, the client script at `/app.js` injects a lightweight Tools UI at runtime (`#toolrunner-beta-container` and `#view-tools`) and wires it to `window.MCP`. This ensures selectors used by tests and docs remain available.
+ - In repository development, `static/app.js` provides this fallback so the UI remains usable even if templates are partially rendered.
 
 ## 🗂️ Panels
 

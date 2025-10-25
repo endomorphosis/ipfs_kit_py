@@ -16,34 +16,17 @@ else
     IPFS_OK=0
 fi
 
-# Check if IPFS-Kit daemon is running
-echo "Checking IPFS-Kit daemon..."
-if [ -f "/tmp/ipfs_kit_daemon.pid" ]; then
-    PID=$(cat /tmp/ipfs_kit_daemon.pid)
-    if kill -0 "$PID" 2>/dev/null; then
-        echo "✅ IPFS-Kit daemon: Running (PID: $PID)"
-        DAEMON_OK=1
-    else
-        echo "❌ IPFS-Kit daemon: PID file exists but process not running"
-        DAEMON_OK=0
-    fi
-else
-    echo "❌ IPFS-Kit daemon: PID file not found"
-    DAEMON_OK=0
-fi
+DAEMON_OK=0
+API_OK=0
 
-# Check HTTP API if daemon is running
-if [ $DAEMON_OK -eq 1 ]; then
-    echo "Checking daemon HTTP API..."
-    if curl -f -s "http://localhost:9999/api/v1/status" > /dev/null 2>&1; then
-        echo "✅ Daemon HTTP API: Responding"
-        API_OK=1
-    else
-        echo "❌ Daemon HTTP API: Not responding"
-        API_OK=0
-    fi
+# Probe daemon HTTP API directly (most reliable)
+echo "Checking daemon HTTP API (http://localhost:9999/api/v1/status)..."
+if curl -f -s "http://localhost:9999/api/v1/status" > /dev/null 2>&1; then
+    echo "✅ Daemon HTTP API: Responding"
+    DAEMON_OK=1
+    API_OK=1
 else
-    API_OK=0
+    echo "❌ Daemon HTTP API: Not responding yet"
 fi
 
 # Overall health assessment

@@ -51,32 +51,6 @@ class MetadataManager:
             self.base_path / "logs",
             self.base_path / "cache",
             self.base_path / "state"
-
-        self.base_dir = base_dir or Path.home() / ".ipfs_kit"
-        self.lock = threading.Lock()
-        
-        # Core directories
-        self.config_dir = self.base_dir / "config"
-        self.metadata_dir = self.base_dir / "metadata"
-        self.backends_dir = self.base_dir / "backends"
-        self.cache_dir = self.base_dir / "cache"
-        self.logs_dir = self.base_dir / "logs"
-        
-        # Initialize directory structure
-        self._init_directories()
-        
-        # Load configuration
-        self._config = self._load_config()
-        
-    def _init_directories(self):
-        """Create the directory structure if it doesn't exist."""
-        directories = [
-            self.base_dir,
-            self.config_dir,
-            self.metadata_dir,
-            self.backends_dir,
-            self.cache_dir,
-            self.logs_dir
         ]
         
         for directory in directories:

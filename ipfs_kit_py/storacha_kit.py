@@ -125,8 +125,17 @@ class storacha_kit:
             self._setup_mock_storage()
         
         # Auto-install dependencies on first run if they're not already installed
-        if not self.metadata.get("skip_dependency_check", False):
+        # Respect environment flags to disable auto-install in containers by default
+        def _env_flag(name: str) -> bool:
+            val = os.environ.get(name, "").strip().lower()
+            return val in {"1", "true", "yes", "on"}
+
+        auto_install_enabled = _env_flag("IPFS_KIT_AUTO_INSTALL_DEPS") or _env_flag("IPFS_KIT_AUTO_INSTALL_STORACHA_DEPS")
+        if not self.metadata.get("skip_dependency_check", False) and auto_install_enabled:
             self._check_and_install_dependencies()
+        else:
+            if not auto_install_enabled:
+                logger.info("Storacha auto-install disabled by environment; skipping dependency checks")
         
         logger.info(f"Storacha kit initialized with API endpoint: {self.api_url}")
         if self.mock_mode:
@@ -524,8 +533,13 @@ class storacha_kit:
             except (FileNotFoundError, subprocess.SubprocessError):
                 logger.debug("W3 CLI is not installed")
                 
-            # If any dependencies are missing, run the installer
-            if not py_deps_installed or not w3_installed:
+            # If any dependencies are missing, run the installer (only if env allows)
+            def _env_flag(name: str) -> bool:
+                val = os.environ.get(name, "").strip().lower()
+                return val in {"1", "true", "yes", "on"}
+
+            auto_install_enabled = _env_flag("IPFS_KIT_AUTO_INSTALL_DEPS") or _env_flag("IPFS_KIT_AUTO_INSTALL_STORACHA_DEPS")
+            if (not py_deps_installed or not w3_installed) and auto_install_enabled:
                 logger.info("Some dependencies are missing. Installing them now...")
                 
                 # If quiet mode is enabled in metadata, don't show install messages
@@ -538,6 +552,9 @@ class storacha_kit:
                     
                 # Run the installer
                 install_result = self.install()
+            elif (not py_deps_installed or not w3_installed) and not auto_install_enabled:
+                logger.info("Dependencies missing but auto-install disabled; proceeding without installation")
+                return
                 
                 if not install_result.get("success", False):
                     if not quiet:

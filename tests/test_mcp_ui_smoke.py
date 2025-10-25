@@ -16,7 +16,7 @@ import urllib.request
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from consolidated_mcp_dashboard import ConsolidatedMCPDashboard  # type: ignore
+from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDashboard  # type: ignore
 
 
 def port_open(host: str, port: int, timeout: float = 0.2) -> bool:

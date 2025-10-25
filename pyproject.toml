@@ -10,8 +10,8 @@ authors = [
 ]
 description = "Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration"
 readme = "README.md"
-requires-python = ">=3.8"
-license = "AGPL-3.0-or-later"
+requires-python = ">=3.10"
+license = {text = "AGPL-3.0-or-later"}
 keywords = ["ipfs", "distributed", "storage", "content-addressed", "cluster", "arrow", "fsspec", "ai", "ml"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -19,18 +19,23 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries",
     "Topic :: System :: Distributed Computing",
     "Topic :: Database",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    # Architecture support
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
 ]
 dependencies = [
     "requests>=2.28.0",
     "httpx>=0.24.0",  # For async HTTP requests
+    "aiohttp>=3.8.4",  # For async HTTP operations
+    "aiofiles>=23.1.0",  # For async file operations
+    "watchdog>=3.0.0",  # For file system monitoring
     "psutil>=5.9.0",
     "pyyaml>=6.0",
     "base58>=2.1.1",
@@ -63,8 +68,8 @@ libp2p = [
     "base58>=2.1.1",  # Used by CIDs and peer IDs
     "cryptography>=38.0.0",  # For key generation and encryption
     "protobuf>=3.20.0,<5.0.0",  # Compatible protobuf version range
-    "eth-hash>=0.3.3",  # Optional for ETH integration
-    "eth-keys>=0.4.0",  # Optional for ETH integration
+    "eth-hash[pycryptodome]>=0.3.3",  # ETH integration with crypto backend
+    "eth-keys>=0.4.0",  # ETH integration for key management
 ]
 ai_ml = [
     "torch>=2.0.0",
@@ -97,6 +102,7 @@ api = [
     "fastapi>=0.100.0",
     "uvicorn>=0.22.0",
     "python-multipart>=0.0.6",
+    "jinja2>=3.1.0",  # Required for FastAPI template rendering
 ]
 webrtc = [
     "aiortc>=1.5.0",
@@ -212,6 +218,6 @@ ignore = ["E203", "E501"]
 "__init__.py" = ["F401", "F403"]  # Allow unused imports in __init__.py files
 
 [tool.pytest.ini_options]
-testpaths = ["test"]
+testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"

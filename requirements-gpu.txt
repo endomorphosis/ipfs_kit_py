@@ -1,0 +1,51 @@
+# Requirements file for GPU-accelerated dependencies
+# Based on CUDA and PyTorch requirements from protein design tools
+
+# PyTorch with CUDA 12.1 support
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# CUDA-accelerated scientific computing
+cupy-cuda12x>=12.0.0
+numba>=0.58.0
+
+# GPU-accelerated data processing
+cudf>=23.0.0; platform_machine == "x86_64"
+cuml>=23.0.0; platform_machine == "x86_64"
+cugraph>=23.0.0; platform_machine == "x86_64"
+
+# GPU monitoring and profiling
+nvidia-ml-py>=12.0.0
+py-spy>=0.3.14
+memory-profiler>=0.61.0
+
+# Distributed computing with GPU support
+dask[distributed]>=2023.5.0
+dask-cuda>=23.0.0; platform_machine == "x86_64"
+
+# Machine learning accelerated libraries
+xgboost[gpu]>=1.7.0
+lightgbm>=4.0.0
+catboost>=1.2.0
+
+# Image processing with GPU acceleration
+opencv-python-headless>=4.8.0
+pillow-simd>=9.0.0; platform_machine == "x86_64"
+
+# GPU-accelerated linear algebra
+scipy>=1.11.0
+scikit-learn>=1.3.0
+
+# NVIDIA RAPIDS (for compatible systems)
+# Note: These may require specific CUDA versions and architectures
+# rapids-cudf>=23.0.0; platform_machine == "x86_64"
+# rapids-cuml>=23.0.0; platform_machine == "x86_64"
+
+# GPU profiling and debugging tools
+tensorboard>=2.13.0
+pytest-benchmark>=4.0.0
+
+# Memory optimization for GPU workloads
+psutil>=5.9.0
+pympler>=0.9

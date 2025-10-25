@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from consolidated_mcp_dashboard import ConsolidatedMCPDashboard
+from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDashboard
 
 def test_deprecations_endpoint_lists_overview():
     inst = ConsolidatedMCPDashboard({"port":0})

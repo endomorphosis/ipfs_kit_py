@@ -1,0 +1,59 @@
+# VCS
+.git
+.gitignore
+
+# Python caches and artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+.env/
+.env*/
+Pipfile
+Pipfile.lock
+
+# Node/npm
+node_modules/
+*.log
+
+# Build/dist artifacts
+build/
+dist/
+*.whl
+*.tar.gz
+
+# OS/editor junk
+.DS_Store
+*.swp
+*.swo
+
+# Large or optional repo directories not needed for container
+archive/
+backup/
+site/
+
+# Playwright caches
+playwright-report/
+.test-results/
+
+# Docker
+Dockerfile.dev
+Dockerfile.docs
+Dockerfile.gpu
+Dockerfile.test
+
+# Misc
+*.ipynb_checkpoints

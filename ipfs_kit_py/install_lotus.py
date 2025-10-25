@@ -46,8 +46,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger("install_lotus")
 
+DEFAULT_AUTO_INSTALL_DEPS = False
+APT_LIKE_DISTROS = {
+    "debian",
+    "ubuntu",
+    "linuxmint",
+    "pop",
+    "pop-os",
+    "raspbian",
+    "elementary",
+    "zorin",
+}
+RPM_DISTROS = {"fedora", "centos", "rhel", "rocky", "almalinux", "amazon", "oracle"}
+APK_DISTROS = {"alpine"}
+PACMAN_DISTROS = {"arch", "manjaro"}
+REQUIRED_DEPENDENCY_PACKAGES = {
+    "apt": ["hwloc", "libhwloc-dev", "mesa-opencl-icd", "ocl-icd-opencl-dev"],
+    "rpm": ["hwloc", "hwloc-devel", "opencl-headers", "ocl-icd-devel"],
+    "apk": ["hwloc", "hwloc-dev", "opencl-headers", "opencl-icd-loader-dev"],
+    "pacman": ["hwloc", "opencl-headers", "opencl-icd-loader"],
+}
+BREW_DEPENDENCIES = ["hwloc"]
+
 # Default Lotus release information
 DEFAULT_LOTUS_VERSION = "1.24.0"
+DEFAULT_PARAMS_SECTOR_SIZE = "2KiB"
 LOTUS_GITHUB_API_URL = "https://api.github.com/repos/filecoin-project/lotus/releases"
 LOTUS_RELEASE_BASE_URL = "https://github.com/filecoin-project/lotus/releases/download"
 LOTUS_RELEASE_INFO_URL = "https://api.github.com/repos/filecoin-project/lotus/releases/tags/v{version}"
@@ -84,8 +107,9 @@ class install_lotus:
                     - version: Specific Lotus version to install
                     - force: Force reinstallation even if already installed
                     - bin_dir: Custom binary directory path
-                    - skip_params: Skip parameter download
-                    - auto_install_deps: Automatically install dependencies (default: True)
+                    - skip_params: Skip parameter download (default: True)
+                                        - auto_install_deps: Automatically install dependencies (default: False).
+                                            Set to True or export IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS=1 to opt-in.
         """
         # Initialize basic properties first
         self.resources = resources or {}
@@ -96,15 +120,35 @@ class install_lotus:
         self.env_path = os.environ.get("PATH", "")
         
         # Bin directory setup - MUST be before _install_system_dependencies
-        self.bin_path = os.path.join(self.this_dir, "bin")
-        self.bin_path = self.bin_path.replace("\\", "/")
-        self.bin_path = self.bin_path.split("/")
-        self.bin_path = "/".join(self.bin_path)
+        default_bin_dir = os.path.join(self.this_dir, "bin")
+        metadata_bin_dir = self.metadata.get("bin_dir")
+        if metadata_bin_dir:
+            if not os.path.isabs(metadata_bin_dir):
+                metadata_bin_dir = os.path.abspath(metadata_bin_dir)
+            self.bin_path = os.path.normpath(metadata_bin_dir)
+        else:
+            self.bin_path = os.path.normpath(default_bin_dir)
+
+        # Ensure the resolved path is discoverable by downstream helpers
+        self.metadata["bin_dir"] = self.bin_path
         os.makedirs(self.bin_path, exist_ok=True)
         
+        # Determine whether system dependency installation is allowed
+        metadata_auto_install = self.metadata.get("auto_install_deps")
+        if metadata_auto_install is None:
+            env_value = (
+                os.environ.get("IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS", "")
+                or os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "")
+            ).strip().lower()
+            if env_value:
+                self.auto_install_deps = env_value in {"1", "true", "yes", "on"}
+            else:
+                self.auto_install_deps = DEFAULT_AUTO_INSTALL_DEPS
+        else:
+            self.auto_install_deps = bool(metadata_auto_install)
+
         # Check and install system dependencies if needed
-        if self.metadata.get("auto_install_deps", True):
-            self._install_system_dependencies()
+        self._install_system_dependencies()
         
         # Import multiformat handler if available
         if "ipfs_multiformats" in list(self.resources.keys()):
@@ -364,9 +408,10 @@ class install_lotus:
     def dist_select(self):
         """
         Select the appropriate distribution based on hardware detection.
+        Uses platform.machine() as primary detection method for better ARM64 support.
         
         Returns:
-            String identifier for the platform (e.g., "linux x86_64")
+            String identifier for the platform (e.g., "linux arm64")
         """
         hardware = self.hardware_detect()
         hardware["architecture"] = " ".join([str(x) for x in hardware["architecture"]])
@@ -483,7 +528,7 @@ class install_lotus:
                 arch = arch_map.get(platform_info[1], "amd64")
         
         # Construct expected asset name pattern
-        asset_pattern = f"lotus_.*_{os_name}_{arch}(?:_v\d+)?\\.(tar\\.gz|zip)$"
+        asset_pattern = f"lotus_.*_{os_name}_{arch}(?:_v\\d+)?\\.(tar\\.gz|zip)$"
         
         for asset in release_info.get("assets", []):
             name = asset.get("name", "")
@@ -654,6 +699,38 @@ class install_lotus:
         
         logger.info("Binary installation completed")
         return installed_binaries
+
+    def _remove_installed_binaries(self, binaries):
+        """Remove previously installed binaries when a fallback path is required."""
+        for binary_path in binaries:
+            try:
+                os.remove(binary_path)
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                logger.warning(f"Failed to remove binary {binary_path}: {exc}")
+
+    def _verify_lotus_binary_execution(self):
+        """Run `lotus --version` to confirm the binary is executable on this system."""
+        lotus_path = os.path.join(self.bin_path, "lotus")
+        if platform.system() == "Windows":
+            lotus_path += ".exe"
+
+        try:
+            output = subprocess.check_output(
+                [lotus_path, "--version"],
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+            )
+            logger.info(output.strip())
+            return True, output.strip()
+        except (subprocess.SubprocessError, FileNotFoundError, OSError) as exc:
+            # Capture as much diagnostic detail as possible for logging.
+            if isinstance(exc, subprocess.SubprocessError) and hasattr(exc, "output") and exc.output:
+                message = exc.output
+            else:
+                message = str(exc)
+            return False, message
         
     def _install_system_dependencies(self):
         """
@@ -744,6 +821,24 @@ class install_lotus:
         if self._check_hwloc_library_direct():
             logger.info("Found libhwloc library installed on the system")
             return True
+
+        if not getattr(self, "auto_install_deps", False):
+            hint = self._dependency_install_hint(os_name)
+            logger.error(
+                "Required Lotus system dependencies are missing and automatic installation"
+                " is disabled."
+            )
+            if hint:
+                logger.error(hint)
+            message = (
+                "Lotus system dependencies were not detected. Install them before rerunning the"
+                " installer or opt-in via metadata['auto_install_deps']=True."
+            )
+            if hint:
+                message = f"{message}\n{hint}"
+            raise RuntimeError(message)
+
+        logger.info("Automatic dependency installation enabled; attempting to install prerequisites.")
             
         # Continue with OS-specific package management
         if os_name == "linux":
@@ -779,6 +874,9 @@ class install_lotus:
         # Common library paths to check
         lib_paths = [
             "/usr/lib", 
+            "/usr/lib/x86_64-linux-gnu",  # Debian/Ubuntu x86_64
+            "/usr/lib/aarch64-linux-gnu",  # Debian/Ubuntu ARM64
+            "/usr/lib/arm-linux-gnueabihf",  # Debian/Ubuntu ARM32
             "/usr/local/lib", 
             "/lib", 
             "/lib64", 
@@ -839,6 +937,59 @@ class install_lotus:
                 
         # Library not found
         return False
+
+    def _dependency_install_hint(self, os_name):
+        """Provide installation guidance for system dependencies."""
+        distro = ""
+        if os_name == "linux":
+            try:
+                distro = (self._detect_linux_distribution() or "").lower()
+            except Exception:
+                distro = ""
+
+        if distro in APT_LIKE_DISTROS:
+            packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["apt"])
+            return (
+                "Install Lotus prerequisites with:"
+                f" sudo apt-get update && sudo apt-get install -y {packages}"
+            )
+
+        if distro in RPM_DISTROS:
+            packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["rpm"])
+            install_cmd = "dnf" if distro == "fedora" else "yum"
+            return (
+                "Install Lotus prerequisites with:"
+                f" sudo {install_cmd} install -y {packages}"
+            )
+
+        if distro in APK_DISTROS:
+            packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["apk"])
+            return (
+                "Install Lotus prerequisites with:"
+                f" sudo apk add {packages}"
+            )
+
+        if distro in PACMAN_DISTROS:
+            packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["pacman"])
+            return (
+                "Install Lotus prerequisites with:"
+                f" sudo pacman -S --needed {packages}"
+            )
+
+        if os_name == "darwin":
+            packages = " ".join(BREW_DEPENDENCIES)
+            return f"Install Lotus prerequisites with: brew install {packages}"
+
+        if os_name == "windows":
+            return (
+                "Install Lotus prerequisites by installing hwloc and the OpenCL ICD loader,"
+                " then ensure their DLLs are discoverable via PATH."
+            )
+
+        return (
+            "Install Lotus prerequisites by ensuring libhwloc and an OpenCL ICD loader"
+            " are installed via your system package manager."
+        )
 
     def _check_package_manager_available(self, distro_deps):
         """
@@ -1488,36 +1639,91 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
         try:
             env = os.environ.copy()
             env["LOTUS_PATH"] = self.lotus_path
-            
+
             logger.info("Fetching Filecoin parameters (this may take a while)")
-            
-            # Use subprocess.Popen to show real-time output
-            process = subprocess.Popen(
-                [lotus_bin, "fetch-params", "--proving-params"], 
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                universal_newlines=True
+
+            sector_size = (
+                self.metadata.get("params_sector_size")
+                or self.metadata.get("sector_size")
+                or os.environ.get("LOTUS_FETCH_PARAMS_SECTOR_SIZE")
+                or DEFAULT_PARAMS_SECTOR_SIZE
             )
-            
-            # Print output in real-time
-            for line in process.stdout:
-                line = line.strip()
-                if line:
-                    logger.info(line)
-            
-            # Wait for the process to complete
-            process.wait()
-            
-            if process.returncode == 0:
-                logger.info("Parameter download completed")
-                return True
-            else:
-                logger.error(f"Parameter download failed with return code {process.returncode}")
-                return False
-                
-        except subprocess.SubprocessError as e:
-            logger.error(f"Error downloading parameters: {e}")
+            logger.info("Parameter download target sector size: %s", sector_size)
+
+            def _fetch_params_capabilities() -> Dict[str, bool]:
+                info = {
+                    "proving_flag": False,
+                    "sector_flag": False,
+                    "positional_sector": False,
+                }
+                try:
+                    help_result = subprocess.run(
+                        [lotus_bin, "fetch-params", "--help"],
+                        env=env,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    help_text = ((help_result.stdout or "") + (help_result.stderr or "")).lower()
+                    info["proving_flag"] = "--proving-params" in help_text
+                    info["sector_flag"] = "--sector-size" in help_text
+                    if "[sectorsize]" in help_text or "<sectorsize>" in help_text:
+                        info["positional_sector"] = True
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.debug("Failed to detect fetch-params flags: %s", exc)
+                return info
+
+            def _run_and_log(command):
+                process = subprocess.Popen(
+                    command,
+                    env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=True,
+                )
+                output_lines = []
+                if process.stdout is not None:
+                    for line in process.stdout:
+                        clean = line.strip()
+                        if clean:
+                            logger.info(clean)
+                        output_lines.append(line)
+                process.wait()
+                return process.returncode, "".join(output_lines)
+
+            base_command = [lotus_bin, "fetch-params"]
+            capabilities = _fetch_params_capabilities()
+
+            commands_to_try: List[List[str]] = []
+            if capabilities.get("proving_flag"):
+                commands_to_try.append(base_command + ["--proving-params"])
+            if capabilities.get("sector_flag"):
+                commands_to_try.append(base_command + ["--sector-size", sector_size])
+            if capabilities.get("positional_sector"):
+                commands_to_try.append(base_command + [sector_size])
+            commands_to_try.append(base_command)
+
+            seen_commands = set()
+            deduped_commands = []
+            for command in commands_to_try:
+                key = tuple(command)
+                if key not in seen_commands:
+                    deduped_commands.append(command)
+                    seen_commands.add(key)
+
+            last_code = None
+            for command in deduped_commands:
+                logger.info("Running: %s", " ".join(command))
+                last_code, _ = _run_and_log(command)
+                if last_code == 0:
+                    logger.info("Parameter download completed")
+                    return True
+
+            logger.error("Parameter download failed with return code %s", last_code)
+            return False
+
+        except subprocess.SubprocessError as exc:
+            logger.error(f"Error downloading parameters: {exc}")
             logger.warning("You may need to download parameters manually using 'lotus fetch-params'")
             return False
 
@@ -1590,7 +1796,7 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
             Path to the generated script
         """
         if bin_dir is None:
-            bin_dir = "bin"
+            bin_dir = self.bin_path
             
         script_path = os.path.join("tools", "lotus_helper.py")
         os.makedirs("tools", exist_ok=True)
@@ -1760,6 +1966,308 @@ if __name__ == "__main__":
         
         return script_path
 
+    def build_lotus_from_source(self, version="v1.24.0"):
+        """
+        Build Lotus from source when binary is not available.
+        
+        Args:
+            version: Version to build (default: v1.24.0)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        # Default to string form for consistent logging and git branch usage.
+        version_str = str(version) if version is not None else "v1.24.0"
+        branch = version_str if version_str.startswith("v") else f"v{version_str}"
+
+        logger.info(f"Building Lotus from source (version {version_str})...")
+        
+        required_go = (1, 23, 10)
+        required_go_str = ".".join(str(part) for part in required_go)
+
+        def _parse_go_version(output):
+            match = re.search(r"go(\d+)\.(\d+)(?:\.(\d+))?", output)
+            if not match:
+                return None
+            major, minor, patch = match.groups()
+            return int(major), int(minor), int(patch or 0)
+
+        go_version_str = None
+        try:
+            go_version_str = subprocess.check_output(
+                ["go", "version"],
+                stderr=subprocess.STDOUT,
+                text=True,
+            ).strip()
+            logger.info(f"Go is installed: {go_version_str}")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            logger.info("Go is not installed. Installing Go...")
+            if not self._install_go_for_build():
+                logger.error("Failed to install Go. Cannot build from source.")
+                return False
+        else:
+            go_version_tuple = _parse_go_version(go_version_str)
+            if go_version_tuple is None or go_version_tuple < required_go:
+                reported_version = go_version_str.split()[2] if go_version_str else "unknown"
+                logger.info(
+                    "Go version %s is below required go%s. Upgrading Go for Lotus build...",
+                    reported_version,
+                    required_go_str,
+                )
+                if not self._install_go_for_build():
+                    logger.error("Failed to upgrade Go. Cannot build from source.")
+                    return False
+
+        try:
+            go_version_str = subprocess.check_output(
+                ["go", "version"],
+                stderr=subprocess.STDOUT,
+                text=True,
+            ).strip()
+            logger.info(f"Using Go version: {go_version_str}")
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            logger.error(f"Unable to verify Go installation: {exc}")
+            return False
+        
+        # Check for required build tools
+        required_tools = ["make", "git"]
+        for tool in required_tools:
+            try:
+                subprocess.run([tool, "--version"], check=True, capture_output=True)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                logger.error(f"Required build tool '{tool}' not found")
+                return False
+
+        if not self._ensure_jq_available():
+            logger.error("jq is required for Lotus source builds")
+            return False
+        
+        # Create temporary directory for building
+        build_dir = tempfile.mkdtemp(prefix="lotus_build_")
+        try:
+            logger.info(f"Using build directory: {build_dir}")
+            
+            # Clone Lotus repository
+            logger.info("Cloning Lotus repository...")
+            clone_cmd = ["git", "clone", "--depth=1", "--branch", branch, 
+                        "https://github.com/filecoin-project/lotus.git", build_dir]
+            subprocess.run(clone_cmd, check=True, capture_output=True)
+            
+            # Build the binaries
+            logger.info("Building Lotus binaries (this may take several minutes)...")
+            build_cmd = ["make", "all"]
+            env = os.environ.copy()
+            env["GO111MODULE"] = "on"
+            env["CGO_ENABLED"] = "1"
+            
+            # For ARM64, ensure proper GOARCH setting
+            machine = platform.machine().lower()
+            if "aarch64" in machine or "arm64" in machine:
+                env["GOARCH"] = "arm64"
+            
+            result = subprocess.run(
+                build_cmd,
+                cwd=build_dir,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=1800  # 30 minutes timeout for build
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Build failed: {result.stderr}")
+                return False
+            
+            logger.info("Build successful!")
+            
+            # Install the built binaries
+            logger.info("Installing built binaries...")
+            os.makedirs(self.bin_path, exist_ok=True)
+            
+            binaries_installed = 0
+            for binary in LOTUS_BINARIES:
+                binary_name = binary
+                if platform.system() == "Windows":
+                    binary_name += ".exe"
+                
+                # Look for the binary in build directory
+                built_binary = os.path.join(build_dir, binary_name)
+                if not os.path.exists(built_binary):
+                    logger.warning(f"Binary {binary_name} not found after build")
+                    continue
+                
+                dest_binary = os.path.join(self.bin_path, binary_name)
+                
+                # Copy binary
+                shutil.copy2(built_binary, dest_binary)
+                
+                # Make executable on Unix-like systems
+                if platform.system() != "Windows":
+                    os.chmod(dest_binary, 0o755)
+                
+                logger.info(f"Installed {binary_name}")
+                binaries_installed += 1
+            
+            if binaries_installed == 0:
+                logger.error("No binaries were installed")
+                return False
+            
+            logger.info(f"Installed {binaries_installed} binaries to {self.bin_path}")
+            
+            # Verify the main binary works
+            try:
+                lotus_binary = os.path.join(self.bin_path, "lotus")
+                if platform.system() == "Windows":
+                    lotus_binary += ".exe"
+                    
+                version_output = subprocess.check_output([lotus_binary, "--version"])
+                logger.info(f"Verification successful: {version_output.decode().strip()}")
+                return True
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Binary verification failed: {e}")
+                return False
+            
+        except subprocess.TimeoutExpired:
+            logger.error("Build timed out after 30 minutes")
+            return False
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error during build: {e}")
+            if hasattr(e, 'output') and e.output:
+                logger.error(f"Output: {e.output}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during build: {e}")
+            return False
+        finally:
+            # Clean up build directory
+            try:
+                shutil.rmtree(build_dir)
+                logger.info(f"Cleaned up build directory: {build_dir}")
+            except Exception as e:
+                logger.warning(f"Could not clean up build directory: {e}")
+    
+    def _install_go_for_build(self):
+        """
+        Install Go if not present (for building Lotus).
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        logger.info("Attempting to install Go...")
+        
+        system = platform.system()
+        machine = platform.machine()
+        
+        # Determine Go download URL based on system and architecture
+        go_version = "1.24.1"  # Minimum version required for current Lotus builds
+        
+        if system == "Linux":
+            if "aarch64" in machine or "arm64" in machine.lower():
+                go_url = f"https://go.dev/dl/go{go_version}.linux-arm64.tar.gz"
+            elif "x86_64" in machine or "amd64" in machine:
+                go_url = f"https://go.dev/dl/go{go_version}.linux-amd64.tar.gz"
+            else:
+                logger.error(f"Unsupported architecture for Go installation: {machine}")
+                return False
+        elif system == "Darwin":
+            if "arm64" in machine.lower():
+                go_url = f"https://go.dev/dl/go{go_version}.darwin-arm64.tar.gz"
+            else:
+                go_url = f"https://go.dev/dl/go{go_version}.darwin-amd64.tar.gz"
+        else:
+            logger.error(f"Unsupported system for automatic Go installation: {system}")
+            logger.error("Please install Go manually from https://go.dev/dl/")
+            return False
+        
+        try:
+            # Download Go
+            logger.info(f"Downloading Go from {go_url}...")
+            go_tar = os.path.join(self.tmp_path, f"go{go_version}.tar.gz")
+            
+            if system == "Linux":
+                subprocess.run(["wget", "-O", go_tar, go_url], check=True)
+            elif system == "Darwin":
+                subprocess.run(["curl", "-L", "-o", go_tar, go_url], check=True)
+            
+            # Extract Go
+            go_install_dir = os.path.join(os.path.expanduser("~"), ".local")
+            os.makedirs(go_install_dir, exist_ok=True)
+            
+            logger.info(f"Extracting Go to {go_install_dir}...")
+            existing_go_dir = os.path.join(go_install_dir, "go")
+            if os.path.exists(existing_go_dir):
+                shutil.rmtree(existing_go_dir, ignore_errors=True)
+
+            subprocess.run(["tar", "-C", go_install_dir, "-xzf", go_tar], check=True)
+            try:
+                os.remove(go_tar)
+            except OSError:
+                pass
+            
+            # Update PATH for current process
+            go_bin = os.path.join(go_install_dir, "go", "bin")
+            os.environ["PATH"] = f"{go_bin}:{os.environ.get('PATH', '')}"
+            
+            # Verify installation
+            go_version_output = subprocess.check_output(["go", "version"], text=True).strip()
+            logger.info(f"Go installed successfully: {go_version_output}")
+            
+            return True
+            
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error installing Go: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error installing Go: {e}")
+            return False
+
+    def _ensure_jq_available(self):
+        """Ensure jq is available for Lotus source builds."""
+        if shutil.which("jq"):
+            return True
+
+        system = platform.system().lower()
+        arch = platform.machine().lower()
+
+        jq_downloads = {
+            ("linux", "x86_64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64", "jq"),
+            ("linux", "amd64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64", "jq"),
+            ("darwin", "x86_64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-amd64", "jq"),
+            ("darwin", "arm64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-arm64", "jq"),
+            ("windows", "x86_64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-win64.exe", "jq.exe"),
+            ("windows", "amd64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-win64.exe", "jq.exe"),
+        }
+
+        download_key = (system, arch)
+        if download_key not in jq_downloads:
+            logger.error(
+                "jq is required for Lotus builds but cannot be automatically installed on %s/%s.",
+                system,
+                arch,
+            )
+            return False
+
+        jq_url, jq_filename = jq_downloads[download_key]
+        target_dir = os.path.join(self.bin_path, "build-tools")
+        os.makedirs(target_dir, exist_ok=True)
+        jq_path = os.path.join(target_dir, jq_filename)
+
+        logger.info("jq not found; downloading portable binary for Lotus build...")
+        try:
+            urllib.request.urlretrieve(jq_url, jq_path)
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.error("Failed to download jq: %s", exc)
+            if os.path.exists(jq_path):
+                os.remove(jq_path)
+            return False
+
+        if system != "windows":
+            os.chmod(jq_path, 0o755)
+
+        os.environ["PATH"] = f"{target_dir}:{os.environ.get('PATH', '')}"
+        logger.info("jq installed at %s", jq_path)
+        return True
+
     def install_lotus_daemon(self):
         """
         Install the Lotus daemon binary.
@@ -1780,7 +2288,7 @@ if __name__ == "__main__":
             return True
             
         # Get release information
-        version = self.metadata.get("version", self.get_latest_lotus_version())
+        version = self.metadata.get("version") or self.get_latest_lotus_version()
         logger.info(f"Installing Lotus version {version}")
         
         release_info = self.get_release_info(version)
@@ -1790,31 +2298,81 @@ if __name__ == "__main__":
         # Get download URL
         download_url, filename = self.get_download_url(release_info)
         if not download_url:
-            return False
+            logger.warning("No pre-built binary available for this platform")
+            logger.info("Attempting to build Lotus from source...")
+            if self.build_lotus_from_source(version):
+                logger.info("Successfully built and installed Lotus from source")
+                return True
+            else:
+                logger.error("Failed to build Lotus from source")
+                return False
             
         # Create temp directory for download
         with tempfile.TemporaryDirectory() as temp_dir:
             # Download archive
             archive_path = os.path.join(temp_dir, filename)
             if not self.download_file(download_url, archive_path):
-                return False
+                logger.warning("Failed to download binary, trying build from source...")
+                if self.build_lotus_from_source(version):
+                    logger.info("Successfully built and installed Lotus from source")
+                    return True
+                else:
+                    logger.error("Failed to build Lotus from source")
+                    return False
                 
             # Verify download
             if not self.verify_download(archive_path):
                 logger.error("Download verification failed")
-                return False
+                logger.info("Attempting to build Lotus from source as fallback...")
+                if self.build_lotus_from_source(version):
+                    logger.info("Successfully built and installed Lotus from source")
+                    return True
+                else:
+                    logger.error("Failed to build Lotus from source")
+                    return False
                 
             # Extract archive
             extract_dir = os.path.join(temp_dir, "extracted")
             os.makedirs(extract_dir, exist_ok=True)
             if not self.extract_archive(archive_path, extract_dir):
-                return False
+                logger.error("Failed to extract archive")
+                logger.info("Attempting to build Lotus from source as fallback...")
+                if self.build_lotus_from_source(version):
+                    logger.info("Successfully built and installed Lotus from source")
+                    return True
+                else:
+                    logger.error("Failed to build Lotus from source")
+                    return False
                 
             # Install binaries
             installed_binaries = self.install_binaries(extract_dir, self.bin_path)
             if not installed_binaries:
                 logger.error("Failed to install Lotus binaries")
-                return False
+                logger.info("Attempting to build Lotus from source as fallback...")
+                if self.build_lotus_from_source(version):
+                    logger.info("Successfully built and installed Lotus from source")
+                    return True
+                else:
+                    logger.error("Failed to build Lotus from source")
+                    return False
+
+            # Execute the binary to confirm runtime compatibility before proceeding.
+            binary_ok, binary_output = self._verify_lotus_binary_execution()
+            if not binary_ok:
+                logger.error("Prebuilt Lotus binary failed to execute:")
+                for line in binary_output.splitlines():
+                    logger.error(line)
+
+                # Remove incompatible binaries so the source build can proceed cleanly.
+                self._remove_installed_binaries(installed_binaries)
+
+                logger.info("Attempting to build Lotus from source as fallback...")
+                if self.build_lotus_from_source(version):
+                    logger.info("Successfully built and installed Lotus from source")
+                    return True
+                else:
+                    logger.error("Failed to build Lotus from source")
+                    return False
         
         # Verify installation
         installation = self.check_existing_installation()
@@ -2576,6 +3134,104 @@ WantedBy=multi-user.target
         
         return True
 
+    def _install_go_for_build(self):
+        """Install Go programming language for building from source."""
+        try:
+            print("Installing Go for building Lotus from source...")
+            
+            # Check if Go is already installed
+            if shutil.which('go'):
+                print("Go is already installed")
+                return True
+            
+            # Download and install Go for ARM64
+            go_version = "1.24.1"
+            go_url = f"https://go.dev/dl/go{go_version}.linux-arm64.tar.gz"
+            
+            with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp_file:
+                print(f"Downloading Go from {go_url}")
+                command = f"wget {go_url} -O {tmp_file.name}"
+                subprocess.run(command, shell=True, check=True)
+                
+                # Extract Go to /usr/local
+                print("Extracting Go...")
+                command = f"sudo tar -C /usr/local -xzf {tmp_file.name}"
+                subprocess.run(command, shell=True, check=True)
+                
+                # Add Go to PATH
+                go_path = "/usr/local/go/bin"
+                if go_path not in os.environ.get("PATH", ""):
+                    os.environ["PATH"] = f"{go_path}:{os.environ.get('PATH', '')}"
+                
+                print("Go installation completed")
+                return True
+                
+        except Exception as e:
+            print(f"Error installing Go: {e}")
+            return False
+
+    def build_lotus_from_source(self, version=None):
+        """Build Lotus from source code as fallback when binaries are not available."""
+        try:
+            print("Building Lotus from source...")
+            
+            # Install Go if not available
+            if not shutil.which('go') and not self._install_go_for_build():
+                raise Exception("Failed to install Go")
+            
+            # Use latest version if not specified
+            if version is None:
+                version = self.get_latest_lotus_version()
+            
+            # Remove 'v' prefix if present
+            version = version.lstrip('v')
+            
+            with tempfile.TemporaryDirectory() as build_dir:
+                print(f"Building Lotus {version} in {build_dir}")
+                
+                # Clone the Lotus repository
+                repo_url = "https://github.com/filecoin-project/lotus.git"
+                repo_path = os.path.join(build_dir, "lotus")
+                
+                command = f"git clone --branch v{version} --depth 1 {repo_url} {repo_path}"
+                subprocess.run(command, shell=True, check=True, cwd=build_dir)
+                
+                # Build Lotus
+                print("Compiling Lotus (this may take a while)...")
+                command = "make clean && make all"
+                subprocess.run(command, shell=True, check=True, cwd=repo_path, timeout=3600)
+                
+                # Install the binaries
+                built_binaries = []
+                for binary in LOTUS_BINARIES:
+                    built_binary = os.path.join(repo_path, binary)
+                    if os.path.exists(built_binary):
+                        built_binaries.append(built_binary)
+                
+                if built_binaries:
+                    # Create bin directory if it doesn't exist
+                    os.makedirs(self.bin_path, exist_ok=True)
+                    
+                    # Copy binaries to bin directory
+                    for binary_path in built_binaries:
+                        binary_name = os.path.basename(binary_path)
+                        dest_path = os.path.join(self.bin_path, binary_name)
+                        shutil.copy2(binary_path, dest_path)
+                        os.chmod(dest_path, 0o755)
+                        print(f"Installed {binary_name} to {dest_path}")
+                    
+                    print(f"Lotus built and installed successfully ({len(built_binaries)} binaries)")
+                    return True
+                else:
+                    raise Exception("No built binaries found")
+                    
+        except subprocess.TimeoutExpired:
+            print("Build timed out after 60 minutes")
+            return False
+        except Exception as e:
+            print(f"Error building Lotus from source: {e}")
+            return False
+
 
 def main():
     """Main function for command-line usage."""
@@ -2583,7 +3239,23 @@ def main():
     parser.add_argument("--version", help=f"Lotus version to install (default: latest)")
     parser.add_argument("--force", action="store_true", help="Force reinstallation")
     parser.add_argument("--bin-dir", default="bin", help="Binary directory (default: bin)")
-    parser.add_argument("--skip-params", action="store_true", help="Skip parameter download")
+    parser.add_argument(
+        "--download-params",
+        dest="skip_params",
+        action="store_false",
+        help="Download Filecoin proving parameters during installation",
+    )
+    parser.add_argument(
+        "--skip-params",
+        dest="skip_params",
+        action="store_true",
+        help="Skip parameter download (default)",
+    )
+    parser.set_defaults(skip_params=True)
+    parser.add_argument(
+        "--params-sector-size",
+        help=f"Sector size hint for fetch-params (default: {DEFAULT_PARAMS_SECTOR_SIZE})",
+    )
     args = parser.parse_args()
     
     # Resolve bin directory to absolute path
@@ -2591,11 +3263,14 @@ def main():
     
     # Create installer with metadata
     metadata = {
-        "version": args.version,
         "force": args.force,
         "bin_dir": bin_dir,
-        "skip_params": args.skip_params
+        "skip_params": args.skip_params,
     }
+    if args.params_sector_size:
+        metadata["params_sector_size"] = args.params_sector_size
+    if args.version:
+        metadata["version"] = args.version
     installer = install_lotus(metadata=metadata)
     
     # Check if already installed
@@ -2616,7 +3291,9 @@ def main():
         installer.generate_lotus_helper_script(bin_dir)
         
         # Download parameters if not skipped
-        if not args.skip_params:
+        if args.skip_params:
+            logger.info("Skipping Filecoin parameter download (enable --download-params to fetch proving files during install)")
+        else:
             installer.download_params()
         
         # Test installation

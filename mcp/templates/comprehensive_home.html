@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/enhanced_dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>{{ title }}</h1>
+            <div class="connection-status" id="connectionStatus">Connected</div>
+        </header>
+        
+        <nav class="dashboard-nav">
+            <a href="/" class="nav-item active">Overview</a>
+            <a href="/daemon" class="nav-item">Daemon</a>
+            <a href="/pins" class="nav-item">Pins</a>
+            <a href="/backends" class="nav-item">Backends</a>
+            <a href="/peers" class="nav-item">Peers</a>
+            <a href="/buckets" class="nav-item">Buckets</a>
+            <a href="/content" class="nav-item">Content</a>
+            <a href="/services" class="nav-item">Services</a>
+            <a href="/logs" class="nav-item">Logs</a>
+            <a href="/config" class="nav-item">Config</a>
+            <a href="/metrics" class="nav-item">Metrics</a>
+        </nav>
+        
+        <main class="dashboard-main">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Server Status</h3>
+                    <div class="metric-value">{{ metrics.server_status.status|title }}</div>
+                    <p>Connections: {{ metrics.server_status.connections }}</p>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>Pin Metrics</h3>
+                    <div class="metric-value">{{ metrics.pin_metrics.total_pins }}</div>
+                    <p>Active: {{ metrics.pin_metrics.active_pins }}</p>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>Backend Health</h3>
+                    <div class="metric-value">{{ metrics.backend_metrics.healthy_backends }}/{{ metrics.backend_metrics.total_backends }}</div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>Peer Network</h3>
+                    <div class="metric-value">{{ metrics.peer_metrics.connected_peers }}</div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>Storage</h3>
+                    <div class="metric-value">{{ metrics.bucket_metrics.total_buckets }}</div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>Operations</h3>
+                    <div class="metric-value">{{ metrics.content_metrics.conflict_free_operations }}</div>
+                </div>
+            </div>
+            
+            <div class="charts-section">
+                <div class="chart-container">
+                    <canvas id="systemMetricsChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="networkActivityChart"></canvas>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="/static/js/enhanced_dashboard.js"></script>
+    <script>
+        const dashboardData = {{ metrics | tojson }};
+        initializeDashboard(dashboardData);
+    </script>
+</body>
+</html>

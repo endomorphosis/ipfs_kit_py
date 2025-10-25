@@ -32,6 +32,7 @@ class FastCLI:
         parser = argparse.ArgumentParser(description="IPFS-Kit CLI", formatter_class=argparse.RawTextHelpFormatter)
         sub = parser.add_subparsers(dest="command")
 
+        # MCP Dashboard commands
         mcp = sub.add_parser("mcp", help="MCP server and dashboard")
         mcp_sub = mcp.add_subparsers(dest="mcp_action")
 
@@ -51,14 +52,35 @@ class FastCLI:
         p_status.add_argument("--port", type=int, default=8004)
         p_status.add_argument("--host", default="127.0.0.1")
         p_status.add_argument("--data-dir", default=str(Path.home() / ".ipfs_kit"))
+        
+        # Daemon API commands
+        daemon = sub.add_parser("daemon", help="IPFS-Kit daemon API server")
+        daemon_sub = daemon.add_subparsers(dest="daemon_action")
+        
+        d_start = daemon_sub.add_parser("start", help="Start daemon API server")
+        d_start.add_argument("--port", type=int, default=9999)
+        d_start.add_argument("--host", default="0.0.0.0")
+        d_start.add_argument("--debug", action="store_true")
+        d_start.add_argument("--config-dir", default="/tmp/ipfs_kit_config")
+        d_start.add_argument("--data-dir", default=str(Path.home() / ".ipfs_kit"))
+        
         return parser
 
     async def run(self) -> None:
         args = self.parser.parse_args()
         if not args.command:
             self.parser.print_help(); sys.exit(2)
-        sub_action = getattr(args, "mcp_action", None) if args.command == "mcp" else None
-        handler = getattr(self, f"handle_{args.command}_{sub_action}" if sub_action else f"handle_{args.command}", None)
+        
+        # Handle both mcp_action and daemon_action
+        if args.command == "mcp":
+            sub_action = getattr(args, "mcp_action", None)
+            handler = getattr(self, f"handle_mcp_{sub_action}", None) if sub_action else None
+        elif args.command == "daemon":
+            sub_action = getattr(args, "daemon_action", None)
+            handler = getattr(self, f"handle_daemon_{sub_action}", None) if sub_action else None
+        else:
+            handler = getattr(self, f"handle_{args.command}", None)
+        
         if handler is None:
             print("Unknown command"); sys.exit(2)
         await handler(args)
@@ -84,6 +106,22 @@ class FastCLI:
                 p = Path(envp).expanduser().resolve()
                 if p.exists():
                     return p
+            # Prefer the packaged dashboard first to ensure correct assets/templates
+            pkg_base = Path(__file__).resolve().parent
+            # Prefer the consolidated_mcp_dashboard.py as requested by user
+            packaged_candidates = [
+                pkg_base / "mcp" / "dashboard" / "consolidated_mcp_dashboard.py",
+                pkg_base / "mcp" / "dashboard" / "consolidated_server.py",
+                pkg_base / "mcp" / "dashboard" / "refactored_unified_mcp_dashboard.py",
+                pkg_base / "mcp" / "dashboard" / "launch_refactored_dashboard.py",
+                pkg_base / "mcp" / "refactored_unified_dashboard.py",
+                pkg_base / "mcp" / "main_dashboard.py",
+            ]
+            for cand in packaged_candidates:
+                if cand.exists():
+                    return cand
+            # If not installed as a package or in an editable dev layout, fall back to repo-local files
+            # Prefer the live repository files when present (developer workflow)
             # repo root or cwd (handle missing/invalid cwd gracefully)
             bases: list[Path] = [Path(__file__).resolve().parents[1]]
             try:
@@ -129,7 +167,15 @@ class FastCLI:
             if DashboardClass is None:
                 print("No Dashboard class found in server file"); sys.exit(2)
             app = DashboardClass({"host": host, "port": port, "data_dir": str(data_dir), "debug": debug})
-            await app.run()
+            run_method = getattr(app, "run", None)
+            if run_method is None:
+                print("No run() method found on Dashboard class"); sys.exit(2)
+            # Support both async and sync run() implementations
+            if asyncio.iscoroutinefunction(run_method):
+                await run_method()
+            else:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, run_method)
             return
 
         # background
@@ -206,6 +252,37 @@ class FastCLI:
         except Exception:
             pass
         print(json.dumps(info, indent=2))
+
+    # ---- Daemon API ----
+    async def handle_daemon_start(self, args) -> None:
+        """Start the IPFS-Kit daemon API server."""
+        host = str(getattr(args, "host", "0.0.0.0"))
+        port = int(getattr(args, "port", 9999))
+        debug = bool(getattr(args, "debug", False))
+        config_dir = str(getattr(args, "config_dir", "/tmp/ipfs_kit_config"))
+        data_dir = str(getattr(args, "data_dir", str(Path.home() / ".ipfs_kit")))
+        
+        # Import and start the daemon
+        try:
+            try:
+                from mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
+            except ImportError:
+                # Fallback to packaged path
+                from ipfs_kit_py.mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
+            print(f"Starting IPFS-Kit daemon API server on {host}:{port}")
+            daemon = IPFSKitDaemon(host=host, port=port, config_dir=config_dir, data_dir=data_dir)
+            # Adjust logging if requested
+            if debug:
+                import logging
+                logging.getLogger().setLevel(logging.DEBUG)
+            await daemon.start()
+        except ImportError as e:
+            print(f"Failed to import daemon module: {e}")
+            print("Make sure ipfs_kit_py is properly installed with daemon support")
+            sys.exit(1)
+        except Exception as e:
+            print(f"Failed to start daemon: {e}")
+            sys.exit(1)
 
 
 async def main() -> None:

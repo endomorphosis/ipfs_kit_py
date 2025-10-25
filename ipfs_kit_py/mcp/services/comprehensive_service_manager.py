@@ -18,7 +18,8 @@ from typing import Dict, Any, List, Optional, Union
 from enum import Enum
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+# Logger removed to avoid NameError in dynamic import contexts
+# logger = logging.getLogger(__name__)
 
 
 class MockDaemonManager:
@@ -95,22 +96,80 @@ class ComprehensiveServiceManager:
         self.services_config = self._load_services_config()
         self.service_states = self._load_service_states()
         
+        # Load and merge individual service configurations
+        self._load_individual_service_configs()
+        
         # Initialize daemon manager references
         self._daemon_managers = {}
-        
-        logger.info("Comprehensive Service Manager initialized")
+    
+    def _load_individual_service_configs(self):
+        """Load individual service configuration files and merge them with the main config."""
+        try:
+            # Check for individual service config files
+            for config_file in self.data_dir.glob("*_config.json"):
+                try:
+                    service_id = config_file.stem.replace("_config", "")
+                    with open(config_file, 'r') as f:
+                        saved_config = json.load(f)
+                    # Unwrap any legacy envelopes and filter only allowed keys
+                    sanitized = self._sanitize_config(service_id, saved_config)
+                    
+                    # Find the service in services_config and merge the saved config
+                    service_config = self._find_service_config(service_id)
+                    if service_config:
+                        # Merge saved configuration into service config
+                        for key, value in sanitized.items():
+                            if key in service_config.get("config_keys", []):
+                                service_config[key] = value
+                except Exception as e:
+                    pass  # Silent failure
+        except Exception as e:
+            pass  # Silent failure
     
     def _load_services_config(self) -> Dict[str, Any]:
-        """Load services configuration."""
+        """Load services configuration, merging saved config with defaults.
+        
+        This ensures that:
+        1. Newly added services in defaults are picked up with their default enabled state
+        2. User-configured settings (ports, paths, etc.) are preserved
+        3. The enabled state from defaults is used unless explicitly overridden by user
+        """
+        # Always start with default configuration
+        config = self._get_default_services_config()
+        
+        # If saved config exists, merge specific user settings
         if self.services_config_file.exists():
             try:
                 with open(self.services_config_file, 'r') as f:
-                    return json.load(f)
+                    saved_config = json.load(f)
+                
+                # Merge saved config into default config
+                # Only preserve user-configured fields, not structural defaults
+                for category in ["daemons", "storage_backends", "network_services"]:
+                    if category in saved_config:
+                        for service_id, saved_service in saved_config[category].items():
+                            if service_id in config[category]:
+                                # Start with default config for this service
+                                merged_service = config[category][service_id].copy()
+                                
+                                # Only merge user-configurable fields from saved config
+                                # Don't override 'enabled', 'type', 'name', 'description', 'config_keys', 'config_hints'
+                                # These should always come from defaults to pick up updates
+                                user_fields = ['port', 'gateway_port', 'swarm_port', 'config_dir', 
+                                             'auto_start', 'requires_credentials']
+                                
+                                for field in user_fields:
+                                    if field in saved_service:
+                                        merged_service[field] = saved_service[field]
+                                
+                                config[category][service_id] = merged_service
+                
+                return config
             except Exception as e:
-                logger.error(f"Error loading services config: {e}")
+                pass  # Silent failure, return defaults
         
         # Return default services configuration
-        return self._get_default_services_config()
+        return config
     
     def _load_service_states(self) -> Dict[str, Any]:
         """Load service states."""
@@ -119,7 +178,7 @@ class ComprehensiveServiceManager:
                 with open(self.service_states_file, 'r') as f:
                     return json.load(f)
             except Exception as e:
-                logger.error(f"Error loading service states: {e}")
+                pass  # Silent failure
         
         return {}
     
@@ -129,7 +188,7 @@ class ComprehensiveServiceManager:
             with open(self.services_config_file, 'w') as f:
                 json.dump(self.services_config, f, indent=2)
         except Exception as e:
-            logger.error(f"Error saving services config: {e}")
+            pass  # Silent failure
     
     def _save_service_states(self):
         """Save service states."""
@@ -137,7 +196,7 @@ class ComprehensiveServiceManager:
             with open(self.service_states_file, 'w') as f:
                 json.dump(self.service_states, f, indent=2)
         except Exception as e:
-            logger.error(f"Error saving service states: {e}")
+            pass  # Silent failure
     
     def _get_default_services_config(self) -> Dict[str, Any]:
         """Get default services configuration."""
@@ -152,7 +211,15 @@ class ComprehensiveServiceManager:
                     "swarm_port": 4001,
                     "config_dir": str(Path.home() / ".ipfs"),
                     "enabled": True,
-                    "auto_start": True
+                    "auto_start": True,
+                    "config_keys": ["config_dir", "port", "gateway_port", "swarm_port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS configuration and data files are stored",
+                        "port": "IPFS API port (default: 5001)",
+                        "gateway_port": "IPFS Gateway port for HTTP access (default: 8080)",
+                        "swarm_port": "IPFS Swarm port for peer communication (default: 4001)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 },
                 "lotus": {
                     "type": ServiceType.DAEMON.value,
@@ -161,7 +228,13 @@ class ComprehensiveServiceManager:
                     "port": 1234,
                     "config_dir": str(Path.home() / ".lotus"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where Lotus configuration and data files are stored",
+                        "port": "Lotus API port (default: 1234)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 },
                 "aria2": {
                     "type": ServiceType.DAEMON.value,
@@ -170,7 +243,14 @@ class ComprehensiveServiceManager:
                     "port": 6800,
                     "config_dir": str(Path.home() / ".aria2"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start", "rpc_secret"],
+                    "config_hints": {
+                        "config_dir": "Directory where Aria2 configuration files are stored",
+                        "port": "Aria2 RPC port (default: 6800)",
+                        "auto_start": "Automatically start daemon on system boot",
+                        "rpc_secret": "RPC secret token for authentication"
+                    }
                 },
                 "ipfs_cluster": {
                     "type": ServiceType.DAEMON.value,
@@ -179,7 +259,15 @@ class ComprehensiveServiceManager:
                     "port": 9094,
                     "config_dir": str(Path.home() / ".ipfs-cluster"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start", "cluster_secret", "bootstrap_peers"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS Cluster configuration is stored",
+                        "port": "IPFS Cluster API port (default: 9094)",
+                        "auto_start": "Automatically start daemon on system boot",
+                        "cluster_secret": "Shared secret for cluster authentication",
+                        "bootstrap_peers": "Comma-separated list of bootstrap peer multiaddresses"
+                    }
                 },
                 "ipfs_cluster_follow": {
                     "type": ServiceType.DAEMON.value,
@@ -188,7 +276,14 @@ class ComprehensiveServiceManager:
                     "port": 9096,
                     "config_dir": str(Path.home() / ".ipfs-cluster-follow"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start", "remote_cluster"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS Cluster Follow configuration is stored",
+                        "port": "IPFS Cluster Follow API port (default: 9096)",
+                        "auto_start": "Automatically start daemon on system boot",
+                        "remote_cluster": "Remote cluster multiaddress to follow"
+                    }
                 },
                 "lassie": {
                     "type": ServiceType.DAEMON.value,
@@ -197,7 +292,43 @@ class ComprehensiveServiceManager:
                     "port": 8080,
                     "config_dir": str(Path.home() / ".lassie"),
                     "enabled": False,
-                    "auto_start": False
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where Lassie configuration is stored",
+                        "port": "Lassie HTTP server port (default: 8080)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
+                },
+                "libp2p": {
+                    "type": ServiceType.DAEMON.value,
+                    "name": "libp2p-py Daemon",
+                    "description": "Python libp2p networking daemon for peer-to-peer communication",
+                    "port": 4002,
+                    "config_dir": str(Path.home() / ".libp2p"),
+                    "enabled": False,
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where libp2p configuration is stored",
+                        "port": "libp2p listening port (default: 4002)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
+                },
+                "ipfs_kit": {
+                    "type": ServiceType.DAEMON.value,
+                    "name": "IPFS Kit Daemon",
+                    "description": "IPFS Kit background daemon for automated operations",
+                    "port": 5002,
+                    "config_dir": str(Path.home() / ".ipfs_kit"),
+                    "enabled": True,
+                    "auto_start": False,
+                    "config_keys": ["config_dir", "port", "auto_start"],
+                    "config_hints": {
+                        "config_dir": "Directory where IPFS Kit configuration and data are stored",
+                        "port": "IPFS Kit daemon API port (default: 5002)",
+                        "auto_start": "Automatically start daemon on system boot"
+                    }
                 }
             },
             "storage_backends": {
@@ -206,40 +337,65 @@ class ComprehensiveServiceManager:
                     "name": "Amazon S3",
                     "description": "Amazon Simple Storage Service backend",
                     "requires_credentials": True,
-                    "config_keys": ["access_key", "secret_key", "region", "bucket"],
-                    "enabled": False
+                    "config_keys": ["access_key", "secret_key", "endpoint", "bucket", "region"],
+                    "config_hints": {
+                        "access_key": "AWS Access Key ID (e.g., AKIA...)",
+                        "secret_key": "AWS Secret Access Key",
+                        "endpoint": "S3 endpoint URL (optional, defaults to AWS)",
+                        "bucket": "S3 bucket name",
+                        "region": "AWS region (e.g., us-east-1)"
+                    },
+                    "enabled": True
                 },
                 "huggingface": {
                     "type": ServiceType.STORAGE.value,
                     "name": "HuggingFace Hub",
                     "description": "HuggingFace model and dataset repository",
                     "requires_credentials": True,
-                    "config_keys": ["api_token", "username"],
-                    "enabled": False
+                    "config_keys": ["api_token", "username", "repository"],
+                    "config_hints": {
+                        "api_token": "HuggingFace API token (from huggingface.co/settings/tokens)",
+                        "username": "HuggingFace username",
+                        "repository": "Repository name (optional)"
+                    },
+                    "enabled": True
                 },
                 "github": {
                     "type": ServiceType.STORAGE.value,
                     "name": "GitHub Storage",
                     "description": "GitHub repository storage backend",
                     "requires_credentials": True,
-                    "config_keys": ["access_token", "username", "repository"],
-                    "enabled": False
+                    "config_keys": ["api_token", "repository", "username"],
+                    "config_hints": {
+                        "api_token": "GitHub Personal Access Token (from github.com/settings/tokens)",
+                        "repository": "Repository (owner/repo format)",
+                        "username": "GitHub username"
+                    },
+                    "enabled": True
                 },
                 "storacha": {
                     "type": ServiceType.STORAGE.value,
                     "name": "Storacha",
                     "description": "Storacha decentralized storage service",
                     "requires_credentials": True,
-                    "config_keys": ["api_key"],
-                    "enabled": False
+                    "config_keys": ["api_token", "space"],
+                    "config_hints": {
+                        "api_token": "Storacha API token",
+                        "space": "Storacha space identifier"
+                    },
+                    "enabled": True
                 },
-                "lotus": {
+                "lotus_storage": {
                     "type": ServiceType.STORAGE.value,
                     "name": "Lotus Storage",
                     "description": "Filecoin Lotus storage provider integration",
                     "requires_credentials": False,
                     "config_keys": ["node_url", "token"],
-                    "enabled": False
+                    "config_hints": {
+                        "node_url": "Lotus node API endpoint URL (e.g., http://127.0.0.1:1234/rpc/v0)",
+                        "token": "Lotus authentication token (optional)"
+                    },
+                    "enabled": True
                 },
                 "synapse": {
                     "type": ServiceType.STORAGE.value,
@@ -247,7 +403,12 @@ class ComprehensiveServiceManager:
                     "description": "Matrix Synapse server storage backend",
                     "requires_credentials": True,
                     "config_keys": ["homeserver_url", "access_token", "room_id"],
-                    "enabled": False
+                    "config_hints": {
+                        "homeserver_url": "Matrix homeserver URL (e.g., https://matrix.org)",
+                        "access_token": "Matrix access token for authentication",
+                        "room_id": "Matrix room ID for storage operations"
+                    },
+                    "enabled": True
                 },
                 "gdrive": {
                     "type": ServiceType.STORAGE.value,
@@ -255,7 +416,12 @@ class ComprehensiveServiceManager:
                     "description": "Google Drive cloud storage backend",
                     "requires_credentials": True,
                     "config_keys": ["client_id", "client_secret", "refresh_token"],
-                    "enabled": False
+                    "config_hints": {
+                        "client_id": "Google OAuth 2.0 Client ID",
+                        "client_secret": "Google OAuth 2.0 Client Secret",
+                        "refresh_token": "Google OAuth 2.0 Refresh Token"
+                    },
+                    "enabled": True
                 },
                 "ftp": {
                     "type": ServiceType.STORAGE.value,
@@ -263,15 +429,28 @@ class ComprehensiveServiceManager:
                     "description": "File Transfer Protocol storage backend",
                     "requires_credentials": True,
                     "config_keys": ["host", "port", "username", "password"],
-                    "enabled": False
+                    "config_hints": {
+                        "host": "FTP server hostname or IP",
+                        "port": "FTP port (default: 21)",
+                        "username": "FTP username",
+                        "password": "FTP password"
+                    },
+                    "enabled": True
                 },
                 "sshfs": {
                     "type": ServiceType.STORAGE.value,
                     "name": "SSHFS",
                     "description": "SSH Filesystem storage backend",
                     "requires_credentials": True,
-                    "config_keys": ["host", "port", "username", "private_key_path"],
-                    "enabled": False
+                    "config_keys": ["host", "port", "username", "password", "key_file"],
+                    "config_hints": {
+                        "host": "SSH server hostname or IP",
+                        "port": "SSH port (default: 22)",
+                        "username": "SSH username",
+                        "password": "SSH password (leave empty for key-based auth)",
+                        "key_file": "Path to SSH private key file (optional, for key-based auth)"
+                    },
+                    "enabled": True
                 },
                 "apache_arrow": {
                     "type": ServiceType.STORAGE.value,
@@ -279,6 +458,10 @@ class ComprehensiveServiceManager:
                     "description": "In-memory columnar data format for analytics and data processing",
                     "requires_credentials": False,
                     "config_keys": ["memory_pool", "compression"],
+                    "config_hints": {
+                        "memory_pool": "Memory pool type (e.g., 'default', 'jemalloc', 'mimalloc')",
+                        "compression": "Compression algorithm (e.g., 'snappy', 'gzip', 'lz4', 'zstd')"
+                    },
                     "enabled": True
                 },
                 "parquet": {
@@ -287,6 +470,11 @@ class ComprehensiveServiceManager:
                     "description": "Columnar storage format optimized for analytics workloads",
                     "requires_credentials": False,
                     "config_keys": ["compression_codec", "row_group_size", "schema_validation"],
+                    "config_hints": {
+                        "compression_codec": "Compression codec (e.g., 'snappy', 'gzip', 'brotli', 'lz4', 'zstd')",
+                        "row_group_size": "Number of rows per row group (default: 1000000)",
+                        "schema_validation": "Enable schema validation (true/false)"
+                    },
                     "enabled": True
                 }
             },
@@ -326,7 +514,7 @@ class ComprehensiveServiceManager:
         for backend_id, config in self.services_config.get("storage_backends", {}).items():
             if config.get("enabled", False):
                 status = await self._check_storage_backend_status(backend_id, config)
-                services.append({
+                service_info = {
                     "id": backend_id,
                     "name": config["name"],
                     "type": config["type"],
@@ -336,7 +524,13 @@ class ComprehensiveServiceManager:
                     "actions": self._get_available_actions(backend_id, status["status"]),
                     "last_check": status.get("last_check"),
                     "details": status.get("details", {})
-                })
+                }
+                # Add config_keys and config_hints if available
+                if "config_keys" in config:
+                    service_info["config_keys"] = config["config_keys"]
+                if "config_hints" in config:
+                    service_info["config_hints"] = config["config_hints"]
+                services.append(service_info)
         
         # Add network services
         for service_id, config in self.services_config.get("network_services", {}).items():
@@ -366,47 +560,96 @@ class ComprehensiveServiceManager:
         }
     
     async def _check_daemon_status(self, daemon_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Check the status of a daemon service."""
+        """Check the status of a daemon service using port checking and process detection."""
         try:
-            # Try to import and use the daemon manager
-            if daemon_id not in self._daemon_managers:
-                # Lazy import to avoid circular dependencies
-                import sys
-                import importlib.util
-                
-                # Try to import the daemon manager
-                daemon_manager_path = Path(__file__).parent.parent.parent.parent / "scripts" / "daemon" / "daemon_manager.py"
-                if daemon_manager_path.exists():
-                    spec = importlib.util.spec_from_file_location("daemon_manager", daemon_manager_path)
-                    daemon_manager_module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(daemon_manager_module)
-                    DaemonManager = daemon_manager_module.DaemonManager
-                    
-                    self._daemon_managers[daemon_id] = DaemonManager(
-                        daemon_type=daemon_id,
-                        config_dir=config.get("config_dir"),
-                        api_port=config.get("port")
-                    )
-                else:
-                    # Fallback to mock daemon manager
-                    logger.warning(f"Daemon manager not found, using mock for {daemon_id}")
-                    self._daemon_managers[daemon_id] = MockDaemonManager(daemon_id)
+            import socket
+            import shutil
             
-            daemon_manager = self._daemon_managers[daemon_id]
-            status_info = daemon_manager.get_status()
-            
-            return {
-                "status": ServiceStatus.RUNNING.value if status_info.get("running", False) else ServiceStatus.STOPPED.value,
-                "last_check": datetime.now().isoformat(),
-                "details": {
-                    "initialized": status_info.get("initialized", False),
-                    "config_dir": status_info.get("config_dir"),
-                    "api_port": status_info.get("api_port"),
-                    "pid": status_info.get("pid")
-                }
+            # Check if binary exists
+            binary_map = {
+                "ipfs": "ipfs",
+                "lotus": "lotus",
+                "aria2": "aria2c",
+                "ipfs_cluster": "ipfs-cluster-service",
+                "ipfs_cluster_follow": "ipfs-cluster-follow",
+                "lassie": "lassie",
+                "libp2p": "libp2p-daemon",
+                "ipfs_kit": "ipfs-kit"
             }
+            
+            binary_name = binary_map.get(daemon_id)
+            binary_path = shutil.which(binary_name) if binary_name else None
+            
+            if not binary_path:
+                return {
+                    "status": ServiceStatus.MISSING.value,
+                    "last_check": datetime.now().isoformat(),
+                    "details": {
+                        "binary": binary_name,
+                        "error": f"Binary '{binary_name}' not found in PATH"
+                    }
+                }
+            
+            # Check if service is running by checking the port
+            port = config.get("port")
+            if port:
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(1)
+                    result = sock.connect_ex(('127.0.0.1', port))
+                    sock.close()
+                    
+                    if result == 0:
+                        # Port is open, service is running
+                        return {
+                            "status": ServiceStatus.RUNNING.value,
+                            "last_check": datetime.now().isoformat(),
+                            "details": {
+                                "binary_path": binary_path,
+                                "config_dir": config.get("config_dir"),
+                                "api_port": port,
+                                "api_port_open": True
+                            }
+                        }
+                    else:
+                        # Port is closed, service is stopped
+                        return {
+                            "status": ServiceStatus.STOPPED.value,
+                            "last_check": datetime.now().isoformat(),
+                            "details": {
+                                "binary_path": binary_path,
+                                "config_dir": config.get("config_dir"),
+                                "api_port": port,
+                                "api_port_open": False,
+                                "reason": "Port not accessible"
+                            }
+                        }
+                except Exception as port_error:
+                    # Port check failed, service is stopped
+                    return {
+                        "status": ServiceStatus.STOPPED.value,
+                        "last_check": datetime.now().isoformat(),
+                        "details": {
+                            "binary_path": binary_path,
+                            "config_dir": config.get("config_dir"),
+                            "api_port": port,
+                            "api_port_open": False,
+                            "reason": str(port_error)
+                        }
+                    }
+            else:
+                # No port configured, can't check status, assume configured
+                return {
+                    "status": ServiceStatus.CONFIGURED.value,
+                    "last_check": datetime.now().isoformat(),
+                    "details": {
+                        "binary_path": binary_path,
+                        "config_dir": config.get("config_dir"),
+                        "reason": "No port configured to check status"
+                    }
+                }
         except Exception as e:
-            logger.error(f"Error checking daemon {daemon_id} status: {e}")
+            # Return error status without logging
             return {
                 "status": ServiceStatus.ERROR.value,
                 "last_check": datetime.now().isoformat(),
@@ -535,20 +778,45 @@ class ComprehensiveServiceManager:
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}
         except Exception as e:
-            logger.error(f"Error performing action {action} on service {service_id}: {e}")
+            # Return error without logging
             return {"success": False, "error": str(e)}
     
     async def _start_service(self, service_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Start a service."""
-        if service_id in self._daemon_managers:
-            daemon_manager = self._daemon_managers[service_id]
-            success = daemon_manager.start()
-            return {
-                "success": success,
-                "message": f"Service {service_id} {'started successfully' if success else 'failed to start'}"
-            }
-        
-        return {"success": False, "error": f"Service {service_id} cannot be started"}
+        try:
+            # Load and apply saved configuration before starting
+            config_file = self.data_dir / f"{service_id}_config.json"
+            if config_file.exists():
+                try:
+                    with open(config_file, 'r') as f:
+                        raw = json.load(f)
+                    # Unwrap any legacy envelope and filter only allowed keys
+                    saved_config = self._sanitize_config(service_id, raw)
+                    # If sanitized differs from raw, rewrite to correct legacy files
+                    try:
+                        if isinstance(raw, dict) and raw != saved_config and isinstance(saved_config, dict):
+                            with open(config_file, 'w') as wf:
+                                json.dump(saved_config, wf, indent=2)
+                    except Exception:
+                        pass
+                    
+                    # Apply the saved configuration
+                    apply_result = await self._apply_service_config(service_id, saved_config)
+                except Exception as e:
+                    pass  # Silent failure
+            
+            # Now start the service
+            if service_id in self._daemon_managers:
+                daemon_manager = self._daemon_managers[service_id]
+                success = daemon_manager.start()
+                return {
+                    "success": success,
+                    "message": f"Service {service_id} {'started successfully' if success else 'failed to start'}"
+                }
+            
+            return {"success": False, "error": f"Service {service_id} cannot be started"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
     
     async def _stop_service(self, service_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Stop a service."""
@@ -576,18 +844,13 @@ class ComprehensiveServiceManager:
         if not params:
             return {"success": False, "error": "Configuration parameters required"}
         
-        # Save configuration for credentialed services
-        service_config = self._find_service_config(service_id)
-        if service_config and service_config.get("requires_credentials", False):
-            credentials_file = self.data_dir / f"{service_id}_credentials.json"
-            try:
-                with open(credentials_file, 'w') as f:
-                    json.dump(params, f, indent=2)
-                return {"success": True, "message": f"Service {service_id} configured successfully"}
-            except Exception as e:
-                return {"success": False, "error": f"Failed to save configuration: {str(e)}"}
+        # Back-compat: some clients send { params: { config: {...} } }
+        config_payload = params.get("config") if isinstance(params, dict) else None
+        if isinstance(config_payload, dict):
+            return await self.configure_service(service_id, config_payload)
         
-        return {"success": False, "error": f"Service {service_id} does not support configuration"}
+        # Use the comprehensive configure_service method for all services
+        return await self.configure_service(service_id, params)
     
     async def _health_check_service(self, service_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Perform health check on a service."""
@@ -621,28 +884,102 @@ class ComprehensiveServiceManager:
             if service_id in self.services_config.get(category, {}):
                 return self.services_config[category][service_id]
         return None
+
+    def _sanitize_config(self, service_id: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+        """Unwrap legacy envelopes and keep only allowed config keys for a service.
+        
+        Accepts either a plain params dict or an MCP-style envelope like
+        {"service": ..., "action": "configure", "params": {...}}. Returns a
+        filtered dict containing only keys declared in the service's config_keys.
+        Falls back to default config_keys when missing to preserve backwards compatibility.
+        """
+        try:
+            if not isinstance(raw, dict):
+                return {}
+            # Unwrap legacy MCP envelope
+            if "params" in raw and ("service" in raw or "action" in raw):
+                raw = raw.get("params", {}) or {}
+
+            service_cfg = self._find_service_config(service_id) or {}
+            allowed = list(service_cfg.get("config_keys", []))
+            if not allowed:
+                # Fallback to default config keys if not present
+                defaults = self._get_default_services_config()
+                for group in ("daemons", "storage_backends", "network_services"):
+                    if service_id in defaults.get(group, {}):
+                        allowed = list(defaults[group][service_id].get("config_keys", []))
+                        break
+
+            if not allowed:
+                # If still unknown, return only simple JSON-serializable scalars to be safe
+                return {k: v for k, v in raw.items() if isinstance(v, (str, int, float, bool)) or v is None}
+
+            return {k: v for k, v in raw.items() if k in allowed}
+        except Exception:
+            # On any error, prefer a safe minimal return
+            return {}
     
     async def get_service_details(self, service_id: str) -> Dict[str, Any]:
         """Get detailed information about a specific service."""
         service_config = self._find_service_config(service_id)
         if not service_config:
-            return {"error": f"Service {service_id} not found"}
+            return {"success": False, "error": f"Service {service_id} not found"}
+        
+        # Load saved configuration if it exists
+        config_file = self.data_dir / f"{service_id}_config.json"
+        saved_config = {}
+        if config_file.exists():
+            try:
+                with open(config_file, 'r') as f:
+                    raw = json.load(f)
+                # Unwrap legacy envelope and keep only allowed keys
+                saved_config = self._sanitize_config(service_id, raw)
+                # If sanitized differs from raw, rewrite to correct legacy files
+                try:
+                    if isinstance(raw, dict) and raw != saved_config and isinstance(saved_config, dict):
+                        with open(config_file, 'w') as wf:
+                            json.dump(saved_config, wf, indent=2)
+                except Exception:
+                    pass
+            except Exception as e:
+                # Silently continue if config file can't be read
+                pass
+        
+        # For storage backends, also load from credentials file if config is empty
+        # This handles the case where credentials were saved but config file is missing
+        if service_config.get("type") == ServiceType.STORAGE.value and not saved_config:
+            credentials_file = self.data_dir / f"{service_id}_credentials.json"
+            if credentials_file.exists():
+                try:
+                    with open(credentials_file, 'r') as f:
+                        creds = json.load(f)
+                    saved_config = self._sanitize_config(service_id, creds)
+                except Exception:
+                    pass  # Silently continue if credentials can't be read
+        
+        # Merge saved config with service config for the response
+        merged_config = service_config.copy()
+        for key, value in saved_config.items():
+            merged_config[key] = value
         
         # Get current status
         if service_config["type"] == ServiceType.DAEMON.value:
-            status = await self._check_daemon_status(service_id, service_config)
+            status = await self._check_daemon_status(service_id, merged_config)
         elif service_config["type"] == ServiceType.STORAGE.value:
-            status = await self._check_storage_backend_status(service_id, service_config)
+            status = await self._check_storage_backend_status(service_id, merged_config)
         elif service_config["type"] == ServiceType.NETWORK.value:
-            status = await self._check_network_service_status(service_id, service_config)
+            status = await self._check_network_service_status(service_id, merged_config)
         else:
             status = {"status": ServiceStatus.UNKNOWN.value, "details": {}}
         
         return {
+            "success": True,
             "id": service_id,
-            "config": service_config,
-            "status": status,
-            "actions": self._get_available_actions(service_id, status["status"])
+            "config": merged_config,
+            "status": status.get("status", ServiceStatus.UNKNOWN.value),
+            "last_check": status.get("last_check", ""),
+            "details": status.get("details", {}),
+            "actions": self._get_available_actions(service_id, status.get("status", ServiceStatus.UNKNOWN.value))
         }
     
     def enable_service(self, service_id: str) -> Dict[str, Any]:
@@ -680,7 +1017,10 @@ class ComprehensiveServiceManager:
         daemon_checks = {
             "lotus": "lotus",
             "aria2": "aria2c",
-            "ipfs_cluster": "ipfs-cluster-service"
+            "ipfs_cluster": "ipfs-cluster-service",
+            "ipfs_cluster_follow": "ipfs-cluster-follow",
+            "lassie": "lassie",
+            "libp2p": "libp2p-daemon"
         }
         
         for daemon_id, binary_name in daemon_checks.items():
@@ -719,7 +1059,7 @@ class ComprehensiveServiceManager:
                     "details": {"enabled": False}
                 }
             
-            services.append({
+            daemon_info = {
                 "id": daemon_id,
                 "name": config["name"],
                 "type": config["type"],
@@ -727,10 +1067,32 @@ class ComprehensiveServiceManager:
                 "status": status["status"],
                 "enabled": config.get("enabled", False),
                 "port": config.get("port"),
+                "gateway_port": config.get("gateway_port"),
+                "swarm_port": config.get("swarm_port"),
+                "config_dir": config.get("config_dir"),
+                "auto_start": config.get("auto_start", False),
                 "actions": self._get_available_actions_for_dashboard(daemon_id, status["status"], config.get("enabled", False)),
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {})
-            })
+            }
+            
+            # Add config_keys and config_hints for daemon configuration
+            config_keys = config.get("config_keys", [])
+            config_hints = config.get("config_hints", {})
+            
+            # If config_keys is missing, get it from default config (for backwards compatibility)
+            if not config_keys:
+                default_config = self._get_default_services_config()
+                default_daemon = default_config.get("daemons", {}).get(daemon_id, {})
+                config_keys = default_daemon.get("config_keys", [])
+                config_hints = default_daemon.get("config_hints", {})
+            
+            if config_keys:
+                daemon_info["config_keys"] = config_keys
+            if config_hints:
+                daemon_info["config_hints"] = config_hints
+            
+            services.append(daemon_info)
         
         # Add ALL storage backend services (regardless of enabled status)  
         for backend_id, config in self.services_config.get("storage_backends", {}).items():
@@ -751,6 +1113,17 @@ class ComprehensiveServiceManager:
                         "last_check": datetime.now().isoformat(), 
                         "details": {"enabled": False, "configured": True}
                     }
+            
+            # Get config_keys and config_hints from config, or fall back to defaults
+            config_keys = config.get("config_keys", [])
+            config_hints = config.get("config_hints", {})
+            
+            # If config_keys is missing, get it from default config (for backwards compatibility)
+            if not config_keys:
+                default_config = self._get_default_services_config()
+                default_backend = default_config.get("storage_backends", {}).get(backend_id, {})
+                config_keys = default_backend.get("config_keys", [])
+                config_hints = default_backend.get("config_hints", {})
                         
             services.append({
                 "id": backend_id,
@@ -760,7 +1133,8 @@ class ComprehensiveServiceManager:
                 "status": status["status"],
                 "enabled": config.get("enabled", False),
                 "requires_credentials": config.get("requires_credentials", False),
-                "config_keys": config.get("config_keys", []),
+                "config_keys": config_keys,
+                "config_hints": config_hints,
                 "actions": self._get_available_actions_for_dashboard(backend_id, status["status"], config.get("enabled", False)),
                 "last_check": status.get("last_check"),
                 "details": status.get("details", {})
@@ -822,95 +1196,291 @@ class ComprehensiveServiceManager:
     async def configure_service(self, service_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Configure a service with the provided configuration."""
         try:
-            # Save service configuration
+            # Always sanitize incoming config to avoid persisting envelopes or unknown keys
+            config = self._sanitize_config(service_id, config or {})
+            # Save service configuration to JSON
             config_file = self.data_dir / f"{service_id}_config.json"
             with open(config_file, 'w') as f:
                 json.dump(config, f, indent=2)
+            
+            # Apply configuration to the actual service
+            apply_result = await self._apply_service_config(service_id, config)
+            
+            # Update service configuration in services_config
+            service_config = self._find_service_config(service_id)
+            if service_config:
+                # Update the configuration values in the services_config
+                for key, value in config.items():
+                    if key in service_config.get("config_keys", []):
+                        service_config[key] = value
+                self._save_services_config()
             
             # Update service status to configured if it was not_configured
             if service_id in self.service_states:
                 if self.service_states[service_id].get("status") == "not_configured":
                     self.service_states[service_id]["status"] = "configured"
-                    self.service_states[service_id]["last_configured"] = datetime.now().isoformat()
-                    self._save_service_states()
+                self.service_states[service_id]["last_configured"] = datetime.now().isoformat()
+                self.service_states[service_id]["config_applied"] = apply_result.get("applied", False)
+                self._save_service_states()
             
-            logger.info(f"Service {service_id} configured successfully")
+            # Configuration saved and applied successfully
             return {
                 "success": True,
                 "message": f"Service {service_id} configured successfully",
-                "config_saved": True
+                "config_saved": True,
+                "config_applied": apply_result.get("applied", False),
+                "apply_message": apply_result.get("message", ""),
+                "saved_path": str(config_file)
             }
             
         except Exception as e:
-            logger.error(f"Error configuring service {service_id}: {e}")
+            # Return error without logging
             return {
                 "success": False,
                 "error": str(e)
             }
-
-    def enable_service(self, service_id: str) -> Dict[str, Any]:
-        """Enable a service."""
+    
+    async def _apply_service_config(self, service_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply configuration to the actual service by generating the appropriate config file."""
         try:
-            # Update service configuration to enable it
-            service_found = False
-            for service_group in ["daemons", "storage_backends", "network_services"]:
-                if service_id in self.services_config.get(service_group, {}):
-                    self.services_config[service_group][service_id]["enabled"] = True
-                    service_found = True
-                    break
+            service_config = self._find_service_config(service_id)
+            if not service_config:
+                return {"applied": False, "message": "Service configuration not found"}
             
-            if not service_found:
-                return {
-                    "success": False,
-                    "error": f"Service {service_id} not found"
-                }
-            
-            self._save_services_config()
-            
-            logger.info(f"Service {service_id} enabled successfully")
-            return {
-                "success": True,
-                "message": f"Service {service_id} enabled successfully"
-            }
-            
-        except Exception as e:
-            logger.error(f"Error enabling service {service_id}: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-
-    async def perform_service_action(self, service_id: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform an action on a service."""
-        try:
-            if action == "enable":
-                return self.enable_service(service_id)
-            elif action == "configure":
-                config = params.get("config", {})
-                return await self.configure_service(service_id, config)
-            elif action == "start":
-                # Implementation for starting services would go here
-                return {"success": True, "message": f"Service {service_id} start initiated", "status": "starting"}
-            elif action == "stop":
-                # Implementation for stopping services would go here  
-                return {"success": True, "message": f"Service {service_id} stop initiated", "status": "stopping"}
-            elif action == "restart":
-                # Implementation for restarting services would go here
-                return {"success": True, "message": f"Service {service_id} restart initiated", "status": "restarting"}
-            elif action == "health_check":
-                # Implementation for health checks would go here
-                return {"success": True, "message": f"Service {service_id} health check completed", "status": "healthy"}
+            # Determine the service type and apply configuration accordingly
+            if service_id == "ipfs":
+                return await self._apply_ipfs_config(config)
+            elif service_id == "ipfs_cluster":
+                return await self._apply_ipfs_cluster_config(config)
+            elif service_id == "lotus":
+                return await self._apply_lotus_config(config)
+            elif service_id == "aria2":
+                return await self._apply_aria2_config(config)
+            elif service_id == "lassie":
+                return await self._apply_lassie_config(config)
+            elif service_config.get("type") == ServiceType.STORAGE.value:
+                # For storage backends, configuration is credential-based
+                return await self._apply_storage_backend_config(service_id, config)
             else:
-                return {
-                    "success": False,
-                    "error": f"Unknown action: {action}"
-                }
-                
+                # For other services, just save the config
+                return {"applied": False, "message": "Service does not support automatic configuration"}
+            
         except Exception as e:
-            logger.error(f"Error performing action {action} on service {service_id}: {e}")
-            return {
-                "success": False,
-                "error": str(e)
+            # Return error without logging
+            return {"applied": False, "message": f"Error: {str(e)}"}
+    
+    async def _apply_ipfs_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply IPFS configuration by modifying the IPFS config file."""
+        try:
+            import subprocess
+            
+            # IPFS uses JSON configuration
+            config_dir = Path(config.get("config_dir", Path.home() / ".ipfs"))
+            config_file = config_dir / "config"
+            
+            if not config_file.exists():
+                return {"applied": False, "message": "IPFS not initialized. Run 'ipfs init' first."}
+            
+            # Read existing config
+            with open(config_file, 'r') as f:
+                ipfs_config = json.load(f)
+            
+            # Apply configuration changes
+            if "port" in config:
+                if "Addresses" not in ipfs_config:
+                    ipfs_config["Addresses"] = {}
+                ipfs_config["Addresses"]["API"] = f"/ip4/127.0.0.1/tcp/{config['port']}"
+            
+            if "gateway_port" in config:
+                if "Addresses" not in ipfs_config:
+                    ipfs_config["Addresses"] = {}
+                ipfs_config["Addresses"]["Gateway"] = f"/ip4/127.0.0.1/tcp/{config['gateway_port']}"
+            
+            if "swarm_port" in config:
+                if "Addresses" not in ipfs_config:
+                    ipfs_config["Addresses"] = {}
+                ipfs_config["Addresses"]["Swarm"] = [
+                    f"/ip4/0.0.0.0/tcp/{config['swarm_port']}",
+                    f"/ip6/::/tcp/{config['swarm_port']}"
+                ]
+            
+            # Write back the configuration
+            with open(config_file, 'w') as f:
+                json.dump(ipfs_config, f, indent=2)
+            
+            return {"applied": True, "message": "IPFS configuration applied successfully"}
+            
+        except Exception as e:
+            # Return error without logging
+            return {"applied": False, "message": f"Failed to apply IPFS config: {str(e)}"}
+    
+    async def _apply_ipfs_cluster_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply IPFS Cluster configuration."""
+        try:
+            # IPFS Cluster uses JSON configuration
+            config_dir = Path(config.get("config_dir", Path.home() / ".ipfs-cluster"))
+            config_file = config_dir / "service.json"
+            
+            if not config_file.exists():
+                return {"applied": False, "message": "IPFS Cluster not initialized. Run 'ipfs-cluster-service init' first."}
+            
+            # Read existing config
+            with open(config_file, 'r') as f:
+                cluster_config = json.load(f)
+            
+            # Apply configuration changes
+            if "port" in config:
+                if "api" not in cluster_config:
+                    cluster_config["api"] = {}
+                if "restapi" not in cluster_config["api"]:
+                    cluster_config["api"]["restapi"] = {}
+                cluster_config["api"]["restapi"]["http_listen_multiaddress"] = f"/ip4/127.0.0.1/tcp/{config['port']}"
+            
+            if "cluster_secret" in config:
+                cluster_config["cluster"]["secret"] = config["cluster_secret"]
+            
+            if "bootstrap_peers" in config and config["bootstrap_peers"]:
+                peers = [p.strip() for p in config["bootstrap_peers"].split(",") if p.strip()]
+                cluster_config["cluster"]["leave_on_shutdown"] = False
+                cluster_config["cluster"]["listen_multiaddress"] = [f"/ip4/0.0.0.0/tcp/9096"]
+                if "bootstrap" not in cluster_config["cluster"]:
+                    cluster_config["cluster"]["bootstrap"] = peers
+                else:
+                    cluster_config["cluster"]["bootstrap"] = peers
+            
+            # Write back the configuration
+            with open(config_file, 'w') as f:
+                json.dump(cluster_config, f, indent=2)
+            
+            return {"applied": True, "message": "IPFS Cluster configuration applied successfully"}
+            
+        except Exception as e:
+            # Return error without logging
+            return {"applied": False, "message": f"Failed to apply IPFS Cluster config: {str(e)}"}
+    
+    async def _apply_lotus_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply Lotus configuration."""
+        try:
+            # Lotus uses TOML configuration
+            config_dir = Path(config.get("config_dir", Path.home() / ".lotus"))
+            config_file = config_dir / "config.toml"
+            
+            if not config_file.exists():
+                return {"applied": False, "message": "Lotus not initialized."}
+            
+            # For TOML, we need the toml library
+            try:
+                import toml
+            except ImportError:
+                # TOML library not available, save as JSON instead
+                fallback_file = config_dir / "config_updates.json"
+                with open(fallback_file, 'w') as f:
+                    json.dump(config, f, indent=2)
+                return {"applied": False, "message": "TOML library not available. Configuration saved to config_updates.json for manual application."}
+            
+            # Read existing config
+            with open(config_file, 'r') as f:
+                lotus_config = toml.load(f)
+            
+            # Apply configuration changes
+            if "port" in config:
+                if "API" not in lotus_config:
+                    lotus_config["API"] = {}
+                lotus_config["API"]["ListenAddress"] = f"/ip4/127.0.0.1/tcp/{config['port']}/http"
+            
+            # Write back the configuration
+            with open(config_file, 'w') as f:
+                toml.dump(lotus_config, f)
+            
+            return {"applied": True, "message": "Lotus configuration applied successfully"}
+            
+        except Exception as e:
+            # Return error without logging
+            return {"applied": False, "message": f"Failed to apply Lotus config: {str(e)}"}
+    
+    async def _apply_aria2_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply Aria2 configuration."""
+        try:
+            # Aria2 uses a simple key=value configuration format
+            config_dir = Path(config.get("config_dir", Path.home() / ".aria2"))
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_file = config_dir / "aria2.conf"
+            
+            # Build aria2 configuration
+            aria2_config_lines = []
+            
+            if "port" in config:
+                aria2_config_lines.append(f"rpc-listen-port={config['port']}")
+            
+            if "rpc_secret" in config:
+                aria2_config_lines.append(f"rpc-secret={config['rpc_secret']}")
+            
+            # Add some default settings
+            aria2_config_lines.extend([
+                "enable-rpc=true",
+                "rpc-allow-origin-all=true",
+                "rpc-listen-all=false",
+                "continue=true",
+                "max-connection-per-server=16",
+                "min-split-size=10M",
+                "split=10",
+                "max-concurrent-downloads=5",
+            ])
+            
+            # Write configuration
+            with open(config_file, 'w') as f:
+                f.write('\n'.join(aria2_config_lines))
+            
+            return {"applied": True, "message": "Aria2 configuration applied successfully"}
+            
+        except Exception as e:
+            # Return error without logging
+            return {"applied": False, "message": f"Failed to apply Aria2 config: {str(e)}"}
+    
+    async def _apply_lassie_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply Lassie configuration."""
+        try:
+            # Lassie typically uses environment variables or CLI flags
+            # We'll save a JSON config file that can be used with the daemon
+            config_dir = Path(config.get("config_dir", Path.home() / ".lassie"))
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_file = config_dir / "config.json"
+            
+            lassie_config = {
+                "port": config.get("port", 8080),
+                "host": "127.0.0.1"
             }
-        
-        return actions
+            
+            with open(config_file, 'w') as f:
+                json.dump(lassie_config, f, indent=2)
+            
+            return {"applied": True, "message": "Lassie configuration applied successfully"}
+            
+        except Exception as e:
+            # Return error without logging
+            return {"applied": False, "message": f"Failed to apply Lassie config: {str(e)}"}
+    
+    async def _apply_storage_backend_config(self, service_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply configuration for storage backends (credential-based services)."""
+        try:
+            # Storage backends are configured through environment variables or credential files
+            # We'll save credentials securely
+            credentials_file = self.data_dir / f"{service_id}_credentials.json"
+            
+            # Save credentials
+            with open(credentials_file, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            # Set restrictive permissions on credentials file (Unix-like systems)
+            try:
+                os.chmod(credentials_file, 0o600)
+            except Exception:
+                pass  # Windows or permission error
+            
+            return {"applied": True, "message": f"{service_id} credentials saved successfully"}
+            
+        except Exception as e:
+            # Return error without logging
+            return {"applied": False, "message": f"Failed to save {service_id} credentials: {str(e)}"}
+
+    

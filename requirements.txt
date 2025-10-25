@@ -4,6 +4,9 @@
 # Core dependencies from pyproject.toml
 requests>=2.28.0
 httpx>=0.24.0  # For async HTTP requests and IPFS API client
+aiohttp>=3.8.4  # For async HTTP operations
+aiofiles>=23.1.0  # For async file operations
+watchdog>=3.0.0  # For file system monitoring
 psutil>=5.9.0
 pyyaml>=6.0
 base58>=2.1.1

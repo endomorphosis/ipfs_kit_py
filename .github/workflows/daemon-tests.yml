@@ -22,20 +22,39 @@ permissions:
 
 jobs:
   daemon-unit-tests:
-    name: Daemon Unit Tests
-    runs-on: ubuntu-latest
+    name: Daemon Unit Tests - ${{ matrix.arch }} - Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-latest' }}
+    continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        arch: [amd64]  # Only AMD64 by default
+        python-version: ['3.10', '3.11', '3.12']
+        include:
+          # ARM64 jobs - optional, only if self-hosted runners available
+          - arch: arm64
+            python-version: '3.11'
         
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - name: Set up Python ${{ matrix.python-version }} (AMD64)
+        if: matrix.arch == 'amd64'
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      
+      - name: Set up Python ${{ matrix.python-version }} (ARM64)
+        if: matrix.arch == 'arm64'
+        run: |
+          if command -v python${{ matrix.python-version }} >/dev/null 2>&1; then
+            python${{ matrix.python-version }} -m venv venv
+          else
+            python3 -m venv venv
+          fi
+          source venv/bin/activate
+          echo "venv/bin" >> $GITHUB_PATH
           
       - name: Install system dependencies
         run: |
@@ -51,10 +70,11 @@ jobs:
           
       - name: Run daemon comprehensive tests
         run: |
-          python test_daemon_multiprocessing_comprehensive.py
+          pytest tests/unit/test_daemon_manager_complete.py -v
+          pytest tests/integration/test_daemon_status.py -v
           
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: daemon-test-results-${{ matrix.python-version }}
@@ -69,7 +89,7 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           
@@ -81,10 +101,10 @@ jobs:
           
       - name: Run performance tests
         run: |
-          python test_performance_multiprocessing.py
+          pytest tests/integration/test_performance_metrics.py -v
           
       - name: Upload performance results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: daemon-performance-results
           path: performance-results.json
@@ -116,18 +136,19 @@ jobs:
             -d -p 9999:9999 \
             ipfs-kit:test daemon-only
           
-          # Wait for daemon to start
-          sleep 15
-          
-          # Test daemon API
-          for i in {1..10}; do
-            if curl -f http://localhost:9999/api/v1/status; then
-              echo "✅ Daemon API responding"
-              break
+          # Wait for daemon readiness (up to ~60s)
+          i=0
+          until curl -fsS http://localhost:9999/api/v1/status > /dev/null; do
+            i=$((i+1))
+            if [ "$i" -gt 30 ]; then
+              echo "❌ Daemon did not become ready in time"
+              docker logs ipfs-kit-daemon-test || true
+              exit 1
             fi
-            echo "⏳ Waiting for daemon... ($i/10)"
-            sleep 3
+            echo "⏳ Waiting for daemon... ($i)"
+            sleep 2
           done
+          echo "✅ Daemon API responding"
           
           # Stop container
           docker stop ipfs-kit-daemon-test
@@ -138,15 +159,32 @@ jobs:
             -d -p 9998:9999 -p 5001:5001 \
             ipfs-kit:test all
           
-          # Wait for all services to start
-          sleep 45
-          
-          # Test IPFS API
-          curl -f http://localhost:5001/api/v0/version || exit 1
+          # Wait for IPFS API readiness (up to ~60s)
+          i=0
+          until curl -fsS http://localhost:5001/api/v0/version > /dev/null; do
+            i=$((i+1))
+            if [ "$i" -gt 30 ]; then
+              echo "❌ IPFS API did not become ready in time"
+              docker logs ipfs-kit-full-test || true
+              exit 1
+            fi
+            echo "⏳ Waiting for IPFS API... ($i)"
+            sleep 2
+          done
           echo "✅ IPFS API responding"
           
-          # Test daemon API
-          curl -f http://localhost:9998/api/v1/status || exit 1
+          # Test daemon API (container maps 9998->9999)
+          i=0
+          until curl -fsS http://localhost:9998/api/v1/status > /dev/null; do
+            i=$((i+1))
+            if [ "$i" -gt 30 ]; then
+              echo "❌ Daemon API (9998) did not become ready in time"
+              docker logs ipfs-kit-full-test || true
+              exit 1
+            fi
+            echo "⏳ Waiting for daemon API (9998)... ($i)"
+            sleep 2
+          done
           echo "✅ Daemon API responding"
           
           # Test health check
@@ -177,8 +215,7 @@ jobs:
           
       - name: Test cluster deployment
         run: |
-          cd docker
-          docker-compose -f docker-compose.enhanced.yml up -d ipfs-kit
+          docker compose -f docker/docker-compose.enhanced.yml up -d ipfs-kit
           
           # Wait for services to be ready
           sleep 60
@@ -192,7 +229,7 @@ jobs:
           echo "✅ Primary node healthy"
           
           # Cleanup
-          docker-compose -f docker-compose.enhanced.yml down
+          docker compose -f docker/docker-compose.enhanced.yml down
           
   daemon-stress-tests:
     name: Daemon Stress Tests
@@ -204,7 +241,7 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           
@@ -254,7 +291,7 @@ jobs:
           python stress_test.py
           
       - name: Upload stress test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: stress-test-results
           path: stress-test-results.json

@@ -14,5 +14,8 @@
   },
   "engines": {
     "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "node-pre-gyp": "^0.17.0"
   }
 }

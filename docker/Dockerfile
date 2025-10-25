@@ -1,5 +1,13 @@
 # Multi-stage Dockerfile for IPFS Kit MCP Server with Cluster Support
-FROM python:3.11-slim as base
+# Supports multi-architecture builds (amd64, arm64)
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+FROM python:3.12-slim as base
+
+# Platform information for debugging
+RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -7,7 +15,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install system dependencies including Go for building from source
+# Also include Lotus prerequisites (hwloc, OpenCL) so installer detects them
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -19,6 +28,11 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libffi-dev \
     libssl-dev \
+    golang-go \
+    hwloc \
+    libhwloc-dev \
+    mesa-opencl-icd \
+    ocl-icd-opencl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create application user
