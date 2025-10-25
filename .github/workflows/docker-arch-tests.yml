@@ -106,8 +106,19 @@ jobs:
     
     - name: Fix Docker permissions
       run: |
-        # Change Docker socket permissions to allow access
-        chmod 666 /var/run/docker.sock || true
+        # Check if docker group exists and add user to it
+        if getent group docker > /dev/null 2>&1; then
+          # Add user to docker group (will need sudo or proper setup on self-hosted runners)
+          sudo usermod -aG docker $USER 2>/dev/null || true
+        fi
+        # Try to change socket permissions as fallback
+        sudo chmod 666 /var/run/docker.sock 2>/dev/null || true
+        # Check if we have docker access
+        docker ps > /dev/null 2>&1 || {
+          echo "Warning: Docker access may be limited. Trying newgrp..."
+          # Note: newgrp doesn't persist across steps, but we try anyway
+          newgrp docker 2>/dev/null || true
+        }
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3

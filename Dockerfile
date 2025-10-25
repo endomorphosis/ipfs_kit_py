@@ -88,16 +88,7 @@ ENV TESTING=1
 
 # Run tests by default from the tests directory
 # Exclude tests with import errors (empty/incomplete modules)
-CMD ["pytest", "--verbose", "--cov=ipfs_kit_py", "tests/", \
-     "-k", "not integration", \
-     "--ignore=tests/test_mcp_restoration.py", \
-     "--ignore=tests/test_merged_dashboard.py", \
-     "--ignore=tests/test_mock_format.py", \
-     "--ignore=tests/test_modern_bridge.py", \
-     "--ignore=tests/test_modernized_dashboard.py", \
-     "--ignore=tests/test_unified_bucket_api.py", \
-     "--ignore=tests/test_websocket.py", \
-     "-x"]
+CMD ["pytest", "--verbose", "--cov=ipfs_kit_py", "tests/", "-k", "not integration", "--ignore=tests/test_mcp_restoration.py", "--ignore=tests/test_merged_dashboard.py", "--ignore=tests/test_mock_format.py", "--ignore=tests/test_modern_bridge.py", "--ignore=tests/test_modernized_dashboard.py", "--ignore=tests/test_unified_bucket_api.py", "--ignore=tests/test_websocket.py", "-x"]
 
 # Production build stage
 FROM base AS builder
