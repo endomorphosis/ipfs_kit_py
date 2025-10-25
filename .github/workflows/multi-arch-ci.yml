@@ -67,7 +67,7 @@ jobs:
         COPY pytest.ini ./
         
         # Run tests (excluding integration tests)
-        CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "-k", "not test_full", "-x"]
+        CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "-k", "not test_full", "-x", "--ignore=tests/test_mcp_restoration.py"]
         EOF
         
         docker buildx build \

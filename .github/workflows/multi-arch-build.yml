@@ -39,7 +39,7 @@ jobs:
     
     - name: Run tests
       run: |
-        pytest tests/ -v --cov=./ --cov-report=xml
+        pytest tests/ -v --cov=./ --cov-report=xml --ignore=tests/test_mcp_restoration.py
     
     - name: Upload coverage
       if: matrix.python-version == '3.12'

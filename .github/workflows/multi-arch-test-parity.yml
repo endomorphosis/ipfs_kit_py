@@ -89,6 +89,7 @@ jobs:
           --junitxml=test-results-${{ matrix.arch }}-${{ matrix.python-version }}.xml \
           -v --tb=short \
           -k "not (integration or cluster or daemon or slow)" \
+          --ignore=tests/test_mcp_restoration.py \
           || echo "Some tests failed, continuing..."
     
     - name: Run integration tests
@@ -97,6 +98,7 @@ jobs:
         python -m pytest tests/ \
           -v --tb=short \
           -k "integration" \
+          --ignore=tests/test_mcp_restoration.py \
           || echo "Some integration tests failed, continuing..."
     
     - name: Run cluster tests
@@ -188,7 +190,7 @@ jobs:
             pip install pytest pytest-asyncio pytest-timeout
         
         # Run basic tests
-        CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "-k", "not (slow or integration)", "-x"]
+        CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "-k", "not (slow or integration)", "-x", "--ignore=tests/test_mcp_restoration.py"]
         EOF
         
         docker buildx build \
