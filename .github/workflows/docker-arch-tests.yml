@@ -104,8 +104,15 @@ jobs:
       with:
         submodules: recursive
     
-    # Note: Self-hosted runners must have Docker configured with proper permissions
-    # The user running the workflow must be in the 'docker' group
+    # Fix Docker permissions for self-hosted runners
+    - name: Fix Docker permissions
+      run: |
+        # Add current user to docker group if not already a member
+        if ! groups | grep -q docker; then
+          sudo usermod -aG docker $USER
+          # Apply group changes using sg (substitute group)
+          sg docker -c 'docker version'
+        fi
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
