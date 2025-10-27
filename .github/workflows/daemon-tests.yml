@@ -58,8 +58,20 @@ jobs:
           
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libffi-dev libssl-dev
+          # Skip system dependencies on ARM64 self-hosted runners if sudo requires password
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            # Check if sudo works without password
+            if sudo -n true 2>/dev/null; then
+              sudo apt-get update
+              sudo apt-get install -y build-essential libffi-dev libssl-dev
+            else
+              echo "⚠️ Skipping system dependencies installation (sudo requires password on self-hosted runner)"
+              echo "Assuming dependencies are already installed on the runner"
+            fi
+          else
+            sudo apt-get update
+            sudo apt-get install -y build-essential libffi-dev libssl-dev
+          fi
           
       - name: Install Python dependencies
         run: |
@@ -160,8 +172,9 @@ jobs:
             ipfs-kit:test all
           
           # Wait for IPFS API readiness (up to ~60s)
+          # Note: IPFS API requires POST requests, not GET
           i=0
-          until curl -fsS http://localhost:5001/api/v0/version > /dev/null; do
+          until curl -X POST -fsS http://localhost:5001/api/v0/version > /dev/null; do
             i=$((i+1))
             if [ "$i" -gt 30 ]; then
               echo "❌ IPFS API did not become ready in time"
