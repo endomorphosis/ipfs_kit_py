@@ -29,11 +29,11 @@ jobs:
       fail-fast: false
       matrix:
         arch: [amd64]  # Only AMD64 by default
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.12', '3.13']
         include:
           # ARM64 jobs - optional, only if self-hosted runners available
           - arch: arm64
-            python-version: '3.11'
+            python-version: '3.12'
         
     steps:
       - name: Checkout repository
@@ -91,7 +91,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           
       - name: Install dependencies
         run: |
@@ -243,7 +243,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           
       - name: Install dependencies
         run: |

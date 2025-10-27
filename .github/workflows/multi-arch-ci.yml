@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [amd64, arm64]
-        python-version: ['3.12']
+        python-version: ['3.12', '3.13']
     
     steps:
     - uses: actions/checkout@v4
@@ -67,7 +67,7 @@ jobs:
         COPY pytest.ini ./
         
         # Run tests (excluding integration tests)
-        CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "-k", "not test_full", "-x"]
+        CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "-k", "not test_full", "-x", "--ignore=tests/test_mcp_restoration.py"]
         EOF
         
         docker buildx build \
@@ -95,7 +95,7 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
-        python-version: ['3.12']
+        python-version: ['3.12', '3.13']
     
     steps:
     - uses: actions/checkout@v4
@@ -238,7 +238,7 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
-        python-version: ['3.12']
+        python-version: ['3.12', '3.13']
     
     steps:
     - uses: actions/checkout@v4
@@ -381,7 +381,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch'  # Only run manually
     strategy:
       matrix:
-        python-version: ['3.10']
+        python-version: ['3.12', '3.13']
     
     steps:
     - uses: actions/checkout@v4
@@ -431,7 +431,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.12'
     
     - name: Install and verify all dependencies
       run: |

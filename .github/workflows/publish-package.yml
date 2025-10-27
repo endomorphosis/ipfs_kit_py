@@ -15,7 +15,7 @@ on:
         type: boolean
 
 env:
-  PYTHON_VERSION: "3.11"
+  PYTHON_VERSION: '3.12'
 
 jobs:
   build:
@@ -57,7 +57,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.12", "3.13"]
     
     steps:
     - name: Set up Python ${{ matrix.python-version }}
