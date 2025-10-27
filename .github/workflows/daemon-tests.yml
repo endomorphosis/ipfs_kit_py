@@ -174,7 +174,7 @@ jobs:
           # Wait for IPFS API readiness (up to ~60s)
           # Note: IPFS API requires POST requests, not GET
           i=0
-          until curl -X POST -fsS http://localhost:5001/api/v0/version > /dev/null; do
+          until curl -X POST -d '' -fsS http://localhost:5001/api/v0/version > /dev/null; do
             i=$((i+1))
             if [ "$i" -gt 30 ]; then
               echo "❌ IPFS API did not become ready in time"

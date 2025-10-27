@@ -112,10 +112,8 @@ jobs:
           # Add current user to docker group if not already a member
           if ! groups | grep -q docker; then
             sudo usermod -aG docker $USER
-            # Apply group changes without logout
-            newgrp docker << DOCKERCMD
-            docker version
-DOCKERCMD
+            # Apply group changes without logout using sg (substitute group)
+            sg docker -c 'docker version'
           fi
       
       - name: Set up Docker Buildx
