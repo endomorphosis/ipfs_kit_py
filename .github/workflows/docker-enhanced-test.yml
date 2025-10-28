@@ -59,8 +59,10 @@ jobs:
           push: false
           load: true
           tags: ipfs-kit:test-amd64
-          cache-from: type=gha,scope=amd64
-          cache-to: type=gha,mode=max,scope=amd64
+          no-cache: true
+          # Temporarily disable cache due to stale cache references
+          # cache-from: type=gha,scope=amd64
+          # cache-to: type=gha,mode=max,scope=amd64
           
       - name: Test AMD64 image - Lotus dependencies
         run: |
@@ -109,12 +111,17 @@ jobs:
       
       - name: Fix Docker permissions
         run: |
-          # Add current user to docker group if not already a member
+          # Ensure runner user has Docker socket permissions
+          # Add user to docker group if not already a member
           if ! groups | grep -q docker; then
             sudo usermod -aG docker $USER
-            # Apply group changes without logout using sg (substitute group)
-            sg docker -c 'docker version'
           fi
+          
+          # Give the runner's user direct access to the docker socket
+          sudo chmod 666 /var/run/docker.sock || true
+          
+          # Verify Docker access
+          docker version
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -149,8 +156,10 @@ jobs:
           push: false
           load: true
           tags: ipfs-kit:test-arm64
-          cache-from: type=gha,scope=arm64
-          cache-to: type=gha,mode=max,scope=arm64
+          no-cache: true
+          # Temporarily disable cache due to stale cache references
+          # cache-from: type=gha,scope=arm64
+          # cache-to: type=gha,mode=max,scope=arm64
           
       - name: Test ARM64 image - Lotus dependencies
         run: |
