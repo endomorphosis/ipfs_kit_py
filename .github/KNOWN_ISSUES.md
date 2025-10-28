@@ -35,7 +35,7 @@ cache-to: type=gha,mode=max,scope=amd64,ignore-error=true
 This tells Docker buildx to:
 1. Attempt to save the build cache to GitHub Actions cache
 2. If the cache save fails, log a warning but continue
-3. The build still succeeds even if caching fails
+3. The build still succeeds even if caching fails.
 
 ### Additional Mitigation Strategies
 
@@ -43,7 +43,9 @@ If you continue to experience cache-related failures:
 
 1. **Retry the workflow**: Click "Re-run jobs" in the GitHub Actions UI
 2. **Check GitHub Status**: Visit https://www.githubstatus.com/ to see if there are known issues with Actions cache
-3. **Disable caching temporarily**: If urgent, you can remove the `cache-from` and `cache-to` lines from the workflow
+3. **Disable caching temporarily**: If urgent, you can remove the cache parameters from `.github/workflows/docker-enhanced-test.yml`:
+   - Remove line: `cache-from: type=gha,scope=amd64` (or `scope=arm64` for ARM64)
+   - Remove line: `cache-to: type=gha,mode=max,scope=amd64,ignore-error=true` (or `scope=arm64` for ARM64)
 4. **Use local cache**: For self-hosted runners, consider using `type=local` instead of `type=gha`
 
 ### Long-term Solutions
@@ -153,7 +155,8 @@ gh run view <run-id> --log
 ### Success Criteria
 
 A healthy workflow run should:
-- ✅ Complete both AMD64 and ARM64 builds (or skip ARM64 for PRs)
+- ✅ Complete AMD64 build
+- ✅ Complete ARM64 build (or skip for PRs without 'test-arm64' label)
 - ✅ Pass all Lotus dependency tests
 - ✅ Pass container startup tests
 - ✅ Show no package manager operations during container startup
