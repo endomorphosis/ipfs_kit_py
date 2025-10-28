@@ -1,0 +1,147 @@
+# Multi-stage Dockerfile for IPFS-Kit with Enhanced Daemon Support
+FROM python:3.12-slim as base
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies including Lotus prerequisites
+# This ensures the installer will detect they're already present and skip installation
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    pkg-config \
+    libffi-dev \
+    libssl-dev \
+    ca-certificates \
+    supervisor \
+    htop \
+    nano \
+    jq \
+    hwloc \
+    libhwloc-dev \
+    mesa-opencl-icd \
+    ocl-icd-opencl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Go for IPFS binaries
+FROM base as go-builder
+ENV GOLANG_VERSION=1.21.4
+RUN wget -O go.tgz "https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz" \
+    && tar -C /usr/local -xzf go.tgz \
+    && rm go.tgz
+ENV PATH=/usr/local/go/bin:$PATH
+
+# Download pre-built IPFS (Kubo) binary
+WORKDIR /build
+ENV KUBO_VERSION=v0.24.0
+RUN wget "https://dist.ipfs.tech/kubo/${KUBO_VERSION}/kubo_${KUBO_VERSION}_linux-amd64.tar.gz" \
+    && tar -xzf "kubo_${KUBO_VERSION}_linux-amd64.tar.gz" \
+    && mv kubo/ipfs /usr/local/bin/ \
+    && chmod +x /usr/local/bin/ipfs \
+    && rm -rf kubo*
+
+# Download pre-built IPFS Cluster binaries
+ENV CLUSTER_VERSION=v1.0.7
+RUN wget "https://dist.ipfs.tech/ipfs-cluster-service/${CLUSTER_VERSION}/ipfs-cluster-service_${CLUSTER_VERSION}_linux-amd64.tar.gz" \
+    && tar -xzf "ipfs-cluster-service_${CLUSTER_VERSION}_linux-amd64.tar.gz" \
+    && mv ipfs-cluster-service/ipfs-cluster-service /usr/local/bin/ \
+    && chmod +x /usr/local/bin/ipfs-cluster-service \
+    && rm -rf ipfs-cluster-service* \
+    && wget "https://dist.ipfs.tech/ipfs-cluster-ctl/${CLUSTER_VERSION}/ipfs-cluster-ctl_${CLUSTER_VERSION}_linux-amd64.tar.gz" \
+    && tar -xzf "ipfs-cluster-ctl_${CLUSTER_VERSION}_linux-amd64.tar.gz" \
+    && mv ipfs-cluster-ctl/ipfs-cluster-ctl /usr/local/bin/ \
+    && chmod +x /usr/local/bin/ipfs-cluster-ctl \
+    && rm -rf ipfs-cluster-ctl*
+
+# Main application stage
+FROM base as app
+
+# Create application user
+RUN useradd --create-home --shell /bin/bash --uid 1000 ipfs_user
+
+# Set working directory
+WORKDIR /app
+
+# Copy IPFS binaries from builder
+COPY --from=go-builder /usr/local/bin/ipfs /usr/local/bin/
+COPY --from=go-builder /usr/local/bin/ipfs-cluster-service /usr/local/bin/
+COPY --from=go-builder /usr/local/bin/ipfs-cluster-ctl /usr/local/bin/
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt ./
+COPY pyproject.toml ./
+COPY setup.py ./
+
+# Install Python dependencies
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install -r requirements.txt && \
+    pip install pytest pytest-asyncio pytest-cov httpx fastapi uvicorn && \
+    pip install aiohttp aiofiles watchdog psutil
+
+# Copy application code
+COPY . .
+
+# Install the package in development mode
+RUN pip install -e .
+
+# Create necessary directories with proper permissions
+RUN mkdir -p \
+    /app/data \
+    /app/logs \
+    /app/config \
+    /app/ipfs_data \
+    /app/cluster_data \
+    /tmp/ipfs_kit_config \
+    /tmp/ipfs_kit_logs \
+    /home/ipfs_user/.ipfs \
+    /home/ipfs_user/.ipfs-cluster \
+    && chown -R ipfs_user:ipfs_user /app /tmp/ipfs_kit_config /tmp/ipfs_kit_logs /home/ipfs_user
+
+# Create supervisord configuration
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Create entrypoint script
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Create health check script
+COPY docker/healthcheck.sh /healthcheck.sh
+RUN chmod +x /healthcheck.sh
+
+# Switch to application user
+USER ipfs_user
+
+# Initialize IPFS repository and configure API to listen on all interfaces
+RUN ipfs init --profile server && \
+    ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001 && \
+    ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080
+
+# Expose ports
+# 4001: IPFS swarm
+# 5001: IPFS API
+# 8080: IPFS gateway
+# 9094: IPFS Cluster API
+# 9095: IPFS Cluster proxy API
+# 9096: IPFS Cluster swarm
+# 8000: MCP server
+# 9999: IPFS-Kit daemon API
+EXPOSE 4001 5001 8080 9094 9095 9096 8000 9999
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD ["/healthcheck.sh"]
+
+# Set entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Default command - start all services
+CMD ["all"]
