@@ -102,6 +102,7 @@ jobs:
   build-arm64:
     name: Build ARM64 Docker Image
     runs-on: [self-hosted, arm64]
+    continue-on-error: true
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'test-arm64')
     
     steps:
@@ -111,6 +112,11 @@ jobs:
       # NOTE: Docker permissions should be configured during runner setup, not in the workflow.
       # If you need to configure Docker permissions for your self-hosted runner, see:
       # https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user
+      #
+      # To fix "permission denied" errors, run on the ARM64 runner:
+      #   sudo usermod -aG docker $USER
+      #   newgrp docker  # or logout and login
+      #   docker run hello-world  # verify it works
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -189,7 +195,7 @@ jobs:
     name: Create Multi-Arch Manifest
     needs: [build-amd64, build-arm64]
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.build-amd64.result == 'success'
     
     steps:
       - name: Login to GitHub Container Registry
@@ -201,18 +207,33 @@ jobs:
           
       - name: Create and push multi-arch manifest
         run: |
-          docker manifest create ghcr.io/${{ github.repository }}:latest \
-            --amend ghcr.io/${{ github.repository }}:amd64-latest \
-            --amend ghcr.io/${{ github.repository }}:arm64-latest
+          # Check if ARM64 build succeeded
+          if [ "${{ needs.build-arm64.result }}" == "success" ]; then
+            echo "Creating multi-arch manifest with both AMD64 and ARM64"
+            docker manifest create ghcr.io/${{ github.repository }}:latest \
+              --amend ghcr.io/${{ github.repository }}:amd64-latest \
+              --amend ghcr.io/${{ github.repository }}:arm64-latest
+          else
+            echo "ARM64 build not available, creating AMD64-only manifest"
+            docker manifest create ghcr.io/${{ github.repository }}:latest \
+              --amend ghcr.io/${{ github.repository }}:amd64-latest
+          fi
           
           docker manifest push ghcr.io/${{ github.repository }}:latest
           
           # Also create version-tagged manifests if this is a release
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VERSION=${GITHUB_REF#refs/tags/v}
-            docker manifest create ghcr.io/${{ github.repository }}:${VERSION} \
-              --amend ghcr.io/${{ github.repository }}:amd64-latest \
-              --amend ghcr.io/${{ github.repository }}:arm64-latest
+            
+            if [ "${{ needs.build-arm64.result }}" == "success" ]; then
+              docker manifest create ghcr.io/${{ github.repository }}:${VERSION} \
+                --amend ghcr.io/${{ github.repository }}:amd64-latest \
+                --amend ghcr.io/${{ github.repository }}:arm64-latest
+            else
+              docker manifest create ghcr.io/${{ github.repository }}:${VERSION} \
+                --amend ghcr.io/${{ github.repository }}:amd64-latest
+            fi
+            
             docker manifest push ghcr.io/${{ github.repository }}:${VERSION}
           fi
 
