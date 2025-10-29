@@ -35,7 +35,8 @@ RUN apt-get update && apt-get install -y \
 # Install Go for IPFS binaries
 FROM base as go-builder
 ENV GOLANG_VERSION=1.21.4
-# Detect architecture once and set TARGETARCH variable
+# Detect architecture once and store in file for reuse within build stage
+# This avoids repeating the detection logic in multiple RUN commands
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
         echo "amd64" > /tmp/targetarch; \
@@ -44,7 +45,6 @@ RUN ARCH=$(uname -m) && \
     else \
         echo "Unsupported architecture: $ARCH" && exit 1; \
     fi
-ENV TARGETARCH_FILE=/tmp/targetarch
 
 # Download and install Go
 RUN GOARCH=$(cat /tmp/targetarch) && \
