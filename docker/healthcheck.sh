@@ -38,7 +38,7 @@ check_ipfs_cluster() {
 
 # Check for running Python server process
 check_python_process() {
-  if ! pgrep -f "python -m ipfs_kit_py.cli serve" > /dev/null; then
+  if ! pgrep -f "uvicorn ipfs_kit_py.daemon:app" > /dev/null; then
     log "Python server process check failed"
     return 1
   fi
