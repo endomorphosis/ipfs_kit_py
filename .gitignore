@@ -160,7 +160,9 @@ peerstore/
 datastore/
 
 # No need to ignore .git directories in submodules anymore as they are properly managed
-docs/**  
+# Note: docs/ markdown files are tracked; only ignore generated HTML
+docs/api_generated/**/*.html
+docs/api_generated/**/index.html  
 
 # Binary files that might appear elsewhere
 bin/lotus

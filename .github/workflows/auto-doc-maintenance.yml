@@ -1,0 +1,489 @@
+name: Automated Documentation Maintenance
+
+on:
+  schedule:
+    # Run every Monday at 9:00 AM UTC (weekly maintenance)
+    - cron: '0 9 * * 1'
+  workflow_dispatch:  # Allow manual triggering
+    inputs:
+      update_type:
+        description: 'Type of documentation update'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - api-only
+          - structure-only
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  maintain-documentation:
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better context
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pdoc3 pydoc-markdown sphinx sphinx-rtd-theme myst-parser
+          
+      - name: Generate API documentation
+        run: |
+          # Create output directory
+          mkdir -p docs/api_generated
+          
+          # Generate API documentation using pdoc
+          echo "Generating API documentation..."
+          python -m pdoc --html --output-dir docs/api_generated --force ipfs_kit_py
+          
+          # Move generated HTML to a better location
+          if [ -d docs/api_generated/ipfs_kit_py ]; then
+            mv docs/api_generated/ipfs_kit_py/* docs/api_generated/
+            rmdir docs/api_generated/ipfs_kit_py
+          fi
+          
+      - name: Extract module structure and docstrings
+        run: |
+          cat > /tmp/extract_docs.py << 'EOFPYTHON'
+          #!/usr/bin/env python3
+          """
+          Extract documentation from Python modules for automated maintenance.
+          """
+          import os
+          import sys
+          import ast
+          import inspect
+          from pathlib import Path
+          from typing import List, Dict, Any
+          import json
+          
+          def extract_module_info(file_path: Path) -> Dict[str, Any]:
+              """Extract docstrings and metadata from a Python file."""
+              try:
+                  with open(file_path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+                  
+                  tree = ast.parse(content)
+                  
+                  module_info = {
+                      'path': str(file_path),
+                      'docstring': ast.get_docstring(tree),
+                      'classes': [],
+                      'functions': [],
+                      'imports': []
+                  }
+                  
+                  for node in ast.walk(tree):
+                      if isinstance(node, ast.ClassDef):
+                          class_info = {
+                              'name': node.name,
+                              'docstring': ast.get_docstring(node),
+                              'methods': []
+                          }
+                          for item in node.body:
+                              if isinstance(item, ast.FunctionDef):
+                                  class_info['methods'].append({
+                                      'name': item.name,
+                                      'docstring': ast.get_docstring(item)
+                                  })
+                          module_info['classes'].append(class_info)
+                      
+                      elif isinstance(node, ast.FunctionDef) and node.col_offset == 0:
+                          module_info['functions'].append({
+                              'name': node.name,
+                              'docstring': ast.get_docstring(node)
+                          })
+                      
+                      elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                          if isinstance(node, ast.Import):
+                              for alias in node.names:
+                                  module_info['imports'].append(alias.name)
+                          elif node.module:
+                              module_info['imports'].append(node.module)
+                  
+                  return module_info
+              except Exception as e:
+                  print(f"Error processing {file_path}: {e}", file=sys.stderr)
+                  return None
+          
+          def generate_module_docs(base_path: Path, output_dir: Path):
+              """Generate markdown documentation for all modules."""
+              modules = []
+              
+              # Find all Python files
+              for py_file in base_path.rglob('*.py'):
+                  if '__pycache__' in str(py_file) or 'test' in str(py_file).lower():
+                      continue
+                  
+                  rel_path = py_file.relative_to(base_path)
+                  module_info = extract_module_info(py_file)
+                  
+                  if module_info and (module_info['docstring'] or 
+                                     module_info['classes'] or 
+                                     module_info['functions']):
+                      modules.append(module_info)
+              
+              # Generate summary document
+              output_dir.mkdir(parents=True, exist_ok=True)
+              summary_path = output_dir / 'module_structure.md'
+              
+              with open(summary_path, 'w', encoding='utf-8') as f:
+                  f.write('# IPFS Kit Python - Module Structure\n\n')
+                  f.write('> Auto-generated documentation - Last updated: ')
+                  f.write(f'{__import__("datetime").datetime.now().isoformat()}\n\n')
+                  f.write('This document provides an overview of the module structure ')
+                  f.write('and available components in IPFS Kit Python.\n\n')
+                  
+                  # Group by top-level package
+                  packages = {}
+                  for mod in modules:
+                      parts = Path(mod['path']).relative_to(base_path).parts
+                      if len(parts) > 0:
+                          pkg = parts[0]
+                          if pkg not in packages:
+                              packages[pkg] = []
+                          packages[pkg].append(mod)
+                  
+                  f.write('## Package Overview\n\n')
+                  for pkg_name in sorted(packages.keys()):
+                      f.write(f'### {pkg_name}\n\n')
+                      
+                      for mod in packages[pkg_name]:
+                          rel_path = Path(mod['path']).relative_to(base_path)
+                          f.write(f'#### `{rel_path}`\n\n')
+                          
+                          if mod['docstring']:
+                              f.write(f'{mod["docstring"]}\n\n')
+                          
+                          if mod['classes']:
+                              f.write('**Classes:**\n')
+                              for cls in mod['classes']:
+                                  f.write(f'- `{cls["name"]}`')
+                                  if cls['docstring']:
+                                      first_line = cls['docstring'].split('\n')[0]
+                                      f.write(f': {first_line}')
+                                  f.write('\n')
+                              f.write('\n')
+                          
+                          if mod['functions']:
+                              f.write('**Functions:**\n')
+                              for func in mod['functions']:
+                                  if not func['name'].startswith('_'):
+                                      f.write(f'- `{func["name"]}()`')
+                                      if func['docstring']:
+                                          first_line = func['docstring'].split('\n')[0]
+                                          f.write(f': {first_line}')
+                                      f.write('\n')
+                              f.write('\n')
+              
+              print(f'Generated module structure documentation at {summary_path}')
+          
+          if __name__ == '__main__':
+              base_path = Path('ipfs_kit_py')
+              output_dir = Path('docs/api_generated')
+              generate_module_docs(base_path, output_dir)
+          EOFPYTHON
+          
+          python /tmp/extract_docs.py
+          
+      - name: Generate dependency documentation
+        run: |
+          cat > docs/api_generated/dependencies.md << 'EOFDEPS'
+          # Dependencies Documentation
+          
+          > Auto-generated - Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          This document lists all dependencies used in IPFS Kit Python and their purposes.
+          
+          ## Core Dependencies
+          
+          EOFDEPS
+          
+          # Extract and document dependencies from pyproject.toml
+          python << 'EOFPYTHON'
+          import toml
+          import sys
+          
+          with open('pyproject.toml', 'r') as f:
+              config = toml.load(f)
+          
+          with open('docs/api_generated/dependencies.md', 'a') as f:
+              if 'project' in config and 'dependencies' in config['project']:
+                  for dep in config['project']['dependencies']:
+                      f.write(f'- `{dep}`\n')
+              
+              f.write('\n## Optional Dependencies\n\n')
+              if 'project' in config and 'optional-dependencies' in config['project']:
+                  for category, deps in config['project']['optional-dependencies'].items():
+                      f.write(f'\n### {category}\n\n')
+                      for dep in deps:
+                          f.write(f'- `{dep}`\n')
+          EOFPYTHON
+          
+      - name: Generate usage examples index
+        run: |
+          cat > docs/api_generated/examples_index.md << 'EOFEX'
+          # Usage Examples Index
+          
+          > Auto-generated - Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          This document indexes all example code and usage patterns in the repository.
+          
+          ## Example Directories
+          
+          EOFEX
+          
+          # Find and index example files
+          find examples -type f -name "*.py" 2>/dev/null | while read -r file; do
+            echo "- [\`$file\`](../../$file)" >> docs/api_generated/examples_index.md
+          done || true
+          
+          echo "" >> docs/api_generated/examples_index.md
+          echo "## Test Files (Usage Examples)" >> docs/api_generated/examples_index.md
+          echo "" >> docs/api_generated/examples_index.md
+          
+          find tests -type f -name "test_*.py" 2>/dev/null | head -20 | while read -r file; do
+            echo "- [\`$file\`](../../$file)" >> docs/api_generated/examples_index.md
+          done || true
+          
+      - name: Update README with module badges
+        run: |
+          # Create a documentation coverage badge/section
+          python << 'EOFPYTHON'
+          import os
+          from pathlib import Path
+          
+          # Count Python modules
+          py_files = list(Path('ipfs_kit_py').rglob('*.py'))
+          py_files = [f for f in py_files if '__pycache__' not in str(f)]
+          
+          # Count documentation files
+          doc_files = list(Path('docs').rglob('*.md'))
+          
+          print(f"Found {len(py_files)} Python modules")
+          print(f"Found {len(doc_files)} documentation files")
+          
+          # Create/update documentation status file
+          with open('docs/api_generated/doc_status.md', 'w') as f:
+              f.write('# Documentation Status\n\n')
+              f.write(f'> Last updated: {__import__("datetime").datetime.now().isoformat()}\n\n')
+              f.write(f'- **Python Modules**: {len(py_files)}\n')
+              f.write(f'- **Documentation Files**: {len(doc_files)}\n')
+              f.write(f'- **Auto-generated Documentation**: Available in `docs/api_generated/`\n')
+          EOFPYTHON
+          
+      - name: Generate agent-friendly documentation
+        run: |
+          cat > docs/api_generated/AGENT_GUIDE.md << 'EOFAGENT'
+          # Agent Integration Guide
+          
+          > Auto-generated guide for programming agents
+          
+          This document provides structured information for programming agents to effectively interact with IPFS Kit Python.
+          
+          ## Project Structure
+          
+          ```
+          ipfs_kit_py/
+          ├── core/           # Core IPFS functionality
+          ├── mcp/            # Model Context Protocol server
+          ├── cluster/        # Cluster management
+          ├── dashboard/      # Web dashboard
+          ├── cli/            # Command-line interface
+          └── tests/          # Test suite
+          ```
+          
+          ## Key Entry Points
+          
+          ### Main Classes
+          - `ipfs_kit_py.ipfs_kit.IPFSKit`: Primary interface for IPFS operations
+          - `ipfs_kit_py.bucket_manager.BucketManager`: Manage storage buckets
+          
+          ### MCP Server
+          - Entry: `ipfs_kit_py/mcp/`
+          - Dashboard: `consolidated_mcp_dashboard.py`
+          
+          ### CLI
+          - Entry: `ipfs_kit_py.cli`
+          - Command: `ipfs-kit`
+          
+          ## Common Operations
+          
+          ### Initialize IPFS Kit
+          ```python
+          from ipfs_kit_py import IPFSKit
+          
+          kit = IPFSKit()
+          # Ready to use
+          ```
+          
+          ### Start MCP Server
+          ```bash
+          ipfs-kit mcp start --port 8004
+          ```
+          
+          ### Run Tests
+          ```bash
+          pytest tests/
+          ```
+          
+          ## Configuration
+          
+          Configuration files are located in:
+          - `~/.ipfs_kit/` - User configuration
+          - `config/` - Default configuration templates
+          
+          ## Documentation Resources
+          
+          - **API Reference**: See `docs/api_reference.md`
+          - **Module Structure**: See `docs/api_generated/module_structure.md`
+          - **Examples**: See `examples/` directory
+          - **Tests**: See `tests/` for usage patterns
+          
+          ## Build and Test Commands
+          
+          ```bash
+          # Install dependencies
+          pip install -e .
+          
+          # Run tests
+          pytest tests/
+          
+          # Run linter
+          black --check .
+          isort --check .
+          
+          # Build documentation
+          cd docs && make html
+          ```
+          
+          ## Environment Variables
+          
+          Key environment variables:
+          - `IPFS_KIT_HOME`: Base directory for IPFS Kit data
+          - `MCP_PORT`: MCP server port (default: 8004)
+          - `MCP_API_TOKEN`: API authentication token
+          
+          ## Error Handling
+          
+          Most operations return standard Python exceptions. Check module docstrings for specific exception types.
+          EOFAGENT
+          
+      - name: Create documentation summary
+        run: |
+          cat > docs/api_generated/README.md << 'EOFREADME'
+          # Auto-Generated Documentation
+          
+          This directory contains automatically generated documentation that is updated weekly.
+          
+          ## Contents
+          
+          - **[module_structure.md](module_structure.md)**: Complete module structure with docstrings
+          - **[dependencies.md](dependencies.md)**: Project dependencies and their purposes
+          - **[examples_index.md](examples_index.md)**: Index of all usage examples
+          - **[AGENT_GUIDE.md](AGENT_GUIDE.md)**: Quick reference guide for programming agents
+          - **[doc_status.md](doc_status.md)**: Documentation coverage metrics
+          
+          ## Maintenance
+          
+          This documentation is automatically maintained by the GitHub Actions workflow:
+          `.github/workflows/auto-doc-maintenance.yml`
+          
+          The workflow runs:
+          - **Weekly**: Every Monday at 9:00 AM UTC
+          - **On-demand**: Via workflow_dispatch trigger
+          
+          ## Contributing
+          
+          To improve the automated documentation:
+          1. Add docstrings to your Python modules
+          2. Update the workflow script if needed
+          3. Run the workflow manually to test changes
+          
+          ## Last Updated
+          
+          This documentation was last generated by the automated workflow.
+          Check the commit history for details.
+          EOFREADME
+          
+      - name: Check for changes
+        id: check_changes
+        run: |
+          git add docs/api_generated/
+          if git diff --staged --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No documentation changes detected"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Documentation changes detected"
+          fi
+          
+      - name: Create Pull Request
+        if: steps.check_changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'docs: automated documentation maintenance'
+          title: 'docs: Automated Documentation Update'
+          body: |
+            ## Automated Documentation Maintenance
+            
+            This PR contains automated documentation updates generated by the weekly maintenance workflow.
+            
+            ### Changes Include:
+            - ✅ Updated API documentation from docstrings
+            - ✅ Refreshed module structure documentation
+            - ✅ Updated dependency documentation
+            - ✅ Regenerated examples index
+            - ✅ Updated agent integration guide
+            
+            ### Generated Files:
+            - `docs/api_generated/module_structure.md` - Module structure and docstrings
+            - `docs/api_generated/dependencies.md` - Dependencies list
+            - `docs/api_generated/examples_index.md` - Examples index
+            - `docs/api_generated/AGENT_GUIDE.md` - Agent integration guide
+            - `docs/api_generated/doc_status.md` - Documentation metrics
+            
+            ### Review Notes:
+            - This documentation is automatically generated from code
+            - Review for accuracy and completeness
+            - Merge if changes look correct
+            
+            **Workflow**: `.github/workflows/auto-doc-maintenance.yml`
+            **Trigger**: Scheduled (weekly) / Manual dispatch
+          branch: automated-docs-update
+          delete-branch: true
+          labels: |
+            documentation
+            automated
+          
+      - name: Summary
+        run: |
+          echo "## Documentation Maintenance Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check_changes.outputs.has_changes }}" == "true" ]; then
+            echo "✅ Documentation updates generated and PR created" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ No documentation changes detected" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Generated Documentation:" >> $GITHUB_STEP_SUMMARY
+          echo "- Module structure" >> $GITHUB_STEP_SUMMARY
+          echo "- Dependencies list" >> $GITHUB_STEP_SUMMARY
+          echo "- Examples index" >> $GITHUB_STEP_SUMMARY
+          echo "- Agent integration guide" >> $GITHUB_STEP_SUMMARY
