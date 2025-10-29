@@ -104,20 +104,19 @@ jobs:
       with:
         submodules: recursive
     
-    # Fix Docker permissions for self-hosted runners
-    - name: Fix Docker permissions
+    # Verify Docker access for self-hosted runners
+    - name: Verify Docker access
       run: |
-        # Ensure runner user has Docker socket permissions
-        # Add user to docker group if not already a member
-        if ! groups | grep -q docker; then
-          sudo usermod -aG docker $USER
-        fi
-        
-        # Give the runner's user direct access to the docker socket
-        sudo chmod 666 /var/run/docker.sock || true
-        
-        # Verify Docker access
-        docker version
+        # Verify Docker is accessible (runner should already be in docker group)
+        docker version || {
+          echo "Warning: Docker not accessible. Trying to fix permissions..."
+          # Try to fix permissions non-interactively if possible
+          [ -w /var/run/docker.sock ] || {
+            echo "Docker socket not writable. Please ensure runner user is in docker group."
+            echo "Current groups: $(groups)"
+            exit 1
+          }
+        }
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
