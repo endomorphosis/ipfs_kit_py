@@ -1,0 +1,96 @@
+name: Test Workflow Auto-Fix System
+
+# This is a test workflow to demonstrate the auto-fix system
+# It can be manually triggered and will simulate various failure scenarios
+
+on:
+  workflow_dispatch:
+    inputs:
+      failure_type:
+        description: 'Type of failure to simulate'
+        required: true
+        type: choice
+        options:
+          - dependency_error
+          - syntax_error
+          - test_failure
+          - permission_error
+          - success
+        default: 'dependency_error'
+
+permissions:
+  contents: read
+
+jobs:
+  test-autofix-system:
+    name: Test Auto-Fix System
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+      
+      - name: Simulate failure scenario
+        run: |
+          case "${{ github.event.inputs.failure_type }}" in
+            dependency_error)
+              echo "Simulating dependency error..."
+              echo "This step will fail due to missing package"
+              python -m pip install nonexistent-package-xyz123
+              ;;
+            syntax_error)
+              echo "Simulating syntax error..."
+              # This will fail due to invalid command
+              python -c "invalid syntax here"
+              ;;
+            test_failure)
+              echo "Simulating test failure..."
+              python -c "import sys; print('Running tests...'); print('FAILED: test_example.py::test_something'); print('AssertionError: expected 5, got 4'); sys.exit(1)"
+              ;;
+            permission_error)
+              echo "Simulating permission error..."
+              # Try to write to a protected location
+              echo "test" > /root/test.txt
+              ;;
+            success)
+              echo "Success scenario - no failure"
+              echo "All tests passed!"
+              ;;
+          esac
+      
+      - name: Report success
+        if: github.event.inputs.failure_type == 'success'
+        run: |
+          echo "✓ Test workflow completed successfully"
+          echo "The auto-fix system will NOT trigger for this run"
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Test Workflow Auto-Fix System" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Failure Type**: ${{ github.event.inputs.failure_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ github.event.inputs.failure_type }}" != "success" ]; then
+            echo "### Expected Behavior" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Since this workflow failed, the auto-fix system should:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Create an issue with label \`workflow-failure\`" >> $GITHUB_STEP_SUMMARY
+            echo "2. Create a draft PR with failure context" >> $GITHUB_STEP_SUMMARY
+            echo "3. Add context files to \`.github/workflow-failures/\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Check for auto-created issue" >> $GITHUB_STEP_SUMMARY
+            echo "- Find the auto-created draft PR" >> $GITHUB_STEP_SUMMARY
+            echo "- Try commenting \`@copilot /fix-workflow\` on the issue" >> $GITHUB_STEP_SUMMARY
+            echo "- Or open the PR in GitHub Copilot Workspace" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "This workflow succeeded, so the auto-fix system will not trigger." >> $GITHUB_STEP_SUMMARY
+          fi
