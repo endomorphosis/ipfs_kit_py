@@ -50,13 +50,7 @@ jobs:
               ;;
             test_failure)
               echo "Simulating test failure..."
-              python -c "
-          import sys
-          print('Running tests...')
-          print('FAILED: test_example.py::test_something')
-          print('AssertionError: expected 5, got 4')
-          sys.exit(1)
-              "
+              python -c "import sys; print('Running tests...'); print('FAILED: test_example.py::test_something'); print('AssertionError: expected 5, got 4'); sys.exit(1)"
               ;;
             permission_error)
               echo "Simulating permission error..."

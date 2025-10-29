@@ -50,13 +50,13 @@ Run the test workflow:
 ## 📋 Common Scenarios
 
 ### Dependency Failure
-**Issue**: Package version conflict
+**issue**: Package version conflict
 **Fix**: Update `pyproject.toml` or `requirements.txt`
 **Prompt**: "Fix the dependency version conflict in [file]"
 
 ### Test Failure
-**Issue**: Unit test fails
-**Fix**: Fix code or test logic
+**issue**: Unit test fails
+**Fix**: Update test assertions or fix underlying code logic to match expected behavior
 **Prompt**: "Analyze and fix the failing test in [file]"
 
 ### Syntax Error
