@@ -107,12 +107,17 @@ jobs:
     # Fix Docker permissions for self-hosted runners
     - name: Fix Docker permissions
       run: |
-        # Add current user to docker group if not already a member
+        # Ensure runner user has Docker socket permissions
+        # Add user to docker group if not already a member
         if ! groups | grep -q docker; then
           sudo usermod -aG docker $USER
-          # Apply group changes using sg (substitute group)
-          sg docker -c 'docker version'
         fi
+        
+        # Give the runner's user direct access to the docker socket
+        sudo chmod 666 /var/run/docker.sock || true
+        
+        # Verify Docker access
+        docker version
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
