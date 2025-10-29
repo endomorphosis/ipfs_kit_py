@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y \
 # Install Go for IPFS binaries
 FROM base as go-builder
 ENV GOLANG_VERSION=1.21.4
+
 # Detect architecture once and store in file for reuse within build stage
 # This avoids repeating the detection logic in multiple RUN commands
 RUN ARCH=$(uname -m) && \
