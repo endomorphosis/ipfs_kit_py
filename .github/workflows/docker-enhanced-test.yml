@@ -118,10 +118,26 @@ jobs:
       #   newgrp docker  # or logout and login
       #   docker run hello-world  # verify it works
       
+      - name: Check Docker permissions
+        id: docker_check
+        run: |
+          echo "Checking Docker access..."
+          if docker info > /dev/null 2>&1; then
+            echo "✅ Docker is accessible"
+            echo "docker_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Docker is not accessible (permission denied or not running)"
+            echo "docker_available=false" >> $GITHUB_OUTPUT
+            echo "::warning::Docker daemon is not accessible. Please configure Docker permissions on the ARM64 runner."
+            echo "::warning::Run: sudo usermod -aG docker \$USER && newgrp docker"
+          fi
+      
       - name: Set up Docker Buildx
+        if: steps.docker_check.outputs.docker_available == 'true'
         uses: docker/setup-buildx-action@v3
         
       - name: Docker meta
+        if: steps.docker_check.outputs.docker_available == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -135,7 +151,7 @@ jobs:
             type=sha,format=short,prefix=arm64-
             
       - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
+        if: steps.docker_check.outputs.docker_available == 'true' && github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -143,6 +159,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
             
       - name: Build Docker image (ARM64)
+        if: steps.docker_check.outputs.docker_available == 'true'
         uses: docker/build-push-action@v6
         continue-on-error: false
         with:
@@ -156,12 +173,14 @@ jobs:
           cache-to: type=gha,mode=max,scope=arm64,ignore-error=true
           
       - name: Test ARM64 image - Lotus dependencies
+        if: steps.docker_check.outputs.docker_available == 'true'
         run: |
           echo "Testing Lotus dependency detection on ARM64..."
           docker run --rm ipfs-kit:test-arm64 \
             python3 -c "from ipfs_kit_py.install_lotus import install_lotus; i = install_lotus(); assert i._check_hwloc_library_direct(), 'Lotus deps missing'; print('✅ ARM64: Lotus dependencies OK')"
           
       - name: Test ARM64 image - Container startup
+        if: steps.docker_check.outputs.docker_available == 'true'
         run: |
           echo "Testing container startup on ARM64..."
           docker run -d --name test-arm64 -p 9999:9999 \
@@ -185,7 +204,7 @@ jobs:
           docker rm test-arm64
           
       - name: Push ARM64 image
-        if: github.event_name != 'pull_request'
+        if: steps.docker_check.outputs.docker_available == 'true' && github.event_name != 'pull_request'
         run: |
           docker tag ipfs-kit:test-arm64 ghcr.io/${{ github.repository }}:arm64-latest
           docker push ghcr.io/${{ github.repository }}:arm64-latest

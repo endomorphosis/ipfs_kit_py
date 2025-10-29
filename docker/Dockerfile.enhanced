@@ -35,32 +35,48 @@ RUN apt-get update && apt-get install -y \
 # Install Go for IPFS binaries
 FROM base as go-builder
 ENV GOLANG_VERSION=1.21.4
-RUN wget -O go.tgz "https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz" \
-    && tar -C /usr/local -xzf go.tgz \
-    && rm go.tgz
+
+# Detect architecture once and store in file for reuse within build stage
+# This avoids repeating the detection logic in multiple RUN commands
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        echo "amd64" > /tmp/targetarch; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        echo "arm64" > /tmp/targetarch; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi
+
+# Download and install Go
+RUN GOARCH=$(cat /tmp/targetarch) && \
+    wget -O go.tgz "https://golang.org/dl/go${GOLANG_VERSION}.linux-${GOARCH}.tar.gz" && \
+    tar -C /usr/local -xzf go.tgz && \
+    rm go.tgz
 ENV PATH=/usr/local/go/bin:$PATH
 
 # Download pre-built IPFS (Kubo) binary
 WORKDIR /build
 ENV KUBO_VERSION=v0.24.0
-RUN wget "https://dist.ipfs.tech/kubo/${KUBO_VERSION}/kubo_${KUBO_VERSION}_linux-amd64.tar.gz" \
-    && tar -xzf "kubo_${KUBO_VERSION}_linux-amd64.tar.gz" \
-    && mv kubo/ipfs /usr/local/bin/ \
-    && chmod +x /usr/local/bin/ipfs \
-    && rm -rf kubo*
+RUN GOARCH=$(cat /tmp/targetarch) && \
+    wget "https://dist.ipfs.tech/kubo/${KUBO_VERSION}/kubo_${KUBO_VERSION}_linux-${GOARCH}.tar.gz" && \
+    tar -xzf "kubo_${KUBO_VERSION}_linux-${GOARCH}.tar.gz" && \
+    mv kubo/ipfs /usr/local/bin/ && \
+    chmod +x /usr/local/bin/ipfs && \
+    rm -rf kubo*
 
 # Download pre-built IPFS Cluster binaries
 ENV CLUSTER_VERSION=v1.0.7
-RUN wget "https://dist.ipfs.tech/ipfs-cluster-service/${CLUSTER_VERSION}/ipfs-cluster-service_${CLUSTER_VERSION}_linux-amd64.tar.gz" \
-    && tar -xzf "ipfs-cluster-service_${CLUSTER_VERSION}_linux-amd64.tar.gz" \
-    && mv ipfs-cluster-service/ipfs-cluster-service /usr/local/bin/ \
-    && chmod +x /usr/local/bin/ipfs-cluster-service \
-    && rm -rf ipfs-cluster-service* \
-    && wget "https://dist.ipfs.tech/ipfs-cluster-ctl/${CLUSTER_VERSION}/ipfs-cluster-ctl_${CLUSTER_VERSION}_linux-amd64.tar.gz" \
-    && tar -xzf "ipfs-cluster-ctl_${CLUSTER_VERSION}_linux-amd64.tar.gz" \
-    && mv ipfs-cluster-ctl/ipfs-cluster-ctl /usr/local/bin/ \
-    && chmod +x /usr/local/bin/ipfs-cluster-ctl \
-    && rm -rf ipfs-cluster-ctl*
+RUN GOARCH=$(cat /tmp/targetarch) && \
+    wget "https://dist.ipfs.tech/ipfs-cluster-service/${CLUSTER_VERSION}/ipfs-cluster-service_${CLUSTER_VERSION}_linux-${GOARCH}.tar.gz" && \
+    tar -xzf "ipfs-cluster-service_${CLUSTER_VERSION}_linux-${GOARCH}.tar.gz" && \
+    mv ipfs-cluster-service/ipfs-cluster-service /usr/local/bin/ && \
+    chmod +x /usr/local/bin/ipfs-cluster-service && \
+    rm -rf ipfs-cluster-service* && \
+    wget "https://dist.ipfs.tech/ipfs-cluster-ctl/${CLUSTER_VERSION}/ipfs-cluster-ctl_${CLUSTER_VERSION}_linux-${GOARCH}.tar.gz" && \
+    tar -xzf "ipfs-cluster-ctl_${CLUSTER_VERSION}_linux-${GOARCH}.tar.gz" && \
+    mv ipfs-cluster-ctl/ipfs-cluster-ctl /usr/local/bin/ && \
+    chmod +x /usr/local/bin/ipfs-cluster-ctl && \
+    rm -rf ipfs-cluster-ctl*
 
 # Main application stage
 FROM base as app
@@ -84,7 +100,7 @@ COPY setup.py ./
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt && \
-    pip install pytest pytest-asyncio pytest-cov httpx fastapi uvicorn && \
+    pip install pytest pytest-asyncio pytest-cov httpx fastapi uvicorn python-multipart && \
     pip install aiohttp aiofiles watchdog psutil
 
 # Copy application code
