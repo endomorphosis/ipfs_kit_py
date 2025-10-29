@@ -35,15 +35,19 @@ RUN apt-get update && apt-get install -y \
 # Install Go for IPFS binaries
 FROM base as go-builder
 ENV GOLANG_VERSION=1.21.4
-# Detect architecture and download appropriate Go binary
+# Detect architecture once and set TARGETARCH variable
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
-        GOARCH="amd64"; \
+        echo "amd64" > /tmp/targetarch; \
     elif [ "$ARCH" = "aarch64" ]; then \
-        GOARCH="arm64"; \
+        echo "arm64" > /tmp/targetarch; \
     else \
         echo "Unsupported architecture: $ARCH" && exit 1; \
-    fi && \
+    fi
+ENV TARGETARCH_FILE=/tmp/targetarch
+
+# Download and install Go
+RUN GOARCH=$(cat /tmp/targetarch) && \
     wget -O go.tgz "https://golang.org/dl/go${GOLANG_VERSION}.linux-${GOARCH}.tar.gz" && \
     tar -C /usr/local -xzf go.tgz && \
     rm go.tgz
@@ -52,14 +56,7 @@ ENV PATH=/usr/local/go/bin:$PATH
 # Download pre-built IPFS (Kubo) binary
 WORKDIR /build
 ENV KUBO_VERSION=v0.24.0
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then \
-        GOARCH="amd64"; \
-    elif [ "$ARCH" = "aarch64" ]; then \
-        GOARCH="arm64"; \
-    else \
-        echo "Unsupported architecture: $ARCH" && exit 1; \
-    fi && \
+RUN GOARCH=$(cat /tmp/targetarch) && \
     wget "https://dist.ipfs.tech/kubo/${KUBO_VERSION}/kubo_${KUBO_VERSION}_linux-${GOARCH}.tar.gz" && \
     tar -xzf "kubo_${KUBO_VERSION}_linux-${GOARCH}.tar.gz" && \
     mv kubo/ipfs /usr/local/bin/ && \
@@ -68,14 +65,7 @@ RUN ARCH=$(uname -m) && \
 
 # Download pre-built IPFS Cluster binaries
 ENV CLUSTER_VERSION=v1.0.7
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then \
-        GOARCH="amd64"; \
-    elif [ "$ARCH" = "aarch64" ]; then \
-        GOARCH="arm64"; \
-    else \
-        echo "Unsupported architecture: $ARCH" && exit 1; \
-    fi && \
+RUN GOARCH=$(cat /tmp/targetarch) && \
     wget "https://dist.ipfs.tech/ipfs-cluster-service/${CLUSTER_VERSION}/ipfs-cluster-service_${CLUSTER_VERSION}_linux-${GOARCH}.tar.gz" && \
     tar -xzf "ipfs-cluster-service_${CLUSTER_VERSION}_linux-${GOARCH}.tar.gz" && \
     mv ipfs-cluster-service/ipfs-cluster-service /usr/local/bin/ && \

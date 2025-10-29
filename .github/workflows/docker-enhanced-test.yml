@@ -120,7 +120,6 @@ jobs:
       
       - name: Check Docker permissions
         id: docker_check
-        continue-on-error: true
         run: |
           echo "Checking Docker access..."
           if docker info > /dev/null 2>&1; then
@@ -131,7 +130,6 @@ jobs:
             echo "docker_available=false" >> $GITHUB_OUTPUT
             echo "::warning::Docker daemon is not accessible. Please configure Docker permissions on the ARM64 runner."
             echo "::warning::Run: sudo usermod -aG docker \$USER && newgrp docker"
-            exit 1
           fi
       
       - name: Set up Docker Buildx
