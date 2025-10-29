@@ -17,7 +17,7 @@ import time
 import uuid
 import logging
 import anyio
-from typing import Dict, List, Any, Optional, Set, Callable
+from typing import Dict, List, Any, Optional, Set, Callable, TYPE_CHECKING
 from enum import Enum
 
 # WebSocket imports - wrapped in try/except for graceful fallback
@@ -28,6 +28,13 @@ try:
     WEBSOCKET_AVAILABLE = True
 except ImportError:
     WEBSOCKET_AVAILABLE = False
+    # Define placeholder types when websockets is not available
+    if TYPE_CHECKING:
+        from websockets.server import WebSocketServerProtocol
+        from websockets.client import WebSocketClientProtocol
+    else:
+        WebSocketServerProtocol = Any
+        WebSocketClientProtocol = Any
 
 # FastAPI imports for server integration
 try:
