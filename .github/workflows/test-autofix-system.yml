@@ -25,16 +25,16 @@ jobs:
   test-autofix-system:
     name: Test Auto-Fix System
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.12"
-      
+
       - name: Simulate failure scenario
         run: |
           case "${{ github.event.inputs.failure_type }}" in
@@ -62,13 +62,13 @@ jobs:
               echo "All tests passed!"
               ;;
           esac
-      
+
       - name: Report success
         if: github.event.inputs.failure_type == 'success'
         run: |
           echo "✓ Test workflow completed successfully"
           echo "The auto-fix system will NOT trigger for this run"
-      
+
       - name: Summary
         if: always()
         run: |
@@ -76,7 +76,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Failure Type**: ${{ github.event.inputs.failure_type }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ github.event.inputs.failure_type }}" != "success" ]; then
             echo "### Expected Behavior" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
