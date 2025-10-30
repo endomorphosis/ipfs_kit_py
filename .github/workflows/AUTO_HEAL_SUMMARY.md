@@ -32,14 +32,15 @@ This is the main auto-healing workflow that follows the VS Code Copilot pattern:
 
 #### workflow-failure-monitor.yml
 - ❌ **DISABLED** (set `if: false`)
-- Fixed wildcard issue: `["*"]` doesn't work in workflow_run
-- Added explicit workflow names
+- Fixed wildcard issue: workflow_run trigger does not support `["*"]` syntax for monitoring all workflows
+- Added explicit workflow names instead
 - Marked as deprecated in favor of simple-auto-heal.yml
 
 #### workflow-failure-autofix.yml
-- ✅ Still enabled
+- ❌ **DISABLED** (set `if: false`)
 - Added clarifying comments
-- May create duplicate PRs - consider disabling if using simple-auto-heal.yml
+- Marked as deprecated in favor of simple-auto-heal.yml
+- Can be re-enabled by removing the `if: false` condition if needed
 
 #### Other workflows unchanged:
 - `copilot-agent-autofix.yml` - More complex AI-powered fixes
@@ -56,10 +57,10 @@ Created comprehensive documentation:
 
 1. **Simplicity**: `simple-auto-heal.yml` is much simpler than the existing workflows
 2. **VS Code Pattern**: Follows the familiar pattern of issue → draft PR → @mention Copilot
-3. **No Dependencies**: Doesn't rely on external Python scripts
+3. **No External Python Scripts**: Doesn't rely on custom Python scripts for analysis or fix generation
 4. **Better Error Handling**: Includes proper error log extraction
 5. **Duplicate Prevention**: Checks for existing issues to avoid spam
-6. **Fixed Bugs**: Fixed wildcard workflow monitoring issue
+6. **Fixed Bugs**: Fixed wildcard workflow monitoring issue (workflow_run doesn't support `["*"]` syntax)
 
 ## What Happens When a Workflow Fails
 
@@ -117,14 +118,14 @@ To test the auto-healing:
 
 1. ✅ **Use simple-auto-heal.yml** - It's enabled and ready to go
 2. ✅ **Keep workflow-failure-monitor.yml disabled** - Already done
-3. ⚠️ **Consider disabling workflow-failure-autofix.yml** - To avoid duplicate PRs
+3. ✅ **Keep workflow-failure-autofix.yml disabled** - Already done (to avoid duplicate PRs)
 4. ✅ **Monitor the next workflow failure** - Test the system
 
 ### Optional Actions:
 
 1. Customize the list of monitored workflows in `simple-auto-heal.yml`
 2. Adjust labels for issues/PRs if needed
-3. Update `.github/copilot-instructions.md` with better guidance for Copilot
+3. Update or create `.github/copilot-instructions.md` with guidance for Copilot (this file already exists and provides instructions for fixing workflow failures)
 
 ## Troubleshooting
 
