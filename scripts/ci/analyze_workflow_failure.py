@@ -113,8 +113,14 @@ def analyze_workflow_failure():
         with open('/tmp/failure_analysis.json', 'w') as f:
             json.dump(analysis, f, indent=2)
         
-        # Set GitHub Actions output
-        print(f"::set-output name=should_create_issue::{str(should_create_issue).lower()}")
+        # Set GitHub Actions output (using environment file)
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a') as f:
+                f.write(f"should_create_issue={str(should_create_issue).lower()}\n")
+        else:
+            # Fallback for older GitHub Actions runners
+            print(f"::set-output name=should_create_issue::{str(should_create_issue).lower()}")
         
         print(f"Analysis complete. Found {len(analysis['failed_jobs'])} failed jobs.")
         return analysis

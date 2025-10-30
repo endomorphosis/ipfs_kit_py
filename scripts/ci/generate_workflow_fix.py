@@ -111,8 +111,14 @@ def generate_workflow_fix():
         with open('/tmp/workflow_fix.json', 'w') as f:
             json.dump(fix, f, indent=2)
         
-        # Set GitHub Actions output
-        print(f"::set-output name=has_fix::{str(has_fix).lower()}")
+        # Set GitHub Actions output (using environment file)
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a') as f:
+                f.write(f"has_fix={str(has_fix).lower()}\n")
+        else:
+            # Fallback for older GitHub Actions runners
+            print(f"::set-output name=has_fix::{str(has_fix).lower()}")
         
         print(f"Fix generation complete. Has fix: {has_fix}")
         return fix
