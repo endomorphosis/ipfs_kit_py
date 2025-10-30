@@ -15,6 +15,67 @@ The monitoring system provides:
 
 ## Scripts
 
+### Auto-Healing Scripts
+
+#### analyze_workflow_failure.py
+
+**NEW** - Analyze workflow failures and extract error patterns for auto-healing.
+
+**Features:**
+- Fetches workflow run details from GitHub API
+- Downloads and analyzes job logs
+- Extracts error messages and failure patterns
+- Categorizes errors by type (missing dependencies, timeouts, etc.)
+- Generates structured analysis for the auto-healing system
+
+**Usage:**
+```bash
+# Called automatically by workflow-failure-monitor.yml
+# Manual usage:
+export GITHUB_TOKEN="your_token"
+export WORKFLOW_RUN_ID="12345"
+export WORKFLOW_NAME="CI Tests"
+export REPOSITORY="owner/repo"
+python scripts/ci/analyze_workflow_failure.py
+```
+
+**Output:** `/tmp/failure_analysis.json` with structured failure data
+
+#### generate_workflow_fix.py
+
+**NEW** - Generate workflow fixes based on failure analysis.
+
+**Features:**
+- Analyzes workflow failures to determine root causes
+- Generates fixes for common patterns (dependencies, timeouts, permissions)
+- Modifies workflow files with improvements
+- Creates detailed fix reports for pull requests
+- Supports multiple fix strategies
+
+**Usage:**
+```bash
+# Called automatically by auto-heal-workflow.yml
+# Manual usage:
+export GITHUB_TOKEN="your_token"
+export WORKFLOW_RUN_ID="12345"
+export WORKFLOW_NAME="CI Tests"
+export ISSUE_NUMBER="42"
+export REPOSITORY="owner/repo"
+python scripts/ci/generate_workflow_fix.py
+```
+
+**Output:** `/tmp/workflow_fix.json` with fix details and modified files
+
+**Supported Fix Types:**
+- Missing dependencies → Add install steps
+- Timeouts → Increase timeout-minutes
+- Missing commands → Add installation steps
+- File not found → Add existence checks
+- YAML syntax → Fix formatting
+- Optional jobs → Add continue-on-error
+
+See [AUTO_HEALING_WORKFLOWS.md](../../AUTO_HEALING_WORKFLOWS.md) for complete documentation.
+
 ### Workflow Monitoring Scripts
 
 #### trigger_and_monitor_workflow.py
