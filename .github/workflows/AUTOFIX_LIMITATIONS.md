@@ -21,17 +21,24 @@ The autofix and auto-heal system is now functional with the following capabiliti
    - Includes failure analysis in `.github/workflow-failures/`
    - Ready for manual or Copilot-assisted fixes
 
-4. **Manual Testing**
+4. **Automatic Copilot Invocation** ✨ NEW
+   - Automatically @mentions Copilot on the PR
+   - Triggers Copilot to analyze the failure
+   - Requests minimal, targeted fixes
+   - **You just need to review and approve the draft PR**
+
+5. **Manual Testing**
    - Can trigger with real run IDs
    - Can trigger with dummy data
    - No need to cause actual failures to test
 
-### ❌ What Doesn't Work (GitHub Limitations)
+### ⚠️ What Requires Human Review (By Design)
 
-1. **Automatic Copilot Invocation**
-   - GitHub Copilot cannot be invoked programmatically via API
-   - No way to automatically have Copilot analyze and fix issues
-   - This is a GitHub platform limitation, not a bug in our system
+1. **Copilot's Proposed Changes**
+   - Copilot will analyze and propose fixes automatically
+   - **You must review and approve** before merging
+   - This is for security and code quality
+   - Human oversight is required by design
    
 2. **Branch-Specific Triggers**
    - `workflow_run` trigger only works for default branch
@@ -43,21 +50,34 @@ The autofix and auto-heal system is now functional with the following capabiliti
    - Must explicitly list each workflow to monitor
    - This is a GitHub Actions limitation
 
-## Why Fully Automated Copilot Fixes Are Not Possible
+## How the Automated Flow Works
 
-### GitHub Copilot's Current Architecture
+### Step-by-Step Process
 
-1. **Interactive Tool**
-   - Copilot is designed as an interactive assistant
-   - Requires human oversight and approval
-   - No programmatic API for autonomous operation
+1. **Workflow fails on main branch** → Autofix detects it
+2. **Issue is created** → Documents the failure
+3. **Draft PR is created** → Includes context files
+4. **Copilot is @mentioned** → Starts analyzing automatically
+5. **Copilot proposes fixes** → Draft PR is updated
+6. **You review the PR** → Check Copilot's suggestions
+7. **You approve and merge** → Fix is deployed
 
-2. **Security and Safety**
-   - Automated code changes could introduce vulnerabilities
-   - Human review is required by design
-   - This is intentional, not a limitation to work around
+### What's Automated vs. Manual
 
-3. **Context Requirements**
+| Step | Automated? | Your Action |
+|------|-----------|-------------|
+| Failure detection | ✅ Yes | None |
+| Issue creation | ✅ Yes | None |
+| PR creation | ✅ Yes | None |
+| Copilot invocation | ✅ Yes | None |
+| Copilot analysis | ✅ Yes | None |
+| Code changes proposed | ✅ Yes | None |
+| **Review & approve** | ❌ No | **Review the draft PR** |
+| **Merge the fix** | ❌ No | **Approve and merge** |
+
+## Why Human Review Is Required
+
+### Security and Safety
    - Copilot needs rich context to make good fixes
    - Automated systems can't provide the same context as humans
    - Some fixes require domain knowledge Copilot doesn't have

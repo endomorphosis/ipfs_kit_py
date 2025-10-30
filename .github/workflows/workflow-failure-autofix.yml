@@ -471,6 +471,38 @@ jobs:
               the fix is implemented and ready for review.`
             });
 
+      - name: Auto-invoke Copilot on PR
+        if: steps.create-pr.outputs.pull-request-number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = '${{ steps.create-pr.outputs.pull-request-number }}';
+
+            if (!prNumber || prNumber === '') {
+              console.log('No PR created, skipping Copilot invocation');
+              return;
+            }
+
+            // Create a comment on the PR that @mentions Copilot
+            // This triggers Copilot to analyze the PR and start working on it
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body: `@copilot Please analyze the workflow failure context in \`.github/workflow-failures/\` and the failure details in this PR description.
+
+              Implement a minimal, targeted fix for the failed workflow. Focus on:
+
+              1. Reviewing the failure details and error messages
+              2. Identifying the root cause of the failure
+              3. Making the smallest possible change to fix the issue
+              4. Ensuring the fix doesn't break existing functionality
+
+              The failure context files contain detailed information about what went wrong.`
+            });
+
+            console.log(`Copilot invoked on PR #${prNumber}`);
+
       - name: Summary
         run: |
           echo "## Workflow Failure Auto-Fix Summary" >> $GITHUB_STEP_SUMMARY
@@ -485,9 +517,11 @@ jobs:
             steps.create-pr.outputs.pull-request-url
           }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### GitHub Copilot Integration" >> $GITHUB_STEP_SUMMARY
+          echo "### GitHub Copilot Auto-Invoked" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "To have GitHub Copilot automatically fix:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Open PR in GitHub Copilot Workspace" >> $GITHUB_STEP_SUMMARY
-          echo "2. Ask: 'Please analyze and implement a fix'" >> $GITHUB_STEP_SUMMARY
-          echo "3. Review and approve the suggested changes" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Copilot has been automatically @mentioned on the PR" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Next steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Wait for Copilot to analyze and propose fixes" >> $GITHUB_STEP_SUMMARY
+          echo "2. Review the draft PR and Copilot's suggestions" >> $GITHUB_STEP_SUMMARY
+          echo "3. Approve and merge when satisfied" >> $GITHUB_STEP_SUMMARY

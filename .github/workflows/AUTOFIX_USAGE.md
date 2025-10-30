@@ -8,7 +8,8 @@ The auto-fix system automatically:
 1. Detects when a workflow fails on the main branch
 2. Creates an issue documenting the failure
 3. Creates a draft PR with context files for fixing
-4. Enables GitHub Copilot to analyze and fix the issue
+4. **Automatically @mentions Copilot on the PR to trigger analysis**
+5. Waits for you to review and approve Copilot's proposed fixes
 
 ## How It Works
 
@@ -36,6 +37,32 @@ This means:
 - ✅ Workflow failures on main branch WILL trigger autofix
 - ❌ Workflow failures on feature branches will NOT trigger autofix
 - ❌ Pull request workflow failures will NOT trigger autofix (unless merged to main)
+
+### What Happens Automatically
+
+When a monitored workflow fails on main:
+
+1. **Issue Created**: A new issue is opened with:
+   - Full failure details
+   - Links to failed jobs and logs
+   - Labels: `workflow-failure`, `auto-fix-eligible`, `ci/cd`
+
+2. **Draft PR Created**: A draft pull request is opened with:
+   - Context files in `.github/workflow-failures/`
+   - Copilot instructions in `.github/copilot-fix-instructions.md`
+   - Labels: `auto-fix`, `workflow-failure`, `ci/cd`
+
+3. **Copilot Auto-Invoked**: A comment is automatically posted on the PR:
+   - @mentions Copilot
+   - Asks Copilot to analyze the failure
+   - Requests minimal, targeted fixes
+   - **This triggers Copilot to start working on the fix**
+
+4. **Your Action Required**: 
+   - Review the draft PR
+   - Check Copilot's proposed changes
+   - Approve and merge if satisfied
+   - Or manually edit if needed
 
 ### Manual Triggering (for Testing)
 
