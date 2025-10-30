@@ -1,0 +1,148 @@
+name: Auto-Healing Demo
+
+# This workflow demonstrates the auto-healing system
+# It will fail intentionally to trigger the auto-healing workflow
+
+on:
+  workflow_dispatch:  # Manual trigger only for demo
+    inputs:
+      failure_type:
+        description: 'Type of failure to simulate'
+        required: true
+        default: 'missing_dependency'
+        type: choice
+        options:
+          - missing_dependency
+          - timeout
+          - yaml_error
+          - permission_error
+          - file_not_found
+
+permissions:
+  contents: read
+
+jobs:
+  demo-failure:
+    name: Demonstrate Auto-Healing
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Simulate failure based on input
+      run: |
+        echo "Simulating failure type: ${{ inputs.failure_type }}"
+        
+        case "${{ inputs.failure_type }}" in
+          missing_dependency)
+            echo "Attempting to import non-existent package..."
+            python -c "import nonexistent_package_xyz"
+            ;;
+          timeout)
+            echo "Simulating timeout (this will actually timeout)..."
+            sleep 600  # Sleep for 10 minutes
+            ;;
+          file_not_found)
+            echo "Attempting to read non-existent file..."
+            cat /path/to/nonexistent/file.txt
+            ;;
+          permission_error)
+            echo "Attempting operation without permissions..."
+            gh api /repos/${{ github.repository }}/issues/1/comments --method DELETE
+            ;;
+          *)
+            echo "Unknown failure type"
+            exit 1
+            ;;
+        esac
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: This step won't be reached
+      run: echo "If you see this, the demo didn't work correctly"
+
+  what-happens-next:
+    name: What Happens Next
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Explain auto-healing process
+      run: |
+        cat << 'EOF'
+        
+        ╔══════════════════════════════════════════════════════════╗
+        ║          🤖 Auto-Healing Process Started!                ║
+        ╚══════════════════════════════════════════════════════════╝
+        
+        What happens next:
+        
+        1️⃣  Workflow Failure Monitor detects this failure (30 seconds)
+        2️⃣  Issue created with failure analysis
+            - Labels: auto-heal, workflow-failure, copilot-agent
+            - Contains: Error logs and analysis
+        
+        3️⃣  GitHub Copilot Agent invoked (2-3 minutes)
+            - Three parallel approaches:
+              a) Pattern-based fix (legacy system)
+              b) Copilot Agent Autofix (AI-powered) ⭐
+              c) Copilot Workspace integration ⭐
+        
+        4️⃣  Pull Request created with fix (3-5 minutes)
+            - Intelligent, context-aware fix
+            - Detailed explanation
+            - Test recommendations
+        
+        5️⃣  Review and merge the PR
+            - Human review recommended
+            - Tests run automatically
+            - Merge when ready
+        
+        ╔══════════════════════════════════════════════════════════╗
+        ║                  Monitor Progress                         ║
+        ╚══════════════════════════════════════════════════════════╝
+        
+        Check for updates:
+        
+        📋 Issues: gh issue list --label auto-heal
+        🔧 PRs:    gh pr list --label copilot-agent
+        📊 Status: gh run list --workflow copilot-agent-autofix.yml
+        
+        ╔══════════════════════════════════════════════════════════╗
+        ║                   Documentation                           ║
+        ╚══════════════════════════════════════════════════════════╝
+        
+        📚 Full Guide:      COPILOT_AUTO_HEALING_GUIDE.md
+        🚀 Quick Ref:       COPILOT_AUTO_HEALING_QUICK_REF.md
+        🧪 Test Suite:      python3 test_copilot_auto_healing.py
+        
+        ╔══════════════════════════════════════════════════════════╗
+        ║              Expected Timeline                            ║
+        ╚══════════════════════════════════════════════════════════╝
+        
+        T+0:00 - Workflow fails (now)
+        T+0:30 - Issue created
+        T+1:00 - Copilot agent starts
+        T+3:00 - PR created with fix
+        T+5:00 - Ready for review
+        
+        Total: ~5 minutes from failure to fix PR! 🚀
+        
+        ╔══════════════════════════════════════════════════════════╗
+        ║                  Live Example                             ║
+        ╚══════════════════════════════════════════════════════════╝
+        
+        Watch this workflow:
+        https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        
+        Then watch for:
+        - New issue: https://github.com/${{ github.repository }}/issues
+        - New PR: https://github.com/${{ github.repository }}/pulls
+        
+        EOF
