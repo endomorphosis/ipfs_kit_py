@@ -1,0 +1,230 @@
+name: Auto-Heal Workflow
+
+# This workflow automatically creates pull requests to fix failed workflows
+on:
+  issues:
+    types: [labeled, opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  create-fix-pr:
+    name: Create Auto-Healing PR
+    runs-on: ubuntu-latest
+    # Only run if the issue has the auto-heal label
+    if: |
+      contains(github.event.issue.labels.*.name, 'auto-heal') &&
+      contains(github.event.issue.labels.*.name, 'workflow-failure')
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install PyGithub requests pyyaml
+    
+    - name: Parse issue details
+      id: parse
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const issueBody = context.payload.issue.body;
+          const runIdMatch = issueBody.match(/\*\*Run ID:\*\* (\d+)/);
+          const workflowMatch = issueBody.match(/\*\*Workflow:\*\* (.+)/);
+          const branchMatch = issueBody.match(/\*\*Branch:\*\* (.+)/);
+          const commitMatch = issueBody.match(/\*\*Commit:\*\* (.+)/);
+          
+          if (runIdMatch) {
+            core.setOutput('run_id', runIdMatch[1]);
+          }
+          if (workflowMatch) {
+            core.setOutput('workflow_name', workflowMatch[1].trim());
+          }
+          if (branchMatch) {
+            core.setOutput('branch', branchMatch[1].trim());
+          }
+          if (commitMatch) {
+            core.setOutput('commit', commitMatch[1].trim());
+          }
+          
+          core.setOutput('issue_number', context.payload.issue.number);
+    
+    - name: Generate fix analysis
+      id: generate_fix
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        WORKFLOW_RUN_ID: ${{ steps.parse.outputs.run_id }}
+        WORKFLOW_NAME: ${{ steps.parse.outputs.workflow_name }}
+        ISSUE_NUMBER: ${{ steps.parse.outputs.issue_number }}
+        REPOSITORY: ${{ github.repository }}
+      run: |
+        python scripts/ci/generate_workflow_fix.py
+    
+    - name: Create fix branch and PR
+      if: steps.generate_fix.outputs.has_fix == 'true'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+          
+          const issueNumber = '${{ steps.parse.outputs.issue_number }}';
+          const workflowName = '${{ steps.parse.outputs.workflow_name }}'.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+          const branchName = `auto-heal/workflow-${workflowName}-${Date.now()}`;
+          
+          // Configure git
+          execSync('git config user.name "GitHub Actions Bot"');
+          execSync('git config user.email "actions@github.com"');
+          
+          // Create and checkout new branch
+          execSync(`git checkout -b ${branchName}`);
+          
+          // Read the fix details
+          const fixFile = '/tmp/workflow_fix.json';
+          let fix = {};
+          if (fs.existsSync(fixFile)) {
+            fix = JSON.parse(fs.readFileSync(fixFile, 'utf8'));
+          }
+          
+          // Apply the fixes if there are file changes
+          if (fix.files && fix.files.length > 0) {
+            fix.files.forEach(file => {
+              if (file.content) {
+                fs.writeFileSync(file.path, file.content);
+                execSync(`git add ${file.path}`);
+              }
+            });
+            
+            execSync(`git commit -m "Auto-heal: Fix workflow ${workflowName} (Issue #${issueNumber})"`);
+            execSync(`git push origin ${branchName}`);
+          }
+          
+          // Create the pull request
+          const prTitle = `[Auto-Heal] Fix workflow: ${fix.workflow_name || workflowName}`;
+          const prBody = `## Auto-Generated Workflow Fix
+          
+          This PR was automatically generated to fix the failed workflow: **${fix.workflow_name || workflowName}**
+          
+          ### Issue
+          Fixes #${issueNumber}
+          
+          ### Analysis
+          ${fix.analysis || 'No detailed analysis available'}
+          
+          ### Changes Made
+          ${fix.changes ? fix.changes.map(change => `- ${change}`).join('\n') : 'No specific changes listed'}
+          
+          ### Failure Details
+          **Run ID:** ${{ steps.parse.outputs.run_id }}
+          **Original Branch:** ${{ steps.parse.outputs.branch }}
+          **Commit:** ${{ steps.parse.outputs.commit }}
+          
+          ### Error Summary
+          \`\`\`
+          ${fix.error_summary || 'No error summary available'}
+          \`\`\`
+          
+          ### Suggested Fix
+          ${fix.suggested_fix || 'See code changes in this PR'}
+          
+          ### Testing
+          ${fix.testing_notes || 'Please test this fix by running the workflow manually or merging to test the auto-heal system.'}
+          
+          ---
+          
+          🤖 **Note:** This PR should automatically trigger GitHub Copilot agent to review and potentially enhance the fix.
+          
+          If this fix does not resolve the issue, please:
+          1. Comment on this PR with additional context
+          2. The auto-heal system will learn from the feedback
+          3. Manually adjust the fix if needed
+          
+          ---
+          *This PR was automatically created by the Auto-Healing Workflow system*
+          `;
+          
+          try {
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: prTitle,
+              body: prBody,
+              head: branchName,
+              base: 'main'
+            });
+            
+            console.log(`Created PR #${pr.data.number}`);
+            
+            // Add labels to the PR
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.data.number,
+              labels: ['auto-heal', 'workflow-fix', 'automated-pr']
+            });
+            
+            // Comment on the original issue
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `🤖 Auto-healing PR created: #${pr.data.number}\n\nThe system has generated a potential fix for this workflow failure. Please review the PR.`
+            });
+            
+            // If no changes were made, close the issue with explanation
+            if (!fix.files || fix.files.length === 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: `⚠️ The auto-healing system could not generate an automatic fix for this workflow failure.\n\n**Reason:** ${fix.reason || 'Unable to determine root cause automatically'}\n\n**Manual intervention required:** Please review the workflow logs and make necessary changes manually.`
+              });
+              
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: ['auto-heal', 'workflow-failure', 'needs-manual-fix']
+              });
+            }
+          } catch (error) {
+            console.error('Error creating PR:', error);
+            
+            // Comment on the issue about the failure
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `❌ Failed to create auto-healing PR: ${error.message}\n\nPlease review the workflow failure manually.`
+            });
+          }
+    
+    - name: Update issue status
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const issueNumber = '${{ steps.parse.outputs.issue_number }}';
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: issueNumber,
+            body: '✅ Auto-healing process completed. Check above for PR details or manual intervention notes.'
+          });
