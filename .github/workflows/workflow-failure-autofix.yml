@@ -22,6 +22,18 @@ on:
       - "WebRTC Performance Benchmarking"
     types:
       - completed
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Workflow run ID to process (leave empty to test with dummy data)'
+        required: false
+        type: string
+      workflow_name:
+        description: 'Workflow name (only used if run_id is empty)'
+        required: false
+        default: 'Test Workflow'
+        type: string
 
 permissions:
   contents: write
@@ -32,11 +44,17 @@ permissions:
 jobs:
   handle-workflow-failure:
     name: Handle Workflow Failure
-    # Only run if the workflow failed
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    # Only run if the workflow failed OR if manually triggered
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
 
     steps:
+      - name: Log trigger information
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Manual run ID: ${{ github.event.inputs.run_id }}"
+          
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -47,45 +65,119 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const workflow_run = context.payload.workflow_run;
-
-            // Get the jobs for this workflow run
-            const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: workflow_run.id,
-            });
-
-            // Find failed jobs
-            const failedJobs = jobs.jobs.filter(job => job.conclusion === 'failure');
-
-            // Get logs for failed jobs
+            let workflow_run, workflow_name, workflow_id, workflow_url;
             let failureDetails = '';
-            for (const job of failedJobs) {
-              failureDetails += `### Job: ${job.name}\n`;
-              failureDetails += `Status: ${job.conclusion}\n`;
-              failureDetails += `URL: ${job.html_url}\n\n`;
+            let failedJobsCount = 0;
+            let branch = 'main';
+            let commit_sha = context.sha;
+            
+            // Check if this is a manual dispatch with a run_id
+            if (context.eventName === 'workflow_dispatch' && '${{ github.event.inputs.run_id }}') {
+              const run_id = parseInt('${{ github.event.inputs.run_id }}');
+              console.log(`Manual trigger with run_id: ${run_id}`);
+              
+              try {
+                // Get the workflow run details
+                const { data: run } = await github.rest.actions.getWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: run_id,
+                });
+                workflow_run = run;
+                workflow_name = run.name;
+                workflow_id = run.id;
+                workflow_url = run.html_url;
+                branch = run.head_branch;
+                commit_sha = run.head_sha;
+                
+                // Get the jobs for this workflow run
+                const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: run_id,
+                });
+                
+                const failedJobs = jobs.jobs.filter(job => job.conclusion === 'failure');
+                failedJobsCount = failedJobs.length;
+                
+                for (const job of failedJobs) {
+                  failureDetails += `### Job: ${job.name}\n`;
+                  failureDetails += `Status: ${job.conclusion}\n`;
+                  failureDetails += `URL: ${job.html_url}\n\n`;
+                  
+                  const failedSteps = job.steps.filter(step => step.conclusion === 'failure');
+                  for (const step of failedSteps) {
+                    failureDetails += `#### Failed Step: ${step.name}\n`;
+                    const duration = step.completed_at && step.started_at ? 
+                      (new Date(step.completed_at) - new Date(step.started_at)) / 1000 : 'unknown';
+                    failureDetails += `Duration: ${duration}s\n\n`;
+                  }
+                }
+              } catch (error) {
+                console.error('Error fetching workflow run:', error);
+                failureDetails = `Error fetching workflow run details: ${error.message}`;
+              }
+            } else if (context.eventName === 'workflow_dispatch') {
+              // Manual trigger without run_id - use test data
+              console.log('Manual trigger without run_id - using test data');
+              workflow_name = '${{ github.event.inputs.workflow_name }}' || 'Test Workflow';
+              workflow_id = Date.now();
+              workflow_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions`;
+              failureDetails = '### Test Failure\nThis is a test run triggered manually.\n';
+              failedJobsCount = 1;
+            } else {
+              // Triggered by workflow_run event
+              workflow_run = context.payload.workflow_run;
+              workflow_name = workflow_run.name;
+              workflow_id = workflow_run.id;
+              workflow_url = workflow_run.html_url;
+              branch = workflow_run.head_branch;
+              commit_sha = workflow_run.head_sha;
+              
+              // Get the jobs for this workflow run
+              const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: workflow_run.id,
+              });
 
-              // Get failed steps
-              const failedSteps = job.steps.filter(step => step.conclusion === 'failure');
-              for (const step of failedSteps) {
-                failureDetails += `#### Failed Step: ${step.name}\n`;
-                failureDetails += `Duration: ${step.completed_at - step.started_at}s\n\n`;
+              // Find failed jobs
+              const failedJobs = jobs.jobs.filter(job => job.conclusion === 'failure');
+              failedJobsCount = failedJobs.length;
+
+              // Get logs for failed jobs
+              for (const job of failedJobs) {
+                failureDetails += `### Job: ${job.name}\n`;
+                failureDetails += `Status: ${job.conclusion}\n`;
+                failureDetails += `URL: ${job.html_url}\n\n`;
+
+                // Get failed steps
+                const failedSteps = job.steps.filter(step => step.conclusion === 'failure');
+                for (const step of failedSteps) {
+                  failureDetails += `#### Failed Step: ${step.name}\n`;
+                  const duration = step.completed_at && step.started_at ? 
+                    (new Date(step.completed_at) - new Date(step.started_at)) / 1000 : 'unknown';
+                  failureDetails += `Duration: ${duration}s\n\n`;
+                }
               }
             }
 
             // Store the details
-            core.setOutput('workflow_name', workflow_run.name);
-            core.setOutput('workflow_id', workflow_run.id);
-            core.setOutput('workflow_url', workflow_run.html_url);
+            core.setOutput('workflow_name', workflow_name);
+            core.setOutput('workflow_id', workflow_id);
+            core.setOutput('workflow_url', workflow_url);
             core.setOutput('failure_details', failureDetails);
-            core.setOutput('failed_jobs_count', failedJobs.length);
-            core.setOutput('branch', workflow_run.head_branch);
-            core.setOutput('commit_sha', workflow_run.head_sha);
+            core.setOutput('failed_jobs_count', failedJobsCount);
+            core.setOutput('branch', branch);
+            core.setOutput('commit_sha', commit_sha);
+            
+            console.log(`Workflow: ${workflow_name}`);
+            console.log(`Failed jobs: ${failedJobsCount}`);
+            console.log(`Branch: ${branch}`);
 
             return {
-              workflow_name: workflow_run.name,
-              failed_jobs_count: failedJobs.length
+              workflow_name: workflow_name,
+              failed_jobs_count: failedJobsCount
             };
 
       - name: Download workflow logs
@@ -95,19 +187,33 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const workflow_run = context.payload.workflow_run;
+            
+            // Skip log download for test runs
+            if (context.eventName === 'workflow_dispatch' && !'${{ github.event.inputs.run_id }}') {
+              console.log('Skipping log download for test run');
+              core.setOutput('logs_available', 'false');
+              return;
+            }
+            
+            let run_id;
+            if (context.eventName === 'workflow_dispatch' && '${{ github.event.inputs.run_id }}') {
+              run_id = parseInt('${{ github.event.inputs.run_id }}');
+            } else {
+              run_id = context.payload.workflow_run.id;
+            }
 
             try {
               // Get logs as zip
               const logs = await github.rest.actions.downloadWorkflowRunLogs({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                run_id: workflow_run.id,
+                run_id: run_id,
               });
 
               // Save to file
               fs.writeFileSync('workflow-logs.zip', Buffer.from(logs.data));
               core.setOutput('logs_available', 'true');
+              console.log('Successfully downloaded workflow logs');
             } catch (error) {
               console.log('Could not download logs:', error.message);
               core.setOutput('logs_available', 'false');
@@ -118,12 +224,30 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const workflow_run = context.payload.workflow_run;
             const workflow_name = '${{ steps.workflow-details.outputs.workflow_name }}';
+            const workflow_id = '${{ steps.workflow-details.outputs.workflow_id }}';
             const workflow_url = '${{ steps.workflow-details.outputs.workflow_url }}';
             const failure_details = '${{ steps.workflow-details.outputs.failure_details }}';
             const branch = '${{ steps.workflow-details.outputs.branch }}';
             const commit_sha = '${{ steps.workflow-details.outputs.commit_sha }}';
+            
+            // Get run number if available
+            let run_number = 'Unknown';
+            if (context.eventName === 'workflow_run' && context.payload.workflow_run) {
+              run_number = context.payload.workflow_run.run_number;
+            } else if (context.eventName === 'workflow_dispatch' && '${{ github.event.inputs.run_id }}') {
+              // For manual dispatch, try to get the run number from the API
+              try {
+                const { data: run } = await github.rest.actions.getWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: parseInt('${{ github.event.inputs.run_id }}'),
+                });
+                run_number = run.run_number;
+              } catch (error) {
+                console.log('Could not get run number:', error.message);
+              }
+            }
 
             // Create issue body
             const issueBody = `# Workflow Failure: ${workflow_name}
@@ -133,7 +257,7 @@ jobs:
             ## Failure Details
 
             - **Workflow**: ${workflow_name}
-            - **Run ID**: ${workflow_run.id}
+            - **Run ID**: ${workflow_id}
             - **Branch**: ${branch}
             - **Commit**: ${commit_sha}
             - **Run URL**: ${workflow_url}
@@ -169,7 +293,7 @@ jobs:
             const { data: issue } = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `[Auto-Fix] Workflow Failed: ${workflow_name} (Run #${workflow_run.run_number})`,
+              title: `[Auto-Fix] Workflow Failed: ${workflow_name} (Run #${run_number})`,
               body: issueBody,
               labels: ['workflow-failure', 'auto-fix-eligible', 'ci/cd']
             });
@@ -347,6 +471,38 @@ jobs:
               the fix is implemented and ready for review.`
             });
 
+      - name: Auto-invoke Copilot on PR
+        if: steps.create-pr.outputs.pull-request-number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = '${{ steps.create-pr.outputs.pull-request-number }}';
+
+            if (!prNumber || prNumber === '') {
+              console.log('No PR created, skipping Copilot invocation');
+              return;
+            }
+
+            // Create a comment on the PR that @mentions Copilot
+            // This triggers Copilot to analyze the PR and start working on it
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body: `@copilot Please analyze the workflow failure context in \`.github/workflow-failures/\` and the failure details in this PR description.
+
+              Implement a minimal, targeted fix for the failed workflow. Focus on:
+
+              1. Reviewing the failure details and error messages
+              2. Identifying the root cause of the failure
+              3. Making the smallest possible change to fix the issue
+              4. Ensuring the fix doesn't break existing functionality
+
+              The failure context files contain detailed information about what went wrong.`
+            });
+
+            console.log(`Copilot invoked on PR #${prNumber}`);
+
       - name: Summary
         run: |
           echo "## Workflow Failure Auto-Fix Summary" >> $GITHUB_STEP_SUMMARY
@@ -361,9 +517,11 @@ jobs:
             steps.create-pr.outputs.pull-request-url
           }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### GitHub Copilot Integration" >> $GITHUB_STEP_SUMMARY
+          echo "### GitHub Copilot Auto-Invoked" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "To have GitHub Copilot automatically fix:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Open PR in GitHub Copilot Workspace" >> $GITHUB_STEP_SUMMARY
-          echo "2. Ask: 'Please analyze and implement a fix'" >> $GITHUB_STEP_SUMMARY
-          echo "3. Review and approve the suggested changes" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Copilot has been automatically @mentioned on the PR" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Next steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Wait for Copilot to analyze and propose fixes" >> $GITHUB_STEP_SUMMARY
+          echo "2. Review the draft PR and Copilot's suggestions" >> $GITHUB_STEP_SUMMARY
+          echo "3. Approve and merge when satisfied" >> $GITHUB_STEP_SUMMARY
