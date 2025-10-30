@@ -187,7 +187,7 @@ The autofix system is now:
 
 ## Related Pull Request
 
-This fix is part of PR #[number] which addresses the workflow autofix/autoheal issues reported in previous pull requests #20, #21, and #22.
+This fix addresses the workflow autofix/autoheal issues reported in previous pull requests #20, #21, and #22.
 
 ## Next Steps
 
