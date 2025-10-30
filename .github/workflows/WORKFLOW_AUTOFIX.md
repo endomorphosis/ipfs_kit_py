@@ -15,22 +15,26 @@ When a GitHub Actions workflow fails, this system automatically:
 
 ### Automatic Failure Detection
 
-The `workflow-failure-autofix.yml` workflow monitors all other workflows using the `workflow_run` trigger:
+The `workflow-failure-autofix.yml` workflow monitors specific workflows using the `workflow_run` trigger:
 
 ```yaml
 on:
   workflow_run:
-    workflows: ["*"]  # Monitor all workflows
+    workflows:
+      - "Python package"
+      - "Python Package"
+      - "Docker CI/CD"
+      # ... and other workflows
     types:
       - completed
 ```
 
-When a workflow fails:
+When a monitored workflow fails:
 1. The system captures failure details (failed jobs, steps, logs)
 2. Creates an issue tagged with `workflow-failure` and `auto-fix-eligible`
-3. Creates a new branch named `auto-fix/workflow-{run_id}`
-4. Adds context files to `.github/workflow-failures/`
-5. Creates a draft PR with instructions for fixing
+3. Prepares context files describing the failure
+4. Uses `peter-evans/create-pull-request` to create a draft PR with context files
+5. The action automatically creates a branch named `auto-fix/workflow-{run_id}`
 
 ### Context Files
 
@@ -129,9 +133,23 @@ The workflows use the default `GITHUB_TOKEN` which is automatically provided by 
 You can customize the behavior by modifying:
 
 - **Workflow monitoring**: Edit the `workflows` list in the `workflow_run` trigger
+  to add or remove workflows to monitor. Note: GitHub Actions does not support
+  wildcard matching, so each workflow must be explicitly listed by its exact name.
 - **Issue labels**: Modify the `labels` field in the issue creation step
 - **PR template**: Customize the PR body in the `create-pull-request` step
 - **Context format**: Edit the format of files in `.github/workflow-failures/`
+
+#### Adding New Workflows to Monitor
+
+When you add a new workflow to the repository, add its exact name to the
+`workflows` list in `workflow-failure-autofix.yml`:
+
+```yaml
+workflows:
+  - "Python package"
+  - "Your New Workflow Name"
+  # ... other workflows
+```
 
 ## Common Failure Patterns
 
