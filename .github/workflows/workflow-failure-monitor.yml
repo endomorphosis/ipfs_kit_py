@@ -1,10 +1,30 @@
-name: Workflow Failure Monitor
+name: Workflow Failure Monitor (DEPRECATED - Use simple-auto-heal.yml instead)
 
+# ⚠️ DEPRECATED: This workflow has been replaced by simple-auto-heal.yml
+# This workflow is disabled by default. To re-enable, remove the "if: false" condition.
+#
 # This workflow monitors other workflows for failures and creates issues
 # to track them for auto-healing
 on:
   workflow_run:
-    workflows: ["*"]  # Monitor all workflows
+    # NOTE: workflow_run does not support wildcards like ["*"]
+    # You must explicitly list workflow names
+    workflows:
+      - "Python package"
+      - "Python Package"
+      - "Docker CI/CD"
+      - "Build and Publish Docker Image"
+      - "Enhanced Docker Build and Test"
+      - "Test Coverage"
+      - "Security Scanning"
+      - "Lint and Type Check"
+      - "Multi-Architecture CI"
+      - "ARM64 CI/CD Pipeline"
+      - "Documentation"
+      - "Deploy"
+      - "Release Management"
+      - "Dependency Management"
+      - "WebRTC Performance Benchmarking"
     types:
       - completed
 
@@ -17,7 +37,9 @@ jobs:
   check-failure:
     name: Check for Workflow Failures
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    # DISABLED: Use simple-auto-heal.yml instead
+    if: false  # Remove this line to re-enable
+    # if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     
     steps:
     - name: Checkout repository
