@@ -50,9 +50,11 @@ The YAML parser and JavaScript interpreter conflict:
       `;
 ```
 
-### Examples from Fixes
+### Examples from Real Fixes
 
-#### Before (Broken)
+This example is based on actual fixes applied to workflow-failure-autofix.yml. The "Before" code is what was causing failures.
+
+#### Before (Broken - Caused Syntax Errors)
 ```javascript
 const issueBody = `# Workflow Failure: ${workflow_name}
 
@@ -127,11 +129,14 @@ script: |
 | YAML variable | `'value: ${{ steps.id.outputs.name }}'` |
 | Backticks (code) | `'Use \`code\` here'` |
 
-### Related Issues
+### Related Fixes in This Repository
 
-- Fixed in PR #92: workflow-failure-autofix.yml had 3 locations with this issue
-- Affected lines: 65-73, 129-165, 336-347
-- Error message: "SyntaxError: Invalid or unexpected token"
+This pattern was found and fixed in workflow-failure-autofix.yml:
+- 3 locations had template literal + YAML variable conflicts
+- Error message seen: "SyntaxError: Invalid or unexpected token"
+- All occurrences replaced with string concatenation
+
+**General Pattern**: When you see this error in github-script actions, check for template literals mixed with YAML variables.
 
 ### Further Reading
 
