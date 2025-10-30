@@ -54,7 +54,11 @@ jobs:
             ;;
           permission_error)
             echo "Attempting operation without permissions..."
-            gh api /repos/${{ github.repository }}/issues/1/comments --method DELETE
+            # This will fail with permission error - expected for demo
+            gh api /repos/${{ github.repository }}/settings --method PATCH -f name="new-name" || true
+            # Even better: try to create a release without release permission
+            gh release create v999.999.999 --title "Test" --notes "Demo" 2>&1 || echo "Permission denied as expected"
+            exit 1  # Force failure for demo
             ;;
           *)
             echo "Unknown failure type"

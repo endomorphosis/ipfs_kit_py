@@ -21,13 +21,15 @@ Unlike traditional pattern-based auto-healing systems, this implementation:
 - **Learns from patterns** across the entire GitHub ecosystem
 - **Creates human-quality PRs** with detailed explanations
 
+**Note**: While the system includes Copilot integration, it also works without a Copilot subscription using AI-style pattern analysis (with ~60-70% success rate vs 80-90% with Copilot).
+
 ### 🚀 Multiple Integration Methods
 
-The system supports three ways to use Copilot:
+The system supports multiple approaches:
 
-1. **Copilot Agent Autofix** - Automated AI-powered fixes
-2. **Copilot Workspace Integration** - Interactive workspace for complex fixes
-3. **Copilot Comments** - Request Copilot assistance via issue comments
+1. **Copilot Agent Autofix** - AI-powered pattern analysis (works without Copilot subscription)
+2. **Copilot Workspace Integration** - Interactive workspace (requires Copilot subscription)
+3. **Pattern-Based Fixes** - Traditional matching (legacy, always works)
 
 ## How It Works
 

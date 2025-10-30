@@ -384,7 +384,13 @@ gh pr list --label copilot-agent --json mergedAt
 ### Common Questions
 
 **Q: Does this work without GitHub Copilot?**
-A: Yes! The pattern-based system still works. Copilot makes fixes more intelligent.
+A: Partially. Without Copilot:
+- ✅ Pattern-based fixes work (auto-heal-workflow.yml)
+- ✅ AI-style pattern analysis works (copilot-agent-autofix.yml)
+- ❌ True Copilot API calls won't work (copilot-auto-heal.yml)
+- ❌ Workspace integration requires Copilot subscription
+
+The system will still detect failures and create issues. Pattern-based fixes (~60-70% success) work without Copilot. For best results (80-90% success), GitHub Copilot subscription is recommended.
 
 **Q: Will it auto-merge fixes?**
 A: No. All fixes require human review and approval.
