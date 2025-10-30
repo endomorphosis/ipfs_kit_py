@@ -1,5 +1,12 @@
-name: Workflow Failure Auto-Fix
+name: Workflow Failure Auto-Fix (DEPRECATED - Use simple-auto-heal.yml instead)
 
+# ⚠️ DEPRECATED: This workflow has been replaced by simple-auto-heal.yml
+# This workflow is disabled by default. To re-enable, remove the "if: false" condition.
+#
+# NOTE: This workflow is an alternative to simple-auto-heal.yml
+# Both workflows can coexist, but will create duplicate issues/PRs
+# Recommendation: Use simple-auto-heal.yml for simplicity
+#
 # This workflow monitors workflows and creates PRs to fix failures
 # It triggers when any monitored workflow completes with a failure status
 on:
@@ -32,8 +39,10 @@ permissions:
 jobs:
   handle-workflow-failure:
     name: Handle Workflow Failure
+    # DISABLED: Use simple-auto-heal.yml instead
+    if: false  # Remove this line to re-enable
     # Only run if the workflow failed
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    # if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
 
     steps:
