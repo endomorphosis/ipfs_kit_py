@@ -1,0 +1,352 @@
+name: Simple Auto-Heal with Copilot
+
+# This workflow creates issues and draft PRs for failed workflows,
+# then @mentions GitHub Copilot to trigger the agent (VS Code pattern)
+on:
+  workflow_run:
+    workflows:
+      - "Python package"
+      - "Python Package"
+      - "Docker CI/CD"
+      - "Build and Publish Docker Image"
+      - "Enhanced Docker Build and Test"
+      - "Test Coverage"
+      - "Security Scanning"
+      - "Lint and Type Check"
+      - "Multi-Architecture CI"
+      - "ARM64 CI/CD Pipeline"
+      - "Documentation"
+      - "Deploy"
+      - "Release Management"
+      - "Dependency Management"
+      - "WebRTC Performance Benchmarking"
+    types:
+      - completed
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  auto-heal:
+    name: Auto-Heal Failed Workflow
+    # Only run if the workflow failed
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get workflow failure details
+        id: failure-info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflow_run = context.payload.workflow_run;
+
+            // Get the jobs for this workflow run
+            const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: workflow_run.id,
+            });
+
+            // Find failed jobs
+            const failedJobs = jobs.jobs.filter(job => job.conclusion === 'failure');
+
+            // Extract error details from failed job logs
+            let errorLogs = '';
+            for (const job of failedJobs) {
+              errorLogs += `### Job: ${job.name}\n\n`;
+              errorLogs += `**Status:** ${job.conclusion}\n`;
+              errorLogs += `**URL:** ${job.html_url}\n\n`;
+
+              // Get failed steps
+              const failedSteps = job.steps.filter(step => step.conclusion === 'failure');
+              if (failedSteps.length > 0) {
+                errorLogs += '**Failed Steps:**\n';
+                for (const step of failedSteps) {
+                  errorLogs += `- ${step.name}\n`;
+                }
+                errorLogs += '\n';
+              }
+            }
+
+            // Try to download logs
+            let logContent = '';
+            try {
+              const logsResponse = await github.rest.actions.downloadWorkflowRunLogs({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: workflow_run.id,
+              });
+              logContent = 'Logs downloaded successfully (see workflow run URL for details)';
+            } catch (error) {
+              logContent = `Could not download logs: ${error.message}`;
+            }
+
+            return {
+              workflow_name: workflow_run.name,
+              workflow_id: workflow_run.id,
+              workflow_url: workflow_run.html_url,
+              branch: workflow_run.head_branch,
+              commit_sha: workflow_run.head_sha,
+              failed_jobs_count: failedJobs.length,
+              error_logs: errorLogs,
+              log_content: logContent,
+              run_number: workflow_run.run_number
+            };
+
+      - name: Create issue for workflow failure
+        id: create-issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failureInfo = ${{ steps.failure-info.outputs.result }};
+            
+            const issueTitle = '[Auto-Heal] Workflow Failed: ' + failureInfo.workflow_name + ' (Run #' + failureInfo.run_number + ')';
+            const issueBody = '# Workflow Failure Detected\n\n' +
+              'This workflow has failed and needs to be fixed.\n\n' +
+              '## Failure Details\n\n' +
+              '- **Workflow:** ' + failureInfo.workflow_name + '\n' +
+              '- **Run ID:** ' + failureInfo.workflow_id + '\n' +
+              '- **Run URL:** ' + failureInfo.workflow_url + '\n' +
+              '- **Branch:** ' + failureInfo.branch + '\n' +
+              '- **Commit:** ' + failureInfo.commit_sha + '\n' +
+              '- **Failed Jobs:** ' + failureInfo.failed_jobs_count + '\n\n' +
+              '## Error Logs\n\n' +
+              failureInfo.error_logs + '\n\n' +
+              '## Log Details\n\n' +
+              failureInfo.log_content + '\n\n' +
+              '## Next Steps\n\n' +
+              'A draft pull request will be automatically created for this failure.\n' +
+              'GitHub Copilot will be @mentioned in the PR to analyze and fix the issue.\n\n' +
+              '---\n' +
+              '*This issue was automatically created by the Simple Auto-Heal workflow*';
+
+            // Check if a similar issue already exists (within last 24 hours)
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'auto-heal,workflow-failure',
+              per_page: 100
+            });
+
+            const recentIssue = issues.data.find(issue => 
+              issue.title.includes(failureInfo.workflow_name) &&
+              new Date(issue.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+            );
+
+            if (recentIssue) {
+              console.log('Issue already exists: #' + recentIssue.number);
+              
+              // Add a comment with new failure
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: recentIssue.number,
+                body: '### Additional Failure Detected\n\n**Run ID:** ' + failureInfo.workflow_id + '\n**Run URL:** ' + failureInfo.workflow_url + '\n**Time:** ' + new Date().toISOString() + '\n\n' + failureInfo.error_logs
+              });
+              
+              return { issue_number: recentIssue.number, created: false };
+            }
+
+            // Create new issue
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['auto-heal', 'workflow-failure', 'needs-fix']
+            });
+
+            console.log('Created issue #' + issue.number);
+            return { issue_number: issue.number, created: true };
+
+      - name: Create auto-heal branch and commit context
+        id: create-branch
+        env:
+          WORKFLOW_NAME: ${{ fromJSON(steps.failure-info.outputs.result).workflow_name }}
+          WORKFLOW_ID: ${{ fromJSON(steps.failure-info.outputs.result).workflow_id }}
+          ISSUE_NUMBER: ${{ fromJSON(steps.create-issue.outputs.result).issue_number }}
+        run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create branch name (sanitize workflow name)
+          BRANCH_NAME="auto-heal/$(echo "$WORKFLOW_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')-${WORKFLOW_ID}"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+          # Create new branch from the failed commit or main
+          FAILED_BRANCH="${{ fromJSON(steps.failure-info.outputs.result).branch }}"
+          if git show-ref --verify --quiet "refs/remotes/origin/$FAILED_BRANCH"; then
+            git checkout -b "$BRANCH_NAME" "origin/$FAILED_BRANCH"
+          else
+            git checkout -b "$BRANCH_NAME"
+          fi
+
+          # Create context file for Copilot
+          mkdir -p .github/auto-heal-context
+          cat > ".github/auto-heal-context/issue-${ISSUE_NUMBER}.md" << 'EOF'
+          # Auto-Heal Context for Issue #${{ fromJSON(steps.create-issue.outputs.result).issue_number }}
+
+          ## Workflow Failure Information
+
+          - **Workflow:** ${{ fromJSON(steps.failure-info.outputs.result).workflow_name }}
+          - **Run ID:** ${{ fromJSON(steps.failure-info.outputs.result).workflow_id }}
+          - **Run URL:** ${{ fromJSON(steps.failure-info.outputs.result).workflow_url }}
+          - **Branch:** ${{ fromJSON(steps.failure-info.outputs.result).branch }}
+          - **Commit:** ${{ fromJSON(steps.failure-info.outputs.result).commit_sha }}
+
+          ## Failed Jobs
+
+          ${{ fromJSON(steps.failure-info.outputs.result).error_logs }}
+
+          ## Task
+
+          Please fix the workflow failure by:
+          1. Analyzing the error logs above
+          2. Identifying the root cause
+          3. Making minimal, targeted changes to fix the issue
+          4. Ensuring the fix doesn't break existing functionality
+
+          ## Files to Review
+
+          - `.github/workflows/` directory for workflow YAML files
+          - Related source code if the failure is in application tests
+          - Dependencies and configuration files
+
+          Follow the guidelines in `.github/copilot-instructions.md`
+          EOF
+
+          # Commit the context file
+          git add .github/auto-heal-context/
+          git commit -m "Add auto-heal context for issue #${ISSUE_NUMBER}"
+          git push origin "$BRANCH_NAME"
+
+          echo "✅ Branch created: $BRANCH_NAME"
+
+      - name: Create draft PR with Copilot mention
+        id: create-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failureInfo = ${{ steps.failure-info.outputs.result }};
+            const issueInfo = ${{ steps.create-issue.outputs.result }};
+            const branchName = '${{ steps.create-branch.outputs.branch_name }}';
+
+            const prTitle = '[Auto-Heal] Fix ' + failureInfo.workflow_name + ' workflow failure';
+            const prBody = '# Auto-Heal: Fix Workflow Failure\n\n' +
+              'This draft PR was automatically created to fix a workflow failure.\n\n' +
+              '## Related Issue\n\n' +
+              'Fixes #' + issueInfo.issue_number + '\n\n' +
+              '## Workflow Failure Details\n\n' +
+              '- **Workflow:** ' + failureInfo.workflow_name + '\n' +
+              '- **Run ID:** ' + failureInfo.workflow_id + '\n' +
+              '- **Run URL:** ' + failureInfo.workflow_url + '\n' +
+              '- **Branch:** ' + failureInfo.branch + '\n' +
+              '- **Commit:** ' + failureInfo.commit_sha + '\n' +
+              '- **Failed Jobs:** ' + failureInfo.failed_jobs_count + '\n\n' +
+              '## Error Summary\n\n' +
+              failureInfo.error_logs + '\n\n' +
+              '## Auto-Heal Context\n\n' +
+              'Review the context file at `.github/auto-heal-context/issue-' + issueInfo.issue_number + '.md` for full details.\n\n' +
+              '## GitHub Copilot - Please Help!\n\n' +
+              '@copilot Please analyze this workflow failure and implement a fix:\n\n' +
+              '1. Review the error logs and failure details above\n' +
+              '2. Check the context file in `.github/auto-heal-context/issue-' + issueInfo.issue_number + '.md`\n' +
+              '3. Identify the root cause of the failure\n' +
+              '4. Implement a minimal, targeted fix\n' +
+              '5. Ensure the fix doesn\'t break existing functionality\n' +
+              '6. Follow the guidelines in `.github/copilot-instructions.md`\n\n' +
+              '**Specific Instructions:**\n' +
+              '- Focus on the workflow file in `.github/workflows/` directory\n' +
+              '- Make minimal changes to fix the specific failure\n' +
+              '- Add comments explaining any non-obvious changes\n' +
+              '- Test your fix mentally against edge cases\n\n' +
+              'Please implement the fix and update this PR. Thank you! 🤖\n\n' +
+              '---\n' +
+              '*This PR was automatically created by the Simple Auto-Heal workflow*';
+
+            // Create the pull request as a draft
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: prTitle,
+              body: prBody,
+              head: branchName,
+              base: failureInfo.branch || 'main',
+              draft: true
+            });
+
+            console.log('✅ Created draft PR #' + pr.number);
+
+            // Add labels to the PR
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: ['auto-heal', 'workflow-fix', 'copilot-agent']
+            });
+
+            return { pr_number: pr.number, pr_url: pr.html_url };
+
+      - name: Comment on issue with PR link
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueInfo = ${{ steps.create-issue.outputs.result }};
+            const prInfo = ${{ steps.create-pr.outputs.result }};
+
+            if (issueInfo.created) {
+              const comment = '## 🤖 Auto-Heal PR Created\n\n' +
+                'A draft pull request has been automatically created: #' + prInfo.pr_number + '\n\n' +
+                '**What happens next:**\n\n' +
+                '1. GitHub Copilot has been @mentioned in the PR\n' +
+                '2. Copilot will analyze the workflow failure\n' +
+                '3. Copilot will implement a fix based on the error logs\n' +
+                '4. Review the fix and mark the PR as ready for review\n' +
+                '5. Merge the PR to fix the workflow\n\n' +
+                '**Manual intervention:**\n' +
+                'If Copilot doesn\'t provide a fix, you can:\n' +
+                '- Review the PR and implement fixes manually\n' +
+                '- Use GitHub Copilot in your IDE for assistance\n' +
+                '- Open the PR in GitHub Copilot Workspace\n\n' +
+                '---\n' +
+                '**PR:** ' + prInfo.pr_url;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueInfo.issue_number,
+                body: comment
+              });
+            }
+
+      - name: Summary
+        run: |
+          echo "## Simple Auto-Heal Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Auto-heal process completed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow:** ${{ fromJSON(steps.failure-info.outputs.result).workflow_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Issue:** #${{ fromJSON(steps.create-issue.outputs.result).issue_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ fromJSON(steps.create-pr.outputs.result).pr_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### What was done:" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Created issue with workflow failure details" >> $GITHUB_STEP_SUMMARY
+          echo "2. ✅ Created branch with auto-heal context" >> $GITHUB_STEP_SUMMARY
+          echo "3. ✅ Created draft PR" >> $GITHUB_STEP_SUMMARY
+          echo "4. ✅ @mentioned GitHub Copilot in the PR" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next steps:" >> $GITHUB_STEP_SUMMARY
+          echo "- Wait for Copilot to analyze and provide a fix" >> $GITHUB_STEP_SUMMARY
+          echo "- Review the PR when ready" >> $GITHUB_STEP_SUMMARY
+          echo "- Merge to apply the fix" >> $GITHUB_STEP_SUMMARY
