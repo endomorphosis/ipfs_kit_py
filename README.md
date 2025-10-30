@@ -287,7 +287,16 @@ Notes:
 - **3-Node Cluster**: Local testing and production-ready cluster configurations
 - **Auto-Scaling**: Horizontal pod autoscaling support for worker nodes
 
-### � **MCP Server Integration**
+### 🔄 **Auto-Healing Workflows** ⭐ NEW
+- **Automatic Failure Detection**: Monitors all GitHub Actions workflows for failures
+- **Intelligent Analysis**: Analyzes logs to identify root causes and error patterns
+- **Automated Fix Generation**: Creates pull requests with fixes for common issues
+- **GitHub Copilot Integration**: PRs automatically trigger Copilot review and enhancement
+- **Self-Improving**: Learns from patterns and feedback over time
+- **Zero Configuration**: Works out of the box after one-time repository setup
+- **📚 [Auto-Healing Quick Start](./AUTO_HEALING_QUICK_START.md)** | **[Full Documentation](./AUTO_HEALING_WORKFLOWS.md)**
+
+### 🎛️ **MCP Server Integration**
 - **Production Ready**: Advanced cluster-ready MCP server with multi-backend support
 - **Real-time Communication**: WebSocket and WebRTC for streaming operations
 - **Multi-Backend Storage**: IPFS, Filecoin, S3, Storacha, HuggingFace, Lassie integration
@@ -768,6 +777,8 @@ ipfs_kit_py/
 - **[Test Results](./CLUSTER_TEST_RESULTS.md)**: Comprehensive validation results
 - **[API Reference](./docs/API_REFERENCE.md)**: Complete API documentation
 - **[Architecture Guide](./docs/ARCHITECTURE.md)**: System design and components
+- **[Auto-Healing Workflows](./AUTO_HEALING_WORKFLOWS.md)**: ⭐ NEW - Automated workflow repair system
+- **[Auto-Healing Quick Start](./AUTO_HEALING_QUICK_START.md)**: ⭐ NEW - 5-minute setup guide
 
 ### Tutorials & Examples
 - **[Getting Started](./docs/GETTING_STARTED.md)**: Step-by-step setup guide
