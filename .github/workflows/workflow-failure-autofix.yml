@@ -1,0 +1,354 @@
+name: Workflow Failure Auto-Fix
+
+# This workflow monitors workflows and creates PRs to fix failures
+# It triggers when any monitored workflow completes with a failure status
+on:
+  workflow_run:
+    workflows:
+      - "Python package"
+      - "Python Package"
+      - "Docker CI/CD"
+      - "Build and Publish Docker Image"
+      - "Enhanced Docker Build and Test"
+      - "Test Coverage"
+      - "Security Scanning"
+      - "Lint and Type Check"
+      - "Multi-Architecture CI"
+      - "ARM64 CI/CD Pipeline"
+      - "Documentation"
+      - "Deploy"
+      - "Release Management"
+      - "Dependency Management"
+      - "WebRTC Performance Benchmarking"
+    types:
+      - completed
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  handle-workflow-failure:
+    name: Handle Workflow Failure
+    # Only run if the workflow failed
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get workflow run details
+        id: workflow-details
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflow_run = context.payload.workflow_run;
+
+            // Get the jobs for this workflow run
+            const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: workflow_run.id,
+            });
+
+            // Find failed jobs
+            const failedJobs = jobs.jobs.filter(job => job.conclusion === 'failure');
+
+            // Get logs for failed jobs
+            let failureDetails = '';
+            for (const job of failedJobs) {
+              failureDetails += '### Job: ' + job.name + '\n';
+              failureDetails += 'Status: ' + job.conclusion + '\n';
+              failureDetails += 'URL: ' + job.html_url + '\n\n';
+
+              // Get failed steps
+              const failedSteps = job.steps.filter(step => step.conclusion === 'failure');
+              for (const step of failedSteps) {
+                failureDetails += '#### Failed Step: ' + step.name + '\n';
+                failureDetails += 'Duration: ' + (step.completed_at - step.started_at) + 's\n\n';
+              }
+            }
+
+            // Store the details
+            core.setOutput('workflow_name', workflow_run.name);
+            core.setOutput('workflow_id', workflow_run.id);
+            core.setOutput('workflow_url', workflow_run.html_url);
+            core.setOutput('failure_details', failureDetails);
+            core.setOutput('failed_jobs_count', failedJobs.length);
+            core.setOutput('branch', workflow_run.head_branch);
+            core.setOutput('commit_sha', workflow_run.head_sha);
+
+            return {
+              workflow_name: workflow_run.name,
+              failed_jobs_count: failedJobs.length
+            };
+
+      - name: Download workflow logs
+        id: download-logs
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const workflow_run = context.payload.workflow_run;
+
+            try {
+              // Get logs as zip
+              const logs = await github.rest.actions.downloadWorkflowRunLogs({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: workflow_run.id,
+              });
+
+              // Save to file
+              fs.writeFileSync('workflow-logs.zip', Buffer.from(logs.data));
+              core.setOutput('logs_available', 'true');
+            } catch (error) {
+              console.log('Could not download logs:', error.message);
+              core.setOutput('logs_available', 'false');
+            }
+
+      - name: Create issue for workflow failure
+        id: create-issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflow_run = context.payload.workflow_run;
+            const workflow_name = '${{ steps.workflow-details.outputs.workflow_name }}';
+            const workflow_url = '${{ steps.workflow-details.outputs.workflow_url }}';
+            const failure_details = '${{ steps.workflow-details.outputs.failure_details }}';
+            const branch = '${{ steps.workflow-details.outputs.branch }}';
+            const commit_sha = '${{ steps.workflow-details.outputs.commit_sha }}';
+
+            // Create issue body - using string concatenation to avoid template literal issues
+            const issueBody = '# Workflow Failure: ' + workflow_name + '\n\n' +
+              'A workflow has failed and requires attention.\n\n' +
+              '## Failure Details\n\n' +
+              '- **Workflow**: ' + workflow_name + '\n' +
+              '- **Run ID**: ' + workflow_run.id + '\n' +
+              '- **Branch**: ' + branch + '\n' +
+              '- **Commit**: ' + commit_sha + '\n' +
+              '- **Run URL**: ' + workflow_url + '\n\n' +
+              '## Failed Jobs\n\n' +
+              failure_details + '\n\n' +
+              '## Next Steps\n\n' +
+              'This issue has been automatically created to track the workflow failure.\n\n' +
+              '### Option 1: Manual Fix\n' +
+              '1. Review the workflow logs at the URL above\n' +
+              '2. Identify the root cause\n' +
+              '3. Create a PR to fix the issue\n\n' +
+              '### Option 2: GitHub Copilot Auto-Fix\n' +
+              'To have GitHub Copilot automatically attempt to fix this workflow:\n' +
+              '1. Comment on this issue with: `@copilot /fix-workflow`\n' +
+              '2. Copilot will analyze the failure and create a PR with a proposed fix\n\n' +
+              '## Auto-Fix Eligibility\n\n' +
+              'This workflow failure is eligible for automatic fix attempts by GitHub Copilot Workspace.\n\n' +
+              '---\n\n' +
+              '*This issue was automatically created by the Workflow Failure Auto-Fix system.*';
+
+            // Create the issue
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '[Auto-Fix] Workflow Failed: ' + workflow_name + ' (Run #' + workflow_run.run_number + ')',
+              body: issueBody,
+              labels: ['workflow-failure', 'auto-fix-eligible', 'ci/cd']
+            });
+
+            console.log('Created issue #' + issue.number);
+            core.setOutput('issue_number', issue.number);
+            core.setOutput('issue_url', issue.html_url);
+
+            return issue;
+
+      - name: Add workflow failure context file
+        run: |
+          # Create a context file that Copilot can use
+          mkdir -p .github/workflow-failures
+
+          cat > .github/workflow-failures/failure-${{ steps.workflow-details.outputs.workflow_id }}.md << 'EOF'
+          # Workflow Failure Context
+
+          ## Workflow Information
+          - Name: ${{ steps.workflow-details.outputs.workflow_name }}
+          - Run ID: ${{ steps.workflow-details.outputs.workflow_id }}
+          - Branch: ${{ steps.workflow-details.outputs.branch }}
+          - Commit: ${{ steps.workflow-details.outputs.commit_sha }}
+
+          ## Failure Details
+
+          ${{ steps.workflow-details.outputs.failure_details }}
+
+          ## Instructions for Fix
+
+          This workflow failed and needs to be fixed. Please:
+          1. Review the workflow file
+          2. Identify the root cause based on the failure details above
+          3. Implement a fix that addresses the specific failure
+          4. Ensure the fix is minimal and targeted
+          5. Test that the fix resolves the issue
+
+          ## Common Failure Patterns
+
+          - **Dependency issues**: Update package versions
+          - **Syntax errors**: Check YAML syntax in workflow files
+          - **Permission issues**: Verify workflow permissions
+          - **Resource issues**: Check if runners have sufficient resources
+          - **Test failures**: Review test logs and fix failing tests
+
+          EOF
+
+      - name: Create Copilot instructions for this failure
+        run: |
+          # Create or update Copilot instructions for workflow fixes
+          cat > .github/copilot-fix-instructions.md << 'EOF'
+          # GitHub Copilot Workflow Fix Instructions
+
+          You are tasked with fixing a failed GitHub Actions workflow.
+
+          1. **Analyze the failure**: Review the failure context
+          2. **Identify root cause**: Determine what caused the failure
+          3. **Implement minimal fix**: Make the smallest change to fix it
+          4. **Verify the fix**: Ensure changes address the failure
+          5. **Document changes**: Update this file with what you fixed
+
+          ## Workflow Failure Being Fixed
+
+          - Workflow: ${{ steps.workflow-details.outputs.workflow_name }}
+          - Issue: #${{ steps.create-issue.outputs.issue_number }}
+          - Details: See .github/workflow-failures/
+
+          ## Fix Strategy
+
+          [Copilot should fill this in after analyzing the failure]
+
+          ## Changes Made
+
+          [Copilot should document changes here]
+
+          EOF
+
+      - name: Create Pull Request for auto-fix
+        id: create-pr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: auto-fix/workflow-${{ steps.workflow-details.outputs.workflow_id }}
+          base: ${{ steps.workflow-details.outputs.branch }}
+          commit-message: |
+            Add workflow failure context for auto-fix
+
+            Workflow: ${{ steps.workflow-details.outputs.workflow_name }}
+            Run ID: ${{ steps.workflow-details.outputs.workflow_id }}
+            Issue: #${{ steps.create-issue.outputs.issue_number }}
+          title: |
+            [Auto-Fix] Fix workflow failure: ${{
+              steps.workflow-details.outputs.workflow_name
+            }}
+          body: |
+            # Auto-Fix for Workflow Failure
+
+            This PR was automatically created to fix a workflow failure.
+
+            ## Workflow Failure Details
+
+            - **Workflow**: ${{ steps.workflow-details.outputs.workflow_name }}
+            - **Run ID**: ${{ steps.workflow-details.outputs.workflow_id }}
+            - **Failed Jobs**: ${{
+                steps.workflow-details.outputs.failed_jobs_count
+              }}
+            - **Original Run**: ${{
+                steps.workflow-details.outputs.workflow_url
+              }}
+
+            ## Failure Information
+
+            ${{ steps.workflow-details.outputs.failure_details }}
+
+            ## GitHub Copilot Auto-Fix
+
+            This PR includes context files that GitHub Copilot can use.
+
+            ### To have Copilot implement the fix:
+
+            1. Open this PR in GitHub Copilot Workspace
+            2. Review context in `.github/workflow-failures/`
+            3. Ask: "Please analyze the workflow failure and implement a fix"
+            4. Review and approve the changes Copilot suggests
+
+            ### Manual Fix
+
+            Alternatively, you can manually implement a fix by:
+            1. Reviewing the workflow logs linked above
+            2. Making the necessary changes to fix the issue
+            3. Committing to this branch
+
+            ## Related Issue
+
+            Closes #${{ steps.create-issue.outputs.issue_number }}
+
+            ---
+
+            *This PR was automatically created by the Workflow Failure
+            Auto-Fix system.*
+          labels: |
+            auto-fix
+            workflow-failure
+            ci/cd
+          draft: true
+
+      - name: Comment on issue with PR link
+        if: steps.create-pr.outputs.pull-request-number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prUrl = '${{ steps.create-pr.outputs.pull-request-url }}';
+            const prNumber = '${{ steps.create-pr.outputs.pull-request-number }}';
+
+            if (!prUrl || prUrl === '') {
+              console.log('No PR created, skipping comment');
+              return;
+            }
+
+            const commentBody = 'A draft PR has been created to fix this workflow failure:\n' +
+              prUrl + '\n\n' +
+              '### Next Steps:\n\n' +
+              '1. **Automated Fix**: Open the PR in GitHub Copilot Workspace\n' +
+              '   and ask Copilot to analyze and fix the failure\n' +
+              '2. **Manual Fix**: Review the PR and implement fixes manually\n' +
+              '3. **Review**: Once fixes are implemented, review and merge\n\n' +
+              'The PR is currently in draft mode. Remove draft status once\n' +
+              'the fix is implemented and ready for review.';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.create-issue.outputs.issue_number }},
+              body: commentBody
+            });
+
+      - name: Summary
+        run: |
+          echo "## Workflow Failure Auto-Fix Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow**: ${{
+            steps.workflow-details.outputs.workflow_name
+          }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Issue Created**: #${{
+            steps.create-issue.outputs.issue_number
+          }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR Created**: ${{
+            steps.create-pr.outputs.pull-request-url
+          }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### GitHub Copilot Integration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To have GitHub Copilot automatically fix:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Open PR in GitHub Copilot Workspace" >> $GITHUB_STEP_SUMMARY
+          echo "2. Ask: 'Please analyze and implement a fix'" >> $GITHUB_STEP_SUMMARY
+          echo "3. Review and approve the suggested changes" >> $GITHUB_STEP_SUMMARY
