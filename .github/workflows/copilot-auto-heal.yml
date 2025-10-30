@@ -1,0 +1,271 @@
+name: Copilot Auto-Heal
+
+# This workflow uses GitHub Copilot agents to automatically fix failed workflows
+on:
+  issues:
+    types: [labeled, opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  invoke-copilot-agent:
+    name: Invoke GitHub Copilot Agent for Auto-Healing
+    runs-on: ubuntu-latest
+    # Only run if the issue has the auto-heal label and copilot-fix label
+    if: |
+      contains(github.event.issue.labels.*.name, 'auto-heal') &&
+      contains(github.event.issue.labels.*.name, 'workflow-failure') &&
+      !contains(github.event.issue.labels.*.name, 'copilot-invoked')
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up GitHub CLI
+      run: |
+        type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+        sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+        sudo apt update
+        sudo apt install gh -y
+        gh --version
+    
+    - name: Parse issue details
+      id: parse
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const issueBody = context.payload.issue.body;
+          const runIdMatch = issueBody.match(/\*\*Run ID:\*\* (\d+)/);
+          const workflowMatch = issueBody.match(/\*\*Workflow:\*\* (.+)/);
+          const branchMatch = issueBody.match(/\*\*Branch:\*\* (.+)/);
+          const commitMatch = issueBody.match(/\*\*Commit:\*\* (.+)/);
+          const runUrlMatch = issueBody.match(/\*\*Run URL:\*\* (.+)/);
+          
+          if (runIdMatch) {
+            core.setOutput('run_id', runIdMatch[1]);
+          }
+          if (workflowMatch) {
+            core.setOutput('workflow_name', workflowMatch[1].trim());
+          }
+          if (branchMatch) {
+            core.setOutput('branch', branchMatch[1].trim());
+          }
+          if (commitMatch) {
+            core.setOutput('commit', commitMatch[1].trim());
+          }
+          if (runUrlMatch) {
+            core.setOutput('run_url', runUrlMatch[1].trim());
+          }
+          
+          core.setOutput('issue_number', context.payload.issue.number);
+          core.setOutput('issue_title', context.payload.issue.title);
+          core.setOutput('issue_url', context.payload.issue.html_url);
+    
+    - name: Mark issue as copilot-invoked
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          await github.rest.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.issue.number,
+            labels: ['copilot-invoked']
+          });
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.issue.number,
+            body: '🤖 **GitHub Copilot Agent Invoked**\n\nCopilot is now analyzing the workflow failure and will create a PR with intelligent fixes.\n\n*Status: In Progress...*'
+          });
+    
+    - name: Create Copilot task specification
+      run: |
+        cat > /tmp/copilot-task.md << 'TASK_EOF'
+        # Auto-Heal Workflow Failure
+        
+        ## Task
+        Fix the failed GitHub Actions workflow by analyzing the failure and creating appropriate fixes.
+        
+        ## Issue Details
+        - **Issue**: ${{ steps.parse.outputs.issue_title }}
+        - **Issue URL**: ${{ steps.parse.outputs.issue_url }}
+        - **Workflow**: ${{ steps.parse.outputs.workflow_name }}
+        - **Run ID**: ${{ steps.parse.outputs.run_id }}
+        - **Run URL**: ${{ steps.parse.outputs.run_url }}
+        - **Branch**: ${{ steps.parse.outputs.branch }}
+        - **Commit**: ${{ steps.parse.outputs.commit }}
+        
+        ## Instructions
+        1. Review the workflow failure logs from the issue
+        2. Identify the root cause of the failure
+        3. Create a minimal fix that addresses the root cause
+        4. Test your fix mentally against edge cases
+        5. Create a pull request with your changes
+        
+        ## Context
+        Review the following:
+        - The failed workflow file in `.github/workflows/`
+        - The error messages in the issue
+        - Related code files if the failure is in application code
+        - Dependencies and requirements files
+        
+        ## Constraints
+        - Make minimal changes
+        - Don't modify working code unnecessarily
+        - Follow repository coding standards
+        - Add comments explaining non-obvious changes
+        
+        ## Success Criteria
+        - The workflow should pass after applying your fix
+        - No existing functionality is broken
+        - Changes are well-documented
+        
+        Please create a pull request with your fix and link it to issue #${{ steps.parse.outputs.issue_number }}
+        TASK_EOF
+        
+        cat /tmp/copilot-task.md
+    
+    - name: Invoke GitHub Copilot via API
+      id: copilot_invoke
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ISSUE_NUMBER: ${{ steps.parse.outputs.issue_number }}
+        WORKFLOW_NAME: ${{ steps.parse.outputs.workflow_name }}
+      run: |
+        # Create a comment that will trigger Copilot
+        gh issue comment $ISSUE_NUMBER --body "@copilot Please analyze this workflow failure and create a pull request with fixes. 
+
+        **Task**: Fix the workflow '$WORKFLOW_NAME' based on the failure analysis above.
+        
+        **Instructions**:
+        1. Review the error logs and identify root cause
+        2. Create minimal targeted fixes
+        3. Ensure the fix doesn't break existing functionality
+        4. Create a PR with clear explanation of changes
+        
+        Please follow the guidelines in .github/copilot-instructions.md"
+        
+        echo "copilot_comment_created=true" >> $GITHUB_OUTPUT
+    
+    - name: Alternative - Create PR branch for Copilot workspace
+      id: create_branch
+      if: steps.copilot_invoke.outputs.copilot_comment_created == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Create a branch that can be used in Copilot workspace
+        BRANCH_NAME="copilot/auto-heal-$(echo '${{ steps.parse.outputs.workflow_name }}' | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')-$(date +%s)"
+        
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        git checkout -b "$BRANCH_NAME"
+        
+        # Create a marker file for Copilot
+        mkdir -p .github/copilot-tasks
+        cat > ".github/copilot-tasks/fix-${{ steps.parse.outputs.issue_number }}.md" << 'EOF'
+        # Auto-Heal Task for Issue #${{ steps.parse.outputs.issue_number }}
+        
+        ## Workflow Failure
+        - Workflow: ${{ steps.parse.outputs.workflow_name }}
+        - Run ID: ${{ steps.parse.outputs.run_id }}
+        - Issue: #${{ steps.parse.outputs.issue_number }}
+        
+        ## Task
+        Fix the workflow failure by:
+        1. Analyzing the error logs
+        2. Creating minimal targeted fixes
+        3. Testing the changes
+        
+        ## Files to Review
+        - `.github/workflows/${{ steps.parse.outputs.workflow_name }}.yml` (or similar)
+        - Related code files if application error
+        - Dependencies and configuration
+        
+        ## Instructions
+        Follow .github/copilot-instructions.md for guidance
+        EOF
+        
+        git add .github/copilot-tasks/
+        git commit -m "Add Copilot auto-heal task for issue #${{ steps.parse.outputs.issue_number }}"
+        git push origin "$BRANCH_NAME"
+        
+        echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+        echo "✅ Branch created: $BRANCH_NAME"
+    
+    - name: Create GitHub Copilot workspace link
+      if: steps.create_branch.outputs.branch_name
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const branchName = '${{ steps.create_branch.outputs.branch_name }}';
+          const issueNumber = '${{ steps.parse.outputs.issue_number }}';
+          const repoUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
+          const workspaceUrl = `https://github.com/github-copilot/workspace?repo=${context.repo.owner}/${context.repo.repo}&ref=${branchName}`;
+          
+          const comment = `## 🤖 GitHub Copilot Workspace Ready
+          
+          A dedicated branch has been created for Copilot to work on this fix:
+          
+          **Branch**: \`${branchName}\`
+          
+          ### Option 1: Use GitHub Copilot Workspace (Recommended)
+          
+          Click here to open in Copilot Workspace:
+          [🚀 Open in Copilot Workspace](${workspaceUrl})
+          
+          In the workspace:
+          1. Review the task in \`.github/copilot-tasks/fix-${issueNumber}.md\`
+          2. Ask Copilot to analyze and fix the workflow failure
+          3. Review and apply Copilot's suggestions
+          4. Create a PR from the workspace
+          
+          ### Option 2: Manual Fix with Copilot Assist
+          
+          1. Checkout the branch: \`git checkout ${branchName}\`
+          2. Use GitHub Copilot in your IDE to help fix the issue
+          3. Push changes and create a PR
+          
+          ### Option 3: Wait for Copilot Agent (Beta)
+          
+          If Copilot agent integration is enabled in this repository, an automated PR may be created shortly.
+          
+          ---
+          
+          **Note**: The task specification has been created in \`.github/copilot-tasks/\` to guide the fix.
+          `;
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: issueNumber,
+            body: comment
+          });
+    
+    - name: Update issue with status
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const issueNumber = '${{ steps.parse.outputs.issue_number }}';
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: issueNumber,
+            body: '✅ **Auto-heal process initiated with GitHub Copilot**\n\nCheck above for workspace link and next steps.'
+          });
