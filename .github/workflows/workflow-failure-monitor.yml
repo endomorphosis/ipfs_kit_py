@@ -110,7 +110,7 @@ jobs:
               repo: context.repo.repo,
               title: title,
               body: body,
-              labels: ['auto-heal', 'workflow-failure', 'needs-fix']
+              labels: ['auto-heal', 'workflow-failure', 'needs-fix', 'copilot-agent']
             });
             
             console.log(`Created issue #${issue.data.number}`);

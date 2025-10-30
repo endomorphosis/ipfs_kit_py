@@ -287,14 +287,15 @@ Notes:
 - **3-Node Cluster**: Local testing and production-ready cluster configurations
 - **Auto-Scaling**: Horizontal pod autoscaling support for worker nodes
 
-### 🔄 **Auto-Healing Workflows** ⭐ NEW
-- **Automatic Failure Detection**: Monitors all GitHub Actions workflows for failures
-- **Intelligent Analysis**: Analyzes logs to identify root causes and error patterns
-- **Automated Fix Generation**: Creates pull requests with fixes for common issues
-- **GitHub Copilot Integration**: PRs automatically trigger Copilot review and enhancement
-- **Self-Improving**: Learns from patterns and feedback over time
+### 🔄 **Auto-Healing Workflows with GitHub Copilot** ⭐ NEW
+- **🤖 GitHub Copilot Agent Integration**: Uses AI to intelligently analyze and fix workflow failures
+- **Automatic Failure Detection**: Monitors all GitHub Actions workflows for failures in real-time
+- **AI-Powered Fix Generation**: Copilot agents create context-aware, intelligent fixes
+- **Multiple Integration Methods**: Auto-fix, Copilot Workspace, and manual invocation
+- **Smart Pattern Recognition**: Learns from the entire GitHub ecosystem, not just patterns
+- **Automated PR Creation**: Creates detailed PRs with explanations and test recommendations
 - **Zero Configuration**: Works out of the box after one-time repository setup
-- **📚 [Auto-Healing Quick Start](./AUTO_HEALING_QUICK_START.md)** | **[Full Documentation](./AUTO_HEALING_WORKFLOWS.md)**
+- **📚 [Copilot Auto-Healing Guide](./COPILOT_AUTO_HEALING_GUIDE.md)** | **[Quick Reference](./COPILOT_AUTO_HEALING_QUICK_REF.md)** | **[Original Guide](./AUTO_HEALING_WORKFLOWS.md)**
 
 ### 🎛️ **MCP Server Integration**
 - **Production Ready**: Advanced cluster-ready MCP server with multi-backend support
