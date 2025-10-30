@@ -303,7 +303,7 @@ Notes:
 - **AI/ML Features**: Model registry, dataset management, and distributed training support
 - **📚 [Full MCP Development Status & Roadmap](./MCP_DEVELOPMENT_STATUS.md)**
 
-### �🔧 **Virtual File System (VFS)**
+### 🔧 **Virtual File System (VFS)**
 - **IPFS Integration**: Seamless VFS operations through ipfs_fsspec interface
 - **Mount Management**: Dynamic mounting and unmounting of IPFS paths
 - **File Operations**: Read, write, delete operations on distributed storage
