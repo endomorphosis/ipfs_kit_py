@@ -157,6 +157,8 @@ pip install ipfs_kit_py[full] prometheus-fastapi-instrumentator
 
 The modular dependency system allows you to use the core functionality without installing all dependencies. When you try to use a feature that requires a missing optional dependency, you'll receive a helpful error message suggesting how to install the required dependencies.
 
+**Note**: For known installation issues and limitations, see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
 #### Automatic Binary Download
 
 IPFS Kit automatically downloads the appropriate platform-specific IPFS binaries (Kubo, IPFS Cluster, etc.) when the package is first imported. This ensures you have the correct binaries for your operating system (Windows, macOS, Linux) and architecture (x86_64, ARM64, etc.) without manual setup.
@@ -1174,6 +1176,8 @@ Recent accomplishments:
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+For known issues and limitations, see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 To contribute to the project:
 1.  Fork the repository
