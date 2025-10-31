@@ -4,6 +4,12 @@ This document lists known issues, limitations, and important considerations when
 
 ## Installation and Dependencies
 
+### Python Version Requirement
+- **Issue**: The package requires Python 3.12 or higher.
+- **Impact**: Will not install on older Python versions.
+- **Workaround**: Upgrade to Python 3.12+ or use an older version of ipfs_kit_py if available.
+- **Status**: By design - uses Python 3.12+ features
+
 ### Optional Dependencies
 - **Issue**: The package has many optional dependencies that are not installed by default.
 - **Impact**: Features may not work without the appropriate extras installed.
