@@ -4,7 +4,7 @@ This guide covers the installation of `ipfs-kit-py` and its dependencies, includ
 
 ## Prerequisites
 
-*   **Python**: Version 3.8 or higher.
+*   **Python**: Version 3.12 or higher.
 *   **pip**: Python package installer.
 *   **Optional (for full functionality)**:
     *   Build tools (gcc, make, etc.) if installing dependencies that require compilation.
