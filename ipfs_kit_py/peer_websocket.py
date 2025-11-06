@@ -43,6 +43,15 @@ try:
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
+    # Define placeholder types when FastAPI is not available
+    if TYPE_CHECKING:
+        from fastapi import WebSocket, WebSocketDisconnect, FastAPI
+        from starlette.websockets import WebSocketState
+    else:
+        FastAPI = Any
+        WebSocket = Any
+        WebSocketDisconnect = Exception
+        WebSocketState = Any
 
 # Configure logging
 logger = logging.getLogger(__name__)
