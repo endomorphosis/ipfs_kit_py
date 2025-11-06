@@ -11,6 +11,9 @@ from .error_reporter import get_error_reporter
 
 logger = logging.getLogger(__name__)
 
+# Severity levels for automatic reporting
+REPORTABLE_SEVERITY_LEVELS = ['error', 'critical']
+
 
 def report_mcp_error(
     error_code: str,
@@ -40,8 +43,8 @@ def report_mcp_error(
     if not reporter:
         return None
     
-    # Only report errors with severity "error" or "critical"
-    if error_severity not in ["error", "critical"]:
+    # Only report errors with reportable severity levels
+    if error_severity not in REPORTABLE_SEVERITY_LEVELS:
         logger.debug(f"Skipping error report for severity: {error_severity}")
         return None
     
@@ -167,7 +170,7 @@ def install_mcp_error_handler():
             original_init(self, *args, **kwargs)
             
             # Report error if severity is high enough
-            if hasattr(self, 'severity') and self.severity.value in ['error', 'critical']:
+            if hasattr(self, 'severity') and self.severity.value in REPORTABLE_SEVERITY_LEVELS:
                 try:
                     report_mcp_error(
                         error_code=getattr(self, 'error_code', 'UNKNOWN'),

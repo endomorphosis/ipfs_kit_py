@@ -11,8 +11,7 @@ import sys
 import json
 import logging
 import traceback
-from typing import Dict, Any, Optional, List
-from datetime import datetime
+from typing import Dict, Any, Optional, List, Tuple
 import hashlib
 import requests
 
@@ -239,7 +238,7 @@ class GitHubIssueReporter:
         self,
         error_info: Dict[str, Any],
         context: Optional[str] = None,
-    ) -> tuple[str, str]:
+    ) -> Tuple[str, str]:
         """
         Format an error report for GitHub issue creation.
         
