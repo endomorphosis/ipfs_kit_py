@@ -93,7 +93,7 @@ CMD ["pytest", "--verbose", "--cov=ipfs_kit_py", "--ignore=tests/test_mcp_restor
 # Production build stage
 FROM base AS builder
 
-# Install build dependencies
+# Install build dependencies as root (we're still root in base stage)
 RUN pip install --upgrade pip setuptools wheel build
 
 # Copy source files
@@ -107,21 +107,31 @@ RUN python -m build --wheel
 FROM base AS production
 ENV BUILD_TYPE=production
 
-# Copy wheel from builder
+# Copy wheel from builder and install as root before switching users
 COPY --from=builder /app/src/dist/*.whl /tmp/
 
 # Install package with API support for daemon functionality
-RUN pip install --upgrade pip && \
-    find /tmp -name "*.whl" -exec pip install "{}[api,full]" \; && \
-    rm -rf /tmp/*.whl
+# Install as root to ensure system-wide availability
+# Skip problematic binary dependencies that may fail on some architectures
+RUN pip install --upgrade pip setuptools wheel && \
+    WHEEL_FILE=$(find /tmp -name "*.whl" | head -1) && \
+    pip install "${WHEEL_FILE}[api]" || \
+    (echo "Full installation failed, trying minimal install..." && pip install "${WHEEL_FILE}") && \
+    rm -rf /tmp/*.whl && \
+    python -c "import ipfs_kit_py; print('IPFS Kit installed successfully')"
 
 # Create necessary directories
-RUN mkdir -p /app/data /app/logs /app/config && \
+RUN mkdir -p /app/data /app/logs /app/config /app/scripts && \
     chown -R appuser:appuser /app
 
 # Copy config files if they exist
 # Copy config files from build context (directory exists in repo)
 COPY --chown=appuser:appuser config/ /app/config/
+
+# Copy dependency checker and entrypoint scripts
+COPY --chown=appuser:appuser scripts/check_and_install_dependencies.py /app/scripts/
+COPY --chown=appuser:appuser scripts/docker_entrypoint.sh /app/scripts/
+RUN chmod +x /app/scripts/docker_entrypoint.sh
 
 USER appuser
 ENV HOME=/home/appuser
@@ -132,6 +142,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import ipfs_kit_py; print('OK')" || exit 1
 
 EXPOSE 8000
+
+# Use entrypoint script for proper initialization
+ENTRYPOINT ["/app/scripts/docker_entrypoint.sh"]
 CMD ["python", "-m", "ipfs_kit_py"]
 
 # Documentation stage

@@ -1,0 +1,48 @@
+{
+  "platform": {
+    "system": "Linux",
+    "machine": "aarch64",
+    "arch": "arm64",
+    "arch_alt": "aarch64",
+    "python_version": "3.12.11",
+    "platform": "linux-arm64",
+    "distro": "ubuntu"
+  },
+  "checks": {
+    "python_version": {
+      "version": "3.12.11",
+      "compatible": true,
+      "recommended": true
+    },
+    "system_packages": {
+      "build-essential": true,
+      "git": true,
+      "curl": true,
+      "wget": true,
+      "hwloc": false,
+      "libhwloc-dev": false,
+      "mesa-opencl-icd": false,
+      "ocl-icd-opencl-dev": false,
+      "golang-go": true
+    },
+    "python_packages": {
+      "requests": true,
+      "httpx": true,
+      "aiohttp": true,
+      "aiofiles": true,
+      "watchdog": true,
+      "psutil": true,
+      "pyyaml": false,
+      "base58": true,
+      "multiaddr": true,
+      "python-magic": false,
+      "anyio": true,
+      "cryptography": true
+    },
+    "docker": true,
+    "docker_version": "28.3.3",
+    "docker_functional": true
+  },
+  "installations": {},
+  "errors": []
+}
