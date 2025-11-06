@@ -35,7 +35,10 @@ RUN mkdir -p /app/logs /app/data/storage /app/data/stats
 ENV DEPLOYMENT_VARIANT=blue \
     ENVIRONMENT=production \
     CONFIG_PATH=/app/config/blue_green_config.json \
-    LOG_LEVEL=INFO
+    LOG_LEVEL=INFO \
+    ERROR_REPORTING_ENABLED=true \
+    GITHUB_REPO_OWNER=endomorphosis \
+    GITHUB_REPO_NAME=ipfs_kit_py
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD python -c "import requests; exit(0) if requests.get('http://localhost:8080/health').status_code == 200 else exit(1)"

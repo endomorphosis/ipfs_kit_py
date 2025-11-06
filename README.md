@@ -108,7 +108,7 @@ graph TD
 -   **Async Backend Flexibility**: Full support for multiple async backends (asyncio and trio) using AnyIO, enabling better compatibility with various Python async frameworks, improved error handling with structured cancellation, and more intuitive concurrency patterns. ([See Docs](docs/async_architecture.md))
 -   **Mutable File System (MFS)**: Complete implementation of IPFS MFS operations providing traditional file system operations (mkdir, ls, stat, read, write, rm) on top of immutable IPFS content. Enables familiar file management workflows while preserving content addressing underneath.
 -   **Storacha/S3 Integration**: Access content via Storacha (Web3.Storage) and S3-compatible storage as alternative backends. ([See Docs](docs/storage_backends.md))
--   **Comprehensive Error Handling**: Standardized error classes and detailed result dictionaries for robust application development.
+-   **Comprehensive Error Handling**: Standardized error classes and detailed result dictionaries for robust application development. Includes automatic error reporting system that creates GitHub issues for runtime errors from Python, MCP server, and JavaScript dashboard. ([See Docs](docs/error_reporting.md))
 -   **High Performance**: Optimized for speed with comprehensive profiling and optimization tools. Features include memory-mapped file access, result caching, adaptive replacement cache tuning, chunked uploads for large files, and low-latency Unix socket communication (2-3x faster than HTTP for local daemon). Performance tools in `examples/` provide benchmarking, optimization recommendations, and comparison metrics for measuring improvements.
 -   **Arrow-Based Cluster State**: Efficient, zero-copy cluster state sharing across processes using Apache Arrow, enabling interoperability with C++, Rust, etc. ([See Docs](docs/cluster_state_helpers.md))
 -   **Distributed Task Management**: Define, submit, and track computational tasks across a cluster of worker nodes.
@@ -822,6 +822,7 @@ Detailed documentation for advanced features can be found in the `docs/` directo
 -   [Credential Management API](docs/credential_management.md)
 -   [Extending IPFS Kit](docs/extensions.md)
 -   [Observability](docs/observability.md)
+-   [Error Reporting](docs/error_reporting.md)
 -   [API Reference](docs/api_reference.md)
 -   [CLI Reference](docs/cli_reference.md)
 -   [Installation Guide](docs/installation_guide.md)
