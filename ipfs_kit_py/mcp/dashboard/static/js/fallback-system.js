@@ -7,11 +7,6 @@
 
   const FALLBACK_CONFIG = {
     css: {
-      tailwind: {
-        cdn: 'https://cdn.tailwindcss.com',
-        local: '/static/css/tailwind.css',
-        fallback: 'inline' // Will use inline CSS if local fails
-      },
       fontawesome: {
         cdn: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
         local: '/static/css/fontawesome.css',
@@ -24,11 +19,6 @@
       }
     },
     js: {
-      tailwind: {
-        cdn: 'https://cdn.tailwindcss.com',
-        local: '/static/js/tailwind-fallback.js',
-        fallback: 'none'
-      },
       chartjs: {
         cdn: 'https://cdn.jsdelivr.net/npm/chart.js',
         local: '/static/js/chart.min.js',
@@ -97,29 +87,7 @@
     return new Promise((resolve) => {
       console.log(`Loading base CSS fallback for: ${name}`);
             
-      if (config.fallback === 'inline' && name === 'tailwind') {
-        // Add basic Tailwind-compatible CSS
-        const style = document.createElement('style');
-        style.textContent = `
-          /* Base Tailwind Fallback */
-          .flex { display: flex; }
-          .grid { display: grid; }
-          .hidden { display: none; }
-          .bg-white { background-color: #ffffff; }
-          .bg-blue-500 { background-color: #3b82f6; }
-          .bg-gray-100 { background-color: #f3f4f6; }
-          .text-white { color: #ffffff; }
-          .text-gray-800 { color: #1f2937; }
-          .p-4 { padding: 1rem; }
-          .m-4 { margin: 1rem; }
-          .rounded { border-radius: 0.25rem; }
-          .shadow { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); }
-          .cursor-pointer { cursor: pointer; }
-          .transition { transition: all 0.3s ease; }
-        `;
-        document.head.appendChild(style);
-        resolve('fallback-inline');
-      } else if (config.fallback === 'emoji' && name === 'fontawesome') {
+      if (config.fallback === 'emoji' && name === 'fontawesome') {
         // FontAwesome emoji fallbacks already included in main CSS
         resolve('fallback-emoji');
       } else if (config.fallback === 'system' && name === 'googlefonts') {
