@@ -129,7 +129,7 @@ class MonitoringDashboard:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}MCP Monitoring Dashboard{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
-    <script src="{{ url_for('static', path='/js/chart.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -2263,28 +2263,10 @@ footer {
 
         # Create empty JS file for dashboard custom code
         with open(os.path.join(js_dir, "dashboard.js"), "w") as f:
-            f.write("// Custom dashboard JavaScript")
+            f.write("// Custom dashboard JavaScript\nconsole.log('Dashboard loaded');")
 
-        # Download Chart.js for charting
-        try:
-            import requests
-            chart_js_url = "https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"
-            response = requests.get(chart_js_url)
-
-            if response.status_code == 200:
-                with open(os.path.join(js_dir, "chart.min.js"), "w") as f:
-                    f.write(response.text)
-                    logger.info("Downloaded Chart.js for dashboard")
-            else:
-                logger.warning(f"Failed to download Chart.js: HTTP {response.status_code}")
-                # Create empty file with a warning
-                with open(os.path.join(js_dir, "chart.min.js"), "w") as f:
-                    f.write("// Failed to download Chart.js\n// Please manually download from https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js")
-        except Exception as e:
-            logger.warning(f"Failed to download Chart.js: {e}")
-            # Create empty file with a warning
-            with open(os.path.join(js_dir, "chart.min.js"), "w") as f:
-                f.write("// Failed to download Chart.js\n// Please manually download from https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js")
+        # Note: Chart.js is loaded from CDN in the base template
+        # No need to download or create a local copy
 
         logger.info(f"Created default static files in {static_dir}")
 
@@ -2356,15 +2338,6 @@ footer {
                         "error": {"code": -32603, "message": "Internal error"},
                         "id": body.get("id") if "body" in locals() and isinstance(body, dict) else None
                     }, status_code=500)
-                            "version": service.version,
-                            "last_check": service.last_check,
-                            "error_message": service.error_message,
-                            "actions": service.actions,
-                            "config": service.config
-                        }
-                    })
-                else:
-                    return JSONResponse({"success": False, "error": f"Service {service_id} not found"}, status_code=404)
 
             @app.websocket(f"{self.path_prefix}/ws", name="dashboard_ws")
             async def dashboard_ws(websocket: WebSocket):
