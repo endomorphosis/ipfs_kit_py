@@ -438,6 +438,11 @@ __all__ = [
     "apply_protocol_extensions",
     "apply_protocol_extensions_to_instance",
     
+    # Peer manager (singleton pattern)
+    "get_peer_manager",
+    "start_peer_manager",
+    "Libp2pPeerManager",
+    
     # Lazy loading functions
     "get_enhanced_dht_discovery",
     "get_content_routing_manager",
@@ -473,6 +478,23 @@ except ImportError as e:
             raise ImportError("libp2p dependencies not available. Install with: pip install ipfs_kit_py[libp2p]")
     
     libp2p_peer = IPFSLibp2pPeer
+
+# Convenience imports for peer manager singleton
+try:
+    from .peer_manager import get_peer_manager, start_peer_manager, Libp2pPeerManager
+    logger.debug("Successfully imported peer manager singleton functions")
+except ImportError as e:
+    logger.warning(f"Could not import peer manager: {e}")
+    # Create placeholders
+    def get_peer_manager(*args, **kwargs):
+        raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]")
+    
+    def start_peer_manager(*args, **kwargs):
+        raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]")
+    
+    class Libp2pPeerManager:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]")
 
 # Patch stream read_until method if required
 def patch_stream_read_until():
