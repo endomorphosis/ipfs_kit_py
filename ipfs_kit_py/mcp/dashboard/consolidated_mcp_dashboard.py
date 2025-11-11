@@ -1059,7 +1059,9 @@ class ConsolidatedMCPDashboard:
             try:
                 # Try to find the static file in multiple locations with robust path resolution
                 base_dir = Path(__file__).parent  # ipfs_kit_py/mcp/dashboard
+                project_root = base_dir.parent.parent.parent  # Go up to /home/devel/ipfs_kit_py
                 static_locations = [
+                    project_root / "static" / file_path,  # Project root static dir (for built CSS)
                     base_dir / "static" / file_path,
                     base_dir / "mcp" / "dashboard" / "static" / file_path,
                     base_dir.parent / "static" / file_path,

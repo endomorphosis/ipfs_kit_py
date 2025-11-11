@@ -1204,7 +1204,13 @@ pip install -e .
 
 # Install with extras
 pip install -e .[ai_ml,webrtc,full]
+
+# Build Tailwind CSS for production (no CDN)
+npm install
+npm run build:css
 ```
+
+For detailed Tailwind CSS build instructions, see [TAILWIND_BUILD.md](./TAILWIND_BUILD.md).
 
 ## 🔌 Integration Examples
 

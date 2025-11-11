@@ -6,9 +6,15 @@
   "scripts": {
     "e2e": "node node_modules/@playwright/test/cli.js test --config=playwright.config.js",
     "e2e:headed": "node node_modules/@playwright/test/cli.js test --headed --config=playwright.config.js",
-    "e2e:report": "node node_modules/@playwright/test/cli.js show-report"
+    "e2e:report": "node node_modules/@playwright/test/cli.js show-report",
+    "build:css": "tailwindcss -i ./src/css/input.css -o ./static/css/tailwind.css --minify",
+    "build:css:dev": "tailwindcss -i ./src/css/input.css -o ./static/css/tailwind.css",
+    "watch:css": "tailwindcss -i ./src/css/input.css -o ./static/css/tailwind.css --watch"
   },
   "devDependencies": {
-    "@playwright/test": "^1.48.2"
+    "@playwright/test": "^1.48.2",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0"
   }
 }

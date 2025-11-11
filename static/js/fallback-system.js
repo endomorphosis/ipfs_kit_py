@@ -9,35 +9,69 @@
         css: {
             fontawesome: {
                 cdn: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-                local: '/static/css/fontawesome.css',
+                local: null, // No local file - use emoji fallback
                 fallback: 'emoji' // Will use emoji icons
             },
             googlefonts: {
                 cdn: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap',
-                local: '/static/fonts/inter.css',
+                local: null, // No local font file - use system fonts
                 fallback: 'system' // Will use system fonts
             }
         },
         js: {
+            // Tailwind CSS is now built and loaded as CSS only - no JS needed
             chartjs: {
                 cdn: 'https://cdn.jsdelivr.net/npm/chart.js',
-                local: '/static/js/chart.min.js',
+                local: null, // No local file - will use mock fallback
                 fallback: 'mock'
             }
         }
     };
 
-    // Load CSS with fallback system
+    // Load CSS with fallback system. Prefer local built assets in production (avoid loading external CDN).
     function loadCSS(name, config) {
         return new Promise((resolve, reject) => {
-            // Try CDN first
+            // If no local file and fallback is specified, use fallback directly
+            if (config && !config.local && config.fallback) {
+                loadFallbackCSS(name, config).then(resolve).catch(reject);
+                return;
+            }
+
+            // If a local asset is provided, try it first to avoid external network calls.
+            if (config && config.local) {
+                loadLocalCSS(name, config).then(resolve).catch(() => {
+                    // If local fails, fall back to CDN only if explicitly configured
+                    if (config.cdn) {
+                        tryLoadCdnCSS(name, config).then(resolve).catch(reject);
+                    } else {
+                        loadFallbackCSS(name, config).then(resolve).catch(reject);
+                    }
+                });
+                return;
+            }
+
+            // Otherwise, attempt CDN (legacy behavior)
+            if (config.cdn) {
+                tryLoadCdnCSS(name, config).then(resolve).catch(reject);
+            } else {
+                reject(new Error('No source available'));
+            }
+        });
+    }
+
+    function tryLoadCdnCSS(name, config) {
+        return new Promise((resolve, reject) => {
             const cdnLink = document.createElement('link');
             cdnLink.rel = 'stylesheet';
             cdnLink.href = config.cdn;
-            
+
             const timeout = setTimeout(() => {
                 console.warn(`CDN CSS timeout for ${name}, trying local fallback...`);
-                loadLocalCSS(name, config).then(resolve).catch(reject);
+                if (config && config.local) {
+                    loadLocalCSS(name, config).then(resolve).catch(reject);
+                } else {
+                    loadFallbackCSS(name, config).then(resolve).catch(reject);
+                }
             }, 3000);
 
             cdnLink.onload = () => {
@@ -49,7 +83,11 @@
             cdnLink.onerror = () => {
                 clearTimeout(timeout);
                 console.warn(`CDN CSS failed for ${name}, trying local fallback...`);
-                loadLocalCSS(name, config).then(resolve).catch(reject);
+                if (config && config.local) {
+                    loadLocalCSS(name, config).then(resolve).catch(reject);
+                } else {
+                    loadFallbackCSS(name, config).then(resolve).catch(reject);
+                }
             };
 
             document.head.appendChild(cdnLink);
@@ -106,16 +144,49 @@
         });
     }
 
-    // Load JavaScript with fallback system
+    // Load JavaScript with fallback system. Prefer local built assets to avoid CDN in production.
     function loadJS(name, config) {
         return new Promise((resolve, reject) => {
-            // Try CDN first
+            // If no local file and fallback is specified, use fallback directly
+            if (config && !config.local && config.fallback) {
+                loadFallbackJS(name, config).then(resolve).catch(reject);
+                return;
+            }
+
+            // If a local asset is provided, try it first
+            if (config && config.local) {
+                loadLocalJS(name, config).then(resolve).catch(() => {
+                    // If local fails, try CDN if configured
+                    if (config.cdn) {
+                        tryLoadCdnJS(name, config).then(resolve).catch(reject);
+                    } else {
+                        loadFallbackJS(name, config).then(resolve).catch(reject);
+                    }
+                });
+                return;
+            }
+
+            // Legacy: try CDN
+            if (config.cdn) {
+                tryLoadCdnJS(name, config).then(resolve).catch(reject);
+            } else {
+                reject(new Error('No source available'));
+            }
+        });
+    }
+
+    function tryLoadCdnJS(name, config) {
+        return new Promise((resolve, reject) => {
             const cdnScript = document.createElement('script');
             cdnScript.src = config.cdn;
-            
+
             const timeout = setTimeout(() => {
                 console.warn(`CDN JS timeout for ${name}, trying local fallback...`);
-                loadLocalJS(name, config).then(resolve).catch(reject);
+                if (config && config.local) {
+                    loadLocalJS(name, config).then(resolve).catch(reject);
+                } else {
+                    loadFallbackJS(name, config).then(resolve).catch(reject);
+                }
             }, 3000);
 
             cdnScript.onload = () => {
@@ -127,7 +198,11 @@
             cdnScript.onerror = () => {
                 clearTimeout(timeout);
                 console.warn(`CDN JS failed for ${name}, trying local fallback...`);
-                loadLocalJS(name, config).then(resolve).catch(reject);
+                if (config && config.local) {
+                    loadLocalJS(name, config).then(resolve).catch(reject);
+                } else {
+                    loadFallbackJS(name, config).then(resolve).catch(reject);
+                }
             };
 
             document.head.appendChild(cdnScript);

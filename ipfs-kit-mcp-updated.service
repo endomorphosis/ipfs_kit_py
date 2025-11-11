@@ -1,0 +1,52 @@
+[Unit]
+Description=IPFS-Kit MCP Server
+Documentation=https://github.com/endomorphosis/ipfs_kit_py
+After=network.target
+Wants=network.target
+
+[Service]
+Type=forking
+User=devel
+Group=devel
+WorkingDirectory=/home/devel/ipfs_kit_py
+Environment=PATH=/home/devel/ipfs_kit_py/.venv/bin:/home/devel/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PYTHONPATH=/home/devel/ipfs_kit_py
+Environment=IPFS_KIT_DATA_DIR=/home/devel/.ipfs_kit
+Environment=IPFS_KIT_LOG_DIR=/home/devel/.ipfs_kit
+Environment=LOG_LEVEL=INFO
+
+# Use the installed ipfs-kit command with full module path
+ExecStart=/home/devel/ipfs_kit_py/.venv/bin/python -m ipfs_kit_py.cli mcp start --host 127.0.0.1 --port 8004 --data-dir /home/devel/.ipfs_kit
+ExecStop=/home/devel/ipfs_kit_py/.venv/bin/python -m ipfs_kit_py.cli mcp stop --port 8004
+ExecReload=/bin/kill -HUP $MAINPID
+
+# PID file for tracking the main process
+PIDFile=/home/devel/.ipfs_kit/mcp_8004.pid
+
+# Restart configuration
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ipfs-kit-mcp
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/devel/.ipfs_kit /home/devel/ipfs_kit_py
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Resource limits (adjust as needed)
+LimitNOFILE=65536
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target

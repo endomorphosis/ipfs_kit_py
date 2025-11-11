@@ -7,10 +7,11 @@
     
     <!-- CSS with fallback -->
     <script>
-        // Load Tailwind CSS with local fallback
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://cdn.tailwindcss.com';
+    // Load Tailwind CSS from local built stylesheet (avoid CDN in production)
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    // Use the local built Tailwind CSS instead of the CDN
+    link.href = '/static/css/tailwind.css';
         link.onerror = function() {
             console.log('CDN blocked, using base CSS styles');
             // Add minimal inline styles if CDN fails
@@ -284,7 +285,8 @@
                                         // Load Tailwind CSS with local fallback. If CDN fails, load minimal fallback CSS file.
                                         const twCdn = document.createElement('link');
                                         twCdn.rel = 'stylesheet';
-                                        twCdn.href = 'https://cdn.tailwindcss.com';
+                                        // Use local built Tailwind CSS instead of the CDN
+                                        twCdn.href = '/static/css/tailwind.css';
                                         twCdn.onerror = function() {
                                             console.log('[fallback] Tailwind CDN blocked, loading fallback-base.css');
                                             const fallback = document.createElement('link');

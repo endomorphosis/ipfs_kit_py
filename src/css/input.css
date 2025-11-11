@@ -1,0 +1,75 @@
+/**
+ * Tailwind CSS Input File
+ * This is the source file used to build the production Tailwind CSS
+ * Build command: npm run build:css
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+  body {
+    @apply bg-gray-100 text-gray-900;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded font-medium transition-colors duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-blue-500 text-white hover:bg-blue-600;
+  }
+  
+  .btn-success {
+    @apply bg-green-500 text-white hover:bg-green-600;
+  }
+  
+  .btn-warning {
+    @apply bg-yellow-500 text-white hover:bg-yellow-600;
+  }
+  
+  .btn-danger {
+    @apply bg-red-500 text-white hover:bg-red-600;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow p-6;
+  }
+  
+  .tab-button {
+    @apply w-full text-left px-4 py-2 rounded transition-colors duration-200;
+  }
+  
+  .tab-button.active {
+    @apply bg-blue-500 text-white;
+  }
+  
+  .tab-button:not(.active) {
+    @apply text-gray-700 hover:bg-gray-100;
+  }
+}
+
+/* Custom utility styles */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
