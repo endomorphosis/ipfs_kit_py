@@ -850,16 +850,29 @@ class Libp2pPeerManager:
 
 # Global instance for easy access
 _global_peer_manager = None
+_peer_manager_lock = asyncio.Lock()
 
 def get_peer_manager(config_dir: Path = None, ipfs_kit=None) -> Libp2pPeerManager:
-    """Get or create the global peer manager instance."""
+    """Get or create the global peer manager instance (thread-safe singleton)."""
     global _global_peer_manager
     if _global_peer_manager is None:
         _global_peer_manager = Libp2pPeerManager(config_dir=config_dir, ipfs_kit=ipfs_kit)
     return _global_peer_manager
 
 async def start_peer_manager(config_dir: Path = None, ipfs_kit=None) -> Libp2pPeerManager:
-    """Start the global peer manager."""
-    manager = get_peer_manager(config_dir=config_dir, ipfs_kit=ipfs_kit)
-    await manager.start()
-    return manager
+    """Start the global peer manager singleton (thread-safe)."""
+    global _global_peer_manager
+    
+    # Use lock to prevent multiple threads from starting the manager simultaneously
+    async with _peer_manager_lock:
+        manager = get_peer_manager(config_dir=config_dir, ipfs_kit=ipfs_kit)
+        
+        # Only start if not already started
+        if not hasattr(manager, '_started') or not manager._started:
+            await manager.start()
+            manager._started = True
+            logger.info("Peer manager started successfully")
+        else:
+            logger.debug("Peer manager already started, skipping initialization")
+        
+        return manager
