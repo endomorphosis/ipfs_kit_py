@@ -1,0 +1,79 @@
+name: Offline-Workflow Code Generation
+
+# This is an offline workflow that generates code without GitHub API
+
+on:
+  workflow_dispatch:
+    inputs:
+      template:
+        description: 'Code template to use'
+        required: true
+        default: 'api-client'
+      language:
+        description: 'Target language'
+        required: true
+        default: 'python'
+      spec_url:
+        description: 'OpenAPI spec URL'
+        required: true
+
+labels:
+  - offline-workflow
+  - code-generation
+  - high-compute
+
+jobs:
+  generate:
+    name: Generate Code from Spec (p2p-workflow)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup environment
+        run: |
+          # Install code generation tools
+          pip install openapi-generator-cli
+      
+      - name: Download OpenAPI spec
+        env:
+          SPEC_URL: ${{ github.event.inputs.spec_url }}
+        run: |
+          curl -o spec.yaml "$SPEC_URL"
+      
+      - name: Generate code
+        env:
+          TEMPLATE: ${{ github.event.inputs.template }}
+          LANGUAGE: ${{ github.event.inputs.language }}
+        run: |
+          openapi-generator-cli generate \
+            -i spec.yaml \
+            -g "$LANGUAGE" \
+            -t "$TEMPLATE" \
+            -o generated/
+      
+      - name: Run tests on generated code
+        run: |
+          cd generated/
+          # Run language-specific tests
+          if [ "$LANGUAGE" = "python" ]; then
+            pip install -r requirements.txt
+            python -m pytest tests/
+          fi
+      
+      - name: Package generated code
+        run: |
+          tar -czf generated-code.tar.gz generated/
+      
+      - name: Upload to IPFS
+        run: |
+          ipfs add generated-code.tar.gz | tee ipfs_cid.txt
+      
+      - name: Store artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: generated-code
+          path: |
+            generated-code.tar.gz
+            ipfs_cid.txt

@@ -1,0 +1,64 @@
+name: P2P-Workflow Website Scraping
+
+# This workflow is tagged for P2P execution and will not use GitHub API
+# It will be distributed across IPFS network peers for execution
+
+on:
+  schedule:
+    # Run daily at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'URL to scrape'
+        required: true
+        default: 'https://example.com'
+      depth:
+        description: 'Scraping depth'
+        required: false
+        default: '1'
+
+# Tag this workflow for P2P execution
+labels:
+  - p2p-workflow
+  - offline-workflow
+  - data-collection
+
+jobs:
+  scrape:
+    name: Scrape Website Data
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4 lxml
+      
+      - name: Run scraper
+        env:
+          TARGET_URL: ${{ github.event.inputs.url || 'https://example.com' }}
+          SCRAPE_DEPTH: ${{ github.event.inputs.depth || '1' }}
+        run: |
+          python scripts/scrape.py \
+            --url "$TARGET_URL" \
+            --depth "$SCRAPE_DEPTH" \
+            --output data/scraped_data.json
+      
+      - name: Upload to IPFS
+        run: |
+          # Add scraped data to IPFS
+          ipfs add -r data/scraped_data.json
+      
+      - name: Store results
+        uses: actions/upload-artifact@v3
+        with:
+          name: scraped-data
+          path: data/scraped_data.json

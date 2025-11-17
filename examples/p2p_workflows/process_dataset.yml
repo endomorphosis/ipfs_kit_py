@@ -1,0 +1,88 @@
+name: P2P Data Processing
+
+# Heavy data processing workflow that runs on P2P network
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset_cid:
+        description: 'IPFS CID of dataset'
+        required: true
+      processing_type:
+        description: 'Type of processing'
+        required: true
+        default: 'transform'
+        type: choice
+        options:
+          - transform
+          - aggregate
+          - analyze
+
+labels:
+  - p2p-workflow
+  - data-processing
+  - high-memory
+
+jobs:
+  process:
+    name: Process Dataset
+    runs-on: ubuntu-latest
+    
+    env:
+      DATASET_CID: ${{ github.event.inputs.dataset_cid }}
+      PROCESSING_TYPE: ${{ github.event.inputs.processing_type }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy pyarrow ipfshttpclient
+      
+      - name: Download dataset from IPFS
+        run: |
+          python -c "
+          import ipfshttpclient
+          client = ipfshttpclient.connect()
+          client.get('$DATASET_CID', target='dataset/')
+          "
+      
+      - name: Process data
+        run: |
+          python scripts/process_data.py \
+            --input dataset/ \
+            --output processed/ \
+            --type "$PROCESSING_TYPE"
+      
+      - name: Generate report
+        run: |
+          python scripts/generate_report.py \
+            --data processed/ \
+            --output report.html
+      
+      - name: Upload results to IPFS
+        run: |
+          # Upload processed data
+          PROCESSED_CID=$(ipfs add -r processed/ | tail -n1 | awk '{print $2}')
+          echo "Processed CID: $PROCESSED_CID"
+          echo "$PROCESSED_CID" > processed_cid.txt
+          
+          # Upload report
+          REPORT_CID=$(ipfs add report.html | awk '{print $2}')
+          echo "Report CID: $REPORT_CID"
+          echo "$REPORT_CID" > report_cid.txt
+      
+      - name: Store artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: processing-results
+          path: |
+            processed_cid.txt
+            report_cid.txt
+            report.html
