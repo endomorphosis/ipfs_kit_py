@@ -3,29 +3,34 @@ Description=IPFS-Kit MCP Server
 Documentation=https://github.com/endomorphosis/ipfs_kit_py
 After=network.target
 Wants=network.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
 
 [Service]
-Type=forking
+# Run in foreground so systemd can manage the main process directly.
+# The CLI accepts --foreground to run the dashboard in the foreground instead of
+# backgrounding itself (which makes supervision and logging simpler).
+Type=simple
 User=barberb
 Group=barberb
 WorkingDirectory=/home/barberb/ipfs_kit_py
-Environment=PATH=/home/barberb/miniforge3/bin:/home/barberb/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PATH=/home/barberb/ipfs_kit_py/.venv/bin:/home/barberb/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=PYTHONPATH=/home/barberb/ipfs_kit_py
 Environment=IPFS_KIT_DATA_DIR=/home/barberb/.ipfs_kit
 Environment=IPFS_KIT_LOG_DIR=/home/barberb/.ipfs_kit
 Environment=LOG_LEVEL=INFO
 
-# Use the installed ipfs-kit command with full module path
-ExecStart=/home/barberb/miniforge3/bin/python -m ipfs_kit_py.cli mcp start --host 127.0.0.1 --port 8004 --data-dir /home/barberb/.ipfs_kit
-ExecStop=/home/barberb/miniforge3/bin/python -m ipfs_kit_py.cli mcp stop
+# Use the installed CLI entrypoint from the project's virtualenv to run the MCP server
+# This uses the `ipfs-kit` console script which wraps the package invocation and is
+# the preferred way to run the command from a virtualenv.
+ExecStart=/home/barberb/ipfs_kit_py/.venv/bin/ipfs-kit mcp start --foreground --host 127.0.0.1 --port 8004 --data-dir /home/barberb/.ipfs_kit
+ExecStop=/home/barberb/ipfs_kit_py/.venv/bin/ipfs-kit mcp stop
 ExecReload=/bin/kill -HUP $MAINPID
 
-# PID file for tracking the main process
-PIDFile=/home/barberb/.ipfs_kit/mcp_8004.pid
-
 # Restart configuration
-Restart=on-failure
+Restart=always
 RestartSec=10
+KillMode=control-group
 TimeoutStartSec=30
 TimeoutStopSec=30
 

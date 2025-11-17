@@ -3,29 +3,32 @@ Description=IPFS-Kit MCP Server
 Documentation=https://github.com/endomorphosis/ipfs_kit_py
 After=network.target
 Wants=network.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
 
 [Service]
-Type=forking
-User=devel
-Group=devel
-WorkingDirectory=/home/devel/ipfs_kit_py
-Environment=PATH=/home/devel/ipfs_kit_py/.venv/bin:/home/devel/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-Environment=PYTHONPATH=/home/devel/ipfs_kit_py
-Environment=IPFS_KIT_DATA_DIR=/home/devel/.ipfs_kit
-Environment=IPFS_KIT_LOG_DIR=/home/devel/.ipfs_kit
+# Run in foreground so systemd can manage the main process directly.
+# The CLI accepts --foreground to run the dashboard in the foreground instead of
+# backgrounding itself (which makes supervision and logging simpler).
+Type=simple
+User=barberb
+Group=barberb
+WorkingDirectory=/home/barberb/ipfs_kit_py
+Environment=PATH=/home/barberb/ipfs_kit_py/.venv/bin:/home/barberb/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PYTHONPATH=/home/barberb/ipfs_kit_py
+Environment=IPFS_KIT_DATA_DIR=/home/barberb/.ipfs_kit
+Environment=IPFS_KIT_LOG_DIR=/home/barberb/.ipfs_kit
 Environment=LOG_LEVEL=INFO
 
 # Use the installed ipfs-kit command with full module path
-ExecStart=/home/devel/ipfs_kit_py/.venv/bin/python -m ipfs_kit_py.cli mcp start --host 127.0.0.1 --port 8004 --data-dir /home/devel/.ipfs_kit
-ExecStop=/home/devel/ipfs_kit_py/.venv/bin/python -m ipfs_kit_py.cli mcp stop --port 8004
+ExecStart=/home/barberb/ipfs_kit_py/.venv/bin/ipfs-kit mcp start --foreground --host 127.0.0.1 --port 8004 --data-dir /home/barberb/.ipfs_kit
+ExecStop=/home/barberb/ipfs_kit_py/.venv/bin/ipfs-kit mcp stop --port 8004
 ExecReload=/bin/kill -HUP $MAINPID
 
-# PID file for tracking the main process
-PIDFile=/home/devel/.ipfs_kit/mcp_8004.pid
-
 # Restart configuration
-Restart=on-failure
+Restart=always
 RestartSec=10
+KillMode=control-group
 TimeoutStartSec=30
 TimeoutStopSec=30
 
@@ -39,7 +42,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/devel/.ipfs_kit /home/devel/ipfs_kit_py
+ReadWritePaths=/home/barberb/.ipfs_kit /home/barberb/ipfs_kit_py
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
