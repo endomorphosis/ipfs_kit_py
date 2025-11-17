@@ -95,6 +95,27 @@ import sys
 # Configure logger
 logger = logging.getLogger(__name__)
 
+# Export P2P workflow management functionality
+__all__ = [
+    # Core classes
+    'MerkleClock',
+    'FibonacciHeap',
+    'WorkflowPriorityQueue',
+    'P2PWorkflowCoordinator',
+    'WorkflowStatus',
+    'WorkflowTask',
+    # Helper functions
+    'hamming_distance',
+    'select_task_owner',
+    'create_task_hash',
+    # MCP tools
+    'P2PWorkflowTools',
+    # Legacy exports
+    'jit_manager',
+    'require_feature', 
+    'optional_feature',
+]
+
 # Initialize core JIT system early
 try:
     from .core import jit_manager, require_feature, optional_feature
@@ -790,3 +811,68 @@ def get_api_app():
             app = None
             api = None
     return app
+
+
+# P2P Workflow Management Exports
+# These are lazy-loaded to avoid heavy imports unless explicitly needed
+def get_p2p_workflow_coordinator():
+    """Lazy import of P2P Workflow Coordinator."""
+    try:
+        from .p2p_workflow_coordinator import (
+            P2PWorkflowCoordinator,
+            WorkflowStatus,
+            WorkflowTask
+        )
+        return P2PWorkflowCoordinator, WorkflowStatus, WorkflowTask
+    except ImportError as e:
+        logger.warning(f"P2P workflow coordinator not available: {e}")
+        return None, None, None
+
+
+def get_merkle_clock():
+    """Lazy import of Merkle Clock."""
+    try:
+        from .merkle_clock import (
+            MerkleClock,
+            hamming_distance,
+            select_task_owner,
+            create_task_hash
+        )
+        return MerkleClock, hamming_distance, select_task_owner, create_task_hash
+    except ImportError as e:
+        logger.warning(f"Merkle clock not available: {e}")
+        return None, None, None, None
+
+
+def get_fibonacci_heap():
+    """Lazy import of Fibonacci Heap."""
+    try:
+        from .fibonacci_heap import FibonacciHeap, WorkflowPriorityQueue
+        return FibonacciHeap, WorkflowPriorityQueue
+    except ImportError as e:
+        logger.warning(f"Fibonacci heap not available: {e}")
+        return None, None
+
+
+def get_p2p_workflow_tools():
+    """Lazy import of P2P Workflow MCP Tools."""
+    try:
+        from .mcp.p2p_workflow_tools import P2PWorkflowTools
+        return P2PWorkflowTools
+    except ImportError as e:
+        logger.warning(f"P2P workflow MCP tools not available: {e}")
+        return None
+
+
+# Expose main classes and functions for direct import
+# These use lazy loading internally
+MerkleClock = None
+FibonacciHeap = None
+WorkflowPriorityQueue = None
+P2PWorkflowCoordinator = None
+WorkflowStatus = None
+WorkflowTask = None
+hamming_distance = None
+select_task_owner = None
+create_task_hash = None
+P2PWorkflowTools = None
