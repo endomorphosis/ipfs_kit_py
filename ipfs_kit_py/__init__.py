@@ -296,3 +296,23 @@ if hasattr(api, 'STORAGE_BACKENDS_AVAILABLE') and api.STORAGE_BACKENDS_AVAILABLE
 if hasattr(api, 'OBSERVABILITY_AVAILABLE') and api.OBSERVABILITY_AVAILABLE:
     from .observability_api import observability_router
     app.include_router(observability_router)
+
+# Import P2P Workflow Scheduler components
+try:
+    from .p2p_workflow_scheduler import (
+        P2PWorkflowScheduler,
+        P2PTask,
+        WorkflowTag,
+        MerkleClock,
+        FibonacciHeap,
+        calculate_hamming_distance
+    )
+    P2P_WORKFLOW_AVAILABLE = True
+except ImportError:
+    P2PWorkflowScheduler = None
+    P2PTask = None
+    WorkflowTag = None
+    MerkleClock = None
+    FibonacciHeap = None
+    calculate_hamming_distance = None
+    P2P_WORKFLOW_AVAILABLE = False

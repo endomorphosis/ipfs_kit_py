@@ -33,6 +33,12 @@ try:
         FS_JOURNAL_CLI_AVAILABLE = True
     except ImportError:
         FS_JOURNAL_CLI_AVAILABLE = False
+    # Import P2P Workflow CLI integration
+    try:
+        from .p2p_workflow_cli import register_p2p_workflow_commands
+        P2P_WORKFLOW_CLI_AVAILABLE = True
+    except ImportError:
+        P2P_WORKFLOW_CLI_AVAILABLE = False
 except ImportError:
     # Use relative imports when run directly
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -51,6 +57,12 @@ except ImportError:
         FS_JOURNAL_CLI_AVAILABLE = True
     except ImportError:
         FS_JOURNAL_CLI_AVAILABLE = False
+    # Import P2P Workflow CLI integration
+    try:
+        from ipfs_kit_py.p2p_workflow_cli import register_p2p_workflow_commands
+        P2P_WORKFLOW_CLI_AVAILABLE = True
+    except ImportError:
+        P2P_WORKFLOW_CLI_AVAILABLE = False
 
 # Set up logging
 logger = logging.getLogger("ipfs_kit_cli")
@@ -242,6 +254,16 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
             logger.warning(f"Could not register Filesystem Journal commands: {e}")
     else:
         logger.debug("Filesystem Journal CLI integration not available, skipping command registration.")
+
+    # Register P2P Workflow commands if available
+    if P2P_WORKFLOW_CLI_AVAILABLE:
+        try:
+            register_p2p_workflow_commands(subparsers)
+            logger.debug("P2P Workflow commands registered.")
+        except Exception as e:
+            logger.warning(f"Could not register P2P Workflow commands: {e}")
+    else:
+        logger.debug("P2P Workflow CLI integration not available, skipping command registration.")
 
     # Try to register WAL Telemetry commands
     try:
