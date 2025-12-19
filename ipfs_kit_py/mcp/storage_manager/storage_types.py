@@ -18,10 +18,12 @@ class StorageBackendType(Enum):
     IPFS = "ipfs"
     MOCK = "mock"
     FILECOIN = "filecoin"
+    FILECOIN_PIN = "filecoin_pin"
     S3 = "s3"
     STORACHA = "storacha"
     HUGGINGFACE = "huggingface"
     LASSIE = "lassie"
+    SATURN = "saturn"
     LOCAL = "local"
     OTHER = "other"
 

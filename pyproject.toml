@@ -78,6 +78,26 @@ ai_ml = [
 huggingface = [
     "huggingface_hub>=0.19.0",
 ]
+filecoin_pin = [
+    "httpx>=0.24.0",
+    "multiformats>=0.3.0",
+]
+car_files = [
+    "dag-cbor>=0.3.0",
+    "cbor2>=5.4.0",
+]
+saturn = [
+    "httpx>=0.24.0",
+]
+ipni = [
+    "httpx>=0.24.0",
+    "multiformats>=0.3.0",
+]
+enhanced_ipfs = [
+    "multiformats>=0.3.0",
+    "dag-cbor>=0.3.0",
+    "py-cid>=0.3.0",
+]
 ipld = [
     "ipld-car>=0.0.1",  # CAR file format support
     "ipld-dag-pb>=0.0.1",  # DAG-PB codec for IPLD

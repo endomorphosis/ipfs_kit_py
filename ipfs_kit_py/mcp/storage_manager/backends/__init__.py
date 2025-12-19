@@ -5,7 +5,9 @@ This package contains implementations of various storage backends used by the MC
 """
 
 from .ipfs_backend import IPFSBackend
+from .filecoin_pin_backend import FilecoinPinBackend
 
 __all__ = [
-    "IPFSBackend"
+    "IPFSBackend",
+    "FilecoinPinBackend"
 ]
