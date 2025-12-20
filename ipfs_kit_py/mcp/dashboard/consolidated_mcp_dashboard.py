@@ -567,10 +567,15 @@ class ConsolidatedMCPDashboard:
                     _atomic_write_json(self._hits_file, self.endpoint_hits)
             except Exception:
                 pass
-        with suppress(Exception):
-            signal.signal(signal.SIGTERM, lambda *_: (_persist_hits(), sys.exit(0)))
-        with suppress(Exception):
-            signal.signal(signal.SIGINT, lambda *_: (_persist_hits(), sys.exit(0)))
+
+        # In library/test contexts, registering signal handlers that call sys.exit()
+        # can cause pytest to crash during interruption or failure reporting.
+        _running_under_pytest = bool(os.environ.get("PYTEST_CURRENT_TEST")) or ("pytest" in sys.modules)
+        if not _running_under_pytest:
+            with suppress(Exception):
+                signal.signal(signal.SIGTERM, lambda *_: (_persist_hits(), sys.exit(0)))
+            with suppress(Exception):
+                signal.signal(signal.SIGINT, lambda *_: (_persist_hits(), sys.exit(0)))
         atexit.register(_persist_hits)
 
         @asynccontextmanager

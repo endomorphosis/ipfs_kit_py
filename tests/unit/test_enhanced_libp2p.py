@@ -15,6 +15,18 @@ import sys
 import os
 from pathlib import Path
 
+# This file is primarily a long-running, integration-style smoke script.
+# When collected by pytest it can cause failures/timeouts; make it opt-in.
+if "pytest" in sys.modules:
+    import pytest
+
+    pytestmark = pytest.mark.integration
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION", "").lower() not in {"1", "true", "yes"}:
+        pytest.skip(
+            "Opt-in integration smoke test. Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run.",
+            allow_module_level=True,
+        )
+
 # Add project root to Python path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))

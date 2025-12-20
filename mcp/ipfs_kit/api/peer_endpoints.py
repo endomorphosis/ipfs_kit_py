@@ -68,8 +68,8 @@ class PeerEndpoints:
     async def get_peers_summary(self) -> Dict[str, Any]:
         """Get summary of all discovered peers."""
         try:
-            peer_manager = peer_manager = await self._ensure_peer_manager()
- if not peer_manager:
+            peer_manager = await self._ensure_peer_manager()
+            if not peer_manager:
                 return {"success": False, "error": "Peer manager not initialized"}
             
             # Get peer statistics from unified manager
