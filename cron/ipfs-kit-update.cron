@@ -1,0 +1,7 @@
+# Drop this file into /etc/cron.d/ipfs-kit-update (needs root). Runs daily at 04:20 AM and logs to the repo logs directory.
+SHELL=/bin/bash
+# Make sure the project's virtualenv is used when cron runs the script
+PATH=/home/barberb/ipfs_kit_py/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# minute hour day month weekday user command
+20 4 * * * barberb /home/barberb/ipfs_kit_py/scripts/auto_update_and_restart.sh

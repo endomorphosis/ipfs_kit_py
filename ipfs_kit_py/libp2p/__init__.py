@@ -146,20 +146,37 @@ def check_dependencies() -> bool:
     """
     global HAS_LIBP2P, DEPENDENCIES_CHECKED
 
-    # Preemptive multihash compatibility fix
+    # Fix multihash/multiformats namespace conflicts
+    # The multiformats library provides multihash, but some libp2p code may try to import
+    # the old standalone multihash library. We resolve this by creating a compatibility layer.
     try:
+        # First, try to import from multiformats (the new way)
+        try:
+            from multiformats import multihash as mf_multihash
+            # Inject it as the 'multihash' module to resolve namespace conflicts
+            import sys
+            if 'multihash' not in sys.modules:
+                sys.modules['multihash'] = mf_multihash
+                logger.info("Resolved multihash namespace conflict using multiformats.multihash")
+        except ImportError:
+            # Fall back to standalone multihash if available
+            import multihash
+            logger.debug("Using standalone multihash library")
+        
+        # Apply compatibility patches for FuncReg if needed
         import multihash
         if not hasattr(multihash, 'FuncReg'):
-            logger.info("Applying multihash compatibility fix")
-            # Create a dummy FuncReg class for compatibility
+            logger.info("Applying FuncReg compatibility patch to multihash")
+            # Create a dummy FuncReg class for compatibility with older code
             class DummyFuncReg:
                 @staticmethod
                 def register(*args, **kwargs):
                     """Accept any arguments to avoid compatibility issues."""
                     pass
             multihash.FuncReg = DummyFuncReg()
-    except ImportError:
-        pass  # multihash not available
+    except ImportError as e:
+        logger.debug(f"Multihash library not available: {e}")
+        # This is not fatal as it's not in REQUIRED_DEPENDENCIES
 
     # Skip rechecking if already performed
     if DEPENDENCIES_CHECKED:
@@ -177,15 +194,6 @@ def check_dependencies() -> bool:
     # Check required dependencies
     for dep in REQUIRED_DEPENDENCIES:
         try:
-            # Use importlib to check for all dependencies consistently
-            if dep == 'multihash':
-                try:
-                    import multihash
-                    if not hasattr(multihash, 'FuncReg'):
-                        multihash.FuncReg = lambda: None
-                        multihash.FuncReg.register = lambda code, name, func: None
-                except (ImportError, AttributeError):
-                    pass # Let the import_module handle the error
             importlib.import_module(dep)
             logger.debug(f"Dependency {dep} is available")
         except (ImportError, ModuleNotFoundError):
@@ -430,6 +438,11 @@ __all__ = [
     "apply_protocol_extensions",
     "apply_protocol_extensions_to_instance",
     
+    # Peer manager (singleton pattern)
+    "get_peer_manager",
+    "start_peer_manager",
+    "Libp2pPeerManager",
+    
     # Lazy loading functions
     "get_enhanced_dht_discovery",
     "get_content_routing_manager",
@@ -465,6 +478,23 @@ except ImportError as e:
             raise ImportError("libp2p dependencies not available. Install with: pip install ipfs_kit_py[libp2p]")
     
     libp2p_peer = IPFSLibp2pPeer
+
+# Convenience imports for peer manager singleton
+try:
+    from .peer_manager import get_peer_manager, start_peer_manager, Libp2pPeerManager
+    logger.debug("Successfully imported peer manager singleton functions")
+except ImportError as e:
+    logger.warning(f"Could not import peer manager: {e}")
+    # Create placeholders
+    def get_peer_manager(*args, **kwargs):
+        raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]")
+    
+    def start_peer_manager(*args, **kwargs):
+        raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]")
+    
+    class Libp2pPeerManager:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]")
 
 # Patch stream read_until method if required
 def patch_stream_read_until():
