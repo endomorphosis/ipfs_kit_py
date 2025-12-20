@@ -1,9 +1,12 @@
 import importlib.util
+from pathlib import Path
 from fastapi.testclient import TestClient
 
 
 def load_dashboard(config=None):
-    spec = importlib.util.spec_from_file_location('dash','/home/runner/work/ipfs_kit_py/ipfs_kit_py/consolidated_mcp_dashboard.py')
+    repo_root = Path(__file__).resolve().parents[1]
+    dash_path = (repo_root / "consolidated_mcp_dashboard.py").resolve()
+    spec = importlib.util.spec_from_file_location('dash', str(dash_path))
     mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
     return mod.ConsolidatedMCPDashboard(config)
 

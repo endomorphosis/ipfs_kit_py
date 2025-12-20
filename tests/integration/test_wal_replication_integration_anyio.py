@@ -16,12 +16,14 @@ import uuid
 import base64
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
+from pathlib import Path
 
 # Import AnyIO
 import anyio
 from anyio.abc import TaskGroup
 
-sys.path.insert(0, "/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
 
 # Import required modules
 from ipfs_kit_py.tiered_cache_manager import TieredCacheManager

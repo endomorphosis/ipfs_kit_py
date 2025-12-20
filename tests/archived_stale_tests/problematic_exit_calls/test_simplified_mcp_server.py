@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 def test_mcp_server():
     """Test the MCP server by starting it and sending some basic requests."""
     
-    server_script = "/home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/enhanced_mcp_server_with_daemon_mgmt.py"
+    from pathlib import Path
+    repo_root = Path(__file__).resolve().parents[3]
+    server_script = str((repo_root / "mcp" / "enhanced_mcp_server_with_daemon_mgmt.py").resolve())
     
     logger.info("Starting MCP server...")
     

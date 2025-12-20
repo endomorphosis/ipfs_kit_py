@@ -9,7 +9,8 @@ import json
 from pathlib import Path
 
 # Add the project root to the Python path
-sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
 
 from mcp.ipfs_kit.core.config_manager import SecureConfigManager
 

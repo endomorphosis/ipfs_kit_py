@@ -9,8 +9,14 @@ This script tests the implementations added:
 """
 
 import sys
-import os
-sys.path.insert(0, 'ipfs_kit_py')
+from pathlib import Path
+
+import pytest
+
+
+# Add repo root (not the package dir) so imports work without shadowing
+repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(repo_root))
 
 def test_dht_methods():
     """Test DHT methods in IPFSModel."""
@@ -41,7 +47,8 @@ def test_dht_methods():
         print(f"✗ DHT methods test failed: {e}")
         return False
 
-def test_add_content_method():
+@pytest.mark.asyncio
+async def test_add_content_method():
     """Test add_content method in IPFSModelAnyIO."""
     print("\nTesting add_content method in IPFSModelAnyIO...")
     
@@ -52,24 +59,24 @@ def test_add_content_method():
         model = IPFSModelAnyIO()
         
         # Test add_content method with string
-        result = model.add_content("test content")
+        result = await model.add_content("test content")
         print(f"✓ add_content (string): success={result.get('success')}, cid={result.get('cid')}")
         assert result.get("success") is True
         assert "cid" in result
         
         # Test add_content method with bytes
-        result = model.add_content(b"test bytes content")
+        result = await model.add_content(b"test bytes content")
         print(f"✓ add_content (bytes): success={result.get('success')}, size={result.get('size')}")
         assert result.get("success") is True
         assert result.get("size") > 0
         
         # Test add_content method with kwargs
-        result = model.add_content(content="test kwargs content")
+        result = await model.add_content(content="test kwargs content")
         print(f"✓ add_content (kwargs): success={result.get('success')}")
         assert result.get("success") is True
         
         # Test add_content method with no content (should fail)
-        result = model.add_content()
+        result = await model.add_content()
         print(f"✓ add_content (no content): success={result.get('success')}")
         assert result.get("success") is False
         assert "error" in result

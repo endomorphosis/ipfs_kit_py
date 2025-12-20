@@ -301,7 +301,10 @@ async def handle_bucket_create(arguments: Dict[str, Any]) -> List[TextContent]:
         if not bucket_name:
             return [TextContent(
                 type="text",
-                text="Error: bucket_name is required"
+                text=json.dumps({
+                    "success": False,
+                    "error": "bucket_name is required",
+                }, indent=2)
             )]
         
         # Get bucket manager
@@ -309,7 +312,10 @@ async def handle_bucket_create(arguments: Dict[str, Any]) -> List[TextContent]:
         if not bucket_manager:
             return [TextContent(
                 type="text",
-                text="Error: Bucket VFS system not available"
+                text=json.dumps({
+                    "success": False,
+                    "error": "Bucket VFS system not available",
+                }, indent=2)
             )]
         
         # Convert string enums
@@ -328,7 +334,10 @@ async def handle_bucket_create(arguments: Dict[str, Any]) -> List[TextContent]:
         except ValueError as e:
             return [TextContent(
                 type="text",
-                text=f"Error: Invalid enum value: {e}"
+                text=json.dumps({
+                    "success": False,
+                    "error": f"Invalid enum value: {e}",
+                }, indent=2)
             )]
         
         # Create bucket

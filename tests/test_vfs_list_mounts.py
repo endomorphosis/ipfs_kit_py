@@ -6,9 +6,11 @@ Simple test to isolate the vfs_list_mounts issue.
 import asyncio
 import sys
 import os
+from pathlib import Path
 
 # Add the project root to the Python path
-sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
+repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(repo_root))
 
 async def test_vfs_list_mounts():
     """Test vfs_list_mounts specifically."""

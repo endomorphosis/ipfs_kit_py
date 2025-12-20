@@ -1,4 +1,5 @@
 
+// MCP SDK (Browser/Node UMD)
 // Enhanced MCP SDK for comprehensive JSON-RPC service management with comprehensive error handling
 class MCPClient {
     constructor(baseUrl = '') {

@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 import sys
-sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
+from pathlib import Path
+
+
+repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(repo_root))
 
 from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
 import asyncio

@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Add project root to Python path
-project_root = os.path.dirname(os.path.abspath(__file__))
+project_root = str(Path(__file__).resolve().parents[1])
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
@@ -81,7 +81,7 @@ def test_streamlined_mcp_server_import():
         import importlib.util
         spec = importlib.util.spec_from_file_location(
             "streamlined_mcp_server", 
-            "/home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/streamlined_mcp_server.py"
+            str((Path(project_root) / "mcp" / "streamlined_mcp_server.py").resolve())
         )
         
         if spec is None or spec.loader is None:
@@ -142,7 +142,7 @@ def test_mcp_tools():
         import importlib.util
         spec = importlib.util.spec_from_file_location(
             "streamlined_mcp_server", 
-            "/home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/streamlined_mcp_server.py"
+            str((Path(project_root) / "mcp" / "streamlined_mcp_server.py").resolve())
         )
         
         if spec is None or spec.loader is None:

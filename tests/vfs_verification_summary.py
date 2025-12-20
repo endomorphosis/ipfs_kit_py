@@ -12,13 +12,16 @@ import sys
 import json
 from pathlib import Path
 
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 def check_vfs_implementation():
     """Check VFS implementation status."""
     print("🔍 Checking VFS Implementation Status")
     print("=" * 50)
     
     # Check main VFS file
-    vfs_file = Path("/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_fsspec.py")
+    vfs_file = REPO_ROOT / "ipfs_kit_py" / "ipfs_fsspec.py"
     if vfs_file.exists():
         print("✅ Main VFS file exists: ipfs_fsspec.py")
         
@@ -49,9 +52,9 @@ def check_vfs_implementation():
     
     # Check MCP server with VFS integration
     mcp_files = [
-        "/home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/enhanced_mcp_server_with_daemon_mgmt.py",
-        "/home/runner/work/ipfs_kit_py/ipfs_kit_py/final_mcp_server_enhanced.py",
-        "/home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/consolidated_final_mcp_server.py"
+        str((REPO_ROOT / "mcp" / "enhanced_mcp_server_with_daemon_mgmt.py").resolve()),
+        str((REPO_ROOT / "final_mcp_server_enhanced.py").resolve()),
+        str((REPO_ROOT / "mcp" / "consolidated_final_mcp_server.py").resolve()),
     ]
     
     print("\n🔍 Checking MCP Server Implementations")
@@ -78,7 +81,7 @@ def check_backend_support():
         print("✅ fsspec is available")
         
         # Check backend classes in VFS file
-        vfs_file = Path("/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_fsspec.py")
+        vfs_file = REPO_ROOT / "ipfs_kit_py" / "ipfs_fsspec.py"
         if vfs_file.exists():
             with open(vfs_file, 'r') as f:
                 content = f.read()
@@ -107,7 +110,7 @@ def check_vfs_features():
     print("\n🔍 Checking VFS Features")
     print("=" * 50)
     
-    vfs_file = Path("/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_fsspec.py")
+    vfs_file = REPO_ROOT / "ipfs_kit_py" / "ipfs_fsspec.py"
     if vfs_file.exists():
         with open(vfs_file, 'r') as f:
             content = f.read()
@@ -134,7 +137,7 @@ def check_mcp_tools():
     print("\n🔍 Checking MCP VFS Tools")
     print("=" * 50)
     
-    mcp_file = Path("/home/runner/work/ipfs_kit_py/ipfs_kit_py/mcp/enhanced_mcp_server_with_daemon_mgmt.py")
+    mcp_file = REPO_ROOT / "mcp" / "enhanced_mcp_server_with_daemon_mgmt.py"
     if mcp_file.exists():
         with open(mcp_file, 'r') as f:
             content = f.read()

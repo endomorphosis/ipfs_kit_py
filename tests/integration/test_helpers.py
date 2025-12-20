@@ -9,7 +9,10 @@ import time
 import unittest
 from unittest.mock import MagicMock, patch
 
-sys.path.append("/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+from pathlib import Path
+
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.append(str(repo_root))
 from ipfs_kit_py.cluster_state_helpers import (
     estimate_time_to_completion,
     export_state_to_json,

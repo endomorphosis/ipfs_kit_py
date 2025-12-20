@@ -16,8 +16,10 @@ from unittest.mock import MagicMock, patch, call
 import threading
 import queue
 import concurrent.futures
+from pathlib import Path
 
-sys.path.insert(0, "/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
 
 from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
 from ipfs_kit_py.predictive_cache_manager import PredictiveCacheManager

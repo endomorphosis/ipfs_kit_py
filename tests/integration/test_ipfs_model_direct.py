@@ -6,6 +6,7 @@ import os
 import logging
 import time
 import importlib.util
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 # Directly import the IPFSModel class without depending on other modules
 def get_ipfs_model_class():
     """Import the IPFSModel class directly."""
-    model_path = "/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_kit_py/mcp/models/ipfs_model.py"
+    repo_root = Path(__file__).resolve().parents[2]
+    model_path = str((repo_root / "ipfs_kit_py" / "mcp" / "models" / "ipfs_model.py").resolve())
     module_name = "ipfs_model"
     
     spec = importlib.util.spec_from_file_location(module_name, model_path)

@@ -10,6 +10,7 @@ import json
 import subprocess
 import sys
 import os
+from pathlib import Path
 
 def test_server_startup():
     """Test that the enhanced MCP server starts and responds."""
@@ -25,7 +26,7 @@ def test_server_startup():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py"
+            cwd=str(Path(__file__).resolve().parents[2])
         )
         
         # Send initialize request

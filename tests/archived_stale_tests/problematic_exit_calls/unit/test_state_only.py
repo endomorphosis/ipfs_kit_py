@@ -29,7 +29,7 @@ def test_state_cli():
             sys.executable, 
             'ipfs_kit_py/state_cli.py', 
             '--summary'
-        ], capture_output=True, text=True, cwd='/home/runner/work/ipfs_kit_py/ipfs_kit_py')
+        ], capture_output=True, text=True, cwd=str(Path(__file__).resolve().parents[4]))
         
         if result.returncode == 0:
             print("State CLI Test - SUCCESS")

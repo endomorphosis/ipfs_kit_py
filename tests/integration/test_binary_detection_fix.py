@@ -6,9 +6,11 @@ Test script to verify the binary detection fix in install_ipfs.py
 import os
 import sys
 import platform
+from pathlib import Path
 
 # Add the ipfs_kit_py module to the path
-sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
 
 from ipfs_kit_py.install_ipfs import install_ipfs
 

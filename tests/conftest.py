@@ -1,0 +1,63 @@
+"""Pytest configuration for this repository.
+
+Some tests in this repo historically mutated `sys.path` to run without an
+installed package. A dangerous pattern is inserting the *package directory*
+(e.g. `<repo>/ipfs_kit_py`) onto `sys.path`, which can accidentally expose
+internal subpackages (like `ipfs_kit_py/libp2p/`) as top-level imports
+(`import libp2p`), shadowing real third-party dependencies.
+
+This conftest keeps imports stable by removing unsafe entries while still
+allowing tests to import `ipfs_kit_py` in editable/installed environments.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+
+
+def _sanitize_sys_path() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    local_pkg_dir = (repo_root / "ipfs_kit_py").resolve()
+
+    # Remove any direct insertion of the *package directory*.
+    # It is safe to have repo_root on sys.path; it is NOT safe to have
+    # local_pkg_dir (because it can shadow external deps via sibling folders).
+    sanitized: list[str] = []
+    for entry in sys.path:
+        if not entry:
+            sanitized.append(entry)
+            continue
+        try:
+            resolved = Path(entry).resolve()
+        except Exception:
+            sanitized.append(entry)
+            continue
+
+        if resolved == local_pkg_dir:
+            continue
+        sanitized.append(entry)
+
+    sys.path[:] = sanitized
+
+    # If the package isn't importable (e.g., running tests without editable
+    # install), prefer adding repo_root (not the package dir).
+    # Use find_spec to avoid importing ipfs_kit_py during collection.
+    if importlib.util.find_spec("ipfs_kit_py") is None:
+        if str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
+
+
+_sanitize_sys_path()
+
+
+def pytest_collectstart(collector):  # noqa: ANN001
+    # Re-sanitize during collection because some test modules mutate sys.path
+    # at import time.
+    _sanitize_sys_path()
+
+
+def pytest_runtest_setup(item):  # noqa: ANN001
+    # Final guard before each test executes.
+    _sanitize_sys_path()

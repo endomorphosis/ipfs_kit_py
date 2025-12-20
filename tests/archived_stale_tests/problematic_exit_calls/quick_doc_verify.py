@@ -5,6 +5,7 @@ Quick documentation verification - test key examples without full package import
 
 import sys
 import os
+from pathlib import Path
 
 print("=" * 60)
 print("QUICK DOCUMENTATION VERIFICATION")
@@ -13,7 +14,8 @@ print("=" * 60)
 try:
     # Test 1: Direct installer imports
     print("\n1. Testing installer imports...")
-    sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
+    repo_root = Path(__file__).resolve().parents[3]
+    sys.path.insert(0, str(repo_root))
     
     from ipfs_kit_py import install_ipfs, install_lotus, install_lassie, install_storacha
     print("✓ All installer imports successful")

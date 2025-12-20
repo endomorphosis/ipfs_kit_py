@@ -32,12 +32,14 @@ except Exception as e:  # Catch broad exceptions to prevent collection-time fail
 import pytest
 
 
+@pytest.fixture
 def temp_ipfs_kit_dir():
     """Create a temporary ~/.ipfs_kit directory for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
 
 
+@pytest.fixture
 def sample_backends_config():
     """Sample backends configuration."""
     return {

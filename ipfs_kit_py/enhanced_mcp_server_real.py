@@ -11,7 +11,6 @@ import logging
 import uvicorn
 import time
 import json
-import argparse
 import subprocess
 import tempfile
 import uuid
@@ -32,10 +31,15 @@ except ImportError:
     from config_manager import ConfigManager
 
 # Configure logging
+_repo_root = Path(__file__).resolve().parents[1]
+_logs_dir = _repo_root / "logs"
+_logs_dir.mkdir(parents=True, exist_ok=True)
+_log_file = _logs_dir / "enhanced_mcp_server_real.log"
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='logs/enhanced_mcp_server_real.log'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename=str(_log_file),
 )
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
@@ -43,18 +47,16 @@ console.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s -
 logging.getLogger('').addHandler(console)
 logger = logging.getLogger(__name__)
 
-# Parse command line arguments
-parser = argparse.ArgumentParser(description='Enhanced MCP Server with real implementations')
-parser.add_argument('--port', type=int, default=9997, help='Port to run server on')
-parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to')
-parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-args = parser.parse_args()
-
 # Configuration
-PORT = args.port
-HOST = args.host
+PORT = int(os.environ.get("IPFS_KIT_MCP_PORT", "9997"))
+HOST = os.environ.get("IPFS_KIT_MCP_HOST", "0.0.0.0")
 API_PREFIX = "/api/v0"
-DEBUG_MODE = args.debug
+DEBUG_MODE = os.environ.get("IPFS_KIT_MCP_DEBUG", "0").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 SERVER_ID = str(uuid.uuid4())
 
 # Initialize managers
@@ -894,6 +896,18 @@ def enhance_backend_implementations():
 
 # Main function
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Enhanced MCP Server with real implementations")
+    parser.add_argument("--port", type=int, default=PORT, help="Port to run server on")
+    parser.add_argument("--host", type=str, default=HOST, help="Host to bind to")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    args = parser.parse_args()
+
+    PORT = args.port
+    HOST = args.host
+    DEBUG_MODE = args.debug
+
     # Source credentials
     source_credentials()
     
@@ -916,9 +930,4 @@ if __name__ == "__main__":
     logger.info(f"Debug mode: {DEBUG_MODE}")
     logger.info(f"Server ID: {SERVER_ID}")
     
-    uvicorn.run(
-        "enhanced_mcp_server_real:app",
-        host=HOST,
-        port=PORT,
-        reload=False
-    )
+    uvicorn.run(app, host=HOST, port=PORT, reload=False)

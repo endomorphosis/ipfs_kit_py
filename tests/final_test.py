@@ -5,7 +5,11 @@ Final test to ensure everything is working.
 
 import sys
 import os
-sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
+from pathlib import Path
+
+
+repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(repo_root))
 
 print("=== FINAL INTEGRATION TEST ===")
 
@@ -26,7 +30,7 @@ except Exception as e:
 
 # Test 2: Binary existence
 print("\n2. Testing binary installation:")
-bin_dir = "/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_kit_py/bin"
+bin_dir = str((repo_root / "ipfs_kit_py" / "bin").resolve())
 required_binaries = ["ipfs", "lotus", "lassie"]
 
 for binary in required_binaries:

@@ -13,8 +13,10 @@ import time
 import unittest
 import uuid
 from unittest.mock import MagicMock, patch
+from pathlib import Path
 
-sys.path.insert(0, "/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
 
 # Import from new module locations directly for testing
 from ipfs_kit_py.arc_cache import ARCache

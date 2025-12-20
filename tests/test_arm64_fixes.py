@@ -9,6 +9,8 @@ import subprocess
 import logging
 from pathlib import Path
 
+import pytest
+
 logger = logging.getLogger(__name__)
 
 
@@ -93,7 +95,8 @@ def test_arm64_fixes():
     # 1. Check system architecture
     arch = platform.machine()
     print(f"System Architecture: {arch}")
-    assert arch in ['aarch64', 'arm64'], f"Expected ARM64 architecture, got {arch}"
+    if arch not in ['aarch64', 'arm64']:
+        pytest.skip(f"ARM64-only test (host arch is {arch})")
     
     # 2. Test binary compatibility
     bin_path = Path(__file__).parent.parent / "ipfs_kit_py" / "bin"

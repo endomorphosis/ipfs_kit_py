@@ -8,6 +8,7 @@ with S3-like semantics, IPLD compatibility, and cross-platform data export.
 
 import argparse
 import asyncio
+import inspect
 import json
 import logging
 import os
@@ -29,6 +30,12 @@ except ImportError as e:
     LEGACY_BUCKET_MODE = False
 
 LEGACY_BUCKET_MODE = False
+
+
+async def _await_if_needed(value):
+    if inspect.isawaitable(value):
+        return await value
+    return value
 
 def colorize(text: str, color: str = "GREEN") -> str:
     """Simple colorization for output."""
@@ -162,14 +169,11 @@ async def handle_bucket_list(args) -> int:
         else:
             # Use BucketVFSManager
             bucket_manager = get_global_bucket_manager(
-                storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
+                storage_path=args.storage_path or str(Path.home() / ".ipfs_kit" / "buckets")
             )
             
-            # Ensure bucket registry is loaded
-            await bucket_manager._load_bucket_registry()
-            
             # List buckets
-            result = await bucket_manager.list_buckets()
+            result = await _await_if_needed(bucket_manager.list_buckets())
             
             if not result.get("success"):
                 print_error(f"Failed to list buckets: {result.get('error')}")
@@ -244,11 +248,19 @@ async def handle_bucket_add_file(args) -> int:
         # Use BucketVFSManager for enhanced architecture
         try:
             bucket_manager = get_global_bucket_manager(
-                storage_path=str(Path.home() / ".ipfs_kit" / "buckets")
+                storage_path=getattr(args, "storage_path", None)
+                or str(Path.home() / ".ipfs_kit" / "buckets")
             )
-            
-            # Ensure bucket registry is loaded
-            await bucket_manager._load_bucket_registry()
+
+            bucket_name = getattr(args, "bucket_name", None) or getattr(args, "bucket", None)
+            if not bucket_name:
+                print_error("Missing bucket name")
+                return 1
+
+            bucket_path = getattr(args, "file_path", None) or getattr(args, "path", None)
+            if not bucket_path:
+                print_error("Missing bucket file path")
+                return 1
             
             # Get metadata if provided
             metadata = {"added_via": "cli"}
@@ -262,30 +274,35 @@ async def handle_bucket_add_file(args) -> int:
                     return 1
             
             # Get the bucket instance
-            bucket = await bucket_manager.get_bucket(args.bucket)
+            bucket = await _await_if_needed(bucket_manager.get_bucket(bucket_name))
             if not bucket:
-                print_error(f"Bucket '{args.bucket}' not found")
+                print_error(f"Bucket '{bucket_name}' not found")
                 return 1
-            
-            # Read the source file
-            with open(args.source, 'rb') as f:
-                content = f.read()
+
+            # Get content
+            if getattr(args, "content", None) is not None:
+                content = str(args.content).encode("utf-8")
+            else:
+                source_path = getattr(args, "source", None) or getattr(args, "file_path", None)
+                if not source_path:
+                    print_error("Missing source file path")
+                    return 1
+                with open(source_path, "rb") as f:
+                    content = f.read()
             
             # Add file to bucket
-            result = await bucket.add_file(
-                file_path=args.path,
+            result = await _await_if_needed(bucket.add_file(
+                file_path=bucket_path,
                 content=content,
                 metadata=metadata
-            )
+            ))
             success = result.get("success", False)
             
             if success:
-                print(f"✅ Added file '{args.path}' to bucket '{args.bucket}'")
-                print(f"  Local Path: {args.source}")
-                print(f"  Bucket Path: {args.path}")
+                print(f"✅ Added file '{bucket_path}' to bucket '{bucket_name}'")
                 return 0
             else:
-                print_error(f"Failed to add file '{args.path}' to bucket '{args.bucket}'")
+                print_error(f"Failed to add file '{bucket_path}' to bucket '{bucket_name}'")
                 return 1
                 
         except Exception as e:
@@ -467,21 +484,28 @@ async def handle_bucket_query(args) -> int:
         return 1
     
     try:
+        arg_values = vars(args)
+
         # Initialize bucket manager
         bucket_manager = get_global_bucket_manager(
-            storage_path=args.storage_path or "/tmp/ipfs_kit_buckets",
+            storage_path=arg_values.get("storage_path") or "/tmp/ipfs_kit_buckets",
             ipfs_client=None
         )
         
         # Parse bucket filter if provided
         bucket_filter = None
-        if args.buckets:
-            bucket_filter = args.buckets.split(',')
+        buckets_value = arg_values.get("buckets")
+        if buckets_value:
+            bucket_filter = [b.strip() for b in str(buckets_value).split(",") if b.strip()]
+
+        sql_query = arg_values.get("sql_query") or arg_values.get("query")
+        if not sql_query:
+            print_error("Missing SQL query")
+            return 1
         
         # Execute query
-        result = await bucket_manager.cross_bucket_query(
-            args.query,
-            bucket_filter=bucket_filter
+        result = await _await_if_needed(
+            bucket_manager.cross_bucket_query(sql_query, bucket_filter=bucket_filter)
         )
         
         if result["success"]:
@@ -514,11 +538,17 @@ async def handle_bucket_query(args) -> int:
         print_error(f"Error executing query: {e}")
         return 1
 
-def register_bucket_commands(subparsers) -> None:
+def register_bucket_commands(parser_or_subparsers) -> None:
     """Register bucket VFS commands with the CLI."""
     if not BUCKET_VFS_AVAILABLE:
         logger.debug("Bucket VFS not available, skipping command registration")
         return
+
+    # Accept either an argparse parser (preferred) or an existing subparsers object
+    if hasattr(parser_or_subparsers, "add_subparsers"):
+        subparsers = parser_or_subparsers.add_subparsers()
+    else:
+        subparsers = parser_or_subparsers
     
     # Main bucket command
     bucket_parser = subparsers.add_parser(

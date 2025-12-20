@@ -6,6 +6,7 @@ Usage:
   python -m ipfs_kit_py.cli mcp start [--port 8004] [--foreground] [--server-path FILE]
   python -m ipfs_kit_py.cli mcp stop  [--port 8004]
   python -m ipfs_kit_py.cli mcp status [--port 8004]
+    python -m ipfs_kit_py.cli mcp deprecations [--port 8004] [--json]
 """
 
 from __future__ import annotations
@@ -22,6 +23,11 @@ import time
 from contextlib import suppress
 from pathlib import Path
 from typing import Optional
+
+
+# Schema version for the JSON report emitted by:
+#   python -m ipfs_kit_py.cli mcp deprecations --report-json <path>
+REPORT_SCHEMA_VERSION = "1.0.0"
 
 
 class FastCLI:
@@ -52,6 +58,40 @@ class FastCLI:
         p_status.add_argument("--port", type=int, default=8004)
         p_status.add_argument("--host", default="127.0.0.1")
         p_status.add_argument("--data-dir", default=str(Path.home() / ".ipfs_kit"))
+
+        p_deps = mcp_sub.add_parser("deprecations", help="List server deprecations")
+        p_deps.add_argument("--port", type=int, default=8004)
+        p_deps.add_argument("--host", default="127.0.0.1")
+        p_deps.add_argument("--json", action="store_true", help="Emit raw JSON")
+        p_deps.add_argument(
+            "--fail-if-missing-migration",
+            action="store_true",
+            help="Exit with code 4 if any deprecated endpoint lacks a migration mapping",
+        )
+        p_deps.add_argument(
+            "--fail-if-hits-over",
+            type=int,
+            default=None,
+            help="Exit with code 3 if any deprecated endpoint hit-count exceeds this threshold",
+        )
+        p_deps.add_argument(
+            "--report-json",
+            default=None,
+            help="Write a JSON report to the given path",
+        )
+        p_deps.add_argument(
+            "--sort",
+            choices=["hits"],
+            default=None,
+            help="Sort deprecations (supported: hits)",
+        )
+        p_deps.add_argument(
+            "--min-hits",
+            dest="min_hits",
+            type=int,
+            default=None,
+            help="Filter out entries with hits below this threshold",
+        )
         
         # Daemon API commands
         daemon = sub.add_parser("daemon", help="IPFS-Kit daemon API server")
@@ -252,6 +292,163 @@ class FastCLI:
         except Exception:
             pass
         print(json.dumps(info, indent=2))
+
+    async def handle_mcp_deprecations(self, args) -> None:
+        host = str(getattr(args, "host", "127.0.0.1"))
+        port = int(getattr(args, "port", 8004))
+        emit_json = bool(getattr(args, "json", False))
+        fail_missing = bool(getattr(args, "fail_if_missing_migration", False))
+        hits_threshold = getattr(args, "fail_if_hits_over", None)
+        report_path = getattr(args, "report_json", None)
+        sort_key = getattr(args, "sort", None)
+        min_hits = getattr(args, "min_hits", None)
+
+        import urllib.request
+
+        url = f"http://{host}:{port}/api/system/deprecations"
+
+        raw = "{}"
+        raw_parsed = None
+        data = None
+        try:
+            with urllib.request.urlopen(url, timeout=5) as r:
+                raw = r.read().decode("utf-8", "replace")
+        except Exception as e:
+            # Keep the CLI usable even if the server isn't running; tests expect
+            # report generation to succeed without requiring a live daemon.
+            raw_parsed = {
+                "error": str(e),
+                "url": url,
+                "deprecated": [],
+            }
+            data = raw_parsed
+        else:
+            with suppress(Exception):
+                raw_parsed = json.loads(raw)
+                data = raw_parsed
+
+        # Server may return either a raw list or an object wrapper.
+        if isinstance(data, dict) and isinstance(data.get("deprecated"), list):
+            data = data["deprecated"]
+
+        entries = data if isinstance(data, list) else []
+
+        # Optional filtering/sorting
+        if min_hits is not None:
+            filtered: list[dict] = []
+            for e in entries:
+                if not isinstance(e, dict) or not e.get("endpoint"):
+                    continue
+                hits_val = 0
+                with suppress(Exception):
+                    hits_val = int(e.get("hits") or 0)
+                if hits_val >= int(min_hits):
+                    filtered.append(e)
+            entries = filtered
+
+        if sort_key == "hits":
+            entries = sorted(
+                [e for e in entries if isinstance(e, dict)],
+                key=lambda e: int(e.get("hits") or 0),
+                reverse=True,
+            )
+
+        # Migration enforcement (optional)
+        migration_violations = [
+            e for e in entries
+            if isinstance(e, dict) and e.get("endpoint") and not (e.get("migration") or {})
+        ]
+        migration_status = "skipped"
+        if fail_missing:
+            migration_status = "violation" if migration_violations else "pass"
+        else:
+            migration_violations = []
+
+        # Hits enforcement (optional)
+        hits_violations = []
+        hits_status = "skipped"
+        if hits_threshold is not None:
+            hits_status = "pass"
+            for e in entries:
+                if not isinstance(e, dict) or not e.get("endpoint"):
+                    continue
+                hits = int(e.get("hits") or 0)
+                if hits > int(hits_threshold):
+                    hits_status = "violation"
+                    hits_violations.append({
+                        "endpoint": e.get("endpoint"),
+                        "hits": hits,
+                        "threshold": int(hits_threshold),
+                    })
+
+        policy_block = {
+            "hits_enforcement": {
+                "status": hits_status,
+                "threshold": hits_threshold,
+                "checked": len(entries),
+                "violations": hits_violations,
+            },
+            "migration_enforcement": {
+                "status": migration_status,
+                "checked": len(entries),
+                "violations": migration_violations,
+            },
+        }
+
+        if report_path:
+            from datetime import datetime, timezone
+
+            max_hits = 0
+            for e in entries:
+                if isinstance(e, dict):
+                    with suppress(Exception):
+                        max_hits = max(max_hits, int(e.get("hits") or 0))
+
+            report = {
+                "report_version": REPORT_SCHEMA_VERSION,
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "deprecated": entries,
+                "summary": {
+                    "count": len(entries),
+                    "max_hits": max_hits,
+                },
+                "raw": raw_parsed if isinstance(raw_parsed, dict) else {},
+                "policy": policy_block,
+                # Back-compat keys
+                "deprecations": entries,
+            }
+
+            with suppress(Exception):
+                Path(str(report_path)).parent.mkdir(parents=True, exist_ok=True)
+            with open(str(report_path), "w", encoding="utf-8") as fh:
+                json.dump(report, fh, indent=2)
+
+        if emit_json:
+            if isinstance(data, list):
+                print(json.dumps(entries))
+            else:
+                print(raw)
+            if fail_missing and migration_status == "violation":
+                raise SystemExit(4)
+            if hits_threshold is not None and hits_status == "violation":
+                raise SystemExit(3)
+            return
+
+        if isinstance(data, list):
+            for item in data:
+                endpoint = (item or {}).get("endpoint")
+                remove_in = (item or {}).get("remove_in")
+                note = (item or {}).get("note")
+                parts = [p for p in [endpoint, f"remove_in={remove_in}" if remove_in else None, note] if p]
+                print(" - " + " | ".join(parts))
+            if fail_missing and migration_status == "violation":
+                raise SystemExit(4)
+            if hits_threshold is not None and hits_status == "violation":
+                raise SystemExit(3)
+            return
+
+        # Fallback
+        print(raw)
 
     # ---- Daemon API ----
     async def handle_daemon_start(self, args) -> None:

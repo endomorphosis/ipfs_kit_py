@@ -9,6 +9,7 @@ import logging
 import time
 import sys
 import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 # Configure logging
@@ -16,7 +17,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Path to the method_normalizer.py file
-NORMALIZER_PATH = "/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_kit_py/mcp/utils/method_normalizer.py"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+NORMALIZER_PATH = str((REPO_ROOT / "ipfs_kit_py" / "mcp" / "utils" / "method_normalizer.py").resolve())
 
 # Since we can't import the module directly due to circular imports,
 # we'll load it from the file

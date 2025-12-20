@@ -31,21 +31,32 @@ class MetadataManager:
     
     def __init__(self, base_path: Optional[Path] = None):
 
-        """
-        Initialize the metadata manager.
-        
+        """Initialize the metadata manager.
+
         Args:
             base_path: Optional custom base path (defaults to ~/.ipfs_kit/)
         """
         self.base_path = base_path or Path.home() / ".ipfs_kit"
+        # Backwards-compatible aliases expected by tests/older callers
+        self.base_dir = self.base_path
+        self.config_dir = self.base_path / "config"
+        self.backends_dir = self.base_path / "backends"
+        self.metadata_dir = self.base_path / "metadata"
+        self.cache_dir = self.base_path / "cache"
+        self.logs_dir = self.base_path / "logs"
+
         self._lock = threading.RLock()
         self._ensure_directory_structure()
+        self._create_default_files()
+        self._config = self._load_config()
     
     def _ensure_directory_structure(self):
         """Create the required directory structure."""
         directories = [
             self.base_path,
             self.base_path / "config",
+            self.base_path / "backends",
+            self.base_path / "metadata",
             self.base_path / "services",
             self.base_path / "monitoring", 
             self.base_path / "logs",
@@ -334,6 +345,8 @@ class MetadataManager:
                 "directory_exists": self.base_path.exists(),
                 "directories": {
                     "config": (self.base_path / "config").exists(),
+                    "backends": (self.base_path / "backends").exists(),
+                    "metadata": (self.base_path / "metadata").exists(),
                     "services": (self.base_path / "services").exists(),
                     "monitoring": (self.base_path / "monitoring").exists(),
                     "logs": (self.base_path / "logs").exists(),
@@ -341,10 +354,6 @@ class MetadataManager:
                     "state": (self.base_path / "state").exists()
                 }
             }
-            logger.debug(f"Ensured directory exists: {directory}")
-            
-        # Create default files
-        self._create_default_files()
     
     def _create_default_files(self):
         """Create default configuration files if they don't exist."""

@@ -8,8 +8,10 @@ before making calls to the ipfs_kit_py library.
 import logging
 import os
 import functools
+import inspect
 import time
-from typing import Dict, Any, Optional, Callable, Union
+import contextlib
+from typing import Dict, Any, Optional, Callable
 from pathlib import Path
 
 from .metadata_manager import get_metadata_manager
@@ -32,7 +34,7 @@ class MetadataFirstMCP:
         self.service_registry = get_service_registry()
         self._cache = {}
         
-    def metadata_first(self, service_name: str = None, cache_ttl: int = 300):
+    def metadata_first(self, service_name: Optional[str] = None, cache_ttl: int = 300):
         """
         Decorator to check metadata before calling the actual method.
         
@@ -41,45 +43,94 @@ class MetadataFirstMCP:
             cache_ttl: Time to live for cached results in seconds
         """
         def decorator(func: Callable):
-            @functools.wraps(func)
-            async def wrapper(*args, **kwargs):
-                # Generate cache key
-                cache_key = f"{func.__name__}:{service_name}:{hash(str(args) + str(sorted(kwargs.items())))}"
-                
-                # Check metadata first
-                metadata_result = await self._check_metadata(func.__name__, service_name, *args, **kwargs)
-                if metadata_result is not None:
-                    logger.debug(f"Using metadata result for {func.__name__}")
-                    return metadata_result
-                
-                # Check cache
-                if cache_key in self._cache:
-                    cached_result = self._cache[cache_key]
-                    if cached_result.get("ttl", 0) > asyncio.get_event_loop().time():
-                        logger.debug(f"Using cached result for {func.__name__}")
-                        return cached_result["data"]
-                
-                # Fall back to library call
-                logger.debug(f"Making library call for {func.__name__}")
-                try:
+            # NOTE: tests use this decorator on sync functions and expect a sync wrapper.
+            # We support both sync + async functions.
+            metadata_key = service_name or func.__name__
+
+            def _cache_key(args, kwargs) -> str:
+                return f"{metadata_key}:{hash(str(args) + str(sorted(kwargs.items())))}"
+
+            def _get_cached(cache_key: str) -> Optional[Any]:
+                cached = self._cache.get(cache_key)
+                if not cached:
+                    return None
+                if cached.get("expires_at", 0.0) > time.monotonic():
+                    return cached.get("data")
+                # Expired
+                self._cache.pop(cache_key, None)
+                return None
+
+            def _set_cached(cache_key: str, value: Any) -> None:
+                self._cache[cache_key] = {
+                    "data": value,
+                    "expires_at": time.monotonic() + float(cache_ttl or 0),
+                }
+
+            if inspect.iscoroutinefunction(func):
+                @functools.wraps(func)
+                async def async_wrapper(*args, **kwargs):
+                    # Metadata first
+                    metadata_value = self.metadata_manager.get_metadata(metadata_key)
+                    if metadata_value is not None:
+                        return metadata_value
+
+                    ck = _cache_key(args, kwargs)
+                    cached_value = _get_cached(ck)
+                    if cached_value is not None:
+                        return cached_value
+
                     result = await func(*args, **kwargs)
-                    
-                    # Cache the result
-                    self._cache[cache_key] = {
-                        "data": result,
-                        "ttl": asyncio.get_event_loop().time() + cache_ttl
-                    }
-                    
-                    # Update metadata if successful
-                    await self._update_metadata(func.__name__, service_name, result, *args, **kwargs)
-                    
+                    _set_cached(ck, result)
+                    with contextlib.suppress(Exception):
+                        self.metadata_manager.set_metadata(metadata_key, result)
                     return result
-                except Exception as e:
-                    logger.error(f"Library call failed for {func.__name__}: {e}")
-                    raise
-                    
-            return wrapper
+
+                return async_wrapper
+
+            @functools.wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                metadata_value = self.metadata_manager.get_metadata(metadata_key)
+                if metadata_value is not None:
+                    return metadata_value
+
+                ck = _cache_key(args, kwargs)
+                cached_value = _get_cached(ck)
+                if cached_value is not None:
+                    return cached_value
+
+                result = func(*args, **kwargs)
+                _set_cached(ck, result)
+                with contextlib.suppress(Exception):
+                    self.metadata_manager.set_metadata(metadata_key, result)
+                return result
+
+            return sync_wrapper
         return decorator
+
+    def get_backend_config_metadata_first(self, backend_id: str) -> Optional[Dict[str, Any]]:
+        """Get backend configuration, checking metadata first."""
+        try:
+            config = self.metadata_manager.get_backend_config(backend_id)
+            if config:
+                logger.info(f"Found backend config in metadata for {backend_id}")
+            return config
+        except Exception as e:
+            logger.error(f"Error loading backend config for {backend_id}: {e}")
+            return None
+
+    def set_backend_config_metadata_first(self, backend_id: str, config: Dict[str, Any]) -> bool:
+        """Set backend configuration in metadata first."""
+        try:
+            success = self.metadata_manager.set_backend_config(backend_id, config)
+            if success:
+                # Clear cached results that might include this backend id
+                for key in [k for k in self._cache.keys() if backend_id in k]:
+                    self._cache.pop(key, None)
+                logger.info(f"Stored backend config in metadata for {backend_id}")
+            return bool(success)
+        except Exception as e:
+            logger.error(f"Error saving backend config {backend_id}: {e}")
+            return False
     
     async def _check_metadata(self, method_name: str, service_name: str, *args, **kwargs) -> Optional[Any]:
         """

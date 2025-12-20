@@ -21,8 +21,11 @@ def test_standalone_vfs():
     try:
         # Import classes directly from ipfs_fsspec without going through ipfs_kit_py
         import importlib.util
-        
-        spec = importlib.util.spec_from_file_location("ipfs_fsspec", "/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_fsspec.py")
+
+        repo_root = Path(__file__).resolve().parents[1]
+        spec = importlib.util.spec_from_file_location(
+            "ipfs_fsspec", str((repo_root / "ipfs_kit_py" / "ipfs_fsspec.py").resolve())
+        )
         if spec and spec.loader:
             ipfs_fsspec = importlib.util.module_from_spec(spec)
             

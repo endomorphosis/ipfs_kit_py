@@ -15,7 +15,8 @@ from pathlib import Path
 import sys
 
 # Add project root to path
-sys.path.append('/home/runner/work/ipfs_kit_py/ipfs_kit_py')
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.append(str(repo_root))
 
 # (Imports removed)
 

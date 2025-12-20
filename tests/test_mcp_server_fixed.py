@@ -8,6 +8,7 @@ import json
 import time
 import sys
 import os
+from pathlib import Path
 
 def test_mcp_server():
     """Test the VFS-enabled MCP server by sending JSON-RPC messages."""
@@ -22,7 +23,7 @@ def test_mcp_server():
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py"
+        cwd=str(Path(__file__).resolve().parents[1])
     )
     
     try:
@@ -293,7 +294,7 @@ def run_additional_vfs_tests():
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py"
+        cwd=str(Path(__file__).resolve().parents[1])
     )
     
     try:

@@ -85,7 +85,7 @@ def main():
     if test_server_startup():
         print("\n✅ All tests passed! The server is ready to use.")
         print("\n📋 To start the server, run:")
-        print("   cd /home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_kit_py")
+        print("   cd <repo>/ipfs_kit_py")
         print("   python enhanced_mcp_server_real.py --port 8080")
         print("\n🌐 Then visit: http://localhost:8080/dashboard")
     else:

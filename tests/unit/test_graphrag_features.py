@@ -9,6 +9,7 @@ import json
 import tempfile
 import time
 import os
+from pathlib import Path
 
 
 def test_basic_server():
@@ -17,8 +18,8 @@ def test_basic_server():
     print("🧪 Quick Enhanced MCP Server Test")
     print("=" * 40)
     
-    # Set proper environment path
-    venv_python = "/home/runner/work/ipfs_kit_py/ipfs_kit_py/.venv/bin/python"
+    repo_root = Path(__file__).resolve().parents[2]
+    venv_python = str((repo_root / ".venv" / "bin" / "python").resolve())
     
     try:
         # Test that server can import successfully
@@ -26,7 +27,7 @@ def test_basic_server():
         result = subprocess.run([
             venv_python, "-c", 
             "import sys; sys.path.insert(0, 'mcp'); import enhanced_mcp_server_with_daemon_mgmt; print('✅ Server imports successfully')"
-        ], capture_output=True, text=True, timeout=10, cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+        ], capture_output=True, text=True, timeout=10, cwd=str(repo_root))
         
         if result.returncode == 0:
             print("✅ Server imports successfully")
@@ -49,7 +50,7 @@ except Exception as e:
 """
         
         result = subprocess.run([venv_python, "-c", test_code], 
-                              capture_output=True, text=True, timeout=15, cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+                      capture_output=True, text=True, timeout=15, cwd=str(repo_root))
         
         if result.returncode == 0:
             print(result.stdout.strip())
@@ -79,8 +80,8 @@ result = asyncio.run(test_indexing())
 print(f'✅ Content indexing: {result["success"]=}')
 """
         
-        result = subprocess.run([venv_python, "-c", test_code], 
-                              capture_output=True, text=True, timeout=15, cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+        result = subprocess.run([venv_python, "-c", test_code],
+                      capture_output=True, text=True, timeout=15, cwd=str(repo_root))
         
         if result.returncode == 0:
             print(result.stdout.strip())
@@ -113,8 +114,8 @@ result = asyncio.run(test_search())
 print(f'✅ Search functionality: {result["success"]=}, results={len(result.get("results", []))}')
 """
         
-        result = subprocess.run([venv_python, "-c", test_code], 
-                              capture_output=True, text=True, timeout=15, cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+        result = subprocess.run([venv_python, "-c", test_code],
+                      capture_output=True, text=True, timeout=15, cwd=str(repo_root))
         
         if result.returncode == 0:
             print(result.stdout.strip())
@@ -138,7 +139,8 @@ def check_capabilities():
     print("\n📊 Search Capabilities Check")
     print("-" * 30)
     
-    venv_python = "/home/runner/work/ipfs_kit_py/ipfs_kit_py/.venv/bin/python"
+    repo_root = Path(__file__).resolve().parents[2]
+    venv_python = str((repo_root / ".venv" / "bin" / "python").resolve())
     
     test_code = """
 import sys
@@ -163,8 +165,8 @@ print(f"  📈 RDF triples: {stats.get('rdf_triples', 0)}")
 """
     
     try:
-        result = subprocess.run([venv_python, "-c", test_code], 
-                              capture_output=True, text=True, timeout=10, cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+        result = subprocess.run([venv_python, "-c", test_code],
+                      capture_output=True, text=True, timeout=10, cwd=str(repo_root))
         
         if result.returncode == 0:
             print(result.stdout)

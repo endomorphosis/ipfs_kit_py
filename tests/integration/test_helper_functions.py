@@ -6,10 +6,12 @@ import tempfile
 import time
 import unittest
 from unittest.mock import MagicMock, patch
+from pathlib import Path
 
 # We need to import just the cluster_state_helpers module without importing
 # the entire package that has dependency issues
-sys.path.insert(0, "/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
 
 # Manually mock the module dependencies before importing
 mock_pyarrow = MagicMock()

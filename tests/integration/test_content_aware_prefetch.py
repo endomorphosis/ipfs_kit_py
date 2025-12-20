@@ -15,10 +15,12 @@ import shutil
 import sys
 import collections
 from unittest.mock import MagicMock, patch
+from pathlib import Path
 
 # Don't import from ipfs_kit_py.__init__ since it has indentation errors
 # Import directly from the module instead
-sys.path.insert(0, "/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
 
 # Import directly from the module file to avoid dependency issues
 from ipfs_kit_py.content_aware_prefetch import ContentTypeAnalyzer, ContentAwarePrefetchManager

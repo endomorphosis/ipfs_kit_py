@@ -16,7 +16,8 @@ from pathlib import Path
 import pytest
 
 # Add the project to the path
-sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
 
 def test_daemon_manager():
     """Test the standalone daemon manager functionality."""

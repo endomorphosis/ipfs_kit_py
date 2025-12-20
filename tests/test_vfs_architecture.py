@@ -19,8 +19,9 @@ def test_vfs_architecture():
     print("\n📦 Test 1: Core VFS Component Imports")
     
     try:
-        # Add the current directory to Python path
-        sys.path.insert(0, '/home/runner/work/ipfs_kit_py/ipfs_kit_py')
+        # Add repo root to Python path (not the package dir)
+        repo_root = Path(__file__).resolve().parents[1]
+        sys.path.insert(0, str(repo_root))
         
         # Import core components directly
         from ipfs_fsspec import (

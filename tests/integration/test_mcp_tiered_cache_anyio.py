@@ -23,9 +23,11 @@ import shutil
 import uuid
 import pytest
 from unittest.mock import MagicMock, patch
+from pathlib import Path
 
 # Add project root to path for imports
-sys.path.insert(0, "/home/runner/work/ipfs_kit_py/ipfs_kit_py")
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
 
 # Import anyio
 import anyio

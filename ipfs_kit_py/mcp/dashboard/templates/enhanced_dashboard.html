@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPFS Kit - Comprehensive MCP Dashboard</title>
+    <title>IPFS Kit MCP Dashboard</title>
     <!-- Local/Inline styling to replace external CDNs -->
     <style>
         /* Reset and base styles */
@@ -1680,6 +1680,7 @@
     <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> -->
 </head>
 <body class="bg-gray-100">
+    <div id="toolrunner-fallback" style="display:none"></div>
     <div class="min-h-screen flex main-container">
         <!-- Enhanced Sidebar -->
         <div class="w-64 bg-white shadow-lg main-sidebar">
@@ -11605,5 +11606,8 @@ Shared Pins: ${pinsets.length || 0}
             </div>
         </div>
     </div>
+
+    <script src="/mcp-client.js"></script>
+    <script src="/app.js"></script>
 </body>
 </html>
