@@ -53,32 +53,28 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install with webrtc extras
+          python -m pip install -e .[webrtc]
+          # Check if dependencies are installed
+          python -c "import ipfs_kit_py.webrtc_benchmark; print('WebRTC benchmark module available')"
           
-      - name: Install IPFS
+      - name: Install IPFS (via installer)
         run: |
           set -euo pipefail
-          
-          if [[ -z "${KUBO_VERSION:-}" ]]; then
-            KUBO_VERSION=$(python - <<'PY'
-import json
-import urllib.request
 
-url = "https://api.github.com/repos/ipfs/kubo/releases/latest"
-req = urllib.request.Request(
-    url,
-    headers={"Accept": "application/vnd.github+json", "User-Agent": "ipfs_kit_py-ci"},
-)
-with urllib.request.urlopen(req, timeout=15) as resp:
-    data = json.loads(resp.read().decode("utf-8"))
-print(data["tag_name"])
+          python - <<'PY'
+from ipfs_kit_py.install_ipfs import install_ipfs
+
+installer = install_ipfs(metadata={"role": "leecher"})
+result = installer.install_ipfs_daemon()
+print(f"install_ipfs_daemon result: {result}")
 PY
-            )
-          fi
 
-          echo "Installing Kubo ${KUBO_VERSION}"
-          curl -fsSL -o kubo.tar.gz "https://dist.ipfs.tech/kubo/${KUBO_VERSION}/kubo_${KUBO_VERSION}_linux-amd64.tar.gz"
-          tar -xzf kubo.tar.gz
-          sudo bash kubo/install.sh
+          echo "${GITHUB_WORKSPACE}/ipfs_kit_py/bin" >> $GITHUB_PATH
           ipfs --version
           
       - name: Initialize IPFS Node
@@ -88,14 +84,6 @@ PY
           sleep 10  # Wait for daemon to start
           ipfs swarm peers  # Verify connectivity
         
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # Install with webrtc extras
-          python -m pip install -e .[webrtc]
-          # Check if dependencies are installed
-          python -c "import ipfs_kit_py.webrtc_benchmark; print('WebRTC benchmark module available')"
-          
       - name: Prepare Test Environment
         run: |
           # Create directories for benchmark results

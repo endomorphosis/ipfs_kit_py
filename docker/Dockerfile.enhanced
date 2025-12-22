@@ -1,4 +1,6 @@
 # Multi-stage Dockerfile for IPFS-Kit with Enhanced Daemon Support
+# NOTE: This image intentionally relies on the repo's Python installers (e.g. install_ipfs)
+# at runtime instead of hard-pinning binary download URLs here.
 FROM python:3.12-slim as base
 
 # Set environment variables
@@ -32,41 +34,6 @@ RUN apt-get update && apt-get install -y \
     ocl-icd-opencl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Go for IPFS binaries
-FROM base as go-builder
-
-# Automatic platform args provided by buildx
-ARG TARGETARCH
-ARG TARGETOS
-
-ENV GOLANG_VERSION=1.21.4
-RUN wget -O go.tgz "https://golang.org/dl/go${GOLANG_VERSION}.${TARGETOS}-${TARGETARCH}.tar.gz" \
-    && tar -C /usr/local -xzf go.tgz \
-    && rm go.tgz
-ENV PATH=/usr/local/go/bin:$PATH
-
-# Download pre-built IPFS (Kubo) binary
-WORKDIR /build
-ENV KUBO_VERSION=v0.24.0
-RUN wget "https://dist.ipfs.tech/kubo/${KUBO_VERSION}/kubo_${KUBO_VERSION}_${TARGETOS}-${TARGETARCH}.tar.gz" \
-    && tar -xzf "kubo_${KUBO_VERSION}_${TARGETOS}-${TARGETARCH}.tar.gz" \
-    && mv kubo/ipfs /usr/local/bin/ \
-    && chmod +x /usr/local/bin/ipfs \
-    && rm -rf kubo*
-
-# Download pre-built IPFS Cluster binaries
-ENV CLUSTER_VERSION=v1.0.7
-RUN wget "https://dist.ipfs.tech/ipfs-cluster-service/${CLUSTER_VERSION}/ipfs-cluster-service_${CLUSTER_VERSION}_${TARGETOS}-${TARGETARCH}.tar.gz" \
-    && tar -xzf "ipfs-cluster-service_${CLUSTER_VERSION}_${TARGETOS}-${TARGETARCH}.tar.gz" \
-    && mv ipfs-cluster-service/ipfs-cluster-service /usr/local/bin/ \
-    && chmod +x /usr/local/bin/ipfs-cluster-service \
-    && rm -rf ipfs-cluster-service* \
-    && wget "https://dist.ipfs.tech/ipfs-cluster-ctl/${CLUSTER_VERSION}/ipfs-cluster-ctl_${CLUSTER_VERSION}_${TARGETOS}-${TARGETARCH}.tar.gz" \
-    && tar -xzf "ipfs-cluster-ctl_${CLUSTER_VERSION}_${TARGETOS}-${TARGETARCH}.tar.gz" \
-    && mv ipfs-cluster-ctl/ipfs-cluster-ctl /usr/local/bin/ \
-    && chmod +x /usr/local/bin/ipfs-cluster-ctl \
-    && rm -rf ipfs-cluster-ctl*
-
 # Main application stage
 FROM base as app
 
@@ -76,27 +43,12 @@ RUN useradd --create-home --shell /bin/bash --uid 1000 ipfs_user
 # Set working directory
 WORKDIR /app
 
-# Copy IPFS binaries from builder
-COPY --from=go-builder /usr/local/bin/ipfs /usr/local/bin/
-COPY --from=go-builder /usr/local/bin/ipfs-cluster-service /usr/local/bin/
-COPY --from=go-builder /usr/local/bin/ipfs-cluster-ctl /usr/local/bin/
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt ./
-COPY pyproject.toml ./
-COPY setup.py ./
-
-# Install Python dependencies
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt && \
-    pip install pytest pytest-asyncio pytest-cov httpx fastapi uvicorn && \
-    pip install aiohttp aiofiles watchdog psutil
-
 # Copy application code
 COPY . .
 
-# Install the package in development mode
-RUN pip install -e .
+# Install the package with a complete, maintained dependency set
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    python -m pip install -e ".[full]"
 
 # Create necessary directories with proper permissions
 RUN mkdir -p \
@@ -124,11 +76,6 @@ RUN chmod +x /healthcheck.sh
 
 # Switch to application user
 USER ipfs_user
-
-# Initialize IPFS repository and configure API to listen on all interfaces
-RUN ipfs init --profile server && \
-    ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001 && \
-    ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080
 
 # Expose ports
 # 4001: IPFS swarm

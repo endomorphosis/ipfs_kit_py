@@ -32,6 +32,39 @@ trap handle_signal SIGTERM SIGINT
 # Ensure log directory exists
 mkdir -p /tmp/ipfs_kit_logs /tmp/ipfs_kit_config
 
+# Ensure project-managed binaries are on PATH for supervisord programs.
+export PATH="/app/ipfs_kit_py/bin:${PATH}"
+
+# Install required binaries using the repo's shared installers.
+# This avoids duplicating pinned binary download logic across Docker/CI.
+export IPFS_KIT_DOCKER_MODE="$MODE"
+log "Ensuring IPFS binaries are installed (mode=$MODE)..."
+python - <<'PY'
+import os
+
+from ipfs_kit_py.install_ipfs import install_ipfs
+
+mode = os.environ.get("IPFS_KIT_DOCKER_MODE", "all")
+
+# Always ensure Kubo (ipfs) is present.
+installer = install_ipfs(metadata={"role": "leecher"})
+installer.install_ipfs_daemon()
+
+# Only install cluster binaries when we might run them.
+if mode == "full":
+    installer = install_ipfs(metadata={"role": "master"})
+    installer.install_ipfs_cluster_service()
+    installer.install_ipfs_cluster_ctl()
+PY
+
+# Initialize IPFS repo on first run (needed before running daemon).
+if [ ! -f "/home/ipfs_user/.ipfs/config" ]; then
+  log "Initializing IPFS repo..."
+  ipfs init --profile server || true
+  ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001 || true
+  ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080 || true
+fi
+
 # Create default daemon config if it doesn't exist
 if [ ! -f "/tmp/ipfs_kit_config/daemon.json" ]; then
   log "Creating default daemon configuration..."

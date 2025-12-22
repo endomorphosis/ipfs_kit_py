@@ -607,9 +607,14 @@ class install_ipfs:
             print("Note: PATH not updated permanently on this system")
 
     def install_ipfs_daemon(self):
-        # Check for latest version and update URLs
-        print("Checking for latest Kubo version...")
-        latest_version = self.get_latest_kubo_version()
+        # Check for desired/latest version and update URLs
+        print("Checking for desired Kubo version...")
+        desired_version = (
+            os.environ.get("KUBO_VERSION")
+            or (self.metadata.get("kubo_version") if isinstance(self.metadata, dict) else None)
+            or self.get_latest_kubo_version()
+        )
+        latest_version = self._normalize_v_prefix(desired_version) or self.get_latest_kubo_version()
         print(f"Latest Kubo version: {latest_version}")
         
         # Update distribution URLs with latest version

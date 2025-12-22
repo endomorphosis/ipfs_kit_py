@@ -25,6 +25,7 @@ import argparse
 import traceback
 import hashlib
 import signal
+import shutil
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
@@ -51,8 +52,8 @@ request_count = 0
 
 import ipfshttpclient
 import requests
-import tarfile
 from ipfs_kit_py.install_lassie import install_lassie
+from ipfs_kit_py.install_ipfs import install_ipfs
 
 # Configure comprehensive logging
 logging.basicConfig(
@@ -80,67 +81,47 @@ lassie_installer = None
 lassie_client = None
 
 IPFS_PATH = os.path.join(os.path.expanduser("~"), ".ipfs")
-IPFS_BIN_PATH = os.path.join(IPFS_PATH, "go-ipfs", "ipfs")
+IPFS_BIN_PATH = shutil.which("ipfs") or "ipfs"
 
 async def _check_and_install_ipfs_daemon():
     """
     Checks for IPFS daemon and installs it if not found.
     """
-    if Path(IPFS_BIN_PATH).is_file():
+    global IPFS_BIN_PATH
+
+    existing = shutil.which("ipfs")
+    if existing:
+        IPFS_BIN_PATH = existing
         logger.info(f"✅ IPFS binary found at {IPFS_BIN_PATH}")
         return
 
-    logger.warning("IPFS binary not found. Attempting to download and install go-ipfs...")
-    
-    # Determine OS and architecture
-    system = sys.platform
-    if system == "linux":
-        os_type = "linux"
-    elif system == "darwin":
-        os_type = "darwin"
-    elif system == "win32":
-        os_type = "windows"
-    else:
-        logger.error(f"Unsupported OS: {system}")
-        return
-
-    arch = os.uname().machine
-    if arch == "x86_64":
-        arch_type = "amd64"
-    elif arch == "aarch64":
-        arch_type = "arm64"
-    else:
-        logger.error(f"Unsupported architecture: {arch}")
-        return
-
-    # Latest go-ipfs release (can be fetched from GitHub API for robustness)
-    version = "v0.20.0"
-    download_url = f"https://dist.ipfs.tech/go-ipfs/{version}/go-ipfs_{version}_{os_type}-{arch_type}.tar.gz"
-    
-    logger.info(f"Attempting to download go-ipfs from: {download_url}")
-    
+    logger.warning("IPFS binary not found. Attempting to install Kubo via ipfs_kit_py installer...")
     try:
-        response = requests.get(download_url, stream=True)
-        response.raise_for_status()
-        
-        tar_path = Path(IPFS_PATH) / f"go-ipfs_{version}_{os_type}-{arch_type}.tar.gz"
-        tar_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(tar_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        logger.info(f"Downloaded go-ipfs to {tar_path}")
-        
-        with tarfile.open(tar_path, "r:gz") as tar:
-            tar.extractall(path=IPFS_PATH)
-        logger.info(f"Extracted go-ipfs to {IPFS_PATH}")
-        
-        # Make ipfs binary executable
-        os.chmod(IPFS_BIN_PATH, 0o755)
-        logger.info(f"✅ IPFS binary installed at {IPFS_BIN_PATH}")
-        
+        installer = install_ipfs(metadata={"role": "leecher"})
+        installer.install_ipfs_daemon()
+
+        # Prefer the installer-managed bin directory if present.
+        import ipfs_kit_py as _ipfs_kit_py
+
+        pkg_dir = Path(_ipfs_kit_py.__file__).resolve().parent
+        bin_dir = pkg_dir / "bin"
+        candidate = bin_dir / ("ipfs.exe" if sys.platform == "win32" else "ipfs")
+        if candidate.exists():
+            IPFS_BIN_PATH = str(candidate)
+            os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
+            logger.info(f"✅ Installed IPFS binary at {IPFS_BIN_PATH}")
+            return
+
+        # Fallback: search PATH again.
+        existing = shutil.which("ipfs")
+        if existing:
+            IPFS_BIN_PATH = existing
+            logger.info(f"✅ Installed IPFS binary found at {IPFS_BIN_PATH}")
+            return
+
+        logger.error("❌ IPFS install attempted, but binary still not found")
     except Exception as e:
-        logger.error(f"❌ Failed to download or install go-ipfs: {e}")
+        logger.error(f"❌ Failed to install IPFS via installer: {e}")
 
 async def _initialize_ipfs_repo():
     """
