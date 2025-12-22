@@ -1,0 +1,61 @@
+{
+  "operations": {
+    "add": {
+      "count": 0,
+      "success": 0,
+      "failed": 0,
+      "response_times": []
+    },
+    "get": {
+      "count": 0,
+      "success": 0,
+      "failed": 0,
+      "response_times": []
+    },
+    "pin": {
+      "count": 0,
+      "success": 0,
+      "failed": 0,
+      "response_times": []
+    },
+    "unpin": {
+      "count": 0,
+      "success": 0,
+      "failed": 0,
+      "response_times": []
+    },
+    "list": {
+      "count": 0,
+      "success": 0,
+      "failed": 0,
+      "response_times": []
+    },
+    "stat": {
+      "count": 0,
+      "success": 0,
+      "failed": 0,
+      "response_times": []
+    }
+  },
+  "throughput": {
+    "uploads": {
+      "bytes": 0,
+      "operations": 0
+    },
+    "downloads": {
+      "bytes": 0,
+      "operations": 0
+    }
+  },
+  "last_hour": {
+    "operations": 0,
+    "success_rate": 0,
+    "avg_response_time": 0
+  },
+  "total": {
+    "operations": 0,
+    "success_rate": 0,
+    "avg_response_time": 0
+  },
+  "last_updated": 1766369240.2391186
+}

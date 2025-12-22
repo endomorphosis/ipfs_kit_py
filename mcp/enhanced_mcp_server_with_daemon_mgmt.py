@@ -835,6 +835,7 @@ class EnhancedMCPServerWithDaemonMgmt:
 
     def get_program_state_data(self) -> Dict[str, Any]:
         """Reads and aggregates program state data from ~/.ipfs_kit/program_state/parquet/."""
+        import pandas as pd
         state_data = {}
         state_dir = self.ipfs_kit_path / 'program_state' / 'parquet'
         if state_dir.exists():
@@ -856,6 +857,21 @@ class EnhancedMCPServerWithDaemonMgmt:
         """Gathers and returns status data for all configured backends."""
         backend_status = {}
         configs = self.get_all_configs()
+
+        # Always include core subsystems expected by clients/tests.
+        bucket_cfg = configs.get('bucket') or {}
+        daemon_cfg = configs.get('daemon') or {}
+        backend_status['bucket'] = {
+            'configured': bool(bucket_cfg),
+            'details': bucket_cfg,
+            'status': 'configured' if bucket_cfg else 'missing',
+        }
+        backend_status['daemon'] = {
+            'configured': bool(daemon_cfg),
+            'details': daemon_cfg,
+            'status': 'configured' if daemon_cfg else 'missing',
+        }
+
         for backend_name, config in configs.items():
             if backend_name not in ['package', 'daemon', 'wal', 'fs_journal', 'pinset_policy', 'bucket'] and config:
                 # This is a simplified example. In a real scenario, you'd need to

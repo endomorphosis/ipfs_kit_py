@@ -26,6 +26,13 @@ class TestDashboardStatusAndWebSocket(unittest.TestCase):
             self.assertEqual(msg.get('type'), 'system_update')
             inner = (msg.get('data') or {}).get('data') or {}
             self.assertIn('uptime', inner)
+
+            # The dashboard also emits an initial metrics snapshot immediately
+            # after system_update; consume it so it doesn't interfere with the
+            # ping/ack check.
+            second = ws.receive_json()
+            self.assertEqual(second.get('type'), 'metrics')
+
             # echo path
             ws.send_text('ping')
             ack = ws.receive_text()

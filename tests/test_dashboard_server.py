@@ -152,7 +152,7 @@ async def get_backend_metrics(backend_id: str):
 
 
 @app.post("/api/backends/{backend_id}/test")
-async def test_backend(backend_id: str):
+async def api_test_backend(backend_id: str):
     """Test backend connectivity."""
     config = metadata_manager.get_backend_config(backend_id)
     if not config:

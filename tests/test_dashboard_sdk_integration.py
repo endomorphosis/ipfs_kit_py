@@ -53,10 +53,12 @@ class TestDashboardSdkIntegration(unittest.TestCase):
         self.assertIn('MCP SDK', r.text or '')
 
     def test_logs_stream_endpoint_headers(self):
-        r = self.client.get('/api/logs/stream')
-        self.assertEqual(r.status_code, 200)
-        # Content-Type for SSE
-        self.assertIn('text/event-stream', r.headers.get('content-type', ''))
+        # SSE endpoints are intentionally long-lived; use a streamed request so
+        # the test doesn't hang trying to consume an infinite response.
+        with self.client.stream('GET', '/api/logs/stream') as r:
+            self.assertEqual(r.status_code, 200)
+            # Content-Type for SSE
+            self.assertIn('text/event-stream', r.headers.get('content-type', ''))
 
 
 if __name__ == '__main__':

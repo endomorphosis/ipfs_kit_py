@@ -4,44 +4,53 @@ import shutil
 from pathlib import Path
 from unittest import mock
 
-# Define a temporary .ipfs_kit directory for testing
-TEST_IPFS_KIT_PATH = Path.home() / ".ipfs_kit_test"
-
 @pytest.fixture(scope="module", autouse=True)
-def setup_test_environment():
-    with mock.patch.dict(os.environ, {'HOME': str(TEST_IPFS_KIT_PATH.parent)}):
-        # Import EnhancedMCPServerWithDaemonMgmt after patching HOME
+def setup_test_environment(tmp_path_factory):
+    old_home = os.environ.get("HOME")
+    home_dir = tmp_path_factory.mktemp("home")
+
+    with mock.patch.dict(os.environ, {"HOME": str(home_dir)}):
+        # Import after HOME is patched so any Path.home() usage is isolated.
         from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
 
-        # Create a temporary .ipfs_kit directory for testing
-        if TEST_IPFS_KIT_PATH.exists():
-            shutil.rmtree(TEST_IPFS_KIT_PATH)
-        TEST_IPFS_KIT_PATH.mkdir(parents=True, exist_ok=True)
+        test_ipfs_kit_path = Path.home() / ".ipfs_kit"
+        test_ipfs_kit_path.mkdir(parents=True, exist_ok=True)
 
         # Create dummy config files
-        (TEST_IPFS_KIT_PATH / "bucket_config.yaml").write_text("test_key: test_value")
-        (TEST_IPFS_KIT_PATH / "daemon_config.yaml").write_text("daemon_port: 5001")
+        (test_ipfs_kit_path / "bucket_config.yaml").write_text("test_key: test_value")
+        (test_ipfs_kit_path / "daemon_config.yaml").write_text("daemon_port: 5001")
 
         # Create dummy pin metadata file
-        (TEST_IPFS_KIT_PATH / "pin_metadata" / "parquet_storage").mkdir(parents=True, exist_ok=True)
-        # Using pandas to create a dummy parquet file
+        (test_ipfs_kit_path / "pin_metadata" / "parquet_storage").mkdir(parents=True, exist_ok=True)
         import pandas as pd
-        df_pins = pd.DataFrame([{"cid": "QmTestPin1", "name": "test_file1"}, {"cid": "QmTestPin2", "name": "test_file2"}])
-        df_pins.to_parquet(TEST_IPFS_KIT_PATH / "pin_metadata" / "parquet_storage" / "pins.parquet", engine='pyarrow')
+        df_pins = pd.DataFrame([
+            {"cid": "QmTestPin1", "name": "test_file1"},
+            {"cid": "QmTestPin2", "name": "test_file2"},
+        ])
+        df_pins.to_parquet(test_ipfs_kit_path / "pin_metadata" / "parquet_storage" / "pins.parquet", engine="pyarrow")
 
         # Create dummy program state data
-        (TEST_IPFS_KIT_PATH / "program_state" / "parquet").mkdir(parents=True, exist_ok=True)
-        df_state = pd.DataFrame([{"state_key": "state_value1"}, {"state_key": "state_value2"}])
-        df_state.to_parquet(TEST_IPFS_KIT_PATH / "program_state" / "parquet" / "test_state.parquet", engine='pyarrow')
+        (test_ipfs_kit_path / "program_state" / "parquet").mkdir(parents=True, exist_ok=True)
+        df_state = pd.DataFrame([
+            {"state_key": "state_value1"},
+            {"state_key": "state_value2"},
+        ])
+        df_state.to_parquet(test_ipfs_kit_path / "program_state" / "parquet" / "test_state.parquet", engine="pyarrow")
 
         # Create dummy bucket registry
-        (TEST_IPFS_KIT_PATH / "bucket_index").mkdir(parents=True, exist_ok=True)
-        df_buckets = pd.DataFrame([{"name": "bucket1", "cid": "QmBucket1"}, {"name": "bucket2", "cid": "QmBucket2"}])
-        df_buckets.to_parquet(TEST_IPFS_KIT_PATH / "bucket_index" / "bucket_registry.parquet", engine='pyarrow')
+        (test_ipfs_kit_path / "bucket_index").mkdir(parents=True, exist_ok=True)
+        df_buckets = pd.DataFrame([
+            {"name": "bucket1", "cid": "QmBucket1"},
+            {"name": "bucket2", "cid": "QmBucket2"},
+        ])
+        df_buckets.to_parquet(test_ipfs_kit_path / "bucket_index" / "bucket_registry.parquet", engine="pyarrow")
 
         yield
-        # Clean up
-        shutil.rmtree(TEST_IPFS_KIT_PATH)
+
+    if old_home is None:
+        os.environ.pop("HOME", None)
+    else:
+        os.environ["HOME"] = old_home
 
 def test_get_all_configs():
     from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt

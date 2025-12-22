@@ -151,6 +151,13 @@ class SimplePinManager:
                 
         except Exception as e:
             logger.error(f"Error initializing shard files: {e}")
+
+    async def _initialize_shard_files(self):
+        """Initialize shard files if they don't exist.
+
+        Backwards-compatible async wrapper used by older tests/scripts.
+        """
+        await asyncio.to_thread(self._initialize_shard_files_sync)
     
     async def add_pin_operation(
         self, 

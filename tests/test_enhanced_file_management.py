@@ -4,14 +4,12 @@ Test script to validate the enhanced file management and metadata-first MCP tool
 """
 
 import asyncio
-import sys
 import json
-import requests
-from pathlib import Path
+import tempfile
 
-# Add the project root to the path so we can import our modules
-sys.path.insert(0, str(Path(__file__).parent))
+from fastapi.testclient import TestClient
 
+from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDashboard
 from ipfs_kit_py.mcp.metadata_first_tools import get_metadata_tools
 
 async def test_metadata_first_tools():
@@ -59,49 +57,50 @@ async def test_metadata_first_tools():
 
 def test_dashboard_api():
     """Test the enhanced dashboard API endpoints."""
-    print("\n\nTesting dashboard API endpoints...")
-    
-    base_url = "http://127.0.0.1:8099"
-    
-    # Test files list API
-    print("\n1. Testing /api/files/list:")
-    response = requests.get(f"{base_url}/api/files/list")
-    print(f"Status: {response.status_code}")
-    if response.status_code == 200:
-        data = response.json()
-        print(f"Items count: {data.get('total_items', 0)}")
-        print(f"Sample item: {data.get('items', [{}])[0] if data.get('items') else 'None'}")
-    
-    # Test files list with bucket
-    print("\n2. Testing /api/files/list with bucket:")
-    response = requests.get(f"{base_url}/api/files/list?bucket=test_bucket")
-    print(f"Status: {response.status_code}")
-    if response.status_code == 200:
-        data = response.json()
-        print(f"Bucket: {data.get('bucket')}")
-        print(f"Items count: {data.get('total_items', 0)}")
-    
-    # Test buckets API
-    print("\n3. Testing /api/files/buckets:")
-    response = requests.get(f"{base_url}/api/files/buckets")
-    print(f"Status: {response.status_code}")
-    if response.status_code == 200:
-        data = response.json()
-        print(f"Buckets count: {len(data.get('buckets', []))}")
-        for bucket in data.get('buckets', []):
-            print(f"  - {bucket.get('name')}: {bucket.get('file_count')} files")
-    
-    # Test file stats API
-    print("\n4. Testing /api/files/stats:")
-    response = requests.get(f"{base_url}/api/files/stats?path=demo_file.txt&bucket=test_bucket")
-    print(f"Status: {response.status_code}")
-    if response.status_code == 200:
-        data = response.json()
-        print(f"File: {data.get('path')}")
-        print(f"Size: {data.get('size')} bytes")
-        print(f"Modified: {data.get('modified')}")
-    
-    print("\n✅ Dashboard API test completed successfully!")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        dash = ConsolidatedMCPDashboard({"host": "127.0.0.1", "port": 0, "data_dir": tmpdir})
+
+        # Seed a bucket entry so /api/files/list?bucket=... uses the bucket directory.
+        dash.paths.buckets_file.write_text(
+            json.dumps([{"name": "test_bucket", "created": "1970-01-01T00:00:00Z"}]),
+            encoding="utf-8",
+        )
+
+        bucket_dir = dash.paths.vfs_root / "test_bucket"
+        bucket_dir.mkdir(parents=True, exist_ok=True)
+        (bucket_dir / "demo_file.txt").write_text("hello", encoding="utf-8")
+
+        client = TestClient(dash.app)
+
+        # /api/files/list
+        resp = client.get("/api/files/list")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "items" in data
+        assert "total_items" in data
+
+        # /api/files/list with bucket
+        resp = client.get("/api/files/list", params={"bucket": "test_bucket"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data.get("bucket") == "test_bucket"
+        assert any(item.get("name") == "demo_file.txt" for item in data.get("items", []))
+
+        # /api/files/buckets
+        resp = client.get("/api/files/buckets")
+        assert resp.status_code == 200
+        data = resp.json()
+        buckets = data.get("buckets", [])
+        assert any(b.get("name") == "default" for b in buckets)
+        assert any(b.get("name") == "test_bucket" for b in buckets)
+
+        # /api/files/stats
+        resp = client.get("/api/files/stats", params={"path": "demo_file.txt", "bucket": "test_bucket"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data.get("path") == "demo_file.txt"
+        assert data.get("bucket") == "test_bucket"
+        assert data.get("is_file") is True
 
 def verify_file_features():
     """Verify all the implemented file management features."""

@@ -370,13 +370,6 @@ class lotus_kit:
         3. LOTUS_TOKEN environment variable
         4. Default token file location
         """
-        retry_strategy = Retry(
-            total=max_retries,
-            backoff_factor=backoff_factor,
-            status_forcelist=status_forcelist,
-            allowed_methods=["GET", "POST"]
-        )
-                
         # Check environment variable
         token = os.environ.get("LOTUS_TOKEN", "")
         if token:
