@@ -58,9 +58,12 @@ jobs:
         
         # Install dependencies
         RUN --mount=type=cache,target=/root/.cache/pip \
-            pip install --upgrade pip setuptools wheel && \
-            pip install -e .[api] && \
-            pip install pytest pytest-asyncio pytest-timeout pytest-cov
+          pip install --upgrade pip setuptools wheel && \
+          pip install -e .[dev,full,api] && \
+          python -m ipfs_kit_py.zero_touch --binaries full
+
+        # Ensure installed binaries are discoverable
+        ENV PATH="/app/ipfs_kit_py/bin:${PATH}"
         
         # Copy test files
         COPY tests tests/
@@ -156,32 +159,9 @@ jobs:
         gcc --version || echo "⚠️  GCC not available"
         git --version || echo "⚠️  Git not available"
     
-    - name: Create virtual environment
+    - name: Zero-touch install (deps + binaries)
       run: |
-        python -m venv .venv
-        source .venv/bin/activate
-        pip install --upgrade pip setuptools wheel
-    
-    - name: Install dependencies
-      run: |
-        source .venv/bin/activate
-        
-        # Install main package
-        pip install -e . || (sleep 5 && pip install -e .)
-        
-        # Install libp2p extras with retries
-        for i in 1 2 3; do
-          if pip install -e .[libp2p]; then
-            echo "libp2p dependencies installed successfully"
-            break
-          else
-            echo "Attempt $i failed, retrying in 10 seconds..."
-            sleep 10
-          fi
-        done
-        
-        # Install test dependencies
-        pip install pytest pytest-asyncio pytest-cov || true
+        IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
     
     - name: Verify installations
       run: |
@@ -307,24 +287,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        source .venv/bin/activate
-        
-        # Install main package
-        pip install -e . || (sleep 5 && pip install -e .)
-        
-        # Install libp2p extras with retries
-        for i in 1 2 3; do
-          if pip install -e .[libp2p]; then
-            echo "libp2p dependencies installed successfully"
-            break
-          else
-            echo "Attempt $i failed, retrying in 10 seconds..."
-            sleep 10
-          fi
-        done
-        
-        # Install test dependencies
-        pip install pytest pytest-asyncio pytest-cov || true
+        IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
     
     - name: Verify installations
       run: |

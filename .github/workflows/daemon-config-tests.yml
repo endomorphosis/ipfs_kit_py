@@ -46,17 +46,15 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
+    - name: Zero-touch install (deps + binaries)
       run: |
-        echo "📦 Installing dependencies with monitoring..."
-        python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then 
-          echo "Installing config requirements..."
-          pip install -r config/requirements.txt | tee /tmp/config_requirements.log
+        IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
+
+    - name: Install config requirements (optional)
+      run: |
+        if [ -f config/requirements.txt ]; then
+          python -m pip install -r config/requirements.txt
         fi
-        echo "Installing package with dev and full extras..."
-        pip install -e ".[dev,full]" | tee /tmp/package_install.log
-        echo "✅ Dependencies installed"
     
     - name: Verify daemon installation environment
       run: |
@@ -151,11 +149,15 @@ jobs:
       with:
         python-version: '3.12'
 
-    - name: Install dependencies
+    - name: Zero-touch install (deps + binaries)
       run: |
-        python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full]"
+        IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
+
+    - name: Install config requirements (optional)
+      run: |
+        if [ -f config/requirements.txt ]; then
+          python -m pip install -r config/requirements.txt
+        fi
 
     - name: Test installer configuration methods
       run: |
@@ -215,11 +217,15 @@ jobs:
       with:
         python-version: '3.12'
 
-    - name: Install dependencies
+    - name: Zero-touch install (deps + binaries)
       run: |
-        python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full]"
+        IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
+
+    - name: Install config requirements (optional)
+      run: |
+        if [ -f config/requirements.txt ]; then
+          python -m pip install -r config/requirements.txt
+        fi
 
     - name: Test S3 configuration
       run: |

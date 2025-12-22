@@ -67,9 +67,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        source .venv/bin/activate
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full,api]"
+        export VENV_DIR="$GITHUB_WORKSPACE/.venv"
+        export IPFS_KIT_EXTRAS="dev,full,api"
+        ./scripts/zero_touch_install.sh
 
     - name: Test enhanced MCP server compilation
       run: |
@@ -123,9 +123,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full,api]"
+        export IPFS_KIT_EXTRAS="dev,full,api"
+        ./scripts/zero_touch_install.sh
 
     - name: Test daemon configuration manager
       run: |
@@ -169,10 +168,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full,api]"
-        pip install requests pytest
+        export IPFS_KIT_EXTRAS="dev,full,api"
+        ./scripts/zero_touch_install.sh
 
     - name: Run all enhanced tests
       run: |
@@ -295,8 +292,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full]"
+        if [ -f config/requirements.txt ]; then python -m pip install -r config/requirements.txt; fi
+        python -m pip install -e ".[dev,full]"
 
     - name: Generate enhanced test report
       run: |

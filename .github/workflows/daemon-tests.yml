@@ -75,10 +75,9 @@ jobs:
           
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio pytest-timeout psutil
-          pip install -r requirements.txt
-          pip install -e .
+          if [ -d "venv" ]; then export VENV_DIR="$GITHUB_WORKSPACE/venv"; fi
+          export IPFS_KIT_EXTRAS="dev,full"
+          ./scripts/zero_touch_install.sh
           
       - name: Run daemon comprehensive tests
         run: |
@@ -107,9 +106,8 @@ jobs:
           
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e .
+          export IPFS_KIT_EXTRAS="dev,full"
+          ./scripts/zero_touch_install.sh
           
       - name: Run performance tests
         run: |
@@ -260,9 +258,7 @@ jobs:
           
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e .
+          IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
           
       - name: Run stress tests
         run: |

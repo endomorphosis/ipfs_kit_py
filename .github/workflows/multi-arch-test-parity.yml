@@ -76,11 +76,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip setuptools wheel
-        if [ -f requirements.txt ]; then 
-          pip install -r requirements.txt
-        fi
-        pip install -e ".[dev,full,api]"
+        IPFS_KIT_EXTRAS=dev,full,api ./scripts/zero_touch_install.sh
     
     - name: Run core unit tests
       run: |
@@ -186,8 +182,11 @@ jobs:
         
         # Install dependencies
         RUN pip install --upgrade pip setuptools wheel && \
-            pip install -e .[api] && \
-            pip install pytest pytest-asyncio pytest-timeout
+          pip install -e .[dev,full,api] && \
+          python -m ipfs_kit_py.zero_touch --binaries full
+
+        # Ensure installed binaries are discoverable
+        ENV PATH="/app/ipfs_kit_py/bin:${PATH}"
         
         # Run basic tests
         CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "-k", "not (slow or integration)", "-x", "--ignore=tests/test_mcp_restoration.py"]

@@ -49,10 +49,7 @@ jobs:
         docker run --rm \
           --platform linux/${{ matrix.arch }} \
           ipfs-kit-py-test:${{ matrix.arch }}-py${{ matrix.python-version }} \
-          bash -c "
-            pip install pytest pytest-asyncio --quiet && \
-            python -m pytest tests/test_architecture_support.py -v --tb=short
-          "
+          sh -c "python -m ipfs_kit_py.zero_touch --binaries full && python -m pytest tests/test_architecture_support.py -v --tb=short"
     
     - name: Run basic package import test in Docker
       run: |
@@ -137,10 +134,7 @@ jobs:
       run: |
         docker run --rm \
           ipfs-kit-py-test:${{ matrix.arch }}-native \
-          bash -c "
-            pip install pytest pytest-asyncio --quiet && \
-            python -m pytest tests/test_architecture_support.py -v --tb=short
-          "
+          sh -c "python -m ipfs_kit_py.zero_touch --binaries full && python -m pytest tests/test_architecture_support.py -v --tb=short"
     
     - name: Verify architecture matches runner
       run: |

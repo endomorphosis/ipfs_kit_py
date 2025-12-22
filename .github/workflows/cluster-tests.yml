@@ -62,13 +62,9 @@ jobs:
     
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-asyncio pytest-cov pytest-html pytest-xdist
-        pip install httpx asyncio-mqtt threading-utils
-        
-        # Install project dependencies
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install -e ".[dev,full]"
+        if [ -d "venv" ]; then export VENV_DIR="$GITHUB_WORKSPACE/venv"; fi
+        export IPFS_KIT_EXTRAS="dev,full"
+        ./scripts/zero_touch_install.sh
     
     - name: Run cluster service unit tests
       run: |
@@ -109,13 +105,8 @@ jobs:
     
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-asyncio pytest-cov pytest-html
-        pip install fsspec ipfshttpclient
-        
-        # Install project dependencies
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install -e ".[dev,full]"
+        export IPFS_KIT_EXTRAS="dev,full"
+        ./scripts/zero_touch_install.sh
     
     - name: Run VFS integration tests
       run: |
@@ -156,13 +147,8 @@ jobs:
     
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-asyncio pytest-cov pytest-html pytest-timeout
-        pip install httpx fastapi uvicorn
-        
-        # Install project dependencies
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install -e ".[dev,full]"
+        export IPFS_KIT_EXTRAS="dev,full"
+        ./scripts/zero_touch_install.sh
     
     - name: Run HTTP API integration tests
       run: |
@@ -201,13 +187,8 @@ jobs:
     
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-asyncio pytest-cov pytest-html pytest-xdist
-        pip install httpx fastapi uvicorn fsspec ipfshttpclient
-        
-        # Install project dependencies
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install -e ".[dev,full]"
+        export IPFS_KIT_EXTRAS="dev,full"
+        ./scripts/zero_touch_install.sh
     
     - name: Run comprehensive integration tests
       run: |
@@ -254,13 +235,8 @@ jobs:
     
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-asyncio pytest-benchmark
-        pip install httpx asyncio-mqtt threading-utils
-        
-        # Install project dependencies
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install -e ".[dev,full]"
+        export IPFS_KIT_EXTRAS="dev,full"
+        ./scripts/zero_touch_install.sh
     
     - name: Run performance tests
       run: |
@@ -301,7 +277,7 @@ jobs:
       
     - name: Generate test summary
       run: |
-        pip install pytest pytest-html junitparser
+        python -m pip install pytest pytest-html junitparser
         
         # List all downloaded artifacts
         find . -name "*.xml" -type f

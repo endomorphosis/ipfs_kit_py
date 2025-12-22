@@ -13,12 +13,15 @@ EXTRAS="${IPFS_KIT_EXTRAS:-full}"
 cd "$REPO_DIR"
 
 choose_python() {
-  if command -v python3.12 >/dev/null 2>&1; then
+  # Prefer the active python (e.g., actions/setup-python) when present.
+  if command -v python >/dev/null 2>&1; then
+    echo python
+  elif command -v python3.12 >/dev/null 2>&1; then
     echo python3.12
   elif command -v python3 >/dev/null 2>&1; then
     echo python3
   else
-    echo "";
+    echo ""
   fi
 }
 
@@ -35,6 +38,11 @@ fi
 
 # shellcheck disable=SC1090
 source "$VENV_DIR/bin/activate"
+
+# Persist venv for subsequent CI steps (GitHub Actions).
+if [ -n "${GITHUB_PATH:-}" ]; then
+  echo "$VENV_DIR/bin" >> "$GITHUB_PATH"
+fi
 
 python -m pip install --upgrade pip setuptools wheel
 
@@ -60,5 +68,22 @@ try:
 except Exception as e:
     print(f"⚠️  libp2p import not available ({e})")
 PY
+
+# Install external binaries via the shared zero-touch Python entry.
+# Lotus system deps are opt-in; in CI/root contexts we auto-enable to keep the
+# pathway truly "zero touch" for pipelines.
+if [ -z "${IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS:-}" ]; then
+  if [ "${CI:-}" = "true" ] || [ "${GITHUB_ACTIONS:-}" = "true" ] || [ "$(id -u 2>/dev/null || echo 9999)" = "0" ]; then
+    export IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS=1
+  fi
+fi
+
+echo "Installing external binaries (Kubo/IPFS Cluster/Lassie/Lotus) via zero-touch installers..."
+python -m ipfs_kit_py.zero_touch --binaries full
+
+# Persist installed binaries for subsequent CI steps (GitHub Actions).
+if [ -n "${GITHUB_PATH:-}" ]; then
+  echo "$REPO_DIR/ipfs_kit_py/bin" >> "$GITHUB_PATH"
+fi
 
 echo "Done. To activate later: source $VENV_DIR/bin/activate"

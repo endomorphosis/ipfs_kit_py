@@ -75,11 +75,11 @@ jobs:
           
           echo "Running architecture tests on AMD64..."
           docker run --rm --platform linux/amd64 $IMAGE_ID \
-            bash -c "pip install pytest --quiet && python -m pytest tests/test_architecture_support.py -v --tb=line -k 'not lotus' || echo 'Some tests failed but continuing'"
+            sh -c "python -m ipfs_kit_py.zero_touch --binaries full && python -m pytest tests/test_architecture_support.py -v --tb=line -k 'not lotus' || echo 'Some tests failed but continuing'"
           
           echo "Running architecture tests on ARM64..."
           docker run --rm --platform linux/arm64 $IMAGE_ID \
-            bash -c "pip install pytest --quiet && python -m pytest tests/test_architecture_support.py -v --tb=line -k 'not lotus' || echo 'Some tests failed but continuing'"
+            sh -c "python -m ipfs_kit_py.zero_touch --binaries full && python -m pytest tests/test_architecture_support.py -v --tb=line -k 'not lotus' || echo 'Some tests failed but continuing'"
           
   publish-helm:
     name: Publish Helm Chart

@@ -46,11 +46,15 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
+    - name: Zero-touch install (deps + binaries)
       run: |
-        python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full]"
+        IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
+
+    - name: Install config requirements (optional)
+      run: |
+        if [ -f config/requirements.txt ]; then
+          python -m pip install -r config/requirements.txt
+        fi
 
     - name: Run daemon configuration tests
       run: |
@@ -94,11 +98,15 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
+    - name: Zero-touch install (deps + binaries)
       run: |
-        python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full]"
+        IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
+
+    - name: Install config requirements (optional)
+      run: |
+        if [ -f config/requirements.txt ]; then
+          python -m pip install -r config/requirements.txt
+        fi
 
     - name: Test installer imports
       run: |
@@ -128,9 +136,13 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full]"
+        IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
+
+    - name: Install config requirements (optional)
+      run: |
+        if [ -f config/requirements.txt ]; then
+          python -m pip install -r config/requirements.txt
+        fi
 
     - name: Test S3 configuration
       run: |
@@ -158,9 +170,13 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
-        pip install -e ".[dev,full]"
+        IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
+
+    - name: Install config requirements (optional)
+      run: |
+        if [ -f config/requirements.txt ]; then
+          python -m pip install -r config/requirements.txt
+        fi
 
     - name: Run comprehensive configuration test
       run: |

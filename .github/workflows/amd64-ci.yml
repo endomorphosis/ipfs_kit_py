@@ -87,20 +87,9 @@ jobs:
     - name: Install Python dependencies
       run: |
         source venv/bin/activate
-        echo "📦 Installing Python dependencies with monitoring..."
-        python -m pip install --upgrade pip | tee /tmp/amd64_install_logs/pip_upgrade.log
-        pip install wheel setuptools | tee /tmp/amd64_install_logs/wheel_setuptools.log
-        # Install with increased timeout and retries for network issues
-        if [ -f requirements.txt ]; then 
-          echo "Installing from requirements.txt..."
-          pip install --timeout=300 --retries=5 -r requirements.txt 2>&1 | tee /tmp/amd64_install_logs/requirements.log || echo "Some packages failed to install"
-        fi
-        # Install package in editable mode
-        if [ -f pyproject.toml ]; then 
-          echo "Installing package in editable mode..."
-          pip install --timeout=300 --retries=5 -e . 2>&1 | tee /tmp/amd64_install_logs/package_install.log || echo "Package installation had issues"
-        fi
-        echo "✅ Python dependencies installation completed"
+        echo "📦 Installing via zero-touch (deps + binaries)..."
+        VENV_DIR="${GITHUB_WORKSPACE:-$PWD}/venv" IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh 2>&1 | tee /tmp/amd64_install_logs/zero_touch_install.log
+        echo "✅ Zero-touch installation completed"
     
     - name: Verify post-installation dependencies
       run: |
@@ -111,8 +100,7 @@ jobs:
     - name: Install test dependencies
       run: |
         source venv/bin/activate
-        pip install --timeout=300 --retries=5 pytest pytest-cov pytest-asyncio || echo "Some test dependencies failed"
-        pip install --timeout=300 --retries=5 flake8 mypy black isort || echo "Some linting tools failed"
+        pip install --timeout=300 --retries=5 flake8 || echo "Flake8 install failed"
     
     - name: Lint with flake8
       run: |

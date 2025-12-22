@@ -69,9 +69,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-cov
+          IPFS_KIT_EXTRAS=dev,full ./scripts/zero_touch_install.sh
       
       - name: Create test directories
         run: |
@@ -206,9 +204,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install requests matplotlib pandas
+          IPFS_KIT_EXTRAS=full ./scripts/zero_touch_install.sh
       
       - name: Monitor deployment health
         run: |

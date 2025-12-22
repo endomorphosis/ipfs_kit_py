@@ -39,23 +39,11 @@ export PATH="/app/ipfs_kit_py/bin:${PATH}"
 # This avoids duplicating pinned binary download logic across Docker/CI.
 export IPFS_KIT_DOCKER_MODE="$MODE"
 log "Ensuring IPFS binaries are installed (mode=$MODE)..."
-python - <<'PY'
-import os
-
-from ipfs_kit_py.install_ipfs import install_ipfs
-
-mode = os.environ.get("IPFS_KIT_DOCKER_MODE", "all")
-
-# Always ensure Kubo (ipfs) is present.
-installer = install_ipfs(metadata={"role": "leecher"})
-installer.install_ipfs_daemon()
-
-# Only install cluster binaries when we might run them.
-if mode == "full":
-    installer = install_ipfs(metadata={"role": "master"})
-    installer.install_ipfs_cluster_service()
-    installer.install_ipfs_cluster_ctl()
-PY
+ZERO_TOUCH_BINARIES="core"
+if [ "${MODE:-}" = "full" ]; then
+  ZERO_TOUCH_BINARIES="full"
+fi
+python -m ipfs_kit_py.zero_touch --binaries "$ZERO_TOUCH_BINARIES" || exit 1
 
 # Initialize IPFS repo on first run (needed before running daemon).
 if [ ! -f "/home/ipfs_user/.ipfs/config" ]; then
