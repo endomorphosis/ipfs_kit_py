@@ -18,23 +18,12 @@ echo "Activating virtual environment and installing dependencies..."
 source .venv/bin/activate
 
 # Upgrade pip first
-pip install --upgrade pip
+python -m pip install --upgrade pip setuptools wheel
 
-# Install core MCP dependencies
-echo "Installing core MCP dependencies..."
-pip install fastapi uvicorn python-multipart
-
-# Install IPFS and async dependencies
-echo "Installing IPFS and async dependencies..."
-pip install requests aiohttp base58 multiaddr
-
-# Install the local ipfs_kit_py package in development mode
-echo "Installing local ipfs_kit_py package..."
-pip install -e .
-
-# Install additional dependencies from requirements.txt
-echo "Installing additional dependencies..."
-pip install -r requirements.txt
+# Install the local package with a complete, maintained dependency set
+# (includes MCP/API deps + py-libp2p tracking upstream main via extras)
+echo "Installing ipfs_kit_py with recommended extras..."
+python -m pip install -e ".[full]"
 
 echo "✅ Virtual environment setup complete!"
 echo "To activate: source .venv/bin/activate"

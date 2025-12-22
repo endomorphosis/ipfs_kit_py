@@ -79,6 +79,7 @@ site/
 .env
 .venv
 .venv/
+.venv*/
 env/
 venv/
 ENV/
@@ -89,6 +90,9 @@ venv.bak/
 **/*.venv/
 virtualenv/
 **/virtualenv/
+
+# Local working backups
+.local_backups/
 
 # Editor files
 .vscode/

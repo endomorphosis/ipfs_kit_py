@@ -53,26 +53,16 @@ echo "Pulling latest from origin/$BRANCH"
   exit 1
 }
 
-# Install dependencies
-if [ -f "$REPO_DIR/requirements.txt" ]; then
-  echo "Installing pip requirements"
-    if [ "${SKIP_PIP:-0}" = "1" ]; then
-      echo "SKIP_PIP=1 set; skipping pip requirements install"
-    else
-      "${SUDO_PREFIX[@]}" $PIP install --upgrade -r "$REPO_DIR/requirements.txt"
-    fi
-else
-  echo "No requirements.txt found; skipping pip requirements install"
-fi
-
-# Install package in editable mode to pick up local changes
-if [ -f "$REPO_DIR/setup.py" ] || [ -f "$REPO_DIR/pyproject.toml" ]; then
-  echo "Installing package (editable)"
-    if [ "${SKIP_PIP:-0}" = "1" ]; then
-      echo "SKIP_PIP=1 set; skipping package install"
-    else
-      "${SUDO_PREFIX[@]}" $PIP install --upgrade -e "$REPO_DIR"
-    fi
+# Install package (editable) with extras so deployments are zero-touch
+# and do not miss optional runtime dependencies.
+if [ -f "$REPO_DIR/pyproject.toml" ] || [ -f "$REPO_DIR/setup.py" ]; then
+  echo "Installing package (editable) with extras: [full]"
+  if [ "${SKIP_PIP:-0}" = "1" ]; then
+    echo "SKIP_PIP=1 set; skipping package install"
+  else
+    "${SUDO_PREFIX[@]}" $PIP install --upgrade -U pip setuptools wheel
+    "${SUDO_PREFIX[@]}" $PIP install --upgrade -e "$REPO_DIR[full]"
+  fi
 else
   echo "No setup.py or pyproject.toml found; skipping package install"
 fi

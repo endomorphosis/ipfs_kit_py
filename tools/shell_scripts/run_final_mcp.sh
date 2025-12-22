@@ -78,9 +78,8 @@ check_dependencies() {
     source "$VENV_DIR/bin/activate"
     
     log "INFO" "📦 Installing/updating dependencies..."
-    pip install --upgrade pip
-    pip install -r requirements.txt
-    pip install -e .
+    python -m pip install --upgrade pip setuptools wheel
+    python -m pip install -e ".[full]"
     
     log "INFO" "✅ Dependencies checked and installed"
 }

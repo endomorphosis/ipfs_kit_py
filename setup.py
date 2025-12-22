@@ -64,6 +64,6 @@ setup(
     author='Benjamin Barber',
     author_email='starworks5@gmail.com',
     url='https://github.com/endomorphosis/ipfs_kit_py/',
-    python_requires='>=3.10',
+    python_requires='>=3.12',
     # All other configurations (including dependencies and extras) come from pyproject.toml
 )

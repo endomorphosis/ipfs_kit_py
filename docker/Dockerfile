@@ -41,21 +41,12 @@ RUN useradd --create-home --shell /bin/bash --uid 1000 ipfs_user
 # Set working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt ./
-COPY pyproject.toml ./
-COPY setup.py ./
-
-# Install Python dependencies
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt && \
-    pip install pytest pytest-asyncio pytest-cov httpx fastapi uvicorn
-
 # Copy application code
 COPY . .
 
-# Install the package in development mode
-RUN pip install -e .
+# Install the package with a complete, maintained dependency set
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install -e ".[full]"
 
 # Create necessary directories
 RUN mkdir -p /app/data /app/logs /app/config /app/ipfs_data && \

@@ -2,7 +2,7 @@
 # Based on generative-protein-binder-design Docker patterns
 # Supports multi-architecture builds (amd64, arm64)
 
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.12
 ARG BUILD_TYPE=production
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -72,8 +72,8 @@ RUN pip install --upgrade pip setuptools wheel
 # Copy source code
 COPY --chown=appuser:appuser . .
 
-# Install package in editable mode with all test-required extras baked in
-RUN pip install -e ".[dev,test,api,webrtc,arrow]"
+# Install package in editable mode with development/test tools and common runtime extras
+RUN pip install -e ".[dev,api,webrtc,arrow]"
 
 USER appuser
 ENV HOME=/home/appuser

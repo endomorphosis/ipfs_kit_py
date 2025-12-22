@@ -4,6 +4,7 @@ import math
 import os
 import platform
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -855,23 +856,38 @@ class install_ipfs:
             return False
 
     def install_ipfs_cluster_follow(self):
+        # Check for latest version and update URLs
+        ipfs_cluster_version = (
+            os.environ.get("IPFS_CLUSTER_VERSION")
+            or (self.metadata.get("ipfs_cluster_version") if isinstance(self.metadata, dict) else None)
+            or self.get_latest_ipfs_cluster_version()
+        )
+        self.update_ipfs_cluster_dists_with_version(ipfs_cluster_version)
+
         # First check if ipfs-cluster-follow is already installed using the corrected detection logic
         if self.ipfs_cluster_follow_test_install():
-            print("IPFS cluster follow already installed, skipping download")
-            # Return CID of existing binary if possible
-            this_path = self.bin_path
-            this_path = os.path.join(str(this_path), "ipfs-cluster-follow.exe") if platform.system() == "Windows" else os.path.join(str(this_path), "ipfs-cluster-follow") if dir(this_path) else os.path.join("~", "ipfs-cluster-follow")
-            this_path = this_path.replace("\\", "/")
-            if os.path.exists(this_path): 
-                if platform.system() == "Windows":
-                    command = "powershell -Command \"Get-FileHash -Path '" + this_path + "' -Algorithm SHA256 | Select-Object -ExpandProperty Hash\""
-                else:
-                    command = "sha256sum " + this_path + " | awk '{print $1}'"
-                results = subprocess.check_output(command, shell=True)
-                results = results.decode().strip()
-                return results
+            installed_version = self.get_installed_ipfs_cluster_component_version("ipfs-cluster-follow")
+            if installed_version and not self.should_update_semver(installed_version, ipfs_cluster_version):
+                print("IPFS cluster follow already installed and up to date, skipping download")
             else:
-                print("ipfs-cluster-follow binary not found in expected location, proceeding with download and installation")
+                print("IPFS cluster follow already installed but may be outdated; proceeding with update")
+
+            if installed_version and not self.should_update_semver(installed_version, ipfs_cluster_version):
+                # Return CID of existing binary if possible
+                this_path = self.bin_path
+                this_path = os.path.join(str(this_path), "ipfs-cluster-follow.exe") if platform.system() == "Windows" else os.path.join(str(this_path), "ipfs-cluster-follow") if dir(this_path) else os.path.join("~", "ipfs-cluster-follow")
+                this_path = this_path.replace("\\", "/")
+                if os.path.exists(this_path): 
+                    if platform.system() == "Windows":
+                        command = "powershell -Command \"Get-FileHash -Path '" + this_path + "' -Algorithm SHA256 | Select-Object -ExpandProperty Hash\""
+                    else:
+                        command = "sha256sum " + this_path + " | awk '{print $1}'"
+                    results = subprocess.check_output(command, shell=True)
+                    results = results.decode().strip()
+                    return results
+                else:
+                    print("ipfs-cluster-follow binary not found in expected location, proceeding with download and installation")
+
         # If ipfs-cluster-follow is not installed, proceed with download and installation
         if self.ipfs_cluster_follow_test_install() is False:
             print("IPFS cluster follow not installed, proceeding with download and installation")  
@@ -994,16 +1010,33 @@ class install_ipfs:
             return False
 
     def install_ipfs_cluster_ctl(self):
+        # Check for latest version and update URLs
+        ipfs_cluster_version = (
+            os.environ.get("IPFS_CLUSTER_VERSION")
+            or (self.metadata.get("ipfs_cluster_version") if isinstance(self.metadata, dict) else None)
+            or self.get_latest_ipfs_cluster_version()
+        )
+        self.update_ipfs_cluster_dists_with_version(ipfs_cluster_version)
+
         # First check if ipfs-cluster-ctl is already installed using the corrected detection logic
         if self.ipfs_cluster_ctl_test_install():
-            print("IPFS cluster ctl already installed, skipping download")
-            # Return CID of existing binary if possible
-            if platform.system() == "Windows" and os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-ctl.exe")):
-                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-ctl.exe"))
-            elif os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-ctl")):
-                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-ctl"))
+            installed_version = self.get_installed_ipfs_cluster_component_version("ipfs-cluster-ctl")
+            if installed_version and not self.should_update_semver(installed_version, ipfs_cluster_version):
+                print("IPFS cluster ctl already installed and up to date, skipping download")
             else:
-                return True  # Binary exists in PATH but not in our bin directory
+                print("IPFS cluster ctl already installed but may be outdated; proceeding with update")
+
+            if installed_version and not self.should_update_semver(installed_version, ipfs_cluster_version):
+                # Return CID of existing binary if possible
+                if platform.system() == "Windows" and os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-ctl.exe")):
+                    return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-ctl.exe"))
+                elif os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-ctl")):
+                    return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-ctl"))
+                else:
+                    return True  # Binary exists in PATH but not in our bin directory
+
+            # Return CID of existing binary if possible
+            
                 
         # Binary not found, proceed with download and installation
 
@@ -1608,6 +1641,19 @@ class install_ipfs:
 
     def install_ipfs_cluster_service(self):
         """Install IPFS cluster service."""
+        # Check for latest version and update URLs
+        ipfs_cluster_version = (
+            os.environ.get("IPFS_CLUSTER_VERSION")
+            or (self.metadata.get("ipfs_cluster_version") if isinstance(self.metadata, dict) else None)
+            or self.get_latest_ipfs_cluster_version()
+        )
+        self.update_ipfs_cluster_dists_with_version(ipfs_cluster_version)
+
+        installed_version = self.get_installed_ipfs_cluster_component_version("ipfs-cluster-service")
+        if installed_version and not self.should_update_semver(installed_version, ipfs_cluster_version):
+            print("IPFS cluster service already installed and up to date, skipping download")
+            return True
+
         # Simplified cluster service installation
         dist = self.dist_select()
         url = self.ipfs_cluster_service_dists[self.dist_select()]
@@ -1638,6 +1684,32 @@ class install_ipfs:
             else:
                 command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
                 results = subprocess.check_output(command, shell=True)
+
+        # Move extracted binary into our bin directory
+        try:
+            os.makedirs(os.path.join(self.this_dir, "bin"), exist_ok=True)
+            extracted_dir = os.path.join(self.tmp_path, "ipfs-cluster-service")
+            if platform.system() == "Windows":
+                source_path = os.path.join(extracted_dir, "ipfs-cluster-service.exe")
+                dest_path = os.path.join(self.this_dir, "bin", "ipfs-cluster-service.exe")
+            else:
+                source_path = os.path.join(extracted_dir, "ipfs-cluster-service")
+                dest_path = os.path.join(self.this_dir, "bin", "ipfs-cluster-service")
+
+            if os.path.exists(dest_path):
+                os.remove(dest_path)
+
+            if os.path.exists(source_path):
+                shutil.move(source_path, dest_path)
+                if platform.system() != "Windows":
+                    os.chmod(dest_path, 0o755)
+                return True
+
+            print("ipfs-cluster-service binary not found after extraction")
+            return False
+        except Exception as e:
+            print(f"Error installing ipfs-cluster-service binary: {e}")
+            return False
 
 
     def ensure_daemon_configured(self):
@@ -1710,6 +1782,140 @@ class install_ipfs:
             "openbsd x86_64": f"{base_url}_openbsd-amd64.tar.gz",
             "openbsd x86": f"{base_url}_openbsd-386.tar.gz",
             "openbsd arm": f"{base_url}_openbsd-arm.tar.gz",
+        }
+
+    def _normalize_v_prefix(self, version):
+        if not version:
+            return version
+        version = str(version).strip()
+        if version and not version.startswith("v"):
+            return "v" + version
+        return version
+
+    def _parse_semver(self, version):
+        if not version:
+            return None
+        match = re.match(r"v?(\d+)\.(\d+)\.(\d+)", str(version).strip())
+        if not match:
+            return None
+        return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+
+    def should_update_semver(self, installed_version, latest_version):
+        installed_tuple = self._parse_semver(installed_version)
+        latest_tuple = self._parse_semver(latest_version)
+        if installed_tuple is None or latest_tuple is None:
+            return False
+        return installed_tuple < latest_tuple
+
+    def get_installed_ipfs_cluster_component_version(self, binary_name):
+        """Return installed version string like 'v1.2.3' when detectable."""
+        candidates = []
+        if platform.system() == "Windows":
+            candidates.append(os.path.join(self.bin_path, f"{binary_name}.exe"))
+        candidates.append(os.path.join(self.bin_path, binary_name))
+
+        binary_path = None
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                binary_path = candidate
+                break
+
+        if binary_path is None:
+            binary_path = shutil.which(binary_name)
+
+        if not binary_path:
+            return None
+
+        try:
+            output = subprocess.check_output([binary_path, "--version"], stderr=subprocess.STDOUT, timeout=5)
+            output_text = output.decode(errors="ignore")
+            match = re.search(r"(\d+\.\d+\.\d+)", output_text)
+            if match:
+                return "v" + match.group(1)
+        except Exception:
+            return None
+
+        return None
+
+    def get_latest_ipfs_cluster_version(self):
+        """Fetch the latest IPFS Cluster version from GitHub releases."""
+        fallback = "v1.1.2"
+        try:
+            if requests is None:
+                print(f"requests library not available, using fallback IPFS Cluster version {fallback}")
+                return fallback
+
+            url = "https://api.github.com/repos/ipfs/ipfs-cluster/releases/latest"
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                latest_version = data.get("tag_name") or fallback
+                latest_version = self._normalize_v_prefix(latest_version)
+                print(f"Successfully fetched latest IPFS Cluster version from GitHub: {latest_version}")
+                return latest_version
+            print(f"Failed to fetch latest IPFS Cluster version: HTTP {response.status_code}")
+            return fallback
+        except Exception as e:
+            print(f"Error fetching latest IPFS Cluster version: {e}")
+            return fallback
+
+    def update_ipfs_cluster_dists_with_version(self, version):
+        """Update the IPFS Cluster distribution URLs with the specified version."""
+        version = self._normalize_v_prefix(version) or "v1.1.2"
+
+        follow_base_url = f"https://dist.ipfs.tech/ipfs-cluster-follow/{version}/ipfs-cluster-follow_{version}"
+        ctl_base_url = f"https://dist.ipfs.tech/ipfs-cluster-ctl/{version}/ipfs-cluster-ctl_{version}"
+        service_base_url = f"https://dist.ipfs.tech/ipfs-cluster-service/{version}/ipfs-cluster-service_{version}"
+
+        self.ipfs_cluster_follow_dists = {
+            "macos arm64": f"{follow_base_url}_darwin-arm64.tar.gz",
+            "macos x86_64": f"{follow_base_url}_darwin-amd64.tar.gz",
+            "linux arm64": f"{follow_base_url}_linux-arm64.tar.gz",
+            "linux x86_64": f"{follow_base_url}_linux-amd64.tar.gz",
+            "linux x86": f"{follow_base_url}_linux-386.tar.gz",
+            "linux arm": f"{follow_base_url}_linux-arm.tar.gz",
+            "windows x86_64": f"{follow_base_url}_windows-amd64.zip",
+            "windows x86": f"{follow_base_url}_windows-386.zip",
+            "freebsd x86_64": f"{follow_base_url}_freebsd-amd64.tar.gz",
+            "freebsd x86": f"{follow_base_url}_freebsd-386.tar.gz",
+            "freebsd arm": f"{follow_base_url}_freebsd-arm.tar.gz",
+            "openbsd x86_64": f"{follow_base_url}_openbsd-amd64.tar.gz",
+            "openbsd x86": f"{follow_base_url}_openbsd-386.tar.gz",
+            "openbsd arm": f"{follow_base_url}_openbsd-arm.tar.gz",
+        }
+
+        self.ipfs_cluster_ctl_dists = {
+            "macos arm64": f"{ctl_base_url}_darwin-arm64.tar.gz",
+            "macos x86_64": f"{ctl_base_url}_darwin-amd64.tar.gz",
+            "linux arm64": f"{ctl_base_url}_linux-arm64.tar.gz",
+            "linux x86_64": f"{ctl_base_url}_linux-amd64.tar.gz",
+            "linux x86": f"{ctl_base_url}_linux-386.tar.gz",
+            "linux arm": f"{ctl_base_url}_linux-arm.tar.gz",
+            "windows x86_64": f"{ctl_base_url}_windows-amd64.zip",
+            "windows x86": f"{ctl_base_url}_windows-386.zip",
+            "freebsd x86_64": f"{ctl_base_url}_freebsd-amd64.tar.gz",
+            "freebsd x86": f"{ctl_base_url}_freebsd-386.tar.gz",
+            "freebsd arm": f"{ctl_base_url}_freebsd-arm.tar.gz",
+            "openbsd x86_64": f"{ctl_base_url}_openbsd-amd64.tar.gz",
+            "openbsd x86": f"{ctl_base_url}_openbsd-386.tar.gz",
+            "openbsd arm": f"{ctl_base_url}_openbsd-arm.tar.gz",
+        }
+
+        self.ipfs_cluster_service_dists = {
+            "macos arm64": f"{service_base_url}_darwin-arm64.tar.gz",
+            "macos x86_64": f"{service_base_url}_darwin-amd64.tar.gz",
+            "linux arm64": f"{service_base_url}_linux-arm64.tar.gz",
+            "linux x86_64": f"{service_base_url}_linux-amd64.tar.gz",
+            "linux x86": f"{service_base_url}_linux-386.tar.gz",
+            "linux arm": f"{service_base_url}_linux-arm.tar.gz",
+            "windows x86_64": f"{service_base_url}_windows-amd64.zip",
+            "windows x86": f"{service_base_url}_windows-386.zip",
+            "freebsd x86_64": f"{service_base_url}_freebsd-amd64.tar.gz",
+            "freebsd x86": f"{service_base_url}_freebsd-386.tar.gz",
+            "freebsd arm": f"{service_base_url}_freebsd-arm.tar.gz",
+            "openbsd x86_64": f"{service_base_url}_openbsd-amd64.tar.gz",
+            "openbsd x86": f"{service_base_url}_openbsd-386.tar.gz",
+            "openbsd arm": f"{service_base_url}_openbsd-arm.tar.gz",
         }
     
     def verify_release_url(self, url):

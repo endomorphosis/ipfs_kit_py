@@ -126,8 +126,8 @@ class DependencyChecker:
         self._log("Checking Python version...")
         
         version_info = sys.version_info
-        min_version = (3, 8)
-        recommended_version = (3, 11)
+        min_version = (3, 12)
+        recommended_version = (3, 12)
         
         is_compatible = version_info >= min_version
         is_recommended = version_info >= recommended_version
@@ -455,8 +455,12 @@ class DependencyChecker:
             self._log(f"  - {package}")
         return False
     
-    def install_python_packages(self) -> bool:
-        """Install Python package and dependencies."""
+    def install_python_packages(self, extras: str = "full") -> bool:
+        """Install Python package and dependencies.
+
+        Args:
+            extras: Optional extras set to install (e.g., "full", "libp2p,api").
+        """
         if self.dry_run:
             self._log("[DRY RUN] Would install Python package with pip")
             return True
@@ -473,10 +477,14 @@ class DependencyChecker:
                 timeout=300
             )
             
-            # Install package in editable mode
-            self._log("Installing ipfs_kit_py package...")
+            extras = (extras or "").strip()
+            extras_suffix = f"[{extras}]" if extras else ""
+            target = f".{extras_suffix}"
+
+            # Install package in editable mode (with extras)
+            self._log(f"Installing ipfs_kit_py package: {target}")
             result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "-e", "."],
+                [sys.executable, "-m", "pip", "install", "-e", target],
                 check=False,
                 timeout=600
             )
@@ -555,8 +563,12 @@ class DependencyChecker:
             self.results["checks"]["docker"] = False
             return False
     
-    def check_and_install_all(self) -> bool:
-        """Run all checks and install missing dependencies."""
+    def check_and_install_all(self, extras: str = "full") -> bool:
+        """Run all checks and install missing dependencies.
+
+        Args:
+            extras: Optional extras set to install when installing the project.
+        """
         self._log("=" * 60)
         self._log("IPFS Kit Python - Dependency Checker")
         self._log("=" * 60)
@@ -587,7 +599,7 @@ class DependencyChecker:
             self._log(f"\n{len(missing_py_packages)} Python packages missing")
             self._log("Installing Python package will resolve these...")
             if not self.dry_run:
-                if not self.install_python_packages():
+                if not self.install_python_packages(extras=extras):
                     all_ok = False
                     self.results["errors"].append("Python package installation failed")
         
@@ -648,6 +660,15 @@ def main():
         action="store_true",
         help="Only check Docker support"
     )
+
+    parser.add_argument(
+        "--extras",
+        default=os.environ.get("IPFS_KIT_EXTRAS", "full"),
+        help=(
+            "Extras to install with the package (default: 'full'). "
+            "Set IPFS_KIT_EXTRAS to override. Use comma-separated extras, e.g. 'api,libp2p'."
+        ),
+    )
     
     args = parser.parse_args()
     
@@ -656,7 +677,7 @@ def main():
     if args.docker_only:
         success = checker.check_docker_support()
     else:
-        success = checker.check_and_install_all()
+        success = checker.check_and_install_all(extras=args.extras)
     
     # Save report
     checker.save_report(args.report)

@@ -166,6 +166,8 @@ full = [
     "multiaddr>=0.0.9",
     "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",
     "protobuf>=5.26.0,<7.0.0",
+    "eth-hash[pycryptodome]>=0.3.3",
+    "eth-keys>=0.4.0",
     
     # Core utilities
     "aiohttp>=3.8.4",

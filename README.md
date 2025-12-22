@@ -331,7 +331,12 @@ Notes:
 # Clone and setup
 git clone https://github.com/endomorphosis/ipfs_kit_py.git
 cd ipfs_kit_py
-pip install -r requirements.txt
+
+# Zero-touch install (creates .venv, installs deps, runs a quick import check)
+./scripts/zero_touch_install.sh
+
+# Alternatively (legacy):
+# pip install -r requirements.txt
 
 # Start single MCP server
 python standalone_cluster_server.py
