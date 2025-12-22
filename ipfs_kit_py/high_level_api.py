@@ -4148,6 +4148,28 @@ MIT
 
         return self.kit.ipfs_pin_ls(**kwargs_with_defaults)
 
+    def pin_ls(
+        self,
+        cid: Optional[str] = None,
+        *,
+        type: str = "all",
+        quiet: bool = False,
+        timeout: Optional[int] = None,
+        type_filter: Optional[str] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Compatibility alias for listing pins.
+
+        Some legacy callers (and tests) expect an `ipfshttpclient`-style `pin_ls` API.
+        This delegates to `list_pins` and ignores `cid` (filtering is not supported
+        by the underlying `ipfs pin ls` command).
+        """
+
+        if type_filter is not None and type == "all":
+            type = type_filter
+
+        return self.list_pins(type=type, quiet=quiet, timeout=timeout, **kwargs)
+
 
     def pins(self, type=None, quiet=None, verify=None, **kwargs):
         """Alias for list_pins method."""

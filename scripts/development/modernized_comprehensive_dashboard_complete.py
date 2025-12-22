@@ -338,7 +338,7 @@ class ModernizedComprehensiveDashboard:
         try:
             # Initialize pin metadata index
             self.pin_metadata_index = EnhancedPinMetadataIndex(
-                metadata_dir=str(self.data_dir / "pin_metadata")
+                data_dir=str(self.data_dir / "pin_metadata")
             )
             logger.info("✅ Pin metadata index initialized")
         except Exception as e:

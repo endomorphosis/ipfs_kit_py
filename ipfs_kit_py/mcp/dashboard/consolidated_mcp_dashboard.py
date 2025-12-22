@@ -3211,6 +3211,7 @@ class ConsolidatedMCPDashboard:
             {"name": "state_snapshot", "description": "Snapshot key state files", "inputSchema": {}},
             {"name": "state_backup", "description": "Backup state to tar.gz", "inputSchema": {}},
             {"name": "state_reset", "description": "Reset state JSON files (with backups)", "inputSchema": {}},
+            {"name": "get_parquet_summary", "description": "Summarize expected parquet index locations (pins/buckets)", "inputSchema": {}},
             {"name": "get_logs", "description": "Get recent logs", "inputSchema": {"limit": "number"}},
             {"name": "clear_logs", "description": "Clear logs", "inputSchema": {}},
             {"name": "server_shutdown", "description": "Shutdown this MCP server", "inputSchema": {}},
@@ -6201,6 +6202,36 @@ class ConsolidatedMCPDashboard:
                     pass
                 _atomic_write_json(f, default)
             return {"jsonrpc": "2.0", "result": {"ok": True}, "id": None}
+
+        if name == "get_parquet_summary":
+            def _summarize_parquet(p: Path) -> Dict[str, Any]:
+                info: Dict[str, Any] = {
+                    "path": str(p),
+                    "exists": p.exists(),
+                    "rows": None,
+                    "columns": None,
+                }
+                if not p.exists():
+                    return info
+                # Prefer metadata-only read via pyarrow when available.
+                try:
+                    import pyarrow.parquet as pq  # type: ignore
+
+                    pf = pq.ParquetFile(p)
+                    info["rows"] = int(getattr(pf.metadata, "num_rows", 0)) if pf.metadata is not None else None
+                    info["columns"] = list(pf.schema.names)
+                    return info
+                except Exception:
+                    pass
+                return info
+
+            pins_path = self.paths.data_dir / "pin_metadata" / "pins.parquet"
+            buckets_path = self.paths.data_dir / "bucket_index" / "bucket_registry.parquet"
+            result = {
+                "pins": _summarize_parquet(pins_path),
+                "buckets": _summarize_parquet(buckets_path),
+            }
+            return {"jsonrpc": "2.0", "result": result, "id": None}
         return None
 
     def _handle_logs_server(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
