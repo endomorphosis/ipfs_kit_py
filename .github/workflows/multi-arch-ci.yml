@@ -396,32 +396,105 @@ jobs:
       with:
         python-version: '3.12'
     
-    - name: Install and verify all dependencies
+    - name: Collect runtime diagnostics
       run: |
-        pip install --upgrade pip setuptools wheel
-        
-        echo "Installing base package..."
-        pip install -e .
-        
-        echo "Installing libp2p extras..."
-        pip install -e .[libp2p]
-        
-        echo "Verifying critical dependencies..."
-        python -c "import multiaddr; print('✓ multiaddr')"
-        python -c "import cryptography; print('✓ cryptography')"
-        python -c "from google.protobuf import descriptor; print('✓ protobuf')"
-        python -c "import eth_hash; print('✓ eth-hash')"
-        python -c "import eth_keys; print('✓ eth-keys')"
-        
-        echo "Creating dependency report..."
-        pip list > dependency-report.txt
-        pip check || echo "Some dependency conflicts detected"
+        set -euo pipefail
+        mkdir -p dependency-report
+        {
+          echo "## Runtime diagnostics"
+          echo
+          echo "- Date (UTC): $(date -u +"%Y-%m-%d %H:%M:%S")"
+          echo "- Kernel: $(uname -a)"
+          echo "- Arch: $(uname -m)"
+          echo
+          echo "### OS"
+          (cat /etc/os-release || true)
+          echo
+          echo "### Python"
+          python -VV
+          echo
+          echo "### Pip"
+          python -m pip --version
+        } | tee dependency-report/runtime.md
+
+        # Useful for understanding wheel tags / resolver behavior on different runners.
+        python -m pip debug --verbose > dependency-report/pip-debug.txt || true
+
+    - name: Verify installs in isolated environments
+      run: |
+        set -euo pipefail
+
+        verify_env() {
+          local name="$1"
+          local extras="$2"
+          local venv_dir=".venv-${name}"
+          local out_dir="dependency-report/${name}"
+
+          mkdir -p "$out_dir"
+          python -m venv "$venv_dir"
+          # shellcheck disable=SC1090
+          source "$venv_dir/bin/activate"
+          python -m pip install --upgrade pip setuptools wheel
+
+          if [ -n "$extras" ]; then
+            echo "Installing editable with extras: [$extras]" | tee "$out_dir/install.txt"
+            python -m pip install -e ".[${extras}]" | tee -a "$out_dir/install.txt"
+          else
+            echo "Installing editable base package" | tee "$out_dir/install.txt"
+            python -m pip install -e . | tee -a "$out_dir/install.txt"
+          fi
+
+          python -m pip list > "$out_dir/pip-list.txt"
+          python -m pip freeze > "$out_dir/pip-freeze.txt"
+          python -m pip check > "$out_dir/pip-check.txt" || true
+
+          {
+            python -c "import ipfs_kit_py; print('✓ ipfs_kit_py')"
+            python -c "import multiaddr; print('✓ multiaddr')"
+            python -c "import cryptography; print('✓ cryptography')"
+          } > "$out_dir/imports-core.txt" || true
+
+          deactivate
+        }
+
+        # Keep these separate so we catch resolver issues per extra set.
+        verify_env "base" ""
+        verify_env "libp2p" "libp2p"
+        verify_env "full" "full"
+        verify_env "dev_full" "dev,full"
+
+    - name: Exercise zero-touch (runtime install path)
+      id: zero_touch
+      continue-on-error: true
+      run: |
+        set -euo pipefail
+        mkdir -p dependency-report/zero-touch
+
+        python -m venv .venv-zero-touch
+        # shellcheck disable=SC1090
+        source .venv-zero-touch/bin/activate
+        python -m pip install --upgrade pip setuptools wheel
+        python -m pip install -e ".[dev,full]" | tee dependency-report/zero-touch/pip-install.txt
+
+        # Default to safe behavior: do not attempt system-level dep installation.
+        export IPFS_KIT_AUTO_INSTALL_DEPS=0
+        export IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS=0
+
+        # Run the same entrypoint CI/Docker use; keep logs for diagnosis.
+        python -m ipfs_kit_py.zero_touch --binaries full 2>&1 | tee dependency-report/zero-touch/zero-touch.log
+
+    - name: Fail job if zero-touch failed
+      if: steps.zero_touch.outcome != 'success'
+      run: |
+        echo "zero-touch install path failed; see dependency-report/zero-touch/zero-touch.log"
+        exit 1
     
     - name: Upload dependency report
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: dependency-report
-        path: dependency-report.txt
+        path: dependency-report/
         retention-days: 7
 
   # Summary job
