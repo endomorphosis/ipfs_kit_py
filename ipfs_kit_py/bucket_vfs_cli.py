@@ -6,6 +6,13 @@ This module provides CLI commands for managing multi-bucket virtual filesystems
 with S3-like semantics, IPLD compatibility, and cross-platform data export.
 """
 
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+    import asyncio
+
 import argparse
 import asyncio
 import inspect
@@ -596,7 +603,7 @@ def register_bucket_commands(parser_or_subparsers) -> None:
         help="JSON metadata for the bucket"
     )
     create_parser.set_defaults(
-        func=lambda api, args, kwargs: asyncio.run(handle_bucket_create(args))
+        func=lambda api, args, kwargs: (anyio.run(handle_bucket_create, args) if HAS_ANYIO else asyncio.run(handle_bucket_create(args)))
     )
     
     # List buckets command
@@ -611,7 +618,7 @@ def register_bucket_commands(parser_or_subparsers) -> None:
         help="Show detailed information"
     )
     list_parser.set_defaults(
-        func=lambda api, args, kwargs: asyncio.run(handle_bucket_list(args))
+        func=lambda api, args, kwargs: (anyio.run(handle_bucket_list, args) if HAS_ANYIO else asyncio.run(handle_bucket_list(args)))
     )
     
     # Delete bucket command
@@ -630,7 +637,7 @@ def register_bucket_commands(parser_or_subparsers) -> None:
         help="Force deletion without confirmation"
     )
     delete_parser.set_defaults(
-        func=lambda api, args, kwargs: asyncio.run(handle_bucket_delete(args))
+        func=lambda api, args, kwargs: (anyio.run(handle_bucket_delete, args) if HAS_ANYIO else asyncio.run(handle_bucket_delete(args)))
     )
     
     # Add file to bucket command
@@ -656,7 +663,7 @@ def register_bucket_commands(parser_or_subparsers) -> None:
         help="JSON metadata for the file"
     )
     add_file_parser.set_defaults(
-        func=lambda api, args, kwargs: asyncio.run(handle_bucket_add_file(args))
+        func=lambda api, args, kwargs: (anyio.run(handle_bucket_add_file, args) if HAS_ANYIO else asyncio.run(handle_bucket_add_file(args)))
     )
     
     # Export bucket command
@@ -676,7 +683,7 @@ def register_bucket_commands(parser_or_subparsers) -> None:
         help="Include knowledge graph and vector indexes"
     )
     export_parser.set_defaults(
-        func=lambda api, args, kwargs: asyncio.run(handle_bucket_export(args))
+        func=lambda api, args, kwargs: (anyio.run(handle_bucket_export, args) if HAS_ANYIO else asyncio.run(handle_bucket_export(args)))
     )
     
     # Query buckets command
@@ -694,7 +701,7 @@ def register_bucket_commands(parser_or_subparsers) -> None:
         help="Comma-separated list of buckets to include (default: all)"
     )
     query_parser.set_defaults(
-        func=lambda api, args, kwargs: asyncio.run(handle_bucket_query(args))
+        func=lambda api, args, kwargs: (anyio.run(handle_bucket_query, args) if HAS_ANYIO else asyncio.run(handle_bucket_query(args)))
     )
     
     # Get file from bucket command
@@ -716,7 +723,7 @@ def register_bucket_commands(parser_or_subparsers) -> None:
         help="Output path to save the file"
     )
     get_file_parser.set_defaults(
-        func=lambda api, args, kwargs: asyncio.run(handle_bucket_get_file(args))
+        func=lambda api, args, kwargs: (anyio.run(handle_bucket_get_file, args) if HAS_ANYIO else asyncio.run(handle_bucket_get_file(args)))
     )
     
     # Cat file from bucket command
@@ -734,7 +741,7 @@ def register_bucket_commands(parser_or_subparsers) -> None:
         help="Path of the file in the bucket"
     )
     cat_file_parser.set_defaults(
-        func=lambda api, args, kwargs: asyncio.run(handle_bucket_cat_file(args))
+        func=lambda api, args, kwargs: (anyio.run(handle_bucket_cat_file, args) if HAS_ANYIO else asyncio.run(handle_bucket_cat_file(args)))
     )
     
     # List files in bucket command
@@ -748,7 +755,7 @@ def register_bucket_commands(parser_or_subparsers) -> None:
         help="Name of the bucket"
     )
     list_files_parser.set_defaults(
-        func=lambda api, args, kwargs: asyncio.run(handle_bucket_list_files(args))
+        func=lambda api, args, kwargs: (anyio.run(handle_bucket_list_files, args) if HAS_ANYIO else asyncio.run(handle_bucket_list_files(args)))
     )
     
     # Set the main bucket command handler

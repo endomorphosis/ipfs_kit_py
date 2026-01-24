@@ -5,6 +5,13 @@ Clean Bucket CLI for IPFS Kit.
 This provides a simplified, working CLI for bucket operations using BucketVFSManager.
 """
 
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+    import asyncio
+
 import argparse
 import asyncio
 import sys
@@ -425,7 +432,10 @@ async def main():
 def sync_main():
     """Synchronous entry point."""
     try:
-        return asyncio.run(main())
+        if HAS_ANYIO:
+            return anyio.run(main)
+        else:
+            return asyncio.run(main())
     except KeyboardInterrupt:
         print("\n❌ Operation cancelled by user")
         return 1
