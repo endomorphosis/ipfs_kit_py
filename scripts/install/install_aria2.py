@@ -31,6 +31,7 @@ import tarfile
 import tempfile
 import time
 import urllib.request
+import urllib.parse
 import zipfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
@@ -230,9 +231,17 @@ class install_aria2:
             logger.info(f"Downloading {url} to {target_path}")
             
             if platform.system() == "Windows":
-                # Use PowerShell for Windows
-                cmd = f'powershell -Command "Invoke-WebRequest -Uri \'{url}\' -OutFile \'{target_path}\'"'
-                subprocess.run(cmd, shell=True, check=True)
+                # Use Python's urllib on Windows to avoid PowerShell file locks
+                for attempt in range(1, 4):
+                    try:
+                        with urllib.request.urlopen(url) as response, open(target_path, 'wb') as out_file:
+                            shutil.copyfileobj(response, out_file)
+                        break
+                    except Exception as exc:
+                        if attempt == 3:
+                            raise
+                        logger.warning(f"Download attempt {attempt} failed: {exc}. Retrying...")
+                        time.sleep(2)
             elif platform.system() == "Linux":
                 # Use wget for Linux
                 cmd = f"wget '{url}' -O '{target_path}'"
@@ -313,9 +322,9 @@ class install_aria2:
             
             if archive_path.endswith('.zip'):
                 if platform.system() == "Windows":
-                    # Use PowerShell for Windows
-                    cmd = f'powershell -Command "Expand-Archive -Path \'{archive_path}\' -DestinationPath \'{extract_path}\' -Force"'
-                    subprocess.run(cmd, shell=True, check=True)
+                    # Use Python's zipfile on Windows to avoid PowerShell locking issues
+                    with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+                        zip_ref.extractall(extract_path)
                 else:
                     # Use unzip command on Linux/macOS
                     cmd = f"unzip -o '{archive_path}' -d '{extract_path}'"
@@ -383,7 +392,8 @@ class install_aria2:
         logger.info(f"Installing Aria2 from {url}")
         
         # Create temporary files
-        with tempfile.NamedTemporaryFile(suffix=".download", delete=False) as temp_file:
+        archive_suffix = os.path.splitext(urllib.parse.urlparse(url).path)[1] or ".download"
+        with tempfile.NamedTemporaryFile(suffix=archive_suffix, delete=False) as temp_file:
             try:
                 # Download archive
                 download_path = temp_file.name

@@ -299,10 +299,29 @@ class DependencyChecker:
         """Check Windows packages."""
         # On Windows, most dependencies are bundled or installed via pip
         self._log("Windows detected - most dependencies will be Python packages")
-        
+
+        def _ensure_on_path(candidate: str) -> None:
+            if candidate and os.path.exists(candidate):
+                current = os.environ.get("PATH", "")
+                if candidate not in current:
+                    os.environ["PATH"] = current + (";" if current else "") + candidate
+
+        go_bin = os.path.join("C:\\Program Files", "Go", "bin")
+        node_bin = os.path.join("C:\\Program Files", "nodejs")
+        _ensure_on_path(go_bin)
+        _ensure_on_path(node_bin)
+
+        def _has_vcredist() -> bool:
+            system32 = os.environ.get("SystemRoot", "C:\\Windows")
+            candidate = os.path.join(system32, "System32", "vcruntime140.dll")
+            return os.path.exists(candidate)
+
         results = {
             "git": shutil.which("git") is not None,
-            "go": shutil.which("go") is not None
+            "go": shutil.which("go") is not None,
+            "node": shutil.which("node") is not None,
+            "npm": (shutil.which("npm") is not None) or (shutil.which("npm.cmd") is not None),
+            "vcredist": _has_vcredist(),
         }
         
         for package, installed in results.items():
@@ -334,11 +353,17 @@ class DependencyChecker:
             "cryptography"
         ]
         
+        module_aliases = {
+            "pyyaml": "yaml",
+            "python-magic": "magic",
+        }
+
         results = {}
-        
+
         for package in required_packages:
+            module_name = module_aliases.get(package, package.replace("-", "_"))
             try:
-                __import__(package.replace("-", "_"))
+                __import__(module_name)
                 results[package] = True
                 self._log(f"✓ {package}")
             except ImportError:
@@ -449,11 +474,72 @@ class DependencyChecker:
     
     def _install_windows_packages(self, packages: List[str]) -> bool:
         """Install packages on Windows."""
-        self._log("Manual installation required for Windows packages", "WARNING")
-        self._log("Please install the following manually:")
-        for package in packages:
-            self._log(f"  - {package}")
-        return False
+        if self.dry_run:
+            self._log(f"[DRY RUN] Would install: {', '.join(packages)}")
+            return True
+
+        winget = shutil.which("winget")
+        choco = shutil.which("choco")
+
+        if not winget and not choco:
+            self._log("Neither winget nor choco found; cannot auto-install Windows packages", "WARNING")
+            self._log("Please install the following manually:")
+            for package in packages:
+                self._log(f"  - {package}")
+            return False
+
+        package_map = {
+            "git": {"winget": "Git.Git", "choco": "git"},
+            "go": {"winget": "GoLang.Go", "choco": "golang"},
+            "node": {"winget": "OpenJS.NodeJS.LTS", "choco": "nodejs-lts"},
+            "npm": {"winget": "OpenJS.NodeJS.LTS", "choco": "nodejs-lts"},
+            "vcredist": {"winget": "Microsoft.VCRedist.2015+.x64", "choco": "vcredist140"},
+        }
+
+        # Avoid duplicate installs (npm is included with node)
+        normalized = [pkg for pkg in packages if pkg != "npm" or "node" not in packages]
+
+        success = True
+        for package in normalized:
+            mapping = package_map.get(package)
+            if not mapping:
+                self._log(f"Unknown Windows package '{package}', skipping", "WARNING")
+                continue
+
+            if winget:
+                cmd = [
+                    winget,
+                    "install",
+                    "--id",
+                    mapping["winget"],
+                    "-e",
+                    "--accept-package-agreements",
+                    "--accept-source-agreements",
+                ]
+            else:
+                cmd = [choco, "install", mapping["choco"], "-y"]
+
+            self._log(f"Installing Windows package '{package}'...")
+            result = subprocess.run(cmd, check=False, timeout=1200)
+            if result.returncode not in (0, 2316632107):
+                if package == "go":
+                    go_bin = os.path.join("C:\\Program Files", "Go", "bin")
+                    if shutil.which("go") or os.path.exists(go_bin):
+                        self._log("Go appears installed; continuing despite winget return code", "WARNING")
+                        continue
+                self._log(f"Failed to install {package} (exit code {result.returncode})", "WARNING")
+                success = False
+
+        # Refresh PATH for common installs within this process
+        go_bin = os.path.join("C:\\Program Files", "Go", "bin")
+        node_bin = os.path.join("C:\\Program Files", "nodejs")
+        for candidate in (go_bin, node_bin):
+            if os.path.exists(candidate) and candidate not in os.environ.get("PATH", ""):
+                os.environ["PATH"] += ";" + candidate
+
+        if success:
+            self.results["installations"]["system_packages"] = normalized
+        return success
     
     def install_python_packages(self, extras: str = "full") -> bool:
         """Install Python package and dependencies.

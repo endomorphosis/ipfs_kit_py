@@ -18,6 +18,7 @@ import sys
 import subprocess
 import argparse
 import importlib
+from packaging.requirements import Requirement
 import logging
 from importlib.util import find_spec
 
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 # List of required dependencies
 REQUIRED_DEPENDENCIES = [
-    "huggingface_hub",
+    "huggingface_hub<1.0,>=0.34.0",
     "fsspec",
     "pyyaml",
     "tqdm",
@@ -51,8 +52,8 @@ def check_dependency(package):
     Check if a dependency is installed.
     
     Args:
-        package: Package name to check
-        
+        package: Package name or requirement spec to check.
+
     Returns:
         tuple: (is_installed, version)
     """
@@ -60,19 +61,20 @@ def check_dependency(package):
         # Handle special cases where package name doesn't match module name
         package_to_module = {
             "pyyaml": "yaml",  # PyYAML's module name is 'yaml'
-            "huggingface-hub": "huggingface_hub",
-            "huggingface_hub": "huggingface_hub",
         }
 
-        # Get the correct module name for import
-        if package in package_to_module:
-            module_name = package_to_module[package]
-        else:
-            module_name = package.replace("-", "_")  # Replace hyphens with underscores for import
-            
+        try:
+            package_name = Requirement(package).name
+        except Exception:
+            package_name = package
+
+        module_name = package_to_module.get(
+            package_name, package_name.replace("-", "_")
+        )
+
         # Try importing the module
         module = importlib.import_module(module_name)
-            
+
         # Try to get version
         version = getattr(module, "__version__", "unknown")
         return True, version

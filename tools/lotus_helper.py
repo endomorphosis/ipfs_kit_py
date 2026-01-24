@@ -14,7 +14,7 @@ import sys
 import time
 
 # Setup paths
-BIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "/home/devel/ipfs_kit_py/scripts/install/bin"))
+BIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "C:\Users\Admin\ipfs_kit_py\scripts\install\bin"))
 LOTUS_BIN = os.path.join(BIN_DIR, "lotus")
 if sys.platform == "win32":
     LOTUS_BIN += ".exe"

@@ -16,6 +16,7 @@ Options:
 import os
 import sys
 import subprocess
+import shutil
 import argparse
 import importlib
 import logging
@@ -85,15 +86,35 @@ def check_npm_installed():
         bool: True if npm is installed, False otherwise
     """
     try:
+        npm_cmd = _resolve_cmd("npm")
+        if not npm_cmd:
+            return False
         subprocess.run(
-            ["npm", "--version"], 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
+            [npm_cmd, "--version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             check=True
         )
         return True
     except (subprocess.SubprocessError, FileNotFoundError):
         return False
+
+
+def _resolve_cmd(command_name: str) -> str:
+    """Resolve platform-specific command names (e.g., npm.cmd on Windows)."""
+    resolved = shutil.which(command_name)
+    if resolved:
+        return resolved
+
+    if platform.system() != "Windows":
+        return command_name
+
+    for candidate in (f"{command_name}.cmd", f"{command_name}.exe"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+
+    return None
 
 def check_w3_cli_installed():
     """
@@ -104,7 +125,13 @@ def check_w3_cli_installed():
     """
     try:
         # Windows needs special handling
-        cmd = ["npx", "--no", "w3", "--version"] if platform.system() == "Windows" else ["w3", "--version"]
+        if platform.system() == "Windows":
+            npx_cmd = _resolve_cmd("npx")
+            if not npx_cmd:
+                return False, None
+            cmd = [npx_cmd, "--no", "w3", "--version"]
+        else:
+            cmd = ["w3", "--version"]
         
         result = subprocess.run(
             cmd,
@@ -245,8 +272,13 @@ def install_w3_cli(force=False, verbose=False):
         npm_args = []
         if verbose:
             npm_args.append("--loglevel=verbose")
-            
-        install_cmd = ["npm", "install", "-g", W3_CLI_DEPENDENCY] + npm_args
+        
+        npm_cmd = _resolve_cmd("npm")
+        if not npm_cmd:
+            logger.error("npm is not installed or not available in PATH.")
+            return False
+
+        install_cmd = [npm_cmd, "install", "-g", W3_CLI_DEPENDENCY] + npm_args
         
         logger.info(f"Running: {' '.join(install_cmd)}")
         subprocess.check_call(install_cmd)
@@ -307,7 +339,14 @@ def verify_storacha_functionality():
         env['W3_AGENT_DIR'] = w3_config_dir
         
         # Try to run a simple w3 command to check if it works
-        cmd = ["npx", "w3", "--help"] if platform.system() == "Windows" else ["w3", "--help"]
+        if platform.system() == "Windows":
+            npx_cmd = _resolve_cmd("npx")
+            if not npx_cmd:
+                logger.error("npx not found in PATH; cannot verify W3 CLI")
+                return False
+            cmd = [npx_cmd, "w3", "--help"]
+        else:
+            cmd = ["w3", "--help"]
         
         result = subprocess.run(
             cmd,

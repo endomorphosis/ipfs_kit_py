@@ -1963,6 +1963,9 @@ if __name__ == "__main__":
 
     def build_lotus_from_source(self, version="v1.24.0"):
         """Build Lotus from source when the prebuilt binary is unusable."""
+        if platform.system() == "Windows":
+            logger.warning("Lotus source builds are not supported on Windows. Skipping build.")
+            return False
         version_str = str(version) if version is not None else "v1.24.0"
         branch = version_str if version_str.startswith("v") else f"v{version_str}"
         logger.info(f"Building Lotus from source (version {version_str})...")
@@ -2133,6 +2136,45 @@ if __name__ == "__main__":
             else:
                 logger.error(f"Unsupported architecture for Go installation: {machine}")
                 return False
+        elif system == "Windows":
+            winget = shutil.which("winget")
+            choco = shutil.which("choco")
+            if winget:
+                cmd = [
+                    winget,
+                    "install",
+                    "--id",
+                    "GoLang.Go",
+                    "-e",
+                    "--accept-package-agreements",
+                    "--accept-source-agreements",
+                ]
+            elif choco:
+                cmd = [choco, "install", "golang", "-y"]
+            else:
+                logger.error("winget or choco is required to install Go on Windows")
+                return False
+
+            try:
+                result = subprocess.run(cmd, check=False, timeout=1200)
+                if result.returncode not in (0, 2316632107):
+                    logger.error(f"Failed to install Go on Windows (exit code {result.returncode})")
+                    return False
+            except subprocess.TimeoutExpired:
+                logger.error("Go installation timed out on Windows")
+                return False
+
+            go_bin = os.path.join("C:\\Program Files", "Go", "bin")
+            if os.path.exists(go_bin) and go_bin not in os.environ.get("PATH", ""):
+                os.environ["PATH"] += ";" + go_bin
+
+            try:
+                go_version_output = subprocess.check_output(["go", "version"], text=True).strip()
+                logger.info(f"Go installed successfully: {go_version_output}")
+                return True
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                logger.error("Go installation completed but go.exe is not in PATH")
+                return False
         elif system == "Darwin":
             if "arm64" in machine.lower():
                 go_url = f"https://go.dev/dl/go{go_version}.darwin-arm64.tar.gz"
@@ -2256,6 +2298,10 @@ if __name__ == "__main__":
         # Get download URL
         download_url, filename = self.get_download_url(release_info)
         if not download_url:
+            if platform.system() == "Windows":
+                logger.warning("No pre-built Lotus binary available for Windows. Skipping installation.")
+                self.skipped_no_binary = True
+                return True
             return False
             
         # Create temp directory for download
@@ -3131,6 +3177,11 @@ def main():
         else:
             installer.download_params()
         
+        if getattr(installer, "skipped_no_binary", False):
+            logger.warning("Lotus binaries are not available for Windows; installation steps were skipped.")
+            logger.info("Lotus environment setup completed without binaries.")
+            return
+
         # Test installation
         if installer.test_lotus_installation(bin_dir):
             logger.info("Lotus installation completed successfully!")

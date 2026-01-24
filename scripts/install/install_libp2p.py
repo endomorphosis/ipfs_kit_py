@@ -171,7 +171,7 @@ def install_libp2p_dependencies(
     required_packages = {
         "libp2p": ">=0.2.0",           # Core libp2p library
         "cryptography": ">=36.0.0",     # For crypto operations
-        "multiaddr": ">=0.0.9",         # For multiaddress handling
+        "multiaddr": "==0.0.11",        # For multiaddress handling (libp2p requirement)
         "protobuf": ">=3.20.0",         # For protocol buffers
         "base58": ">=2.1.0",            # For base58 encoding/decoding
         "networkx": ">=2.6.0",          # For peer routing graph

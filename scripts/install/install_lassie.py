@@ -132,7 +132,9 @@ class install_lassie:
         """Set up distribution URLs and CIDs for Lassie binaries."""
         # Main Lassie binaries URLs by platform
         # Initialize with latest version as default
-        version = self.metadata.get("version", DEFAULT_LASSIE_VERSION)
+        version = self.metadata.get("version") or DEFAULT_LASSIE_VERSION
+        if not version:
+            version = self.get_latest_lassie_version()
         
         self.lassie_dists = {
             "macos arm64": f"{LASSIE_RELEASE_BASE_URL}/v{version}/lassie_{version}_darwin-arm64.tar.gz",
@@ -152,6 +154,89 @@ class install_lassie:
             "linux x86": "",
             "windows x86_64": ""
         }
+
+    def _ensure_windows_tool(self, winget_id: str, choco_id: str) -> bool:
+        winget = shutil.which("winget")
+        choco = shutil.which("choco")
+        if winget:
+            cmd = [
+                winget,
+                "install",
+                "--id",
+                winget_id,
+                "-e",
+                "--accept-package-agreements",
+                "--accept-source-agreements",
+            ]
+        elif choco:
+            cmd = [choco, "install", choco_id, "-y"]
+        else:
+            logger.error("winget or choco is required to install %s on Windows", winget_id)
+            return False
+
+        result = subprocess.run(cmd, check=False, timeout=1200)
+        return result.returncode in (0, 2316632107)
+
+    def _ensure_go_available(self) -> bool:
+        if shutil.which("go"):
+            return True
+
+        if platform.system() == "Windows":
+            if not self._ensure_windows_tool("GoLang.Go", "golang"):
+                return False
+            go_bin = os.path.join("C:\\Program Files", "Go", "bin")
+            if os.path.exists(go_bin) and go_bin not in os.environ.get("PATH", ""):
+                os.environ["PATH"] += ";" + go_bin
+
+        return shutil.which("go") is not None
+
+    def _ensure_git_available(self) -> bool:
+        if shutil.which("git"):
+            return True
+
+        if platform.system() == "Windows":
+            if not self._ensure_windows_tool("Git.Git", "git"):
+                return False
+
+        return shutil.which("git") is not None
+
+    def build_lassie_from_source(self, version: str) -> bool:
+        """Build Lassie from source using Go."""
+        logger.info("Attempting to build Lassie from source...")
+
+        if not self._ensure_go_available():
+            logger.error("Go is required to build Lassie from source")
+            return False
+        if not self._ensure_git_available():
+            logger.error("Git is required to build Lassie from source")
+            return False
+
+        version_str = str(version) if version else self.get_latest_lassie_version()
+        tag = version_str if str(version_str).startswith("v") else f"v{version_str}"
+
+        build_dir = tempfile.mkdtemp(prefix="lassie_build_")
+        try:
+            subprocess.run(
+                ["git", "clone", "--depth", "1", "--branch", tag, "https://github.com/filecoin-project/lassie.git", build_dir],
+                check=True,
+                capture_output=True,
+            )
+            output_name = LASSIE_BINARY + (".exe" if platform.system() == "Windows" else "")
+            output_path = os.path.join(self.bin_path, output_name)
+
+            subprocess.run(
+                ["go", "build", "-o", output_path, "./cmd/lassie"],
+                cwd=build_dir,
+                check=True,
+            )
+
+            logger.info("Lassie built from source and installed to %s", output_path)
+            return True
+        except subprocess.CalledProcessError as exc:
+            logger.error(f"Failed to build Lassie from source: {exc}")
+            return False
+        finally:
+            shutil.rmtree(build_dir, ignore_errors=True)
     
     def hardware_detect(self):
         """
@@ -490,7 +575,7 @@ class install_lassie:
         
         # Check lassie version
         try:
-            output = subprocess.check_output([lassie_path, "--version"], 
+            output = subprocess.check_output([lassie_path, "version"], 
                                             stderr=subprocess.STDOUT, 
                                             universal_newlines=True)
             version_match = re.search(r"lassie\s+version\s+v?(\d+\.\d+\.\d+)", output, re.IGNORECASE)
@@ -534,7 +619,7 @@ class install_lassie:
         try:
             # Test version command
             result = subprocess.run(
-                [lassie_bin, "--version"], 
+                [lassie_bin, "version"], 
                 check=True, 
                 stdout=subprocess.PIPE, 
                 stderr=subprocess.STDOUT, 
@@ -618,7 +703,7 @@ WantedBy=multi-user.target
         os.makedirs("tools", exist_ok=True)
         
         with open(script_path, "w") as f:
-            f.write(f"""#!/usr/bin/env python3
+            script_content = """#!/usr/bin/env python3
 '''
 Helper script for managing Lassie daemon.
 
@@ -638,7 +723,7 @@ import urllib.request
 import socket
 
 # Setup paths
-BIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "{bin_dir}"))
+BIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "__BIN_DIR__"))
 LASSIE_BIN = os.path.join(BIN_DIR, "lassie")
 if sys.platform == "win32":
     LASSIE_BIN += ".exe"
@@ -653,7 +738,7 @@ def get_daemon_pid():
     if sys.platform == "win32":
         try:
             output = subprocess.check_output(
-                f'netstat -ano | findstr ":{port}"',
+                'netstat -ano | findstr ":%s"' % port,
                 shell=True,
                 text=True
             )
@@ -666,8 +751,8 @@ def get_daemon_pid():
     else:
         try:
             output = subprocess.check_output(
-                f"lsof -i :{port} -t", 
-                shell=True, 
+                "lsof -i :%s -t" % port,
+                shell=True,
                 text=True
             )
             return int(output.strip())
@@ -908,7 +993,8 @@ def main():
 
 if __name__ == "__main__":
     main()
-""")
+"""
+            f.write(script_content.replace("__BIN_DIR__", bin_dir))
         
         # Make script executable
         if platform.system() != "windows":
@@ -945,39 +1031,48 @@ if __name__ == "__main__":
         # Get release information
         version = self.metadata.get("version", self.get_latest_lassie_version())
         logger.info(f"Installing Lassie version {version}")
+
+        if self.metadata.get("build_from_source") or os.environ.get("IPFS_KIT_LASSIE_BUILD_SOURCE", "").lower() in {"1", "true", "yes"}:
+            return self.build_lassie_from_source(version)
         
         release_info = self.get_release_info(version)
         if not release_info:
-            return False
+            logger.warning("Release metadata not available; attempting source build")
+            return self.build_lassie_from_source(version)
             
         # Get download URL
         download_url, filename = self.get_download_url(release_info)
         if not download_url:
-            return False
+            logger.warning("No download URL found; attempting source build")
+            return self.build_lassie_from_source(version)
             
         # Create temp directory for download
         with tempfile.TemporaryDirectory() as temp_dir:
             # Download archive
             archive_path = os.path.join(temp_dir, filename)
             if not self.download_file(download_url, archive_path):
-                return False
+                logger.warning("Download failed; attempting source build")
+                return self.build_lassie_from_source(version)
                 
             # Verify download
             if not self.verify_download(archive_path):
                 logger.error("Download verification failed")
-                return False
+                logger.warning("Attempting source build")
+                return self.build_lassie_from_source(version)
                 
             # Extract archive
             extract_dir = os.path.join(temp_dir, "extracted")
             os.makedirs(extract_dir, exist_ok=True)
             if not self.extract_archive(archive_path, extract_dir):
-                return False
+                logger.warning("Extract failed; attempting source build")
+                return self.build_lassie_from_source(version)
                 
             # Install binary
             binary_path = self.install_binary(extract_dir, self.bin_path)
             if not binary_path:
                 logger.error("Failed to install Lassie binary")
-                return False
+                logger.warning("Attempting source build")
+                return self.build_lassie_from_source(version)
         
         # Verify installation
         installation = self.check_existing_installation()
@@ -1176,10 +1271,11 @@ def main():
     
     # Create installer with metadata
     metadata = {
-        "version": args.version,
         "force": args.force,
         "bin_dir": bin_dir
     }
+    if args.version:
+        metadata["version"] = args.version
     installer = install_lassie(metadata=metadata)
     
     # Check if already installed
