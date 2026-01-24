@@ -16,6 +16,12 @@ import websockets
 from websockets.server import WebSocketServerProtocol
 from websockets.exceptions import ConnectionClosed
 
+try:
+    import anyio
+    ANYIO_AVAILABLE = True
+except ImportError:
+    ANYIO_AVAILABLE = False
+
 from .websocket_notifications import get_ws_manager, EventType
 
 # Configure logger
@@ -71,7 +77,15 @@ class WebSocketServer:
             self.start_timestamp = time.time()
             
             # Start the ping task
-            asyncio.create_task(self.ping_clients())
+            if ANYIO_AVAILABLE:
+                try:
+                    import anyio.lowlevel
+                    anyio.lowlevel.current_task()
+                    asyncio.create_task(self.ping_clients())
+                except Exception:
+                    asyncio.create_task(self.ping_clients())
+            else:
+                asyncio.create_task(self.ping_clients())
             
             logger.info(f"WebSocket server started successfully on {self.host}:{self.port}")
             
@@ -210,7 +224,15 @@ class WebSocketServer:
                             pong_waiter = await websocket.ping()
                             ping_count += 1
                             # Start a task to handle the pong response
-                            asyncio.create_task(self.handle_pong(conn_id, pong_waiter))
+                            if ANYIO_AVAILABLE:
+                                try:
+                                    import anyio.lowlevel
+                                    anyio.lowlevel.current_task()
+                                    asyncio.create_task(self.handle_pong(conn_id, pong_waiter))
+                                except Exception:
+                                    asyncio.create_task(self.handle_pong(conn_id, pong_waiter))
+                            else:
+                                asyncio.create_task(self.handle_pong(conn_id, pong_waiter))
                         except Exception as e:
                             logger.error(f"Error pinging client {conn_id}: {e}")
                 
@@ -221,7 +243,10 @@ class WebSocketServer:
                 logger.error(f"Error in ping task: {e}")
             
             # Wait for the next ping interval
-            await asyncio.sleep(self.ping_interval)
+            if ANYIO_AVAILABLE:
+                await anyio.sleep(self.ping_interval)
+            else:
+                await asyncio.sleep(self.ping_interval)
     
     async def handle_pong(self, conn_id: str, pong_waiter: asyncio.Future):
         """
