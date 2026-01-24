@@ -16,6 +16,12 @@ from enum import Enum
 from typing import Dict, List, Set, Any, Optional, Union, Callable
 from dataclasses import dataclass
 
+try:
+    import anyio
+    ANYIO_AVAILABLE = True
+except ImportError:
+    ANYIO_AVAILABLE = False
+
 # Configure logger
 logger = logging.getLogger(__name__)
 
@@ -328,7 +334,13 @@ class WebSocketManager:
                 async def _broadcast():
                     await self.broadcast(message, channel)
                 
-                asyncio.run(_broadcast())
+                if ANYIO_AVAILABLE:
+                    try:
+                        anyio.from_thread.run(_broadcast)
+                    except Exception:
+                        asyncio.run(_broadcast())
+                else:
+                    asyncio.run(_broadcast())
             
             return True
         except Exception as e:

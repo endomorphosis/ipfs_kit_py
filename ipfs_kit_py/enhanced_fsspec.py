@@ -8,7 +8,7 @@ including IPFS, Filecoin (via Lotus), Storacha, and Synapse SDK.
 import os
 import time
 import logging
-import asyncio
+import anyio
 import tempfile
 from typing import Dict, List, Any, Optional, Union, BinaryIO
 from pathlib import Path

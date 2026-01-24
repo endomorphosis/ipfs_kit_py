@@ -14,6 +14,13 @@ from typing import Dict, List, Any, Optional
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+# Import anyio with fallback
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+
 # Import peer WebSocket components (first try anyio version, then fall back to regular)
 try:
     from ipfs_kit_py.peer_websocket_anyio import (
@@ -250,6 +257,14 @@ class PeerWebSocketController:
 
     def shutdown_sync(self):
         """Synchronous wrapper to shutdown the peer websocket components."""
+        if HAS_ANYIO:
+            try:
+                anyio.run(self._shutdown)
+                return
+            except Exception as e:
+                logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
+        
+        # Fallback to asyncio
         import asyncio
 
         try:
@@ -259,7 +274,12 @@ class PeerWebSocketController:
         if loop and loop.is_running():
             asyncio.create_task(self._shutdown())
         else:
-            asyncio.run(self._shutdown())
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            loop.run_until_complete(self._shutdown())
 
     async def check_websocket_support(self) -> Dict[str, Any]:
         """
@@ -691,13 +711,12 @@ class PeerWebSocketController:
         logger.info("Running synchronous shutdown for Peer WebSocket Controller")
         try:
             # Try using anyio first (preferred method)
-            try:
-                import anyio
-
-                anyio.run(self.shutdown)
-                return
-            except ImportError:
-                logger.warning("anyio not available, falling back to asyncio")
+            if HAS_ANYIO:
+                try:
+                    anyio.run(self.shutdown)
+                    return
+                except Exception as e:
+                    logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
 
             # Fallback to asyncio
             import asyncio

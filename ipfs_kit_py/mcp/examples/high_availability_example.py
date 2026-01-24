@@ -19,7 +19,7 @@ Usage:
 import os
 import sys
 import json
-import asyncio
+import anyio
 import argparse
 import logging
 import tempfile
@@ -205,7 +205,7 @@ async def simulated_api_requests(load_balancer: LoadBalancer, num_requests: int 
             # In a real application, you would make an actual API request to the node
             
             # Simulate processing time
-            await asyncio.sleep(0.5)
+            await anyio.sleep(0.5)
         else:
             logger.warning(f"Request {i+1}: No suitable node available")
     
@@ -231,7 +231,7 @@ async def simulate_node_failure(ha_cluster: HACluster, node_id: str):
         logger.warning(f"Cannot directly set status of remote node {node_id}")
     
     # Wait for health check to detect failure
-    await asyncio.sleep(ha_cluster.ha_config.health_check_interval_ms / 1000 * 2)
+    await anyio.sleep(ha_cluster.ha_config.health_check_interval_ms / 1000 * 2)
     
     # Check new state
     new_state = ha_cluster.get_node_state(node_id)
@@ -274,7 +274,7 @@ async def simulate_region_failure(ha_cluster: HACluster, region_id: str):
     ) / 1000 * 2
     
     logger.info(f"Waiting {failover_wait_time} seconds for failover...")
-    await asyncio.sleep(failover_wait_time)
+    await anyio.sleep(failover_wait_time)
     
     # Check region states after failover
     all_region_states = ha_cluster.get_all_region_states()
@@ -323,7 +323,7 @@ async def demonstrate_manual_failover(ha_cluster: HACluster):
         logger.info(f"Manual failover initiated successfully")
         
         # Wait for changes to propagate
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
         
         # Check region states after failover
         all_region_states = ha_cluster.get_all_region_states()
@@ -362,7 +362,7 @@ async def monitor_cluster_health(ha_cluster: HACluster, duration_seconds: int = 
             logger.info(f"  {region_id}: {status}")
         
         # Wait before next check
-        await asyncio.sleep(5)
+        await anyio.sleep(5)
     
     logger.info("Cluster health monitoring completed")
 
@@ -389,27 +389,25 @@ async def main():
                 load_balancer = LoadBalancer(ha_cluster)
                 
                 # Monitor cluster health in the background
-                monitor_task = asyncio.create_task(monitor_cluster_health(ha_cluster, 60))
+                async with anyio.create_task_group() as tg:
+                    tg.start_soon(monitor_cluster_health, ha_cluster, 60)
                 
-                # Demonstrate simulated API requests with load balancing
-                await simulated_api_requests(load_balancer)
-                
-                # Demonstrate node failure simulation
-                await simulate_node_failure(ha_cluster, local_node_id)
-                
-                # Demonstrate manual failover between regions
-                await demonstrate_manual_failover(ha_cluster)
-                
-                # Wait for health check to detect region changes
-                await asyncio.sleep(ha_cluster.ha_config.health_check_interval_ms / 1000 * 2)
-                
-                # Demonstrate region failure simulation for the primary region
-                primary_region = ha_cluster.ha_config.get_primary_region()
-                if primary_region:
-                    await simulate_region_failure(ha_cluster, primary_region.id)
-                
-                # Wait for monitoring to complete
-                await monitor_task
+                    # Demonstrate simulated API requests with load balancing
+                    await simulated_api_requests(load_balancer)
+                    
+                    # Demonstrate node failure simulation
+                    await simulate_node_failure(ha_cluster, local_node_id)
+                    
+                    # Demonstrate manual failover between regions
+                    await demonstrate_manual_failover(ha_cluster)
+                    
+                    # Wait for health check to detect region changes
+                    await anyio.sleep(ha_cluster.ha_config.health_check_interval_ms / 1000 * 2)
+                    
+                    # Demonstrate region failure simulation for the primary region
+                    primary_region = ha_cluster.ha_config.get_primary_region()
+                    if primary_region:
+                        await simulate_region_failure(ha_cluster, primary_region.id)
                 
             finally:
                 # Stop the cluster
@@ -420,4 +418,4 @@ async def main():
             raise
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

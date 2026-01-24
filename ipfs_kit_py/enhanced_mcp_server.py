@@ -6,7 +6,7 @@ monitoring, and uses the metadata-first approach.
 """
 
 import logging
-import asyncio
+import anyio
 from typing import Dict, Any, Optional, List
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse

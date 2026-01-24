@@ -23,6 +23,12 @@ from typing import Dict, Any, List, Set, Optional, Callable, Union
 from datetime import datetime
 from dataclasses import dataclass, field
 
+try:
+    import anyio
+    ANYIO_AVAILABLE = True
+except ImportError:
+    ANYIO_AVAILABLE = False
+
 # Import the JSON-RPC event manager
 from .jsonrpc_event_manager import get_jsonrpc_event_manager, EventCategory
 

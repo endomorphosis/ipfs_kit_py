@@ -18,7 +18,8 @@ import time
 import tempfile
 import uvicorn
 import logging
-import asyncio
+import anyio
+import inspect
 from typing import Dict, List, Any, Optional, Union
 from pathlib import Path
 
@@ -798,7 +799,7 @@ async def storage_list(
         options = {"max_keys": max_keys}
         
         # Call the backend's list method (most backends have sync list methods)
-        if asyncio.iscoroutinefunction(storage_backend.list):
+        if inspect.iscoroutinefunction(storage_backend.list):
             result = await storage_backend.list(container=container, prefix=prefix, options=options)
         else:
             result = storage_backend.list(container=container, prefix=prefix, options=options)

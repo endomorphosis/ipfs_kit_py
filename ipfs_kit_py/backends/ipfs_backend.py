@@ -5,7 +5,13 @@ IPFS Backend Adapter for IPFS Kit
 Implements the isomorphic backend interface for IPFS storage.
 """
 
-import asyncio
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+    import asyncio
+
 import json
 import time
 from datetime import datetime, timedelta

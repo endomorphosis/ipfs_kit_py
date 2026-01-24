@@ -9,7 +9,7 @@ This refactored implementation provides:
 - Proper static file serving
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time

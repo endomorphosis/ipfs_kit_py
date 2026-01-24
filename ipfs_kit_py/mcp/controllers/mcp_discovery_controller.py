@@ -14,6 +14,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from ipfs_kit_py.mcp.models.mcp_discovery_model import MCPDiscoveryModel
 
+# Import anyio with fallback
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+
 # Configure logger
 logger = logging.getLogger(__name__)
 
@@ -678,22 +685,21 @@ class MCPDiscoveryController:
             # For sync methods, we need to handle differently
             elif hasattr(self.discovery_model, "sync_shutdown"):
                 # Use anyio to run in a thread if available
-                try:
-                    import anyio
-                    import sniffio
-
-                    sniffio.current_async_library()
-                    await anyio.to_thread.run_sync(self.discovery_model.sync_shutdown)
-                except (ImportError, ModuleNotFoundError):
+                if HAS_ANYIO:
+                    try:
+                        import sniffio
+                        sniffio.current_async_library()
+                        await anyio.to_thread.run_sync(self.discovery_model.sync_shutdown)
+                    except Exception as e:
+                        logger.error(f"Error during model sync_shutdown via anyio: {e}")
+                        errors.append(str(e))
+                else:
                     # Fallback to running directly (might block)
                     try:
                         self.discovery_model.sync_shutdown()
                     except Exception as e:
                         logger.error(f"Error during model sync_shutdown direct call: {e}")
                         errors.append(str(e))
-                except Exception as e:
-                    logger.error(f"Error during model sync_shutdown via anyio: {e}")
-                    errors.append(str(e))
 
             # Additional model-specific cleanup
             if hasattr(self.discovery_model, "reset"):

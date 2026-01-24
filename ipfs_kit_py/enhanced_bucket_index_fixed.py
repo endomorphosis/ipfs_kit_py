@@ -8,7 +8,7 @@ Similar architecture to the pin index for consistent performance and usability.
 import os
 import json
 import logging
-import asyncio
+import anyio
 import threading
 import time
 from pathlib import Path

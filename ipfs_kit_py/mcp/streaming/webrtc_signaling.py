@@ -15,6 +15,12 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Any, Optional, Union, Callable
 
+try:
+    import anyio
+    ANYIO_AVAILABLE = True
+except ImportError:
+    ANYIO_AVAILABLE = False
+
 # Configure logger
 logger = logging.getLogger(__name__)
 

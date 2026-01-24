@@ -8,7 +8,7 @@ This demonstrates how to use the DHT, DAG, and IPNS operations through the MCP A
 import os
 import sys
 import logging
-import asyncio
+import anyio
 import argparse
 from pathlib import Path
 
@@ -237,4 +237,4 @@ async def main():
 
 if __name__ == "__main__":
     # Run the async main function
-    asyncio.run(main())
+    anyio.run(main)

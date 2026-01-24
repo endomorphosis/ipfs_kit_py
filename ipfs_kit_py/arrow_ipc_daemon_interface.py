@@ -13,7 +13,7 @@ Key Features:
 - Memory mapping for large datasets
 """
 
-import asyncio
+import anyio
 import io
 import json
 import logging
@@ -590,21 +590,9 @@ async def get_metrics_zero_copy(metric_types: Optional[List[str]] = None) -> Opt
 def get_pin_index_zero_copy_sync(limit: Optional[int] = None, 
                                  filters: Optional[Dict[str, Any]] = None) -> Optional[pa.Table]:
     """Synchronous wrapper for CLI use."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    return loop.run_until_complete(get_pin_index_zero_copy(limit, filters))
+    return anyio.from_thread.run(get_pin_index_zero_copy, limit, filters)
 
 
 def get_metrics_zero_copy_sync(metric_types: Optional[List[str]] = None) -> Optional[pa.Table]:
     """Synchronous wrapper for CLI use."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    return loop.run_until_complete(get_metrics_zero_copy(metric_types))
+    return anyio.from_thread.run(get_metrics_zero_copy, metric_types)

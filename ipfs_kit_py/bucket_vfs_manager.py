@@ -13,6 +13,13 @@ The system provides S3-like bucket semantics with IPFS content addressing,
 ensuring data is both traversable in IPFS and portable across different tools.
 """
 
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+    import asyncio
+
 import asyncio
 import json
 import logging

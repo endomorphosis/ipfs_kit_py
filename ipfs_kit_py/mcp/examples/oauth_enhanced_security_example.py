@@ -19,7 +19,7 @@ Usage:
 
 import os
 import sys
-import asyncio
+import anyio
 import json
 import logging
 import argparse
@@ -73,7 +73,7 @@ class MemoryStorage:
     
     def __init__(self):
         self._storage = {}
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
     
     async def get(self, key: str) -> Any:
         """Get a value from storage."""
@@ -719,4 +719,4 @@ if __name__ == "__main__":
     if args.server and HAS_FASTAPI:
         run_fastapi_example()
     else:
-        asyncio.run(run_demo())
+        anyio.run(run_demo)

@@ -5,7 +5,13 @@ S3 Backend Adapter for IPFS Kit
 Implements the isomorphic backend interface for S3-compatible storage.
 """
 
-import asyncio
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+    import asyncio
+
 import json
 import time
 from datetime import datetime, timedelta

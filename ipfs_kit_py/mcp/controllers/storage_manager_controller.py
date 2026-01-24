@@ -13,6 +13,13 @@ from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, Body
 from pydantic import BaseModel, Field
 
+# Import anyio with fallback
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+
 # Add the parent directory to sys.path to allow importing mcp_error_handling
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 from ipfs_kit_py.mcp import mcp_error_handling
@@ -265,16 +272,13 @@ class StorageManagerController:
                 # Continue with standard shutdown which might fail gracefully
 
         try:
-            # Try using anyio
-            try:
-                import anyio
-
-                anyio.run(self.shutdown)
-                return
-            except ImportError:
-                logger.warning("anyio not available, falling back to asyncio")
-            except Exception as e:
-                logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
+            # Try using anyio (preferred method)
+            if HAS_ANYIO:
+                try:
+                    anyio.run(self.shutdown)
+                    return
+                except Exception as e:
+                    logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
 
             # Fallback to asyncio
             import asyncio

@@ -11,6 +11,13 @@ Usage:
 
 from __future__ import annotations
 
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+    import asyncio
+
 import argparse
 import asyncio
 import importlib.util
@@ -214,8 +221,11 @@ class FastCLI:
             if asyncio.iscoroutinefunction(run_method):
                 await run_method()
             else:
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, run_method)
+                if HAS_ANYIO:
+                    await anyio.to_thread.run_sync(run_method)
+                else:
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(None, run_method)
             return
 
         # background
@@ -488,8 +498,14 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    if HAS_ANYIO:
+        anyio.run(main)
+    else:
+        asyncio.run(main())
 
 
 def sync_main():  # pragma: no cover
-    return asyncio.run(main())
+    if HAS_ANYIO:
+        return anyio.run(main)
+    else:
+        return asyncio.run(main())

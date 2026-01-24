@@ -7,9 +7,15 @@ delegates the business logic to the IPFS model. It uses AnyIO for async operatio
 
 import logging
 import time
-import anyio
-import anyio.from_thread
 from typing import Dict, List, Any, Optional
+
+# Import anyio with fallback
+try:
+    import anyio
+    import anyio.from_thread
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
 
 try:
     from fastapi import APIRouter
@@ -610,15 +616,12 @@ class WebRTCController:
 
         try:
             # Try using anyio (preferred method)
-            try:
-                
-
-                anyio.run(self.shutdown)
-                return
-            except ImportError:
-                logger.warning("anyio not available, falling back to asyncio")
-            except Exception as e:
-                logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
+            if HAS_ANYIO:
+                try:
+                    anyio.run(self.shutdown)
+                    return
+                except Exception as e:
+                    logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
 
             # Fallback to asyncio
             import asyncio

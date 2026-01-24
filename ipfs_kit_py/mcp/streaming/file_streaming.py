@@ -18,6 +18,12 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 
+try:
+    import anyio
+    ANYIO_AVAILABLE = True
+except ImportError:
+    ANYIO_AVAILABLE = False
+
 # Configure logger
 logger = logging.getLogger(__name__)
 
@@ -429,14 +435,20 @@ class StreamingDownloader:
                                 break
                             elif attempt < self.max_retries:
                                 logger.warning(f"Retry {attempt + 1}/{self.max_retries} for range {offset}-{offset + chunk_size - 1}")
-                                await asyncio.sleep(0.5 * (attempt + 1))
+                                if ANYIO_AVAILABLE:
+                                    await anyio.sleep(0.5 * (attempt + 1))
+                                else:
+                                    await asyncio.sleep(0.5 * (attempt + 1))
                             else:
                                 progress_tracker.fail(f"Failed to get chunk: {result.get('error')}")
                                 return
                         except Exception as e:
                             if attempt < self.max_retries:
                                 logger.warning(f"Retry {attempt + 1}/{self.max_retries} after error: {e}")
-                                await asyncio.sleep(0.5 * (attempt + 1))
+                                if ANYIO_AVAILABLE:
+                                    await anyio.sleep(0.5 * (attempt + 1))
+                                else:
+                                    await asyncio.sleep(0.5 * (attempt + 1))
                             else:
                                 progress_tracker.fail(f"Error getting chunk: {e}")
                                 return
@@ -532,7 +544,15 @@ class BackgroundPinningManager:
         """Start the background pinning manager."""
         if not self._running:
             self._running = True
-            self._task = asyncio.create_task(self._process_operations())
+            if ANYIO_AVAILABLE:
+                try:
+                    import anyio.lowlevel
+                    self._task = anyio.lowlevel.current_task()
+                    asyncio.create_task(self._process_operations())
+                except Exception:
+                    self._task = asyncio.create_task(self._process_operations())
+            else:
+                self._task = asyncio.create_task(self._process_operations())
             logger.info("Background pinning manager started")
     
     def stop(self):
@@ -668,7 +688,10 @@ class BackgroundPinningManager:
                 
                 if not pending_operations:
                     # No pending operations, sleep and check again
-                    await asyncio.sleep(1)
+                    if ANYIO_AVAILABLE:
+                        await anyio.sleep(1)
+                    else:
+                        await asyncio.sleep(1)
                     continue
                 
                 # Process operations concurrently
@@ -680,7 +703,10 @@ class BackgroundPinningManager:
                 await asyncio.gather(*tasks)
                 
                 # Sleep briefly before next batch
-                await asyncio.sleep(0.1)
+                if ANYIO_AVAILABLE:
+                    await anyio.sleep(0.1)
+                else:
+                    await asyncio.sleep(0.1)
                 
         except asyncio.CancelledError:
             logger.info("Background pinning manager task cancelled")

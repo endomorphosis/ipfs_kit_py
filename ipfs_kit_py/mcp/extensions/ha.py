@@ -15,7 +15,6 @@ import os
 import time
 import json
 import logging
-import asyncio
 import random
 import socket
 import uuid
@@ -23,10 +22,17 @@ import aiohttp
 from enum import Enum
 from typing import Dict, Any, Optional
 from fastapi import (
+    APIRouter,
+    HTTPException)
 from pydantic import BaseModel
 
-APIRouter,
-    HTTPException)
+# Import anyio with fallback to asyncio
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    import asyncio
+    HAS_ANYIO = False
 
 
 # Configure logging
@@ -443,7 +449,7 @@ def save_events():
 
 # Helper functions
 def add_event(
-    event_type: EventType
+    event_type: EventType,
     node_id: str = None,
     region_id: str = None,
     details: Dict = None,
@@ -903,10 +909,16 @@ async def ha_background_task():
             await check_replication_status()
 
             # Wait for next iteration
-            await asyncio.sleep(config["heartbeat"]["interval_seconds"])
+            if HAS_ANYIO:
+                await anyio.sleep(config["heartbeat"]["interval_seconds"])
+            else:
+                await asyncio.sleep(config["heartbeat"]["interval_seconds"])
         except Exception as e:
             logger.error(f"Error in HA background task: {e}")
-            await asyncio.sleep(config["heartbeat"]["interval_seconds"])
+            if HAS_ANYIO:
+                await anyio.sleep(config["heartbeat"]["interval_seconds"])
+            else:
+                await asyncio.sleep(config["heartbeat"]["interval_seconds"])
 
 
 async def close_http_session():
@@ -1336,7 +1348,15 @@ def start_background_tasks(app):
         add_event(EventType.NODE_JOINED, node_id=this_node["id"], details={"startup": True})
 
         # Start main background task
-        asyncio.create_task(ha_background_task())
+        if HAS_ANYIO:
+            import anyio
+            # Note: anyio task groups need to be used in async context
+            # For FastAPI startup, asyncio.create_task is still used
+            import asyncio
+            asyncio.create_task(ha_background_task())
+        else:
+            import asyncio
+            asyncio.create_task(ha_background_task())
 
     @app.on_event("shutdown")
     async def shutdown_event():
