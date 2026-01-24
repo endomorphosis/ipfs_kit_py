@@ -782,8 +782,8 @@ class UnifiedBucketInterface:
                 self._shutdown_event.set()
                 try:
                     with anyio.fail_after(5.0):
-            await self._sync_task
-                except asyncio.TimeoutError:
+                        await self._sync_task
+                except TimeoutError:
                     self._sync_task.cancel()
             
             # Close DuckDB connection

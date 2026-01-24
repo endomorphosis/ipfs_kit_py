@@ -275,7 +275,7 @@ class VFSManager:
             if self.pin_index:
                 # This would normally access the pin index but might hit database locks
                 logger.warning("Attempting direct pin index access (may encounter database locks)")
-                pins_data = await anyio.to_thread.run_sync(lambda: []  # Placeholder - actual implementation would query pin index)
+                pins_data = await anyio.to_thread.run_sync(lambda: [])  # Placeholder - actual implementation would query pin index
                 
                 return {
                     "success": True,
