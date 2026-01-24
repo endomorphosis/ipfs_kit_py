@@ -9,7 +9,7 @@ including Prometheus metrics export, health checks, and metrics collection.
 import os
 import sys
 import time
-import asyncio
+import anyio
 import logging
 import argparse
 import random
@@ -291,4 +291,4 @@ async def main():
 
 if __name__ == "__main__":
     # Run the async main function
-    asyncio.run(main())
+    anyio.run(main)

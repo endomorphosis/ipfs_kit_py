@@ -21,7 +21,7 @@ import json
 import argparse
 import logging
 import tempfile
-import asyncio
+import anyio
 from typing import Dict, List, Optional, Any
 
 # Configure logging
@@ -704,4 +704,4 @@ if __name__ == "__main__":
     if args.server and HAS_FASTAPI:
         run_fastapi_example(config_files)
     else:
-        asyncio.run(run_examples())
+        anyio.run(run_examples)

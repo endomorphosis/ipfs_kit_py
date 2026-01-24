@@ -16,7 +16,7 @@ Usage:
   python api_key_cache_example.py
 """
 
-import asyncio
+import anyio
 import time
 import json
 import logging
@@ -136,7 +136,7 @@ class MockAuthService:
             Tuple of (valid, key_data, error_message)
         """
         # Simulate database lookup latency (100-300ms)
-        await asyncio.sleep(random.uniform(0.1, 0.3))
+        await anyio.sleep(random.uniform(0.1, 0.3))
         
         # Check if key exists
         if api_key not in self.api_keys:
@@ -554,7 +554,7 @@ if __name__ == "__main__":
         run_fastapi_example()
     else:
         # Run async example
-        asyncio.run(run_example())
+        anyio.run(run_example)
         
         # Inform about server option
         if FASTAPI_AVAILABLE:

@@ -100,7 +100,7 @@ def add_sse_endpoint(app=None):
         import fastapi
         from fastapi import APIRouter
         from starlette.responses import StreamingResponse
-        import asyncio
+        import anyio
         
         if app is None:
             # Try to find the app in the imported modules
@@ -127,7 +127,7 @@ def add_sse_endpoint(app=None):
                 for i in range(10):
                     # This is the SSE format
                     yield f"data: {{'message': 'SSE test message {i}'}}\n\n"
-                    await asyncio.sleep(1)
+                    await anyio.sleep(1)
             
             return StreamingResponse(
                 event_generator(),
