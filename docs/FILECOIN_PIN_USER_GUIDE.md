@@ -38,6 +38,8 @@ Set your Filecoin Pin API key:
 export FILECOIN_PIN_API_KEY="your_api_key_here"
 ```
 
+**Security Note**: Always use environment variables for API keys rather than command-line arguments. Command-line arguments are recorded in shell history and visible in process listings, which can expose your credentials.
+
 ### Configuration File
 
 Create `~/.ipfs_kit/backends/filecoin_pin.yaml`:
@@ -131,6 +133,9 @@ print(f"Mock pin created: {result['cid']}")
 #### Pin a File
 
 ```bash
+# Set your API key via environment variable (recommended for security)
+export FILECOIN_PIN_API_KEY="your_api_key"
+
 # Pin a local file
 ipfs-kit filecoin-pin add /path/to/file.txt --name "my-file" --replication 3
 
@@ -142,6 +147,9 @@ ipfs-kit filecoin-pin add file.pdf \
   --name "important-doc" \
   --description "Quarterly report" \
   --tags "report,q4,2024"
+
+# Note: Avoid passing API keys as command-line arguments for security reasons
+# The CLI reads from FILECOIN_PIN_API_KEY environment variable by default
 ```
 
 #### List Pins
@@ -398,12 +406,14 @@ Content flows automatically between tiers based on access patterns.
 If you see `mock: true` in responses, you're running in mock mode:
 
 ```bash
-# Set your API key
+# Set your API key via environment variable (recommended)
 export FILECOIN_PIN_API_KEY="your_key"
 
-# Or pass it directly
-ipfs-kit filecoin-pin add file.txt --api-key "your_key"
+# Then run commands - they'll use the key from the environment
+ipfs-kit filecoin-pin add file.txt
 ```
+
+**Security Note**: The `--api-key` command-line option exists but should only be used for testing. Environment variables are the recommended approach for production use.
 
 ### Gateway Timeouts
 

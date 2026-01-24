@@ -56,28 +56,37 @@ class FilecoinPinController:
     def __init__(self):
         """Initialize the Filecoin Pin controller."""
         self.logger = logger
-        self._backend_cache: Optional[Any] = None
+        # Cache for FilecoinPinBackend instances, keyed by API key (or 'default')
+        self._backend_cache: Optional[Dict[str, Any]] = None
     
     def _get_backend(self, api_key: Optional[str] = None):
         """Get or create Filecoin Pin backend instance."""
         from ipfs_kit_py.mcp.storage_manager.backends import FilecoinPinBackend
         
-        # Use provided API key or environment variable
-        key = api_key or os.getenv('FILECOIN_PIN_API_KEY')
+        # Cache key based on API key to support different credentials
+        cache_key = api_key or os.getenv('FILECOIN_PIN_API_KEY') or 'default'
         
-        # Create backend
-        resources = {
-            "api_key": key,
-            "timeout": 60
-        }
+        if self._backend_cache is None:
+            self._backend_cache = {}
         
-        metadata = {
-            "default_replication": 3,
-            "auto_renew": True,
-            "deal_duration_days": 540
-        }
+        if cache_key not in self._backend_cache:
+            # Use provided API key or environment variable for this backend instance
+            key = api_key or os.getenv('FILECOIN_PIN_API_KEY')
+            
+            resources = {
+                "api_key": key,
+                "timeout": 60
+            }
+            
+            metadata = {
+                "default_replication": 3,
+                "auto_renew": True,
+                "deal_duration_days": 540
+            }
+            
+            self._backend_cache[cache_key] = FilecoinPinBackend(resources, metadata)
         
-        return FilecoinPinBackend(resources, metadata)
+        return self._backend_cache[cache_key]
     
     async def pin_add(self, request: FilecoinPinAddRequest) -> Dict[str, Any]:
         """

@@ -595,7 +595,11 @@ class MCPServer:
                         FilecoinPinStatusRequest, FilecoinPinRemoveRequest, FilecoinPinGetRequest
                     )
                     
-                    controller = FilecoinPinController()
+                    # Lazily initialize and cache the FilecoinPinController instance on the server
+                    controller = getattr(self, "_filecoin_pin_controller", None)
+                    if controller is None:
+                        controller = FilecoinPinController()
+                        setattr(self, "_filecoin_pin_controller", controller)
                     
                     if name == "filecoin_pin_add":
                         request = FilecoinPinAddRequest(**arguments)

@@ -184,9 +184,11 @@ class FilecoinPinBackend(BackendStorage):
                 # Use httpx (async-compatible) with anyio if available
                 try:
                     import anyio
-                    response = anyio.from_thread.run(
-                        self.client.post, url, json=pin_data
-                    )
+                    
+                    async def _post():
+                        return await self.client.post(url, json=pin_data)
+                    
+                    response = anyio.from_thread.run(_post)
                 except ImportError:
                     # Fallback to asyncio
                     import asyncio
@@ -260,9 +262,11 @@ class FilecoinPinBackend(BackendStorage):
                     if HTTPX_AVAILABLE:
                         try:
                             import anyio
-                            response = anyio.from_thread.run(
-                                self.client.get, url
-                            )
+                            
+                            async def _get():
+                                return await self.client.get(url)
+                            
+                            response = anyio.from_thread.run(_get)
                         except ImportError:
                             import asyncio
                             try:
@@ -330,9 +334,11 @@ class FilecoinPinBackend(BackendStorage):
             if HTTPX_AVAILABLE:
                 try:
                     import anyio
-                    response = anyio.from_thread.run(
-                        self.client.delete, url
-                    )
+                    
+                    async def _delete():
+                        return await self.client.delete(url)
+                    
+                    response = anyio.from_thread.run(_delete)
                 except ImportError:
                     import asyncio
                     try:
@@ -393,9 +399,11 @@ class FilecoinPinBackend(BackendStorage):
             if HTTPX_AVAILABLE:
                 try:
                     import anyio
-                    response = anyio.from_thread.run(
-                        self.client.get, url
-                    )
+                    
+                    async def _get():
+                        return await self.client.get(url)
+                    
+                    response = anyio.from_thread.run(_get)
                 except ImportError:
                     import asyncio
                     try:
@@ -466,9 +474,11 @@ class FilecoinPinBackend(BackendStorage):
             if HTTPX_AVAILABLE:
                 try:
                     import anyio
-                    response = anyio.from_thread.run(
-                        self.client.get, url, params=params
-                    )
+                    
+                    async def _get():
+                        return await self.client.get(url, params=params)
+                    
+                    response = anyio.from_thread.run(_get)
                 except ImportError:
                     import asyncio
                     try:
@@ -630,7 +640,11 @@ class FilecoinPinBackend(BackendStorage):
                 # Try anyio first
                 try:
                     import anyio
-                    anyio.from_thread.run(self.client.aclose)
+                    
+                    async def _close():
+                        await self.client.aclose()
+                    
+                    anyio.from_thread.run(_close)
                 except ImportError:
                     # Fallback to asyncio
                     import asyncio

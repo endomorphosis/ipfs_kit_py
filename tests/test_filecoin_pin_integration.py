@@ -32,7 +32,7 @@ class TestFilecoinPinIntegration:
         backend = FilecoinPinBackend(resources, metadata)
         
         assert backend.get_name() == "filecoin_pin"
-        assert backend.mock_mode == True
+        assert backend.mock_mode
     
     def test_backend_initialization_with_api_key(self):
         """Test backend initialization with API key."""
@@ -65,11 +65,11 @@ class TestFilecoinPinIntegration:
         
         result = backend.add_content(content, pin_metadata)
         
-        assert result["success"] == True
+        assert result["success"]
         assert "cid" in result
         assert result["status"] == "pinned"
         assert result["backend"] == "filecoin_pin"
-        assert result["mock"] == True
+        assert result["mock"]
     
     def test_mock_get_content(self):
         """Test retrieving content in mock mode."""
@@ -83,11 +83,11 @@ class TestFilecoinPinIntegration:
         cid = "bafybeibtest123"
         result = backend.get_content(cid)
         
-        assert result["success"] == True
+        assert result["success"]
         assert "data" in result
         assert result["cid"] == cid
         assert result["backend"] == "filecoin_pin"
-        assert result["mock"] == True
+        assert result["mock"]
     
     def test_mock_list_pins(self):
         """Test listing pins in mock mode."""
@@ -100,11 +100,11 @@ class TestFilecoinPinIntegration:
         # List pins
         result = backend.list_pins(limit=10)
         
-        assert result["success"] == True
+        assert result["success"]
         assert "pins" in result
         assert "count" in result
         assert result["backend"] == "filecoin_pin"
-        assert result["mock"] == True
+        assert result["mock"]
     
     def test_mock_get_metadata(self):
         """Test getting pin metadata in mock mode."""
@@ -118,13 +118,13 @@ class TestFilecoinPinIntegration:
         cid = "bafybeibtest123"
         result = backend.get_metadata(cid)
         
-        assert result["success"] == True
+        assert result["success"]
         assert result["cid"] == cid
         assert result["status"] == "pinned"
         assert "deals" in result
         assert len(result["deals"]) > 0
         assert result["backend"] == "filecoin_pin"
-        assert result["mock"] == True
+        assert result["mock"]
     
     def test_mock_remove_content(self):
         """Test removing content in mock mode."""
@@ -138,10 +138,10 @@ class TestFilecoinPinIntegration:
         cid = "bafybeibtest123"
         result = backend.remove_content(cid)
         
-        assert result["success"] == True
+        assert result["success"]
         assert result["cid"] == cid
         assert result["backend"] == "filecoin_pin"
-        assert result["mock"] == True
+        assert result["mock"]
     
     def test_controller_import(self):
         """Test that Filecoin Pin controller can be imported."""
@@ -174,7 +174,7 @@ class TestFilecoinPinIntegration:
         
         result = await controller.pin_add(request)
         
-        assert result["success"] == True
+        assert result["success"]
         assert "cid" in result
         assert result["backend"] == "filecoin_pin"
     
@@ -193,7 +193,7 @@ class TestFilecoinPinIntegration:
         
         result = await controller.pin_list(request)
         
-        assert result["success"] == True
+        assert result["success"]
         assert "pins" in result
         assert result["backend"] == "filecoin_pin"
     
@@ -212,7 +212,7 @@ class TestFilecoinPinIntegration:
         
         result = await controller.pin_status(request)
         
-        assert result["success"] == True
+        assert result["success"]
         assert result["cid"] == "bafybeibtest123"
         assert result["backend"] == "filecoin_pin"
     
@@ -231,7 +231,7 @@ class TestFilecoinPinIntegration:
         
         result = await controller.pin_remove(request)
         
-        assert result["success"] == True
+        assert result["success"]
         assert result["cid"] == "bafybeibtest123"
         assert result["backend"] == "filecoin_pin"
     
