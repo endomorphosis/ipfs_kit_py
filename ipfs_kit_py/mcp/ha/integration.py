@@ -107,7 +107,7 @@ class HighAvailabilityIntegration:
         await self.ha_service.start()
         
         # Wait for HA service to initialize and join/create cluster
-        await asyncio.sleep(2)
+        await anyio.sleep(2)
         
         # Initialize replication if enabled
         if self.config.enable_replication:

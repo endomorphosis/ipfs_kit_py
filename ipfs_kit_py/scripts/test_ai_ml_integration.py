@@ -302,7 +302,7 @@ def test_async_streaming():
             return True
         
         # Run the async test
-        result = asyncio.run(run_test())
+        result = anyio.run(run_test())
         
         assert result, "Async streaming test failed"
         logger.info("Async streaming tests passed")

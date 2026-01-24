@@ -46,7 +46,7 @@ class AuthServiceApiKeyExtension:
         self.auth_service.update_api_key_last_used = self.update_api_key_last_used
         
         # Start background task for flushing last used updates
-        self._stop_flush_task = asyncio.Event()
+        self._stop_flush_task = anyio.Event()
         self._flush_task = asyncio.create_task(self._flush_last_used_updates_loop())
         
         logger.info("AuthServiceApiKeyExtension initialized")

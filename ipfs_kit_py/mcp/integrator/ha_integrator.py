@@ -257,7 +257,7 @@ class HAIntegration:
                 logger.error(f"Error monitoring HA status: {e}")
             
             # Wait before next check
-            await asyncio.sleep(60)  # Check every minute
+            await anyio.sleep(60)  # Check every minute
     
     def _create_api_router(self) -> APIRouter:
         """

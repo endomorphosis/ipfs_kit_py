@@ -479,7 +479,7 @@ class IPFSClusterFollowDaemonManager:
                     logger.debug(f"Process {proc_info['pid']} already gone or access denied: {e}")
             
             # Wait for graceful shutdown
-            await asyncio.sleep(3)
+            await anyio.sleep(3)
             
             # Force kill if still running
             remaining_processes = await self._find_cluster_follow_processes()
@@ -528,7 +528,7 @@ class IPFSClusterFollowDaemonManager:
             result["stop_result"] = stop_result
             
             # Wait a moment for cleanup
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             
             # Start the service
             start_result = await self.start_cluster_follow(bootstrap_peer)
@@ -625,7 +625,7 @@ class IPFSClusterFollowDaemonManager:
             )
             
             # Wait a moment for startup
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             
             # Check if process is still running
             if process.poll() is None:
@@ -725,7 +725,7 @@ class IPFSClusterFollowDaemonManager:
         while time.time() - start_time < timeout:
             if await self._check_follow_api_health():
                 return True
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
             
         return False
     

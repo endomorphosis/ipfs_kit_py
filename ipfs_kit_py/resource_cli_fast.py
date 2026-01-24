@@ -635,7 +635,7 @@ async def cmd_resource_traffic(args):
                     else:
                         print(f"{current_time} - No traffic data")
                     
-                    await asyncio.sleep(5)  # Update every 5 seconds
+                    await anyio.sleep(5)  # Update every 5 seconds
                     
             except KeyboardInterrupt:
                 print("\n⏹️  Traffic monitoring stopped")

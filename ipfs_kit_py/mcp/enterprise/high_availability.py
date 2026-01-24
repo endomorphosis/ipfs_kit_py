@@ -440,7 +440,7 @@ class HAStateManager:
                 logger.error(f"Error in heartbeat task: {e}")
             
             # Wait for next heartbeat
-            await asyncio.sleep(self.config.heartbeat_interval_ms / 1000)
+            await anyio.sleep(self.config.heartbeat_interval_ms / 1000)
     
     async def _health_check_task(self):
         """Regularly check the health of all nodes."""
@@ -463,7 +463,7 @@ class HAStateManager:
                 logger.error(f"Error in health check task: {e}")
             
             # Wait for next health check
-            await asyncio.sleep(self.config.health_check_interval_ms / 1000)
+            await anyio.sleep(self.config.health_check_interval_ms / 1000)
     
     async def _check_health_via_redis(self):
         """Check health of nodes using Redis."""

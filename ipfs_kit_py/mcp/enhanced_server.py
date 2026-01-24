@@ -573,7 +573,7 @@ class DaemonCommandHandler(BaseCommandHandler):
                 return stop_result
                 
             # Wait a moment
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             
             # Start again
             start_result = await self._start_daemon(request)
@@ -1682,4 +1682,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main())

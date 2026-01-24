@@ -96,7 +96,7 @@ class UnifiedStorageService:
                 logger.error(f"Error in content location map update task: {e}")
 
             # Sleep for 5 minutes before updating again
-            await asyncio.sleep(300)
+            await anyio.sleep(300)
 
     async def get_content(self, backend: str, cid: str) -> Optional[bytes]:
         """

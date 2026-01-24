@@ -133,10 +133,10 @@ class HighAvailabilityService:
         self.cluster_state: Optional[ClusterState] = None
 
         # State lock for thread safety
-        self.state_lock = asyncio.Lock()
+        self.state_lock = anyio.Lock()
 
         # Election lock for leader election
-        self.election_lock = asyncio.Lock()
+        self.election_lock = anyio.Lock()
 
         # Initialization flag
         self.initialized = False
@@ -815,7 +815,7 @@ class HighAvailabilityService:
 
             # Sleep for heartbeat interval
             interval = self.cluster_state.config.heartbeat_interval if self.cluster_state else 10
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
     async def _get_load_metrics(self) -> Dict[str, float]:
         """
@@ -875,7 +875,7 @@ class HighAvailabilityService:
             interval = (
                 self.cluster_state.config.heartbeat_interval if self.cluster_state else 10
             ) / 2
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
     async def _check_node_health(self):
         """Check health of all nodes in the cluster."""
@@ -1027,7 +1027,7 @@ class HighAvailabilityService:
             interval = (
                 self.cluster_state.config.heartbeat_interval if self.cluster_state else 10
             ) * 2
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
     async def _propagate_state_update(self):
         """Propagate state updates to all active nodes in the cluster."""
@@ -1125,7 +1125,7 @@ class HighAvailabilityService:
             interval = (
                 self.cluster_state.config.heartbeat_interval if self.cluster_state else 10
             ) / 2
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
     async def _elect_new_primary(self, reason: str):
         """

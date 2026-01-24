@@ -321,7 +321,7 @@ def create_app():
                         yield f"event: heartbeat\ndata: {json.dumps(status_data)}\n\n"
                     
                     # Wait a second between iterations
-                    await asyncio.sleep(1)
+                    await anyio.sleep(1)
                     counter += 1
             
             return StreamingResponse(

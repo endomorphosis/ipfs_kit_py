@@ -143,7 +143,7 @@ class UnifiedBucketInterface:
         
         # Background sync task
         self._sync_task: Optional[asyncio.Task] = None
-        self._shutdown_event = asyncio.Event()
+        self._shutdown_event = anyio.Event()
         
         logger.info(f"Unified Bucket Interface initialized at {self.ipfs_kit_dir}")
     

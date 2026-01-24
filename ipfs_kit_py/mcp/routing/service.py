@@ -363,7 +363,7 @@ class DataRoutingService:
                 logger.error(f"Error updating backend metadata: {e}")
 
             # Sleep for 60 seconds before next update
-            await asyncio.sleep(60)
+            await anyio.sleep(60)
 
     async def update_backends_metadata(self):
         """Update metadata for all backends."""

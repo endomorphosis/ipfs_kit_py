@@ -39,10 +39,10 @@ class AsyncStreamManager:
     def __init__(self):
         """Initialize the stream manager."""
         self.streams: Dict[str, StreamOperation] = {}
-        self.lock = asyncio.Lock()
+        self.lock = anyio.Lock()
         self._progress_task = None
         self._progress_interval = DEFAULT_PROGRESS_INTERVAL
-        self._shutdown_event = asyncio.Event()
+        self._shutdown_event = anyio.Event()
     
     async def initialize(self):
         """Initialize the stream manager."""

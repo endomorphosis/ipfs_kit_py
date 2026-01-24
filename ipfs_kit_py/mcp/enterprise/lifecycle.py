@@ -732,7 +732,7 @@ class LifecycleManager:
                 logger.error(f"Error in metadata save task: {e}")
             
             # Wait for next save
-            await asyncio.sleep(300)  # Save every 5 minutes
+            await anyio.sleep(300)  # Save every 5 minutes
     
     async def _retention_enforcement_task(self):
         """Background task to enforce retention policies."""
@@ -743,7 +743,7 @@ class LifecycleManager:
                 logger.error(f"Error in retention enforcement task: {e}")
             
             # Wait for next enforcement
-            await asyncio.sleep(3600)  # Run every hour
+            await anyio.sleep(3600)  # Run every hour
     
     async def _archiving_task(self):
         """Background task to archive data."""
@@ -754,7 +754,7 @@ class LifecycleManager:
                 logger.error(f"Error in archiving task: {e}")
             
             # Wait for next archiving run
-            await asyncio.sleep(7200)  # Run every 2 hours
+            await anyio.sleep(7200)  # Run every 2 hours
     
     async def _cost_optimization_task(self):
         """Background task to optimize costs."""
@@ -765,7 +765,7 @@ class LifecycleManager:
                 logger.error(f"Error in cost optimization task: {e}")
             
             # Wait for next optimization run
-            await asyncio.sleep(86400)  # Run once per day
+            await anyio.sleep(86400)  # Run once per day
     
     async def _compliance_check_task(self):
         """Background task to check compliance."""
@@ -776,7 +776,7 @@ class LifecycleManager:
                 logger.error(f"Error in compliance check task: {e}")
             
             # Wait for next compliance check
-            await asyncio.sleep(43200)  # Run twice per day
+            await anyio.sleep(43200)  # Run twice per day
     
     async def _enforce_retention_policies(self):
         """Enforce retention policies on all content."""

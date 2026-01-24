@@ -247,7 +247,7 @@ class AuthenticationService:
                 logger.error(f"Error cleaning up expired sessions: {e}")
 
             # Sleep for 1 hour before checking again
-            await asyncio.sleep(3600)
+            await anyio.sleep(3600)
 
     async def _cleanup_cache(self):
         """Background task to clean up memory caches."""
@@ -263,7 +263,7 @@ class AuthenticationService:
                 logger.error(f"Error cleaning up caches: {e}")
 
             # Sleep for 6 hours before clearing again
-            await asyncio.sleep(21600)
+            await anyio.sleep(21600)
 
     def _get_password_hash(self, password: str) -> str:
         """

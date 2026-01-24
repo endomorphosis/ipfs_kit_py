@@ -432,12 +432,10 @@ class VFSManager:
                 # Use filesystem directly
                 try:
                     method = getattr(self.api.fs, operation)
-                    if asyncio.iscoroutinefunction(method):
+                    if inspect.iscoroutinefunction(method):
                         return await method(**kwargs)
                     else:
-                        return await asyncio.get_event_loop().run_in_executor(
-                            None, lambda: method(**kwargs)
-                        )
+                        return await anyio.to_thread.run_sync(lambda: method(**kwargs))
                 except Exception as e:
                     logger.error(f"VFS operation '{operation}' failed: {e}")
                     return {"success": False, "error": str(e), "operation": operation}
@@ -450,12 +448,10 @@ class VFSManager:
         try:
             method = getattr(self.api, op_name)
             
-            if asyncio.iscoroutinefunction(method):
+            if inspect.iscoroutinefunction(method):
                 return await method(**kwargs)
             else:
-                return await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: method(**kwargs)
-                )
+                return await anyio.to_thread.run_sync(lambda: method(**kwargs))
                 
         except Exception as e:
             logger.error(f"VFS operation '{operation}' failed: {e}")

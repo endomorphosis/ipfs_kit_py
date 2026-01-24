@@ -864,4 +864,4 @@ if __name__ == "__main__":
         else:
             print("Invalid command or missing arguments")
     
-    asyncio.run(main())
+    anyio.run(main())

@@ -102,7 +102,7 @@ class PerformanceOptimizationService:
 
             # Initialize request semaphore (limit concurrent requests)
             # Default to 10 concurrent requests per backend
-            self.request_semaphores[backend] = asyncio.Semaphore(10)
+            self.request_semaphores[backend] = anyio.Semaphore(10)
 
             # Initialize request queue
             self.request_queue[backend] = asyncio.Queue()
@@ -234,14 +234,14 @@ class PerformanceOptimizationService:
                         self.request_queue[backend].task_done()
             except Exception as e:
                 logger.error(f"Error in request queue processor for {backend}: {e}")
-                await asyncio.sleep(1)  # Prevent tight loop in case of repeated errors
+                await anyio.sleep(1)  # Prevent tight loop in case of repeated errors
 
     async def _process_batched_requests(self):
         """Process batched requests for all backends."""
         while True:
             try:
                 # Sleep for a short time to allow batching
-                await asyncio.sleep(0.1)
+                await anyio.sleep(0.1)
 
                 # Process batches for each backend
                 for backend in list(self.batched_requests.keys()):
@@ -281,7 +281,7 @@ class PerformanceOptimizationService:
                             self.batched_requests[backend] = []
             except Exception as e:
                 logger.error(f"Error processing batched requests: {e}")
-                await asyncio.sleep(1)  # Prevent tight loop in case of repeated errors
+                await anyio.sleep(1)  # Prevent tight loop in case of repeated errors
 
     async def _process_backend_batch_queue(self, backend: str):
         """
@@ -311,10 +311,10 @@ class PerformanceOptimizationService:
                     await self._process_batch(backend, batch)
 
                 # Sleep for a short time
-                await asyncio.sleep(0.1)
+                await anyio.sleep(0.1)
             except Exception as e:
                 logger.error(f"Error in batch processor for {backend}: {e}")
-                await asyncio.sleep(1)  # Prevent tight loop in case of repeated errors
+                await anyio.sleep(1)  # Prevent tight loop in case of repeated errors
 
     async def _process_batch(self, backend: str, batch: List[Dict[str, Any]]):
         """
@@ -413,7 +413,7 @@ class PerformanceOptimizationService:
                 logger.error(f"Error updating performance metrics: {e}")
 
             # Sleep for 10 seconds before updating again
-            await asyncio.sleep(10)
+            await anyio.sleep(10)
 
     async def _update_backend_health(self):
         """Update health status for all backends."""
@@ -463,7 +463,7 @@ class PerformanceOptimizationService:
                 logger.error(f"Error updating backend health: {e}")
 
             # Sleep for 30 seconds before updating again
-            await asyncio.sleep(30)
+            await anyio.sleep(30)
 
     async def _update_backend_weights(self):
         """Update weights for load balancing."""
@@ -516,7 +516,7 @@ class PerformanceOptimizationService:
                 logger.error(f"Error updating backend weights: {e}")
 
             # Sleep for 60 seconds before updating again
-            await asyncio.sleep(60)
+            await anyio.sleep(60)
 
     async def schedule_request(
     self,

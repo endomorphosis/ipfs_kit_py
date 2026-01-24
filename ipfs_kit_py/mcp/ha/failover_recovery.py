@@ -91,7 +91,7 @@ class FailoverRecovery:
         self.recovery_history: List[Dict[str, Any]] = []
         
         # State lock for concurrency
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
         
         # Callbacks
         self._state_change_callbacks: List[Callable[[RecoveryState, RecoveryState], Awaitable[None]]] = []
@@ -490,7 +490,7 @@ class FailoverRecovery:
             self._report_recovery_completion(False, f"exception: {e}")
             
             # Return to idle state after a delay
-            await asyncio.sleep(5)
+            await anyio.sleep(5)
             await self._update_state(RecoveryState.IDLE)
     
     def _report_recovery_completion(self, success: bool, failure_reason: str = None):
@@ -775,7 +775,7 @@ class FailoverRecovery:
         # - Handling any conflicts that arose during the primary failure
         
         # For this example, we'll simulate successful reconciliation
-        await asyncio.sleep(0.5)  # Simulate work
+        await anyio.sleep(0.5)  # Simulate work
         
         reconciliation_result = {
             "success": True,
@@ -809,7 +809,7 @@ class FailoverRecovery:
         # - The cluster is stable
         
         # For this example, we'll simulate successful verification
-        await asyncio.sleep(0.5)  # Simulate work
+        await anyio.sleep(0.5)  # Simulate work
         
         verification_result = {
             "success": True,
@@ -840,7 +840,7 @@ class FailoverRecovery:
         # - Rolling back any data changes made during recovery
         
         # For this example, we'll simulate successful revert
-        await asyncio.sleep(0.5)  # Simulate work
+        await anyio.sleep(0.5)  # Simulate work
         
         self._add_to_history("Reverted recovery")
         
@@ -856,7 +856,7 @@ class FailoverRecovery:
         logger.info(f"Evaluating restoration of recovered primary node {node_id}")
         
         # Wait for node to stabilize
-        await asyncio.sleep(60)
+        await anyio.sleep(60)
         
         async with self._lock:
             # Check if circumstances still make sense for restoration

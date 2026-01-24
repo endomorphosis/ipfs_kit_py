@@ -248,7 +248,7 @@ class AuditLogger:
         
         if self._worker_task:
             # Give time for the worker to process remaining logs
-            await asyncio.sleep(0.2)
+            await anyio.sleep(0.2)
             self._worker_task.cancel()
             try:
                 await self._worker_task
@@ -284,7 +284,7 @@ class AuditLogger:
                 break
             except Exception as e:
                 print(f"Error in audit log worker: {e}")
-                await asyncio.sleep(1)  # Avoid tight loop on error
+                await anyio.sleep(1)  # Avoid tight loop on error
     
     async def log_event(self, entry: AuditLogEntry):
         """

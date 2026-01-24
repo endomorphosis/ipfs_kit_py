@@ -9,17 +9,12 @@ import logging
 import time
 import uuid
 import asyncio
+import inspect
 from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from ipfs_kit_py.mcp.models.mcp_discovery_model import MCPDiscoveryModel
-
-# Import anyio with fallback
-try:
-    import anyio
-    HAS_ANYIO = True
-except ImportError:
-    HAS_ANYIO = False
+import anyio
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -741,11 +736,11 @@ class MCPDiscoveryController:
                 self.discovery_model.sync_shutdown()
             elif hasattr(self.discovery_model, "close"):
                 # Try direct call for sync methods
-                if not asyncio.iscoroutinefunction(self.discovery_model.close):
+                if not inspect.iscoroutinefunction(self.discovery_model.close):
                     self.discovery_model.close()
             elif hasattr(self.discovery_model, "shutdown"):
                 # Try direct call for sync methods
-                if not asyncio.iscoroutinefunction(self.discovery_model.shutdown):
+                if not inspect.iscoroutinefunction(self.discovery_model.shutdown):
                     self.discovery_model.shutdown()
 
             # For async methods in a sync context, we have limited options

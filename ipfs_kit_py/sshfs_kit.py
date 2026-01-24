@@ -740,4 +740,4 @@ if __name__ == "__main__":
             await sshfs.disconnect()
             print("🔌 Disconnected")
     
-    asyncio.run(demo_sshfs())
+    anyio.run(demo_sshfs())

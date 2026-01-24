@@ -390,7 +390,7 @@ class ServiceRegistry:
             # Add more services here as they're implemented
         }
         self.metadata_manager = get_metadata_manager()
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
     
     async def register_service(self, service_name: str, service_class: Type[BaseService]):
         """Register a service class."""

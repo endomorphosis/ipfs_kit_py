@@ -86,7 +86,7 @@ class ApiKeyCacheService:
         # Rate limiting data (if enabled)
         if enable_rate_limiting:
             self._rate_limits = {}
-            self._rate_limit_lock = asyncio.Lock()
+            self._rate_limit_lock = anyio.Lock()
         
         # Register hooks with auth service (if available)
         if hasattr(auth_service, 'register_key_invalidation_hook'):

@@ -14,6 +14,7 @@ import hashlib
 import logging
 import functools
 import asyncio
+import inspect
 from typing import Dict, Any, List, Tuple, Optional, Union, Callable
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
@@ -55,7 +56,7 @@ class RoutingDecisionCache:
         self._signature_mapping: Dict[str, List[str]] = defaultdict(list)
         
         # Lock for thread safety
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
         
         logger.info(f"Initialized routing decision cache with max_size={max_size}, ttl={ttl_seconds}s")
     
@@ -344,7 +345,7 @@ class ContentSignatureCalculator:
         """
         self.cache_size = cache_size
         self._cache: OrderedDict[int, str] = OrderedDict()
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
     
     async def calculate_signature(self, content: Union[bytes, str], algorithm: str = "xxh64") -> str:
         """
@@ -428,10 +429,10 @@ class BatchProcessor:
         self.processor_func = processor_func
         
         self._batch: List[Any] = []
-        self._batch_lock = asyncio.Lock()
+        self._batch_lock = anyio.Lock()
         self._processing_task = None
-        self._batch_event = asyncio.Event()
-        self._shutdown_event = asyncio.Event()
+        self._batch_event = anyio.Event()
+        self._shutdown_event = anyio.Event()
     
     async def start(self) -> None:
         """Start the batch processor."""
@@ -543,11 +544,11 @@ class ConnectionPool:
         self._in_use: Dict[str, Set[Any]] = defaultdict(set)
         
         # Lock for thread safety
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
         
         # Background task for cleanup
         self._cleanup_task = None
-        self._shutdown_event = asyncio.Event()
+        self._shutdown_event = anyio.Event()
         
         logger.info(f"Initialized connection pool with max_connections={max_connections}")
     
@@ -653,12 +654,12 @@ class ConnectionPool:
         try:
             # If connection has a close method, call it
             if hasattr(conn, "close"):
-                if asyncio.iscoroutinefunction(conn.close):
+                if inspect.iscoroutinefunction(conn.close):
                     await conn.close()
                 else:
                     conn.close()
             elif hasattr(conn, "disconnect"):
-                if asyncio.iscoroutinefunction(conn.disconnect):
+                if inspect.iscoroutinefunction(conn.disconnect):
                     await conn.disconnect()
                 else:
                     conn.disconnect()
@@ -671,7 +672,7 @@ class ConnectionPool:
             while not self._shutdown_event.is_set():
                 try:
                     # Sleep for a while
-                    await asyncio.sleep(60)  # Check every minute
+                    await anyio.sleep(60)  # Check every minute
                     
                     # Clean up expired connections
                     await self._cleanup_expired_connections()

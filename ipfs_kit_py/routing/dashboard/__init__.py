@@ -145,7 +145,7 @@ def run_dashboard(settings: Optional[Dict[str, Any]] = None) -> None:
             settings_obj = DashboardSettings(**settings)
         
         # Run the dashboard
-        asyncio.run(start_dashboard_server(settings_obj))
+        anyio.run(start_dashboard_server(settings_obj))
         
     except KeyboardInterrupt:
         logger.info("Dashboard server stopped by user")

@@ -274,7 +274,7 @@ class ChunkedFileUploader:
             ))
         
         # Create semaphore for controlling concurrency
-        semaphore = asyncio.Semaphore(self.max_concurrent)
+        semaphore = anyio.Semaphore(self.max_concurrent)
         
         # Define chunk upload function
         async def upload_chunk(chunk: ChunkInfo):
@@ -438,7 +438,7 @@ class StreamingDownloader:
                                 if ANYIO_AVAILABLE:
                                     await anyio.sleep(0.5 * (attempt + 1))
                                 else:
-                                    await asyncio.sleep(0.5 * (attempt + 1))
+                                    await anyio.sleep(0.5 * (attempt + 1))
                             else:
                                 progress_tracker.fail(f"Failed to get chunk: {result.get('error')}")
                                 return
@@ -448,7 +448,7 @@ class StreamingDownloader:
                                 if ANYIO_AVAILABLE:
                                     await anyio.sleep(0.5 * (attempt + 1))
                                 else:
-                                    await asyncio.sleep(0.5 * (attempt + 1))
+                                    await anyio.sleep(0.5 * (attempt + 1))
                             else:
                                 progress_tracker.fail(f"Error getting chunk: {e}")
                                 return
@@ -535,7 +535,7 @@ class BackgroundPinningManager:
             max_concurrent: Maximum number of concurrent pinning operations
         """
         self.max_concurrent = max_concurrent
-        self.semaphore = asyncio.Semaphore(max_concurrent)
+        self.semaphore = anyio.Semaphore(max_concurrent)
         self._operations: Dict[str, Dict[str, Any]] = {}
         self._running = False
         self._task = None
@@ -691,7 +691,7 @@ class BackgroundPinningManager:
                     if ANYIO_AVAILABLE:
                         await anyio.sleep(1)
                     else:
-                        await asyncio.sleep(1)
+                        await anyio.sleep(1)
                     continue
                 
                 # Process operations concurrently
@@ -706,7 +706,7 @@ class BackgroundPinningManager:
                 if ANYIO_AVAILABLE:
                     await anyio.sleep(0.1)
                 else:
-                    await asyncio.sleep(0.1)
+                    await anyio.sleep(0.1)
                 
         except asyncio.CancelledError:
             logger.info("Background pinning manager task cancelled")

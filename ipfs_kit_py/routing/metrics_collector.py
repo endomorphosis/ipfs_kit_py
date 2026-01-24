@@ -683,13 +683,13 @@ class RoutingMetricsCollector:
                 await self._collect_metrics()
                 
                 # Wait for next collection
-                await asyncio.sleep(self.collection_interval)
+                await anyio.sleep(self.collection_interval)
                 
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"Error collecting metrics: {e}", exc_info=True)
-                await asyncio.sleep(60)  # Wait a bit before retrying
+                await anyio.sleep(60)  # Wait a bit before retrying
     
     async def _collect_metrics(self) -> None:
         """Collect a set of routing metrics."""

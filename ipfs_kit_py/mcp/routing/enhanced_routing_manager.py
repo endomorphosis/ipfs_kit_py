@@ -117,7 +117,7 @@ class EnhancedRoutingManager(RoutingManager):
         # In a real implementation, this would create a connection to the backend
         
         # Simulate connection creation with a delay
-        await asyncio.sleep(0.05)
+        await anyio.sleep(0.05)
         
         # Return a simple object representing the connection
         return {
@@ -132,7 +132,7 @@ class EnhancedRoutingManager(RoutingManager):
             while True:
                 try:
                     # Sleep for a while
-                    await asyncio.sleep(60)  # Update every minute
+                    await anyio.sleep(60)  # Update every minute
                     
                     # Update memory usage if tracking is enabled
                     if self.memory_tracking:

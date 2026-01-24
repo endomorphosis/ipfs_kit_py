@@ -24,14 +24,7 @@ from fastapi import (
 from pydantic import BaseModel
 
 # Import anyio with fallback to asyncio
-try:
-    import anyio
-    HAS_ANYIO = True
-except ImportError:
-    import asyncio
-    HAS_ANYIO = False
-
-
+import anyio
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -844,16 +837,10 @@ async def periodic_stats_save():
     while True:
         try:
             save_stats()
-            if HAS_ANYIO:
-                await anyio.sleep(60)  # Save every minute
-            else:
-                await asyncio.sleep(60)
+            await anyio.sleep(60)  # Save every minute
         except Exception as e:
             logger.error(f"Error in periodic stats save: {e}")
-            if HAS_ANYIO:
-                await anyio.sleep(60)
-            else:
-                await asyncio.sleep(60)
+            await anyio.sleep(60)
 
 
 # Start background tasks
@@ -862,16 +849,10 @@ def start_background_tasks(app):
     @app.on_event("startup")
     async def startup_event():
         # Start periodic stats save
-        if HAS_ANYIO:
-            import anyio
-            anyio.create_task_group()
-            # Note: anyio task groups need to be used in async context
-            # For FastAPI startup, asyncio.create_task is still used
-            import asyncio
-            asyncio.create_task(periodic_stats_save())
-        else:
-            import asyncio
-            asyncio.create_task(periodic_stats_save())
+        # Note: FastAPI startup events still use asyncio.create_task
+        # as anyio task groups require async context manager
+        import asyncio
+        asyncio.create_task(periodic_stats_save())
 
     @app.on_event("shutdown")
     async def shutdown_event():
