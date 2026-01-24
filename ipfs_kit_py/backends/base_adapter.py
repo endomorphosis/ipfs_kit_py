@@ -6,7 +6,13 @@ Defines the isomorphic interface that all backend adapters must implement.
 This ensures consistent method names and signatures across different filesystem backends.
 """
 
-import asyncio
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+    import asyncio
+
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime

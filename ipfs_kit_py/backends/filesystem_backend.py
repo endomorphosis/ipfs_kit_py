@@ -5,7 +5,13 @@ Filesystem Backend Adapter for IPFS Kit
 Implements the isomorphic backend interface for filesystem storage (including SSHFS).
 """
 
-import asyncio
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+    import asyncio
+
 import json
 import shutil
 import time
