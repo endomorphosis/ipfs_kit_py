@@ -14,16 +14,22 @@ import os
 import time
 import json
 import logging
-import asyncio
 import random
 import hashlib
 from typing import Dict, List, Any, Optional
 from fastapi import (
-from pydantic import BaseModel
-
-APIRouter,
+    APIRouter,
     Request,
     Response)
+from pydantic import BaseModel
+
+# Import anyio with fallback to asyncio
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    import asyncio
+    HAS_ANYIO = False
 
 
 # Configure logging
@@ -529,7 +535,7 @@ def create_performance_router(api_prefix: str) -> APIRouter:
             "load_balancing": {
                 "enabled": config["load_balancing"]["enabled"],
                 "strategy": config["load_balancing"]["strategy"],
-                "active_backends": len(,
+                "active_backends": len(
                     [b for b in storage_backends if storage_backends[b]["available"]]
                 ),
             },
@@ -597,7 +603,7 @@ def create_performance_router(api_prefix: str) -> APIRouter:
 
         return {
             "success": True,
-            "entries": [,
+            "entries": [
                 {
                     "key": key,
                     "content_type": entry.get("content_type"),
@@ -838,10 +844,16 @@ async def periodic_stats_save():
     while True:
         try:
             save_stats()
-            await asyncio.sleep(60)  # Save every minute
+            if HAS_ANYIO:
+                await anyio.sleep(60)  # Save every minute
+            else:
+                await asyncio.sleep(60)
         except Exception as e:
             logger.error(f"Error in periodic stats save: {e}")
-            await asyncio.sleep(60)
+            if HAS_ANYIO:
+                await anyio.sleep(60)
+            else:
+                await asyncio.sleep(60)
 
 
 # Start background tasks
@@ -850,7 +862,16 @@ def start_background_tasks(app):
     @app.on_event("startup")
     async def startup_event():
         # Start periodic stats save
-        asyncio.create_task(periodic_stats_save())
+        if HAS_ANYIO:
+            import anyio
+            anyio.create_task_group()
+            # Note: anyio task groups need to be used in async context
+            # For FastAPI startup, asyncio.create_task is still used
+            import asyncio
+            asyncio.create_task(periodic_stats_save())
+        else:
+            import asyncio
+            asyncio.create_task(periodic_stats_save())
 
     @app.on_event("shutdown")
     async def shutdown_event():

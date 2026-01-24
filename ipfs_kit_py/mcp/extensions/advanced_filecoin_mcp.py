@@ -17,10 +17,17 @@ under the "Advanced Filecoin Integration" section.
 import os
 import time
 import logging
-import asyncio
 from typing import Dict, List, Any, Optional, Union, BinaryIO
 from fastapi import APIRouter, Request, Response, Query, Path, Body, HTTPException
 from fastapi.responses import JSONResponse
+
+# Import anyio with fallback to asyncio
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    import asyncio
+    HAS_ANYIO = False
 
 # Import the advanced Filecoin client
 from ipfs_kit_py.advanced_filecoin_client import AdvancedFilecoinClient
@@ -294,8 +301,17 @@ class AdvancedFilecoinMCP:
 
     async def start_background_tasks(self):
         """Start background tasks for monitoring and maintenance."""
-        asyncio.create_task(self._monitor_deals_health())
-        asyncio.create_task(self._update_network_stats())
+        if HAS_ANYIO:
+            import anyio
+            # Note: anyio task groups need to be used in async context
+            # For FastAPI startup, asyncio.create_task is still used
+            import asyncio
+            asyncio.create_task(self._monitor_deals_health())
+            asyncio.create_task(self._update_network_stats())
+        else:
+            import asyncio
+            asyncio.create_task(self._monitor_deals_health())
+            asyncio.create_task(self._update_network_stats())
         logger.info("Started advanced Filecoin background tasks")
 
     async def _monitor_deals_health(self):
@@ -305,10 +321,16 @@ class AdvancedFilecoinMCP:
                 # This would normally scan active deals and check their health
                 logger.debug("Running deal health monitoring")
                 # Simulated task processing
-                await asyncio.sleep(300)  # Check every 5 minutes
+                if HAS_ANYIO:
+                    await anyio.sleep(300)  # Check every 5 minutes
+                else:
+                    await asyncio.sleep(300)
             except Exception as e:
                 logger.error(f"Error in deal health monitoring: {e}")
-                await asyncio.sleep(60)  # Wait a bit before retrying on error
+                if HAS_ANYIO:
+                    await anyio.sleep(60)  # Wait a bit before retrying on error
+                else:
+                    await asyncio.sleep(60)
 
     async def _update_network_stats(self):
         """Background task to update network statistics."""
@@ -317,10 +339,16 @@ class AdvancedFilecoinMCP:
                 # This would normally update cached network statistics
                 logger.debug("Updating network statistics")
                 # Simulated task processing
-                await asyncio.sleep(600)  # Update every 10 minutes
+                if HAS_ANYIO:
+                    await anyio.sleep(600)  # Update every 10 minutes
+                else:
+                    await asyncio.sleep(600)
             except Exception as e:
                 logger.error(f"Error updating network statistics: {e}")
-                await asyncio.sleep(60)  # Wait a bit before retrying on error
+                if HAS_ANYIO:
+                    await anyio.sleep(60)  # Wait a bit before retrying on error
+                else:
+                    await asyncio.sleep(60)
 
     def integrate_with_mcp(self, mcp_server):
         """
@@ -336,7 +364,15 @@ class AdvancedFilecoinMCP:
         mcp_server.app.include_router(router)
         
         # Start background tasks
-        asyncio.create_task(self.start_background_tasks())
+        if HAS_ANYIO:
+            import anyio
+            # Note: anyio task groups need to be used in async context
+            # For FastAPI startup, asyncio.create_task is still used
+            import asyncio
+            asyncio.create_task(self.start_background_tasks())
+        else:
+            import asyncio
+            asyncio.create_task(self.start_background_tasks())
         
         logger.info("Integrated advanced Filecoin features with MCP server")
 
