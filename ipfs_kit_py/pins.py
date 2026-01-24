@@ -29,7 +29,7 @@ import sys
 import time
 import json
 import logging
-import asyncio
+import anyio
 import threading
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union, Tuple
@@ -1365,7 +1365,7 @@ def get_cli_pin_metrics() -> Dict[str, Any]:
 
 if __name__ == "__main__":
     # Simple test/demo
-    import asyncio
+    import anyio
     
     async def demo():
         print("🚀 Enhanced Pin Metadata Index Demo")

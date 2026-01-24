@@ -7,7 +7,7 @@ allowing the MCP server to leverage the daemon for backend synchronization and
 metadata management while preserving CLI behavior patterns.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import threading

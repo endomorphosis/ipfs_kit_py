@@ -18,7 +18,7 @@ Features:
 """
 
 import os
-import asyncio
+import anyio
 import logging
 import tempfile
 import subprocess

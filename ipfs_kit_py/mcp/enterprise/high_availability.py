@@ -21,7 +21,7 @@ import time
 import uuid
 import logging
 import threading
-import asyncio
+import anyio
 from enum import Enum
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Any, Set, Tuple, Callable

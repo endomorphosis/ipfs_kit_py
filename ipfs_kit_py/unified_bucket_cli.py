@@ -7,7 +7,7 @@ content-addressed pins across multiple filesystem backends with
 VFS and pin metadata indices.
 """
 
-import asyncio
+import anyio
 import json
 import sys
 from typing import Optional, List

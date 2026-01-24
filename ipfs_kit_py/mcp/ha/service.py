@@ -5,7 +5,7 @@ This module implements the core High Availability functionality
 as specified in the MCP roadmap for Phase 2: Enterprise Features (Q4 2025).
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os

@@ -5,7 +5,7 @@ This model encapsulates IPFS operations and provides a clean interface
 for the controller to interact with the IPFS functionality.
 """
 
-import asyncio
+import anyio
 import logging
 import uuid
 

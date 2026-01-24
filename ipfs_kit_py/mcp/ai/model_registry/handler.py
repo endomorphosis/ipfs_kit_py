@@ -40,7 +40,7 @@ Part of the MCP Roadmap Phase 2: AI/ML Integration.
 import os
 import json
 import aiohttp
-import asyncio
+import anyio
 import logging
 from typing import Dict, List, Optional, Any, Union, BinaryIO
 from enum import Enum

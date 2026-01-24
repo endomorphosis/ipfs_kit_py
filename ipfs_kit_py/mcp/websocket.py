@@ -14,7 +14,7 @@ Note: This module has been refactored to use JSON-RPC instead of WebSocket conne
 import json
 import time
 import logging
-import asyncio
+import anyio
 import threading
 import uuid
 import queue

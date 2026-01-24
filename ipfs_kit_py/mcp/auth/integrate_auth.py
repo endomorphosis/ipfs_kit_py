@@ -16,7 +16,7 @@ import os
 import sys
 import logging
 import json
-import asyncio
+import anyio
 from pathlib import Path
 
 # Configure logging

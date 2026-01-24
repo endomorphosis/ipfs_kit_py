@@ -13,7 +13,7 @@ Key Features:
 - Cache management and optimization
 """
 
-import asyncio
+import anyio
 import logging
 import time
 import shutil

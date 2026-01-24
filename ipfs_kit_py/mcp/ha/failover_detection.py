@@ -5,7 +5,7 @@ This module provides failover detection capabilities for the MCP high availabili
 cluster, implementing smart failure detection using various strategies.
 """
 
-import asyncio
+import anyio
 import logging
 import time
 import math

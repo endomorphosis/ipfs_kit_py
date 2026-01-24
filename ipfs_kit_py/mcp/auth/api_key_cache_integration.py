@@ -8,7 +8,7 @@ API key validation improvements mentioned in the MCP roadmap.
 
 import logging
 import time
-import asyncio
+import anyio
 from typing import Dict, List, Any, Optional, Tuple, Union, Callable
 from functools import wraps
 import ipaddress

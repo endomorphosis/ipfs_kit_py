@@ -9,7 +9,7 @@ resource consumption.
 import os
 import time
 import logging
-import asyncio
+import anyio
 import tracemalloc
 from typing import Dict, Any, List, Optional, Union, Tuple, Set, Callable
 

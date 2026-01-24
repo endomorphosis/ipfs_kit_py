@@ -16,7 +16,7 @@ Usage:
 
 import os
 import sys
-import asyncio
+import anyio
 import json
 import random
 import numpy as np

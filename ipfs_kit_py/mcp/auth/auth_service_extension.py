@@ -8,7 +8,7 @@ issue mentioned in the MCP roadmap.
 
 import logging
 import time
-import asyncio
+import anyio
 from typing import Dict, Any, Optional, List, Callable, Set, Tuple
 
 # Set up logging

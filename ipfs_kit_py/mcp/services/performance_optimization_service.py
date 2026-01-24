@@ -10,7 +10,7 @@ as specified in the MCP roadmap Q2 2025 priorities:
 
 import logging
 import time
-import asyncio
+import anyio
 import random
 import io
 import statistics

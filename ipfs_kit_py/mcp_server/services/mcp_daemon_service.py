@@ -9,7 +9,7 @@ daemon status from ~/.ipfs_kit/ files.
 The daemon itself is managed separately via 'ipfs-kit daemon' commands.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from datetime import datetime, timedelta

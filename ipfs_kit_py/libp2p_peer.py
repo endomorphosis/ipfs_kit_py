@@ -17,7 +17,7 @@ This implementation uses anyio for backend-agnostic async operations.
 """
 
 import anyio
-import asyncio
+import anyio
 import json
 import logging
 import os

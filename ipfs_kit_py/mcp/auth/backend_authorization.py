@@ -13,7 +13,7 @@ Key features:
 
 import logging
 import time
-import asyncio
+import anyio
 from typing import Dict, Any, Optional, List, Set, Tuple
 from enum import Enum
 

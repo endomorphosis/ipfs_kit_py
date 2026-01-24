@@ -13,7 +13,7 @@ import time
 import hashlib
 import logging
 import functools
-import asyncio
+import anyio
 import inspect
 from typing import Dict, Any, List, Tuple, Optional, Union, Callable
 from collections import OrderedDict, defaultdict

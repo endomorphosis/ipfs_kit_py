@@ -7,7 +7,7 @@ discovery using IPNI and Saturn CDN acceleration.
 
 import logging
 import time
-import asyncio
+import anyio
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urljoin
 

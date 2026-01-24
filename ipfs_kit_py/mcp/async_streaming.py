@@ -6,7 +6,7 @@ transfer of large content using asyncio.
 """
 
 import os
-import asyncio
+import anyio
 import logging
 from typing import Dict, List, Any, Optional, AsyncIterator, Set, Union
 from pathlib import Path

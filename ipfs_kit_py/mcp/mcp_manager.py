@@ -3,7 +3,7 @@
 This module provides high-level management of MCP servers and dashboard.
 """
 
-import asyncio
+import anyio
 import subprocess
 import sys
 import os

@@ -5,7 +5,7 @@ This controller provides an interface to the CLI functionality through the MCP A
 """
 
 import argparse
-import asyncio
+import anyio
 import importlib.util
 import logging
 import os

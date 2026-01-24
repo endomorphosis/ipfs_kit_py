@@ -14,7 +14,7 @@ Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
 import os
 import json
 import logging
-import asyncio
+import anyio
 from typing import Dict, List, Any, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Body, Query
 from pydantic import BaseModel, Field

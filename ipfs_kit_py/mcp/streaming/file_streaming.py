@@ -11,7 +11,7 @@ import sys
 import time
 import uuid
 import logging
-import asyncio
+import anyio
 import tempfile
 from typing import Dict, List, Optional, Any, Tuple, Union, Callable, BinaryIO
 from pathlib import Path

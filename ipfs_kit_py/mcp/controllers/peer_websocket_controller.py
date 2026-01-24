@@ -265,7 +265,7 @@ class PeerWebSocketController:
                 logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
         
         # Fallback to asyncio
-        import asyncio
+        import anyio
 
         try:
             loop = asyncio.get_running_loop()
@@ -719,7 +719,7 @@ class PeerWebSocketController:
                     logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
 
             # Fallback to asyncio
-            import asyncio
+            import anyio
 
             try:
                 loop = asyncio.get_event_loop()

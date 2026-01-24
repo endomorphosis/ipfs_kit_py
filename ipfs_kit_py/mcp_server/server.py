@@ -7,7 +7,7 @@ while adapting to the MCP protocol. It efficiently reads metadata from ~/.ipfs_k
 and delegates to the intelligent daemon for backend synchronization.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os

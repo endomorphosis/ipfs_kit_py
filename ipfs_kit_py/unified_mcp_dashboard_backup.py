@@ -13,7 +13,7 @@ Usage: ipfs-kit mcp start
 Port: 8004 (single port for both MCP and dashboard)
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time

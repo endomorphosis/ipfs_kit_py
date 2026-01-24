@@ -5,7 +5,7 @@ This module provides comprehensive peer discovery, management, and remote data a
 capabilities using the ipfs_kit_py libp2p stack. It serves as the canonical source
 for all peer-related operations across the system.
 """
-import asyncio
+import anyio
 import json
 import logging
 import time

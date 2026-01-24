@@ -8,7 +8,7 @@ import tempfile
 import time
 import uuid
 import traceback
-import asyncio
+import anyio
 from typing import Dict, Any, Optional
 
 # Import our API clients

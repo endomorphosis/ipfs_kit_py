@@ -9,7 +9,7 @@ This implements the correct bucket architecture:
 - No complex folder structures
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os

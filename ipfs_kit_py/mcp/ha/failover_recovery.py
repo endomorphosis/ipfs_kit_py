@@ -5,7 +5,7 @@ This module provides failover recovery capabilities for the MCP high availabilit
 cluster, implementing robust recovery procedures after a primary node failure.
 """
 
-import asyncio
+import anyio
 import logging
 import time
 import uuid

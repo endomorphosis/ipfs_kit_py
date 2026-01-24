@@ -12,7 +12,7 @@ Features:
 - Optimized data synchronization
 """
 
-import asyncio
+import anyio
 import hashlib
 import json
 import logging

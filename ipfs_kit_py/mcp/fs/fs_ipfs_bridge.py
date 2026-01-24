@@ -10,7 +10,7 @@ and that the virtual filesystem stays in sync with the actual IPFS content.
 import os
 import time
 import logging
-import asyncio
+import anyio
 from typing import Dict, List, Any, Optional, Union, Tuple
 
 # Import local modules

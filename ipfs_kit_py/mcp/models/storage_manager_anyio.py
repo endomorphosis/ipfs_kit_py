@@ -162,7 +162,7 @@ class StorageManagerAnyIO:
             if backend == "asyncio":
                 # For asyncio, we can use run_until_complete
                 try:
-                    import asyncio
+                    import anyio
 
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
@@ -190,7 +190,7 @@ class StorageManagerAnyIO:
 
             # Define a helper function for async shutdown
             def run_async_in_background():
-                import asyncio
+                import anyio
 
                 async def _run_async():
                     try:

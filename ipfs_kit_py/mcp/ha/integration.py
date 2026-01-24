@@ -6,7 +6,7 @@ with the MCP server, providing multi-region deployment, automatic failover,
 load balancing, and replication and consistency features.
 """
 
-import asyncio
+import anyio
 import logging
 import os
 from typing import Any, Dict, Optional

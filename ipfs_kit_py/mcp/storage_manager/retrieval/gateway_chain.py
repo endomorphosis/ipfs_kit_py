@@ -7,7 +7,7 @@ content with automatic failover and performance tracking.
 
 import logging
 import time
-import asyncio
+import anyio
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urljoin
 
@@ -402,7 +402,7 @@ class GatewayChain:
         """Cleanup on deletion."""
         if hasattr(self, 'client') and HTTPX_AVAILABLE:
             try:
-                import asyncio
+                import anyio
                 loop = asyncio.get_event_loop()
                 loop.run_until_complete(self.client.aclose())
             except Exception:

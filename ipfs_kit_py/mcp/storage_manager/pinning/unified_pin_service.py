@@ -6,7 +6,7 @@ multiple storage backends that support pinning operations.
 """
 
 import logging
-import asyncio
+import anyio
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
 

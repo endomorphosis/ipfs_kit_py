@@ -6,7 +6,7 @@ hash table (DHT) network operations.
 """
 
 import logging
-import asyncio
+import anyio
 from typing import Dict, List, Optional, Tuple, Any, Set, Callable
 
 # Configure logger

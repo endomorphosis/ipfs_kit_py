@@ -9,7 +9,7 @@ Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
 """
 
 import logging
-import asyncio
+import anyio
 from fastapi import FastAPI, APIRouter
 
 from ipfs_kit_py.mcp.auth.security_dashboard import router as security_router

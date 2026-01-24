@@ -10,7 +10,7 @@ import sys
 import json
 import time
 import logging
-import asyncio
+import anyio
 import threading
 from typing import Dict, List, Optional, Any, Tuple, Set, Union
 from enum import Enum

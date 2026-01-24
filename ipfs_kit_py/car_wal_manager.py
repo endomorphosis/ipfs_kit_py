@@ -6,7 +6,7 @@ This replaces the Parquet-based WAL system with CAR (Content Addressable Archive
 using IPLD and DAG-CBOR encoding for better IPFS integration.
 """
 
-import asyncio
+import anyio
 import json
 import time
 import hashlib

@@ -4,7 +4,7 @@ Alerting system for the MCP server.
 This module provides alerting capabilities for monitoring MCP services.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os

@@ -1336,7 +1336,7 @@ def start_background_tasks(app):
 
         # Start main background task
         # Note: FastAPI startup events still use asyncio.create_task
-        import asyncio
+        import anyio
         asyncio.create_task(ha_background_task())
 
     @app.on_event("shutdown")

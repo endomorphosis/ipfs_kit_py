@@ -11,7 +11,7 @@ import json
 import time
 import uuid
 import logging
-import asyncio
+import anyio
 from enum import Enum
 from typing import Dict, List, Set, Any, Optional, Union, Callable
 from dataclasses import dataclass

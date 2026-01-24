@@ -13,7 +13,7 @@ to provide deeper integration with the MCP architecture.
 
 import logging
 import time
-import asyncio
+import anyio
 import uuid
 from typing import Dict, Any, Optional, Tuple
 

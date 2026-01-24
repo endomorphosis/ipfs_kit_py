@@ -296,7 +296,7 @@ class AdvancedFilecoinMCP:
     async def start_background_tasks(self):
         """Start background tasks for monitoring and maintenance."""
         # Note: FastAPI startup events still use asyncio.create_task
-        import asyncio
+        import anyio
         asyncio.create_task(self._monitor_deals_health())
         asyncio.create_task(self._update_network_stats())
         logger.info("Started advanced Filecoin background tasks")
@@ -340,7 +340,7 @@ class AdvancedFilecoinMCP:
         
         # Start background tasks
         # Note: FastAPI startup events still use asyncio.create_task
-        import asyncio
+        import anyio
         asyncio.create_task(self.start_background_tasks())
         
         logger.info("Integrated advanced Filecoin features with MCP server")

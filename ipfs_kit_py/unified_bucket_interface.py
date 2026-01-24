@@ -13,7 +13,7 @@ Key Features:
 - Cross-backend VFS composition and querying
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os

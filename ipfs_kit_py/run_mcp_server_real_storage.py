@@ -16,10 +16,10 @@ import sys
 import logging
 import time
 import uuid
-import asyncio
+import anyio
 from fastapi import FastAPI, APIRouter, Request
 from fastapi.responses import StreamingResponse
-import asyncio
+import anyio
 import json
 
 import uvicorn

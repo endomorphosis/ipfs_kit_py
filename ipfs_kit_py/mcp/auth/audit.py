@@ -9,7 +9,7 @@ import logging
 import time
 import json
 import os
-import asyncio
+import anyio
 from datetime import datetime
 from typing import Any, Dict, Optional, Union, List, Counter
 import enum

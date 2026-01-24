@@ -6,7 +6,7 @@ notifications system, addressing the WebSocket Integration requirements
 in the MCP roadmap, particularly the 'Connection management with automatic recovery' component.
 """
 
-import asyncio
+import anyio
 import logging
 import json
 import time

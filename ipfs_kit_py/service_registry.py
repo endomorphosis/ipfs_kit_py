@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict, Any, List, Optional, Type, Protocol
 from datetime import datetime, timezone
-import asyncio
+import anyio
 
 from .metadata_manager import get_metadata_manager
 

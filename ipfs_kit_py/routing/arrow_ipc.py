@@ -9,7 +9,7 @@ import os
 import io
 import json
 import logging
-import asyncio
+import anyio
 from typing import Dict, List, Any, Optional, Union, Tuple, BinaryIO
 from pathlib import Path
 

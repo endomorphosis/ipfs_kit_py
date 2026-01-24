@@ -7,7 +7,7 @@ as specified in the MCP roadmap for Phase 1: Core Functionality Enhancements (Q3
 
 import logging
 import time
-import asyncio
+import anyio
 import jwt
 import hashlib
 import secrets

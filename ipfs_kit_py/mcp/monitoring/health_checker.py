@@ -7,7 +7,7 @@ allowing for monitoring of component health and system status.
 
 import logging
 import time
-import asyncio
+import anyio
 import threading
 from enum import Enum
 from typing import Dict, List, Any, Optional, Callable, Set, Union, Tuple

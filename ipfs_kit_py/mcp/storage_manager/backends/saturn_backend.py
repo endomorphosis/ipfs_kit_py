@@ -145,7 +145,7 @@ class SaturnBackend(BackendStorage):
                     url = self._build_url(node, identifier)
                     
                     if HTTPX_AVAILABLE:
-                        import asyncio
+                        import anyio
                         try:
                             loop = asyncio.get_event_loop()
                         except RuntimeError:
@@ -238,7 +238,7 @@ class SaturnBackend(BackendStorage):
             url = urljoin(self.orchestrator_url, "/nodes")
             
             if HTTPX_AVAILABLE:
-                import asyncio
+                import anyio
                 try:
                     loop = asyncio.get_event_loop()
                 except RuntimeError:
@@ -320,7 +320,7 @@ class SaturnBackend(BackendStorage):
         """Cleanup on deletion."""
         if hasattr(self, 'client') and HTTPX_AVAILABLE:
             try:
-                import asyncio
+                import anyio
                 loop = asyncio.get_event_loop()
                 loop.run_until_complete(self.client.aclose())
             except Exception:

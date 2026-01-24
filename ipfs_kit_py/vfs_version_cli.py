@@ -11,7 +11,7 @@ Provides Git-like commands for managing filesystem versions:
 """
 
 import argparse
-import asyncio
+import anyio
 import json
 import logging
 import sys
