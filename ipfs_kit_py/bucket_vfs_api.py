@@ -6,7 +6,7 @@ bucket virtual filesystem management with S3-like semantics, IPLD
 compatibility, and cross-platform data export capabilities.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from typing import Dict, Any, List, Optional, Union
