@@ -6,6 +6,7 @@ storage backends and provides the interface expected by the MCP server.
 """
 
 import logging
+import os
 from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,28 @@ class BackendManager:
             
         except Exception as e:
             self.logger.warning(f"Could not initialize IPFS backend: {e}")
+        
+        try:
+            # Try to initialize Filecoin Pin backend
+            from ipfs_kit_py.mcp.storage_manager.backends.filecoin_pin_backend import FilecoinPinBackend
+            
+            filecoin_api_key = os.getenv('FILECOIN_PIN_API_KEY')
+            filecoin_resources = {
+                "api_key": filecoin_api_key,
+                "timeout": 60
+            }
+            filecoin_metadata = {
+                "name": "filecoin_pin",
+                "description": "Filecoin Pin backend - unified IPFS + Filecoin storage",
+                "default_replication": 3,
+                "auto_renew": True
+            }
+            
+            filecoin_backend = FilecoinPinBackend(filecoin_resources, filecoin_metadata)
+            self.add_backend("filecoin_pin", filecoin_backend)
+            
+        except Exception as e:
+            self.logger.warning(f"Could not initialize Filecoin Pin backend: {e}")
         
         try:
             # Try to initialize S3 backend if available
