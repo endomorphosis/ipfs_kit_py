@@ -98,7 +98,7 @@ class BackendManager:
         
         try:
             # Try to initialize Filecoin Pin backend
-            from ipfs_kit_py.mcp.storage_manager.backends.filecoin_pin_backend import FilecoinPinBackend
+            from ipfs_kit_py.mcp.storage_manager.backends import FilecoinPinBackend
             
             filecoin_api_key = os.getenv('FILECOIN_PIN_API_KEY')
             filecoin_resources = {

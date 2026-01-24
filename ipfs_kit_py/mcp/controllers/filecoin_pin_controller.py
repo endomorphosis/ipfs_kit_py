@@ -5,6 +5,7 @@ This module provides MCP tools for interacting with the Filecoin Pin backend,
 exposing pin operations via the MCP protocol.
 """
 
+import base64
 import logging
 import os
 from typing import Dict, Any, Optional
@@ -101,7 +102,8 @@ class FilecoinPinController:
                 content = request.content
             else:
                 self.logger.info(f"Pinning CID: {request.content}")
-                # For CID, we encode it as bytes (simplified)
+                # For CID reference, encode as bytes - backend handles IPFS network fetch
+                # In production, Filecoin Pin service retrieves content from IPFS network
                 content = request.content.encode('utf-8')
             
             # Prepare metadata
@@ -251,7 +253,6 @@ class FilecoinPinController:
             
             # Convert bytes to base64 for JSON serialization
             if result.get('success') and 'data' in result:
-                import base64
                 data_bytes = result['data']
                 result['data'] = base64.b64encode(data_bytes).decode('utf-8')
                 result['data_encoding'] = 'base64'
