@@ -7,13 +7,19 @@ including pinning, unpinning, listing, and checking pin status.
 """
 
 import argparse
-import asyncio
 import json
 import logging
 import os
 import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
+
+try:
+    import anyio
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+    import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -504,7 +510,10 @@ async def main_cli():
 def main():
     """Synchronous entry point."""
     try:
-        return asyncio.run(main_cli())
+        if HAS_ANYIO:
+            return anyio.run(main_cli)
+        else:
+            return asyncio.run(main_cli())
     except KeyboardInterrupt:
         print("\n❌ Interrupted by user")
         return 130
