@@ -411,6 +411,71 @@ class MCPServer:
                             "backend": {"type": "string", "description": "Backend to unpin from"}
                         }
                     }
+                ),
+                # Filecoin Pin tools
+                types.Tool(
+                    name="filecoin_pin_add",
+                    description="Pin content to Filecoin Pin service (unified IPFS + Filecoin storage)",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "content": {"type": "string", "description": "File path or CID to pin"},
+                            "name": {"type": "string", "description": "Human-readable name for the pin"},
+                            "description": {"type": "string", "description": "Description for the pin"},
+                            "tags": {"type": "string", "description": "Comma-separated tags"},
+                            "replication": {"type": "integer", "description": "Number of replicas (default: 3)"},
+                            "api_key": {"type": "string", "description": "Filecoin Pin API key (optional)"}
+                        },
+                        "required": ["content"]
+                    }
+                ),
+                types.Tool(
+                    name="filecoin_pin_list",
+                    description="List all pins on Filecoin Pin service",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "status": {"type": "string", "description": "Filter by status (queued, pinning, pinned, failed)"},
+                            "limit": {"type": "integer", "description": "Maximum number of results (default: 100)"},
+                            "api_key": {"type": "string", "description": "Filecoin Pin API key (optional)"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="filecoin_pin_status",
+                    description="Get detailed status for a Filecoin Pin",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "cid": {"type": "string", "description": "Content ID to check"},
+                            "api_key": {"type": "string", "description": "Filecoin Pin API key (optional)"}
+                        },
+                        "required": ["cid"]
+                    }
+                ),
+                types.Tool(
+                    name="filecoin_pin_remove",
+                    description="Remove a pin from Filecoin Pin service",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "cid": {"type": "string", "description": "Content ID to unpin"},
+                            "api_key": {"type": "string", "description": "Filecoin Pin API key (optional)"}
+                        },
+                        "required": ["cid"]
+                    }
+                ),
+                types.Tool(
+                    name="filecoin_pin_get",
+                    description="Retrieve pinned content from Filecoin Pin",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "cid": {"type": "string", "description": "Content ID to retrieve"},
+                            "api_key": {"type": "string", "description": "Filecoin Pin API key (optional)"}
+                        },
+                        "required": ["cid"]
+                    }
                 )
             ]
         
@@ -522,6 +587,33 @@ class MCPServer:
                     result = await self.daemon_controller.handle_tool_call(name, arguments)
                 elif name.startswith("vfs_"):
                     result = await self.vfs_controller.handle_tool_call(name, arguments)
+                elif name.startswith("filecoin_pin_"):
+                    # Handle Filecoin Pin tools
+                    from ..mcp.controllers.filecoin_pin_controller import FilecoinPinController
+                    from ..mcp.controllers.filecoin_pin_controller import (
+                        FilecoinPinAddRequest, FilecoinPinListRequest, 
+                        FilecoinPinStatusRequest, FilecoinPinRemoveRequest, FilecoinPinGetRequest
+                    )
+                    
+                    controller = FilecoinPinController()
+                    
+                    if name == "filecoin_pin_add":
+                        request = FilecoinPinAddRequest(**arguments)
+                        result = await controller.pin_add(request)
+                    elif name == "filecoin_pin_list":
+                        request = FilecoinPinListRequest(**arguments)
+                        result = await controller.pin_list(request)
+                    elif name == "filecoin_pin_status":
+                        request = FilecoinPinStatusRequest(**arguments)
+                        result = await controller.pin_status(request)
+                    elif name == "filecoin_pin_remove":
+                        request = FilecoinPinRemoveRequest(**arguments)
+                        result = await controller.pin_remove(request)
+                    elif name == "filecoin_pin_get":
+                        request = FilecoinPinGetRequest(**arguments)
+                        result = await controller.pin_get(request)
+                    else:
+                        result = {"error": f"Unknown Filecoin Pin tool: {name}"}
                 elif name.startswith("pin_"):
                     result = await self.cli_controller.handle_pin_tool_call(name, arguments)
                 elif name.startswith("bucket_"):
