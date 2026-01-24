@@ -178,9 +178,7 @@ class SSHFSConnection:
                         return False
                 
                 # Connect
-                await asyncio.get_event_loop().run_in_executor(
-                    None, 
-                    lambda: self.ssh_client.connect(**auth_kwargs)
+                await anyio.to_thread.run_sync(lambda: self.ssh_client.connect(**auth_kwargs)
                 )
                 
                 # Create SCP client
@@ -262,17 +260,11 @@ class SSHFSConnection:
             raise ConnectionError("SSH connection not established")
         
         try:
-            stdin, stdout, stderr = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self.ssh_client.exec_command(command, timeout=30)
+            stdin, stdout, stderr = await anyio.to_thread.run_sync(lambda: self.ssh_client.exec_command(command, timeout=30)
             )
             
-            stdout_data = await asyncio.get_event_loop().run_in_executor(
-                None, stdout.read
-            )
-            stderr_data = await asyncio.get_event_loop().run_in_executor(
-                None, stderr.read
-            )
+            stdout_data = await anyio.to_thread.run_sync(stdout.read)
+            stderr_data = await anyio.to_thread.run_sync(stderr.read)
             
             return (
                 stdout_data.decode('utf-8'),
@@ -290,9 +282,7 @@ class SSHFSConnection:
             raise ConnectionError("SCP connection not established")
         
         try:
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self.scp_client.put(local_path, remote_path, recursive=False)
+            await anyio.to_thread.run_sync(lambda: self.scp_client.put(local_path, remote_path, recursive=False)
             )
             self.last_used = time.time()
             return True
@@ -307,9 +297,7 @@ class SSHFSConnection:
             raise ConnectionError("SCP connection not established")
         
         try:
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self.scp_client.get(remote_path, local_path, recursive=False)
+            await anyio.to_thread.run_sync(lambda: self.scp_client.get(remote_path, local_path, recursive=False)
             )
             self.last_used = time.time()
             return True

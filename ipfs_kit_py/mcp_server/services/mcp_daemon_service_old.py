@@ -151,9 +151,7 @@ class MCPDaemonService:
         
         try:
             # Use intelligent daemon's metadata-driven sync
-            await asyncio.get_event_loop().run_in_executor(
-                None, self._sync_with_intelligent_daemon
-            )
+            await anyio.to_thread.run_sync(self._sync_with_intelligent_daemon)
             self.completed_tasks += 1
             
         except Exception as e:
@@ -191,9 +189,7 @@ class MCPDaemonService:
         
         if self.daemon_manager:
             try:
-                health_status = await asyncio.get_event_loop().run_in_executor(
-                    None, self.daemon_manager.get_backend_health_status
-                )
+                health_status = await anyio.to_thread.run_sync(self.daemon_manager.get_backend_health_status)
                 total_backends = len(health_status)
                 healthy_backends = sum(1 for status in health_status if status.is_healthy)
             except Exception as e:
@@ -218,9 +214,7 @@ class MCPDaemonService:
         
         try:
             # Get comprehensive status from intelligent daemon
-            status = await asyncio.get_event_loop().run_in_executor(
-                None, self._get_intelligent_status_sync
-            )
+            status = await anyio.to_thread.run_sync(self._get_intelligent_status_sync)
             return status
         except Exception as e:
             logger.error(f"Error getting intelligent status: {e}")
@@ -263,9 +257,7 @@ class MCPDaemonService:
             return {"error": "Intelligent daemon not available"}
         
         try:
-            insights = await asyncio.get_event_loop().run_in_executor(
-                None, self._get_intelligent_insights_sync
-            )
+            insights = await anyio.to_thread.run_sync(self._get_intelligent_insights_sync)
             return insights
         except Exception as e:
             logger.error(f"Error getting intelligent insights: {e}")
@@ -341,9 +333,7 @@ class MCPDaemonService:
             return {"error": "Daemon service is not running"}
         
         try:
-            result = await asyncio.get_event_loop().run_in_executor(
-                None, self._force_sync_sync, backend_name
-            )
+            result = await anyio.to_thread.run_sync(self._force_sync_sync, backend_name)
             return result
         except Exception as e:
             logger.error(f"Error in force sync: {e}")
@@ -385,9 +375,7 @@ class MCPDaemonService:
             
             migrator = PinMappingsMigrator(self.data_dir)
             
-            result = await asyncio.get_event_loop().run_in_executor(
-                None, self._migrate_pin_mappings_sync, migrator, filter_backends, dry_run
-            )
+            result = await anyio.to_thread.run_sync(self._migrate_pin_mappings_sync, migrator, filter_backends, dry_run)
             return result
             
         except Exception as e:
