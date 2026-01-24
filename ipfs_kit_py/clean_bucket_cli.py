@@ -426,10 +426,7 @@ async def main():
 def sync_main():
     """Synchronous entry point."""
     try:
-        if HAS_ANYIO:
-            return anyio.run(main)
-        else:
-            return anyio.run(main())
+        return anyio.run(main)
     except KeyboardInterrupt:
         print("\n❌ Operation cancelled by user")
         return 1

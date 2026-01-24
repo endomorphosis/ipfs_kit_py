@@ -9,18 +9,12 @@ import logging
 import time
 import uuid
 import asyncio
+import inspect
 from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from ipfs_kit_py.mcp.models.mcp_discovery_model import MCPDiscoveryModel
-
-# Import anyio with fallback
-try:
-    import anyio
-import inspect
-    HAS_ANYIO = True
-except ImportError:
-    HAS_ANYIO = False
+import anyio
 
 # Configure logger
 logger = logging.getLogger(__name__)

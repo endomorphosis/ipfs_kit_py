@@ -504,10 +504,7 @@ async def main_cli():
 def main():
     """Synchronous entry point."""
     try:
-        if HAS_ANYIO:
-            return anyio.run(main_cli)
-        else:
-            return anyio.run(main_cli())
+        return anyio.run(main_cli)
     except KeyboardInterrupt:
         print("\n❌ Interrupted by user")
         return 130

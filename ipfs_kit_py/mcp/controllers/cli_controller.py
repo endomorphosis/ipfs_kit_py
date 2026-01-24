@@ -14,15 +14,9 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import yaml
-
-# Import anyio for cross-backend compatibility
-try:
-    import anyio
+import anyio
 import inspect
-    import sniffio
-    HAS_ANYIO = True
-except ImportError:
-    HAS_ANYIO = False
+import sniffio
 
 # Configure logger (Ensure it's defined before use in stubs)
 logger = logging.getLogger(__name__)
@@ -1373,10 +1367,7 @@ class CliController:
                 # Use anyio to run in a thread if available
                 if HAS_ANYIO: # Guard added
                     try:
-                        # Ensure imports are available if HAS_ANYIO is True
-                        import sniffio
-                        import anyio
-import inspect
+                        # Ensure imports are available
                         sniffio.current_async_library() # Now guarded
                         await anyio.to_thread.run_sync(self.api.sync_shutdown) # Now guarded
                     except Exception as e:

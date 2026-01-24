@@ -24,7 +24,7 @@ class Server:
     def __init__(self, host="0.0.0.0", port=8888):
         self.host = host
         self.port = port
-        self.server = None
+        self.listener = None
 
     async def handle_message(self, message):
         raise NotImplementedError
@@ -33,17 +33,18 @@ class Server:
         pass
 
     async def start(self):
-        # anyio doesn't have a direct equivalent to asyncio.start_server
-        # For now, use anyio's create_tcp_listener
-        listener = await anyio.create_tcp_listener(local_host=self.host, local_port=self.port)
-        addr = listener.extra(anyio.abc.SocketAttribute.local_address)
+        # anyio TCP server
+        self.listener = await anyio.create_tcp_listener(local_host=self.host, local_port=self.port)
+        # Get socket info
+        sock = self.listener.extra(anyio.abc.SocketAttribute.raw_socket)
+        addr = sock.getsockname()
         print(f'Serving on {addr}')
-        async with listener:
-            await listener.serve(self.handler)
+        async with self.listener:
+            await self.listener.serve(self.handler)
 
     async def stop(self):
-        if self.server:
-            await self.server.aclose()
+        if self.listener:
+            await self.listener.aclose()
 
     async def send_response(self, recipient, response):
         pass
