@@ -20,6 +20,7 @@ import hashlib
 import json
 from functools import lru_cache
 import weakref
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Set up logging
 logger = logging.getLogger(__name__)

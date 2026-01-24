@@ -11,6 +11,7 @@ import time
 import math
 from enum import Enum
 from typing import Dict, List, Optional, Set, Any, Callable, Awaitable
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)

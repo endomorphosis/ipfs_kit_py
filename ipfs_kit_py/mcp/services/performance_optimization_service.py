@@ -16,6 +16,7 @@ import io
 import statistics
 from typing import Dict, List, Any, Optional, Union, Callable, Tuple
 from collections import defaultdict, deque
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

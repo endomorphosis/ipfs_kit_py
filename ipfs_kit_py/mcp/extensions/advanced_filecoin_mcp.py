@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 import anyio
 # Import the advanced Filecoin client
 from ipfs_kit_py.advanced_filecoin_client import AdvancedFilecoinClient
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logger
 logger = logging.getLogger(__name__)

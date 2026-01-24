@@ -24,6 +24,7 @@ from ipfs_kit_py.mcp.ha.replication.consistency import (
     ConflictResolutionStrategy
 )
 from ipfs_kit_py.mcp.ha.replication.router import register_with_app
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)

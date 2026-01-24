@@ -9,6 +9,7 @@ import logging
 import time
 import sniffio
 import uuid
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logger
 logger = logging.getLogger(__name__)

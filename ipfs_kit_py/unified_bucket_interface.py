@@ -43,6 +43,7 @@ from .bucket_vfs_manager import BucketVFSManager, BucketType, VFSStructureType
 from .enhanced_bucket_index import EnhancedBucketIndex
 from .pins import EnhancedPinMetadataIndex
 from .error import create_result_dict
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 
@@ -780,7 +781,8 @@ class UnifiedBucketInterface:
             if self._sync_task and not self._sync_task.done():
                 self._shutdown_event.set()
                 try:
-                    await asyncio.wait_for(self._sync_task, timeout=5.0)
+                    with anyio.fail_after(5.0):
+            await self._sync_task
                 except asyncio.TimeoutError:
                     self._sync_task.cancel()
             

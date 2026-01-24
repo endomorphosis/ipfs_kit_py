@@ -10,6 +10,7 @@ import logging
 import time
 import anyio
 from typing import Dict, Any, Optional, List, Callable, Set, Tuple
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Set up logging
 logger = logging.getLogger(__name__)

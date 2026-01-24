@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Import enhanced cache
 from ipfs_kit_py.mcp.auth.enhanced_api_key_cache import EnhancedApiKeyCache, CachePolicy
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 class ApiKeyCacheService:
     """

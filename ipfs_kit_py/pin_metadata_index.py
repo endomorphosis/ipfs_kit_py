@@ -38,6 +38,7 @@ from typing import Dict, List, Any, Optional, Union, Tuple
 from dataclasses import dataclass, asdict
 from collections import deque
 import tempfile
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # DuckDB and analytics imports
 try:

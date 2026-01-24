@@ -12,6 +12,7 @@ import uuid
 import anyio
 from enum import Enum
 from typing import Dict, List, Any, Optional, Callable, Awaitable
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logger
 logger = logging.getLogger(__name__)

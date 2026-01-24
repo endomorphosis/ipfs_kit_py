@@ -15,6 +15,7 @@ import anyio
 from enum import Enum
 from typing import Dict, List, Set, Any, Optional, Union, Callable
 from dataclasses import dataclass
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 try:
     import anyio

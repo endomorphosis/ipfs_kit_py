@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import aiohttp
 from pydantic import BaseModel, Field
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)

@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable
 from dataclasses import dataclass, asdict
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

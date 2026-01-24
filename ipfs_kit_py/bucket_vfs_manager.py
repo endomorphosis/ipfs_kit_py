@@ -47,6 +47,7 @@ from .parquet_car_bridge import ParquetCARBridge
 from .ipld_knowledge_graph import IPLDGraphDB, GraphRAG
 from .tiered_cache_manager import TieredCacheManager
 from .error import create_result_dict, handle_error
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Import CAR WAL Manager
 try:

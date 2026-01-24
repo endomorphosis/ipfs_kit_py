@@ -195,8 +195,8 @@ class SSHFSKit:
             
             process = await asyncio.create_subprocess_exec(
                 *ssh_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
             
             stdout, stderr = await process.communicate()
@@ -285,8 +285,8 @@ class SSHFSKit:
         
         process = await asyncio.create_subprocess_exec(
             *ssh_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         
         stdout, stderr = await process.communicate()
@@ -410,8 +410,8 @@ class SSHFSKit:
         
         process = await asyncio.create_subprocess_exec(
             *scp_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         
         stdout, stderr = await process.communicate()
@@ -484,8 +484,8 @@ class SSHFSKit:
         
         process = await asyncio.create_subprocess_exec(
             *scp_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         
         stdout, stderr = await process.communicate()
@@ -567,8 +567,8 @@ class SSHFSKit:
                 
                 process = await asyncio.create_subprocess_exec(
                     *ssh_cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
                 )
                 
                 stdout, stderr = await process.communicate()

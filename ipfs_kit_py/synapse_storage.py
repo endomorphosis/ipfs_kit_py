@@ -151,9 +151,9 @@ class JavaScriptBridge:
             # Run the Node.js process
             process = await asyncio.create_subprocess_exec(
                 'node', self.wrapper_script_path,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
             
             # Send command as JSON

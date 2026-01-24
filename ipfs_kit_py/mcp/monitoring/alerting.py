@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional
 import aiofiles
 import aiohttp
 from pydantic import BaseModel, Field, validator
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

@@ -28,6 +28,7 @@ from pydantic import BaseModel
 
 # Import anyio with fallback to asyncio
 import anyio
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

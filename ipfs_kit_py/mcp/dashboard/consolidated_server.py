@@ -43,6 +43,7 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconn
 from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import mimetypes
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 UTC = timezone.utc
 

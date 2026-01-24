@@ -334,8 +334,8 @@ class GitHubKit:
                 
                 process = await asyncio.create_subprocess_exec(
                     *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
                 )
                 
                 stdout, stderr = await process.communicate()

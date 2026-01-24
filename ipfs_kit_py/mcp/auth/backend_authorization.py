@@ -19,6 +19,7 @@ from enum import Enum
 
 from .models import BackendPermission, Role, User, APIKey
 from .audit import AuditEventType, get_instance as get_audit_logger
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)

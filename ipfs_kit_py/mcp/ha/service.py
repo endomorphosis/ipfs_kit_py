@@ -18,6 +18,7 @@ from typing import Any, Callable, Dict, List, Optional
 import aiohttp
 from fastapi import BackgroundTasks, FastAPI
 from pydantic import BaseModel, Field
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

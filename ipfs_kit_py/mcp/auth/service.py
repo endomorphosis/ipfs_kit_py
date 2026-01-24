@@ -28,6 +28,7 @@ from .models import (
     PermissionModel
 )
 from .persistence import (
+# NOTE: This file contains asyncio.create_task() calls that need task group context
     UserStore,
     RoleStore,
     PermissionStore,

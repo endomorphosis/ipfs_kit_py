@@ -91,6 +91,7 @@ from .controllers.mcp_storage_controller import MCPStorageController
 from .controllers.mcp_vfs_controller import MCPVFSController
 
 import psutil
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

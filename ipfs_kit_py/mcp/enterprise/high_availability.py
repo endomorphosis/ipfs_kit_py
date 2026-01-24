@@ -27,6 +27,7 @@ from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Any, Set, Tuple, Callable
 from datetime import datetime, timedelta
 import ipaddress
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logger
 logger = logging.getLogger(__name__)

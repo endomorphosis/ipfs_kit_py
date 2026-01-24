@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Any, Union, Tuple, Set
 from pathlib import Path
 
 from ipfs_kit_py.mcp.auth.audit import AuditLogger, get_instance as get_audit_logger
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

@@ -17,6 +17,7 @@ from typing import Dict, List, Optional, Any, Tuple, Union, Callable, BinaryIO
 from pathlib import Path
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 try:
     import anyio

@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from .data_router import DataRouter, ContentCategory, RoutingStrategy, RoutingPriority, BackendMetrics
 from .adaptive_optimizer import AdaptiveOptimizer, RouteOptimizationResult, create_adaptive_optimizer
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)

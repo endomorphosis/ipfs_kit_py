@@ -13,6 +13,7 @@ import random
 import math
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 
