@@ -624,7 +624,7 @@ class WebRTCController:
                     logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
 
             # Fallback to asyncio
-            import anyio
+            import asyncio
 
             try:
                 loop = asyncio.get_event_loop()

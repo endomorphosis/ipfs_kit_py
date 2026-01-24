@@ -60,8 +60,8 @@ class AsyncStreamManager:
         if self._progress_task:
             try:
                 with anyio.fail_after(2.0):
-            await self._progress_task
-            except asyncio.TimeoutError:
+                    await self._progress_task
+            except TimeoutError:
                 logger.warning("Timed out waiting for progress task")
         
         # Cancel all active streams

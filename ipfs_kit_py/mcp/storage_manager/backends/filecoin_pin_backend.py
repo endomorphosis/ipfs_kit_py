@@ -647,7 +647,7 @@ class FilecoinPinBackend(BackendStorage):
                     anyio.from_thread.run(_close)
                 except ImportError:
                     # Fallback to asyncio
-                    import anyio
+                    import asyncio
                     loop = asyncio.get_event_loop()
                     loop.run_until_complete(self.client.aclose())
             except Exception:

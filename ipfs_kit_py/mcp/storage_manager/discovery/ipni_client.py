@@ -251,7 +251,7 @@ class IPNIClient:
         """Cleanup on deletion."""
         if hasattr(self, 'client') and HTTPX_AVAILABLE:
             try:
-                import anyio
+                import asyncio
                 loop = asyncio.get_event_loop()
                 loop.run_until_complete(self.client.aclose())
             except Exception:
