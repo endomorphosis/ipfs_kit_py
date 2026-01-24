@@ -211,8 +211,8 @@ class ConsistencyService:
         self.known_nodes: Dict[str, Dict[str, Any]] = {}
         
         # Locks for thread safety
-        self.data_lock = asyncio.Lock()
-        self.sync_lock = asyncio.Lock()
+        self.data_lock = anyio.Lock()
+        self.sync_lock = anyio.Lock()
         
         # Tasks
         self.sync_task = None
@@ -581,7 +581,7 @@ class ConsistencyService:
             
             # Sleep for sync interval
             interval = self.config.sync_interval
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
     async def _consistency_check_loop(self) -> None:
         """Periodically check consistency status."""
@@ -596,7 +596,7 @@ class ConsistencyService:
             
             # Sleep for a longer interval than sync
             interval = self.config.sync_interval * 3
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
     async def _synchronize_data(self) -> None:
         """Synchronize data with other nodes."""

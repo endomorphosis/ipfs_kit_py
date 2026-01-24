@@ -835,7 +835,7 @@ class ComprehensiveServiceManager:
         stop_result = await self._stop_service(service_id, params)
         if stop_result.get("success", False):
             # Wait a moment before restarting
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             return await self._start_service(service_id, params)
         return stop_result
     

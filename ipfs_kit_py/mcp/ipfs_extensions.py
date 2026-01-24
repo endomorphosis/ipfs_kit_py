@@ -823,4 +823,4 @@ async def main():
     return 0
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main())

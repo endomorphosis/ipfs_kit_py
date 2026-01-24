@@ -407,7 +407,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        exit_code = asyncio.run(main())
+        exit_code = anyio.run(main())
         sys.exit(exit_code)
     except KeyboardInterrupt:
         logger.info("Interrupted by user")

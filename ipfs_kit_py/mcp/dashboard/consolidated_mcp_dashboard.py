@@ -869,7 +869,7 @@ class ConsolidatedMCPDashboard:
 
     def run_sync(self) -> None:  # pragma: no cover - integration helper
         """Synchronous convenience wrapper used by __main__ path."""
-        asyncio.run(self.run())
+        anyio.run(self.run())
 
     # --- Realtime metrics ---
     def _gather_metrics_snapshot(self) -> Dict[str, Any]:
@@ -937,7 +937,7 @@ class ConsolidatedMCPDashboard:
                             self._ws_clients.discard(ws)
                 except Exception:
                     self.log.exception("broadcast loop error")
-                await asyncio.sleep(1.0)
+                await anyio.sleep(1.0)
         return _inner()
 
     def _register_routes(self) -> None:
@@ -1501,7 +1501,7 @@ class ConsolidatedMCPDashboard:
                             data = json.dumps(entry)
                             yield f"data: {data}\n\n"
                         last = len(logs)
-                    await asyncio.sleep(0.5)
+                    await anyio.sleep(0.5)
             return StreamingResponse(event_gen(), media_type="text/event-stream")
 
         # Logs API endpoint for dashboard
@@ -1554,7 +1554,7 @@ class ConsolidatedMCPDashboard:
                     for name in ('avg_cpu','avg_mem','avg_disk','avg_rx_bps','avg_tx_bps'):
                         snap.setdefault(name, None)
                     await ws.send_json(snap)
-                await asyncio.sleep(0)
+                await anyio.sleep(0)
                 while True:
                     msg = await ws.receive_text()
                     if msg == "ping":

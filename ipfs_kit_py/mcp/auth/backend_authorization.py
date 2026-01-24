@@ -88,7 +88,7 @@ class BackendAuthorizationManager:
                 logger.error(f"Error cleaning up authorization cache: {e}")
             
             # Sleep for 5 minutes
-            await asyncio.sleep(300)
+            await anyio.sleep(300)
     
     async def _create_default_backend_permissions(self):
         """Create default backend permissions configurations."""

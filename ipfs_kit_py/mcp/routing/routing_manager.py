@@ -197,7 +197,7 @@ class RoutingManager:
         
         # Background tasks
         self._background_tasks = []
-        self._shutdown_event = asyncio.Event()
+        self._shutdown_event = anyio.Event()
         
         # Start background tasks if configured
         if self.settings.auto_start_background_tasks:

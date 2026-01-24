@@ -96,7 +96,7 @@ class FailoverDetector:
         self.node_votes: Dict[str, Dict[str, bool]] = {}
         
         # State locks for thread safety
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
         
         # Background tasks
         self._tasks: List[asyncio.Task] = []
@@ -409,7 +409,7 @@ class FailoverDetector:
         
         try:
             while True:
-                await asyncio.sleep(self.heartbeat_interval)
+                await anyio.sleep(self.heartbeat_interval)
                 
                 current_time = time.time()
                 
@@ -457,7 +457,7 @@ class FailoverDetector:
         except Exception as e:
             logger.exception(f"Error in heartbeat monitoring task: {e}")
             # Try to restart
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
             asyncio.create_task(self._heartbeat_monitoring_task())
     
     async def _adaptive_timeout_task(self):
@@ -466,7 +466,7 @@ class FailoverDetector:
         
         try:
             while True:
-                await asyncio.sleep(30)  # Update every 30 seconds
+                await anyio.sleep(30)  # Update every 30 seconds
                 
                 async with self._lock:
                     # Update adaptive timeouts for all nodes
@@ -480,7 +480,7 @@ class FailoverDetector:
         except Exception as e:
             logger.exception(f"Error in adaptive timeout task: {e}")
             # Try to restart
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
             asyncio.create_task(self._adaptive_timeout_task())
     
     async def _gossip_monitoring_task(self):
@@ -489,7 +489,7 @@ class FailoverDetector:
         
         try:
             while True:
-                await asyncio.sleep(5)  # Gossip every 5 seconds
+                await anyio.sleep(5)  # Gossip every 5 seconds
                 
                 # In a real implementation, we would exchange failure suspicions
                 # with other nodes. For this example, this is a placeholder.
@@ -502,7 +502,7 @@ class FailoverDetector:
         except Exception as e:
             logger.exception(f"Error in gossip monitoring task: {e}")
             # Try to restart
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
             asyncio.create_task(self._gossip_monitoring_task())
     
     async def _multi_point_detection_task(self):
@@ -511,7 +511,7 @@ class FailoverDetector:
         
         try:
             while True:
-                await asyncio.sleep(5)  # Check every 5 seconds
+                await anyio.sleep(5)  # Check every 5 seconds
                 
                 # In a real implementation, we would collect failure reports
                 # from multiple network vantage points. For this example, 
@@ -525,7 +525,7 @@ class FailoverDetector:
         except Exception as e:
             logger.exception(f"Error in multi-point detection task: {e}")
             # Try to restart
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
             asyncio.create_task(self._multi_point_detection_task())
     
     async def _consensus_detection_task(self):
@@ -534,7 +534,7 @@ class FailoverDetector:
         
         try:
             while True:
-                await asyncio.sleep(5)  # Check every 5 seconds
+                await anyio.sleep(5)  # Check every 5 seconds
                 
                 # In a real implementation, we would collect and process votes
                 # from other nodes to reach consensus. For this example,
@@ -548,7 +548,7 @@ class FailoverDetector:
         except Exception as e:
             logger.exception(f"Error in consensus detection task: {e}")
             # Try to restart
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
             asyncio.create_task(self._consensus_detection_task())
     
     async def _check_heartbeats(self, node_id: str) -> Dict[str, Any]:

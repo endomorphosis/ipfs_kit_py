@@ -324,9 +324,9 @@ async def main():
     
     try:
         while True:
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
     except KeyboardInterrupt:
         logger.info("Shutting down HTTP routing server")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main())

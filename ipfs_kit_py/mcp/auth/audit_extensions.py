@@ -73,7 +73,7 @@ class AuditExtensions:
         
         # Background tasks
         self._background_tasks: List[asyncio.Task] = []
-        self._shutdown_event = asyncio.Event()
+        self._shutdown_event = anyio.Event()
         
         logger.info("Audit extensions initialized")
     
@@ -333,7 +333,7 @@ class AuditExtensions:
                 except Exception as e:
                     logger.error(f"Error in log integrity verification: {e}")
                     # Wait a bit before trying again
-                    await asyncio.sleep(60)
+                    await anyio.sleep(60)
         except asyncio.CancelledError:
             logger.info("Log integrity verification task cancelled")
     
@@ -447,7 +447,7 @@ class AuditExtensions:
                 except Exception as e:
                     logger.error(f"Error enforcing log retention policy: {e}")
                     # Wait a bit before trying again
-                    await asyncio.sleep(300)
+                    await anyio.sleep(300)
         except asyncio.CancelledError:
             logger.info("Log retention policy task cancelled")
     

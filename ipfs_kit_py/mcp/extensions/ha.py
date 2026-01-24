@@ -27,14 +27,7 @@ from fastapi import (
 from pydantic import BaseModel
 
 # Import anyio with fallback to asyncio
-try:
-    import anyio
-    HAS_ANYIO = True
-except ImportError:
-    import asyncio
-    HAS_ANYIO = False
-
-
+import anyio
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -909,16 +902,10 @@ async def ha_background_task():
             await check_replication_status()
 
             # Wait for next iteration
-            if HAS_ANYIO:
-                await anyio.sleep(config["heartbeat"]["interval_seconds"])
-            else:
-                await asyncio.sleep(config["heartbeat"]["interval_seconds"])
+            await anyio.sleep(config["heartbeat"]["interval_seconds"])
         except Exception as e:
             logger.error(f"Error in HA background task: {e}")
-            if HAS_ANYIO:
-                await anyio.sleep(config["heartbeat"]["interval_seconds"])
-            else:
-                await asyncio.sleep(config["heartbeat"]["interval_seconds"])
+            await anyio.sleep(config["heartbeat"]["interval_seconds"])
 
 
 async def close_http_session():
@@ -1348,15 +1335,9 @@ def start_background_tasks(app):
         add_event(EventType.NODE_JOINED, node_id=this_node["id"], details={"startup": True})
 
         # Start main background task
-        if HAS_ANYIO:
-            import anyio
-            # Note: anyio task groups need to be used in async context
-            # For FastAPI startup, asyncio.create_task is still used
-            import asyncio
-            asyncio.create_task(ha_background_task())
-        else:
-            import asyncio
-            asyncio.create_task(ha_background_task())
+        # Note: FastAPI startup events still use asyncio.create_task
+        import asyncio
+        asyncio.create_task(ha_background_task())
 
     @app.on_event("shutdown")
     async def shutdown_event():

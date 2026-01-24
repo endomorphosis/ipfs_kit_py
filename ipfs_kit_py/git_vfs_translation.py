@@ -906,4 +906,4 @@ if __name__ == "__main__":
             import traceback
             traceback.print_exc()
     
-    asyncio.run(demo_git_vfs_translation())
+    anyio.run(demo_git_vfs_translation())
