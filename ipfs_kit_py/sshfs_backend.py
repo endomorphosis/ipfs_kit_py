@@ -136,7 +136,7 @@ class SSHFSConnection:
         self.connected = False
         self.last_used = time.time()
         self.connection_errors = 0
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
     
     async def connect(self) -> bool:
         """Establish SSH connection."""
@@ -330,7 +330,7 @@ class SSHFSConnectionPool:
         self.connections: Dict[str, SSHFSConnection] = {}
         self.available_connections: List[str] = []
         self.busy_connections: Set[str] = set()
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
         self._connection_counter = 0
     
     async def get_connection(self) -> Optional[SSHFSConnection]:

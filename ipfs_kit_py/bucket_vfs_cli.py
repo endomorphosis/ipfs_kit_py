@@ -6,15 +6,8 @@ This module provides CLI commands for managing multi-bucket virtual filesystems
 with S3-like semantics, IPLD compatibility, and cross-platform data export.
 """
 
-try:
-    import anyio
-    HAS_ANYIO = True
-except ImportError:
-    HAS_ANYIO = False
-    import asyncio
-
+import anyio
 import argparse
-import asyncio
 import inspect
 import json
 import logging

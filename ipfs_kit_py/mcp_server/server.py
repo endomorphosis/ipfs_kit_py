@@ -1627,7 +1627,7 @@ class MCPServer:
             # Keep the main thread alive
             try:
                 while True:
-                    await asyncio.sleep(1)
+                    await anyio.sleep(1)
             except KeyboardInterrupt:
                 logger.info("Shutting down daemon mode...")
                 httpd.shutdown()
@@ -1725,4 +1725,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main())

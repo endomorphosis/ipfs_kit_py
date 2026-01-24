@@ -314,10 +314,10 @@ class Libp2pPeerManager:
         while self.discovery_active:
             try:
                 await self._discover_peers()
-                await asyncio.sleep(self.config["discovery_interval"])
+                await anyio.sleep(self.config["discovery_interval"])
             except Exception as e:
                 logger.error(f"Error in discovery loop: {e}")
-                await asyncio.sleep(60)  # Wait longer on error
+                await anyio.sleep(60)  # Wait longer on error
     
     async def _discover_peers(self):
         """Discover new peers using various methods."""
@@ -850,7 +850,7 @@ class Libp2pPeerManager:
 
 # Global instance for easy access
 _global_peer_manager = None
-_peer_manager_lock = asyncio.Lock()
+_peer_manager_lock = anyio.Lock()
 
 def get_peer_manager(config_dir: Path = None, ipfs_kit=None) -> Libp2pPeerManager:
     """Get or create the global peer manager instance (thread-safe singleton)."""

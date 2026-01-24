@@ -1077,13 +1077,13 @@ class PinMetadataIndex:
                 self.metrics["last_update_duration"] = duration
                 
                 # Wait before next cycle
-                await asyncio.sleep(min(60, self.update_interval // 5))
+                await anyio.sleep(min(60, self.update_interval // 5))
                 
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"Background service error: {e}")
-                await asyncio.sleep(30)  # Wait before retry
+                await anyio.sleep(30)  # Wait before retry
     
     async def _background_update_pins(self):
         """Background update of pin metadata from IPFS."""
@@ -1362,4 +1362,4 @@ if __name__ == "__main__":
         await index.stop_background_services()
         print("\n✅ Demo completed successfully!")
     
-    asyncio.run(demo())
+    anyio.run(demo())

@@ -338,9 +338,9 @@ class WebSocketManager:
                     try:
                         anyio.from_thread.run(_broadcast)
                     except Exception:
-                        asyncio.run(_broadcast())
+                        anyio.run(_broadcast())
                 else:
-                    asyncio.run(_broadcast())
+                    anyio.run(_broadcast())
             
             return True
         except Exception as e:

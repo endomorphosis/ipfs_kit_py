@@ -138,7 +138,7 @@ class MCPDaemonService:
             
             # Wait for next sync interval
             try:
-                await asyncio.sleep(self.sync_interval)
+                await anyio.sleep(self.sync_interval)
             except asyncio.CancelledError:
                 break
     

@@ -296,7 +296,7 @@ class AlertingService:
                 logger.error(f"Error evaluating alert rules: {e}")
 
             # Sleep for 30 seconds before next evaluation
-            await asyncio.sleep(30)
+            await anyio.sleep(30)
 
     async def _evaluate_rules(self):
         """Evaluate all enabled alert rules."""
@@ -528,7 +528,7 @@ class AlertingService:
             await self.save_alerts()
 
             # Sleep for 10 seconds before next iteration
-            await asyncio.sleep(10)
+            await anyio.sleep(10)
 
     async def _send_alert_notifications(self, alert: AlertInstance):
         """

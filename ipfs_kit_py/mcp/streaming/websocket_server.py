@@ -246,7 +246,7 @@ class WebSocketServer:
             if ANYIO_AVAILABLE:
                 await anyio.sleep(self.ping_interval)
             else:
-                await asyncio.sleep(self.ping_interval)
+                await anyio.sleep(self.ping_interval)
     
     async def handle_pong(self, conn_id: str, pong_waiter: asyncio.Future):
         """

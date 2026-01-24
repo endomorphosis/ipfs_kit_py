@@ -373,7 +373,7 @@ def create_vfs_version_parser(subparsers):
         help='Initialize VFS version tracking'
     )
     init_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_vfs_version_command(args))
+        func=lambda args: anyio.run(handle_vfs_version_command(args))
     )
     
     # vfs status
@@ -382,7 +382,7 @@ def create_vfs_version_parser(subparsers):
         help='Show VFS status and recent history'
     )
     status_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_vfs_version_command(args))
+        func=lambda args: anyio.run(handle_vfs_version_command(args))
     )
     
     # vfs commit
@@ -406,7 +406,7 @@ def create_vfs_version_parser(subparsers):
         help='Force commit even if no changes detected'
     )
     commit_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_vfs_version_command(args))
+        func=lambda args: anyio.run(handle_vfs_version_command(args))
     )
     
     # vfs log
@@ -421,7 +421,7 @@ def create_vfs_version_parser(subparsers):
         help='Number of versions to show (default: 10)'
     )
     log_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_vfs_version_command(args))
+        func=lambda args: anyio.run(handle_vfs_version_command(args))
     )
     
     # vfs checkout
@@ -435,7 +435,7 @@ def create_vfs_version_parser(subparsers):
         help='Version CID to checkout'
     )
     checkout_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_vfs_version_command(args))
+        func=lambda args: anyio.run(handle_vfs_version_command(args))
     )
     
     # vfs scan
@@ -454,7 +454,7 @@ def create_vfs_version_parser(subparsers):
         help='Show detailed file listing'
     )
     scan_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_vfs_version_command(args))
+        func=lambda args: anyio.run(handle_vfs_version_command(args))
     )
     
     # vfs auto-commit
@@ -473,12 +473,12 @@ def create_vfs_version_parser(subparsers):
         help='Force commit even if no changes detected'
     )
     auto_commit_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_vfs_version_command(args))
+        func=lambda args: anyio.run(handle_vfs_version_command(args))
     )
     
     # Set default handler for main vfs command
     vfs_parser.set_defaults(
-        func=lambda args: asyncio.run(handle_vfs_version_command(args))
+        func=lambda args: anyio.run(handle_vfs_version_command(args))
     )
     
     return vfs_parser
@@ -534,7 +534,7 @@ if __name__ == "__main__":
         sys.exit(1)
     
     if args.command == 'vfs':
-        exit_code = asyncio.run(handle_vfs_version_command(args))
+        exit_code = anyio.run(handle_vfs_version_command(args))
         sys.exit(exit_code)
     else:
         print(f"Unknown command: {args.command}")

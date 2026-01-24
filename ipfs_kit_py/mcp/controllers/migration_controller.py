@@ -81,7 +81,7 @@ class MigrationController:
                 logger.error(f"Error in migration cleanup task: {e}")
 
             # Sleep for 5 minutes
-            await asyncio.sleep(300)
+            await anyio.sleep(300)
 
     async def verify_backends(self, source_backend: str, target_backend: str) -> Tuple[bool, str]:
         """

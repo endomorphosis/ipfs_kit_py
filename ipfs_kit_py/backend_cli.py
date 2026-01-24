@@ -5,14 +5,8 @@ Backend CLI handlers for IPFS Kit.
 Provides CLI commands for managing backend configurations and pin mappings.
 """
 
-try:
-    import anyio
-    HAS_ANYIO = True
-except ImportError:
-    HAS_ANYIO = False
-    import asyncio
 
-import asyncio
+import anyio
 import json
 from typing import Optional
 

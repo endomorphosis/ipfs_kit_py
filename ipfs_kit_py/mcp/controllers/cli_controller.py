@@ -18,6 +18,7 @@ import yaml
 # Import anyio for cross-backend compatibility
 try:
     import anyio
+import inspect
     import sniffio
     HAS_ANYIO = True
 except ImportError:
@@ -1375,6 +1376,7 @@ class CliController:
                         # Ensure imports are available if HAS_ANYIO is True
                         import sniffio
                         import anyio
+import inspect
                         sniffio.current_async_library() # Now guarded
                         await anyio.to_thread.run_sync(self.api.sync_shutdown) # Now guarded
                     except Exception as e:
@@ -1426,11 +1428,11 @@ class CliController:
                 self.api.sync_shutdown()
             elif hasattr(self.api, "close"):
                 # Try direct call for sync methods
-                if not asyncio.iscoroutinefunction(self.api.close):
+                if not inspect.iscoroutinefunction(self.api.close):
                     self.api.close()
             elif hasattr(self.api, "shutdown"):
                 # Try direct call for sync methods
-                if not asyncio.iscoroutinefunction(self.api.shutdown):
+                if not inspect.iscoroutinefunction(self.api.shutdown):
                     self.api.shutdown()
 
             # For async methods in a sync context, we have limited options

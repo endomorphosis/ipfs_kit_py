@@ -11,15 +11,8 @@ Usage:
 
 from __future__ import annotations
 
-try:
-    import anyio
-    HAS_ANYIO = True
-except ImportError:
-    HAS_ANYIO = False
-    import asyncio
-
+import anyio
 import argparse
-import asyncio
 import importlib.util
 import json
 import os
@@ -218,14 +211,11 @@ class FastCLI:
             if run_method is None:
                 print("No run() method found on Dashboard class"); sys.exit(2)
             # Support both async and sync run() implementations
-            if asyncio.iscoroutinefunction(run_method):
+            import inspect
+            if inspect.iscoroutinefunction(run_method):
                 await run_method()
             else:
-                if HAS_ANYIO:
-                    await anyio.to_thread.run_sync(run_method)
-                else:
-                    loop = asyncio.get_running_loop()
-                    await loop.run_in_executor(None, run_method)
+                await anyio.to_thread.run_sync(run_method)
             return
 
         # background
@@ -498,14 +488,8 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    if HAS_ANYIO:
-        anyio.run(main)
-    else:
-        asyncio.run(main())
+    anyio.run(main)
 
 
 def sync_main():  # pragma: no cover
-    if HAS_ANYIO:
-        return anyio.run(main)
-    else:
-        return asyncio.run(main())
+    return anyio.run(main)

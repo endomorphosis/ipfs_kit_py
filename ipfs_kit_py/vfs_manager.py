@@ -432,7 +432,7 @@ class VFSManager:
                 # Use filesystem directly
                 try:
                     method = getattr(self.api.fs, operation)
-                    if asyncio.iscoroutinefunction(method):
+                    if inspect.iscoroutinefunction(method):
                         return await method(**kwargs)
                     else:
                         return await asyncio.get_event_loop().run_in_executor(
@@ -450,7 +450,7 @@ class VFSManager:
         try:
             method = getattr(self.api, op_name)
             
-            if asyncio.iscoroutinefunction(method):
+            if inspect.iscoroutinefunction(method):
                 return await method(**kwargs)
             else:
                 return await asyncio.get_event_loop().run_in_executor(
