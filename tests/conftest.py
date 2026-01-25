@@ -13,6 +13,8 @@ allowing tests to import `ipfs_kit_py` in editable/installed environments.
 from __future__ import annotations
 
 import importlib.util
+import os
+import signal
 import sys
 from pathlib import Path
 
@@ -50,6 +52,9 @@ def _sanitize_sys_path() -> None:
 
 
 _sanitize_sys_path()
+
+if os.name == "nt" and os.environ.get("IPFS_KIT_TEST_IGNORE_SIGINT", "1") == "1":
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
 def pytest_collectstart(collector):  # noqa: ANN001

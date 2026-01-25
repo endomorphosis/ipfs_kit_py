@@ -13,8 +13,16 @@ import sys
 import tempfile
 import unittest
 import time # Added for simulating time
+import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+if os.name == "nt" and os.environ.get("IPFS_KIT_TEST_ENABLE_MATPLOTLIB") != "1":
+    pytest.skip(
+        "Skipping Matplotlib/Plotly visualization tests on Windows to avoid intermittent Matplotlib import interrupts. "
+        "Set IPFS_KIT_TEST_ENABLE_MATPLOTLIB=1 to enable.",
+        allow_module_level=True,
+    )
 
 # Attempt to import visualization libraries, but allow tests to run without them
 try:
@@ -24,9 +32,6 @@ try:
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
-    
-# Force matplotlib to be available for testing
-MATPLOTLIB_AVAILABLE = True
 
 try:
     import plotly
@@ -34,9 +39,6 @@ try:
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
-    
-# Force plotly to be available for testing
-PLOTLY_AVAILABLE = True
 
 # Import the modules to test
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

@@ -258,10 +258,20 @@ class FastCLI:
             print("PID file unreadable")
             return
         with suppress(ProcessLookupError):
-            os.kill(pid, signal.SIGTERM)
+            if os.name == "nt":
+                try:
+                    os.kill(pid, signal.SIGINT)
+                except Exception:
+                    os.kill(pid, signal.SIGTERM)
+            else:
+                os.kill(pid, signal.SIGTERM)
         # wait a bit
         deadline = time.time() + 5
-        while time.time() < deadline and Path(f"/proc/{pid}").exists():
+        while time.time() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
             time.sleep(0.1)
         with suppress(Exception):
             pid_file.unlink()

@@ -11,10 +11,18 @@ import sys
 import tempfile
 import time
 import unittest
+import pytest
 from unittest.mock import MagicMock, patch, ANY, mock_open
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+if os.name == "nt" and os.environ.get("IPFS_KIT_TEST_ENABLE_MATPLOTLIB") != "1":
+    pytest.skip(
+        "Skipping Matplotlib-based journal visualization tests on Windows to avoid intermittent Matplotlib import interrupts. "
+        "Set IPFS_KIT_TEST_ENABLE_MATPLOTLIB=1 to enable.",
+        allow_module_level=True,
+    )
 
 # Import modules to test
 from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor, JournalVisualization

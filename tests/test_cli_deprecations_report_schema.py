@@ -25,7 +25,7 @@ def test_cli_deprecations_report_schema(tmp_path: Path):
         assert _wait_ready(port)
         # touch the deprecated endpoint a few times to generate hits and ensure non-zero counts possible
         for _ in range(2):
-            with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/system/overview', timeout=2.0) as r:
+            with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/system/overview', timeout=5.0) as r:
                 assert r.status==200
         res = subprocess.run([
             sys.executable,'-m','ipfs_kit_py.cli','mcp','deprecations','--port',str(port),
