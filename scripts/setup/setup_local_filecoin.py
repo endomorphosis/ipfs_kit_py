@@ -314,7 +314,7 @@ EOF
                 file="$1"
                 if [ -f "$file" ]; then
                     random=$(cat /dev/urandom | tr -dc 'a-f0-9' | fold -w 32 | head -n 1)
-                    echo "{\"Cid\":{\"/\":\"bafy2bzace$random\"},\"Size\":$(stat -c%s "$file")}"
+                    echo "{{\"Cid\":{{\"/\":\"bafy2bzace$random\"}},\"Size\":$(stat -c%s \"$file\")}}"
                     exit 0
                 else
                     echo "Error: File not found: $file" >&2
@@ -324,7 +324,7 @@ EOF
             *)
                 # Forward other client commands to the API
                 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $MOCK_API_TOKEN" \\
-                    -d "{\"jsonrpc\":\"2.0\",\"method\":\"Filecoin.Client$subcmd\",\"params\":[],\"id\":1}" \\
+                    -d "{{\"jsonrpc\":\"2.0\",\"method\":\"Filecoin.Client$subcmd\",\"params\":[],\"id\":1}}" \\
                     "$MOCK_API_URL"
                 exit $?
                 ;;
@@ -333,7 +333,7 @@ EOF
     *)
         # Forward other commands to the API
         curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $MOCK_API_TOKEN" \\
-            -d "{\"jsonrpc\":\"2.0\",\"method\":\"Filecoin.$command\",\"params\":[],\"id\":1}" \\
+            -d "{{\"jsonrpc\":\"2.0\",\"method\":\"Filecoin.$command\",\"params\":[],\"id\":1}}" \\
             "$MOCK_API_URL"
         exit $?
         ;;
@@ -455,7 +455,20 @@ def start_mock_server():
 def test_mock_server():
     """Test the Filecoin mock RPC server."""
     try:
-        import requests
+        try:
+            import requests
+        except ModuleNotFoundError:
+            logger.warning("requests not installed; attempting to install...")
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "requests"],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0:
+                logger.warning(f"Failed to install requests: {result.stderr}")
+                return False
+            import importlib
+            requests = importlib.import_module("requests")
         
         # Test health endpoint
         health_response = requests.get(f"http://localhost:{MOCK_PORT}/health")

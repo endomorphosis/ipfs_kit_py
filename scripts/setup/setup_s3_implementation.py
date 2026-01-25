@@ -9,11 +9,16 @@ either existing credentials or creating temporary credentials with proper permis
 import os
 import sys
 import json
-import boto3
 import uuid
 import logging
+import subprocess
+import importlib
 from pathlib import Path
 import configparser
+try:
+    import boto3
+except ModuleNotFoundError:
+    boto3 = None
 
 # Configure logging
 logging.basicConfig(
@@ -21,6 +26,26 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def ensure_boto3():
+    """Ensure boto3 is available."""
+    global boto3
+    if boto3 is not None:
+        return True
+    try:
+        logger.info("Installing boto3...")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "boto3"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            boto3 = importlib.import_module("boto3")
+            return True
+        logger.warning(f"Failed to install boto3: {result.stderr}")
+    except Exception as e:
+        logger.warning(f"Error installing boto3: {e}")
+    return False
 
 AWS_CONFIG_DIR = os.path.expanduser("~/.aws")
 AWS_CREDS_FILE = os.path.join(AWS_CONFIG_DIR, "credentials")
@@ -165,6 +190,9 @@ def setup_local_s3_server():
 
 def create_s3_bucket():
     """Create S3 bucket for testing"""
+    if not ensure_boto3():
+        logger.warning("boto3 is unavailable; skipping S3 bucket creation")
+        return False
     bucket_name = 'ipfs-storage-demo'
     
     try:
@@ -216,7 +244,16 @@ def create_s3_bucket():
 
 def update_mcp_config():
     """Update MCP configuration with the S3 settings"""
-    config_file = os.path.join(os.getcwd(), "mcp_config.sh")
+    repo_root = Path(__file__).resolve().parents[2]
+    config_candidates = [
+        Path(os.getcwd()) / "mcp_config.sh",
+        Path(__file__).resolve().parent / "config" / "mcp_config.sh",
+        repo_root / "scripts" / "setup" / "config" / "mcp_config.sh",
+    ]
+    config_file = next((str(path) for path in config_candidates if path.exists()), None)
+    if not config_file:
+        logger.warning("MCP config file not found. Skipping config update.")
+        return True
     
     try:
         # Read existing file

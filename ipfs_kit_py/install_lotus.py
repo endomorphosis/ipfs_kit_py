@@ -2299,6 +2299,10 @@ if __name__ == "__main__":
         download_url, filename = self.get_download_url(release_info)
         if not download_url:
             logger.warning("No pre-built binary available for this platform")
+            if platform.system() == "Windows" and not os.environ.get("IPFS_KIT_LOTUS_BUILD_SOURCE"):
+                logger.warning("Skipping Lotus source build on Windows. Set IPFS_KIT_LOTUS_BUILD_SOURCE=1 to enable.")
+                self.skipped_no_binary = True
+                return True
             logger.info("Attempting to build Lotus from source...")
             if self.build_lotus_from_source(version):
                 logger.info("Successfully built and installed Lotus from source")
@@ -2313,6 +2317,10 @@ if __name__ == "__main__":
             archive_path = os.path.join(temp_dir, filename)
             if not self.download_file(download_url, archive_path):
                 logger.warning("Failed to download binary, trying build from source...")
+                if platform.system() == "Windows" and not os.environ.get("IPFS_KIT_LOTUS_BUILD_SOURCE"):
+                    logger.warning("Skipping Lotus source build on Windows. Set IPFS_KIT_LOTUS_BUILD_SOURCE=1 to enable.")
+                    self.skipped_no_binary = True
+                    return True
                 if self.build_lotus_from_source(version):
                     logger.info("Successfully built and installed Lotus from source")
                     return True
@@ -2324,6 +2332,10 @@ if __name__ == "__main__":
             if not self.verify_download(archive_path):
                 logger.error("Download verification failed")
                 logger.info("Attempting to build Lotus from source as fallback...")
+                if platform.system() == "Windows" and not os.environ.get("IPFS_KIT_LOTUS_BUILD_SOURCE"):
+                    logger.warning("Skipping Lotus source build on Windows. Set IPFS_KIT_LOTUS_BUILD_SOURCE=1 to enable.")
+                    self.skipped_no_binary = True
+                    return True
                 if self.build_lotus_from_source(version):
                     logger.info("Successfully built and installed Lotus from source")
                     return True
@@ -2337,6 +2349,10 @@ if __name__ == "__main__":
             if not self.extract_archive(archive_path, extract_dir):
                 logger.error("Failed to extract archive")
                 logger.info("Attempting to build Lotus from source as fallback...")
+                if platform.system() == "Windows" and not os.environ.get("IPFS_KIT_LOTUS_BUILD_SOURCE"):
+                    logger.warning("Skipping Lotus source build on Windows. Set IPFS_KIT_LOTUS_BUILD_SOURCE=1 to enable.")
+                    self.skipped_no_binary = True
+                    return True
                 if self.build_lotus_from_source(version):
                     logger.info("Successfully built and installed Lotus from source")
                     return True

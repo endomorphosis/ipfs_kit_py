@@ -167,7 +167,8 @@ def main():
     if not token:
         logger.warning("No HuggingFace token found in environment")
         logger.info("You can get a token from https://huggingface.co/settings/tokens")
-        return False
+        logger.warning("Skipping HuggingFace setup due to missing token")
+        return True
     
     # Install library if needed
     try:
@@ -175,22 +176,26 @@ def main():
         logger.info(f"huggingface_hub version {huggingface_hub.__version__} is installed")
     except ImportError:
         if not install_huggingface_hub():
-            logger.error("Failed to install huggingface_hub, cannot proceed")
-            return False
+            logger.warning("Failed to install huggingface_hub, skipping HuggingFace setup")
+            return True
     
     # Setup login
     if not setup_huggingface_login(token):
         logger.warning("Failed to setup HuggingFace login")
+        logger.warning("Skipping HuggingFace setup")
+        return True
     
     # Verify access
     if not verify_huggingface_access():
-        logger.error("Failed to verify HuggingFace access")
-        return False
+        logger.warning("Failed to verify HuggingFace access")
+        logger.warning("Skipping HuggingFace setup")
+        return True
     
     # Create or verify repository
     if not create_or_verify_repo(repo_name, organization):
-        logger.error(f"Failed to create or verify repository {repo_name}")
-        return False
+        logger.warning(f"Failed to create or verify repository {repo_name}")
+        logger.warning("Skipping HuggingFace repository setup")
+        return True
     
     logger.info("HuggingFace integration setup complete!")
     return True

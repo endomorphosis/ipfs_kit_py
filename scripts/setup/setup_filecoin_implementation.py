@@ -248,7 +248,9 @@ if __name__ == "__main__":
         logger.info("Starting Filecoin mock API server...")
         
         # Use nohup to keep the server running after the script exits
-        with open(os.path.join(os.getcwd(), "logs/filecoin_mock_api.log"), 'w') as log_file:
+        logs_dir = os.path.join(os.getcwd(), "logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        with open(os.path.join(logs_dir, "filecoin_mock_api.log"), 'w') as log_file:
             process = subprocess.Popen(
                 [sys.executable, api_server_path],
                 stdout=log_file,
@@ -273,7 +275,16 @@ if __name__ == "__main__":
 
 def update_mcp_config():
     """Update MCP configuration with the Filecoin settings"""
-    config_file = os.path.join(os.getcwd(), "mcp_config.sh")
+    repo_root = Path(__file__).resolve().parents[2]
+    config_candidates = [
+        Path(os.getcwd()) / "mcp_config.sh",
+        Path(__file__).resolve().parent / "config" / "mcp_config.sh",
+        repo_root / "scripts" / "setup" / "config" / "mcp_config.sh",
+    ]
+    config_file = next((str(path) for path in config_candidates if path.exists()), None)
+    if not config_file:
+        logger.warning("MCP config file not found. Skipping config update.")
+        return True
     
     try:
         # Read existing file

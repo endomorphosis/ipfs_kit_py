@@ -13,7 +13,11 @@ import json
 import subprocess
 import time
 import shutil
-import requests
+import importlib
+try:
+    import requests
+except ModuleNotFoundError:
+    requests = None
 import tempfile
 import platform
 from pathlib import Path
@@ -24,6 +28,26 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def ensure_requests():
+    """Ensure the requests library is available."""
+    global requests
+    if requests is not None:
+        return True
+    try:
+        logger.info("Installing requests...")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "requests"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            requests = importlib.import_module("requests")
+            return True
+        logger.warning(f"Failed to install requests: {result.stderr}")
+    except Exception as e:
+        logger.warning(f"Error installing requests: {e}")
+    return False
 
 # MinIO configuration
 MINIO_PORT = 9000
@@ -56,6 +80,9 @@ def is_minio_installed():
 
 def download_minio():
     """Download MinIO server binary."""
+    if not ensure_requests():
+        logger.warning("requests is unavailable; skipping MinIO download")
+        return None
     system = platform.system().lower()
     machine = platform.machine().lower()
     
@@ -387,6 +414,10 @@ def update_s3_extension():
 def main():
     """Main function to setup local S3 server."""
     logger.info("Setting up local S3 server using MinIO...")
+
+    if platform.system().lower() == "windows":
+        logger.warning("Local MinIO setup is not supported on Windows in this script. Skipping.")
+        return True
     
     # Check if MinIO is installed
     minio_path = find_minio_binary()

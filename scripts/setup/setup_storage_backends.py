@@ -329,7 +329,7 @@ def get_all_backends_status():
     return backends
 """
     
-    with open(impl_file, "w") as f:
+    with open(impl_file, "w", encoding="utf-8") as f:
         f.write(impl_code)
     
     logger.info(f"✅ Created real API implementation at {impl_file}")
@@ -381,6 +381,26 @@ def patch_mcp_server():
                 logger.info(f"Backend {backend}: DISABLED")
         else:
             logger.info(f"Backend {backend}: NOT FOUND")
+
+if __name__ == "__main__":
+    patch_mcp_server()
+"""
+
+    with open(server_patch_file, "w", encoding="utf-8") as f:
+        f.write(server_patch_code)
+
+    os.chmod(server_patch_file, 0o755)
+
+    try:
+        import importlib.util
+        impl_path = Path(impl_file).resolve()
+        spec = importlib.util.spec_from_file_location("real_api_storage_backends", str(impl_path))
+        real_apis = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(real_apis)
+        backends_status = real_apis.get_all_backends_status()
+    except Exception as e:
+        logger.error(f"Failed to load backend status: {e}")
+        return False
     
     # Check if any backend is in real mode and needs patching
     needs_patching = False
@@ -596,7 +616,7 @@ if __name__ == "__main__":
     )
 '''
     
-    with open(server_file, "w") as f:
+    with open(server_file, "w", encoding="utf-8") as f:
         f.write(server_code)
     
     os.chmod(server_file, 0o755)
@@ -604,7 +624,7 @@ if __name__ == "__main__":
 
     # Create startup script
     startup_script = "start_mcp_real_apis.sh"
-    script_content = '''#!/bin/bash
+    script_content = """#!/bin/bash
 # Start MCP server with real API implementations
 
 # Kill existing MCP server processes
@@ -617,9 +637,9 @@ echo $! > mcp_real_apis.pid
 
 echo "MCP Server started with real API implementations (PID: $(cat mcp_real_apis.pid))"
 echo "Log file: mcp_real_apis.log"
-'''
+"""
     
-    with open(startup_script, "w") as f:
+    with open(startup_script, "w", encoding="utf-8") as f:
         f.write(script_content)
     
     os.chmod(startup_script, 0o755)

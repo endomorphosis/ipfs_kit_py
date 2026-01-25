@@ -12,7 +12,11 @@ import sys
 import subprocess
 import platform
 import json
-import requests
+import importlib
+try:
+    import requests
+except ModuleNotFoundError:
+    requests = None
 import time
 import logging
 import shutil
@@ -24,6 +28,26 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def ensure_requests():
+    """Ensure the requests library is available."""
+    global requests
+    if requests is not None:
+        return True
+    try:
+        logger.info("Installing requests...")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "requests"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            requests = importlib.import_module("requests")
+            return True
+        logger.warning(f"Failed to install requests: {result.stderr}")
+    except Exception as e:
+        logger.warning(f"Error installing requests: {e}")
+    return False
 
 # Configuration
 LOTUS_BINARY_DIR = os.path.join(os.getcwd(), "bin", "lotus-bin")

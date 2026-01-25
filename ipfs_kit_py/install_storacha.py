@@ -103,11 +103,51 @@ class install_storacha:
         # Check for Node.js/npm if we're not skipping npm
         if not self.skip_npm:
             if not self._check_npm_installed():
-                logger.warning("npm is not installed. W3 CLI installation will be skipped.")
-                logger.info("To install Node.js and npm, visit: https://nodejs.org/")
-                self.skip_npm = True
+                if platform.system() == "Windows":
+                    self._install_nodejs_windows()
+                if not self._check_npm_installed():
+                    logger.warning("npm is not installed. W3 CLI installation will be skipped.")
+                    logger.info("To install Node.js and npm, visit: https://nodejs.org/")
+                    self.skip_npm = True
         
         logger.info("System dependency check complete")
+
+    def _install_nodejs_windows(self):
+        """Install Node.js/npm on Windows using winget or choco."""
+        try:
+            winget = shutil.which("winget")
+            choco = shutil.which("choco")
+
+            if not winget and not choco:
+                logger.warning("Neither winget nor choco found; cannot auto-install Node.js on Windows")
+                return False
+
+            if winget:
+                cmd = [
+                    winget,
+                    "install",
+                    "--id",
+                    "OpenJS.NodeJS.LTS",
+                    "-e",
+                    "--accept-package-agreements",
+                    "--accept-source-agreements",
+                ]
+            else:
+                cmd = [choco, "install", "nodejs-lts", "-y"]
+
+            logger.info("Installing Node.js (includes npm)...")
+            result = subprocess.run(cmd, check=False, timeout=1200)
+            if result.returncode != 0:
+                logger.warning(f"Node.js install returned exit code {result.returncode}")
+
+            node_bin = os.path.join("C:\\Program Files", "nodejs")
+            if os.path.exists(node_bin) and node_bin not in os.environ.get("PATH", ""):
+                os.environ["PATH"] += ";" + node_bin
+
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to auto-install Node.js on Windows: {e}")
+            return False
     
     def _check_npm_installed(self) -> bool:
         """
@@ -117,8 +157,11 @@ class install_storacha:
             bool: True if npm is installed, False otherwise
         """
         try:
+            npm_cmd = self._get_npm_cmd()
+            if not npm_cmd:
+                return False
             result = subprocess.run(
-                ["npm", "--version"], 
+                [npm_cmd, "--version"], 
                 stdout=subprocess.PIPE, 
                 stderr=subprocess.PIPE, 
                 check=True,
@@ -129,6 +172,36 @@ class install_storacha:
             return True
         except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError):
             return False
+
+    def _get_npm_cmd(self) -> Optional[str]:
+        """Resolve npm command path on all platforms."""
+        npm_cmd = shutil.which("npm") or shutil.which("npm.cmd")
+        if npm_cmd:
+            return npm_cmd
+        candidates = [
+            os.path.join(self.bin_path, "npm.cmd"),
+            os.path.join(self.bin_path, "npm"),
+            os.path.join("C:\\Program Files", "nodejs", "npm.cmd"),
+        ]
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                return candidate
+        return None
+
+    def _get_npx_cmd(self) -> Optional[str]:
+        """Resolve npx command path on all platforms."""
+        npx_cmd = shutil.which("npx") or shutil.which("npx.cmd")
+        if npx_cmd:
+            return npx_cmd
+        candidates = [
+            os.path.join(self.bin_path, "npx.cmd"),
+            os.path.join(self.bin_path, "npx"),
+            os.path.join("C:\\Program Files", "nodejs", "npx.cmd"),
+        ]
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                return candidate
+        return None
     
     def _check_dependency(self, package: str) -> Tuple[bool, Optional[str]]:
         """
@@ -174,7 +247,10 @@ class install_storacha:
         try:
             # Try different commands based on platform
             if platform.system() == "Windows":
-                cmd = ["npx", "--no", "w3", "--version"]
+                npx_cmd = self._get_npx_cmd()
+                if not npx_cmd:
+                    return False, None
+                cmd = [npx_cmd, "--no", "w3", "--version"]
             else:
                 cmd = ["w3", "--version"]
             
@@ -311,7 +387,11 @@ class install_storacha:
             if self.verbose:
                 npm_args.append("--loglevel=verbose")
                 
-            install_cmd = ["npm", "install", "-g", w3_package] + npm_args
+            npm_cmd = self._get_npm_cmd()
+            if not npm_cmd:
+                logger.error("npm is not installed. Please install Node.js and npm first.")
+                return False
+            install_cmd = [npm_cmd, "install", "-g", w3_package] + npm_args
             
             logger.info(f"Running: {' '.join(install_cmd)}")
             subprocess.check_call(install_cmd, timeout=300)  # 5 minute timeout
@@ -372,8 +452,15 @@ class install_storacha:
             try:
                 env = os.environ.copy()
                 env['W3_AGENT_DIR'] = w3_config_dir
-                
-                cmd = ["npx", "w3", "--help"] if platform.system() == "Windows" else ["w3", "--help"]
+
+                if platform.system() == "Windows":
+                    npx_cmd = self._get_npx_cmd()
+                    if not npx_cmd:
+                        logger.error("npx command not found for W3 CLI execution")
+                        return False
+                    cmd = [npx_cmd, "w3", "--help"]
+                else:
+                    cmd = ["w3", "--help"]
                 
                 result = subprocess.run(
                     cmd,

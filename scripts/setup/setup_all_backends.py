@@ -113,6 +113,21 @@ class BackendSetupManager:
             if backend_name == 'synapse':
                 # Handle Synapse SDK installation
                 return self._install_synapse_sdk(installer)
+            elif backend_name == 'ipfs':
+                if hasattr(installer, 'install_ipfs_daemon'):
+                    return bool(installer.install_ipfs_daemon())
+            elif backend_name == 'lotus':
+                if hasattr(installer, 'install_lotus_daemon'):
+                    return bool(installer.install_lotus_daemon())
+            elif backend_name == 'storacha':
+                success = True
+                if hasattr(installer, 'install_storacha_dependencies'):
+                    success = bool(installer.install_storacha_dependencies()) and success
+                if hasattr(installer, 'install_w3_cli'):
+                    w3_success = bool(installer.install_w3_cli())
+                    if not w3_success:
+                        logger.warning("W3 CLI installation skipped or failed; continuing without it")
+                return success
             else:
                 # Handle other backends - try different method names
                 for method_name in ['install', 'run', 'setup']:
@@ -163,9 +178,9 @@ class BackendSetupManager:
                     logger.warning(f"⚠ Node.js installation error: {e}")
             
             # Try to install NPM packages
-            if hasattr(installer, 'install_npm_packages'):
+            if hasattr(installer, 'install_npm_dependencies'):
                 try:
-                    success = installer.install_npm_packages()
+                    success = installer.install_npm_dependencies()
                     if success:
                         logger.info("✓ NPM packages installed")
                     else:

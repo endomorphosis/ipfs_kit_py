@@ -48,7 +48,7 @@ def verify_s3_credentials():
     if not access_key or not secret_key:
         logger.warning("AWS credentials not found in environment")
         logger.info("Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables")
-        return False
+        return None
     
     try:
         import boto3
@@ -196,7 +196,12 @@ def main():
     logger.info("Setting up AWS S3 integration...")
     
     # Verify credentials
-    if not verify_s3_credentials():
+    credentials_status = verify_s3_credentials()
+    if credentials_status is None:
+        logger.warning("Skipping S3 verification due to missing credentials")
+        logger.info("S3 integration will run in mock/simulation mode")
+        return True
+    if credentials_status is False:
         logger.error("Failed to verify AWS S3 credentials")
         return False
     

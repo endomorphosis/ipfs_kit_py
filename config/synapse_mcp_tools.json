@@ -1,0 +1,67 @@
+{
+  "synapse_tools": {
+    "synapse_store_data": {
+      "description": "Store data using Synapse SDK with PDP verification",
+      "parameters": {
+        "data": {
+          "type": "string",
+          "description": "Data to store (base64 encoded)"
+        },
+        "options": {
+          "type": "object",
+          "description": "Storage options"
+        }
+      }
+    },
+    "synapse_retrieve_data": {
+      "description": "Retrieve data using Synapse SDK",
+      "parameters": {
+        "commp": {
+          "type": "string",
+          "description": "Content identifier (CommP)"
+        },
+        "options": {
+          "type": "object",
+          "description": "Retrieval options"
+        }
+      }
+    },
+    "synapse_get_balance": {
+      "description": "Get USDFC token balance",
+      "parameters": {
+        "token": {
+          "type": "string",
+          "description": "Token symbol",
+          "default": "USDFC"
+        }
+      }
+    },
+    "synapse_deposit_funds": {
+      "description": "Deposit funds to Synapse payment contract",
+      "parameters": {
+        "amount": {
+          "type": "string",
+          "description": "Amount to deposit"
+        },
+        "token": {
+          "type": "string",
+          "description": "Token symbol",
+          "default": "USDFC"
+        }
+      }
+    },
+    "synapse_get_storage_info": {
+      "description": "Get storage service information",
+      "parameters": {}
+    },
+    "synapse_get_provider_info": {
+      "description": "Get storage provider information",
+      "parameters": {
+        "provider_address": {
+          "type": "string",
+          "description": "Provider address"
+        }
+      }
+    }
+  }
+}

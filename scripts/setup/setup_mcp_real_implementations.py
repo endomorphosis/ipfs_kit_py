@@ -13,6 +13,7 @@ import time
 import logging
 import signal
 import shutil
+import platform
 from pathlib import Path
 
 # Configure logging
@@ -31,6 +32,10 @@ def check_script_executable(script_path):
 def stop_existing_processes():
     """Stop any existing MCP server and mock API processes"""
     logger.info("Stopping existing processes...")
+
+    if platform.system().lower() == "windows":
+        logger.warning("Process stopping is not supported on Windows in this script. Skipping.")
+        return
     
     # Process names to check
     processes = [
@@ -62,9 +67,11 @@ def run_implementation_scripts():
         "setup_storacha_implementation.py",
         "setup_lassie_implementation.py"
     ]
+
+    script_dir = Path(__file__).resolve().parent
     
     for script in scripts:
-        script_path = os.path.join(os.getcwd(), script)
+        script_path = os.path.join(script_dir, script)
         if os.path.exists(script_path):
             check_script_executable(script_path)
             
@@ -163,6 +170,10 @@ echo "=========================="
 def restart_mcp_server(config_file):
     """Restart the MCP server with the new configuration"""
     logger.info("Restarting MCP server...")
+
+    if platform.system().lower() == "windows":
+        logger.warning("Restarting the MCP server via shell is not supported on Windows in this script. Skipping.")
+        return True
     
     # Ensure logs directory exists
     os.makedirs("logs", exist_ok=True)
@@ -196,7 +207,20 @@ def check_server_health():
     logger.info("Checking MCP server health...")
     
     try:
-        import requests
+        try:
+            import requests
+        except ModuleNotFoundError:
+            logger.warning("requests not installed; attempting to install...")
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "requests"],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0:
+                logger.warning(f"Failed to install requests: {result.stderr}")
+                return False
+            import importlib
+            requests = importlib.import_module("requests")
         
         response = requests.get("http://localhost:9997/api/v0/health", timeout=5)
         

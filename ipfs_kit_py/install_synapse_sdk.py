@@ -23,7 +23,11 @@ import platform
 import subprocess
 import tempfile
 import shutil
-import requests
+import importlib
+try:
+    import requests
+except ModuleNotFoundError:
+    requests = None
 import tarfile
 import zipfile
 import argparse
@@ -36,6 +40,26 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("install_synapse_sdk")
+
+def _ensure_requests() -> bool:
+    """Ensure the requests library is available."""
+    global requests
+    if requests is not None:
+        return True
+    try:
+        logger.info("Installing requests...")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "requests"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            requests = importlib.import_module("requests")
+            return True
+        logger.warning(f"Failed to install requests: {result.stderr}")
+    except Exception as e:
+        logger.warning(f"Error installing requests: {e}")
+    return False
 
 # Synapse SDK NPM package information
 SYNAPSE_SDK_PACKAGE = "@filoz/synapse-sdk"
@@ -415,7 +439,21 @@ class install_synapse_sdk:
             tuple: (is_installed, version)
         """
         try:
-            result = subprocess.run(['npm', '--version'], 
+            npm_cmd = shutil.which('npm') or shutil.which('npm.cmd')
+            if not npm_cmd:
+                npm_candidates = [
+                    os.path.join(self.bin_path, 'npm.cmd'),
+                    os.path.join(self.bin_path, 'npm'),
+                    os.path.join("C:\\Program Files", "nodejs", "npm.cmd"),
+                ]
+                for candidate in npm_candidates:
+                    if os.path.exists(candidate):
+                        npm_cmd = candidate
+                        break
+            if not npm_cmd:
+                return False, None
+
+            result = subprocess.run([npm_cmd, '--version'],
                                   capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
                 version = result.stdout.strip()
@@ -566,6 +604,11 @@ class install_synapse_sdk:
                 shutil.copy2(src_path, dest_path)
                 if self.platform != "windows":
                     os.chmod(dest_path, 0o755)
+
+        # Refresh PATH for this process
+        for candidate in (self.bin_path, os.path.join("C:\\Program Files", "nodejs")):
+            if candidate and os.path.exists(candidate) and candidate not in os.environ.get("PATH", ""):
+                os.environ["PATH"] += os.pathsep + candidate
         
         # Copy lib directory for npm
         if self.platform != "windows":
@@ -647,8 +690,14 @@ class install_synapse_sdk:
         # Check if npm is available
         npm_installed, npm_version = self._check_npm_installed()
         if not npm_installed:
-            logger.error("npm is not available. Please install Node.js first.")
-            return False
+            logger.warning("npm is not available. Attempting to install Node.js/npm...")
+            if not self.install_nodejs():
+                logger.error("npm is not available and Node.js install failed.")
+                return False
+            npm_installed, npm_version = self._check_npm_installed()
+            if not npm_installed:
+                logger.error("npm is still not available after Node.js install.")
+                return False
         
         try:
             # Change to js directory
@@ -656,7 +705,15 @@ class install_synapse_sdk:
             os.chdir(self.js_path)
             
             # Install dependencies
-            cmd = ['npm', 'install']
+            npm_cmd = shutil.which('npm') or shutil.which('npm.cmd')
+            if not npm_cmd:
+                candidate = os.path.join(self.bin_path, 'npm.cmd')
+                if os.path.exists(candidate):
+                    npm_cmd = candidate
+            if not npm_cmd:
+                logger.error("npm command not found after install.")
+                return False
+            cmd = [npm_cmd, 'install']
             if self.verbose:
                 cmd.append('--verbose')
             
@@ -719,6 +776,9 @@ class install_synapse_sdk:
         Returns:
             bool: True if installation successful, False otherwise
         """
+        if not _ensure_requests():
+            logger.error("requests is required to download dependencies")
+            return False
         logger.info("Installing Synapse SDK dependencies...")
         
         # Check and install Node.js

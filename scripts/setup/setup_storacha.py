@@ -12,7 +12,11 @@ import logging
 import json
 import subprocess
 import time
-import requests
+import importlib
+try:
+    import requests
+except ModuleNotFoundError:
+    requests = None
 from pathlib import Path
 
 # Configure logging
@@ -21,6 +25,26 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def ensure_requests():
+    """Ensure the requests library is available."""
+    global requests
+    if requests is not None:
+        return True
+    try:
+        logger.info("Installing requests...")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "requests"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            requests = importlib.import_module("requests")
+            return True
+        logger.warning(f"Failed to install requests: {result.stderr}")
+    except Exception as e:
+        logger.warning(f"Error installing requests: {e}")
+    return False
 
 def install_dependencies():
     """Install required dependencies for Storacha integration."""
@@ -44,6 +68,9 @@ def install_dependencies():
 
 def verify_api_key():
     """Verify the Storacha API key."""
+    if not ensure_requests():
+        logger.warning("requests is unavailable; skipping Storacha API verification")
+        return False
     api_key = os.environ.get("STORACHA_API_KEY")
     api_url = os.environ.get("STORACHA_API_URL", "https://api.storacha.network")
     
@@ -108,6 +135,9 @@ def setup_local_mock():
 
 def test_store_retrieve():
     """Test storing and retrieving data through Storacha."""
+    if not ensure_requests():
+        logger.warning("requests is unavailable; skipping Storacha store/retrieve test")
+        return False
     api_key = os.environ.get("STORACHA_API_KEY")
     api_url = os.environ.get("STORACHA_API_URL", "https://api.storacha.network")
     

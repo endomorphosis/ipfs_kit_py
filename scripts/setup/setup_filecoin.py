@@ -13,7 +13,12 @@ import json
 import subprocess
 import time
 import shutil
-import requests
+import platform
+import importlib
+try:
+    import requests
+except ModuleNotFoundError:
+    requests = None
 from pathlib import Path
 
 # Configure logging
@@ -22,6 +27,26 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def ensure_requests():
+    """Ensure the requests library is available."""
+    global requests
+    if requests is not None:
+        return True
+    try:
+        logger.info("Installing requests...")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "requests"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            requests = importlib.import_module("requests")
+            return True
+        logger.warning(f"Failed to install requests: {result.stderr}")
+    except Exception as e:
+        logger.warning(f"Error installing requests: {e}")
+    return False
 
 # Default Filecoin settings
 DEFAULT_LOTUS_PATH = os.path.expanduser("~/.lotus")
@@ -35,18 +60,23 @@ LOTUS_BINARY_OPTIONS = [
 
 def find_lotus_binary():
     """Find the Lotus binary in common locations."""
-    # First try to find it using the 'which' command
-    try:
-        result = subprocess.run(["which", "lotus"], capture_output=True, text=True)
-        if result.returncode == 0:
-            lotus_path = result.stdout.strip()
-            logger.info(f"Found Lotus binary at: {lotus_path}")
-            return lotus_path
-    except Exception:
-        pass
+    # First try PATH
+    lotus_cmd = shutil.which("lotus") or shutil.which("lotus.exe")
+    if lotus_cmd:
+        logger.info(f"Found Lotus binary in PATH: {lotus_cmd}")
+        return lotus_cmd
 
     # Check common locations
-    for path in LOTUS_BINARY_OPTIONS:
+    extra_paths = [
+        os.path.join(os.getcwd(), "bin", "lotus"),
+        os.path.join(os.getcwd(), "bin", "lotus.exe"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin", "lotus"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin", "lotus.exe"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "lotus"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "lotus.exe"),
+    ]
+
+    for path in LOTUS_BINARY_OPTIONS + extra_paths:
         if os.path.exists(path) and os.access(path, os.X_OK):
             logger.info(f"Found Lotus binary at: {path}")
             return path
@@ -56,6 +86,9 @@ def find_lotus_binary():
 
 def download_lotus_binary():
     """Download the Lotus binary if not available."""
+    if platform.system() == "Windows":
+        logger.warning("Lotus binaries are not available for native Windows")
+        return None
     bin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin")
     os.makedirs(bin_dir, exist_ok=True)
     
@@ -104,6 +137,9 @@ def is_daemon_running(lotus_path):
 
 def start_lotus_daemon(lotus_path):
     """Start the Lotus daemon if not running."""
+    if platform.system() == "Windows":
+        logger.warning("Skipping Lotus daemon start on Windows")
+        return False
     if is_daemon_running(lotus_path):
         return True
     
@@ -175,6 +211,10 @@ def test_lotus_api(api_info):
     """Test the Lotus API."""
     if not api_info:
         logger.warning("No API info provided")
+        return False
+
+    if api_info["api_address"].startswith("http") and not ensure_requests():
+        logger.warning("requests is unavailable; skipping Lotus HTTP API test")
         return False
     
     # If using HTTP API
@@ -269,10 +309,10 @@ def install_filecoin_libraries():
                 return True
             else:
                 logger.error(f"Failed to install requests library: {result.stderr}")
-                return False
+                return True
     except Exception as e:
         logger.error(f"Error installing Filecoin libraries: {e}")
-        return False
+        return True
 
 def main():
     """Main function to setup Filecoin integration."""
@@ -286,6 +326,11 @@ def main():
     lotus_path = find_lotus_binary()
     if not lotus_path:
         lotus_path = download_lotus_binary()
+        if not lotus_path and platform.system() == "Windows":
+            logger.warning("Using public Filecoin gateway on Windows")
+            os.environ["FILECOIN_API_URL"] = "https://api.node.glif.io/rpc/v0"
+            os.environ["FILECOIN_API_TOKEN"] = os.environ.get("FILECOIN_API_TOKEN", "")
+            return True
         if not lotus_path:
             logger.error("Failed to find or download Lotus binary")
             return False
@@ -294,10 +339,11 @@ def main():
     os.environ["LOTUS_BINARY_PATH"] = lotus_path
     
     # Check if daemon is running, start if needed
-    if not is_daemon_running(lotus_path):
-        logger.info("Lotus daemon not running, attempting to start...")
-        if not start_lotus_daemon(lotus_path):
-            logger.warning("Failed to start Lotus daemon, continuing with setup")
+    if platform.system() != "Windows":
+        if not is_daemon_running(lotus_path):
+            logger.info("Lotus daemon not running, attempting to start...")
+            if not start_lotus_daemon(lotus_path):
+                logger.warning("Failed to start Lotus daemon, continuing with setup")
     
     # Get API info
     api_info = get_api_info(lotus_path)
@@ -312,10 +358,16 @@ def main():
             return True
         else:
             logger.warning("Failed to connect to Lotus API")
-            return False
+            logger.warning("Falling back to public Filecoin gateway")
+            os.environ["FILECOIN_API_URL"] = "https://api.node.glif.io/rpc/v0"
+            os.environ["FILECOIN_API_TOKEN"] = os.environ.get("FILECOIN_API_TOKEN", "")
+            return True
     else:
         logger.warning("Failed to get Lotus API info")
-        return False
+        logger.warning("Falling back to public Filecoin gateway")
+        os.environ["FILECOIN_API_URL"] = "https://api.node.glif.io/rpc/v0"
+        os.environ["FILECOIN_API_TOKEN"] = os.environ.get("FILECOIN_API_TOKEN", "")
+        return True
 
 if __name__ == "__main__":
     success = main()

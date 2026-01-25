@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Lassie releases and constants
 LASSIE_GITHUB_URL = "https://github.com/filecoin-project/lassie"
 LASSIE_RELEASES_URL = "https://github.com/filecoin-project/lassie/releases"
-LASSIE_VERSION = "v0.13.0"  # Update this as new versions are released
+LASSIE_VERSION = os.environ.get("LASSIE_VERSION", "v0.24.0")
 
 def find_lassie_binary():
     """Find the Lassie binary in common locations."""
@@ -40,24 +40,22 @@ def find_lassie_binary():
         logger.info(f"Found Lassie binary from environment: {lassie_path}")
         return lassie_path
     
-    # Try to find it using the 'which' command
-    try:
-        result = subprocess.run(["which", "lassie"], capture_output=True, text=True)
-        if result.returncode == 0:
-            lassie_path = result.stdout.strip()
-            logger.info(f"Found Lassie binary using 'which': {lassie_path}")
-            return lassie_path
-    except Exception:
-        pass
+    lassie_cmd = shutil.which("lassie") or shutil.which("lassie.exe")
+    if lassie_cmd:
+        logger.info(f"Found Lassie binary in PATH: {lassie_cmd}")
+        return lassie_cmd
     
     # Check common locations
+    exe_name = "lassie.exe" if platform.system().lower() == "windows" else "lassie"
     common_paths = [
         "/usr/local/bin/lassie",
         "/usr/bin/lassie",
         os.path.expanduser("~/bin/lassie"),
         os.path.expanduser("~/.local/bin/lassie"),
         "./bin/lassie",
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin/lassie")
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin", exe_name),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", exe_name),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "bin", exe_name),
     ]
     
     for path in common_paths:
@@ -98,7 +96,7 @@ def download_lassie_binary():
     bin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin")
     os.makedirs(bin_dir, exist_ok=True)
     
-    lassie_path = os.path.join(bin_dir, "lassie")
+    lassie_path = os.path.join(bin_dir, "lassie.exe" if system == "windows" else "lassie")
     
     # Determine download URL based on system/arch
     # NOTE: This is a placeholder. In reality, you'd need to determine the exact URL format
@@ -108,7 +106,10 @@ def download_lassie_binary():
     # https://github.com/filecoin-project/lassie/releases/download/v0.13.0/lassie_0.13.0_linux_amd64.tar.gz
     
     version_no_v = LASSIE_VERSION.lstrip('v')
-    download_url = f"https://github.com/filecoin-project/lassie/releases/download/{LASSIE_VERSION}/lassie_{version_no_v}_{system}_{arch}.tar.gz"
+    if system == "windows":
+        download_url = f"https://github.com/filecoin-project/lassie/releases/download/{LASSIE_VERSION}/lassie_{version_no_v}_{system}_{arch}.zip"
+    else:
+        download_url = f"https://github.com/filecoin-project/lassie/releases/download/{LASSIE_VERSION}/lassie_{version_no_v}_{system}_{arch}.tar.gz"
     
     logger.info(f"Attempting to download Lassie from: {download_url}")
     
@@ -119,19 +120,24 @@ def download_lassie_binary():
         
         urllib.request.urlretrieve(download_url, temp_path)
         
-        # Extract the tarball
+        # Extract archive
         with tempfile.TemporaryDirectory() as temp_dir:
-            with tarfile.open(temp_path) as tar:
-                tar.extractall(path=temp_dir)
+            if system == "windows":
+                with zipfile.ZipFile(temp_path, 'r') as zip_ref:
+                    zip_ref.extractall(path=temp_dir)
+            else:
+                with tarfile.open(temp_path) as tar:
+                    tar.extractall(path=temp_dir)
             
             # Find the lassie executable in the extracted files
             for root, _, files in os.walk(temp_dir):
                 for file in files:
-                    if file == "lassie" or file == "lassie.exe":
+                    if file in {"lassie", "lassie.exe"}:
                         extracted_path = os.path.join(root, file)
                         # Copy to bin directory
                         shutil.copy(extracted_path, lassie_path)
-                        os.chmod(lassie_path, 0o755)
+                        if system != "windows":
+                            os.chmod(lassie_path, 0o755)
                         logger.info(f"Successfully downloaded and extracted Lassie to {lassie_path}")
                         return lassie_path
         

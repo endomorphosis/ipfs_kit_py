@@ -12,44 +12,26 @@ else
   export HF_MOCK_MODE="true"
 fi
 
-# AWS S3 configuration - check for credentials
-if [ -f ~/.aws/credentials ] || [ -n "$AWS_ACCESS_KEY_ID" ]; then
-  echo "AWS credentials found"
-  # AWS credentials will be loaded from environment or ~/.aws/credentials
-  export AWS_S3_BUCKET_NAME="ipfs-storage-demo"
-else
-  echo "No AWS credentials found, will use mock mode"
-  export AWS_S3_BUCKET_NAME="ipfs-storage-demo"
-  export AWS_ACCESS_KEY_ID="mock_key"
-  export AWS_SECRET_ACCESS_KEY="mock_secret"
-  export AWS_DEFAULT_REGION="us-east-1"
-fi
+# AWS S3 configuration
+# Using real S3 credentials configured by setup script
+export AWS_ACCESS_KEY_ID="None"
+export AWS_SECRET_ACCESS_KEY="None"
+export AWS_DEFAULT_REGION="us-east-1"
+export S3_BUCKET_NAME="ipfs-storage-demo"
+export AWS_ACCESS_KEY_ID="None"
+export AWS_SECRET_ACCESS_KEY="None"
+export AWS_DEFAULT_REGION="us-east-1"
+export S3_BUCKET_NAME="ipfs-storage-demo"
 
 # Filecoin configuration
-if [ -n "$LOTUS_API_TOKEN" ] && [ -n "$LOTUS_API_ENDPOINT" ]; then
-  echo "Lotus API credentials found"
-else
-  echo "No Lotus API credentials found, will use mock mode"
-  export LOTUS_API_TOKEN="mock_token"
-  export LOTUS_API_ENDPOINT="http://localhost:1234/rpc/v0"
-fi
-
-# Storacha configuration
-if [ -n "$STORACHA_API_KEY" ]; then
-  echo "Storacha API key found"
-else
-  echo "No Storacha API key found, will use mock mode"
-  export STORACHA_API_KEY="mock_key"
-fi
-
-# Lassie configuration
-if [ -n "$LASSIE_API_URL" ]; then
-  echo "Lassie API URL found"
-else
-  echo "No Lassie API configuration found, will use mock mode"
-  export LASSIE_API_URL="http://localhost:5000"
-  export LASSIE_ENABLED="true"
-fi
+# Using Filecoin development environment
+export LOTUS_PATH="C:\Users\Admin/.lotus-dev"
+export LOTUS_API_TOKEN="mock-token-for-development"
+export LOTUS_API_ENDPOINT="http://127.0.0.1:1234/rpc/v0"
+export PATH="C:\Users\Admin\ipfs_kit_py\bin:$PATH"
+# Using Lassie local development API
+export LASSIE_API_URL="http://localhost:5432"
+export LASSIE_ENABLED="true"
 
 # Fix any permissions issues in the directories
 chmod -R 755 ~/.ipfs_kit 2>/dev/null || true

@@ -1,47 +1,4 @@
 #!/usr/bin/env python3
-"""
-Storacha Implementation Setup for MCP Server
-
-This script sets up a working Storacha implementation for the MCP server
-by creating a local service that implements the Storacha API.
-"""
-
-import os
-import sys
-import json
-import logging
-import subprocess
-import time
-import uuid
-from pathlib import Path
-import http.server
-import socketserver
-import threading
-import shutil
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# Constants
-STORACHA_PORT = 5678
-STORACHA_MOCK_DIR = os.path.expanduser("~/.ipfs_kit/mock_storacha")
-STORACHA_API_KEY = f"storacha-dev-{uuid.uuid4().hex[:8]}"
-
-def setup_storacha_mock_server():
-    """Set up a mock Storacha API server"""
-    try:
-        # Create directory for Storacha mock data
-        os.makedirs(STORACHA_MOCK_DIR, exist_ok=True)
-        
-        # Create a mock Storacha server
-        server_path = os.path.join(os.getcwd(), "storacha_mock_server.py")
-        
-        with open(server_path, 'w') as f:
-            f.write(f"""#!/usr/bin/env python3
 import http.server
 import socketserver
 import json
@@ -55,9 +12,9 @@ from urllib.parse import urlparse, parse_qs
 import subprocess
 
 # Configure port
-PORT = {STORACHA_PORT}
-MOCK_DIR = "{STORACHA_MOCK_DIR}"
-API_KEY = "{STORACHA_API_KEY}"
+PORT = 5678
+MOCK_DIR = "C:\Users\Admin/.ipfs_kit/mock_storacha"
+API_KEY = "storacha-dev-517d29a1"
 
 # Create directories
 os.makedirs(MOCK_DIR, exist_ok=True)
@@ -79,12 +36,12 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            status = {{
+            status = {
                 "status": "ok",
                 "version": "1.0.0-mock",
                 "uptime": int(time.time()),
                 "message": "Storacha Mock API is running"
-            }}
+            }
             self.wfile.write(json.dumps(status).encode('utf-8'))
         
         elif url.path.startswith('/v1/download/'):
@@ -121,9 +78,9 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
                         self.end_headers()
                         self.wfile.write(result.stdout)
                     else:
-                        self.send_error(404, f"CID not found: {{result.stderr.decode('utf-8')}}")
+                        self.send_error(404, f"CID not found: {result.stderr.decode('utf-8')}")
                 except Exception as e:
-                    self.send_error(500, f"Error: {{str(e)}}")
+                    self.send_error(500, f"Error: {str(e)}")
         
         elif url.path == '/v1/list':
             # List files in the mock storage
@@ -133,20 +90,20 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
             for filename in os.listdir(uploads_dir):
                 if os.path.isfile(os.path.join(uploads_dir, filename)):
                     stat = os.stat(os.path.join(uploads_dir, filename))
-                    files.append({{
+                    files.append({
                         "cid": filename,
                         "name": filename,
                         "size": stat.st_size,
                         "uploaded_at": stat.st_mtime
-                    }})
+                    })
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({{
+            self.wfile.write(json.dumps({
                 "files": files,
                 "count": len(files)
-            }}).encode('utf-8'))
+            }).encode('utf-8'))
         
         else:
             self.send_error(404, "Endpoint not found")
@@ -165,7 +122,7 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
             post_data = self.rfile.read(content_length)
             
             # Generate a file ID (simulating CID)
-            file_id = f"mock{{uuid.uuid4().hex}}"
+            file_id = f"mock{uuid.uuid4().hex}"
             
             # Store the file
             file_path = os.path.join(MOCK_DIR, "uploads", file_id)
@@ -175,7 +132,7 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
             # Also store in IPFS to get a real CID
             try:
                 # Create a temporary file
-                temp_file = os.path.join(MOCK_DIR, f"temp_{{uuid.uuid4().hex}}")
+                temp_file = os.path.join(MOCK_DIR, f"temp_{uuid.uuid4().hex}")
                 with open(temp_file, 'wb') as f:
                     f.write(post_data)
                 
@@ -196,19 +153,19 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
                     os.rename(file_path, os.path.join(MOCK_DIR, "uploads", real_cid))
                     file_id = real_cid
             except Exception as e:
-                print(f"Error adding to IPFS: {{e}}")
+                print(f"Error adding to IPFS: {e}")
             
             # Return response
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             
-            response = {{
+            response = {
                 "success": True,
                 "cid": file_id,
                 "size": len(post_data),
                 "timestamp": time.time()
-            }}
+            }
             
             self.wfile.write(json.dumps(response).encode('utf-8'))
         
@@ -236,25 +193,25 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
                     self.send_header('Content-type', 'application/json')
                     self.end_headers()
                     
-                    response = {{
+                    response = {
                         "success": True,
                         "cid": cid,
                         "pinned": True,
                         "timestamp": time.time()
-                    }}
+                    }
                     
                     self.wfile.write(json.dumps(response).encode('utf-8'))
                 else:
-                    self.send_error(500, f"Failed to pin CID: {{result.stderr}}")
+                    self.send_error(500, f"Failed to pin CID: {result.stderr}")
             except Exception as e:
-                self.send_error(500, f"Error: {{str(e)}}")
+                self.send_error(500, f"Error: {str(e)}")
         
         else:
             self.send_error(404, "Endpoint not found")
 
 def run_server():
     with socketserver.TCPServer(("", PORT), StorachaMockHandler) as httpd:
-        print(f"Storacha mock API server running at port {{PORT}}")
+        print(f"Storacha mock API server running at port {PORT}")
         httpd.serve_forever()
 
 if __name__ == "__main__":
@@ -264,7 +221,7 @@ if __name__ == "__main__":
     server_thread.start()
     
     print("Mock Storacha API server started. Press Ctrl+C to stop.")
-    print(f"API Key: {{API_KEY}}")
+    print(f"API Key: {API_KEY}")
     
     try:
         # Keep the main thread alive
@@ -273,109 +230,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("Shutting down mock Storacha API server")
         sys.exit(0)
-""")
-        
-        # Make it executable
-        os.chmod(server_path, 0o755)
-        
-        logger.info(f"Created Storacha mock API server at: {server_path}")
-        
-        # Start the mock API server in the background
-        logger.info("Starting Storacha mock API server...")
-        
-        # Use nohup to keep the server running after the script exits
-        with open(os.path.join(os.getcwd(), "logs/storacha_mock_api.log"), 'w') as log_file:
-            process = subprocess.Popen(
-                [sys.executable, server_path],
-                stdout=log_file,
-                stderr=subprocess.STDOUT,
-                start_new_session=True
-            )
-        
-        # Wait for the server to start
-        time.sleep(2)
-        
-        logger.info(f"Storacha mock API server started with PID {process.pid}")
-        
-        # Save the PID for later
-        with open(os.path.join(os.getcwd(), "storacha_mock_api.pid"), 'w') as f:
-            f.write(str(process.pid))
-        
-        # Set environment variables
-        os.environ['STORACHA_API_KEY'] = STORACHA_API_KEY
-        os.environ['STORACHA_API_URL'] = f"http://localhost:{STORACHA_PORT}"
-        
-        return True
-    
-    except Exception as e:
-        logger.error(f"Error setting up Storacha mock API server: {e}")
-        return False
-
-def update_mcp_config():
-    """Update MCP configuration with the Storacha settings"""
-    repo_root = Path(__file__).resolve().parents[2]
-    config_candidates = [
-        Path(os.getcwd()) / "mcp_config.sh",
-        Path(__file__).resolve().parent / "config" / "mcp_config.sh",
-        repo_root / "scripts" / "setup" / "config" / "mcp_config.sh",
-    ]
-    config_file = next((str(path) for path in config_candidates if path.exists()), None)
-    if not config_file:
-        logger.warning("MCP config file not found. Skipping config update.")
-        return True
-    
-    try:
-        # Read existing file
-        with open(config_file, 'r') as f:
-            lines = f.readlines()
-        
-        # Find Storacha section and update it
-        storacha_section_start = -1
-        storacha_section_end = -1
-        
-        for i, line in enumerate(lines):
-            if "# Storacha configuration" in line:
-                storacha_section_start = i
-            elif storacha_section_start > -1 and "fi" in line and storacha_section_end == -1:
-                storacha_section_end = i
-        
-        if storacha_section_start > -1 and storacha_section_end > -1:
-            # Create new Storacha configuration
-            new_storacha_config = [
-                "# Storacha configuration\n",
-                "# Using Storacha local development API\n",
-                f"export STORACHA_API_KEY=\"{STORACHA_API_KEY}\"\n",
-                f"export STORACHA_API_URL=\"http://localhost:{STORACHA_PORT}\"\n"
-            ]
-            
-            # Replace the section
-            lines[storacha_section_start:storacha_section_end+1] = new_storacha_config
-            
-            # Write updated file
-            with open(config_file, 'w') as f:
-                f.writelines(lines)
-            
-            logger.info(f"Updated MCP configuration file with Storacha settings")
-            return True
-        else:
-            logger.error("Could not find Storacha section in MCP configuration file")
-            return False
-    
-    except Exception as e:
-        logger.error(f"Error updating MCP configuration: {e}")
-        return False
-
-def main():
-    """Main function"""
-    logger.info("Setting up Storacha implementation for MCP Server")
-    
-    # Set up Storacha mock API server
-    if setup_storacha_mock_server():
-        # Update MCP configuration
-        update_mcp_config()
-    
-    logger.info("Storacha implementation setup complete")
-    logger.info("Restart the MCP server to apply changes")
-
-if __name__ == "__main__":
-    main()

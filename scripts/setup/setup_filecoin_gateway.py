@@ -12,7 +12,12 @@ import subprocess
 import json
 import logging
 import time
-import requests
+import platform
+import importlib
+try:
+    import requests
+except ModuleNotFoundError:
+    requests = None
 from pathlib import Path
 
 # Configure logging
@@ -21,6 +26,26 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def ensure_requests():
+    """Ensure the requests library is available."""
+    global requests
+    if requests is not None:
+        return True
+    try:
+        logger.info("Installing requests...")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "requests"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            requests = importlib.import_module("requests")
+            return True
+        logger.warning(f"Failed to install requests: {result.stderr}")
+    except Exception as e:
+        logger.warning(f"Error installing requests: {e}")
+    return False
 
 # Constants
 LOTUS_HOME = os.path.expanduser("~/.lotus-gateway")
@@ -77,6 +102,10 @@ def setup_gateway():
 def test_gateway(api_url, token):
     """Test if the gateway is responding"""
     logger.info(f"Testing gateway at {api_url}...")
+
+    if not ensure_requests():
+        logger.warning("requests is unavailable; skipping gateway test")
+        return False
     
     headers = {
         "Content-Type": "application/json"
@@ -216,7 +245,7 @@ except:
             FAKE_CID="bafybeig$(openssl rand -hex 16)"
             
             # Return a simulated response
-            echo "{\\\"Cid\\\":{\\\"\/\\\":\\\"$FAKE_CID\\\"},\\\"Size\\\":$SIZE,\\\"Note\\\":\\\"This is a simulated import via gateway\\\"}"
+            echo "{{\\\"Cid\\\":{{\\\"\/\\\":\\\"$FAKE_CID\\\"}},\\\"Size\\\":$SIZE,\\\"Note\\\":\\\"This is a simulated import via gateway\\\"}}"
             exit 0
         else
             # Format JSON RPC request
@@ -434,6 +463,10 @@ def update_mcp_config():
 def restart_mcp_server():
     """Restart the MCP server with the new configuration"""
     logger.info("Restarting MCP server...")
+
+    if platform.system().lower() == "windows":
+        logger.warning("Restarting MCP server via shell is not supported on Windows in this script. Skipping.")
+        return True
     
     try:
         # Stop any running MCP server
