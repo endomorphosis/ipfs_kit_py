@@ -38,6 +38,7 @@ class BackendSetupManager:
         self.verbose = verbose
         self.project_root = project_root
         self.ipfs_kit_dir = os.path.join(project_root, "ipfs_kit_py")
+        self._deps_installed = False
         
         # Define backend configurations
         self.backends = {
@@ -72,6 +73,12 @@ class BackendSetupManager:
         if backend_name not in self.backends:
             logger.error(f"Unknown backend: {backend_name}")
             return False
+
+        # Ensure Python dependencies are installed before backend setup
+        if not self._deps_installed:
+            if not self._install_python_dependencies():
+                logger.error("❌ Failed to install Python dependencies")
+                return False
         
         backend_config = self.backends[backend_name]
         logger.info(f"\n{'='*60}")
@@ -237,6 +244,11 @@ class BackendSetupManager:
     def setup_all_backends(self):
         """Setup all backends."""
         logger.info("🚀 Setting up all filesystem backends...")
+
+        if not self._deps_installed:
+            if not self._install_python_dependencies():
+                logger.error("❌ Failed to install Python dependencies")
+                return False
         
         results = {}
         for backend_name in self.backends.keys():
@@ -263,6 +275,43 @@ class BackendSetupManager:
             logger.warning("⚠ Some backends failed to setup. Check logs above.")
         
         return success_count == len(self.backends)
+
+    def _install_python_dependencies(self):
+        """Install Python dependencies required for all backends."""
+        req_files = [
+            Path(self.project_root) / "requirements.txt",
+            Path(self.project_root) / "config" / "requirements.txt",
+        ]
+        existing = [p for p in req_files if p.exists()]
+        if not existing:
+            logger.warning("⚠ No requirements files found; skipping dependency installation")
+            self._deps_installed = True
+            return True
+
+        logger.info("📦 Installing Python dependencies...")
+        pip_cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "pip"]
+        try:
+            subprocess.run(pip_cmd, check=False, capture_output=not self.verbose, text=True)
+        except Exception as e:
+            logger.warning(f"⚠ pip upgrade failed: {e}")
+
+        for req_file in existing:
+            cmd = [sys.executable, "-m", "pip", "install", "-r", str(req_file)]
+            try:
+                result = subprocess.run(cmd, check=False, capture_output=not self.verbose, text=True)
+                if result.returncode != 0:
+                    if self.verbose:
+                        logger.error(result.stdout)
+                        logger.error(result.stderr)
+                    logger.error(f"❌ Failed to install dependencies from {req_file}")
+                    return False
+                logger.info(f"✓ Dependencies installed from {req_file}")
+            except Exception as e:
+                logger.error(f"❌ Dependency installation error for {req_file}: {e}")
+                return False
+
+        self._deps_installed = True
+        return True
     
     def test_integrations(self):
         """Test backend integrations."""
