@@ -753,6 +753,10 @@ class install_lotus:
         
         # Detect operating system
         os_name = platform.system().lower()
+
+        if os_name == "windows":
+            logger.info("Windows platform detected; skipping Lotus system dependency checks")
+            return True
         
         # Define dependencies by OS
         dependencies = {

@@ -27,6 +27,7 @@ import signal
 import sys
 import time
 import traceback
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Set
@@ -48,8 +49,8 @@ from .dashboard.websocket_manager import WebSocketManager
 from .setup import SetupManager
 
 # Configure logging with enhanced log directory
-log_dir = Path("/tmp/ipfs_kit_logs")
-log_dir.mkdir(exist_ok=True)
+log_dir = Path(os.environ.get("IPFS_KIT_LOG_DIR", Path(tempfile.gettempdir()) / "ipfs_kit_logs"))
+log_dir.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,

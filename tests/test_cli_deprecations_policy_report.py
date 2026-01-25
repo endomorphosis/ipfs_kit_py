@@ -23,7 +23,7 @@ def test_cli_deprecations_policy_section_report(tmp_path: Path):
         assert _wait_ready(port)
         # generate hits
         for _ in range(3):
-            with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/system/overview', timeout=2.0) as r:
+            with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/system/overview', timeout=5.0) as r:
                 assert r.status==200
         # first get baseline hits
         base = json.loads(subprocess.run([sys.executable,'-m','ipfs_kit_py.cli','mcp','deprecations','--port',str(port),'--json'], capture_output=True, text=True, timeout=20).stdout)

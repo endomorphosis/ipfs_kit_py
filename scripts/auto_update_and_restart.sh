@@ -32,26 +32,30 @@ fi
 # Ensure git operations are performed from repo dir
 cd "$REPO_DIR"
 
-echo "Fetching origin..."
-"${SUDO_PREFIX[@]}" git fetch origin --prune
-
-# Checkout or create branch tracking origin/known_good
-if "${SUDO_PREFIX[@]}" git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
-  echo "Checking out $BRANCH"
-  "${SUDO_PREFIX[@]}" git checkout "$BRANCH"
+if [ "${SKIP_GIT:-0}" = "1" ]; then
+  echo "SKIP_GIT=1 set; skipping git fetch/checkout/pull"
 else
-  echo "Creating local branch $BRANCH tracking origin/$BRANCH"
-  "${SUDO_PREFIX[@]}" git checkout -b "$BRANCH" --track "origin/$BRANCH" || {
-    echo "Failed to create local branch $BRANCH; aborting"
+  echo "Fetching origin..."
+  "${SUDO_PREFIX[@]}" git fetch origin --prune
+
+  # Checkout or create branch tracking origin/known_good
+  if "${SUDO_PREFIX[@]}" git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
+    echo "Checking out $BRANCH"
+    "${SUDO_PREFIX[@]}" git checkout "$BRANCH"
+  else
+    echo "Creating local branch $BRANCH tracking origin/$BRANCH"
+    "${SUDO_PREFIX[@]}" git checkout -b "$BRANCH" --track "origin/$BRANCH" || {
+      echo "Failed to create local branch $BRANCH; aborting"
+      exit 1
+    }
+  fi
+
+  echo "Pulling latest from origin/$BRANCH"
+  "${SUDO_PREFIX[@]}" git pull --ff-only origin "$BRANCH" || {
+    echo "Fast-forward pull failed, aborting to avoid merge commits"
     exit 1
   }
 fi
-
-echo "Pulling latest from origin/$BRANCH"
-"${SUDO_PREFIX[@]}" git pull --ff-only origin "$BRANCH" || {
-  echo "Fast-forward pull failed, aborting to avoid merge commits"
-  exit 1
-}
 
 # Install package (editable) with extras so deployments are zero-touch
 # and do not miss optional runtime dependencies.

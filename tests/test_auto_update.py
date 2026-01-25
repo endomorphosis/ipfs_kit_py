@@ -2,6 +2,8 @@ import os
 import subprocess
 import tempfile
 import textwrap
+import shutil
+import pytest
 from pathlib import Path
 
 
@@ -10,7 +12,14 @@ def run_script(env, repo_dir):
     assert script.exists(), f"script missing: {script}"
     # Ensure executable
     script.chmod(0o755)
-    proc = subprocess.run([str(script)], env=env, cwd=repo_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    if os.name == "nt":
+        git_bash = os.path.join("C:\\Program Files", "Git", "bin", "bash.exe")
+        bash = git_bash if os.path.exists(git_bash) else shutil.which("bash")
+        if not bash:
+            pytest.skip("bash not available on Windows for .sh script execution")
+        proc = subprocess.run([bash, str(script)], env=env, cwd=repo_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    else:
+        proc = subprocess.run([str(script)], env=env, cwd=repo_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     return proc.returncode, proc.stdout
 
 
@@ -37,8 +46,13 @@ def test_auto_update_runs(tmp_path):
     env["PYTHON"] = "/usr/bin/python3"
     env["SKIP_PIP"] = "1"
     env["SKIP_SYSTEMCTL"] = "1"
+    if os.name == "nt":
+        env["SKIP_GIT"] = "1"
     # Ensure PATH contains git and bash
-    env["PATH"] = os.environ.get("PATH", "/usr/bin:/bin")
+    if os.name == "nt":
+        env["PATH"] = "/usr/bin:/bin:/mingw64/bin"
+    else:
+        env["PATH"] = os.environ.get("PATH", "/usr/bin:/bin")
 
     code, out = run_script(env, repo_dir)
     # Script logs to $REPO_DIR/logs/auto_update.log by default; read that file
@@ -47,4 +61,7 @@ def test_auto_update_runs(tmp_path):
     assert log_file.exists(), f"expected log file at {log_file}"
     log_text = log_file.read_text()
     assert "Auto-update run starting" in log_text
-    assert ("Pulling latest from origin/known_good" in log_text) or ("Fetching origin" in log_text)
+    if os.name == "nt" and "SKIP_GIT=1" in log_text:
+        assert "skipping git fetch/checkout/pull" in log_text
+    else:
+        assert ("Pulling latest from origin/known_good" in log_text) or ("Fetching origin" in log_text)

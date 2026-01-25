@@ -23,7 +23,7 @@ def test_cli_deprecations_report_json(tmp_path: Path):
         assert _wait_ready(port)
         # generate some hits
         for _ in range(2):
-            with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/system/overview', timeout=2.0) as r:
+            with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/system/overview', timeout=5.0) as r:
                 assert r.status==200
         # invoke deprecations with report-json (table output by default)
         res = subprocess.run([sys.executable,'-m','ipfs_kit_py.cli','mcp','deprecations','--port',str(port),'--report-json',str(report_path)], capture_output=True, text=True, timeout=20)

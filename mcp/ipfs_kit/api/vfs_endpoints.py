@@ -15,6 +15,7 @@ import shutil
 from pathlib import Path
 import stat
 import os
+import tempfile
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 
@@ -49,8 +50,9 @@ except ImportError as e:
     route_reader = None
 
 # VFS root directory for file operations
-VFS_ROOT = Path("/tmp/vfs")
-VFS_ROOT.mkdir(exist_ok=True)
+_vfs_root_env = os.environ.get("VFS_ROOT")
+VFS_ROOT = Path(_vfs_root_env) if _vfs_root_env else Path(tempfile.gettempdir()) / "vfs"
+VFS_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 class VFSEndpoints:

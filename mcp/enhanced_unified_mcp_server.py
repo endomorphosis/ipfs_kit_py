@@ -28,8 +28,8 @@ from pathlib import Path
 from collections import defaultdict, deque
 
 # Configure logging
-log_dir = Path("/tmp/ipfs_kit_logs")
-log_dir.mkdir(exist_ok=True)
+log_dir = Path(os.environ.get("IPFS_KIT_LOG_DIR", Path(tempfile.gettempdir()) / "ipfs_kit_logs"))
+log_dir.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
