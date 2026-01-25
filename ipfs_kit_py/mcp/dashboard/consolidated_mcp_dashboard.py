@@ -591,6 +591,7 @@ class ConsolidatedMCPDashboard:
         # In library/test contexts, registering signal handlers that call sys.exit()
         # can cause pytest to crash during interruption or failure reporting.
         _running_under_pytest = bool(os.environ.get("PYTEST_CURRENT_TEST")) or ("pytest" in sys.modules)
+        _fast_init = bool(os.environ.get("IPFS_KIT_FAST_INIT"))
         if not _running_under_pytest:
             with suppress(Exception):
                 signal.signal(signal.SIGTERM, lambda *_: (_persist_hits(), sys.exit(0)))
@@ -629,7 +630,18 @@ class ConsolidatedMCPDashboard:
                 with suppress(Exception):
                     self._cleanup_pid_file()
 
-        self.app = FastAPI(title="IPFS Kit MCP Dashboard", version="1.0", lifespan=_lifespan)
+        @asynccontextmanager
+        async def _fast_lifespan(app: FastAPI):  # noqa: D401
+            with suppress(Exception):
+                self._write_pid_file()
+            try:
+                yield
+            finally:
+                with suppress(Exception):
+                    self._cleanup_pid_file()
+
+        lifespan_handler = _fast_lifespan if _fast_init else _lifespan
+        self.app = FastAPI(title="IPFS Kit MCP Dashboard", version="1.0", lifespan=lifespan_handler)
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -864,9 +876,41 @@ class ConsolidatedMCPDashboard:
     # --- Run helpers (restored) ---
     async def run(self) -> None:
         """Run the dashboard with uvicorn inside current asyncio loop."""
-        config = uvicorn.Config(self.app, host=self.host, port=self.port, log_level="info", reload=False)
+        config = uvicorn.Config(
+            self.app,
+            host=self.host,
+            port=self.port,
+            log_level="info",
+            reload=False,
+            lifespan="off",
+        )
         server = uvicorn.Server(config)
-        await server.serve()
+        with suppress(Exception):
+            self._write_pid_file()
+        with suppress(Exception):
+            if self._hits_file.exists():
+                data = _read_json(self._hits_file, {})
+                if isinstance(data, dict):
+                    self.endpoint_hits.update({k: int(v) for k, v in data.items() if isinstance(k, str)})
+        with suppress(Exception):
+            if self._realtime_task is None:
+                self._realtime_task = asyncio.create_task(self._broadcast_loop())
+        try:
+            await server.serve()
+        finally:
+            if self._realtime_task:
+                self._realtime_task.cancel()
+                try:
+                    await self._realtime_task
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    pass
+                self._realtime_task = None
+            with suppress(Exception):
+                _atomic_write_json(self._hits_file, self.endpoint_hits)
+            with suppress(Exception):
+                self._cleanup_pid_file()
 
     def run_sync(self) -> None:  # pragma: no cover - integration helper
         """Synchronous convenience wrapper used by __main__ path."""

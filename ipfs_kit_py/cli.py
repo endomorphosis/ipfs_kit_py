@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import anyio
 import argparse
+import asyncio
 import importlib.util
 import json
 import os
@@ -132,12 +133,19 @@ class FastCLI:
         if not args.command:
             self.parser.print_help(); sys.exit(2)
 
-        # Initialize backend configuration for CLI usage
-        try:
-            from ipfs_kit_py.backend_config import initialize_backend_config
-            initialize_backend_config(log_status=False)
-        except Exception:
-            pass
+        # Initialize backend configuration for CLI usage when needed.
+        # Skip for MCP start/stop/status/deprecations to keep startup fast for readiness checks.
+        skip_backend_init = False
+        if args.command == "mcp":
+            mcp_action = getattr(args, "mcp_action", None)
+            if mcp_action in {"start", "stop", "status", "deprecations"}:
+                skip_backend_init = True
+        if not skip_backend_init:
+            try:
+                from ipfs_kit_py.backend_config import initialize_backend_config
+                initialize_backend_config(log_status=False)
+            except Exception:
+                pass
         
         # Handle both mcp_action and daemon_action
         if args.command == "mcp":
@@ -163,6 +171,15 @@ class FastCLI:
         debug = bool(getattr(args, "debug", False))
         data_dir = Path(getattr(args, "data_dir", str(Path.home() / ".ipfs_kit"))).expanduser()
         data_dir.mkdir(parents=True, exist_ok=True)
+        pytest_env_markers = (
+            "PYTEST_CURRENT_TEST",
+            "PYTEST_ADDOPTS",
+            "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+            "PYTEST_VERSION",
+            "PYTEST_XDIST_WORKER",
+        )
+        if any(os.environ.get(key) for key in pytest_env_markers):
+            os.environ.setdefault("IPFS_KIT_FAST_INIT", "1")
 
         def detect_server_file() -> Optional[Path]:
             # explicit
@@ -256,10 +273,25 @@ class FastCLI:
         if debug:
             cmd.append("--debug")
         env = os.environ.copy()
+        if os.environ.get("IPFS_KIT_FAST_INIT"):
+            env.setdefault("IPFS_KIT_FAST_INIT", "1")
         env["IPFS_KIT_SERVER_FILE"] = str(server_file)
         try:
+            creationflags = 0
+            start_new_session = True
+            if os.name == "nt":
+                creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+                start_new_session = False
             with open(log_file, "ab", buffering=0) as lf:
-                proc = subprocess.Popen(cmd, stdout=lf, stderr=lf, cwd=server_file.parent, start_new_session=True, env=env)
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=lf,
+                    stderr=lf,
+                    cwd=server_file.parent,
+                    start_new_session=start_new_session,
+                    creationflags=creationflags,
+                    env=env,
+                )
         except Exception as e:
             print(f"Failed to launch: {e}"); sys.exit(1)
         # Immediately write our own pid file for management
@@ -607,9 +639,18 @@ async def main() -> None:
     await cli.run()
 
 
+def _configure_event_loop_policy() -> None:
+    if os.name != "nt":
+        return
+    with suppress(Exception):
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
 if __name__ == "__main__":
+    _configure_event_loop_policy()
     anyio.run(main)
 
 
 def sync_main():  # pragma: no cover
+    _configure_event_loop_policy()
     return anyio.run(main)
