@@ -244,7 +244,7 @@ def test_async_streaming():
     logger.info("Testing async streaming...")
     
     try:
-        import asyncio
+        import anyio
         from ipfs_kit_py.mcp.async_streaming import (
             open_async_stream_manager, AsyncChunkedFileReader, AsyncChunkedFileWriter
         )

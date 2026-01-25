@@ -13,7 +13,7 @@ The coordinator handles workflows tagged for P2P execution, distributing them
 across the network based on resource availability and peer distance.
 """
 
-import asyncio
+import anyio
 import hashlib
 import json
 import logging

@@ -9,11 +9,12 @@ Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
 """
 
 import logging
-import asyncio
+import anyio
 from fastapi import FastAPI, APIRouter
 
 from ipfs_kit_py.mcp.auth.security_dashboard import router as security_router
 from ipfs_kit_py.mcp.auth.security_dashboard import get_security_analyzer
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

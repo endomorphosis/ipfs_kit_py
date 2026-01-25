@@ -5,9 +5,10 @@ This model encapsulates IPFS operations and provides a clean interface
 for the controller to interact with the IPFS functionality.
 """
 
-import asyncio
+import anyio
 import logging
 import uuid
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 
 # Utility class for handling asyncio operations in different contexts

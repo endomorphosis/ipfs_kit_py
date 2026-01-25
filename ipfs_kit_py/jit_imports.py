@@ -412,7 +412,7 @@ class JITImports:
         try:
             import multiprocessing
             import concurrent.futures
-            import asyncio
+            import anyio
             import threading
             return True
         except ImportError:

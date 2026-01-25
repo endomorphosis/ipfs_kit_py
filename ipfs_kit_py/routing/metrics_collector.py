@@ -11,7 +11,7 @@ import json
 import time
 import sqlite3
 import logging
-import asyncio
+import anyio
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Union, Tuple
 from pathlib import Path
@@ -873,3 +873,4 @@ class RoutingMetricsCollector:
 
 # Add missing imports
 import random
+# NOTE: This file contains asyncio.create_task() calls that need task group context

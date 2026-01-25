@@ -9,7 +9,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, Union
 import threading
-import asyncio
+import anyio
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field

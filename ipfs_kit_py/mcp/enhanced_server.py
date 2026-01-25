@@ -6,7 +6,7 @@ while adapting to the MCP protocol. It maintains the CLI's extensive feature set
 providing efficient metadata reading and allowing the daemon to manage synchronization.
 """
 
-import asyncio
+import anyio
 import logging
 import os
 import sys

@@ -7,7 +7,7 @@ while adapting to the MCP protocol requirements.
 """
 
 import sys
-import asyncio
+import anyio
 from pathlib import Path
 
 # Add the project root to Python path

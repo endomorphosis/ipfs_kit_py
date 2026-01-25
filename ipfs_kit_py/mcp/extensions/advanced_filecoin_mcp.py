@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 import anyio
 # Import the advanced Filecoin client
 from ipfs_kit_py.advanced_filecoin_client import AdvancedFilecoinClient
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -296,7 +297,7 @@ class AdvancedFilecoinMCP:
     async def start_background_tasks(self):
         """Start background tasks for monitoring and maintenance."""
         # Note: FastAPI startup events still use asyncio.create_task
-        import asyncio
+        import anyio
         asyncio.create_task(self._monitor_deals_health())
         asyncio.create_task(self._update_network_stats())
         logger.info("Started advanced Filecoin background tasks")
@@ -340,7 +341,7 @@ class AdvancedFilecoinMCP:
         
         # Start background tasks
         # Note: FastAPI startup events still use asyncio.create_task
-        import asyncio
+        import anyio
         asyncio.create_task(self.start_background_tasks())
         
         logger.info("Integrated advanced Filecoin features with MCP server")

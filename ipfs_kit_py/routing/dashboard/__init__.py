@@ -5,7 +5,7 @@ This module provides a simplified interface for creating and running
 the routing dashboard as a standalone application.
 """
 
-import asyncio
+import anyio
 import logging
 from typing import Dict, Any, Optional, Union
 from pathlib import Path

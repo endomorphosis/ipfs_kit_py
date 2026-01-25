@@ -13,7 +13,7 @@ to provide deeper integration with the MCP architecture.
 
 import logging
 import time
-import asyncio
+import anyio
 import uuid
 from typing import Dict, Any, Optional, Tuple
 
@@ -25,6 +25,7 @@ from ipfs_kit_py.mcp.models.migration import (
 )
 from ipfs_kit_py.mcp.persistence.migration_store import MigrationStore
 from ipfs_kit_py.mcp.persistence.policy_store import PolicyStore
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

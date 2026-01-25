@@ -4,7 +4,7 @@ Simple Bucket CLI handlers.
 Uses the SimpleBucketManager for clean VFS index-based operations.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from pathlib import Path

@@ -10,9 +10,10 @@ as specified in the MCP roadmap Q2 2025 priorities:
 
 import logging
 import time
-import asyncio
+import anyio
 import io
 from typing import Dict, List, Any, Optional, Union, BinaryIO, Tuple
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

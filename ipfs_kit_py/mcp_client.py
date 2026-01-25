@@ -1,5 +1,5 @@
 
-import asyncio
+import anyio
 import json
 
 class MCPClient:

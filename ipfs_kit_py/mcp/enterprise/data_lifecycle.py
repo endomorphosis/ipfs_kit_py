@@ -20,7 +20,7 @@ import json
 import time
 import uuid
 import threading
-import asyncio
+import anyio
 from enum import Enum
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Any, Set, Union, Tuple, Callable

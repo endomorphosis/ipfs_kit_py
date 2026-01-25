@@ -9,6 +9,7 @@ import logging
 import time
 import sniffio
 import uuid
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -158,6 +159,7 @@ class StorageManagerAnyIO:
             # We're in an async context, but being called synchronously
             logger.warning(
                 f"Storage Manager shutdown called synchronously in async context ({backend})"
+            )
 
             if backend == "asyncio":
                 # For asyncio, we can use run_until_complete
@@ -168,6 +170,7 @@ class StorageManagerAnyIO:
                     if loop.is_running():
                         logger.warning(
                             "Cannot use run_until_complete in a running loop, using manual shutdown"
+                        )
                         # Fall through to manual cleanup
                     else:
                         # We can use run_until_complete
@@ -190,7 +193,7 @@ class StorageManagerAnyIO:
 
             # Define a helper function for async shutdown
             def run_async_in_background():
-                import asyncio
+                import anyio
 
                 async def _run_async():
                     try:
@@ -290,7 +293,7 @@ class StorageManagerAnyIO:
                 "models": list(self.models.keys()),
                 "model_count": len(self.models),
                 "correlation_id": self.correlation_id,
-}
+            },
             "models": {},
         }
 
@@ -300,6 +303,7 @@ class StorageManagerAnyIO:
                 # Check for async stats method
                 if hasattr(model, "get_stats_async") and callable(
                     getattr(model, "get_stats_async")
+                ):
                     model_stats = await model.get_stats_async()
                 # Check for sync stats method
                 elif hasattr(model, "get_stats") and callable(getattr(model, "get_stats")):
@@ -321,7 +325,7 @@ class StorageManagerAnyIO:
                 "models": list(self.models.keys()),
                 "model_count": len(self.models),
                 "correlation_id": self.correlation_id,
-}
+            },
             "models": {},
         }
 

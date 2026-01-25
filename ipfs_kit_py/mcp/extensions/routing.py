@@ -9,7 +9,7 @@ import os
 import time
 import json
 import logging
-import asyncio
+import anyio
 import threading
 import random
 import ipaddress

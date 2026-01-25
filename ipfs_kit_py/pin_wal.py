@@ -6,7 +6,7 @@ This module provides a specialized WAL for pin operations using CAR files
 instead of JSON files for better IPFS integration and performance.
 """
 
-import asyncio
+import anyio
 import json
 import os
 import time

@@ -18,7 +18,7 @@ import os
 import json
 import time
 import logging
-import asyncio
+import anyio
 from typing import Dict, List, Any, Optional, Union, Callable
 
 from fastapi import FastAPI, Request, Response, Depends, HTTPException, status

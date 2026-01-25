@@ -6,7 +6,7 @@ through gRPC, without protobuf dependencies or version conflicts.
 """
 
 import json
-import asyncio
+import anyio
 import logging
 from datetime import datetime
 from typing import Dict, List, Any, Optional

@@ -13,7 +13,7 @@ Key Features:
 - Cache management and optimization
 """
 
-import asyncio
+import anyio
 import logging
 import time
 import shutil
@@ -127,9 +127,7 @@ class VFSManager:
     async def _initialize_ipfs_api(self):
         """Initialize the IPFS API."""
         try:
-            self.api = await asyncio.get_event_loop().run_in_executor(
-                None, IPFSSimpleAPI
-            )
+            self.api = await anyio.to_thread.run_sync(IPFSSimpleAPI)
             logger.info("✓ IPFS Simple API initialized")
         except Exception as e:
             logger.warning(f"IPFS API initialization failed: {e}")
@@ -139,13 +137,10 @@ class VFSManager:
         """Initialize the enhanced pin metadata index."""
         try:
             if self.api and hasattr(self.api, 'fs'):
-                self.pin_index = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: get_global_pin_metadata_index(ipfs_filesystem=self.api.fs)
+                self.pin_index = await anyio.to_thread.run_sync(lambda: get_global_pin_metadata_index(ipfs_filesystem=self.api.fs)
                 )
             else:
-                self.pin_index = await asyncio.get_event_loop().run_in_executor(
-                    None, get_global_pin_metadata_index
-                )
+                self.pin_index = await anyio.to_thread.run_sync(get_global_pin_metadata_index)
             
             # Start background services if available
             if hasattr(self.pin_index, 'start_background_services'):
@@ -166,9 +161,7 @@ class VFSManager:
             return
         
         try:
-            self.arrow_metadata_index = await asyncio.get_event_loop().run_in_executor(
-                None, ArrowMetadataIndex
-            )
+            self.arrow_metadata_index = await anyio.to_thread.run_sync(ArrowMetadataIndex)
             logger.info("✓ Arrow metadata index initialized")
         except Exception as e:
             logger.warning(f"Arrow metadata index initialization failed: {e}")
@@ -177,9 +170,7 @@ class VFSManager:
     async def _initialize_filesystem_journal(self):
         """Initialize the filesystem journal."""
         try:
-            self.filesystem_journal = await asyncio.get_event_loop().run_in_executor(
-                None, FilesystemJournal
-            )
+            self.filesystem_journal = await anyio.to_thread.run_sync(FilesystemJournal)
             logger.info("✓ Filesystem journal initialized")
         except Exception as e:
             logger.warning(f"Filesystem journal initialization failed: {e}")
@@ -284,9 +275,7 @@ class VFSManager:
             if self.pin_index:
                 # This would normally access the pin index but might hit database locks
                 logger.warning("Attempting direct pin index access (may encounter database locks)")
-                pins_data = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: []  # Placeholder - actual implementation would query pin index
-                )
+                pins_data = await anyio.to_thread.run_sync(lambda: [])  # Placeholder - actual implementation would query pin index
                 
                 return {
                     "success": True,
@@ -490,10 +479,8 @@ class VFSManager:
             
             # Log to filesystem journal
             if self.filesystem_journal:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: self.filesystem_journal.log_operation(
-                        "mkdir", full_path, {"parent": path, "name": name}
-                    )
+                await anyio.to_thread.run_sync(lambda: self.filesystem_journal.log_operation(
+                        "mkdir", full_path, {"parent": path, "name": name})
                 )
             
             return {
@@ -513,10 +500,8 @@ class VFSManager:
             
             # Log to filesystem journal
             if self.filesystem_journal:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: self.filesystem_journal.log_operation(
-                        "rm", path, {"action": "delete"}
-                    )
+                await anyio.to_thread.run_sync(lambda: self.filesystem_journal.log_operation(
+                        "rm", path, {"action": "delete"})
                 )
             
             return {
@@ -540,10 +525,8 @@ class VFSManager:
             
             # Log to filesystem journal
             if self.filesystem_journal:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: self.filesystem_journal.log_operation(
-                        "rename", old_path, {"new_name": new_name, "new_path": new_path}
-                    )
+                await anyio.to_thread.run_sync(lambda: self.filesystem_journal.log_operation(
+                        "rename", old_path, {"new_name": new_name, "new_path": new_path})
                 )
             
             return {
@@ -564,10 +547,8 @@ class VFSManager:
             
             # Log to filesystem journal
             if self.filesystem_journal:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: self.filesystem_journal.log_operation(
-                        "move", source_path, {"target_path": target_path}
-                    )
+                await anyio.to_thread.run_sync(lambda: self.filesystem_journal.log_operation(
+                        "move", source_path, {"target_path": target_path})
                 )
             
             return {
@@ -625,9 +606,7 @@ class VFSManager:
         # Get enhanced pin metrics
         if self.pin_index:
             try:
-                cli_metrics = await asyncio.get_event_loop().run_in_executor(
-                    None, get_cli_pin_metrics
-                )
+                cli_metrics = await anyio.to_thread.run_sync(get_cli_pin_metrics)
                 
                 if 'error' not in cli_metrics:
                     stats.update({
@@ -710,8 +689,7 @@ class VFSManager:
             
             # Get tier analytics from enhanced pin index
             if hasattr(self.pin_index, 'get_comprehensive_metrics'):
-                tier_info = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: self.pin_index.get_comprehensive_metrics()
+                tier_info = await anyio.to_thread.run_sync(lambda: self.pin_index.get_comprehensive_metrics()
                 )
                 
                 return {
@@ -757,8 +735,7 @@ class VFSManager:
         
         try:
             if self.pin_index and hasattr(self.pin_index, 'get_performance_metrics'):
-                metrics = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: self.pin_index.get_performance_metrics()
+                metrics = await anyio.to_thread.run_sync(lambda: self.pin_index.get_performance_metrics()
                 )
                 return {"success": True, "cache_stats": metrics}
             else:
@@ -834,8 +811,7 @@ class VFSManager:
             
             # Get entries from filesystem journal
             if self.filesystem_journal:
-                journal_entries = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: self.filesystem_journal.get_recent_entries(limit=limit)
+                journal_entries = await anyio.to_thread.run_sync(lambda: self.filesystem_journal.get_recent_entries(limit=limit)
                 )
                 entries.extend(journal_entries)
             
@@ -843,8 +819,7 @@ class VFSManager:
             if self.pin_index and hasattr(self.pin_index, 'journal'):
                 journal = self.pin_index.journal
                 if journal:
-                    pin_entries = await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: journal.get_recent_entries(limit=limit)
+                    pin_entries = await anyio.to_thread.run_sync(lambda: journal.get_recent_entries(limit=limit)
                     )
                     entries.extend(pin_entries)
             
@@ -876,9 +851,7 @@ class VFSManager:
                 await self.pin_index.stop_background_services()
             
             if self.filesystem_journal and hasattr(self.filesystem_journal, 'close'):
-                await asyncio.get_event_loop().run_in_executor(
-                    None, self.filesystem_journal.close
-                )
+                await anyio.to_thread.run_sync(self.filesystem_journal.close)
             
             self.initialized = False
             logger.info("VFS Manager cleaned up")

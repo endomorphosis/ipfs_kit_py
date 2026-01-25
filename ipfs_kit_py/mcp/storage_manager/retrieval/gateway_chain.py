@@ -7,7 +7,7 @@ content with automatic failover and performance tracking.
 
 import logging
 import time
-import asyncio
+import anyio
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urljoin
 

@@ -7,7 +7,7 @@ services tab, replacing the incorrect "cars", "docker", "kubectl" services with
 actual storage and daemon services that ipfs_kit_py manages.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os

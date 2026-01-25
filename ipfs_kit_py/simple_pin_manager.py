@@ -9,7 +9,7 @@ This implements the correct PIN architecture matching the bucket system:
 - Simple append-only operations using CAR WAL manager
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os

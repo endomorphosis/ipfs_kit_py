@@ -11,7 +11,7 @@ IPFS content addressing. Features include:
 5. Content-addressable storage for all files and metadata
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os

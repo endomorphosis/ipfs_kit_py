@@ -5,7 +5,7 @@ This module provides comprehensive peer discovery, management, and remote data a
 capabilities using the ipfs_kit_py libp2p stack. It serves as the canonical source
 for all peer-related operations across the system.
 """
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -231,16 +231,12 @@ class Libp2pPeerManager:
     
     async def _bootstrap_from_sources(self):
         """Bootstrap peers from IPFS and cluster sources."""
-        bootstrap_tasks = []
-        
-        if self.config["bootstrap_from_ipfs"]:
-            bootstrap_tasks.append(self.bootstrap_from_ipfs())
-        
-        if self.config["bootstrap_from_cluster"]:
-            bootstrap_tasks.append(self.bootstrap_from_cluster())
-        
-        if bootstrap_tasks:
-            await asyncio.gather(*bootstrap_tasks, return_exceptions=True)
+        async with anyio.create_task_group() as tg:
+            if self.config["bootstrap_from_ipfs"]:
+                tg.start_soon(self.bootstrap_from_ipfs)
+            
+            if self.config["bootstrap_from_cluster"]:
+                tg.start_soon(self.bootstrap_from_cluster)
     
     async def bootstrap_from_ipfs(self):
         """Bootstrap peers from IPFS swarm."""
@@ -290,16 +286,26 @@ class Libp2pPeerManager:
         except Exception as e:
             logger.warning(f"Failed to bootstrap from cluster: {e}")
     
-    async def start_discovery(self):
-        """Start continuous peer discovery."""
+    async def start_discovery(self, task_group=None):
+        """
+        Start continuous peer discovery.
+        
+        Args:
+            task_group: Optional anyio task group. If provided, starts discovery loop
+                       in the task group. If not provided, caller is responsible for
+                       starting _discovery_loop() in their own task group.
+        """
         if self.discovery_active:
             return
         
         self.discovery_active = True
         self.stats["discovery_active"] = True
         
-        # Start discovery task
-        asyncio.create_task(self._discovery_loop())
+        # Start discovery task if task_group provided
+        if task_group:
+            task_group.start_soon(self._discovery_loop)
+        else:
+            logger.info("Discovery activated - caller should start _discovery_loop() in a task group")
         
         logger.info("Peer discovery started")
     
@@ -321,21 +327,17 @@ class Libp2pPeerManager:
     
     async def _discover_peers(self):
         """Discover new peers using various methods."""
-        discovery_tasks = []
-        
-        # DHT discovery
-        if self.dht_discovery:
-            discovery_tasks.append(self._discover_via_dht())
-        
-        # GossipSub discovery
-        if self.gossipsub:
-            discovery_tasks.append(self._discover_via_gossipsub())
-        
-        # Bootstrap peer connections
-        discovery_tasks.append(self._discover_via_bootstrap())
-        
-        if discovery_tasks:
-            await asyncio.gather(*discovery_tasks, return_exceptions=True)
+        async with anyio.create_task_group() as tg:
+            # DHT discovery
+            if self.dht_discovery:
+                tg.start_soon(self._discover_via_dht)
+            
+            # GossipSub discovery
+            if self.gossipsub:
+                tg.start_soon(self._discover_via_gossipsub)
+            
+            # Bootstrap peer connections
+            tg.start_soon(self._discover_via_bootstrap)
         
         # Update statistics
         await self._update_stats()

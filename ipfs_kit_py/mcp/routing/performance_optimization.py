@@ -13,11 +13,12 @@ import time
 import hashlib
 import logging
 import functools
-import asyncio
+import anyio
 import inspect
 from typing import Dict, Any, List, Tuple, Optional, Union, Callable
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)

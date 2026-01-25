@@ -6,7 +6,7 @@ transfer of large content using asyncio.
 """
 
 import os
-import asyncio
+import anyio
 import logging
 from typing import Dict, List, Any, Optional, AsyncIterator, Set, Union
 from pathlib import Path
@@ -19,6 +19,7 @@ import hashlib
 from contextlib import asynccontextmanager
 
 from ipfs_kit_py.mcp.streaming import (
+# NOTE: This file contains asyncio.create_task() calls that need task group context
     StreamStatus, StreamDirection, StreamType, StreamOperation, 
     DEFAULT_CHUNK_SIZE, DEFAULT_BUFFER_SIZE, DEFAULT_PROGRESS_INTERVAL,
     StreamProgress
@@ -58,8 +59,9 @@ class AsyncStreamManager:
         # Wait for progress task to complete
         if self._progress_task:
             try:
-                await asyncio.wait_for(self._progress_task, timeout=2.0)
-            except asyncio.TimeoutError:
+                with anyio.fail_after(2.0):
+                    await self._progress_task
+            except TimeoutError:
                 logger.warning("Timed out waiting for progress task")
         
         # Cancel all active streams

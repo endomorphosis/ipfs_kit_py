@@ -11,7 +11,7 @@ This implementation combines:
 - All original MCP functionality restored
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os

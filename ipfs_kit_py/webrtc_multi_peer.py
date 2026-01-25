@@ -25,6 +25,7 @@ import time
 import uuid
 from enum import Enum
 from typing import Dict, List, Set, Optional, Any, Tuple
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 try:
     from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription, RTCIceCandidate

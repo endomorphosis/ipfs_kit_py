@@ -5,7 +5,7 @@ This module implements the core High Availability functionality
 as specified in the MCP roadmap for Phase 2: Enterprise Features (Q4 2025).
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -18,6 +18,7 @@ from typing import Any, Callable, Dict, List, Optional
 import aiohttp
 from fastapi import BackgroundTasks, FastAPI
 from pydantic import BaseModel, Field
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

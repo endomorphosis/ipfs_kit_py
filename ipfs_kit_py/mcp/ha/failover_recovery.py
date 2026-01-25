@@ -5,12 +5,13 @@ This module provides failover recovery capabilities for the MCP high availabilit
 cluster, implementing robust recovery procedures after a primary node failure.
 """
 
-import asyncio
+import anyio
 import logging
 import time
 import uuid
 from enum import Enum
 from typing import Dict, List, Optional, Any, Callable, Awaitable, Tuple
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)

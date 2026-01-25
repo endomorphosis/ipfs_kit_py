@@ -17,7 +17,7 @@ import os
 import json
 import time
 import logging
-import asyncio
+import anyio
 import threading
 from enum import Enum
 from typing import Dict, List, Any, Optional, Union, Tuple, Set
@@ -35,6 +35,7 @@ from .routing.adaptive_optimizer import (
 )
 from .routing.router_api import router as routing_api_router
 from .routing.data_router import ContentAnalyzer
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)

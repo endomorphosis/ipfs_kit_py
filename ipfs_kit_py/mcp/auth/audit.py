@@ -9,11 +9,12 @@ import logging
 import time
 import json
 import os
-import asyncio
+import anyio
 from datetime import datetime
 from typing import Any, Dict, Optional, Union, List, Counter
 import enum
 import aiofiles
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Create a dedicated logger for audit events
 _audit_logger = logging.getLogger("ipfs_kit_py.mcp.auth.audit")

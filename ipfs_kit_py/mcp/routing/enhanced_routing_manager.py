@@ -9,7 +9,7 @@ resource consumption.
 import os
 import time
 import logging
-import asyncio
+import anyio
 import tracemalloc
 from typing import Dict, Any, List, Optional, Union, Tuple, Set, Callable
 
@@ -17,6 +17,7 @@ from .routing_manager import (
     RoutingManager, RoutingManagerSettings, get_routing_manager
 )
 from .performance_optimization import (
+# NOTE: This file contains asyncio.create_task() calls that need task group context
     RoutingDecisionCache, ContentSignatureCalculator, BatchProcessor,
     ConnectionPool, performance_metrics, measure_routing_performance,
     initialize_performance_optimizations, shutdown_performance_optimizations

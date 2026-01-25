@@ -7,7 +7,7 @@ while adapting to the MCP protocol. It efficiently reads metadata from ~/.ipfs_k
 and delegates to the intelligent daemon for backend synchronization.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -91,6 +91,7 @@ from .controllers.mcp_storage_controller import MCPStorageController
 from .controllers.mcp_vfs_controller import MCPVFSController
 
 import psutil
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 

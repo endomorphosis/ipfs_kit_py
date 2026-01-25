@@ -10,7 +10,7 @@ This module provides a metadata-driven, efficient daemon management system that:
 5. Uses threading for efficient operations
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import threading

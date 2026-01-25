@@ -5,12 +5,13 @@ This module provides failover detection capabilities for the MCP high availabili
 cluster, implementing smart failure detection using various strategies.
 """
 
-import asyncio
+import anyio
 import logging
 import time
 import math
 from enum import Enum
 from typing import Dict, List, Optional, Set, Any, Callable, Awaitable
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)

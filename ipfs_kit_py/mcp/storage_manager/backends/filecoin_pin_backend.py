@@ -191,7 +191,7 @@ class FilecoinPinBackend(BackendStorage):
                     response = anyio.from_thread.run(_post)
                 except ImportError:
                     # Fallback to asyncio
-                    import asyncio
+                    import anyio
                     try:
                         loop = asyncio.get_event_loop()
                     except RuntimeError:
@@ -268,7 +268,7 @@ class FilecoinPinBackend(BackendStorage):
                             
                             response = anyio.from_thread.run(_get)
                         except ImportError:
-                            import asyncio
+                            import anyio
                             try:
                                 loop = asyncio.get_event_loop()
                             except RuntimeError:
@@ -340,7 +340,7 @@ class FilecoinPinBackend(BackendStorage):
                     
                     response = anyio.from_thread.run(_delete)
                 except ImportError:
-                    import asyncio
+                    import anyio
                     try:
                         loop = asyncio.get_event_loop()
                     except RuntimeError:
@@ -405,7 +405,7 @@ class FilecoinPinBackend(BackendStorage):
                     
                     response = anyio.from_thread.run(_get)
                 except ImportError:
-                    import asyncio
+                    import anyio
                     try:
                         loop = asyncio.get_event_loop()
                     except RuntimeError:
@@ -480,7 +480,7 @@ class FilecoinPinBackend(BackendStorage):
                     
                     response = anyio.from_thread.run(_get)
                 except ImportError:
-                    import asyncio
+                    import anyio
                     try:
                         loop = asyncio.get_event_loop()
                     except RuntimeError:

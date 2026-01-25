@@ -12,7 +12,7 @@ Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
 """
 
 import logging
-import asyncio
+import anyio
 import time
 import statistics
 import heapq

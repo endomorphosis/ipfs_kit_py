@@ -1,7 +1,7 @@
 """Content Verification System."""
 
 import logging
-import asyncio
+import anyio
 from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)

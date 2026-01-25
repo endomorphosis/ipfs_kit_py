@@ -612,7 +612,7 @@ async def cmd_resource_traffic(args):
             print("Press Ctrl+C to stop monitoring...")
             
             try:
-                import asyncio
+                import anyio
                 start_time = time.time()
                 
                 while time.time() - start_time < args.duration:

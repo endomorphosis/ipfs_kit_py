@@ -13,6 +13,7 @@ from typing import Dict, List, Any, Optional
 # Import FastAPI components
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Import anyio with fallback
 try:

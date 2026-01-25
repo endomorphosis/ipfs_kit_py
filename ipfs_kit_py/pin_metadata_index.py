@@ -31,13 +31,14 @@ import sys
 import time
 import json
 import logging
-import asyncio
+import anyio
 import threading
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union, Tuple
 from dataclasses import dataclass, asdict
 from collections import deque
 import tempfile
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # DuckDB and analytics imports
 try:
@@ -1314,7 +1315,7 @@ def get_cli_pin_metrics() -> Dict[str, Any]:
 
 if __name__ == "__main__":
     # Simple test/demo
-    import asyncio
+    import anyio
     
     async def demo():
         print("🚀 Enhanced Pin Metadata Index Demo")

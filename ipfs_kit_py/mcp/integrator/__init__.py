@@ -4,7 +4,7 @@ MCP Server Integrator Package
 This package contains modules for integrating various components with the MCP server.
 """
 
-import asyncio
+import anyio
 import logging
 from typing import Dict, Any, Optional
 

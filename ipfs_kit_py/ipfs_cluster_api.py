@@ -3,7 +3,7 @@ IPFS Cluster REST API client for both cluster service and cluster follow.
 Implements the REST API as documented at https://ipfscluster.io/documentation/reference/api/
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import httpx

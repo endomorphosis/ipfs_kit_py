@@ -20,6 +20,7 @@ import hashlib
 import json
 from functools import lru_cache
 import weakref
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -495,7 +496,7 @@ class ApiKeyValidator:
             # without blocking the current request
             if hasattr(self.auth_service, 'update_api_key_last_used'):
                 # Don't await - fire and forget to update last_used
-                import asyncio
+                import anyio
                 asyncio.create_task(
                     self.auth_service.update_api_key_last_used(key_data.get("id"))
                 )

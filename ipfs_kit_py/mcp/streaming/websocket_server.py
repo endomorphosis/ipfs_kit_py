@@ -6,7 +6,7 @@ notifications system, addressing the WebSocket Integration requirements
 in the MCP roadmap, particularly the 'Connection management with automatic recovery' component.
 """
 
-import asyncio
+import anyio
 import logging
 import json
 import time
@@ -23,6 +23,7 @@ except ImportError:
     ANYIO_AVAILABLE = False
 
 from .websocket_notifications import get_ws_manager, EventType
+# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logger
 logger = logging.getLogger(__name__)
