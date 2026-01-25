@@ -55,6 +55,13 @@ class MCPServer:
         self.controllers = {}
         self.models = {}
         
+        # Ensure backend configuration is initialized for MCP server usage
+        try:
+            from ipfs_kit_py.backend_config import initialize_backend_config
+            initialize_backend_config(log_status=True)
+        except Exception:
+            pass
+
         self._initialize_logging()
         self._initialize_models()
         self._initialize_controllers()

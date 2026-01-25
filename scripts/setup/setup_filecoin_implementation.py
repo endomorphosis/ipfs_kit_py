@@ -25,9 +25,14 @@ logger = logging.getLogger(__name__)
 def check_lotus_installation():
     """Check if Lotus is installed"""
     try:
-        result = subprocess.run(['which', 'lotus'], 
-                              capture_output=True, 
-                              text=True)
+        if os.name == "nt":
+            result = subprocess.run(['where', 'lotus'], 
+                                  capture_output=True, 
+                                  text=True)
+        else:
+            result = subprocess.run(['which', 'lotus'], 
+                                  capture_output=True, 
+                                  text=True)
         
         if result.returncode == 0:
             lotus_path = result.stdout.strip()
@@ -51,10 +56,84 @@ def install_lotus_dev_environment():
         lotus_bin_dir = os.path.join(os.getcwd(), "bin")
         os.makedirs(lotus_bin_dir, exist_ok=True)
         
-        lotus_mock_path = os.path.join(lotus_bin_dir, "lotus")
-        
+        lotus_name = "lotus.cmd" if os.name == "nt" else "lotus"
+        lotus_mock_path = os.path.join(lotus_bin_dir, lotus_name)
+
         with open(lotus_mock_path, 'w') as f:
-            f.write("""#!/bin/bash
+            if os.name == "nt":
+                f.write("""@echo off
+rem Mock Lotus implementation for development (Windows)
+set LOTUS_DIR=%USERPROFILE%\\.lotus-dev
+if not exist "%LOTUS_DIR%" mkdir "%LOTUS_DIR%"
+
+if "%1"=="daemon" (
+    if "%2"=="--help" (
+        echo Mock Lotus daemon help
+        echo   --network mocknet
+        exit /b 0
+    )
+    if "%2"=="-h" (
+        echo Mock Lotus daemon help
+        echo   --network mocknet
+        exit /b 0
+    )
+    echo Mock Lotus daemon running
+    :daemon_loop
+    timeout /t 60 >nul
+    goto daemon_loop
+)
+
+if "%1"=="--version" (
+    echo lotus version 1.23.0-dev+mock
+    exit /b 0
+)
+
+if "%1"=="version" (
+    echo lotus version 1.23.0-dev+mock
+    exit /b 0
+)
+if "%1"=="id" (
+    echo {\"ID\": \"12D3KooWMock1MockFilecoinPeerID12345678\", \"Addresses\": [\"mock-address\"]}
+    exit /b 0
+)
+if "%1"=="auth" (
+    if "%2"=="id" (
+        echo 12D3KooWMockFilecoinNodeID
+        exit /b 0
+    )
+    if "%2"=="api-info" (
+        echo FULLNODE_API_INFO=mocktokenstring:/ip4/127.0.0.1/tcp/1234/http
+        exit /b 0
+    )
+)
+if "%1"=="chain" (
+    if "%2"=="head" (
+        echo {\"Cids\": [{\"/'\":{\"Data\":\"mock-data\",\"Links\":[]}}], \"Blocks\": [], \"Height\": 123456}
+        exit /b 0
+    )
+)
+if "%1"=="client" (
+    if "%2"=="list-deals" (
+        echo []
+        exit /b 0
+    )
+    if "%2"=="import" (
+        echo {\"Root\":{\"/'\":{\"Data\":\"mock-data\",\"Links\":[]}},\"ImportID\":123456}
+        exit /b 0
+    )
+)
+if "%1"=="net" (
+    if "%2"=="peers" (
+        echo [\"12D3KooWMockPeer1\", \"12D3KooWMockPeer2\"]
+        exit /b 0
+    )
+)
+
+echo Mock Lotus: Unimplemented command: %*
+exit /b 1
+""")
+            else:
+                f.write("""#!/bin/bash
 # Mock Lotus implementation for development
 # This script simulates basic Lotus functionality for testing
 
@@ -109,7 +188,8 @@ esac
 """)
         
         # Make it executable
-        os.chmod(lotus_mock_path, 0o755)
+        if os.name != "nt":
+            os.chmod(lotus_mock_path, 0o755)
         
         logger.info(f"Created mock Lotus binary at: {lotus_mock_path}")
         

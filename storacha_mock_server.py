@@ -14,7 +14,7 @@ import subprocess
 # Configure port
 PORT = 5678
 MOCK_DIR = "C:\Users\Admin/.ipfs_kit/mock_storacha"
-API_KEY = "storacha-dev-517d29a1"
+API_KEY = "storacha-dev-cd7f016d"
 
 # Create directories
 os.makedirs(MOCK_DIR, exist_ok=True)

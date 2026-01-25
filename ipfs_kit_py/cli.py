@@ -103,6 +103,27 @@ class FastCLI:
         d_start.add_argument("--debug", action="store_true")
         d_start.add_argument("--config-dir", default="/tmp/ipfs_kit_config")
         d_start.add_argument("--data-dir", default=str(Path.home() / ".ipfs_kit"))
+
+        # Filesystem service control commands
+        services = sub.add_parser("services", help="Start/stop filesystem services")
+        services_sub = services.add_subparsers(dest="services_action")
+
+        s_start = services_sub.add_parser("start", help="Start filesystem services")
+        s_start.add_argument("--service", choices=["ipfs", "lotus", "all"], default="all")
+        s_start.add_argument("--detach", action="store_true", help="Detach IPFS daemon")
+
+        s_stop = services_sub.add_parser("stop", help="Stop filesystem services")
+        s_stop.add_argument("--service", choices=["ipfs", "lotus", "all"], default="all")
+        s_stop.add_argument("--force", action="store_true", help="Force stop where supported")
+
+        s_restart = services_sub.add_parser("restart", help="Restart filesystem services")
+        s_restart.add_argument("--service", choices=["ipfs", "lotus", "all"], default="all")
+        s_restart.add_argument("--detach", action="store_true", help="Detach IPFS daemon")
+        s_restart.add_argument("--force", action="store_true", help="Force stop where supported")
+
+        s_status = services_sub.add_parser("status", help="Show filesystem service status")
+        s_status.add_argument("--service", choices=["ipfs", "lotus", "all"], default="all")
+        s_status.add_argument("--json", action="store_true", help="Emit raw JSON")
         
         return parser
 
@@ -110,6 +131,13 @@ class FastCLI:
         args = self.parser.parse_args()
         if not args.command:
             self.parser.print_help(); sys.exit(2)
+
+        # Initialize backend configuration for CLI usage
+        try:
+            from ipfs_kit_py.backend_config import initialize_backend_config
+            initialize_backend_config(log_status=False)
+        except Exception:
+            pass
         
         # Handle both mcp_action and daemon_action
         if args.command == "mcp":
@@ -118,6 +146,9 @@ class FastCLI:
         elif args.command == "daemon":
             sub_action = getattr(args, "daemon_action", None)
             handler = getattr(self, f"handle_daemon_{sub_action}", None) if sub_action else None
+        elif args.command == "services":
+            sub_action = getattr(args, "services_action", None)
+            handler = getattr(self, f"handle_services_{sub_action}", None) if sub_action else None
         else:
             handler = getattr(self, f"handle_{args.command}", None)
         
@@ -490,6 +521,85 @@ class FastCLI:
         except Exception as e:
             print(f"Failed to start daemon: {e}")
             sys.exit(1)
+
+    # ---- Filesystem services ----
+    def _resolve_services(self, args):
+        service = getattr(args, "service", "all")
+        if service == "all":
+            return ["ipfs", "lotus"]
+        return [service]
+
+    async def handle_services_start(self, args) -> None:
+        services = self._resolve_services(args)
+        results = {}
+
+        if "ipfs" in services:
+            from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
+            manager = EnhancedDaemonManager()
+            results["ipfs"] = manager.start_daemon(detach=bool(getattr(args, "detach", False)), init_if_needed=True)
+
+        if "lotus" in services:
+            from ipfs_kit_py.lotus_daemon import lotus_daemon
+            daemon = lotus_daemon()
+            results["lotus"] = daemon.daemon_start()
+
+        print(json.dumps(results, indent=2))
+
+    async def handle_services_stop(self, args) -> None:
+        services = self._resolve_services(args)
+        results = {}
+        force = bool(getattr(args, "force", False))
+
+        if "ipfs" in services:
+            from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
+            manager = EnhancedDaemonManager()
+            results["ipfs"] = manager.stop_daemon()
+
+        if "lotus" in services:
+            from ipfs_kit_py.lotus_daemon import lotus_daemon
+            daemon = lotus_daemon()
+            results["lotus"] = daemon.daemon_stop(force=force)
+
+        print(json.dumps(results, indent=2))
+
+    async def handle_services_restart(self, args) -> None:
+        services = self._resolve_services(args)
+        results = {}
+        force = bool(getattr(args, "force", False))
+
+        if "ipfs" in services:
+            from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
+            manager = EnhancedDaemonManager()
+            manager.stop_daemon()
+            results["ipfs"] = manager.start_daemon(detach=bool(getattr(args, "detach", False)), init_if_needed=True)
+
+        if "lotus" in services:
+            from ipfs_kit_py.lotus_daemon import lotus_daemon
+            daemon = lotus_daemon()
+            daemon.daemon_stop(force=force)
+            results["lotus"] = daemon.daemon_start()
+
+        print(json.dumps(results, indent=2))
+
+    async def handle_services_status(self, args) -> None:
+        services = self._resolve_services(args)
+        results = {}
+        emit_json = bool(getattr(args, "json", False))
+
+        if "ipfs" in services:
+            from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
+            manager = EnhancedDaemonManager()
+            results["ipfs"] = manager.check_daemon_status()
+
+        if "lotus" in services:
+            from ipfs_kit_py.lotus_daemon import lotus_daemon
+            daemon = lotus_daemon()
+            results["lotus"] = daemon.daemon_status()
+
+        if emit_json:
+            print(json.dumps(results, indent=2))
+        else:
+            print(json.dumps(results, indent=2))
 
 
 async def main() -> None:

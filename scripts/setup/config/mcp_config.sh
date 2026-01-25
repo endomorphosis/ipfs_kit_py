@@ -22,6 +22,14 @@ export AWS_ACCESS_KEY_ID="None"
 export AWS_SECRET_ACCESS_KEY="None"
 export AWS_DEFAULT_REGION="us-east-1"
 export S3_BUCKET_NAME="ipfs-storage-demo"
+export AWS_ACCESS_KEY_ID="None"
+export AWS_SECRET_ACCESS_KEY="None"
+export AWS_DEFAULT_REGION="us-east-1"
+export S3_BUCKET_NAME="ipfs-storage-demo"
+export AWS_ACCESS_KEY_ID="None"
+export AWS_SECRET_ACCESS_KEY="None"
+export AWS_DEFAULT_REGION="us-east-1"
+export S3_BUCKET_NAME="ipfs-storage-demo"
 
 # Filecoin configuration
 # Using Filecoin development environment

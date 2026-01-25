@@ -22,17 +22,37 @@ class EnhancedDaemonManager:
                 continue
         return None
 
-    def start_daemon(self, detach=True):
+    def start_daemon(self, detach=True, init_if_needed=True):
         if self._get_ipfs_daemon_process():
             logger.info("IPFS daemon is already running.")
             return {"status": "already_running"}
 
         command = ["ipfs", "daemon"]
+        if init_if_needed:
+            command.append("--init")
         if detach:
             # This will run the command in a new process group, detaching it
             # from the current shell. The output will not be captured here.
             try:
-                subprocess.Popen(command, preexec_fn=os.setsid, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                env = os.environ.copy()
+                env.setdefault("IPFS_PATH", self.ipfs_path)
+                if os.name == "nt":
+                    creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
+                    subprocess.Popen(
+                        command,
+                        creationflags=creationflags,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        env=env
+                    )
+                else:
+                    subprocess.Popen(
+                        command,
+                        preexec_fn=os.setsid,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        env=env
+                    )
                 logger.info("IPFS daemon started in detached mode.")
                 return {"status": "started", "detached": True}
             except Exception as e:
@@ -42,7 +62,9 @@ class EnhancedDaemonManager:
             # For non-detached mode, you might want to capture output or run in foreground
             logger.info("Starting IPFS daemon in foreground mode (not recommended for production)...")
             try:
-                process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                env = os.environ.copy()
+                env.setdefault("IPFS_PATH", self.ipfs_path)
+                process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
                 self.ipfs_daemon_process = process
                 logger.info("IPFS daemon started in foreground.")
                 return {"status": "started", "detached": False}

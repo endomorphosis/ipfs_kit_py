@@ -50,7 +50,7 @@ def ensure_requests():
 # Constants
 LOTUS_HOME = os.path.expanduser("~/.lotus-gateway")
 BIN_DIR = os.path.join(os.getcwd(), "bin")
-LOTUS_SCRIPT_PATH = os.path.join(BIN_DIR, "lotus")
+LOTUS_SCRIPT_PATH = os.path.join(BIN_DIR, "lotus.cmd" if os.name == "nt" else "lotus")
 
 # Available Filecoin public gateways
 FILECOIN_GATEWAYS = [
@@ -146,7 +146,46 @@ def create_lotus_gateway_script(gateway):
     
     os.makedirs(BIN_DIR, exist_ok=True)
     
-    script_content = f"""#!/bin/bash
+    if os.name == "nt":
+        script_content = f"""@echo off
+set "LOTUS_PATH={LOTUS_HOME}"
+set /p API_URL=<"%LOTUS_PATH%\api"
+set /p API_TOKEN=<"%LOTUS_PATH%\token"
+
+set COMMAND=%1
+shift
+
+if "%COMMAND%"=="version" (
+    echo Lotus Gateway Client v0.1.0
+    echo Connected to: {gateway['name']} ({gateway['api']})
+    echo Note: Using public gateway - some commands may not be available
+    exit /b 0
+)
+
+if "%COMMAND%"=="daemon" (
+    echo Using public gateway - daemon management not available
+    echo Gateway: {gateway['name']} ({gateway['api']})
+    exit /b 0
+)
+
+if "%COMMAND%"=="wallet" (
+    echo Using public gateway - wallet operations not available
+    echo Note: For wallet operations, please use a local Lotus node
+    exit /b 1
+)
+
+if "%COMMAND%"=="net" (
+    if "%1"=="id" (
+        echo gateway-{gateway['name']}-%%RANDOM%%
+        exit /b 0
+    )
+)
+
+echo This Lotus gateway shim supports: version, daemon, net id
+exit /b 1
+"""
+    else:
+        script_content = f"""#!/bin/bash
 # Lotus Gateway Client
 # This script provides a Lotus CLI interface that connects to a public Filecoin gateway
 

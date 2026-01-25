@@ -39,6 +39,26 @@ class BackendSetupManager:
         self.project_root = project_root
         self.ipfs_kit_dir = os.path.join(project_root, "ipfs_kit_py")
         self._deps_installed = False
+        self._ensure_bin_on_path()
+
+    def _ensure_bin_on_path(self):
+        """Ensure ipfs_kit_py/bin is on PATH for installer checks."""
+        bin_dirs = [
+            os.path.join(self.project_root, "bin"),
+            os.path.join(self.ipfs_kit_dir, "bin"),
+        ]
+        current_path = os.environ.get("PATH", "")
+        for bin_dir in bin_dirs:
+            if os.name == "nt":
+                legacy_lotus = os.path.join(bin_dir, "lotus")
+                if os.path.exists(legacy_lotus) and os.path.isfile(legacy_lotus):
+                    try:
+                        os.replace(legacy_lotus, legacy_lotus + ".sh")
+                    except Exception:
+                        pass
+            if os.path.isdir(bin_dir) and bin_dir not in current_path:
+                current_path = f"{bin_dir}{os.pathsep}{current_path}"
+        os.environ["PATH"] = current_path
         
         # Define backend configurations
         self.backends = {

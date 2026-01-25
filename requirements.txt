@@ -42,7 +42,7 @@ dag-cbor>=0.2.0
 multiformats>=0.3.0
 
 # LibP2P support (track upstream py-libp2p main)
-libp2p @ git+https://github.com/libp2p/py-libp2p.git@main
+libp2p @ git+https://github.com/libp2p/py-libp2p.git@main; python_version < '3.14' and platform_system != 'Windows'
 protobuf>=5.26.0,<7.0.0
 eth-hash[pycryptodome]>=0.3.3
 eth-keys>=0.4.0
@@ -52,7 +52,7 @@ pytest>=7.0.0
 pytest-cov>=4.1.0
 pytest-asyncio>=0.21.0
 pytest-trio>=0.8.0  # For testing with trio backend
-pytest-anyio>=0.1.0  # For testing with anyio
+pytest-anyio>=0.1.0; python_version < '3.14'  # For testing with anyio (not available on 3.14)
 black>=23.3.0
 isort>=5.12.0
 ipfs-api>=0.1.0

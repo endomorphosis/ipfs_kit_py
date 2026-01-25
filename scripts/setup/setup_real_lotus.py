@@ -52,7 +52,7 @@ def ensure_requests():
 # Configuration
 LOTUS_BINARY_DIR = os.path.join(os.getcwd(), "bin", "lotus-bin")
 LOTUS_HOME = os.path.expanduser("~/.lotus")
-LOTUS_SCRIPT_PATH = os.path.join(os.getcwd(), "bin", "lotus")
+LOTUS_SCRIPT_PATH = os.path.join(os.getcwd(), "bin", "lotus.cmd" if os.name == "nt" else "lotus")
 LOTUS_TOKEN_PATH = os.path.join(LOTUS_HOME, "token")
 LOTUS_API_PATH = os.path.join(LOTUS_HOME, "api")
 
@@ -164,7 +164,30 @@ def create_lotus_wrapper(gateway=None):
     # Determine if we're using a gateway or real lotus
     use_gateway = gateway is not None
     
-    script_content = f"""#!/bin/bash
+    if os.name == "nt":
+        script_content = f"""@echo off
+set "LOTUS_PATH={LOTUS_HOME}"
+
+set COMMAND=%1
+shift
+
+if "%COMMAND%"=="version" (
+    echo Lotus {gateway['name'] if gateway else 'Local'} Client v1.0.0
+    exit /b 0
+)
+
+if "%COMMAND%"=="net" (
+    if "%1"=="id" (
+        echo Using gateway: full node ID not available
+        exit /b 0
+    )
+)
+
+echo Lotus wrapper on Windows supports: version, net id
+exit /b 1
+"""
+    else:
+        script_content = f"""#!/bin/bash
 # Lotus client wrapper script
 # This script configures the environment for the Lotus client
 
@@ -228,7 +251,8 @@ esac
         f.write(script_content)
     
     # Make it executable
-    os.chmod(LOTUS_SCRIPT_PATH, 0o755)
+    if os.name != "nt":
+        os.chmod(LOTUS_SCRIPT_PATH, 0o755)
     
     logger.info(f"Created Lotus wrapper script at: {LOTUS_SCRIPT_PATH}")
     return LOTUS_SCRIPT_PATH

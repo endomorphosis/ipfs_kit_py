@@ -5,6 +5,7 @@ import os
 import platform
 import re
 import subprocess
+import shutil
 import sys
 import tempfile
 import time
@@ -38,19 +39,41 @@ package_dir = os.path.dirname(os.path.realpath(__file__))
 
 # Check if Lotus is actually available by trying to run it
 try:
-    result = subprocess.run(["lotus", "--version"], capture_output=True, timeout=2)
-    LOTUS_AVAILABLE = result.returncode == 0
+    if os.name == "nt":
+        lotus_cmd = shutil.which("lotus.cmd") if "shutil" in globals() else None
+        if lotus_cmd is None:
+            import shutil as _shutil
+            lotus_cmd = _shutil.which("lotus.cmd")
+        if not lotus_cmd:
+            candidate_paths = [
+                os.path.join(package_dir, "bin", "lotus.cmd"),
+                os.path.join(os.path.dirname(package_dir), "bin", "lotus.cmd"),
+            ]
+            lotus_cmd = next((p for p in candidate_paths if os.path.exists(p)), None)
+        if lotus_cmd:
+            result = subprocess.run(["cmd", "/c", lotus_cmd, "--version"], capture_output=True, timeout=2)
+            LOTUS_AVAILABLE = result.returncode == 0
+            if LOTUS_AVAILABLE:
+                LOTUS_BINARY_PATH = lotus_cmd
+        else:
+            LOTUS_AVAILABLE = False
+    else:
+        result = subprocess.run(["lotus", "--version"], capture_output=True, timeout=2)
+        LOTUS_AVAILABLE = result.returncode == 0
 except (subprocess.SubprocessError, FileNotFoundError, OSError):
     # Try with specific binary path in bin directory
     try:
-        bin_path = os.path.join(package_dir, "bin", "lotus")
-        result = subprocess.run([bin_path, "--version"], capture_output=True, timeout=2)
+        if os.name == "nt":
+            bin_path = os.path.join(package_dir, "bin", "lotus.cmd")
+        else:
+            bin_path = os.path.join(package_dir, "bin", "lotus")
+        result = subprocess.run([bin_path, "--version"], capture_output=True, timeout=2, shell=(os.name == "nt"))
         LOTUS_AVAILABLE = result.returncode == 0
         # If this succeeds, update PATH and store the binary path
         if LOTUS_AVAILABLE:
             bin_dir = os.path.dirname(bin_path)
             if bin_dir not in os.environ.get("PATH", ""):
-                os.environ["PATH"] = bin_dir + ":" + os.environ.get("PATH", "")
+                os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
             LOTUS_BINARY_PATH = bin_path
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
         # Try one more location - explicit lotus-bin subdirectory
@@ -62,7 +85,7 @@ except (subprocess.SubprocessError, FileNotFoundError, OSError):
             if LOTUS_AVAILABLE:
                 bin_dir = os.path.dirname(alt_bin_path)
                 if bin_dir not in os.environ.get("PATH", ""):
-                    os.environ["PATH"] = bin_dir + ":" + os.environ.get("PATH", "")
+                    os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
                 LOTUS_BINARY_PATH = alt_bin_path
         except (subprocess.SubprocessError, FileNotFoundError, OSError):
             LOTUS_AVAILABLE = False

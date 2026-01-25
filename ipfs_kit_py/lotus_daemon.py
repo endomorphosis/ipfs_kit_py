@@ -7,6 +7,7 @@ import re
 import signal
 import subprocess
 import sys
+import shutil
 import tempfile
 import time
 import uuid
@@ -170,21 +171,29 @@ class lotus_daemon:
             pass
             
         try:
-            # First try which command to check PATH
-            cmd_result = self.run_command(["which", "lotus"], check=False)
+            # First try PATH lookup
+            if os.name == "nt":
+                cmd_result = self.run_command(["where", "lotus"], check=False)
+            else:
+                cmd_result = self.run_command(["which", "lotus"], check=False)
             
             if cmd_result.get("success", False) and cmd_result.get("stdout", "").strip():
-                lotus_path = cmd_result.get("stdout", "").strip()
+                lotus_path = cmd_result.get("stdout", "").strip().splitlines()[0].strip()
                 logger.info(f"Found Lotus binary in PATH: {lotus_path}")
                 return lotus_path
                 
             # If 'which' failed, try direct path checks
             common_paths = [
                 os.path.join(self.this_dir, "bin", "lotus"),
+                os.path.join(self.this_dir, "bin", "lotus.cmd"),
+                os.path.join(self.this_dir, "bin", "lotus.exe"),
                 os.path.join(self.this_dir, "bin", "lotus-bin", "lotus"),  # Special bin directory
                 os.path.join(os.path.dirname(os.path.dirname(self.this_dir)), "bin", "lotus"),
+                os.path.join(os.path.dirname(os.path.dirname(self.this_dir)), "bin", "lotus.cmd"),
+                os.path.join(os.path.dirname(os.path.dirname(self.this_dir)), "bin", "lotus.exe"),
                 os.path.join(os.path.dirname(os.path.dirname(self.this_dir)), "bin", "lotus-bin", "lotus"),
                 os.path.expanduser("~/bin/lotus"),
+                os.path.expanduser("~/bin/lotus.cmd"),
                 "/usr/local/bin/lotus",
                 "/usr/bin/lotus",
                 "/bin/lotus"
@@ -195,11 +204,13 @@ class lotus_daemon:
                 common_paths.insert(0, os.path.join(self.binary_path, "lotus"))
             
             for path in common_paths:
+                if os.name == "nt" and path.endswith("lotus"):
+                    continue
                 if os.path.exists(path) and os.access(path, os.X_OK):
                     logger.info(f"Found Lotus binary at: {path}")
                     # Update PATH environment variable to include this directory
                     bin_dir = os.path.dirname(path)
-                    os.environ["PATH"] = f"{bin_dir}:{os.environ.get('PATH', '')}"
+                    os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
                     return path
             
             # If we get here, no binary was found
@@ -545,12 +556,30 @@ class lotus_daemon:
         Returns:
             Dictionary with command result information
         """
+        # Normalize Lotus command on Windows to handle .cmd wrappers
+        if os.name == "nt" and isinstance(cmd_args, list) and cmd_args:
+            lotus_cmd = None
+            if cmd_args[0] == "lotus":
+                lotus_cmd = self._check_lotus_binary() or shutil.which("lotus.cmd")
+            elif cmd_args[0].endswith(".cmd"):
+                lotus_cmd = cmd_args[0]
+            if lotus_cmd and lotus_cmd.lower().endswith(".cmd"):
+                cmd_args = ["cmd", "/c", lotus_cmd] + cmd_args[1:]
+
         # Create standardized result dictionary
         command_str = " ".join(cmd_args) if isinstance(cmd_args, list) else cmd_args
         operation = cmd_args[0] if isinstance(cmd_args, list) else command_str.split()[0]
         
         result = create_result_dict(f"run_command_{operation}", correlation_id or self.correlation_id)
         result["command"] = command_str
+
+        # Avoid spawning subprocesses during interpreter shutdown
+        if sys.is_finalizing():
+            result["success"] = False
+            result["error"] = "Interpreter is shutting down; command skipped"
+            result["error_type"] = "interpreter_shutdown"
+            result["skipped"] = True
+            return result
         
         # Create the environment - start with our base env and update with any custom values
         command_env = self.env.copy()
@@ -611,6 +640,12 @@ class lotus_daemon:
                 result["stderr"] = stderr
                 
             return handle_error(result, LotusError(error_msg), {"stderr": stderr})
+
+        except KeyboardInterrupt:
+            result["success"] = False
+            result["error"] = "Command interrupted"
+            result["error_type"] = "keyboard_interrupt"
+            return result
             
         except FileNotFoundError as e:
             error_msg = f"Command not found: {command_str}"
@@ -643,6 +678,18 @@ class lotus_daemon:
         # Lotus ports (use instance values if available)
         lotus_ports = [getattr(self, 'api_port', 1234), getattr(self, 'p2p_port', 2345)]
         cleanup_results = {}
+
+        if os.name == "nt":
+            result["success"] = True
+            result["cleanup_results"] = {port: {"skipped": True} for port in lotus_ports}
+            result["ports_checked"] = lotus_ports
+            result["summary"] = {
+                "ports_checked": len(lotus_ports),
+                "total_processes_killed": 0,
+                "total_kill_failures": 0
+            }
+            result["message"] = "Lotus port cleanup skipped on Windows"
+            return result
         
         try:
             for port in lotus_ports:

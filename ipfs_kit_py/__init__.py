@@ -114,6 +114,9 @@ __all__ = [
     'jit_manager',
     'require_feature', 
     'optional_feature',
+    # Backend configuration helpers
+    'initialize_backend_config',
+    'get_backend_statuses',
 ]
 
 # Initialize core JIT system early
@@ -147,6 +150,18 @@ except ImportError as e:
         def decorator(func):
             return func
         return decorator
+
+# Backend configuration helpers (real API integrations)
+try:
+    from .backend_config import initialize_backend_config, get_backend_statuses
+except Exception as e:
+    logger.debug(f"Backend config helpers unavailable: {e}")
+
+    def initialize_backend_config(log_status: bool = True):
+        return {}
+
+    def get_backend_statuses():
+        return {}
 
 # Set up binary auto-download flag
 _BINARIES_DOWNLOADED = False

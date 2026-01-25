@@ -927,36 +927,15 @@ class ipfs_kit:
                             if test_result.get("success", False): # type: ignore
                                 ipfs_result = {"success": True, "status": "already_running"}
                         else:
-                            # Try direct subprocess approach
-                            import subprocess
-                            try:
-                                result = subprocess.run(
-                                    ['ipfs', 'id'],
-                                    capture_output=True,
-                                    text=True,
-                                    timeout=5
-                                )
-                                if result.returncode == 0:
-                                    ipfs_result = {"success": True, "status": "already_running"}
-                                else:
-                                    # Try to start daemon
-                                    self.logger.info("Attempting to start IPFS daemon via system command...")
-                                    subprocess.Popen(
-                                        ['ipfs', 'daemon', '--init'],
-                                        stdout=subprocess.DEVNULL,
-                                        stderr=subprocess.DEVNULL
-                                    )
-                                    # Give it time to start
-                                    import time
-                                    time.sleep(3)
-                                    # Check again
-                                    recheck = subprocess.run(['ipfs', 'id'], capture_output=True, timeout=5)
-                                    if recheck.returncode == 0:
-                                        ipfs_result = {"success": True, "status": "started"}
-                                    
-                            except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-                                self.logger.warning(f"System command approach failed: {str(e)}")
-                                ipfs_result = {"success": False, "error": f"System approach failed: {str(e)}"}
+                            # Try enhanced daemon manager
+                            from .enhanced_daemon_manager import EnhancedDaemonManager
+                            manager = EnhancedDaemonManager(ipfs_path=getattr(self, "ipfs_path", None))
+                            start_result = manager.start_daemon(detach=True, init_if_needed=True)
+                            status = start_result.get("status")
+                            if status in ("started", "already_running"):
+                                ipfs_result = {"success": True, "status": status}
+                            else:
+                                ipfs_result = {"success": False, "error": start_result.get("message", "Failed to start IPFS daemon")}
                     except Exception as e:
                         self.logger.error(f"Alternate daemon check failed: {str(e)}")
                     
@@ -1076,7 +1055,7 @@ class ipfs_kit:
                 # First attempt: try ipfs id as a direct check
                 try:
                     id_result = self.ipfs.run_ipfs_command(["id"]) # type: ignore
-                    if id_result.get("success", True) and "ID" in id_result.get("stdout", ""): # type: ignore
+                    if id_result.get("success", False): # type: ignore
                         ipfs_running = True
                         self.logger.debug("IPFS daemon detected as running using 'ipfs id' command")
                 except Exception as e:
@@ -1100,14 +1079,29 @@ class ipfs_kit:
                 if not ipfs_running:
                     try:
                         import subprocess
-                        # Try using 'pgrep' to find daemon
-                        pgrep_result = subprocess.run(["pgrep", "-f", "ipfs daemon"], 
-                                                    stdout=subprocess.PIPE, 
-                                                    stderr=subprocess.PIPE,
-                                                    check=False)
-                        if pgrep_result.returncode == 0 and pgrep_result.stdout.strip():
-                            ipfs_running = True
-                            self.logger.debug("IPFS daemon detected as running using 'pgrep' command")
+                        if os.name == "nt":
+                            try:
+                                import psutil
+                                for proc in psutil.process_iter(["name", "cmdline"]):
+                                    name = (proc.info.get("name") or "").lower()
+                                    cmdline = " ".join(proc.info.get("cmdline") or []).lower()
+                                    if "ipfs" in name and "daemon" in cmdline:
+                                        ipfs_running = True
+                                        self.logger.debug("IPFS daemon detected as running using psutil")
+                                        break
+                            except Exception as e:
+                                self.logger.debug(f"Error checking IPFS daemon with psutil: {str(e)}")
+                        else:
+                            # Try using 'pgrep' to find daemon on Unix-like systems
+                            pgrep_result = subprocess.run(
+                                ["pgrep", "-f", "ipfs daemon"],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                check=False
+                            )
+                            if pgrep_result.returncode == 0 and pgrep_result.stdout.strip():
+                                ipfs_running = True
+                                self.logger.debug("IPFS daemon detected as running using 'pgrep' command")
                     except Exception as e:
                         self.logger.debug(f"Error checking IPFS daemon with direct process check: {str(e)}")
 

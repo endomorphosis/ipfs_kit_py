@@ -261,11 +261,49 @@ def create_lotus_mock_binary():
     bin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin")
     os.makedirs(bin_dir, exist_ok=True)
     
-    lotus_path = os.path.join(bin_dir, "lotus")
-    
-    # Write the shell script with manually formatted content
+    lotus_name = "lotus.cmd" if os.name == "nt" else "lotus"
+    lotus_path = os.path.join(bin_dir, lotus_name)
+
+    # Write the script with manually formatted content
     with open(lotus_path, "w") as f:
-        f.write(f'''#!/bin/bash
+        if os.name == "nt":
+            f.write(f'''@echo off
+set "MOCK_API_TOKEN={MOCK_API_TOKEN}"
+set "MOCK_API_URL=http://localhost:{MOCK_PORT}/rpc/v0"
+set "LOTUS_PATH=%USERPROFILE%\.ipfs_kit\filecoin_mock\lotus"
+
+if not exist "%LOTUS_PATH%" mkdir "%LOTUS_PATH%"
+echo %MOCK_API_URL%>"%LOTUS_PATH%\api"
+echo %MOCK_API_TOKEN%>"%LOTUS_PATH%\token"
+
+set COMMAND=%1
+shift
+
+if "%COMMAND%"=="daemon" (
+    echo Mock Lotus daemon already running at %MOCK_API_URL%
+    exit /b 0
+)
+
+if "%COMMAND%"=="version" (
+    echo Lotus Mock v1.21.0-dev+mock
+    echo Build: mock
+    echo System version: go-mock (filecoin-project/lotus)
+    echo Commit: mock
+    exit /b 0
+)
+
+if "%COMMAND%"=="net" (
+    if "%1"=="id" (
+        echo 12D3KooWMockFilecoinNodeID
+        exit /b 0
+    )
+)
+
+echo Mock Lotus on Windows supports: daemon, version, net id
+exit /b 1
+''')
+        else:
+            f.write(f'''#!/bin/bash
 # Mock Lotus client for Filecoin
 
 # Configuration
@@ -344,13 +382,15 @@ exit 1
 ''')
     
     # Make executable
-    os.chmod(lotus_path, 0o755)
+    if os.name != "nt":
+        os.chmod(lotus_path, 0o755)
     logger.info(f"Created mock Lotus binary at {lotus_path}")
     
     return lotus_path
 
 def update_filecoin_credentials():
     """Update the Filecoin credentials to use the mock node."""
+    lotus_name = "lotus.cmd" if os.name == "nt" else "lotus"
     creds_file = "local_mcp_credentials.sh"
     
     if not os.path.exists(creds_file):
@@ -368,13 +408,14 @@ def update_filecoin_credentials():
         # Check if Filecoin credentials are already in the file
         if "FILECOIN_API_URL" not in content:
             # Append Filecoin credentials
+            lotus_binary = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"bin/{lotus_name}")
             with open(creds_file, "a") as f:
                 f.write(f"""
 # Filecoin credentials (mock node)
 export FILECOIN_API_URL="http://localhost:{MOCK_PORT}/rpc/v0"
 export FILECOIN_API_TOKEN="{MOCK_API_TOKEN}"
 export LOTUS_PATH="{os.path.expanduser("~/.ipfs_kit/filecoin_mock/lotus")}"
-export LOTUS_BINARY_PATH="{os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin/lotus")}"
+export LOTUS_BINARY_PATH="{lotus_binary}"
 """)
         else:
             # Update existing Filecoin credentials
@@ -389,7 +430,8 @@ export LOTUS_BINARY_PATH="{os.path.join(os.path.dirname(os.path.abspath(__file__
                 elif line.startswith("export LOTUS_PATH="):
                     new_lines.append(f'export LOTUS_PATH="{os.path.expanduser("~/.ipfs_kit/filecoin_mock/lotus")}"')
                 elif line.startswith("export LOTUS_BINARY_PATH="):
-                    new_lines.append(f'export LOTUS_BINARY_PATH="{os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin/lotus")}"')
+                    lotus_binary = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"bin/{lotus_name}")
+                    new_lines.append(f'export LOTUS_BINARY_PATH="{lotus_binary}"')
                 else:
                     new_lines.append(line)
             
@@ -517,18 +559,26 @@ def test_mock_server():
 def test_mock_lotus():
     """Test the mock Lotus binary."""
     try:
-        lotus_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin/lotus")
+        lotus_name = "lotus.cmd" if os.name == "nt" else "lotus"
+        lotus_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"bin/{lotus_name}")
         
         if not os.path.exists(lotus_path):
             logger.warning(f"Lotus binary not found: {lotus_path}")
             return False
         
         # Test version command
-        result = subprocess.run(
-            [lotus_path, "version"],
-            capture_output=True,
-            text=True
-        )
+        if os.name == "nt":
+            result = subprocess.run(
+                ["cmd", "/c", lotus_path, "version"],
+                capture_output=True,
+                text=True
+            )
+        else:
+            result = subprocess.run(
+                [lotus_path, "version"],
+                capture_output=True,
+                text=True
+            )
         
         if result.returncode != 0:
             logger.warning(f"Lotus version check failed: {result.stderr}")
@@ -537,11 +587,18 @@ def test_mock_lotus():
         logger.info(f"Lotus version check successful: {result.stdout}")
         
         # Test net id command
-        result = subprocess.run(
-            [lotus_path, "net", "id"],
-            capture_output=True,
-            text=True
-        )
+        if os.name == "nt":
+            result = subprocess.run(
+                ["cmd", "/c", lotus_path, "net", "id"],
+                capture_output=True,
+                text=True
+            )
+        else:
+            result = subprocess.run(
+                [lotus_path, "net", "id"],
+                capture_output=True,
+                text=True
+            )
         
         if result.returncode != 0:
             logger.warning(f"Lotus net id check failed: {result.stderr}")

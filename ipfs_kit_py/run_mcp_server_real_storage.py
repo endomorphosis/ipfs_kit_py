@@ -63,6 +63,13 @@ logging.basicConfig(
 
 def create_app():
     """Create and configure the FastAPI app with MCP server."""
+    # Apply real API backend configuration (credentials + simulation flags)
+    try:
+        from ipfs_kit_py.backend_config import initialize_backend_config
+        initialize_backend_config(log_status=True)
+    except Exception as e:
+        logger.warning(f"Failed to load real API backend config: {e}")
+
     # Create FastAPI app
     app = FastAPI(
         title="IPFS MCP Server with Real Storage",

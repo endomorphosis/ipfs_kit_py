@@ -648,9 +648,12 @@ class install_ipfs:
                     if os.path.exists(this_path):
                         try:
                             if platform.system() == "Windows":
-                                command = "powershell -Command \"Get-FileHash -Path '" + this_path + "' -Algorithm SHA256 | Select-Object -ExpandProperty Hash\""
-                                results = subprocess.check_output(command, shell=True)
-                                return results.decode().strip()
+                                import hashlib
+                                with open(this_path, "rb") as fh:
+                                    sha256 = hashlib.sha256()
+                                    for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                                        sha256.update(chunk)
+                                return sha256.hexdigest()
                             else:
                                 command = "sha256sum " + this_path + " | awk '{print $1}'"
                                 results = subprocess.check_output(command, shell=True)

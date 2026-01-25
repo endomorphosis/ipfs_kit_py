@@ -269,11 +269,32 @@ class DaemonConfigManager:
                 except Exception as e:
                     result['errors'].append(f"IPFS initialization error: {str(e)}")
             else:
-                # Path exists but config is invalid, try to reinitialize
-                self.logger.warning("IPFS path exists but configuration is invalid")
-                result['success'] = True  # Don't fail completely
-                result['configured'] = False
-                result['message'] = 'IPFS path exists but needs manual configuration'
+                # Path exists but config is invalid or missing, try to reinitialize
+                self.logger.warning("IPFS path exists but configuration is invalid or missing; attempting reinit")
+                try:
+                    init_result = subprocess.run(
+                        ['ipfs', 'init'],
+                        env={'IPFS_PATH': self.ipfs_path},
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    init_output = (init_result.stdout or "") + (init_result.stderr or "")
+                    if init_result.returncode == 0 or "already initialized" in init_output.lower():
+                        result['success'] = True
+                        result['configured'] = True
+                        result['message'] = 'IPFS initialized successfully'
+                        self.logger.info("IPFS initialization completed successfully")
+                    else:
+                        result['errors'].append(f"IPFS init failed: {init_output.strip()}")
+                        result['message'] = 'IPFS path exists but needs manual configuration'
+                except subprocess.TimeoutExpired:
+                    result['errors'].append("IPFS initialization timed out")
+                except FileNotFoundError:
+                    result['errors'].append("IPFS binary not found in PATH")
+                    result['message'] = "Install IPFS: https://docs.ipfs.io/install/"
+                except Exception as e:
+                    result['errors'].append(f"IPFS initialization error: {str(e)}")
             
         except Exception as e:
             result['errors'].append(f"Error configuring IPFS: {str(e)}")
@@ -370,58 +391,20 @@ class DaemonConfigManager:
                 else:
                     result['errors'].append(f'IPFS daemon startup failed via ipfs_kit: {daemon_result.get("error", "Unknown error")}')
             else:
-                # Try direct command approach
-                import subprocess
+                # Try enhanced daemon manager (cross-platform)
                 try:
-                    # Check if daemon is already running
-                    check_result = subprocess.run(
-                        ['ipfs', 'id'],
-                        env={'IPFS_PATH': self.ipfs_path},
-                        capture_output=True,
-                        text=True,
-                        timeout=5
-                    )
-                    
-                    if check_result.returncode == 0:
+                    from .enhanced_daemon_manager import EnhancedDaemonManager
+                    daemon_manager = EnhancedDaemonManager(ipfs_path=self.ipfs_path)
+                    start_result = daemon_manager.start_daemon(detach=True, init_if_needed=True)
+                    status = start_result.get("status")
+                    if status in ("started", "already_running"):
                         result['success'] = True
                         result['running'] = True
-                        result['message'] = 'IPFS daemon already running'
+                        result['message'] = f"IPFS daemon {status} via enhanced manager"
                     else:
-                        # Try to start daemon in background
-                        self.logger.info("Attempting to start IPFS daemon via system command...")
-                        start_result = subprocess.Popen(
-                            ['ipfs', 'daemon', '--init'],
-                            env={'IPFS_PATH': self.ipfs_path},
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL
-                        )
-                        
-                        # Give it a moment to start
-                        import time
-                        time.sleep(2)
-                        
-                        # Check if it's running now
-                        recheck_result = subprocess.run(
-                            ['ipfs', 'id'],
-                            env={'IPFS_PATH': self.ipfs_path},
-                            capture_output=True,
-                            text=True,
-                            timeout=5
-                        )
-                        
-                        if recheck_result.returncode == 0:
-                            result['success'] = True
-                            result['running'] = True
-                            result['message'] = 'IPFS daemon started successfully via system command'
-                        else:
-                            result['errors'].append('Failed to start IPFS daemon via system command')
-                            
-                except subprocess.TimeoutExpired:
-                    result['errors'].append('IPFS daemon startup timed out')
-                except FileNotFoundError:
-                    result['errors'].append('IPFS binary not found in PATH')
+                        result['errors'].append(start_result.get("message", "Failed to start IPFS daemon"))
                 except Exception as e:
-                    result['errors'].append(f'System command approach failed: {str(e)}')
+                    result['errors'].append(f'Error starting IPFS daemon: {str(e)}')
                 
         except Exception as e:
             result['errors'].append(f"Error starting IPFS daemon: {str(e)}")

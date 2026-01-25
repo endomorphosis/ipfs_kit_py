@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # Dependencies for each backend
 BACKEND_DEPENDENCIES = {
     "huggingface": ["huggingface_hub>=0.19.0"],
-    "storacha": ["web3storage>=0.6.0"],
+    "storacha": ["web3storage>=0.1.1"],
     "filecoin": ["filecoin-api-client>=0.9.0"],
     "lassie": ["lassie>=0.2.0"],
     "s3": ["boto3>=1.26.0"]
@@ -44,15 +44,42 @@ def install_dependencies(backends=None):
     
     # Create a unique list
     all_dependencies = list(set(all_dependencies))
-    
-    logger.info(f"Installing dependencies: {', '.join(all_dependencies)}")
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install"] + all_dependencies)
-        logger.info("✅ Dependencies installed successfully")
-        return True
-    except subprocess.CalledProcessError as e:
-        logger.error(f"❌ Failed to install dependencies: {e}")
+
+    # Skip dependencies that are not available on Windows/Python 3.14
+    filtered_dependencies = []
+    skipped_dependencies = []
+    for dep in all_dependencies:
+        if dep.startswith("filecoin-api-client") and (os.name == "nt" or sys.version_info >= (3, 14)):
+            skipped_dependencies.append(dep)
+            continue
+        filtered_dependencies.append(dep)
+
+    if skipped_dependencies:
+        logger.warning(
+            "Skipping unsupported dependencies on this platform: %s",
+            ", ".join(skipped_dependencies),
+        )
+
+    if not filtered_dependencies:
+        logger.warning("No installable dependencies remain after filtering")
         return False
+    
+    logger.info(f"Installing dependencies: {', '.join(filtered_dependencies)}")
+    failures = []
+    for dep in filtered_dependencies:
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", dep])
+            logger.info("✅ Installed %s", dep)
+        except subprocess.CalledProcessError as e:
+            failures.append(dep)
+            logger.error("❌ Failed to install %s: %s", dep, e)
+
+    if failures:
+        logger.warning("Some dependencies failed to install: %s", ", ".join(failures))
+        return False
+
+    logger.info("✅ Dependencies installed successfully")
+    return True
 
 def create_credential_config(config_dir=None):
     """Create credential configuration for backends."""

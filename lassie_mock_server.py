@@ -30,7 +30,7 @@ class LassieMockHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             version = {
                 "version": "0.1.0-mock",
-                "commit": "mock-commit-f468246b",
+                "commit": "mock-commit-06061988",
                 "goVersion": "go1.19.4"
             }
             self.wfile.write(json.dumps(version).encode('utf-8'))

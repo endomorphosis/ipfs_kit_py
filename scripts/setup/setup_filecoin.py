@@ -55,13 +55,17 @@ LOTUS_BINARY_OPTIONS = [
     "/usr/bin/lotus",
     os.path.expanduser("~/bin/lotus"),
     os.path.expanduser("~/.local/bin/lotus"),
-    "./bin/lotus"
+    "./bin/lotus",
+    "./bin/lotus.cmd"
 ]
 
 def find_lotus_binary():
     """Find the Lotus binary in common locations."""
     # First try PATH
-    lotus_cmd = shutil.which("lotus") or shutil.which("lotus.exe")
+    if os.name == "nt":
+        lotus_cmd = shutil.which("lotus.cmd") or shutil.which("lotus.exe")
+    else:
+        lotus_cmd = shutil.which("lotus")
     if lotus_cmd:
         logger.info(f"Found Lotus binary in PATH: {lotus_cmd}")
         return lotus_cmd
@@ -70,13 +74,17 @@ def find_lotus_binary():
     extra_paths = [
         os.path.join(os.getcwd(), "bin", "lotus"),
         os.path.join(os.getcwd(), "bin", "lotus.exe"),
+        os.path.join(os.getcwd(), "bin", "lotus.cmd"),
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin", "lotus"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin", "lotus.cmd"),
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin", "lotus.exe"),
         os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "lotus"),
         os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "lotus.exe"),
     ]
 
     for path in LOTUS_BINARY_OPTIONS + extra_paths:
+        if os.name == "nt" and path.endswith("lotus"):
+            continue
         if os.path.exists(path) and os.access(path, os.X_OK):
             logger.info(f"Found Lotus binary at: {path}")
             return path

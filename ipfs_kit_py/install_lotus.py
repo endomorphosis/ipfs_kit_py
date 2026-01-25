@@ -535,7 +535,14 @@ class install_lotus:
             if re.match(asset_pattern, name):
                 return asset["browser_download_url"], name
         
-        logger.error(f"Could not find download for {os_name}_{arch} in release {release_info.get('tag_name')}")
+        if os_name and os_name.lower().startswith("win"):
+            logger.warning(
+                f"Could not find download for {os_name}_{arch} in release {release_info.get('tag_name')}"
+            )
+        else:
+            logger.error(
+                f"Could not find download for {os_name}_{arch} in release {release_info.get('tag_name')}"
+            )
         return None, None
 
     def download_file(self, url, dest_path):
