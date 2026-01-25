@@ -12,6 +12,7 @@ import time
 import asyncio
 import signal
 import logging
+import platform
 import argparse
 import subprocess
 import requests
@@ -79,9 +80,13 @@ class WebRTCShutdownTester:
                 logger.error("Test server verification failed")
                 return False
                 
-            # Stop the server with SIGINT to trigger shutdown
-            logger.info("Stopping server with SIGINT to test shutdown")
-            server_process.send_signal(signal.SIGINT)
+            # Stop the server to trigger shutdown
+            if platform.system() == "Windows":
+                logger.info("Stopping server with terminate() on Windows")
+                server_process.terminate()
+            else:
+                logger.info("Stopping server with SIGINT to test shutdown")
+                server_process.send_signal(signal.SIGINT)
             
             # Wait for server to exit
             try:
