@@ -9,7 +9,7 @@ This script demonstrates the new daemon-based architecture where:
 4. Both MCP and CLI read parquet indexes for fast routing decisions
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import sys
@@ -53,7 +53,7 @@ async def demo_daemon_architecture():
         if start_result.get("success"):
             print("   ✅ Daemon started successfully")
             # Wait for startup
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
         else:
             print(f"   ❌ Failed to start daemon: {start_result.get('error')}")
             print("   Continuing with demo using available components...")
@@ -228,4 +228,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

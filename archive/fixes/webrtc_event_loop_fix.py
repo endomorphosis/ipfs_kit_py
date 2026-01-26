@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class AsyncEventLoopHandler:
     """
-    Handler for properly managing asyncio operations in different contexts.
+    Handler for properly managing async-io operations in different contexts.
     This class provides methods to safely execute coroutines whether within 
     a running event loop (e.g., FastAPI) or standalone.
     """

@@ -3,7 +3,7 @@
 Test script for the comprehensive configuration management dashboard.
 """
 
-import asyncio
+import anyio
 import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
@@ -54,4 +54,4 @@ async def test_dashboard():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(test_dashboard())
+    anyio.run(test_dashboard)

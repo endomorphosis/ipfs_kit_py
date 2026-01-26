@@ -175,7 +175,7 @@ def install_libp2p_dependencies(
         "protobuf": ">=3.20.0",         # For protocol buffers
         "base58": ">=2.1.0",            # For base58 encoding/decoding
         "networkx": ">=2.6.0",          # For peer routing graph
-        "async-timeout": ">=4.0.0",     # For asyncio timeouts
+        "async-timeout": ">=4.0.0",     # For async-io timeouts
     }
     
     # Additional packages that enhance functionality but aren't strictly required

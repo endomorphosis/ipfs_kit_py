@@ -6,7 +6,7 @@ This script tests the refactored MCP server to ensure it can perform
 atomic operations on ~/.ipfs_kit/ files without managing the daemon.
 """
 
-import asyncio
+import anyio
 import json
 import sys
 from pathlib import Path
@@ -149,4 +149,4 @@ if __name__ == "__main__":
             print("\n❌ Some tests failed!")
             sys.exit(1)
     
-    asyncio.run(main())
+    anyio.run(main)

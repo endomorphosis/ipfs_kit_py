@@ -9,7 +9,7 @@ Usage:
     python run_enhanced_dashboard.py [--port PORT] [--host HOST] [--mcp-url URL]
 """
 
-import asyncio
+import anyio
 import argparse
 import logging
 import sys
@@ -100,4 +100,4 @@ async def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

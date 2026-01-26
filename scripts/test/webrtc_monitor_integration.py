@@ -419,7 +419,7 @@ class WebRTCMonitorIntegration:
         # Start polling task
         if not self.poll_task:
             if sys.version_info >= (3, 7):
-                # For Python 3.7+, use asyncio directly
+                # For Python 3.7+, use async-io directly
                 self.poll_task = anyio.create_task(self._poll_loop())
                 if HAS_VISUALIZATION and self.config["visualization"]["enabled"]:
                     self.visualization_task = anyio.create_task(self._visualization_loop())

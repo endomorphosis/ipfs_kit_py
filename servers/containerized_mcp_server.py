@@ -10,7 +10,7 @@ variables for containerized deployments.
 import os
 import sys
 import argparse
-import asyncio
+import anyio
 import logging
 from typing import Optional
 
@@ -145,9 +145,9 @@ class ContainerizedMCPServer:
             
             logger.info("Waiting for cluster peers to be ready...")
             max_wait = 300  # 5 minutes
-            start_time = asyncio.get_event_loop().time()
+            start_time = anyio.current_time()
             
-            while (asyncio.get_event_loop().time() - start_time) < max_wait:
+            while (anyio.current_time() - start_time) < max_wait:
                 ready_peers = []
                 
                 async with httpx.AsyncClient() as client:
@@ -168,7 +168,7 @@ class ContainerizedMCPServer:
                     return True
                 
                 logger.info(f"Waiting for peers... Ready: {len(ready_peers)}/{len(self.config['cluster_peers'])}")
-                await asyncio.sleep(10)
+                await anyio.sleep(10)
             
             logger.warning("Timeout waiting for cluster peers, proceeding anyway...")
         
@@ -211,7 +211,7 @@ class ContainerizedMCPServer:
                         "status": "healthy",
                         "node_id": self.config['node_id'],
                         "node_role": self.config['node_role'],
-                        "timestamp": asyncio.get_event_loop().time(),
+                        "timestamp": anyio.current_time(),
                         "cluster_peers": len(self.config['cluster_peers']),
                         "services": {
                             "daemon_manager": bool(self.daemon_manager),
@@ -326,7 +326,10 @@ async def main():
         
         def signal_handler(signum, frame):
             logger.info(f"Received signal {signum}, shutting down...")
-            asyncio.create_task(server.stop())
+            try:
+                anyio.from_thread.run(server.stop)
+            except RuntimeError:
+                anyio.run(server.stop)
         
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
@@ -342,4 +345,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

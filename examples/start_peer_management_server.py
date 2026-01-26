@@ -2,7 +2,7 @@
 """
 Start the Enhanced MCP Server with Peer Management
 """
-import asyncio
+import anyio
 import uvicorn
 from mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
 
@@ -30,4 +30,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

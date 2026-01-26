@@ -4,7 +4,7 @@ Demo script for dashboard cluster configuration integration.
 Tests the complete integration between dashboard API and cluster configuration.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from pathlib import Path
@@ -180,4 +180,4 @@ async def main():
         print("\n❌ Tests failed. Check logs for details.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

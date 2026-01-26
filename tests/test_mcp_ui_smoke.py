@@ -3,7 +3,7 @@
 Minimal smoke test: start ConsolidatedMCPDashboard on a test port, probe status and tools, then
 call server_shutdown and ensure the process exits.
 """
-import asyncio
+import anyio
 import json
 import os
 import socket
@@ -45,15 +45,12 @@ def http_post_json(url: str, body: dict, timeout: float = 3.0):
 
 
 def run_server_in_thread(app: ConsolidatedMCPDashboard):
-    loop = asyncio.new_event_loop()
-
     def _runner():
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(app.run())
+        anyio.run(app.run)
 
     t = threading.Thread(target=_runner, daemon=True)
     t.start()
-    return t, loop
+    return t
 
 
 def main():
@@ -62,7 +59,7 @@ def main():
     data_dir = os.environ.get('MCP_DATA_DIR') or str(Path.home() / '.ipfs_kit')
     app = ConsolidatedMCPDashboard({'host': host, 'port': port, 'data_dir': data_dir, 'debug': False})
 
-    t, loop = run_server_in_thread(app)
+    t = run_server_in_thread(app)
 
     # wait until port open
     deadline = time.time() + 10

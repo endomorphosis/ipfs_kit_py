@@ -3,7 +3,7 @@
 Test script to verify JavaScript fixes in the dashboard.
 """
 
-import asyncio
+import anyio
 import sys
 import os
 import requests
@@ -130,7 +130,7 @@ def main():
     print("🔧 Dashboard JavaScript Fix Verification")
     print("=" * 50)
     
-    success = asyncio.run(test_dashboard_api())
+    success = anyio.run(test_dashboard_api)
     
     if success:
         print("\n🎉 SUCCESS: Dashboard JavaScript fixes applied!")

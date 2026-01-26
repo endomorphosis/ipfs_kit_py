@@ -17,7 +17,7 @@ Usage:
 
 import os
 import sys
-import asyncio
+import anyio
 import logging
 import tempfile
 from pathlib import Path
@@ -115,7 +115,7 @@ Features demonstrated:
 - Decentralized retrieval
 
 Timestamp: {timestamp}
-""".format(timestamp=str(asyncio.get_event_loop().time()))
+""".format(timestamp=str(anyio.current_time()))
     
     sample_data = sample_text.encode('utf-8')
     
@@ -398,7 +398,7 @@ async def main():
 if __name__ == "__main__":
     import traceback
     try:
-        exit_code = asyncio.run(main())
+        exit_code = anyio.run(main)
         sys.exit(exit_code)
     except KeyboardInterrupt:
         logger.info("Interrupted by user")

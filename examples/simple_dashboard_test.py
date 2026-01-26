@@ -6,7 +6,8 @@ This script provides basic validation of the integrated dashboard features
 without complex async unittest framework conflicts.
 """
 
-import asyncio
+import anyio
+import inspect
 import json
 import logging
 import os
@@ -330,7 +331,7 @@ async def run_all_tests():
         logger.info("-" * 40)
         
         try:
-            if asyncio.iscoroutinefunction(test_func):
+            if inspect.iscoroutinefunction(test_func):
                 result = await test_func()
             else:
                 result = test_func()
@@ -380,7 +381,7 @@ def main():
     print()
     
     try:
-        success = asyncio.run(run_all_tests())
+        success = anyio.run(run_all_tests)
         
         if success:
             print("\n🎯 INTEGRATION SUCCESS!")

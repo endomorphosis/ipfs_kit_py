@@ -7,7 +7,7 @@ for all supported services: IPFS, Lotus, Lassie, IPFS cluster services, S3,
 HuggingFace, and Storacha.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -434,7 +434,7 @@ def main():
         if args.standalone:
             server.run_standalone()
         else:
-            asyncio.run(server.run_server())
+            anyio.run(server.run_server)
             
     except KeyboardInterrupt:
         logger.info("👋 Server stopped by user")

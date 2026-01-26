@@ -16,7 +16,7 @@ Performance Characteristics:
 - Background preloading for high-priority features
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -321,7 +321,7 @@ class JITMCPTools:
                 )
                 
                 # Wait and check
-                await asyncio.sleep(2)
+                await anyio.sleep(2)
                 status = await self._handle_daemon_status({})
                 
                 if status["running"]:
@@ -350,7 +350,7 @@ class JITMCPTools:
                 for _ in range(10):
                     try:
                         os.kill(pid, 0)
-                        await asyncio.sleep(1)
+                        await anyio.sleep(1)
                     except ProcessLookupError:
                         break
                 
@@ -799,5 +799,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

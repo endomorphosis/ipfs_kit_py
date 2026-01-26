@@ -3,7 +3,6 @@
 Test Enhanced Dashboard - Serving the enhanced_dashboard.html template
 """
 
-import asyncio
 import json
 import logging
 import os

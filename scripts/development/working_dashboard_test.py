@@ -6,7 +6,6 @@ This test validates that our working unified comprehensive dashboard
 works correctly with the existing MCP server infrastructure.
 """
 
-import asyncio
 import sys
 import json
 import requests

@@ -4,7 +4,7 @@ Final comprehensive test for IPFS Cluster Dashboard integration.
 Tests the complete functionality including port separation and health monitoring.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from pathlib import Path
@@ -206,4 +206,4 @@ async def main():
         print("\n❌ Some tests failed. Please review the output above.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -4,7 +4,7 @@ Screenshot script for MCP Dashboard using Playwright
 Demonstrates the improved MCP dashboard functionality
 """
 
-import asyncio
+import anyio
 import os
 import sys
 from pathlib import Path
@@ -180,5 +180,5 @@ async def main():
         return True
 
 if __name__ == "__main__":
-    result = asyncio.run(main())
+    result = anyio.run(main)
     sys.exit(0 if result else 1)

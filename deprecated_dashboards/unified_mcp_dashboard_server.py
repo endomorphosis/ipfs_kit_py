@@ -15,7 +15,7 @@ Features:
 - FastAPI backend with static file serving
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -257,7 +257,7 @@ class JSONRPCHandler:
         """Restart daemon services"""
         stop_result = await self.daemon_stop(params)
         if stop_result["success"]:
-            await asyncio.sleep(2)  # Wait a moment
+            await anyio.sleep(2)  # Wait a moment
             return await self.daemon_start(params)
         return stop_result
     

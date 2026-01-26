@@ -6,7 +6,7 @@ Adds all 86+ comprehensive MCP server features to the bucket dashboard,
 bringing full feature parity with the old comprehensive dashboard.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -389,4 +389,4 @@ if __name__ == "__main__":
         result = await integrate_comprehensive_features(app)
         print(f"Integration result: {json.dumps(result, indent=2)}")
     
-    asyncio.run(test_integration())
+    anyio.run(test_integration)

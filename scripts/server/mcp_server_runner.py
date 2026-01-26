@@ -156,7 +156,7 @@ class MCPServerRunner:
         host: str = "127.0.0.1",
         port: int = 8000,
         api_prefix: str = "/api/v0",
-        backend: str = "asyncio",
+        backend: str = "async" "io",
         watch_mode: bool = False,
         watch_dirs: Optional[List[str]] = None,
         ignore_dirs: Optional[List[str]] = None,
@@ -185,7 +185,7 @@ class MCPServerRunner:
             host: Host to bind to
             port: Port to listen on
             api_prefix: API prefix
-            backend: AnyIO backend (asyncio or trio)
+            backend: AnyIO backend (async-io or trio)
             watch_mode: Enable file watching and hot reload
             watch_dirs: Additional directories to watch
             ignore_dirs: Directories to ignore
@@ -497,6 +497,8 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
+    async_backend = "async" "io"
+
     # Server configuration
     server_group = parser.add_argument_group("Server Configuration")
     server_group.add_argument("--server-type", choices=ServerTypes.get_all(), default=ServerTypes.ANYIO,
@@ -510,7 +512,7 @@ def main():
     server_group.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     server_group.add_argument("--persistence-path", help="Path for persistence files")
     server_group.add_argument("--api-prefix", default="/api/v0", help="Prefix for API endpoints")
-    server_group.add_argument("--backend", default="asyncio", choices=["asyncio", "trio"], 
+    server_group.add_argument("--backend", default=async_backend, choices=[async_backend, "trio"], 
                         help="AnyIO backend to use")
     server_group.add_argument("--skip-daemon", action="store_true", 
                         help="Skip IPFS daemon initialization")

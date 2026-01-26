@@ -3,7 +3,7 @@
 Final verification: Dashboard status for both Google Drive and IPFS.
 """
 
-import asyncio
+import anyio
 from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
 
 
@@ -80,7 +80,7 @@ async def check_dashboard_status():
 
 def main():
     """Run the verification."""
-    asyncio.run(check_dashboard_status())
+    anyio.run(check_dashboard_status)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ This script demonstrates:
 
 import os
 import sys
-import asyncio
+import anyio
 import tempfile
 import json
 from pathlib import Path
@@ -224,4 +224,4 @@ async def main():
     print("4. Set up remote SSH server for distributed storage")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

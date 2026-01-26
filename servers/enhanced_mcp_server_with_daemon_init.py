@@ -24,7 +24,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import argparse
 import traceback
 import hashlib
@@ -1086,7 +1086,7 @@ try:
             logger.info("🔄 Initializing daemon system...")
             try:
                 # Run daemon initialization synchronously
-                asyncio.run(daemon_manager.initialize_system())
+                anyio.run(daemon_manager.initialize_system)
                 logger.info("✅ Daemon system initialized successfully")
             except Exception as e:
                 logger.error(f"❌ Daemon initialization failed: {e}")

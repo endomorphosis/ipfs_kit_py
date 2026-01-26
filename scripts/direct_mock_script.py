@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Direct import of the IPFSKitIntegration class
 from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
-import asyncio
+import anyio
 
 async def test_mock_operations():
     """Test the mock operations directly"""
@@ -43,4 +43,4 @@ async def test_mock_operations():
     print(result)
 
 if __name__ == "__main__":
-    asyncio.run(test_mock_operations())
+    anyio.run(test_mock_operations)

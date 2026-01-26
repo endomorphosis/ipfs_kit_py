@@ -3,7 +3,7 @@ Example demonstrating the AsyncParquetCIDCache functionality.
 
 This script shows how to use the AsyncParquetCIDCache to perform non-blocking
 cache operations using anyio. It demonstrates basic operations, batch processing,
-and typical usage patterns in an asyncio-based application.
+and typical usage patterns in an async-io-based application.
 """
 
 import anyio

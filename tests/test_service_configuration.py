@@ -6,7 +6,7 @@ This script tests the metadata manager, service registry, and MCP wrapper
 to ensure they work correctly.
 """
 
-import asyncio
+import anyio
 import logging
 import sys
 from pathlib import Path
@@ -147,4 +147,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(anyio.run(main))

@@ -3,7 +3,7 @@
 Standalone IPFS MCP server with cluster capabilities for containerized deployment.
 """
 
-import asyncio
+import anyio
 import os
 import sys
 import signal
@@ -56,7 +56,7 @@ class ClusterMCPServer:
                 "status": "healthy" if self.is_healthy else "unhealthy",
                 "node_id": self.node_id,
                 "node_role": self.node_role,
-                "timestamp": asyncio.get_event_loop().time()
+                "timestamp": anyio.current_time()
             }
         
         @self.app.get("/readiness")
@@ -87,7 +87,7 @@ class ClusterMCPServer:
             leader = self._elect_leader()
             return {
                 "leader": leader,
-                "election_timestamp": asyncio.get_event_loop().time()
+                "election_timestamp": anyio.current_time()
             }
         
         @self.app.post("/cluster/peers")
@@ -144,7 +144,7 @@ class ClusterMCPServer:
                 "success": True,
                 "cid": cid,
                 "target_peers": target_peers,
-                "replication_id": f"repl_{asyncio.get_event_loop().time()}"
+                "replication_id": f"repl_{anyio.current_time()}"
             }
         
         @self.app.get("/indexing/stats")
@@ -177,7 +177,7 @@ class ClusterMCPServer:
                 "success": True,
                 "index_type": index_type,
                 "key": key,
-                "timestamp": asyncio.get_event_loop().time()
+                "timestamp": anyio.current_time()
             }
         
         @self.app.get("/indexing/search/{index_type}")
@@ -272,7 +272,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        anyio.run(main)
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
     except Exception as e:

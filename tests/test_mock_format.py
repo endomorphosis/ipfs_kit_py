@@ -7,7 +7,7 @@ repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
 from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
-import asyncio
+import anyio
 
 async def test_mock_format():
     integration = IPFSKitIntegration()
@@ -28,4 +28,4 @@ async def test_mock_format():
     print(result)
 
 if __name__ == "__main__":
-    asyncio.run(test_mock_format())
+    anyio.run(test_mock_format)

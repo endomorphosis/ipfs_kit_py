@@ -18,7 +18,7 @@ Features:
 - Memory-efficient shared state
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import multiprocessing as mp
@@ -323,9 +323,8 @@ class EnhancedMultiprocessingMCPServer:
             """List VFS directory with parallel processing option."""
             if parallel and self.vfs_pool:
                 # Use process pool for heavy operations
-                loop = asyncio.get_event_loop()
                 future = self.vfs_pool.submit(vfs_worker_process, "list_directory", {"path": path})
-                result = await loop.run_in_executor(None, future.result)
+                result = await anyio.to_thread.run_sync(future.result)
             else:
                 # Use local processing
                 if not self.vfs_endpoints:
@@ -338,9 +337,8 @@ class EnhancedMultiprocessingMCPServer:
         async def vfs_file_info(cid: str, parallel: bool = True):
             """Get file info with parallel processing option."""
             if parallel and self.vfs_pool:
-                loop = asyncio.get_event_loop()
                 future = self.vfs_pool.submit(vfs_worker_process, "get_file_info", {"cid": cid})
-                result = await loop.run_in_executor(None, future.result)
+                result = await anyio.to_thread.run_sync(future.result)
             else:
                 if not self.vfs_endpoints:
                     await self._initialize_components()
@@ -358,7 +356,6 @@ class EnhancedMultiprocessingMCPServer:
                 # Query all backends in parallel
                 backends = ["ipfs", "ipfs_cluster", "lotus", "lassie"]
                 
-                loop = asyncio.get_event_loop()
                 futures = []
                 
                 for backend in backends:
@@ -372,7 +369,7 @@ class EnhancedMultiprocessingMCPServer:
                 # Collect results
                 results = {}
                 for future in futures:
-                    result = await loop.run_in_executor(None, future.result)
+                    result = await anyio.to_thread.run_sync(future.result)
                     if result.get("success"):
                         backend_name = result.get("backend")
                         results[backend_name] = result.get("result")
@@ -392,9 +389,8 @@ class EnhancedMultiprocessingMCPServer:
             backends = ["ipfs", "ipfs_cluster", "storacha", "s3"]
             
             if parallel and self.route_pool:
-                loop = asyncio.get_event_loop()
                 future = self.route_pool.submit(route_optimization_worker, cid_list, backends)
-                result = await loop.run_in_executor(None, future.result)
+                result = await anyio.to_thread.run_sync(future.result)
                 return result
             else:
                 # Simple local routing
@@ -477,9 +473,7 @@ class EnhancedMultiprocessingMCPServer:
         """Get daemon status asynchronously."""
         try:
             if self.daemon_client:
-                loop = asyncio.get_event_loop()
-                status = await loop.run_in_executor(
-                    self.daemon_thread_pool,
+                status = await anyio.to_thread.run_sync(
                     self.daemon_client.get_daemon_status
                 )
                 return status
@@ -492,9 +486,7 @@ class EnhancedMultiprocessingMCPServer:
         """Get backend health from daemon asynchronously."""
         try:
             if self.daemon_client:
-                loop = asyncio.get_event_loop()
-                health = await loop.run_in_executor(
-                    self.daemon_thread_pool,
+                health = await anyio.to_thread.run_sync(
                     self.daemon_client.get_backend_health
                 )
                 return health
@@ -633,7 +625,7 @@ def main():
         )
     
     try:
-        asyncio.run(server.start())
+        anyio.run(server.start)
     except KeyboardInterrupt:
         print("\nEnhanced MCP server stopped by user")
     except Exception as e:

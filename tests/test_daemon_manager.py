@@ -3,7 +3,7 @@
 
 import os
 import sys
-import asyncio
+import anyio
 import logging
 
 # Add current directory to Python path
@@ -44,4 +44,4 @@ async def test_daemon_manager():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(test_daemon_manager())
+    anyio.run(test_daemon_manager)

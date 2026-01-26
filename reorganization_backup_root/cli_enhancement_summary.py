@@ -10,7 +10,6 @@ This script summarizes all the improvements made to the CLI system:
 5. Comprehensive validation and backup systems
 """
 
-import asyncio
 import subprocess
 import sys
 from pathlib import Path

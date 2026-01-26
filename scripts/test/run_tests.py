@@ -58,7 +58,7 @@ def main():
     parser.add_argument("--anyio", action="store_true",
                       help="Run only anyio tests (test files with anyio in the name)")
     parser.add_argument("--async", dest="async_only", action="store_true",
-                      help="Run only async tests (requires pytest-asyncio)")
+                      help="Run only async tests (requires pytest-anyio)")
     
     try:
         original_args, unknown = parser.parse_known_args(args)

@@ -14,7 +14,7 @@ Key Features:
 - Maintains full backward compatibility while using modern architecture
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from dataclasses import dataclass, field
@@ -1206,4 +1206,4 @@ async def main():
         logger.info(f"  {category}: {stats['implemented']}/{stats['total']} implemented")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

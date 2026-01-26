@@ -12,7 +12,7 @@ import json
 import time
 import uuid
 import logging
-import asyncio
+import anyio
 import tempfile
 from pathlib import Path
 
@@ -214,7 +214,7 @@ async def verify_mcp_server():
             logger.info(f"✅ Created {len(task_ids)} migration tasks")
             
             # Give tasks time to process
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
             
             # Verify content was migrated
             list_result = mock_dest.list()
@@ -349,4 +349,4 @@ async def verify_mcp_server():
         return False
 
 if __name__ == "__main__":
-    asyncio.run(verify_mcp_server())
+    anyio.run(verify_mcp_server)

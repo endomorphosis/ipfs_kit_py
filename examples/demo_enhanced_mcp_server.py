@@ -5,7 +5,7 @@ Demo script for the Enhanced MCP Server with Service Management.
 This script demonstrates the new service configuration and monitoring capabilities.
 """
 
-import asyncio
+import anyio
 import sys
 import logging
 from pathlib import Path
@@ -61,7 +61,7 @@ async def demo_enhanced_server():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(demo_enhanced_server())
+        anyio.run(demo_enhanced_server)
     except KeyboardInterrupt:
         logger.info("🛑 Server stopped by user")
     except Exception as e:

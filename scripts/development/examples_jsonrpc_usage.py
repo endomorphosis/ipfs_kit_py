@@ -6,7 +6,7 @@ This example demonstrates how to use the new JSON-RPC methods that replace
 WebSocket functionality in the MCP server.
 """
 
-import asyncio
+import anyio
 import json
 import httpx
 from datetime import datetime
@@ -209,7 +209,7 @@ async def example_polling_pattern():
             print("  🔍 No new events")
         
         # Wait before next poll (in real app, this might be 1-5 seconds)
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
     
     # Clean up
     await client.call_method("events.destroy_session", {"session_id": session_id})
@@ -243,4 +243,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

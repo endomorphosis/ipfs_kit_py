@@ -33,9 +33,9 @@ except ImportError:
 
 try:
     import anyio
-    HAS_ASYNCIO = True
+    HAS_ANYIO = True
 except ImportError:
-    HAS_ASYNCIO = False
+    HAS_ANYIO = False
 
 try:
     import networkx as nx

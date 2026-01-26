@@ -6,7 +6,6 @@ This test validates that the enhanced dashboard works correctly with
 the existing MCP server infrastructure and light initialization.
 """
 
-import asyncio
 import sys
 import json
 import requests

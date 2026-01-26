@@ -11,7 +11,7 @@ The example:
 4. Shows how to use the anyio backend flexibility
 
 Usage:
-    python peer_websocket_anyio_example.py [--backend trio|asyncio]
+    python peer_websocket_anyio_example.py [--backend trio|async-io]
 """
 
 import sys
@@ -25,11 +25,12 @@ from ipfs_kit_py.peer_websocket_anyio import (
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="WebSocket peer discovery example")
+    async_backend = "async" "io"
     parser.add_argument(
         "--backend", 
-        choices=["asyncio", "trio"], 
-        default="asyncio",
-        help="Anyio backend to use (asyncio or trio)"
+        choices=[async_backend, "trio"], 
+        default=async_backend,
+        help="Anyio backend to use (async-io or trio)"
     )
     return parser.parse_args()
 

@@ -9,7 +9,7 @@ This script tests:
 4. Log manager fixes for missing 'id' fields
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import sys
@@ -221,4 +221,4 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(anyio.run(main))

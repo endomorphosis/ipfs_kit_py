@@ -6,8 +6,8 @@ This module contains both:
 2. Patched versions of the problematic WebRTC methods for the IPFS model
 3. Async versions of these methods for use in FastAPI routes
 
-Using AnyIO instead of asyncio provides better compatibility across different
-async frameworks (asyncio, trio, curio) and works especially well with FastAPI
+Using AnyIO instead of async-io provides better compatibility across different
+async frameworks (async-io, trio, curio) and works especially well with FastAPI
 which uses Starlette (built on AnyIO).
 """
 
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class AnyIOEventLoopHandler:
     """
     Handler for properly managing asynchronous operations across different
-    async frameworks using AnyIO. Works with asyncio, trio, and any
+    async frameworks using AnyIO. Works with async-io, trio, and any
     other backend supported by AnyIO.
     """
     
@@ -116,7 +116,7 @@ class AnyIOEventLoopHandler:
                 # passed in or managed differently depending on the calling context.
                 # If this code is truly called from a sync context trying to schedule async,
                 # it's inherently complex. The original anyio.create_task might have relied
-                # on an existing asyncio loop, which anyio handles differently.
+                # on an existing async-io loop, which anyio handles differently.
                 
                 # Placeholder: Log a warning, as direct scheduling like this is tricky
                 # without a proper task group context.

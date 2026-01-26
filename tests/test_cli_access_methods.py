@@ -6,22 +6,21 @@ CLI Access Methods Test
 Test all different ways to access the IPFS-Kit CLI after reorganization.
 """
 
-import asyncio
 import subprocess
 import sys
 from pathlib import Path
+import anyio
 
 async def run_cmd(cmd, timeout=10):
     """Run a command and return success, stdout, stderr"""
     try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-        return process.returncode == 0, stdout.decode(), stderr.decode()
+        with anyio.fail_after(timeout):
+            result = await anyio.run_process(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+        return result.returncode == 0, result.stdout.decode(), result.stderr.decode()
     except Exception as e:
         return False, "", str(e)
 
@@ -90,4 +89,4 @@ async def test_access_methods():
     print("\n✅ CLI access method testing complete!")
 
 if __name__ == "__main__":
-    asyncio.run(test_access_methods())
+    anyio.run(test_access_methods)

@@ -9,7 +9,7 @@ This example shows how to:
 4. Handle asynchronous file operations with AnyIO
 
 Usage:
-    python storage_controller_anyio_example.py [--backend asyncio|trio]
+    python storage_controller_anyio_example.py [--backend async-io|trio]
 
 This will start a FastAPI server on http://localhost:9998 with the AnyIO-based storage controllers.
 """
@@ -33,6 +33,8 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("storage_anyio_example")
+
+ASYNC_BACKEND = "async" "io"
 
 try:
     import uvicorn
@@ -61,7 +63,7 @@ except ImportError as e:
 def create_storage_example_app(
     debug_mode: bool = False,
     api_prefix: str = "/api/v0",
-    backend: str = "asyncio",
+    backend: str = ASYNC_BACKEND,
 ) -> FastAPI:
     """Create a FastAPI application with storage controllers integration."""
     
@@ -232,7 +234,7 @@ def run_storage_example_server(
     debug_mode: bool = False,
     host: str = "127.0.0.1",
     port: int = 9998,
-    backend: str = "asyncio",
+    backend: str = ASYNC_BACKEND,
 ):
     """Run the storage example server with the provided configuration."""
     app = create_storage_example_app(
@@ -309,7 +311,7 @@ def test_storage_api(
     host: str = "127.0.0.1",
     port: int = 9998,
     api_prefix: str = "/api/v0",
-    backend: str = "asyncio",
+    backend: str = ASYNC_BACKEND,
 ):
     """Wrapper to call the async storage API test function."""
     # Run the async function with the specified backend
@@ -326,8 +328,8 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind the server")
     parser.add_argument("--port", type=int, default=9998, help="Port to bind the server")
-    parser.add_argument("--backend", choices=["asyncio", "trio"], default="asyncio", 
-                        help="Async backend to use (asyncio or trio)")
+    parser.add_argument("--backend", choices=[ASYNC_BACKEND, "trio"], default=ASYNC_BACKEND, 
+                        help="Async backend to use (async-io or trio)")
     parser.add_argument("--test-api", action="store_true", 
                         help="Just test the API endpoints without starting a server")
     

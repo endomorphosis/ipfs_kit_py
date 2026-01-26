@@ -9,7 +9,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import signal
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -305,14 +305,14 @@ def main():
         # Keep the server running
         try:
             while True:
-                await asyncio.sleep(1)
+                await anyio.sleep(1)
         except KeyboardInterrupt:
             logger.info("🛑 Server stopped by user")
             return 0
     
     # Run the server
     try:
-        return asyncio.run(run_server())
+        return anyio.run(run_server)
     except Exception as e:
         logger.error(f"❌ Server failed to start: {e}")
         return 1

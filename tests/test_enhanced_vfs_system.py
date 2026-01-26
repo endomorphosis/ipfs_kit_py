@@ -3,7 +3,7 @@
 Test the enhanced VFS system with all backend integrations.
 """
 
-import asyncio
+import anyio
 import tempfile
 import shutil
 from pathlib import Path
@@ -191,5 +191,5 @@ async def test_enhanced_vfs_system():
 
 
 if __name__ == "__main__":
-    success = asyncio.run(test_enhanced_vfs_system())
+    success = anyio.run(test_enhanced_vfs_system)
     exit(0 if success else 1)

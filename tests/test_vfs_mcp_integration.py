@@ -10,7 +10,7 @@ It tests the full end-to-end integration of VFS operations via the MCP interface
 import os
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import tempfile
 import subprocess
@@ -431,4 +431,4 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(anyio.run(main))

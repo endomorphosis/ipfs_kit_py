@@ -5,7 +5,6 @@ This module tests the new Filecoin Pin backend and associated components.
 """
 
 import pytest
-import asyncio
 from ipfs_kit_py.mcp.storage_manager.backends.filecoin_pin_backend import FilecoinPinBackend
 from ipfs_kit_py.mcp.storage_manager.pinning import UnifiedPinService
 from ipfs_kit_py.mcp.storage_manager.retrieval import GatewayChain
@@ -120,7 +119,7 @@ class TestFilecoinPinBackend:
 class TestUnifiedPinService:
     """Test Unified Pin Service."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_initialization(self):
         """Test service initialization."""
         service = UnifiedPinService()
@@ -128,7 +127,7 @@ class TestUnifiedPinService:
         assert service is not None
         assert len(service._supported_backends) > 0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_pin_single_backend(self):
         """Test pinning to a single backend."""
         service = UnifiedPinService()
@@ -144,7 +143,7 @@ class TestUnifiedPinService:
         assert "backends" in result
         assert "filecoin_pin" in result["backends"]
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_pin_multiple_backends(self):
         """Test pinning to multiple backends."""
         service = UnifiedPinService()
@@ -158,7 +157,7 @@ class TestUnifiedPinService:
         assert "backends" in result
         assert len(result["backends"]) == 2
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_unpin(self):
         """Test unpinning content."""
         service = UnifiedPinService()
@@ -171,7 +170,7 @@ class TestUnifiedPinService:
         assert "cid" in result
         assert "backends" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_list_pins(self):
         """Test listing pins."""
         service = UnifiedPinService()
@@ -185,7 +184,7 @@ class TestUnifiedPinService:
         assert "backends" in result
         assert "total_count" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_pin_status(self):
         """Test getting pin status."""
         service = UnifiedPinService()
@@ -202,7 +201,7 @@ class TestUnifiedPinService:
 class TestGatewayChain:
     """Test Gateway Chain."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_initialization(self):
         """Test gateway chain initialization."""
         chain = GatewayChain()
@@ -210,7 +209,7 @@ class TestGatewayChain:
         assert chain is not None
         assert len(chain.gateways) > 0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_initialization_custom_gateways(self):
         """Test initialization with custom gateways."""
         custom_gateways = [
@@ -221,7 +220,7 @@ class TestGatewayChain:
         assert len(chain.gateways) == 1
         assert chain.gateways[0]["url"] == "https://ipfs.io/ipfs/"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_test_all_gateways(self):
         """Test gateway health check."""
         chain = GatewayChain()
@@ -233,7 +232,7 @@ class TestGatewayChain:
         assert isinstance(results, dict)
         assert len(results) > 0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_metrics(self):
         """Test getting gateway metrics."""
         chain = GatewayChain()
@@ -243,7 +242,7 @@ class TestGatewayChain:
         assert isinstance(metrics, dict)
         assert len(metrics) > 0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_health(self):
         """Test getting gateway health."""
         chain = GatewayChain()
@@ -294,7 +293,7 @@ class TestGatewayChainIntegration:
     """Integration tests for Gateway Chain."""
     
     @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_fetch_real_content(self):
         """Test fetching real content from IPFS."""
         chain = GatewayChain()

@@ -18,7 +18,7 @@ import argparse
 import time
 import uuid
 import json
-import asyncio
+import anyio
 from fastapi import FastAPI, APIRouter, Request, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -576,7 +576,7 @@ def create_app():
                         yield f"event: heartbeat\ndata: {json.dumps(status_data)}\n\n"
 
                     # Wait a second between iterations
-                    await asyncio.sleep(1)
+                    await anyio.sleep(1)
                     counter += 1
 
             return StreamingResponse(

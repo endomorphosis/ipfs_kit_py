@@ -4,7 +4,7 @@ Simple CLI for IPFS-Kit MCP operations - bypasses problematic imports
 """
 
 import argparse
-import asyncio
+import anyio
 import sys
 from pathlib import Path
 
@@ -93,7 +93,7 @@ async def simple_main():
 
 def simple_sync_main():
     """Synchronous entry point."""
-    return asyncio.run(simple_main())
+    return anyio.run(simple_main)
 
 if __name__ == '__main__':
     sys.exit(simple_sync_main())

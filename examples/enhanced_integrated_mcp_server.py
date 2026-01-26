@@ -12,7 +12,7 @@ This is the final integration server that combines:
 8. Comprehensive MCP tools
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -586,7 +586,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        anyio.run(main)
     except KeyboardInterrupt:
         logger.info("Server shutdown by user")
     except Exception as e:

@@ -6,7 +6,6 @@ Simple launcher for the MCP dashboard to test services functionality
 import sys
 import os
 from pathlib import Path
-import asyncio
 
 # Add the project path
 project_root = Path(__file__).parent
