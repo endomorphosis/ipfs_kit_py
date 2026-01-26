@@ -7,7 +7,7 @@ for the MCP dashboard. It uses the IPFS-Kit daemon for management operations
 while providing direct access to parquet indexes for fast routing decisions.
 """
 
-import asyncio
+import anyio
 import logging
 import time
 from typing import Dict, Any, List, Optional
@@ -139,7 +139,7 @@ class VFSEndpoints:
     async def get_vfs_journal(self, backend_filter: Optional[str] = None, search_query: Optional[str] = None) -> Dict[str, Any]:
         """Get the VFS journal using IPFS Kit integration and daemon health data."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 if self.vfs_manager:
                     # Get from centralized VFS Manager
                     journal_entries = await self.vfs_manager.get_vfs_journal(backend_filter, search_query)
@@ -162,7 +162,7 @@ class VFSEndpoints:
                     return {"success": True, "journal": journal_entries}
                 else:
                     return {"success": True, "journal": [], "note": "No journal source available"}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS journal request timed out")
             return {"success": True, "journal": [], "note": "Service timeout"}
         except Exception as e:
@@ -172,7 +172,7 @@ class VFSEndpoints:
     async def get_vfs_analytics(self) -> Dict[str, Any]:
         """Get comprehensive VFS analytics using IPFS Kit integration and daemon data."""
         try:
-            async with asyncio.timeout(3):
+            with anyio.fail_after(3):
                 if self.vfs_manager:
                     # Use centralized VFS Manager for enhanced analytics
                     vfs_stats = await self.vfs_manager.get_vfs_statistics()
@@ -198,7 +198,7 @@ class VFSEndpoints:
                     return {"success": True, "data": vfs_stats}
                 else:
                     return {"success": False, "error": "No VFS data source available"}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS analytics timed out")
             return {"success": True, "data": {"status": "timeout", "note": "Cached data"}}
         except Exception as e:
@@ -208,7 +208,7 @@ class VFSEndpoints:
     async def get_vfs_health(self) -> Dict[str, Any]:
         """Get VFS health status using IPFS Kit integration and daemon health monitoring."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 health_data = {}
                 
                 # Get VFS statistics from integration
@@ -267,7 +267,7 @@ class VFSEndpoints:
                 
                 return {"success": True, "health": health_data}
                 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS health check timed out")
             return {"success": True, "health": {"status": "unknown", "note": "Timeout"}}
         except Exception as e:
@@ -277,7 +277,7 @@ class VFSEndpoints:
     async def get_vfs_performance(self) -> Dict[str, Any]:
         """Get detailed VFS performance metrics with timeout protection."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 if self.vfs_observer:
                     vfs_stats = await self.vfs_observer.get_vfs_statistics()
                     return {
@@ -287,7 +287,7 @@ class VFSEndpoints:
                     }
                 else:
                     return {"success": False, "error": "VFS Observer not available"}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS performance check timed out")
             return {"success": True, "performance_data": {"note": "Cached data"}}
         except Exception as e:
@@ -297,7 +297,7 @@ class VFSEndpoints:
     async def get_vfs_cache(self) -> Dict[str, Any]:
         """Get VFS cache information with timeout protection."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 if self.vfs_observer:
                     vfs_stats = await self.vfs_observer.get_vfs_statistics()
                     cache_data = vfs_stats.get("cache_performance", {})
@@ -310,7 +310,7 @@ class VFSEndpoints:
                     }
                 else:
                     return {"success": False, "error": "VFS Observer not available"}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS cache check timed out")
             return {"success": True, "data": {"note": "Cached data"}}
         except Exception as e:
@@ -320,7 +320,7 @@ class VFSEndpoints:
     async def get_vfs_vector_index(self) -> Dict[str, Any]:
         """Get VFS vector index information with timeout protection."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 if self.vfs_observer:
                     # Return static mock data to avoid blocking operations
                     vector_data = {
@@ -339,7 +339,7 @@ class VFSEndpoints:
                     return {"success": True, "data": vector_data}
                 else:
                     return {"success": False, "error": "VFS Observer not available"}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS vector index check timed out")
             return {"success": True, "data": {"note": "Cached data"}}
         except Exception as e:
@@ -349,7 +349,7 @@ class VFSEndpoints:
     async def get_vfs_knowledge_base(self) -> Dict[str, Any]:
         """Get VFS knowledge base information with timeout protection."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 if self.vfs_observer:
                     # Return static mock data to avoid blocking operations
                     kb_data = {
@@ -369,7 +369,7 @@ class VFSEndpoints:
                     return {"success": True, "data": kb_data}
                 else:
                     return {"success": False, "error": "VFS Observer not available"}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS knowledge base check timed out")
             return {"success": True, "data": {"note": "Cached data"}}
         except Exception as e:
@@ -379,7 +379,7 @@ class VFSEndpoints:
     async def get_vfs_recommendations(self) -> Dict[str, Any]:
         """Get VFS recommendations with timeout protection."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 if self.vfs_observer:
                     # Simple recommendations without heavy computation
                     recommendations = [{
@@ -400,7 +400,7 @@ class VFSEndpoints:
                     }
                 else:
                     return {"success": False, "error": "VFS Observer not available"}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS recommendations check timed out")
             return {"success": True, "data": {"recommendations": [], "note": "Cached data"}}
         except Exception as e:

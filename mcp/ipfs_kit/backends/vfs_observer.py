@@ -11,7 +11,7 @@ import json
 from typing import Dict, Any, List, Tuple, Optional # Added List and Optional
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
-import asyncio
+import anyio
 from .vfs_journal import VFSJournalManager
 
 logger = logging.getLogger(__name__)
@@ -417,25 +417,24 @@ class VFSObservabilityManager:
                 return total_size
             
             # Run filesystem operations in thread pool with timeout
-            loop = asyncio.get_event_loop()
             cache_paths = ["/tmp/ipfs_kit_cache", "~/.cache/ipfs_kit"]
             index_paths = ["/tmp/ipfs_kit_vector_index", "~/.cache/ipfs_kit/vectors"]
             
             try:
-                cache_size_bytes = await asyncio.wait_for(
-                    loop.run_in_executor(None, get_directory_size, cache_paths),
-                    timeout=2.0  # 2 second timeout
-                )
-            except asyncio.TimeoutError:
+                with anyio.fail_after(2.0):
+                    cache_size_bytes = await anyio.to_thread.run_sync(
+                        get_directory_size, cache_paths
+                    )
+            except TimeoutError:
                 logger.warning("Cache size calculation timed out, using approximation")
                 cache_size_bytes = 50000000  # 50MB default
             
             try:
-                index_size_bytes = await asyncio.wait_for(
-                    loop.run_in_executor(None, get_directory_size, index_paths),
-                    timeout=2.0  # 2 second timeout
-                )
-            except asyncio.TimeoutError:
+                with anyio.fail_after(2.0):
+                    index_size_bytes = await anyio.to_thread.run_sync(
+                        get_directory_size, index_paths
+                    )
+            except TimeoutError:
                 logger.warning("Index size calculation timed out, using approximation")
                 index_size_bytes = 100000000  # 100MB default
             
@@ -587,13 +586,12 @@ class VFSObservabilityManager:
                 return total_size, total_files
             
             # Run filesystem scan in thread pool with timeout
-            loop = asyncio.get_event_loop()
             try:
-                total_size, total_files = await asyncio.wait_for(
-                    loop.run_in_executor(None, get_path_metrics, paths_to_check),
-                    timeout=3.0  # 3 second timeout
-                )
-            except asyncio.TimeoutError:
+                with anyio.fail_after(3.0):
+                    total_size, total_files = await anyio.to_thread.run_sync(
+                        get_path_metrics, paths_to_check
+                    )
+            except TimeoutError:
                 logger.warning("Filesystem metrics calculation timed out, using approximation")
                 total_size = 500000000  # 500MB default
                 total_files = 5000  # 5k files default

@@ -3,7 +3,6 @@ WebSocket manager for dashboard.
 """
 
 import json
-import asyncio
 from typing import Set
 from fastapi import WebSocket
 import logging

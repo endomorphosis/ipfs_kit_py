@@ -6,6 +6,7 @@ ipfs_kit_py.libp2p.peer_manager for backward compatibility.
 All functionality has been moved to the main ipfs_kit_py library.
 """
 import logging
+import anyio
 from typing import Any, Dict, List, Optional
 from pathlib import Path
 
@@ -565,19 +566,19 @@ class LibP2PPeerManager:
         await self.discover_peers()
         
         # Periodic discovery (every 5 minutes)
-        asyncio.create_task(self._periodic_discovery())
+        anyio.lowlevel.spawn_system_task(self._periodic_discovery)
         
     async def _periodic_discovery(self):
         """Periodic peer discovery task."""
         while self.discovery_active:
             try:
-                await asyncio.sleep(300)  # 5 minutes
+                await anyio.sleep(300)  # 5 minutes
                 if self.discovery_active:
                     await self.discover_peers()
                     
             except Exception as e:
                 logger.error(f"Error in periodic discovery: {e}")
-                await asyncio.sleep(60)  # Wait 1 minute on error
+                await anyio.sleep(60)  # Wait 1 minute on error
                 
     async def _handle_metadata_request(self, stream: INetStream):
         """Handle metadata requests from other peers."""

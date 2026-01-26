@@ -2,7 +2,7 @@
 VFS API endpoints for comprehensive VFS analytics and observability.
 """
 
-import asyncio
+import anyio
 import logging
 from typing import Dict, Any
 
@@ -19,14 +19,14 @@ class VFSEndpoints:
         """Get comprehensive VFS analytics with timeout protection."""
         try:
             # Add timeout to prevent hanging requests
-            async with asyncio.timeout(10):  # 10 second timeout
+            with anyio.fail_after(10):  # 10 second timeout
                 if hasattr(self.backend_monitor, 'vfs_observer') and self.backend_monitor.vfs_observer:
                     vfs_stats = await self.backend_monitor.vfs_observer.get_vfs_statistics()
                     return {"success": True, "data": vfs_stats}
                 else:
                     return {"success": False, "error": "VFS Observer not available"}
                     
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("VFS analytics check timed out")
             return {"success": False, "error": "VFS analytics check timed out"}
         except Exception as e:
@@ -37,7 +37,7 @@ class VFSEndpoints:
         """Get VFS health status with timeout protection."""
         try:
             # Add timeout to prevent hanging requests
-            async with asyncio.timeout(10):  # 10 second timeout
+            with anyio.fail_after(10):  # 10 second timeout
                 if hasattr(self.backend_monitor, 'vfs_observer') and self.backend_monitor.vfs_observer:
                     # Get comprehensive health information
                     vfs_stats = await self.backend_monitor.vfs_observer.get_vfs_statistics()
@@ -62,7 +62,7 @@ class VFSEndpoints:
                 else:
                     return {"success": False, "error": "VFS Observer not available"}
                     
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("VFS health check timed out")
             return {"success": False, "error": "VFS health check timed out"}
         except Exception as e:
@@ -73,7 +73,7 @@ class VFSEndpoints:
         """Get detailed VFS performance metrics and analysis with timeout protection."""
         try:
             # Add timeout to prevent hanging requests
-            async with asyncio.timeout(8):  # 8 second timeout
+            with anyio.fail_after(8):  # 8 second timeout
                 if hasattr(self.backend_monitor, 'vfs_observer') and self.backend_monitor.vfs_observer:
                     vfs_stats = await self.backend_monitor.vfs_observer.get_vfs_statistics()
                     
@@ -85,7 +85,7 @@ class VFSEndpoints:
                 else:
                     return {"success": False, "error": "VFS Observer not available"}
                     
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("VFS performance check timed out")
             return {"success": False, "error": "VFS performance check timed out"}
         except Exception as e:
@@ -96,14 +96,14 @@ class VFSEndpoints:
         """Get VFS cache information with timeout protection."""
         try:
             # Add timeout to prevent hanging requests
-            async with asyncio.timeout(5):  # 5 second timeout
+            with anyio.fail_after(5):  # 5 second timeout
                 if hasattr(self.backend_monitor, 'vfs_observer') and self.backend_monitor.vfs_observer:
                     return await self.backend_monitor.vfs_observer.get_cache_statistics()
                 else:
                     logger.warning("VFS observer not available, returning error for get_vfs_cache")
                     return {"error": "VFS observer not available"}
                     
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("VFS cache check timed out")
             return {"error": "VFS cache check timed out"}
         except Exception as e:

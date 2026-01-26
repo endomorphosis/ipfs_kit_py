@@ -14,7 +14,7 @@ This daemon is responsible for:
 The MCP server and CLI tools become lightweight clients that query this daemon.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -95,7 +95,7 @@ class IPFSKitDaemon:
         self.start_time = None
         
         # Background tasks
-        self.background_tasks = set()
+        self._task_group = None
         
         # FastAPI app
         self.app = self._create_app()
@@ -122,7 +122,7 @@ class IPFSKitDaemon:
                 if self.start_time is None:
                     self.start_time = datetime.now()
                 # Fire and forget initialization (non-blocking)
-                asyncio.create_task(self.initialize())
+                anyio.lowlevel.spawn_system_task(self.initialize)
             except Exception as e:
                 logger.error(f"Startup initialization scheduling failed: {e}")
         # Simple status endpoint expected by CI scripts
@@ -356,25 +356,20 @@ class IPFSKitDaemon:
     async def _start_background_tasks(self):
         """Start background monitoring and maintenance tasks."""
         logger.info("📊 Starting background tasks...")
-        
-        # Health monitoring task
-        task1 = asyncio.create_task(self._health_monitoring_loop())
-        self.background_tasks.add(task1)
-        
-        # Pin index update task
-        task2 = asyncio.create_task(self._pin_index_update_loop())
-        self.background_tasks.add(task2)
-        
-        # Log collection task
-        task3 = asyncio.create_task(self._log_collection_loop())
-        self.background_tasks.add(task3)
-        
-        # Bucket maintenance task
+
+        if self._task_group is None:
+            tg = anyio.create_task_group()
+            await tg.__aenter__()
+            self._task_group = tg
+
+        self._task_group.start_soon(self._health_monitoring_loop)
+        self._task_group.start_soon(self._pin_index_update_loop)
+        self._task_group.start_soon(self._log_collection_loop)
+
         if self.bucket_vfs_manager:
-            task4 = asyncio.create_task(self._bucket_maintenance_loop())
-            self.background_tasks.add(task4)
-        
-        logger.info(f"✓ Started {len(self.background_tasks)} background tasks")
+            self._task_group.start_soon(self._bucket_maintenance_loop)
+
+        logger.info("✓ Started background tasks")
     
     async def _health_monitoring_loop(self):
         """Background health monitoring loop."""
@@ -386,11 +381,11 @@ class IPFSKitDaemon:
                 if self.health_monitor:
                     await self.health_monitor.check_all_backends_health()
                 
-                await asyncio.sleep(30)
+                await anyio.sleep(30)
                 
             except Exception as e:
                 logger.error(f"Error in health monitoring loop: {e}")
-                await asyncio.sleep(60)  # Wait longer if there's an error
+                await anyio.sleep(60)  # Wait longer if there's an error
     
     async def _pin_index_update_loop(self):
         """Background pin index update loop."""
@@ -400,11 +395,11 @@ class IPFSKitDaemon:
             try:
                 # Update pin index every 5 minutes
                 await self._update_pin_index()
-                await asyncio.sleep(300)
+                await anyio.sleep(300)
                 
             except Exception as e:
                 logger.error(f"Error in pin index update loop: {e}")
-                await asyncio.sleep(600)  # Wait longer if there's an error
+                await anyio.sleep(600)  # Wait longer if there's an error
     
     async def _log_collection_loop(self):
         """Background log collection loop."""
@@ -417,11 +412,11 @@ class IPFSKitDaemon:
                     # Use the async log collection method
                     await self.log_manager.collect_all_backend_logs()
                 
-                await asyncio.sleep(60)
+                await anyio.sleep(60)
                 
             except Exception as e:
                 logger.error(f"Error in log collection loop: {e}")
-                await asyncio.sleep(120)  # Wait longer if there's an error
+                await anyio.sleep(120)  # Wait longer if there's an error
 
     async def _bucket_maintenance_loop(self):
         """Background bucket maintenance loop."""
@@ -434,11 +429,11 @@ class IPFSKitDaemon:
                     await self._update_bucket_indexes()
                     await self._export_buckets_to_parquet()
                 
-                await asyncio.sleep(300)  # 5 minutes
+                await anyio.sleep(300)  # 5 minutes
                 
             except Exception as e:
                 logger.error(f"Error in bucket maintenance loop: {e}")
-                await asyncio.sleep(600)  # Wait longer if there's an error
+                await anyio.sleep(600)  # Wait longer if there's an error
     
     async def _get_pin_index_data(self) -> Dict[str, Any]:
         """Get pin index data from parquet files."""
@@ -525,21 +520,15 @@ class IPFSKitDaemon:
                 try:
                     # TODO: Get pins from IPFS daemon once pin_ls is available
                     # For now, just export existing metadata to parquet
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, pin_index.export_to_parquet
-                    )
+                    await anyio.to_thread.run_sync(pin_index.export_to_parquet)
                     logger.debug("✓ Pin index exported to parquet")
                 except Exception as e:
                     logger.warning(f"Could not update pins from IPFS: {e}")
                     # Still export existing metadata
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, pin_index.export_to_parquet
-                    )
+                    await anyio.to_thread.run_sync(pin_index.export_to_parquet)
             else:
                 # Just export existing metadata to parquet
-                await asyncio.get_event_loop().run_in_executor(
-                    None, pin_index.export_to_parquet
-                )
+                await anyio.to_thread.run_sync(pin_index.export_to_parquet)
                 logger.debug("✓ Pin index metadata exported to parquet")
             
         except Exception as e:
@@ -692,11 +681,9 @@ class IPFSKitDaemon:
         """Handle shutdown signals."""
         logger.info(f"🛑 Received signal {signum}, shutting down...")
         self.running = False
-        
-        # Cancel background tasks
-        for task in self.background_tasks:
-            if not task.done():
-                task.cancel()
+
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
         
         logger.info("✓ Daemon shutdown complete")
     
@@ -706,10 +693,10 @@ class IPFSKitDaemon:
         
         self.running = False
         
-        # Cancel background tasks
-        for task in self.background_tasks:
-            if not task.done():
-                task.cancel()
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
         
         # Cleanup components
         if self.health_monitor:
@@ -919,4 +906,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -10,7 +10,7 @@ This launcher coordinates multiple high-performance services:
 - Resource management and optimization
 """
 
-import asyncio
+import anyio
 import argparse
 import logging
 import multiprocessing as mp
@@ -88,6 +88,10 @@ class MultiProcessServiceLauncher:
         # Process management
         self.running_services = {}
         self.service_processes = {}
+
+        # AnyIO task management
+        self._task_group = None
+        self._stop_event = anyio.Event()
         
         # Performance monitoring
         self.performance_monitor = None
@@ -170,11 +174,16 @@ class MultiProcessServiceLauncher:
             )
             
             # Start daemon in background task
-            daemon_task = asyncio.create_task(self.daemon.start())
-            self.running_services['daemon'] = daemon_task
+            if self._task_group is None:
+                tg = anyio.create_task_group()
+                await tg.__aenter__()
+                self._task_group = tg
+
+            self._task_group.start_soon(self.daemon.start)
+            self.running_services['daemon'] = True
             
             # Wait a bit for daemon to start
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             
             # Verify daemon is running
             try:
@@ -214,11 +223,16 @@ class MultiProcessServiceLauncher:
             )
             
             # Start MCP server in background task
-            mcp_task = asyncio.create_task(self.mcp_server.start())
-            self.running_services['mcp_server'] = mcp_task
+            if self._task_group is None:
+                tg = anyio.create_task_group()
+                await tg.__aenter__()
+                self._task_group = tg
+
+            self._task_group.start_soon(self.mcp_server.start)
+            self.running_services['mcp_server'] = True
             
             # Wait a bit for MCP server to start
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             
             # Verify MCP server dashboard is accessible
             try:
@@ -284,15 +298,20 @@ class MultiProcessServiceLauncher:
                             await self._display_performance_text(performance_data)
                         
                         # Wait 10 seconds before next update
-                        await asyncio.sleep(10)
+                        await anyio.sleep(10)
                         
                     except Exception as e:
                         logger.error(f"Performance monitoring error: {e}")
-                        await asyncio.sleep(30)  # Wait longer on error
+                        await anyio.sleep(30)  # Wait longer on error
             
             # Start monitoring in background
-            monitor_task = asyncio.create_task(monitor_loop())
-            self.running_services['performance_monitor'] = monitor_task
+            if self._task_group is None:
+                tg = anyio.create_task_group()
+                await tg.__aenter__()
+                self._task_group = tg
+
+            self._task_group.start_soon(monitor_loop)
+            self.running_services['performance_monitor'] = True
             
             self.print_status("Performance monitoring started", "success")
             
@@ -405,7 +424,7 @@ class MultiProcessServiceLauncher:
 
 [bold]⚡ Resource Usage[/bold]
 • Total Workers: {self.total_workers}
-• Active Services: {len([s for s in self.running_services.values() if not s.done()])}
+• Active Services: {len([s for s in self.running_services.values() if s])}
 • Uptime: {time.time() - data.get('timestamp', time.time()):.0f}s""",
             title="🚀 Service Status",
             border_style="green"
@@ -494,7 +513,7 @@ class MultiProcessServiceLauncher:
         try:
             # Wait for all running services
             if self.running_services:
-                await asyncio.gather(*self.running_services.values(), return_exceptions=True)
+                await self._stop_event.wait()
         except KeyboardInterrupt:
             self.print_status("Services interrupted by user", "warning")
         except Exception as e:
@@ -508,19 +527,12 @@ class MultiProcessServiceLauncher:
         self.monitoring_active = False
         
         # Stop all running services
-        for service_name, service_task in self.running_services.items():
-            try:
-                if not service_task.done():
-                    self.print_status(f"Stopping {service_name}...", "info")
-                    service_task.cancel()
-                    
-                    try:
-                        await asyncio.wait_for(service_task, timeout=10)
-                    except (asyncio.CancelledError, asyncio.TimeoutError):
-                        pass
-                        
-            except Exception as e:
-                logger.error(f"Error stopping {service_name}: {e}")
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
+
+        self._stop_event.set()
         
         # Stop individual service instances
         if self.daemon:
@@ -587,7 +599,7 @@ async def main():
     # Setup signal handlers
     def signal_handler(signum, frame):
         print(f"\n🛑 Received signal {signum}, shutting down...")
-        asyncio.create_task(launcher.stop_all_services())
+        anyio.lowlevel.spawn_system_task(launcher.stop_all_services)
     
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -642,4 +654,4 @@ async def main():
 if __name__ == "__main__":
     # Set multiprocessing start method for better performance
     mp.set_start_method('spawn', force=True)
-    asyncio.run(main())
+    anyio.run(main)

@@ -6,7 +6,6 @@ and monitoring various IPFS Kit storage backends.
 """
 
 import logging
-import asyncio
 import aiohttp
 import json
 from typing import Dict, Any, Optional, List
@@ -104,7 +103,7 @@ class IPFSClient(BackendClient):
                         "endpoint": self.endpoint,
                         "error": f"HTTP {response.status}"
                     }
-        except asyncio.TimeoutError:
+        except TimeoutError:
             error_msg = "Health check failed - Connection timeout"
             self.log("ERROR", error_msg)
             return {

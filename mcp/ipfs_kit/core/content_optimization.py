@@ -7,7 +7,7 @@ This module ensures that:
 3. Speed and availability are optimized through intelligent routing
 """
 
-import asyncio
+import anyio
 import hashlib
 import json
 import logging
@@ -183,10 +183,8 @@ class ContentAddressedOptimizer:
                     if hasattr(api, 'cat'):
                         start_time = time.time()
                         try:
-                            content_check = await asyncio.wait_for(
-                                asyncio.to_thread(api.cat, cid), 
-                                timeout=2.0
-                            )
+                            with anyio.fail_after(2.0):
+                                content_check = await anyio.to_thread.run_sync(api.cat, cid)
                             response_time = time.time() - start_time
                             backend_availability['ipfs'] = {
                                 "available": True,
@@ -194,7 +192,7 @@ class ContentAddressedOptimizer:
                                 "via_ipfs_kit": True,
                                 "method": "simple_api.cat"
                             }
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             backend_availability['ipfs'] = {
                                 "available": False,
                                 "error": "timeout",
@@ -221,10 +219,8 @@ class ContentAddressedOptimizer:
         for backend_name, client in backend_clients.items():
             try:
                 start_time = time.time()
-                available = await asyncio.wait_for(
-                    client.check_content_availability(cid), 
-                    timeout=3.0
-                )
+                with anyio.fail_after(3.0):
+                    available = await client.check_content_availability(cid)
                 response_time = time.time() - start_time
                 
                 backend_availability[backend_name] = {
@@ -232,7 +228,7 @@ class ContentAddressedOptimizer:
                     "response_time": response_time,
                     "via_ipfs_kit": False
                 }
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 backend_availability[backend_name] = {
                     "available": False,
                     "error": "timeout"
@@ -263,10 +259,8 @@ class ContentAddressedOptimizer:
                         api = self.ipfs_kit.simple_api
                         if operation == "get" and hasattr(api, 'cat'):
                             # Test first few bytes only for performance measurement
-                            test_result = await asyncio.wait_for(
-                                asyncio.to_thread(lambda: api.cat(cid)[:100]),
-                                timeout=5.0
-                            )
+                            with anyio.fail_after(5.0):
+                                test_result = await anyio.to_thread.run_sync(lambda: api.cat(cid)[:100])
                             success = test_result is not None
                         else:
                             success = True  # Assume success for other operations
@@ -381,7 +375,7 @@ class ContentAddressedOptimizer:
                 try:
                     api = self.ipfs_kit.simple_api
                     if hasattr(api, 'cat'):
-                        source_content = await asyncio.to_thread(api.cat, cid)
+                        source_content = await anyio.to_thread.run_sync(api.cat, cid)
                         source_backend = 'ipfs'
                         result["source_backend"] = 'ipfs_kit_py'
                 except Exception as e:
@@ -404,13 +398,14 @@ class ContentAddressedOptimizer:
             # Execute sync operations
             for backend, task in sync_tasks:
                 try:
-                    sync_result = await asyncio.wait_for(task, timeout=30.0)
+                    with anyio.fail_after(30.0):
+                        sync_result = await task
                     result["sync_results"][backend] = sync_result
                     if sync_result.get("success"):
                         result["successful_syncs"].append(backend)
                     else:
                         result["failed_syncs"].append(backend)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     result["sync_results"][backend] = {"success": False, "error": "timeout"}
                     result["failed_syncs"].append(backend)
                 except Exception as e:

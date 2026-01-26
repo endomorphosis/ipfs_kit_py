@@ -6,7 +6,6 @@ from the ipfs_kit_py library, ensuring the MCP layer uses the core VFS functiona
 """
 
 import logging
-import asyncio
 from typing import Dict, Any
 
 try:

@@ -2,7 +2,7 @@
 Enhanced IPFS Client with Connection Pooling, Backoff, and CLI Fallback
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -107,7 +107,7 @@ class EnhancedIPFSClient:
                 if attempt < self.max_retries - 1:
                     delay = self._calculate_backoff_delay(attempt)
                     logger.debug(f"Retrying in {delay:.1f}s...")
-                    await asyncio.sleep(delay)
+                    await anyio.sleep(delay)
                 else:
                     self._update_connection_state(False)
                     raise ConnectionError(f"Failed to connect to IPFS daemon after {self.max_retries} attempts: {e}")
@@ -127,30 +127,22 @@ class EnhancedIPFSClient:
             try:
                 logger.debug(f"IPFS CLI request attempt {attempt + 1}: {' '.join(command)}")
                 
-                process = await asyncio.create_subprocess_exec(
-                    *command,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                
-                try:
-                    stdout, stderr = await asyncio.wait_for(
-                        process.communicate(), timeout=timeout
+                with anyio.fail_after(timeout):
+                    process = await anyio.run_process(
+                        command,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
                     )
-                except asyncio.TimeoutError:
-                    process.kill()
-                    await process.wait()
-                    raise TimeoutError(f"CLI command timed out after {timeout}s")
-                    
+
                 if process.returncode == 0:
                     self._update_connection_state(True)
-                    output = stdout.decode('utf-8').strip()
+                    output = process.stdout.decode('utf-8').strip()
                     try:
                         return json.loads(output)
                     except json.JSONDecodeError:
                         return {"raw_output": output}
                 else:
-                    error_msg = stderr.decode('utf-8').strip()
+                    error_msg = process.stderr.decode('utf-8').strip()
                     logger.warning(f"IPFS CLI command failed: {error_msg}")
                     
             except (FileNotFoundError, TimeoutError) as e:
@@ -159,7 +151,7 @@ class EnhancedIPFSClient:
                 if attempt < self.max_retries - 1:
                     delay = self._calculate_backoff_delay(attempt)
                     logger.debug(f"Retrying CLI in {delay:.1f}s...")
-                    await asyncio.sleep(delay)
+                    await anyio.sleep(delay)
                 else:
                     self._update_connection_state(False)
                     raise ConnectionError(f"CLI command failed after {self.max_retries} attempts: {e}")

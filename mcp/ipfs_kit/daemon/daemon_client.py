@@ -6,6 +6,7 @@ Used by MCP servers and CLI tools to make requests to the daemon.
 """
 
 import json
+import anyio
 import logging
 from typing import Dict, Any, List, Optional
 import httpx
@@ -136,7 +137,7 @@ class IPFSKitDaemonClient:
                 return True
             
             logger.debug(f"Attempt {attempt + 1}/{max_wait}: daemon not ready")
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
         
         logger.error(f"❌ Daemon not available after {max_wait} seconds")
         return False

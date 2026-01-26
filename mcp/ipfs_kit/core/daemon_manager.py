@@ -8,7 +8,7 @@ This module provides comprehensive daemon management with:
 4. Integration with content optimization system
 """
 
-import asyncio
+import anyio
 import logging
 import os
 import signal
@@ -112,7 +112,7 @@ class IPFSDaemonManager:
                     
                     # Start health monitoring
                     if not self.is_monitoring:
-                        asyncio.create_task(self._health_monitor_loop())
+                        anyio.lowlevel.spawn_system_task(self._health_monitor_loop)
                 else:
                     logger.error("❌ IPFS daemon started but API not responsive")
                     result["success"] = False
@@ -225,7 +225,7 @@ class IPFSDaemonManager:
         stop_result = await self.stop_daemon(graceful=True, timeout=10)
         
         # Wait a moment for cleanup
-        await asyncio.sleep(2)
+        await anyio.sleep(2)
         
         # Start daemon with force restart
         start_result = await self.start_daemon(force_restart=True, **kwargs)
@@ -345,20 +345,19 @@ class IPFSDaemonManager:
             
             # Try CLI as fallback
             try:
-                process = await asyncio.create_subprocess_exec(
-                    "ipfs", "version",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    env={**os.environ, "IPFS_PATH": self.ipfs_path}
-                )
-                
-                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-                
+                with anyio.fail_after(timeout):
+                    process = await anyio.run_process(
+                        ["ipfs", "version"],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        env={**os.environ, "IPFS_PATH": self.ipfs_path},
+                    )
+
                 if process.returncode == 0:
                     result["responsive"] = True
                     result["response_time"] = time.time() - start_time
                     result["method"] = "cli"
-                    result["cli_output"] = stdout.decode().strip()
+                    result["cli_output"] = process.stdout.decode().strip()
                     
             except Exception as e:
                 logger.debug(f"CLI check failed: {e}")
@@ -533,19 +532,17 @@ class IPFSDaemonManager:
         result = {"success": False, "method": "systemctl"}
         
         try:
-            process = await asyncio.create_subprocess_exec(
-                "systemctl", "start", "ipfs",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            process = await anyio.run_process(
+                ["systemctl", "start", "ipfs"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            
-            stdout, stderr = await process.communicate()
-            
+
             if process.returncode == 0:
                 result["success"] = True
                 logger.info("✓ Started IPFS daemon via systemctl")
             else:
-                result["error"] = stderr.decode().strip()
+                result["error"] = process.stderr.decode().strip()
                 logger.debug(f"Systemctl start failed: {result['error']}")
         
         except Exception as e:
@@ -574,15 +571,15 @@ class IPFSDaemonManager:
             env["IPFS_PATH"] = self.ipfs_path
             
             # Start process
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env
+            process = await anyio.open_process(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
             )
-            
+
             # Give it a moment to start
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             
             if process.returncode is None:  # Still running
                 result["success"] = True
@@ -593,7 +590,7 @@ class IPFSDaemonManager:
                 self.daemon_process = process
                 logger.info(f"✓ Started IPFS daemon directly (PID: {process.pid})")
             else:
-                stderr = await process.stderr.read()
+                stderr = await process.stderr.receive()
                 result["error"] = stderr.decode().strip()
                 logger.error(f"❌ IPFS daemon failed to start: {result['error']}")
         
@@ -621,7 +618,7 @@ class IPFSDaemonManager:
                 logger.info(f"✓ IPFS API ready after {result['total_wait_time']:.1f}s")
                 break
             
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
         
         if not result["responsive"]:
             result["total_wait_time"] = timeout
@@ -646,11 +643,11 @@ class IPFSDaemonManager:
                     else:
                         logger.error("❌ IPFS daemon restart failed")
                 
-                await asyncio.sleep(self.health_check_interval)
+                await anyio.sleep(self.health_check_interval)
                 
             except Exception as e:
                 logger.error(f"❌ Error in health monitoring: {e}")
-                await asyncio.sleep(self.health_check_interval)
+                await anyio.sleep(self.health_check_interval)
     
     async def _check_port_status(self, port: int) -> Dict[str, Any]:
         """Check if a port is available or in use."""
@@ -742,30 +739,30 @@ class IPFSDaemonManager:
                 # Fallback to CLI for repo and bandwidth stats if API is not responsive or not used
                 try:
                     # Repo stats via CLI
-                    repo_stat_cli = await asyncio.create_subprocess_exec(
-                        "ipfs", "repo", "stat", "--json",
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE,
-                        env={**os.environ, "IPFS_PATH": self.ipfs_path}
-                    )
-                    stdout, stderr = await asyncio.wait_for(repo_stat_cli.communicate(), timeout=5)
+                    with anyio.fail_after(5):
+                        repo_stat_cli = await anyio.run_process(
+                            ["ipfs", "repo", "stat", "--json"],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            env={**os.environ, "IPFS_PATH": self.ipfs_path},
+                        )
                     if repo_stat_cli.returncode == 0:
-                        metrics["repo_stats"] = json.loads(stdout.decode().strip())
+                        metrics["repo_stats"] = json.loads(repo_stat_cli.stdout.decode().strip())
                     else:
-                        logger.debug(f"CLI repo stat failed: {stderr.decode().strip()}")
+                        logger.debug(f"CLI repo stat failed: {repo_stat_cli.stderr.decode().strip()}")
 
                     # Bandwidth stats via CLI
-                    bw_stat_cli = await asyncio.create_subprocess_exec(
-                        "ipfs", "stats", "bw", "--json",
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE,
-                        env={**os.environ, "IPFS_PATH": self.ipfs_path}
-                    )
-                    stdout, stderr = await asyncio.wait_for(bw_stat_cli.communicate(), timeout=5)
+                    with anyio.fail_after(5):
+                        bw_stat_cli = await anyio.run_process(
+                            ["ipfs", "stats", "bw", "--json"],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            env={**os.environ, "IPFS_PATH": self.ipfs_path},
+                        )
                     if bw_stat_cli.returncode == 0:
-                        metrics["bandwidth_stats"] = json.loads(stdout.decode().strip())
+                        metrics["bandwidth_stats"] = json.loads(bw_stat_cli.stdout.decode().strip())
                     else:
-                        logger.debug(f"CLI bandwidth stat failed: {stderr.decode().strip()}")
+                        logger.debug(f"CLI bandwidth stat failed: {bw_stat_cli.stderr.decode().strip()}")
 
                 except Exception as cli_e:
                     logger.debug(f"Error getting CLI performance metrics: {cli_e}")

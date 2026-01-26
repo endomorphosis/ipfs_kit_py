@@ -5,7 +5,6 @@ Collects, stores, and exposes logs from all backend systems.
 
 import logging
 import logging.handlers
-import asyncio
 import os
 import time
 import json

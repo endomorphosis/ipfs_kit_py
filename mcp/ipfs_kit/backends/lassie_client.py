@@ -2,7 +2,7 @@
 Lassie client for IPFS Kit.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import subprocess
@@ -20,25 +20,24 @@ class LassieClient:
     async def health_check(self) -> Dict[str, Any]:
         """Check if the Lassie binary is available and executable."""
         try:
-            result = await asyncio.create_subprocess_exec(
-                self.binary_path, "--version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            result = await anyio.run_process(
+                [self.binary_path, "--version"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            stdout, stderr = await result.communicate()
 
             if result.returncode == 0:
                 return {
                     "status": "healthy",
                     "binary_available": True,
-                    "version": stdout.decode().strip(),
+                    "version": result.stdout.decode().strip(),
                     "binary_path": self.binary_path
                 }
             else:
                 return {
                     "status": "unhealthy",
                     "binary_available": False,
-                    "error": stderr.decode().strip()
+                    "error": result.stderr.decode().strip()
                 }
         except FileNotFoundError:
             return {

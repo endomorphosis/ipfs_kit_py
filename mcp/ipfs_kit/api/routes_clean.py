@@ -4,7 +4,7 @@ Clean version without duplication.
 """
 
 import traceback
-import asyncio
+import anyio
 import os
 import shutil
 from fastapi import FastAPI, Request, HTTPException, WebSocket, UploadFile, File, Form
@@ -388,16 +388,33 @@ class APIRoutes:
     async def _get_comprehensive_monitoring(self) -> Dict[str, Any]:
         """Get comprehensive monitoring data for the monitoring tab."""
         try:
-            backend_health_task = self.backend_monitor.check_all_backends()
-            vfs_stats_task = self.vfs_endpoints.get_vfs_statistics()
-            file_stats_task = self._get_file_stats()
-            
-            backend_health, vfs_stats, file_stats = await asyncio.gather(
-                backend_health_task,
-                vfs_stats_task,
-                file_stats_task,
-                return_exceptions=True
-            )
+            backend_health = vfs_stats = file_stats = None
+
+            async def _load_backend_health() -> None:
+                nonlocal backend_health
+                try:
+                    backend_health = await self.backend_monitor.check_all_backends()
+                except Exception as exc:
+                    backend_health = exc
+
+            async def _load_vfs_stats() -> None:
+                nonlocal vfs_stats
+                try:
+                    vfs_stats = await self.vfs_endpoints.get_vfs_statistics()
+                except Exception as exc:
+                    vfs_stats = exc
+
+            async def _load_file_stats() -> None:
+                nonlocal file_stats
+                try:
+                    file_stats = await self._get_file_stats()
+                except Exception as exc:
+                    file_stats = exc
+
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(_load_backend_health)
+                tg.start_soon(_load_vfs_stats)
+                tg.start_soon(_load_file_stats)
             
             return {
                 "success": True,

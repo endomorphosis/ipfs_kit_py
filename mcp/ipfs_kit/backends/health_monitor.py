@@ -3,7 +3,7 @@ Real backend health monitor (not mocked) for IPFS Kit.
 Ported from enhanced_unified_mcp_server.py with comprehensive implementations.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -304,7 +304,7 @@ class BackendHealthMonitor:
         
         # Background health update state
         self._cached_backend_health = {}
-        self._health_update_task = None
+        self._health_update_task_group = None
         self._health_update_interval = 60  # Update cached health every 60 seconds
         
         logger.info("✓ Backend health monitor initialized with comprehensive real implementations")
@@ -427,24 +427,22 @@ class BackendHealthMonitor:
         results = {}
         
         # Check all backends in parallel for better performance
-        tasks = []
-        for backend_name in self.backends.keys():
-            task = asyncio.create_task(self.check_backend_health(backend_name))
-            tasks.append((backend_name, task))
-        
-        # Wait for all health checks to complete
-        for backend_name, task in tasks:
+        async def _run_check(name: str) -> None:
             try:
-                results[backend_name] = await task
+                results[name] = await self.check_backend_health(name)
             except Exception as e:
-                logger.error(f"Error checking {backend_name} health: {e}")
-                results[backend_name] = {
-                    "name": backend_name,
+                logger.error(f"Error checking {name} health: {e}")
+                results[name] = {
+                    "name": name,
                     "status": "error",
                     "health": "unhealthy",
                     "error": str(e),
                     "last_check": datetime.now().isoformat()
                 }
+
+        async with anyio.create_task_group() as tg:
+            for backend_name in self.backends.keys():
+                tg.start_soon(_run_check, backend_name)
         
         return results
     
@@ -1478,21 +1476,20 @@ class BackendHealthMonitor:
         results = {}
         
         # Check backends in parallel
-        tasks = []
-        for backend_name in self.backends.keys():
-            task = asyncio.create_task(self.check_backend_health(backend_name))
-            tasks.append((backend_name, task))
-        
-        for backend_name, task in tasks:
+        async def _run_check(name: str) -> None:
             try:
-                results[backend_name] = await task
+                results[name] = await self.check_backend_health(name)
             except Exception as e:
-                results[backend_name] = {
-                    "name": backend_name,
+                results[name] = {
+                    "name": name,
                     "status": "error",
                     "health": "unhealthy",
                     "error": str(e)
                 }
+
+        async with anyio.create_task_group() as tg:
+            for backend_name in self.backends.keys():
+                tg.start_soon(_run_check, backend_name)
         
         return {"success": True, "backends": results}
     
@@ -1689,7 +1686,11 @@ class BackendHealthMonitor:
             logger.info("✓ Pin metadata index started")
             
             # Start background health updates
-            self._health_update_task = asyncio.create_task(self._background_health_update_loop())
+            if self._health_update_task_group is None:
+                tg = anyio.create_task_group()
+                await tg.__aenter__()
+                self._health_update_task_group = tg
+            self._health_update_task_group.start_soon(self._background_health_update_loop)
             logger.info("✓ Background health update service started")
             
         except Exception as e:
@@ -1699,12 +1700,10 @@ class BackendHealthMonitor:
         """Stop background services."""
         try:
             # Stop health update task
-            if self._health_update_task:
-                self._health_update_task.cancel()
-                try:
-                    await self._health_update_task
-                except asyncio.CancelledError:
-                    pass
+            if self._health_update_task_group is not None:
+                self._health_update_task_group.cancel_scope.cancel()
+                await self._health_update_task_group.__aexit__(None, None, None)
+                self._health_update_task_group = None
             
             # Stop pin metadata index
             await self.pin_metadata_index.stop()
@@ -1726,13 +1725,13 @@ class BackendHealthMonitor:
                 logger.debug(f"Updated cached health for {len(self._cached_backend_health)} backends")
                 
                 # Wait for next update
-                await asyncio.sleep(self._health_update_interval)
+                await anyio.sleep(self._health_update_interval)
                 
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in background health update: {e}")
-                await asyncio.sleep(self._health_update_interval)
+                await anyio.sleep(self._health_update_interval)
     
     def get_cached_backend_health(self, backend_name: Optional[str] = None) -> Dict[str, Any]:
         """Get cached backend health (non-blocking)."""

@@ -1,7 +1,7 @@
 """
 Backend monitoring and observability components.
 """
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -550,7 +550,7 @@ class BackendHealthMonitor:
         while self.monitoring_active:
             try:
                 # Run health checks in async context
-                asyncio.run(self.check_all_backends())
+                anyio.run(self.check_all_backends)
                 time.sleep(30)  # Check every 30 seconds
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {e}")
@@ -602,12 +602,12 @@ class BackendHealthMonitor:
         
         try:
             # Check if daemon is running (IPFS API requires POST)
-            result = await asyncio.wait_for(
-                asyncio.to_thread(subprocess.run,
+            with anyio.fail_after(10):
+                result = await anyio.to_thread.run_sync(
+                    subprocess.run,
                     ["curl", "-s", "-X", "POST", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
-                    capture_output=True, text=True, timeout=5
-                ), timeout=10 # Overall timeout for this operation
-            )
+                    capture_output=True, text=True, timeout=5,
+                )
             
             if result.returncode == 0 and result.stdout.strip():
                 try:
@@ -632,12 +632,12 @@ class BackendHealthMonitor:
                 }
                 
                 # Check additional metrics
-                stats_result = await asyncio.wait_for(
-                    asyncio.to_thread(subprocess.run,
+                with anyio.fail_after(10):
+                    stats_result = await anyio.to_thread.run_sync(
+                        subprocess.run,
                         ["curl", "-s", "-X", "POST", f"http://127.0.0.1:{backend['port']}/api/v0/stats/repo"],
-                        capture_output=True, text=True, timeout=5
-                    ), timeout=10 # Overall timeout for this operation
-                )
+                        capture_output=True, text=True, timeout=5,
+                    )
                 
                 if stats_result.returncode == 0 and stats_result.stdout.strip():
                     try:
@@ -655,7 +655,7 @@ class BackendHealthMonitor:
                 backend["health"] = "unhealthy"
                 backend["metrics"] = {}
                 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"IPFS health check timed out after 10 seconds.")
             backend["status"] = "timeout"
             backend["health"] = "unhealthy"
@@ -683,12 +683,12 @@ class BackendHealthMonitor:
         
         try:
             # Check if cluster daemon is running and get info via /id endpoint
-            version_result = await asyncio.wait_for(
-                asyncio.to_thread(subprocess.run,
+            with anyio.fail_after(10):
+                version_result = await anyio.to_thread.run_sync(
+                    subprocess.run,
                     ["curl", "-s", f"http://127.0.0.1:{backend['port']}/id"],
-                    capture_output=True, text=True, timeout=5
-                ), timeout=10
-            )
+                    capture_output=True, text=True, timeout=5,
+                )
             
             if version_result.returncode == 0 and version_result.stdout.strip():
                 try:
@@ -714,12 +714,12 @@ class BackendHealthMonitor:
                     backend["detailed_info"]["ipfs_peer_id"] = ipfs_info.get("id", "unknown")
 
                     # Check pinned CIDs via pins endpoint
-                    pins_result = await asyncio.wait_for(
-                        asyncio.to_thread(subprocess.run,
+                    with anyio.fail_after(10):
+                        pins_result = await anyio.to_thread.run_sync(
+                            subprocess.run,
                             ["curl", "-s", f"http://127.0.0.1:{backend['port']}/pins"],
-                            capture_output=True, text=True, timeout=5
-                        ), timeout=10
-                    )
+                            capture_output=True, text=True, timeout=5,
+                        )
                     if pins_result.returncode == 0 and pins_result.stdout.strip():
                         try:
                             # Try to parse as JSON array first
@@ -768,7 +768,7 @@ class BackendHealthMonitor:
                     "error": f"IPFS Cluster daemon not running or API unreachable: {version_result.stderr.strip() or version_result.returncode}"
                 })
                 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("IPFS Cluster health check timed out after 10 seconds.")
             backend["status"] = "timeout"
             backend["health"] = "unhealthy"
@@ -798,12 +798,12 @@ class BackendHealthMonitor:
         
         try:
             # Check if ipfs-cluster-follow process is running
-            pgrep_result = await asyncio.wait_for(
-                asyncio.to_thread(subprocess.run,
+            with anyio.fail_after(10):
+                pgrep_result = await anyio.to_thread.run_sync(
+                    subprocess.run,
                     ["pgrep", "-f", "ipfs-cluster-follow"],
-                    capture_output=True, text=True, timeout=5
-                ), timeout=10
-            )
+                    capture_output=True, text=True, timeout=5,
+                )
             
             if pgrep_result.returncode == 0 and pgrep_result.stdout.strip():
                 backend["status"] = "running"
@@ -816,17 +816,17 @@ class BackendHealthMonitor:
                 # Attempt to get more detailed status from logs or a status command
                 # This is a placeholder; actual implementation would depend on ipfs-cluster-follow's capabilities
                 try:
-                    log_check_result = await asyncio.wait_for(
-                        asyncio.to_thread(subprocess.run,
+                    with anyio.fail_after(10):
+                        log_check_result = await anyio.to_thread.run_sync(
+                            subprocess.run,
                             ["grep", "-q", "successfully connected to cluster", "/tmp/ipfs-cluster-follow.log"],
-                            capture_output=True, text=True, timeout=5
-                        ), timeout=10
-                    )
+                            capture_output=True, text=True, timeout=5,
+                        )
                     if log_check_result.returncode == 0:
                         backend["detailed_info"]["connection_status"] = "connected"
                     else:
                         backend["detailed_info"]["connection_status"] = "disconnected/connecting"
-                except (asyncio.TimeoutError, FileNotFoundError):
+                except (TimeoutError, FileNotFoundError):
                     backend["detailed_info"]["connection_status"] = "log_check_failed"
                 except Exception as e:
                     backend["detailed_info"]["connection_status"] = f"error_checking_logs: {e}"
@@ -842,7 +842,7 @@ class BackendHealthMonitor:
                     "error": "IPFS Cluster Follow process not found."
                 })
                 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("IPFS Cluster Follow health check timed out after 10 seconds.")
             backend["status"] = "timeout"
             backend["health"] = "unhealthy"

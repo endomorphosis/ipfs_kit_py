@@ -2,7 +2,7 @@
 Optimized VFS API endpoints that prevent hanging by using cached metadata and async patterns.
 """
 
-import asyncio
+import anyio
 import logging
 import time
 import json
@@ -220,10 +220,10 @@ class OptimizedVFSEndpoints:
     async def get_vfs_journal(self, backend_filter: Optional[str] = None, search_query: Optional[str] = None) -> Dict[str, Any]:
         """Get the VFS journal with optional filtering and searching."""
         try:
-            async with asyncio.timeout(2):  # Short timeout
+            with anyio.fail_after(2):  # Short timeout
                 journal_entries = await self.vfs_observer.get_vfs_journal(backend_filter, search_query)
                 return {"success": True, "journal": journal_entries}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS journal request timed out, returning cached data")
             return {"success": True, "journal": [], "note": "Cached data - journal service timeout"}
         except Exception as e:
@@ -233,10 +233,10 @@ class OptimizedVFSEndpoints:
     async def get_vfs_analytics(self) -> Dict[str, Any]:
         """Get comprehensive VFS analytics with timeout protection."""
         try:
-            async with asyncio.timeout(3):  # Short timeout
+            with anyio.fail_after(3):  # Short timeout
                 vfs_stats = await self.vfs_observer.get_vfs_statistics()
                 return {"success": True, "data": vfs_stats}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS analytics timed out, returning minimal data")
             return {
                 "success": True, 
@@ -253,7 +253,7 @@ class OptimizedVFSEndpoints:
     async def get_vfs_health(self) -> Dict[str, Any]:
         """Get VFS health status with timeout protection."""
         try:
-            async with asyncio.timeout(2):  # Very short timeout for health checks
+            with anyio.fail_after(2):  # Very short timeout for health checks
                 vfs_stats = await self.vfs_observer.get_vfs_statistics()
                 
                 health_data = {
@@ -272,7 +272,7 @@ class OptimizedVFSEndpoints:
                     health_data["warnings"] = ["High memory usage detected"]
                 
                 return {"success": True, "health": health_data}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("VFS health check timed out")
             return {
                 "success": True, 
@@ -289,14 +289,14 @@ class OptimizedVFSEndpoints:
     async def get_vfs_performance(self) -> Dict[str, Any]:
         """Get VFS performance metrics."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 vfs_stats = await self.vfs_observer.get_vfs_statistics()
                 return {
                     "success": True, 
                     "performance_data": vfs_stats.get("performance_metrics", {}),
                     "timestamp": vfs_stats.get("timestamp")
                 }
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {
                 "success": True,
                 "performance_data": {
@@ -314,10 +314,10 @@ class OptimizedVFSEndpoints:
     async def get_vfs_cache(self) -> Dict[str, Any]:
         """Get VFS cache information."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 cache_data = await self.vfs_observer.get_cache_statistics()
                 return {"success": True, "data": cache_data, "timestamp": datetime.now().isoformat()}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {
                 "success": True,
                 "data": {
@@ -335,10 +335,10 @@ class OptimizedVFSEndpoints:
     async def get_vfs_vector_index(self) -> Dict[str, Any]:
         """Get VFS vector index information."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 vector_data = await self.vfs_observer.get_vector_index_statistics()
                 return {"success": True, "data": vector_data, "timestamp": datetime.now().isoformat()}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {
                 "success": True,
                 "data": {
@@ -356,10 +356,10 @@ class OptimizedVFSEndpoints:
     async def get_vfs_knowledge_base(self) -> Dict[str, Any]:
         """Get VFS knowledge base information."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 kb_data = await self.vfs_observer.get_knowledge_base_statistics()
                 return {"success": True, "data": kb_data, "timestamp": datetime.now().isoformat()}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {
                 "success": True,
                 "data": {
@@ -377,7 +377,7 @@ class OptimizedVFSEndpoints:
     async def get_vfs_recommendations(self) -> Dict[str, Any]:
         """Get VFS optimization recommendations."""
         try:
-            async with asyncio.timeout(2):
+            with anyio.fail_after(2):
                 vfs_stats = await self.vfs_observer.get_vfs_statistics()
                 
                 recommendations = []
@@ -415,7 +415,7 @@ class OptimizedVFSEndpoints:
                     "recommendations": recommendations,
                     "timestamp": datetime.now().isoformat()
                 }
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {
                 "success": True,
                 "recommendations": [{
@@ -438,6 +438,6 @@ class OptimizedVFSEndpoints:
             except Exception as e:
                 logger.error(f"Background cache update failed: {e}")
         
-        task = asyncio.create_task(update_cache())
+        anyio.lowlevel.spawn_system_task(update_cache)
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
