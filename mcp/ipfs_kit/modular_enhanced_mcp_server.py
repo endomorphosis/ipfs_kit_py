@@ -17,7 +17,7 @@ Enhanced with comprehensive features from the unified server including:
 - WebSocket support for real-time updates
 """
 
-import asyncio
+import anyio
 import argparse
 import json
 import logging
@@ -371,7 +371,7 @@ class ModularEnhancedMCPServer:
                         "data": backend_health,
                         "timestamp": datetime.now().isoformat()
                     })
-                    await asyncio.sleep(30)
+                    await anyio.sleep(30)
             except Exception as e:
                 logger.error(f"WebSocket error: {e}")
             finally:
@@ -739,7 +739,7 @@ class ModularEnhancedMCPServer:
                 logger.info(f"🔌 Closing {len(self.websocket_connections)} WebSocket connections")
                 for websocket in self.websocket_connections.copy():
                     try:
-                        asyncio.create_task(websocket.close())
+                        anyio.lowlevel.spawn_system_task(websocket.close)
                     except Exception as e:
                         logger.warning(f"Error closing WebSocket: {e}")
             

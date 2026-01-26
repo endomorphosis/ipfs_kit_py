@@ -15,7 +15,7 @@ Key improvements:
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import traceback
 import os
@@ -2717,7 +2717,7 @@ async def main():
             message = None  # Initialize message to None
             try:
                 # Read JSON-RPC message from stdin
-                line = await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
+                line = await anyio.to_thread.run_sync(sys.stdin.readline)
                 if not line:
                     break
                 
@@ -2823,7 +2823,7 @@ async def handle_message(server: EnhancedMCPServerWithDaemonMgmt, message: Dict[
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        anyio.run(main)
     except KeyboardInterrupt:
         logger.info("Server shutting down...")
     except Exception as e:

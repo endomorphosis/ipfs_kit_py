@@ -10,7 +10,6 @@ This script can launch different components of the IPFS Kit system:
 """
 
 import argparse
-import asyncio
 import os
 import signal
 import subprocess

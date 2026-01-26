@@ -6,7 +6,6 @@ multi-bucket virtual filesystems with S3-like semantics, IPLD compatibility,
 and cross-platform data export capabilities.
 """
 
-import asyncio
 import json
 import logging
 import os

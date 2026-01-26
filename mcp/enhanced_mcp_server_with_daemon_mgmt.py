@@ -15,7 +15,6 @@ Key improvements:
 
 import sys
 import json
-import asyncio
 import logging
 import traceback
 import os

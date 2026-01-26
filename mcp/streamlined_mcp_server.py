@@ -15,7 +15,7 @@ Key improvements:
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import traceback
 import os
@@ -437,7 +437,7 @@ async def main():
     try:
         while True:
             try:
-                line = await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
+                line = await anyio.to_thread.run_sync(sys.stdin.readline)
                 if not line:
                     break
                 
@@ -485,4 +485,4 @@ async def main():
         logger.info("Streamlined IPFS Kit MCP Server shutdown complete")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

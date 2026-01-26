@@ -7,7 +7,7 @@ for all operations. The CLI focuses on providing a user-friendly
 interface while delegating heavy operations to the daemon.
 """
 
-import asyncio
+import anyio
 import argparse
 import json
 import sys
@@ -405,5 +405,5 @@ Examples:
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

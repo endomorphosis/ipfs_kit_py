@@ -5,7 +5,7 @@ Allows running: python -m mcp.ipfs_kit.daemon
 """
 
 from .ipfs_kit_daemon import main
-import asyncio
+import anyio
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

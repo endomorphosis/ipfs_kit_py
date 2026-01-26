@@ -10,7 +10,7 @@ This CLI uses concurrent operations for high throughput:
 - Progress bars for long-running operations
 """
 
-import asyncio
+import anyio
 import argparse
 import concurrent.futures
 import json
@@ -323,7 +323,7 @@ class MultiProcessIPFSKitCLI:
                         performance_data.append(perf_data)
                         
                         progress.update(task, advance=1)
-                        await asyncio.sleep(1)
+                        await anyio.sleep(1)
             else:
                 for i in range(duration):
                     perf_data = await self.daemon_client._make_request("GET", "/performance")
@@ -331,7 +331,7 @@ class MultiProcessIPFSKitCLI:
                     performance_data.append(perf_data)
                     
                     print(f"📊 Monitoring... {i+1}/{duration}s")
-                    await asyncio.sleep(1)
+                    await anyio.sleep(1)
             
             # Analyze performance data
             avg_active_ops = sum(d.get('active_operations', 0) for d in performance_data) / len(performance_data)
@@ -536,4 +536,4 @@ async def main():
 if __name__ == "__main__":
     # Set multiprocessing start method
     mp.set_start_method('spawn', force=True)
-    asyncio.run(main())
+    anyio.run(main)

@@ -5,7 +5,6 @@ Lightweight client library for communicating with the IPFS Kit daemon.
 Used by MCP servers and CLI tools to make requests to the daemon.
 """
 
-import asyncio
 import json
 import logging
 from typing import Dict, Any, List, Optional

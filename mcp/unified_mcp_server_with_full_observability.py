@@ -22,7 +22,7 @@ Key features:
 import sys
 import os
 import json
-import asyncio
+import anyio
 import logging
 import traceback
 import time
@@ -1026,7 +1026,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        anyio.run(main)
     except KeyboardInterrupt:
         logger.info("🛑 Server interrupted")
     except Exception as e:

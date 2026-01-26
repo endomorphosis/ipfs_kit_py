@@ -12,7 +12,7 @@ All backend management, health monitoring, and pin operations are delegated
 to the IPFS Kit daemon.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import sys
@@ -491,7 +491,7 @@ class LightweightMCPServer(DaemonAwareComponent):
         logger.info("✓ Daemon connection established")
         
         # Start background status monitoring
-        asyncio.create_task(self._status_monitoring_loop())
+        anyio.lowlevel.spawn_system_task(self._status_monitoring_loop)
         
         # Start FastAPI server
         logger.info(f"🌐 Starting web server on {self.host}:{self.port}")
@@ -524,15 +524,15 @@ class LightweightMCPServer(DaemonAwareComponent):
                     "type": "status_update",
                     "daemon_status": daemon_status,
                     "health_status": health_status,
-                    "timestamp": asyncio.get_event_loop().time()
+                    "timestamp": anyio.current_time()
                 })
                 
                 # Wait 30 seconds before next update
-                await asyncio.sleep(30)
+                await anyio.sleep(30)
                 
             except Exception as e:
                 logger.error(f"Error in status monitoring loop: {e}")
-                await asyncio.sleep(60)  # Wait longer on error
+                await anyio.sleep(60)  # Wait longer on error
 
 
 async def main():
@@ -579,4 +579,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -16,7 +16,7 @@ Key features:
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import traceback
 import os
@@ -94,28 +94,27 @@ class StandaloneVFS:
         """Run an IPFS command and return the result."""
         try:
             logger.info(f"Running IPFS command: {' '.join(cmd)}")
-            result = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=timeout)
-            
+            with anyio.fail_after(timeout):
+                result = await anyio.run_process(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+
             if result.returncode == 0:
                 return {
                     "success": True,
-                    "stdout": stdout.decode('utf-8').strip(),
-                    "stderr": stderr.decode('utf-8').strip()
+                    "stdout": result.stdout.decode('utf-8').strip(),
+                    "stderr": result.stderr.decode('utf-8').strip()
                 }
             else:
                 return {
                     "success": False,
-                    "stdout": stdout.decode('utf-8').strip(),
-                    "stderr": stderr.decode('utf-8').strip(),
+                    "stdout": result.stdout.decode('utf-8').strip(),
+                    "stderr": result.stderr.decode('utf-8').strip(),
                     "returncode": result.returncode
                 }
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {
                 "success": False,
                 "error": f"Command timed out after {timeout} seconds"
@@ -146,19 +145,18 @@ class StandaloneVFS:
         cmd = ["python3", script_full_path] + args
         try:
             logger.info(f"Running script: {' '.join(cmd)}")
-            result = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=project_root
-            )
-            
-            stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=60)
-            
+            with anyio.fail_after(60):
+                result = await anyio.run_process(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=project_root,
+                )
+
             return {
                 "success": result.returncode == 0,
-                "stdout": stdout.decode('utf-8').strip(),
-                "stderr": stderr.decode('utf-8').strip(),
+                "stdout": result.stdout.decode('utf-8').strip(),
+                "stderr": result.stderr.decode('utf-8').strip(),
                 "returncode": result.returncode
             }
         except Exception as e:
@@ -1793,9 +1791,7 @@ class MCPServer:
         try:
             while True:
                 # Read JSON-RPC request from stdin
-                line = await asyncio.get_event_loop().run_in_executor(
-                    None, sys.stdin.readline
-                )
+                line = await anyio.to_thread.run_sync(sys.stdin.readline)
                 
                 if not line:
                     break
@@ -1845,4 +1841,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

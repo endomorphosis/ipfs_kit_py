@@ -5,7 +5,7 @@ This module centralizes all MCP tools, using daemon, VFS, and GraphRAG managers.
 """
 
 import logging
-import asyncio
+import inspect
 from typing import Dict, Any, List
 
 from .daemon import DaemonManager
@@ -90,7 +90,7 @@ class MCPToolManager:
         try:
             # This assumes handlers might be async or sync.
             # A better implementation would be consistent.
-            if asyncio.iscoroutinefunction(handler):
+            if inspect.iscoroutinefunction(handler):
                 return await handler(**arguments)
             else:
                 return handler(**arguments)

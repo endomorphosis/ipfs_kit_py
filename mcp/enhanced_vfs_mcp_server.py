@@ -19,7 +19,7 @@ Version: 4.0.0 - Enhanced with daemon management and advanced caching
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import traceback
 import os
@@ -538,28 +538,27 @@ class EnhancedVFS:
         """Run an IPFS command and return the result."""
         try:
             logger.info(f"Running IPFS command: {' '.join(cmd)}")
-            result = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=timeout)
-            
+            with anyio.fail_after(timeout):
+                result = await anyio.run_process(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+
             if result.returncode == 0:
                 return {
                     "success": True,
-                    "stdout": stdout.decode('utf-8').strip(),
-                    "stderr": stderr.decode('utf-8').strip()
+                    "stdout": result.stdout.decode('utf-8').strip(),
+                    "stderr": result.stderr.decode('utf-8').strip()
                 }
             else:
                 return {
                     "success": False,
-                    "stdout": stdout.decode('utf-8').strip(),
-                    "stderr": stderr.decode('utf-8').strip(),
+                    "stdout": result.stdout.decode('utf-8').strip(),
+                    "stderr": result.stderr.decode('utf-8').strip(),
                     "returncode": result.returncode
                 }
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {
                 "success": False,
                 "error": f"Command timed out after {timeout} seconds"
@@ -1334,7 +1333,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        anyio.run(main)
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
     except Exception as e:
