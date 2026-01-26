@@ -20,6 +20,7 @@ import json
 import time
 import uuid
 import logging
+import threading
 from typing import Dict, List, Optional, Union, Callable, Any, Tuple
 from pathlib import Path
 from datetime import datetime
@@ -28,9 +29,6 @@ from contextlib import nullcontext
 # Import anyio as primary async library
 import anyio
 from anyio.to_thread import run_sync
-# Import asyncio for compatibility with aiortc
-# Will be fully replaced with anyio once all migration is complete
-import anyio
 
 # Try to detect current async context
 try:
@@ -41,6 +39,36 @@ except ImportError:
 
 # Setup basic logging
 logger = logging.getLogger(__name__)
+
+
+async def _run_background_task(async_fn, *args):
+    try:
+        return await async_fn(*args)
+    except Exception:
+        logger.exception("Background task failed: %r", async_fn)
+        return None
+
+
+def _spawn_background_task(async_fn, *args) -> None:
+    """Spawn an async function from sync or async contexts."""
+
+    def _run_in_thread() -> None:
+        try:
+            anyio.run(_run_background_task, async_fn, *args)
+        except Exception:
+            logger.exception("Background thread task failed: %r", async_fn)
+
+    if HAS_SNIFFIO:
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            threading.Thread(target=_run_in_thread, daemon=True).start()
+            return
+    else:
+        threading.Thread(target=_run_in_thread, daemon=True).start()
+        return
+
+    anyio.lowlevel.spawn_system_task(_run_background_task, async_fn, *args)
 
 # Check for force environment variables
 FORCE_WEBRTC = os.environ.get("IPFS_KIT_FORCE_WEBRTC", "0") == "1"
@@ -496,7 +524,7 @@ if HAVE_WEBRTC:
             
             # Start buffer filling
             if self.source_track:
-                self.buffer_task = anyio.create_task(self._fill_buffer())
+                _spawn_background_task(self._buffer_task_runner)
         
         def _initialize_source(self):
             """Initialize the video source from IPFS content with progressive loading."""
@@ -516,9 +544,7 @@ if HAVE_WEBRTC:
                                 f.write(b"")  # Create empty file
                             
                             # Start fetching in the background
-                            self.fetch_task = anyio.create_task(
-                                self._progressive_fetch(self.source_cid, temp_path)
-                            )
+                            _spawn_background_task(self._fetch_task_runner, self.source_cid, temp_path)
                             
                             # Wait a short time for initial data
                             time.sleep(0.1)
@@ -609,6 +635,16 @@ if HAVE_WEBRTC:
                 
             except Exception as e:
                 logger.error(f"Error in progressive fetch: {e}")
+
+        async def _fetch_task_runner(self, cid, file_path):
+            with anyio.CancelScope() as scope:
+                self.fetch_task = scope
+                await self._progressive_fetch(cid, file_path)
+
+        async def _buffer_task_runner(self):
+            with anyio.CancelScope() as scope:
+                self.buffer_task = scope
+                await self._fill_buffer()
         
         async def _fill_buffer(self):
             """Fill the frame buffer from the source track."""

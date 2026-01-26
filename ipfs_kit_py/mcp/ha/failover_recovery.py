@@ -7,11 +7,12 @@ cluster, implementing robust recovery procedures after a primary node failure.
 
 import anyio
 import logging
+import threading
 import time
 import uuid
 from enum import Enum
+import sniffio
 from typing import Dict, List, Optional, Any, Callable, Awaitable, Tuple
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -99,6 +100,37 @@ class FailoverRecovery:
         self._recovery_start_callbacks: List[Callable[[str, str], Awaitable[None]]] = []
         self._recovery_complete_callbacks: List[Callable[[Dict[str, Any]], Awaitable[None]]] = []
         self._primary_change_callbacks: List[Callable[[str, str], Awaitable[None]]] = []
+
+    async def _run_background_task(
+        self, async_fn: Callable[..., Awaitable[Any]], *args: Any
+    ) -> None:
+        try:
+            await async_fn(*args)
+        except Exception:
+            logger.exception("Background task failed: %r", async_fn)
+
+    def _spawn_background_task(
+        self, async_fn: Callable[..., Awaitable[Any]], *args: Any
+    ) -> None:
+        """Spawn an async task from sync or async context.
+
+        If called from an active AnyIO/async context, uses AnyIO's system task.
+        If called from a purely sync context, runs the task in a new daemon thread.
+        """
+
+        def _run_in_thread() -> None:
+            try:
+                anyio.run(self._run_background_task, async_fn, *args)
+            except Exception:
+                logger.exception("Background thread task failed: %r", async_fn)
+
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            threading.Thread(target=_run_in_thread, daemon=True).start()
+            return
+
+        anyio.lowlevel.spawn_system_task(self._run_background_task, async_fn, *args)
     
     async def update_nodes(self, nodes: Dict[str, Dict[str, Any]]):
         """
@@ -135,7 +167,7 @@ class FailoverRecovery:
             logger.info(f"Primary node changed from {old_primary} to {primary_node_id}")
             # Schedule primary change callbacks
             for callback in self._primary_change_callbacks:
-                asyncio.create_task(callback(old_primary, primary_node_id))
+                self._spawn_background_task(callback, old_primary, primary_node_id)
     
     async def start_recovery(self, failed_node_id: str) -> bool:
         """
@@ -177,10 +209,10 @@ class FailoverRecovery:
             
             # Notify start callbacks
             for callback in self._recovery_start_callbacks:
-                asyncio.create_task(callback(self.recovery_id, failed_node_id))
+                self._spawn_background_task(callback, self.recovery_id, failed_node_id)
             
             # Start recovery process based on strategy
-            asyncio.create_task(self._run_recovery_process())
+            self._spawn_background_task(self._run_recovery_process)
             
             logger.info(f"Started recovery process {self.recovery_id} for failed primary {failed_node_id}")
             return True
@@ -283,7 +315,7 @@ class FailoverRecovery:
                 logger.info(f"Old primary node {node_id} has recovered, considering restoration")
                 
                 # Give the node some time to stabilize before making a decision
-                asyncio.create_task(self._evaluate_primary_restoration(node_id))
+                self._spawn_background_task(self._evaluate_primary_restoration, node_id)
     
     def get_status(self) -> Dict[str, Any]:
         """
@@ -338,7 +370,7 @@ class FailoverRecovery:
         
         # Notify callbacks
         for callback in self._state_change_callbacks:
-            asyncio.create_task(callback(old_state, new_state))
+            self._spawn_background_task(callback, old_state, new_state)
     
     def _add_to_history(self, event: str, **details):
         """
@@ -511,7 +543,7 @@ class FailoverRecovery:
         
         # Call completion callbacks
         for callback in self._recovery_complete_callbacks:
-            asyncio.create_task(callback(result))
+            self._spawn_background_task(callback, result)
     
     async def _prepare_recovery(self) -> bool:
         """

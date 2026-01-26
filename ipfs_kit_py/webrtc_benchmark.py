@@ -21,8 +21,10 @@ import time
 import json
 import anyio
 import logging
+import threading
 import uuid
 import statistics
+import sniffio
 from typing import Dict, List, Optional, Union, Any, Set, Tuple
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -30,6 +32,32 @@ from datetime import datetime
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+async def _run_background_task(async_fn, *args):
+    try:
+        return await async_fn(*args)
+    except Exception:
+        logger.exception("Background task failed: %r", async_fn)
+        return None
+
+
+def _spawn_background_task(async_fn, *args) -> None:
+    """Spawn an async function from sync or async contexts."""
+
+    def _run_in_thread() -> None:
+        try:
+            anyio.run(_run_background_task, async_fn, *args)
+        except Exception:
+            logger.exception("Background thread task failed: %r", async_fn)
+
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        threading.Thread(target=_run_in_thread, daemon=True).start()
+        return
+
+    anyio.lowlevel.spawn_system_task(_run_background_task, async_fn, *args)
 
 @dataclass
 class WebRTCFrameStat:
@@ -185,7 +213,7 @@ class WebRTCBenchmark:
         
         # Internal state
         self._active = True
-        self._task = None
+        self._monitoring_tg = None
         self._lock = anyio.Lock()
         
         # Start the benchmark
@@ -193,8 +221,9 @@ class WebRTCBenchmark:
     
     async def start_monitoring(self):
         """Start the periodic monitoring task."""
-        if self._task is None:
-            self._task = anyio.create_task(self._monitoring_task())
+        if self._monitoring_tg is None:
+            self._monitoring_tg = await anyio.create_task_group().__aenter__()
+            self._monitoring_tg.start_soon(self._monitoring_task)
             logger.debug(f"Benchmark monitoring started for connection {self.connection_id}")
     
     async def stop(self):
@@ -205,14 +234,10 @@ class WebRTCBenchmark:
         self._active = False
         self.end_time = time.time()
         
-        # Cancel the monitoring task if it exists
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except anyio.CancelledError:
-                pass
-            self._task = None
+        # Stop the monitoring task group if it exists
+        if self._monitoring_tg is not None:
+            await self._monitoring_tg.__aexit__(None, None, None)
+            self._monitoring_tg = None
         
         # Generate final report
         if self.report_dir:
@@ -761,7 +786,7 @@ class WebRTCStreamingManagerBenchmarkIntegration:
                 )
                 
                 # Start monitoring
-                anyio.create_task(self.benchmarks[conn_id].start_monitoring())
+                _spawn_background_task(self.benchmarks[conn_id].start_monitoring)
                 
                 # Record ICE events if we already have them
                 if conn_id in self.connection_stats:
@@ -779,7 +804,7 @@ class WebRTCStreamingManagerBenchmarkIntegration:
                         )
                 
                 # Set up to record RTC stats
-                anyio.create_task(self._record_benchmark_stats(conn_id))
+                _spawn_background_task(self._record_benchmark_stats, self, conn_id)
                 
                 result["benchmarks_started"].append({"pc_id": conn_id, "status": "started"})
                 
@@ -818,7 +843,7 @@ class WebRTCStreamingManagerBenchmarkIntegration:
                 summary = self.benchmarks[conn_id].get_summary_stats()
                 
                 # Schedule stop task
-                anyio.create_task(self.benchmarks[conn_id].stop())
+                _spawn_background_task(self.benchmarks[conn_id].stop)
                 
                 # Record result
                 result["benchmarks_stopped"].append({

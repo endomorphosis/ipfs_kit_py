@@ -526,11 +526,11 @@ class ARCacheAnyIO:
             if match_found and hasattr(self, 'modified_since_sync') and self.modified_since_sync:
                 # Schedule background tasks for sync and C Data Interface
                 if hasattr(self, 'sync'):
-                    anyio.create_task(anyio.to_thread.run_sync(self.sync))
+                    anyio.lowlevel.spawn_system_task(anyio.to_thread.run_sync, self.sync)
                 
                 # Update C Data Interface if enabled
                 if hasattr(self, 'enable_c_data_interface') and self.enable_c_data_interface and hasattr(self, '_export_to_c_data_interface'):
-                    anyio.create_task(anyio.to_thread.run_sync(self._export_to_c_data_interface))
+                    anyio.lowlevel.spawn_system_task(anyio.to_thread.run_sync, self._export_to_c_data_interface)
             
             return in_memory_matches > 0 or match_found
             

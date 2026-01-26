@@ -7,7 +7,10 @@ delegates the business logic to the IPFS model. It uses AnyIO for async operatio
 
 import logging
 import time
+import threading
 from typing import Dict, List, Any, Optional
+
+import sniffio
 
 # Import anyio with fallback
 try:
@@ -67,6 +70,44 @@ except ImportError:
 
 # Configure logger
 logger = logging.getLogger(__name__)
+
+
+def _run_async_from_sync(async_fn, *args, **kwargs):
+    """Run an async callable from sync code.
+
+    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.
+    - If called from plain sync code, uses `anyio.run`.
+    - If called while an async library is running in this thread, runs the
+      call in a dedicated helper thread.
+    """
+    if not HAS_ANYIO:
+        raise RuntimeError("AnyIO is not available")
+
+    try:
+        return anyio.from_thread.run(async_fn, *args, **kwargs)
+    except RuntimeError:
+        pass
+
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        return anyio.run(async_fn, *args, **kwargs)
+
+    result = []
+    error = []
+
+    def _thread_main() -> None:
+        try:
+            result.append(anyio.run(async_fn, *args, **kwargs))
+        except BaseException as exc:  # noqa: BLE001
+            error.append(exc)
+
+    t = threading.Thread(target=_thread_main, daemon=True)
+    t.start()
+    t.join()
+    if error:
+        raise error[0]
+    return result[0] if result else None
 
 
 # Define Pydantic models for requests and responses
@@ -183,6 +224,7 @@ class WebRTCController:
         self.active_streaming_servers = {}
         self.active_connections = {}
         self.cleanup_task = None
+        self._cleanup_started = False
         self.is_shutting_down = False
         self.last_auto_cleanup = None
 
@@ -199,7 +241,10 @@ class WebRTCController:
     def _start_cleanup_task(self):
         """Start a periodic background task to clean up stale resources."""
         async def periodic_cleanup():
-            try:
+            with anyio.CancelScope() as cs:
+                self.cleanup_task = cs
+                self._cleanup_started = True
+
                 logger.debug("Starting WebRTC periodic cleanup task")
                 while not self.is_shutting_down:
                     try:
@@ -369,37 +414,23 @@ class WebRTCController:
                         logger.error(f"Error in periodic cleanup: {e}")
 
                 logger.debug("WebRTC periodic cleanup task stopped")
-            except Exception as e:
-                logger.error(f"Fatal error in cleanup task: {e}")
 
-        # Start the task with AnyIO
+        if not HAS_ANYIO:
+            logger.warning("AnyIO not available; skipping cleanup task")
+            return
+
+        # Start the task only if we're already in an async runtime.
         try:
-            # Use the current TaskGroup if it exists, or spawn a new one
-            if hasattr(anyio, "create_task_group"):
-                # AnyIO 3.x style
-                async def start_task():
-                    async with anyio.create_task_group() as tg:
-                        tg.start_soon(periodic_cleanup)
-                        # Store task group reference for potential cancellation
-                        self.cleanup_task = tg
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            logger.info("No async runtime detected; cleanup task not started")
+            return
 
-                # Schedule the task starter, but don't wait for it
-                # In real runtime context, this will work normally
-                self.cleanup_task = {"pending": True, "type": "task_group"}
-                logger.info("Scheduled WebRTC cleanup task with AnyIO task group")
-            else:
-                # Handle older versions or alternative implementations
-                try:
-                    # Try the standard create_task approach
-                    self.cleanup_task = anyio.create_task(periodic_cleanup())
-                    logger.info("Started WebRTC cleanup task with anyio.create_task")
-                except AttributeError:
-                    # Fall back to creating a task group manually
-                    logger.info("Using manual task management for WebRTC cleanup")
-                    self.cleanup_task = {"pending": True, "type": "manual"}
-
+        try:
+            anyio.lowlevel.spawn_system_task(periodic_cleanup)
+            logger.info("Started WebRTC cleanup task")
         except Exception as e:
-            logger.warning(f"Could not start cleanup task with AnyIO: {e}")
+            logger.warning(f"Could not start cleanup task: {e}")
             self.cleanup_task = None
 
     async def shutdown(self):
@@ -416,97 +447,14 @@ class WebRTCController:
         # Signal the cleanup task to stop
         self.is_shutting_down = True
 
-        # Helper function to handle different async frameworks
-        def handle_asyncio_cancel():
-            """Handle cancellation in asyncio context"""
-            try:
-                # Try to get the event loop and cancel the task
-                loop = anyio.get_event_loop()
-                self.cleanup_task.cancel()
-
-                # Wait for the task to be cancelled (with timeout)
-                if loop.is_running():
-                    # We can't use run_until_complete in a running loop
-                    logger.info("Loop is running, scheduling cancellation")
-                    # Just schedule the cancellation and continue
-                    return
-
-                try:
-                    # Use a timeout to prevent hanging
-                    loop.run_until_complete(
-                        anyio.wait_for(anyio.shield(self.cleanup_task), timeout=2.0)
-                    )
-                    logger.info("Cleanup task cancelled successfully")
-                except (anyio.TimeoutError, anyio.CancelledError):
-                    # Task either timed out or was cancelled, which is expected
-                    logger.info("Cleanup task cancellation completed")
-                except RuntimeError as e:
-                    if "This event loop is already running" in str(e):
-                        # We're in a running event loop, which is fine
-                        logger.info("Cleanup task cancellation scheduled in running loop")
-                    else:
-                        logger.warning(f"Runtime error waiting for task cancellation: {e}")
-                except Exception as e:
-                    logger.warning(f"Error waiting for cleanup task cancellation: {e}")
-            except Exception as e:
-                logger.warning(f"Error cancelling cleanup task with asyncio: {e}")
-
-        # Helper function to handle AnyIO cancellation
-        def handle_anyio_cancel():
-            """Handle cancellation in AnyIO context"""
-            try:
-                if self.cleanup_task is None:
-                    return
-
-                # Handle different types of task objects
-                if isinstance(self.cleanup_task, dict):
-                    # It's our dictionary-based task tracking
-                    logger.info(
-                        f"Task is being tracked as: {self.cleanup_task.get('type', 'unknown')}"
-                    )
-                    # Just rely on the shutting_down flag for these
-
-                # For AnyIO 3.x TaskGroup
-                elif hasattr(self.cleanup_task, "cancel_scope"):
-                    # Task group with cancel scope
-                    self.cleanup_task.cancel_scope.cancel()
-                    logger.info("AnyIO TaskGroup cancellation initiated")
-
-                # For standard AnyIO task
-                elif hasattr(self.cleanup_task, "cancel"):
-                    # Direct cancellation for AnyIO task
-                    self.cleanup_task.cancel()
-                    logger.info("AnyIO task cancellation initiated")
-
-                else:
-                    # Unknown task type
-                    logger.warning(
-                        f"Unknown task type: {type(self.cleanup_task).__name__}, falling back to flag-based cancellation"
-                    )
-                    # Signal cancellation through shutting_down flag
-                    # The task should check this flag periodically
-            except Exception as e:
-                logger.warning(f"Error cancelling cleanup task with AnyIO: {e}")
-                # Fall back to asyncio method as a last resort
-                try:
-                    handle_asyncio_cancel()
-                except Exception as nested_e:
-                    logger.warning(f"Fallback asyncio cancellation also failed: {nested_e}")
-
-        # Cancel the cleanup task if it's running
+        # Cancel the cleanup loop if running
         if self.cleanup_task is not None:
-            logger.info(
-                f"Attempting to cancel cleanup task (type: {type(self.cleanup_task).__name__})"
-            )
-
-            # Import asyncio for handling asyncio tasks
-            
-
-            # Use AnyIO since we already imported it at the top of the file
-            handle_anyio_cancel()
-
-            # Set to None to help with garbage collection
-            self.cleanup_task = None
+            try:
+                self.cleanup_task.cancel()
+            except Exception as e:
+                logger.warning(f"Error cancelling cleanup task: {e}")
+            finally:
+                self.cleanup_task = None
 
         # Make an extra effort to clean up stale resources before shutdown
         try:
@@ -615,48 +563,15 @@ class WebRTCController:
                 # Continue with standard shutdown which might fail gracefully
 
         try:
-            # Try using anyio (preferred method)
-            if HAS_ANYIO:
-                try:
-                    anyio.run(self.shutdown)
-                    return
-                except Exception as e:
-                    logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
+            if not HAS_ANYIO:
+                logger.warning("AnyIO not available; falling back to best-effort cleanup")
+                self.is_shutting_down = True
+                self.active_streaming_servers.clear()
+                self.active_connections.clear()
+                return
 
-            # Fallback to asyncio
-            import asyncio
-
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                # Don't create a new event loop during interpreter shutdown
-                if is_interpreter_shutdown:
-                    logger.warning("Cannot get event loop during interpreter shutdown")
-                    # Signal shutdown and clear resources directly
-                    self.is_shutting_down = True
-                    self.active_streaming_servers.clear()
-                    self.active_connections.clear()
-                    return
-
-                # Create a new event loop if no event loop is set and not in shutdown
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            # Run the shutdown method
-            try:
-                loop.run_until_complete(self.shutdown())
-            except RuntimeError as e:
-                if "This event loop is already running" in str(e):
-                    logger.warning("Cannot use run_until_complete in a running event loop")
-                    # Cannot handle properly in this case - controller shutdown might be incomplete
-                elif "can't create new thread" in str(e):
-                    logger.warning("Thread creation failed during interpreter shutdown")
-                    # Signal shutdown and clear resources directly
-                    self.is_shutting_down = True
-                    self.active_streaming_servers.clear()
-                    self.active_connections.clear()
-                else:
-                    raise
+            _run_async_from_sync(self.shutdown)
+            return
         except Exception as e:
             logger.error(f"Error in sync_shutdown for WebRTC Controller: {e}")
             # Ensure resources are cleared even on error
@@ -1663,7 +1578,7 @@ class WebRTCController:
                                 del self.active_streaming_servers[benchmark_id]
 
                 # Schedule the cleanup
-                anyio.create_task(delayed_cleanup())
+                anyio.lowlevel.spawn_system_task(delayed_cleanup)
 
             return result
 

@@ -13,14 +13,13 @@ import uuid
 import logging
 import anyio
 import tempfile
+import sniffio
 from typing import Dict, List, Optional, Any, Tuple, Union, Callable, BinaryIO
 from pathlib import Path
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 try:
-    import anyio
     ANYIO_AVAILABLE = True
 except ImportError:
     ANYIO_AVAILABLE = False
@@ -316,8 +315,14 @@ class ChunkedFileUploader:
                 break
             
             # Upload chunks concurrently
-            tasks = [upload_chunk(chunk) for chunk in pending_chunks]
-            results = await asyncio.gather(*tasks)
+            results: List[bool] = [False] * len(pending_chunks)
+
+            async def _run_one(index: int, chunk: ChunkInfo) -> None:
+                results[index] = await upload_chunk(chunk)
+
+            async with anyio.create_task_group() as tg:
+                for index, chunk in enumerate(pending_chunks):
+                    tg.start_soon(_run_one, index, chunk)
             
             # Check if all chunks uploaded successfully
             if all(results):
@@ -539,30 +544,30 @@ class BackgroundPinningManager:
         self.semaphore = anyio.Semaphore(max_concurrent)
         self._operations: Dict[str, Dict[str, Any]] = {}
         self._running = False
-        self._task = None
+        self._cancel_scope = None
     
     def start(self):
         """Start the background pinning manager."""
         if not self._running:
             self._running = True
-            if ANYIO_AVAILABLE:
-                try:
-                    import anyio.lowlevel
-                    self._task = anyio.lowlevel.current_task()
-                    asyncio.create_task(self._process_operations())
-                except Exception:
-                    self._task = asyncio.create_task(self._process_operations())
-            else:
-                self._task = asyncio.create_task(self._process_operations())
+            try:
+                sniffio.current_async_library()
+            except sniffio.AsyncLibraryNotFoundError:
+                logger.warning(
+                    "No async runtime detected; BackgroundPinningManager will not start"
+                )
+                return
+
+            anyio.lowlevel.spawn_system_task(self._process_operations)
             logger.info("Background pinning manager started")
     
     def stop(self):
         """Stop the background pinning manager."""
         self._running = False
-        if self._task:
-            self._task.cancel()
-            self._task = None
-            logger.info("Background pinning manager stopped")
+        if self._cancel_scope is not None:
+            self._cancel_scope.cancel()
+            self._cancel_scope = None
+        logger.info("Background pinning manager stopped")
     
     async def pin(self, backend: Any, cid: str, 
                  progress_tracker: Optional[ProgressTracker] = None) -> str:
@@ -679,40 +684,36 @@ class BackgroundPinningManager:
     
     async def _process_operations(self):
         """Process pending operations in background."""
-        try:
-            while self._running:
-                # Find pending operations
-                pending_operations = [
-                    op for op_id, op in self._operations.items()
-                    if op["status"] == "pending"
-                ]
-                
-                if not pending_operations:
-                    # No pending operations, sleep and check again
-                    if ANYIO_AVAILABLE:
+        with anyio.CancelScope() as cs:
+            self._cancel_scope = cs
+
+            try:
+                while self._running:
+                    # Find pending operations
+                    pending_operations = [
+                        op for op_id, op in self._operations.items()
+                        if op["status"] == "pending"
+                    ]
+
+                    if not pending_operations:
+                        # No pending operations, sleep and check again
                         await anyio.sleep(1)
-                    else:
-                        await anyio.sleep(1)
-                    continue
-                
-                # Process operations concurrently
-                tasks = []
-                for operation in pending_operations:
-                    tasks.append(asyncio.create_task(self._execute_operation(operation)))
-                
-                # Wait for a batch to complete
-                await asyncio.gather(*tasks)
-                
-                # Sleep briefly before next batch
-                if ANYIO_AVAILABLE:
-                    await anyio.sleep(0.1)
-                else:
+                        continue
+
+                    # Process operations concurrently
+                    async with anyio.create_task_group() as tg:
+                        for operation in pending_operations:
+                            tg.start_soon(self._execute_operation, operation)
+
+                    # Sleep briefly before next batch
                     await anyio.sleep(0.1)
                 
-        except anyio.get_cancelled_exc_class():
-            logger.info("Background pinning manager task cancelled")
-        except Exception as e:
-            logger.error(f"Error in background pinning manager: {e}")
+            except anyio.get_cancelled_exc_class():
+                logger.info("Background pinning manager task cancelled")
+            except Exception as e:
+                logger.error(f"Error in background pinning manager: {e}")
+            finally:
+                self._cancel_scope = None
     
     async def _execute_operation(self, operation: Dict[str, Any]):
         """
