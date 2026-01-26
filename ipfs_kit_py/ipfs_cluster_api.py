@@ -236,19 +236,17 @@ class IPFSClusterCTLWrapper:
         cmd.extend(command)
         
         try:
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            process = await anyio.run_process(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            
-            stdout, stderr = await process.communicate()
             
             result = {
                 "success": process.returncode == 0,
                 "returncode": process.returncode,
-                "stdout": stdout.decode() if stdout else "",
-                "stderr": stderr.decode() if stderr else "",
+                "stdout": process.stdout.decode() if process.stdout else "",
+                "stderr": process.stderr.decode() if process.stderr else "",
                 "command": " ".join(cmd)
             }
             
@@ -332,19 +330,17 @@ class IPFSClusterFollowCTLWrapper(IPFSClusterCTLWrapper):
         cmd = ["ipfs-cluster-follow", self.cluster_name] + command
         
         try:
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            process = await anyio.run_process(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            
-            stdout, stderr = await process.communicate()
             
             result = {
                 "success": process.returncode == 0,
                 "returncode": process.returncode,
-                "stdout": stdout.decode() if stdout else "",
-                "stderr": stderr.decode() if stderr else "",
+                "stdout": process.stdout.decode() if process.stdout else "",
+                "stderr": process.stderr.decode() if process.stderr else "",
                 "command": " ".join(cmd)
             }
             

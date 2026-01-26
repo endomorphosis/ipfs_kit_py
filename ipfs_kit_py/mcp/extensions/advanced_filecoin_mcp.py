@@ -21,11 +21,10 @@ from typing import Dict, List, Any, Optional, Union, BinaryIO
 from fastapi import APIRouter, Request, Response, Query, Path, Body, HTTPException
 from fastapi.responses import JSONResponse
 
-# Import anyio with fallback to asyncio
 import anyio
+import anyio.abc
 # Import the advanced Filecoin client
 from ipfs_kit_py.advanced_filecoin_client import AdvancedFilecoinClient
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -56,6 +55,9 @@ class AdvancedFilecoinMCP:
             api_key=api_key,
             mock_mode=os.environ.get("FILECOIN_MOCK_MODE", "true").lower() in ("true", "1", "yes")
         )
+
+        self._background_task_group: Optional[anyio.abc.TaskGroup] = None
+        self._lifecycle_registered: bool = False
         
         logger.info("Initialized Advanced Filecoin MCP Integration")
 
@@ -296,11 +298,23 @@ class AdvancedFilecoinMCP:
 
     async def start_background_tasks(self):
         """Start background tasks for monitoring and maintenance."""
-        # Note: FastAPI startup events still use asyncio.create_task
-        import anyio
-        asyncio.create_task(self._monitor_deals_health())
-        asyncio.create_task(self._update_network_stats())
+        if self._background_task_group is not None:
+            return
+
+        self._background_task_group = anyio.create_task_group()
+        await self._background_task_group.__aenter__()
+        self._background_task_group.start_soon(self._monitor_deals_health)
+        self._background_task_group.start_soon(self._update_network_stats)
         logger.info("Started advanced Filecoin background tasks")
+
+    async def stop_background_tasks(self):
+        """Stop background tasks for monitoring and maintenance."""
+        if self._background_task_group is None:
+            return
+
+        self._background_task_group.cancel_scope.cancel()
+        await self._background_task_group.__aexit__(None, None, None)
+        self._background_task_group = None
 
     async def _monitor_deals_health(self):
         """Background task to monitor deal health and initiate repairs."""
@@ -338,11 +352,17 @@ class AdvancedFilecoinMCP:
         # Create and add the router
         router = self.create_router()
         mcp_server.app.include_router(router)
-        
-        # Start background tasks
-        # Note: FastAPI startup events still use asyncio.create_task
-        import anyio
-        asyncio.create_task(self.start_background_tasks())
+
+        if not self._lifecycle_registered:
+            @mcp_server.app.on_event("startup")
+            async def _advanced_filecoin_startup():
+                await self.start_background_tasks()
+
+            @mcp_server.app.on_event("shutdown")
+            async def _advanced_filecoin_shutdown():
+                await self.stop_background_tasks()
+
+            self._lifecycle_registered = True
         
         logger.info("Integrated advanced Filecoin features with MCP server")
 

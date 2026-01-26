@@ -35,7 +35,6 @@ from .routing.adaptive_optimizer import (
 )
 from .routing.router_api import router as routing_api_router
 from .routing.data_router import ContentAnalyzer
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -197,8 +196,8 @@ class RoutingManager:
             self._set_geographic_location(self.settings.geo_location)
         
         # Background tasks
-        self._background_tasks = []
-        self._shutdown_event = anyio.Event()
+        self._background_thread: Optional[threading.Thread] = None
+        self._shutdown_event = threading.Event()
         
         # Start background tasks if configured
         if self.settings.auto_start_background_tasks:
@@ -558,13 +557,16 @@ class RoutingManager:
     
     def start_background_tasks(self) -> None:
         """Start background tasks for the routing manager."""
-        # Start metrics collection task
-        metrics_task = asyncio.create_task(
-            self._metrics_collection_task(
-                interval_seconds=self.settings.telemetry_interval
-            )
-        )
-        self._background_tasks.append(metrics_task)
+        if self._background_thread is not None and self._background_thread.is_alive():
+            return
+
+        self._shutdown_event.clear()
+
+        def _runner() -> None:
+            anyio.run(self._metrics_collection_task, self.settings.telemetry_interval)
+
+        self._background_thread = threading.Thread(target=_runner, daemon=True)
+        self._background_thread.start()
         
         logger.info("Started routing manager background tasks")
     
@@ -572,11 +574,11 @@ class RoutingManager:
         """Stop background tasks for the routing manager."""
         # Signal shutdown
         self._shutdown_event.set()
-        
-        # Wait for tasks to complete
-        if self._background_tasks:
-            await asyncio.gather(*self._background_tasks, return_exceptions=True)
-            self._background_tasks.clear()
+
+        if self._background_thread is not None:
+            thread = self._background_thread
+            self._background_thread = None
+            await anyio.to_thread.run_sync(thread.join, 5)
         
         logger.info("Stopped routing manager background tasks")
     
@@ -591,16 +593,13 @@ class RoutingManager:
             while not self._shutdown_event.is_set():
                 # Collect metrics
                 await self.collect_metrics()
-                
-                # Wait for next collection
-                try:
-                    await asyncio.wait_for(
-                        self._shutdown_event.wait(),
-                        timeout=interval_seconds
-                    )
-                except asyncio.TimeoutError:
-                    # Normal timeout, continue with next collection
-                    pass
+
+                # Wait for next collection, but remain responsive to shutdown.
+                remaining = float(interval_seconds)
+                while remaining > 0 and not self._shutdown_event.is_set():
+                    sleep_for = min(1.0, remaining)
+                    await anyio.sleep(sleep_for)
+                    remaining -= sleep_for
         except anyio.get_cancelled_exc_class():
             logger.info("Metrics collection task cancelled")
         except Exception as e:
