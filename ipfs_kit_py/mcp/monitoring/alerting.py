@@ -172,14 +172,14 @@ class AlertingService:
             self.evaluation_task.cancel()
             try:
                 await self.evaluation_task
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 pass
 
         if self.notification_task:
             self.notification_task.cancel()
             try:
                 await self.notification_task
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 pass
 
         # Save current state
@@ -851,17 +851,17 @@ Annotations:
         )
 
         payload = {
-            "attachments": [,
+            "attachments": [
                 {
                     "fallback": f"[{alert.severity.upper()}] {alert.name}",
                     "color": color,
                     "title": f"[{alert.severity.upper()}] {alert.name}",
                     "text": alert.description or "",
-                    "fields": [,
+                    "fields": [
                         {"title": "Status", "value": alert.status, "short": True},
                         {
                             "title": "Time",
-                            "value": datetime.fromtimestamp(alert.start_time).strftime(,
+                            "value": datetime.fromtimestamp(alert.start_time).strftime(
                                 "%Y-%m-%d %H:%M:%S"
                             ),
                             "short": True,
@@ -925,24 +925,24 @@ Annotations:
         )
 
         payload = {
-            "attachments": [,
+            "attachments": [
                 {
                     "fallback": f"[RESOLVED] {alert.name}",
                     "color": "#36A64F",  # Green for resolved
                     "title": f"[RESOLVED] {alert.name}",
                     "text": alert.description or "",
-                    "fields": [,
+                    "fields": [
                         {"title": "Severity", "value": alert.severity, "short": True},
                         {
                             "title": "Started",
-                            "value": datetime.fromtimestamp(alert.start_time).strftime(,
+                            "value": datetime.fromtimestamp(alert.start_time).strftime(
                                 "%Y-%m-%d %H:%M:%S"
                             ),
                             "short": True,
                         },
                         {
                             "title": "Resolved",
-                            "value": (,
+                            "value": (
                                 datetime.fromtimestamp(alert.end_time).strftime("%Y-%m-%d %H:%M:%S")
                                 if alert.end_time
                                 else "Unknown"

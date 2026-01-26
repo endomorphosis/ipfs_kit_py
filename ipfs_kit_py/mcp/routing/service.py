@@ -210,7 +210,7 @@ class DataRoutingService:
             self.update_task.cancel()
             try:
                 await self.update_task
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 pass
 
         # Save routing policies
@@ -653,10 +653,10 @@ class DataRoutingService:
                 logger.error(f"Error updating metrics: {e}")
 
     async def _apply_policy(
-    self,
-    policy: RoutingPolicy
-        request: ContentRequest
-        available_backends: List[str]
+        self,
+        policy: RoutingPolicy,
+        request: ContentRequest,
+        available_backends: List[str],
     ) -> Optional[RoutingResult]:
         """
         Apply a routing policy to a content request.

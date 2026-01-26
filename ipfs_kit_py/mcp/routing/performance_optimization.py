@@ -489,7 +489,7 @@ class BatchProcessor:
                     if self._batch:
                         await self._process_batch()
                         self._batch_event.clear()
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Batch processing task cancelled")
             raise
         except Exception as e:
@@ -677,11 +677,11 @@ class ConnectionPool:
                     
                     # Clean up expired connections
                     await self._cleanup_expired_connections()
-                except asyncio.CancelledError:
+                except anyio.get_cancelled_exc_class():
                     raise
                 except Exception as e:
                     logger.error(f"Error in connection pool cleanup loop: {e}")
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Connection pool cleanup task cancelled")
             raise
     

@@ -10,8 +10,9 @@ import logging
 import time
 import math
 from enum import Enum
+from anyio.abc import TaskGroup
 from typing import Dict, List, Optional, Set, Any, Callable, Awaitable
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background work is managed via an AnyIO TaskGroup
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -98,9 +99,9 @@ class FailoverDetector:
         
         # State locks for thread safety
         self._lock = anyio.Lock()
-        
+
         # Background tasks
-        self._tasks: List[asyncio.Task] = []
+        self._task_group: Optional[TaskGroup] = None
         
         # Callbacks
         self._node_suspected_callbacks: List[Callable[[str], Awaitable[None]]] = []
@@ -110,49 +111,56 @@ class FailoverDetector:
     async def start(self):
         """Start the failover detector and its background tasks."""
         logger.info(f"Starting failover detector with {self.strategy} strategy")
+
+        # Idempotent start
+        if self._task_group is not None:
+            return
+
+        tg = anyio.create_task_group()
+        await tg.__aenter__()
+        self._task_group = tg
         
         # Start heartbeat monitoring (always active regardless of strategy)
-        self._tasks.append(
-            asyncio.create_task(self._heartbeat_monitoring_task())
-        )
+        tg.start_soon(self._heartbeat_monitoring_task)
         
         # Start strategy-specific tasks
         if self.strategy in (FailureDetectionStrategy.GOSSIP, FailureDetectionStrategy.HYBRID):
-            self._tasks.append(
-                asyncio.create_task(self._gossip_monitoring_task())
-            )
+            tg.start_soon(self._gossip_monitoring_task)
         
         if self.strategy in (FailureDetectionStrategy.ADAPTIVE_TIMEOUT, FailureDetectionStrategy.HYBRID):
-            self._tasks.append(
-                asyncio.create_task(self._adaptive_timeout_task())
-            )
+            tg.start_soon(self._adaptive_timeout_task)
         
         if self.strategy in (FailureDetectionStrategy.MULTI_POINT, FailureDetectionStrategy.HYBRID):
-            self._tasks.append(
-                asyncio.create_task(self._multi_point_detection_task())
-            )
+            tg.start_soon(self._multi_point_detection_task)
         
         if self.strategy in (FailureDetectionStrategy.CONSENSUS, FailureDetectionStrategy.HYBRID):
-            self._tasks.append(
-                asyncio.create_task(self._consensus_detection_task())
-            )
+            tg.start_soon(self._consensus_detection_task)
         
-        logger.info(f"Failover detector started with {len(self._tasks)} monitoring tasks")
+        logger.info("Failover detector started")
     
     async def stop(self):
         """Stop the failover detector and its background tasks."""
         logger.info("Stopping failover detector")
-        
-        # Cancel all tasks
-        for task in self._tasks:
-            task.cancel()
-        
-        # Wait for tasks to complete
-        if self._tasks:
-            await asyncio.gather(*self._tasks, return_exceptions=True)
-        
-        self._tasks = []
+
+        tg = self._task_group
+        self._task_group = None
+        if tg is not None:
+            try:
+                tg.cancel_scope.cancel()
+                await tg.__aexit__(None, None, None)
+            except Exception as e:
+                logger.debug(f"Error stopping task group: {e}")
         logger.info("Failover detector stopped")
+
+    async def _notify_callbacks(self, callbacks: List[Callable[[str], Awaitable[None]]], node_id: str) -> None:
+        tg = self._task_group
+        if tg is not None:
+            for callback in callbacks:
+                tg.start_soon(callback, node_id)
+        else:
+            # If not started yet, run inline as a safe fallback.
+            for callback in callbacks:
+                await callback(node_id)
     
     async def update_nodes(self, nodes: Dict[str, Dict[str, Any]]):
         """
@@ -211,8 +219,7 @@ class FailoverDetector:
                 self.suspected_nodes.remove(node_id)
                 
                 # Notify of recovery
-                for callback in self._node_recovered_callbacks:
-                    asyncio.create_task(callback(node_id))
+                await self._notify_callbacks(self._node_recovered_callbacks, node_id)
             
             # If node was previously confirmed as failed, reintegrate it
             if node_id in self.confirmed_failed_nodes:
@@ -220,8 +227,7 @@ class FailoverDetector:
                 self.confirmed_failed_nodes.remove(node_id)
                 
                 # Notify of recovery
-                for callback in self._node_recovered_callbacks:
-                    asyncio.create_task(callback(node_id))
+                await self._notify_callbacks(self._node_recovered_callbacks, node_id)
     
     async def record_response_time(self, node_id: str, response_time_ms: float):
         """
@@ -356,8 +362,7 @@ class FailoverDetector:
                 self.confirmed_failed_nodes.add(node_id)
                 
                 # Notify of confirmation
-                for callback in self._node_confirmed_callbacks:
-                    asyncio.create_task(callback(node_id))
+                await self._notify_callbacks(self._node_confirmed_callbacks, node_id)
         
         # Build comprehensive result
         confirmation_result = {
@@ -445,13 +450,12 @@ class FailoverDetector:
                                 )
                                 
                                 # Notify callbacks
-                                for callback in self._node_suspected_callbacks:
-                                    asyncio.create_task(callback(node_id))
+                                await self._notify_callbacks(self._node_suspected_callbacks, node_id)
                         else:
                             # Heartbeat is within timeout, reset missed counter
                             self.missed_heartbeats[node_id] = 0
         
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Heartbeat monitoring task cancelled")
             raise
         
@@ -459,7 +463,9 @@ class FailoverDetector:
             logger.exception(f"Error in heartbeat monitoring task: {e}")
             # Try to restart
             await anyio.sleep(1)
-            asyncio.create_task(self._heartbeat_monitoring_task())
+            tg = self._task_group
+            if tg is not None:
+                tg.start_soon(self._heartbeat_monitoring_task)
     
     async def _adaptive_timeout_task(self):
         """Background task for adapting timeouts based on network conditions."""
@@ -474,7 +480,7 @@ class FailoverDetector:
                     for node_id in list(self.response_times.keys()):
                         self._update_adaptive_timeout(node_id)
         
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Adaptive timeout task cancelled")
             raise
         
@@ -482,7 +488,9 @@ class FailoverDetector:
             logger.exception(f"Error in adaptive timeout task: {e}")
             # Try to restart
             await anyio.sleep(1)
-            asyncio.create_task(self._adaptive_timeout_task())
+            tg = self._task_group
+            if tg is not None:
+                tg.start_soon(self._adaptive_timeout_task)
     
     async def _gossip_monitoring_task(self):
         """Background task for gossip-based failure detection."""
@@ -496,7 +504,7 @@ class FailoverDetector:
                 # with other nodes. For this example, this is a placeholder.
                 pass
         
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Gossip monitoring task cancelled")
             raise
         
@@ -504,7 +512,9 @@ class FailoverDetector:
             logger.exception(f"Error in gossip monitoring task: {e}")
             # Try to restart
             await anyio.sleep(1)
-            asyncio.create_task(self._gossip_monitoring_task())
+            tg = self._task_group
+            if tg is not None:
+                tg.start_soon(self._gossip_monitoring_task)
     
     async def _multi_point_detection_task(self):
         """Background task for multi-point failure detection."""
@@ -519,7 +529,7 @@ class FailoverDetector:
                 # this is a placeholder.
                 pass
         
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Multi-point detection task cancelled")
             raise
         
@@ -527,7 +537,9 @@ class FailoverDetector:
             logger.exception(f"Error in multi-point detection task: {e}")
             # Try to restart
             await anyio.sleep(1)
-            asyncio.create_task(self._multi_point_detection_task())
+            tg = self._task_group
+            if tg is not None:
+                tg.start_soon(self._multi_point_detection_task)
     
     async def _consensus_detection_task(self):
         """Background task for consensus-based failure detection."""
@@ -542,7 +554,7 @@ class FailoverDetector:
                 # this is a placeholder.
                 pass
         
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Consensus detection task cancelled")
             raise
         
@@ -550,7 +562,9 @@ class FailoverDetector:
             logger.exception(f"Error in consensus detection task: {e}")
             # Try to restart
             await anyio.sleep(1)
-            asyncio.create_task(self._consensus_detection_task())
+            tg = self._task_group
+            if tg is not None:
+                tg.start_soon(self._consensus_detection_task)
     
     async def _check_heartbeats(self, node_id: str) -> Dict[str, Any]:
         """

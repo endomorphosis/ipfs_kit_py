@@ -709,7 +709,7 @@ class BackgroundPinningManager:
                 else:
                     await anyio.sleep(0.1)
                 
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Background pinning manager task cancelled")
         except Exception as e:
             logger.error(f"Error in background pinning manager: {e}")

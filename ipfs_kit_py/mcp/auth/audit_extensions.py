@@ -335,7 +335,7 @@ class AuditExtensions:
                     logger.error(f"Error in log integrity verification: {e}")
                     # Wait a bit before trying again
                     await anyio.sleep(60)
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Log integrity verification task cancelled")
     
     async def _verify_log_integrity(self):
@@ -449,7 +449,7 @@ class AuditExtensions:
                     logger.error(f"Error enforcing log retention policy: {e}")
                     # Wait a bit before trying again
                     await anyio.sleep(300)
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Log retention policy task cancelled")
     
     async def _enforce_retention_policy(self):

@@ -13,6 +13,7 @@ module docstring causing the original import section to be lost and producing a
 cascade of "name is not defined" errors. This docstring has been reduced and the
 imports + helpers restored below.
 """
+import anyio
 import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading
 from collections import deque
 from pathlib import Path
@@ -471,7 +472,7 @@ class ConsolidatedMCPDashboard:
                     self._realtime_task.cancel()
                     try:
                         await self._realtime_task
-                    except asyncio.CancelledError:
+                    except anyio.get_cancelled_exc_class():
                         # Expected during graceful shutdown on Python 3.12+
                         pass
                     except Exception:

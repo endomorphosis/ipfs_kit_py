@@ -601,7 +601,7 @@ class RoutingManager:
                 except asyncio.TimeoutError:
                     # Normal timeout, continue with next collection
                     pass
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Metrics collection task cancelled")
         except Exception as e:
             logger.error(f"Error in metrics collection task: {str(e)}")

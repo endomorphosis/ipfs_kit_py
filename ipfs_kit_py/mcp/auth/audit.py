@@ -253,7 +253,7 @@ class AuditLogger:
             self._worker_task.cancel()
             try:
                 await self._worker_task
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 pass
     
     async def _log_worker(self):
@@ -281,7 +281,7 @@ class AuditLogger:
                 
                 self.log_queue.task_done()
             
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 print(f"Error in audit log worker: {e}")

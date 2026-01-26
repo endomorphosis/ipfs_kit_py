@@ -153,11 +153,11 @@ class EnhancedRoutingManager(RoutingManager):
                         f"cache_hit_ratio={metrics['cache_hit_ratio']:.2f}"
                     )
                     
-                except asyncio.CancelledError:
+                except anyio.get_cancelled_exc_class():
                     raise
                 except Exception as e:
                     logger.error(f"Error in performance monitoring loop: {e}")
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Performance monitoring task cancelled")
     
     @measure_routing_performance
@@ -420,7 +420,7 @@ class EnhancedRoutingManager(RoutingManager):
             self._perf_monitor_task.cancel()
             try:
                 await self._perf_monitor_task
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 pass
         
         # Shutdown performance optimizations

@@ -154,7 +154,7 @@ class AuthServiceApiKeyExtension:
                     # Normal timeout, continue
                     pass
                 
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             # Task was cancelled
             logger.info("API key update flush task cancelled")
         except Exception as e:

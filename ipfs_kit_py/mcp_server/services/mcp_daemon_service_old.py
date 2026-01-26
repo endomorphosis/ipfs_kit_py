@@ -118,7 +118,7 @@ class MCPDaemonService:
             self.sync_task.cancel()
             try:
                 await self.sync_task
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 pass
         
         logger.info("MCP daemon service stopped")
@@ -140,7 +140,7 @@ class MCPDaemonService:
             # Wait for next sync interval
             try:
                 await anyio.sleep(self.sync_interval)
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
     
     async def _perform_sync(self) -> None:

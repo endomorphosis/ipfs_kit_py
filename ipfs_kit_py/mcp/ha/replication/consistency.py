@@ -253,7 +253,7 @@ class ConsistencyService:
                 task.cancel()
                 try:
                     await task
-                except asyncio.CancelledError:
+                except anyio.get_cancelled_exc_class():
                     pass
         
         # Close HTTP session if we created it
@@ -575,7 +575,7 @@ class ConsistencyService:
             try:
                 if len(self.known_nodes) > 1:  # Only sync if there are other nodes
                     await self._synchronize_data()
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in sync loop: {e}")
@@ -590,7 +590,7 @@ class ConsistencyService:
             try:
                 if len(self.known_nodes) > 1:  # Only check if there are other nodes
                     await self._check_consistency()
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in consistency check loop: {e}")

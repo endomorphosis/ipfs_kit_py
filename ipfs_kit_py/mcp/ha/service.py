@@ -334,7 +334,7 @@ class HighAvailabilityService:
         # Add heartbeat endpoint
         @app.post("/api/v0/ha/heartbeat")
         async def heartbeat(
-            node_id: str
+            node_id: str,
             status: Optional[str] = None,
             load: Optional[Dict[str, float]] = None,
         ):
@@ -502,7 +502,7 @@ class HighAvailabilityService:
                 task.cancel()
                 try:
                     await task
-                except asyncio.CancelledError:
+                except anyio.get_cancelled_exc_class():
                     pass
 
         # If we're the primary, try to hand off
@@ -809,7 +809,7 @@ class HighAvailabilityService:
                                             )
                                 except Exception as e:
                                     logger.warning(f"Error sending heartbeat: {e}")
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in heartbeat loop: {e}")
@@ -867,7 +867,7 @@ class HighAvailabilityService:
                 if self.cluster_state and self.node_info.role == "primary":
                     await self._check_node_health()
                     await self._check_service_health()
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in health check loop: {e}")
@@ -1019,7 +1019,7 @@ class HighAvailabilityService:
                     else:
                         # If we're not the primary, sync from the primary
                         await self._sync_from_primary()
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in state sync loop: {e}")
@@ -1117,7 +1117,7 @@ class HighAvailabilityService:
                             await self._elect_new_primary(
                                 f"Primary node {primary_node_id} is {primary_node.status}"
                             )
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in failover monitor loop: {e}")

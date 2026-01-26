@@ -620,7 +620,7 @@ class ConsolidatedMCPDashboard:
                     self._realtime_task.cancel()
                     try:
                         await self._realtime_task
-                    except asyncio.CancelledError:
+                    except anyio.get_cancelled_exc_class():
                         # Expected during graceful shutdown on Python 3.12+
                         pass
                     except Exception:
@@ -903,7 +903,7 @@ class ConsolidatedMCPDashboard:
                 self._realtime_task.cancel()
                 try:
                     await self._realtime_task
-                except asyncio.CancelledError:
+                except anyio.get_cancelled_exc_class():
                     pass
                 except Exception:
                     pass

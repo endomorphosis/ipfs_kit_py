@@ -221,7 +221,7 @@ class HAIntegration:
                 self.status_task.cancel()
                 try:
                     await self.status_task
-                except asyncio.CancelledError:
+                except anyio.get_cancelled_exc_class():
                     pass
             
             # Stop the HA cluster
