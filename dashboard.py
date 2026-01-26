@@ -6,7 +6,7 @@ This implementation provides the clean, simple 3-tab layout requested by the use
 maintaining full MCP JSON-RPC functionality for configuration management.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -1816,7 +1816,7 @@ class SimpleMCPDashboard:
             }
             
             # Simulate some progress
-            await asyncio.sleep(0.1)  # Brief delay to simulate work
+            await anyio.sleep(0.1)  # Brief delay to simulate work
             
             sync_result.update({
                 "status": "completed",

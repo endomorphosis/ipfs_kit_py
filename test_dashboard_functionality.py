@@ -3,7 +3,7 @@
 Test script to verify dashboard functionality
 """
 
-import asyncio
+import anyio
 import aiohttp
 import json
 import logging
@@ -164,11 +164,11 @@ class DashboardTester:
 async def main():
     """Main test function"""
     # Wait a moment for the dashboard to be ready
-    await asyncio.sleep(2)
+    await anyio.sleep(2)
     
     async with DashboardTester() as tester:
         results = await tester.run_all_tests()
         return results
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

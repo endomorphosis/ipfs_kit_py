@@ -20,12 +20,13 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import argparse
 import traceback
 import hashlib
 import signal
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
@@ -134,17 +135,16 @@ async def _initialize_ipfs_repo():
     if not (Path(IPFS_PATH) / "api").is_dir(): # Check for a common repo file/dir
         logger.warning("IPFS repository not initialized. Running ipfs init...")
         try:
-            process = await asyncio.create_subprocess_exec(
-                IPFS_BIN_PATH, "init",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            result = await anyio.run_process(
+                [IPFS_BIN_PATH, "init"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
-            stdout, stderr = await process.communicate()
             
-            if process.returncode == 0:
-                logger.info(f"✅ IPFS repository initialized: {stdout.decode().strip()}")
+            if result.returncode == 0:
+                logger.info(f"✅ IPFS repository initialized: {result.stdout.decode().strip()}")
             else:
-                logger.error(f"❌ Failed to initialize IPFS repository: {stderr.decode().strip()}")
+                logger.error(f"❌ Failed to initialize IPFS repository: {result.stderr.decode().strip()}")
         except Exception as e:
             logger.error(f"❌ Error running ipfs init: {e}")
     else:
@@ -171,7 +171,7 @@ async def _connect_to_ipfs():
             return
         except ipfshttpclient.exceptions.ConnectionError as e:
             logger.warning(f"Attempt {i+1}/{retries}: IPFS daemon connection failed: {e}")
-            await asyncio.sleep(delay)
+            await anyio.sleep(delay)
         except Exception as e:
             logger.error(f"❌ Failed to connect to IPFS daemon: {e}")
             break
@@ -553,9 +553,9 @@ Author: {__author__}
     logger.info(f"🔍 Debug mode: {args.debug}")
 
     # Check and install IPFS daemon
-    asyncio.run(_check_and_install_ipfs_daemon())
-    asyncio.run(_initialize_ipfs_repo())
-    asyncio.run(_connect_to_ipfs())
+    anyio.run(_check_and_install_ipfs_daemon)
+    anyio.run(_initialize_ipfs_repo)
+    anyio.run(_connect_to_ipfs)
 
     # Initialize Lassie installer and run installation/configuration
     global lassie_installer, lassie_client

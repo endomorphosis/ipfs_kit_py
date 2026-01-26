@@ -135,7 +135,6 @@ class LibP2PPeerManager:
     def add_bootstrap_peer(self, multiaddr: str):
         """Add bootstrap peer (delegates to unified manager)."""
         self.unified_manager.add_bootstrap_peer(multiaddr)
-import asyncio
 import json
 import logging
 import time

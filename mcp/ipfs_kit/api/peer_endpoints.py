@@ -8,7 +8,7 @@ using the unified ipfs_kit_py.libp2p.peer_manager.
 import logging
 from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, List, Optional
-import asyncio
+import anyio
 
 # Import from the unified peer manager
 from ipfs_kit_py.libp2p.peer_manager import get_peer_manager, start_peer_manager
@@ -23,7 +23,7 @@ class PeerEndpoints:
     """API endpoints for peer management functionality using unified peer manager."""
     
     # Class-level lock to ensure thread-safe singleton access
-    _init_lock = asyncio.Lock()
+    _init_lock = anyio.Lock()
     _initialized = False
     
     def __init__(self, backend_monitor):
@@ -33,8 +33,8 @@ class PeerEndpoints:
         # Initialize peer manager safely using singleton pattern
         try:
             # Try to schedule initialization if we're in an async context
-            loop = asyncio.get_running_loop()
-            asyncio.create_task(self._initialize_peer_manager())
+            anyio.get_current_task()
+            anyio.lowlevel.spawn_system_task(self._initialize_peer_manager)
         except RuntimeError:
             # No running event loop - defer initialization until first API call
             logger.info("No running event loop, peer manager will be initialized on first API call")

@@ -11,7 +11,7 @@ This script:
 Run this to verify the fix is working correctly.
 """
 
-import asyncio
+import anyio
 import json
 import sys
 from pathlib import Path
@@ -278,4 +278,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

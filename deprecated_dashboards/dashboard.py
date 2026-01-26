@@ -3,7 +3,7 @@
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
-import asyncio
+import anyio
 import base64
 import json
 from ipfs_kit_py.mcp_client import MCPClient
@@ -106,16 +106,15 @@ def update_daemon_status(start_clicks, stop_clicks, restart_clicks):
 
     button_id = ctx.triggered[0]["prop_id"].split(".")[0]
     
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
     if button_id == "start-daemon-button":
-        loop.run_until_complete(mcp.send("daemon", ["start"]))
+        anyio.run(mcp.send, "daemon", ["start"])
         return "Daemon status: Started"
     elif button_id == "stop-daemon-button":
-        loop.run_until_complete(mcp.send("daemon", ["stop"]))
+        anyio.run(mcp.send, "daemon", ["stop"])
         return "Daemon status: Stopped"
     elif button_id == "restart-daemon-button":
-        loop.run_until_complete(mcp.send("daemon", ["restart"]))
+        anyio.run(mcp.send, "daemon", ["restart"])
         return "Daemon status: Restarted"
     else:
         return "Daemon status: Unknown"
@@ -126,9 +125,8 @@ def update_daemon_status(start_clicks, stop_clicks, restart_clicks):
      Input("remove-backend-button", "n_clicks")]
 )
 def update_backend_table(add_clicks, remove_clicks):
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
-    backends = loop.run_until_complete(mcp.send("backend", ["list"])
+    backends = anyio.run(mcp.send, "backend", ["list"])
     
     header = [html.Tr([html.Th("Name"), html.Th("Type"), html.Th("Status")])]
     if backends:
@@ -144,9 +142,8 @@ def update_backend_table(add_clicks, remove_clicks):
      Input("remove-bucket-button", "n_clicks")]
 )
 def update_bucket_table(create_clicks, remove_clicks):
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
-    buckets = loop.run_until_complete(mcp.send("bucket", ["list"]))
+    buckets = anyio.run(mcp.send, "bucket", ["list"])
     
     header = [html.Tr([html.Th("Name"), html.Th("Size"), html.Th("Files")])]
     if buckets:
@@ -174,9 +171,8 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
 def update_bucket_files_table(selected_rows):
     if selected_rows:
         selected_bucket = selected_rows[0]
-        loop = asyncio.get_event_loop()
         mcp = MCPClient()
-        files = loop.run_until_complete(mcp.send("bucket", ["files", selected_bucket]))
+        files = anyio.run(mcp.send, "bucket", ["files", selected_bucket])
         header = [html.Tr([html.Th("Name"), html.Th("Size")])]
         if files:
             rows = [html.Tr([html.Td(f["name"]), html.Td(f["size"])]) for f in files]
@@ -188,9 +184,8 @@ def update_bucket_files_table(selected_rows):
 def parse_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string)
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
-    loop.run_until_complete(mcp.send("bucket", ["upload", filename, decoded]))
+    anyio.run(mcp.send, "bucket", ["upload", filename, decoded])
     return html.Div([
         html.Hr(),
         html.Div('File uploaded successfully'),
@@ -203,9 +198,8 @@ def parse_contents(contents, filename, date):
      Input("remove-pin-button", "n_clicks")]
 )
 def update_pin_table(add_clicks, remove_clicks):
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
-    pins = loop.run_until_complete(mcp.send("pin", ["list"]))
+    pins = anyio.run(mcp.send, "pin", ["list"])
     
     header = [html.Tr([html.Th("CID"), html.Th("Name")])]
     if pins:
@@ -220,9 +214,8 @@ def update_pin_table(add_clicks, remove_clicks):
     [Input("health-table", "n_intervals")]
 )
 def update_health_table(n):
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
-    health = loop.run_until_complete(mcp.send("health", []))
+    health = anyio.run(mcp.send, "health", [])
     
     header = [html.Tr([html.Th("Component"), html.Th("Status")])]
     if health:
@@ -237,9 +230,8 @@ def update_health_table(n):
     [Input("metrics-table", "n_intervals")]
 )
 def update_metrics_table(n):
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
-    metrics = loop.run_until_complete(mcp.send("metrics", []))
+    metrics = anyio.run(mcp.send, "metrics", [])
     
     header = [html.Tr([html.Th("Metric"), html.Th("Value")])]
     if metrics:
@@ -254,9 +246,8 @@ def update_metrics_table(n):
     [Input("resource-table", "n_intervals")]
 )
 def update_resource_table(n):
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
-    resources = loop.run_until_complete(mcp.send("resource", []))
+    resources = anyio.run(mcp.send, "resource", [])
     
     header = [html.Tr([html.Th("Resource"), html.Th("Usage")])]
     if resources:
@@ -271,9 +262,8 @@ def update_resource_table(n):
     [Input("config-textarea", "n_intervals")]
 )
 def update_config_textarea(n):
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
-    config = loop.run_until_complete(mcp.send("config", ["show"]))
+    config = anyio.run(mcp.send, "config", ["show"])
     
     return json.dumps(config, indent=2)
 
@@ -284,9 +274,8 @@ def update_config_textarea(n):
 )
 def save_config(n_clicks, value):
     if n_clicks:
-        loop = asyncio.get_event_loop()
         mcp = MCPClient()
-        loop.run_until_complete(mcp.send("config", ["set", value]))
+        anyio.run(mcp.send, "config", ["set", value])
     return value
 
 @app.callback(
@@ -294,9 +283,8 @@ def save_config(n_clicks, value):
     [Input("peer-table", "n_intervals")]
 )
 def update_peer_table(n):
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
-    peers = loop.run_until_complete(mcp.send("peer", ["list"]))
+    peers = anyio.run(mcp.send, "peer", ["list"])
     
     header = [html.Tr([html.Th("ID"), html.Th("Address")])]
     if peers:
@@ -311,9 +299,8 @@ def update_peer_table(n):
     [Input("log-textarea", "n_intervals")]
 )
 def update_log_textarea(n):
-    loop = asyncio.get_event_loop()
     mcp = MCPClient()
-    logs = loop.run_until_complete(mcp.send("log", []))
+    logs = anyio.run(mcp.send, "log", [])
     
     if logs:
         return "\n".join(logs)

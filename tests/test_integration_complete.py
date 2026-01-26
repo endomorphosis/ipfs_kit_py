@@ -10,7 +10,7 @@ These tests validate end-to-end functionality including:
 """
 
 import pytest
-import asyncio
+import anyio
 import os
 import tempfile
 from pathlib import Path
@@ -204,7 +204,7 @@ class TestIPFSBackendOperations:
 class TestUnifiedPinServiceIntegration:
     """Test unified pin service with multiple backends."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_pin_to_multiple_backends(self):
         """Test pinning content to multiple backends simultaneously."""
         service = UnifiedPinService()
@@ -230,7 +230,7 @@ class TestUnifiedPinServiceIntegration:
                 # Should have either success or informative error
                 assert "status" in backend_result or "error" in backend_result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_check_pin_status(self):
         """Test checking pin status across backends."""
         service = UnifiedPinService()
@@ -247,7 +247,7 @@ class TestUnifiedPinServiceIntegration:
         assert "backends" in status
         assert len(status["backends"]) > 0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_list_pins_unified(self):
         """Test listing pins across all backends."""
         service = UnifiedPinService()
@@ -272,7 +272,7 @@ class TestUnifiedPinServiceIntegration:
 class TestGatewayChainRetrieval:
     """Test content retrieval through gateway chain."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_gateway_chain_fetch(self):
         """Test fetching content through gateway chain."""
         chain = GatewayChain()
@@ -290,7 +290,7 @@ class TestGatewayChainRetrieval:
             # Network issues are acceptable in CI
             pytest.skip(f"Gateway fetch failed (expected in CI): {e}")
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_gateway_chain_with_metrics(self):
         """Test fetching with metrics tracking."""
         chain = GatewayChain()
@@ -311,7 +311,7 @@ class TestGatewayChainRetrieval:
 class TestEnhancedGatewayChain:
     """Test enhanced gateway chain with IPNI and Saturn."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_enhanced_fetch(self):
         """Test enhanced gateway with provider discovery."""
         chain = EnhancedGatewayChain(
@@ -335,7 +335,7 @@ class TestEnhancedGatewayChain:
 class TestEndToEndWorkflows:
     """Test complete end-to-end workflows."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_complete_pin_and_retrieve_workflow(self):
         """Test complete workflow: add to Filecoin Pin, then retrieve."""
         # Step 1: Add content to Filecoin Pin
@@ -372,7 +372,7 @@ class TestEndToEndWorkflows:
         metadata_check = backend.get_metadata(cid)
         assert metadata_check["success"] is True
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_multi_backend_workflow(self):
         """Test workflow across multiple backends."""
         service = UnifiedPinService()
@@ -494,7 +494,7 @@ class TestPerformance:
         avg_time = elapsed / 10
         print(f"Average time per operation: {avg_time*1000:.2f}ms")
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_concurrent_operations(self):
         """Test concurrent operations."""
         backend = FilecoinPinBackend(resources={}, metadata={})
@@ -506,9 +506,13 @@ class TestPerformance:
             )
         
         # Run 5 concurrent operations
-        results = await asyncio.gather(
-            *[add_item(i) for i in range(5)]
-        )
+        results = [None] * 5
+        async with anyio.create_task_group() as task_group:
+            for i in range(5):
+                async def run_item(index=i):
+                    results[index] = await add_item(index)
+
+                task_group.start_soon(run_item)
         
         # All should succeed
         assert all(r["success"] for r in results)

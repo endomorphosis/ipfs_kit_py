@@ -19,7 +19,7 @@ Features:
 """
 
 import argparse
-import asyncio
+import anyio
 import json
 import logging
 import multiprocessing as mp
@@ -251,9 +251,7 @@ class EnhancedMultiprocessingCLI:
             return {"error": "Daemon client not available"}
         
         try:
-            loop = asyncio.get_event_loop()
-            status = await loop.run_in_executor(
-                self.io_pool,
+            status = await anyio.to_thread.run_sync(
                 self.daemon_client.get_daemon_status
             )
             return status
@@ -266,9 +264,7 @@ class EnhancedMultiprocessingCLI:
             return {"error": "Daemon client not available"}
         
         try:
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                self.io_pool,
+            result = await anyio.to_thread.run_sync(
                 self.daemon_client.start_daemon
             )
             return result
@@ -281,9 +277,7 @@ class EnhancedMultiprocessingCLI:
             return {"error": "Daemon client not available"}
         
         try:
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                self.io_pool,
+            result = await anyio.to_thread.run_sync(
                 self.daemon_client.stop_daemon
             )
             return result
@@ -297,7 +291,6 @@ class EnhancedMultiprocessingCLI:
         logger.info(f"Checking health of {len(backends)} backends in parallel...")
         
         # Submit all health checks to process pool
-        loop = asyncio.get_event_loop()
         futures = []
         
         for backend in backends:
@@ -308,7 +301,7 @@ class EnhancedMultiprocessingCLI:
         results = {}
         for backend, future in futures:
             try:
-                result = await loop.run_in_executor(None, future.result)
+                result = await anyio.to_thread.run_sync(future.result)
                 if result.get("success"):
                     results[backend] = result.get("result")
                 else:
@@ -322,11 +315,10 @@ class EnhancedMultiprocessingCLI:
         """Restart a backend using process pool."""
         logger.info(f"Restarting backend: {backend_name}")
         
-        loop = asyncio.get_event_loop()
         future = self.backend_pool.submit(backend_worker_process, backend_name, "restart")
         
         try:
-            result = await loop.run_in_executor(None, future.result)
+            result = await anyio.to_thread.run_sync(future.result)
             return result
         except Exception as e:
             return {"error": str(e)}
@@ -342,7 +334,6 @@ class EnhancedMultiprocessingCLI:
         progress = ProgressTracker(len(file_paths))
         
         # Submit all add operations to process pool
-        loop = asyncio.get_event_loop()
         futures = []
         
         for file_path in file_paths:
@@ -357,19 +348,20 @@ class EnhancedMultiprocessingCLI:
         results = {}
         
         # Start progress reporting task
-        progress_task = asyncio.create_task(self._report_progress(progress))
-        
-        try:
-            for file_path, future in futures:
-                try:
-                    result = await loop.run_in_executor(None, future.result)
-                    results[file_path] = result
-                    progress.update(result.get("success", False))
-                except Exception as e:
-                    results[file_path] = {"success": False, "error": str(e)}
-                    progress.update(success=False)
-        finally:
-            progress_task.cancel()
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(self._report_progress, progress)
+
+            try:
+                for file_path, future in futures:
+                    try:
+                        result = await anyio.to_thread.run_sync(future.result)
+                        results[file_path] = result
+                        progress.update(result.get("success", False))
+                    except Exception as e:
+                        results[file_path] = {"success": False, "error": str(e)}
+                        progress.update(success=False)
+            finally:
+                task_group.cancel_scope.cancel()
         
         # Final status
         status = progress.get_status()
@@ -388,7 +380,6 @@ class EnhancedMultiprocessingCLI:
         progress = ProgressTracker(len(cid_list))
         
         # Submit all get operations to process pool
-        loop = asyncio.get_event_loop()
         futures = []
         
         for i, cid in enumerate(cid_list):
@@ -406,19 +397,20 @@ class EnhancedMultiprocessingCLI:
         results = {}
         
         # Start progress reporting task
-        progress_task = asyncio.create_task(self._report_progress(progress))
-        
-        try:
-            for cid, future in futures:
-                try:
-                    result = await loop.run_in_executor(None, future.result)
-                    results[cid] = result
-                    progress.update(result.get("success", False))
-                except Exception as e:
-                    results[cid] = {"success": False, "error": str(e)}
-                    progress.update(success=False)
-        finally:
-            progress_task.cancel()
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(self._report_progress, progress)
+
+            try:
+                for cid, future in futures:
+                    try:
+                        result = await anyio.to_thread.run_sync(future.result)
+                        results[cid] = result
+                        progress.update(result.get("success", False))
+                    except Exception as e:
+                        results[cid] = {"success": False, "error": str(e)}
+                        progress.update(success=False)
+            finally:
+                task_group.cancel_scope.cancel()
         
         # Final status
         status = progress.get_status()
@@ -440,7 +432,6 @@ class EnhancedMultiprocessingCLI:
         progress = ProgressTracker(len(cids))
         
         # Submit all pin operations to process pool
-        loop = asyncio.get_event_loop()
         futures = []
         
         pin_operation = "pin_add" if operation == "add" else "pin_remove"
@@ -453,19 +444,20 @@ class EnhancedMultiprocessingCLI:
         results = {}
         
         # Start progress reporting task
-        progress_task = asyncio.create_task(self._report_progress(progress))
-        
-        try:
-            for cid, future in futures:
-                try:
-                    result = await loop.run_in_executor(None, future.result)
-                    results[cid] = result
-                    progress.update(result.get("success", False))
-                except Exception as e:
-                    results[cid] = {"success": False, "error": str(e)}
-                    progress.update(success=False)
-        finally:
-            progress_task.cancel()
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(self._report_progress, progress)
+
+            try:
+                for cid, future in futures:
+                    try:
+                        result = await anyio.to_thread.run_sync(future.result)
+                        results[cid] = result
+                        progress.update(result.get("success", False))
+                    except Exception as e:
+                        results[cid] = {"success": False, "error": str(e)}
+                        progress.update(success=False)
+            finally:
+                task_group.cancel_scope.cancel()
         
         # Final status
         status = progress.get_status()
@@ -486,7 +478,6 @@ class EnhancedMultiprocessingCLI:
         chunk_size = max(1, len(cids) // mp.cpu_count())
         chunks = [cids[i:i + chunk_size] for i in range(0, len(cids), chunk_size)]
         
-        loop = asyncio.get_event_loop()
         futures = []
         
         # Submit route optimization tasks
@@ -499,7 +490,7 @@ class EnhancedMultiprocessingCLI:
         
         for future in futures:
             try:
-                result = await loop.run_in_executor(None, future.result)
+                result = await anyio.to_thread.run_sync(future.result)
                 if result.get("success"):
                     all_routes.update(result.get("routes", {}))
             except Exception as e:
@@ -528,11 +519,11 @@ class EnhancedMultiprocessingCLI:
         """Background task to report progress."""
         while True:
             try:
-                await asyncio.sleep(2)  # Report every 2 seconds
+                await anyio.sleep(2)  # Report every 2 seconds
                 status = progress.get_status()
                 logger.info(f"Progress: {status['completed']}/{status['total']} ({status['progress']:.1f}%) - "
                            f"Success rate: {status['success_rate']:.1f}% - ETA: {status['eta']:.1f}s")
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
     
     def cleanup(self):
@@ -702,7 +693,7 @@ Examples:
                 test_cids = [f"QmTest{i}" for i in range(10)]
                 result = await cli.route_optimize_batch(test_cids)
                 operations += 1
-                await asyncio.sleep(1)
+                await anyio.sleep(1)
             
             elapsed = time.time() - start_time
             ops_per_sec = operations / elapsed
@@ -721,4 +712,4 @@ Examples:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

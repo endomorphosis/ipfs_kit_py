@@ -3,7 +3,7 @@
 Simple WebSocket test to verify WebSocket functionality
 """
 
-import asyncio
+import anyio
 import websockets
 import json
 
@@ -19,20 +19,22 @@ async def test_websocket():
             
             # Wait for initial message
             try:
-                message = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+                with anyio.fail_after(5.0):
+                    message = await websocket.recv()
                 data = json.loads(message)
                 print(f"📨 Received initial message: {data.get('type', 'unknown')}")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 print("⏱️ No initial message received within 5 seconds")
             
             # Wait for status update
             try:
-                message = await asyncio.wait_for(websocket.recv(), timeout=10.0)
+                with anyio.fail_after(10.0):
+                    message = await websocket.recv()
                 data = json.loads(message)
                 print(f"📊 Received status update: {data.get('type', 'unknown')}")
                 print("✅ WebSocket is working correctly!")
                 return True
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 print("⏱️ No status update received within 10 seconds")
                 return False
                 
@@ -58,7 +60,7 @@ if __name__ == "__main__":
         exit(1)
     
     # Test WebSocket
-    success = asyncio.run(test_websocket())
+    success = anyio.run(test_websocket)
     
     if success:
         print("\n🎉 WebSocket test passed!")

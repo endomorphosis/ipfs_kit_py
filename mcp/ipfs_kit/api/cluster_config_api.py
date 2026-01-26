@@ -3,7 +3,6 @@ MCP API endpoints for IPFS Cluster configuration management.
 Provides access to cluster service and cluster follow configuration functions.
 """
 
-import asyncio
 import json
 import logging
 from typing import Dict, Any, Optional, List

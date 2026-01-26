@@ -11,7 +11,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import argparse
 import time
 from pathlib import Path
@@ -187,10 +187,9 @@ class StreamlinedMCPServer:
             
             # Initialize ipfs_kit with timeout
             logger.info("📦 Initializing ipfs_kit...")
-            init_task = asyncio.create_task(self._initialize_ipfs_kit())
-            
             try:
-                await asyncio.wait_for(init_task, timeout=initialization_timeout)
+                with anyio.fail_after(initialization_timeout):
+                    await self._initialize_ipfs_kit()
                 logger.info("✅ ipfs_kit initialized successfully")
                 
                 # Quick daemon check
@@ -199,7 +198,7 @@ class StreamlinedMCPServer:
                 self.initialized = True
                 logger.info("🎉 System initialization complete!")
                 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("⚠️ Initialization timed out, but continuing with basic functionality")
                 self.startup_errors.append("Initialization timed out")
                 self.initialized = True  # Still mark as initialized for basic functionality
@@ -291,7 +290,7 @@ def main():
     # Initialize system if requested
     if args.initialize:
         logger.info("🔄 Initializing system...")
-        asyncio.run(server.initialize_system())
+        anyio.run(server.initialize_system)
     
     # Start server
     logger.info("🌐 Starting HTTP server...")

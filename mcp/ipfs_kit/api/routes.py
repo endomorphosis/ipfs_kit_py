@@ -4,7 +4,6 @@ Clean version without duplication.
 """
 
 import traceback
-import asyncio
 import os
 import shutil
 from fastapi import FastAPI, Request, HTTPException, WebSocket, UploadFile, File, Form, Query

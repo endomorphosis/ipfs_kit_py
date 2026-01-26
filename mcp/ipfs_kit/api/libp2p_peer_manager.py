@@ -3,7 +3,7 @@ LibP2P Peer Manager for IPFS Kit MCP Server
 Integrates with the main ipfs_kit_py libp2p infrastructure for peer discovery and management
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from typing import Dict, List, Optional, Any, Set, Union
@@ -185,28 +185,28 @@ class LibP2PPeerManager:
             # Set up discovery event handlers
             # Note: This would need to be implemented in the libp2p_peer class
             # For now, we'll simulate periodic discovery
-            asyncio.create_task(self._periodic_discovery())
+            anyio.lowlevel.spawn_system_task(self._periodic_discovery)
         else:
             # Mock discovery
-            asyncio.create_task(self._mock_discovery())
+            anyio.lowlevel.spawn_system_task(self._mock_discovery)
     
     async def _periodic_discovery(self):
         """Periodic peer discovery task"""
         while self.discovery_active:
             try:
-                await asyncio.sleep(300)  # 5 minutes
+                await anyio.sleep(300)  # 5 minutes
                 if self.discovery_active:
                     await self.discover_peers()
                     
             except Exception as e:
                 logger.error(f"Error in periodic discovery: {e}")
-                await asyncio.sleep(60)
+                await anyio.sleep(60)
     
     async def _mock_discovery(self):
         """Mock discovery for testing"""
         while self.discovery_active:
             try:
-                await asyncio.sleep(30)  # 30 seconds for mock
+                await anyio.sleep(30)  # 30 seconds for mock
                 if self.discovery_active:
                     # Randomly add a new mock peer
                     new_peer_id = f"DISC{len(self.discovered_peers):04d}" + hashlib.sha256(f"discovered_peer_{len(self.discovered_peers)}".encode()).hexdigest()[:40]
@@ -229,7 +229,7 @@ class LibP2PPeerManager:
                     
             except Exception as e:
                 logger.error(f"Error in mock discovery: {e}")
-                await asyncio.sleep(60)
+                await anyio.sleep(60)
     
     async def _analyze_and_add_peer(self, peer_addr: str, discovery_source: str):
         """Analyze a peer address and add it to our discovered peers"""

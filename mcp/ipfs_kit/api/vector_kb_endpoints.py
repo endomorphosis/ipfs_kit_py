@@ -5,7 +5,7 @@ This module provides real API endpoints for the Vector & KB dashboard tab,
 connecting to actual vector search engines and knowledge graphs instead of mock data.
 """
 
-import asyncio
+import anyio
 import logging
 import json
 import time
@@ -77,7 +77,7 @@ class VectorKBEndpoints:
                 
             # Perform vector search
             start_time = time.time()
-            results = await asyncio.to_thread(search_engine.search, query, search_type="vector", limit=limit)
+            results = await anyio.to_thread.run_sync(search_engine.search, query, search_type="vector", limit=limit)
             search_time = (time.time() - start_time) * 1000
             
             return {
@@ -101,12 +101,12 @@ class VectorKBEndpoints:
                 return {"success": False, "error": "Knowledge graph not available"}
                 
             # Get entity and its connections
-            entity = await asyncio.to_thread(kg.get_entity, entity_id)
+            entity = await anyio.to_thread.run_sync(kg.get_entity, entity_id)
             if not entity:
                 return {"success": False, "error": f"Entity {entity_id} not found"}
                 
             # Get related entities
-            related = await asyncio.to_thread(kg.query_related, entity_id, max_depth=2)
+            related = await anyio.to_thread.run_sync(kg.query_related, entity_id, max_depth=2)
             
             return {
                 "success": True,
@@ -128,7 +128,7 @@ class VectorKBEndpoints:
                 return self._get_fallback_vector_data()
                 
             # Get actual statistics from search engine
-            stats = await asyncio.to_thread(self._get_search_engine_stats, search_engine)
+            stats = await anyio.to_thread.run_sync(self._get_search_engine_stats, search_engine)
             
             return {
                 "success": True,
@@ -169,7 +169,7 @@ class VectorKBEndpoints:
                 return self._get_fallback_kb_data()
                 
             # Get actual statistics from knowledge graph
-            stats = await asyncio.to_thread(kg.get_statistics)
+            stats = await anyio.to_thread.run_sync(kg.get_statistics)
             
             return {
                 "success": True,
@@ -409,12 +409,12 @@ class VectorKBEndpoints:
             if not kg:
                 return {"success": False, "error": "Knowledge graph not available"}
                 
-            entity = await asyncio.to_thread(kg.get_entity, entity_id)
+            entity = await anyio.to_thread.run_sync(kg.get_entity, entity_id)
             if not entity:
                 return {"success": False, "error": f"Entity {entity_id} not found"}
                 
             # Get relationships
-            relationships = await asyncio.to_thread(kg.query_related, entity_id)
+            relationships = await anyio.to_thread.run_sync(kg.query_related, entity_id)
             
             # Get knowledge cards if available
             try:

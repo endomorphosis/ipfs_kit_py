@@ -2,7 +2,7 @@
 """
 Test script for the Modern MCP Feature Bridge.
 """
-import asyncio
+import anyio
 import sys
 import os
 from pathlib import Path
@@ -83,5 +83,5 @@ async def test_modern_bridge():
         return False
 
 if __name__ == "__main__":
-    success = asyncio.run(test_modern_bridge())
+    success = anyio.run(test_modern_bridge)
     sys.exit(0 if success else 1)

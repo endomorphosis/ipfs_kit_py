@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Test script to debug SimpleBucketManager
-import asyncio
+import anyio
 import sys
 import os
 sys.path.insert(0, '/home/devel/ipfs_kit_py')
@@ -53,4 +53,4 @@ async def test_bucket_manager():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(test_bucket_manager())
+    anyio.run(test_bucket_manager)

@@ -22,7 +22,7 @@ import sys
 import time
 import json
 import argparse
-import asyncio
+import anyio
 from pathlib import Path
 
 # Add ipfs_kit_py to path
@@ -485,5 +485,5 @@ def print_performance_metrics():
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

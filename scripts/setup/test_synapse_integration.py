@@ -5,7 +5,7 @@ Test script for Synapse SDK virtual filesystem integration.
 
 import os
 import sys
-import asyncio
+import anyio
 import logging
 
 # Add project root to path
@@ -88,5 +88,5 @@ async def test_synapse_integration():
 
 
 if __name__ == "__main__":
-    success = asyncio.run(test_synapse_integration())
+    success = anyio.run(test_synapse_integration)
     sys.exit(0 if success else 1)

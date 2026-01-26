@@ -11,7 +11,7 @@ This MCP server uses multi-processing for high throughput operations:
 - High-performance dashboard
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import multiprocessing as mp
@@ -607,35 +607,28 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                 self.performance_stats['tool_executions'] += 1
                 
                 # Execute tool in process pool for CPU-intensive operations
-                loop = asyncio.get_event_loop()
-                
                 if name == "health_check":
-                    result = await loop.run_in_executor(
-                        self.thread_pool,
+                    result = await anyio.to_thread.run_sync(
                         self._execute_health_check_tool,
                         arguments
                     )
                 elif name == "list_pins_concurrent":
-                    result = await loop.run_in_executor(
-                        self.thread_pool,
+                    result = await anyio.to_thread.run_sync(
                         self._execute_list_pins_tool,
                         arguments
                     )
                 elif name == "batch_pin_operations":
-                    result = await loop.run_in_executor(
-                        self.process_pool,
+                    result = await anyio.to_process.run_sync(
                         self._execute_batch_operations_tool,
                         arguments
                     )
                 elif name == "performance_stress_test":
-                    result = await loop.run_in_executor(
-                        self.process_pool,
+                    result = await anyio.to_process.run_sync(
                         self._execute_stress_test_tool,
                         arguments
                     )
                 elif name == "backend_management":
-                    result = await loop.run_in_executor(
-                        self.process_pool,
+                    result = await anyio.to_process.run_sync(
                         self._execute_backend_management_tool,
                         arguments
                     )
@@ -669,16 +662,10 @@ class MultiProcessMCPServer(DaemonAwareComponent):
         """Execute health check tool in thread pool."""
         try:
             # Create async event loop in thread
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
             fast = arguments.get('fast', False)
             endpoint = "/health/fast" if fast else "/health"
-            
-            result = loop.run_until_complete(
-                self.daemon_client._make_request("GET", endpoint)
-            )
+
+            result = anyio.run(self.daemon_client._make_request, "GET", endpoint)
             
             return result
             
@@ -688,13 +675,7 @@ class MultiProcessMCPServer(DaemonAwareComponent):
     def _execute_list_pins_tool(self, arguments: dict) -> dict:
         """Execute list pins tool in thread pool."""
         try:
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            result = loop.run_until_complete(
-                self.daemon_client.list_pins()
-            )
+            result = anyio.run(self.daemon_client.list_pins)
             
             limit = arguments.get('limit')
             if limit and 'pins' in result:
@@ -710,15 +691,8 @@ class MultiProcessMCPServer(DaemonAwareComponent):
     def _execute_batch_operations_tool(self, arguments: dict) -> dict:
         """Execute batch operations tool in process pool."""
         try:
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
             operations = arguments.get('operations', [])
-            
-            result = loop.run_until_complete(
-                self.daemon_client.batch_pin_operations(operations)
-            )
+            result = anyio.run(self.daemon_client.batch_pin_operations, operations)
             
             return result
             
@@ -728,10 +702,6 @@ class MultiProcessMCPServer(DaemonAwareComponent):
     def _execute_stress_test_tool(self, arguments: dict) -> dict:
         """Execute stress test tool in process pool."""
         try:
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
             num_operations = arguments.get('num_operations', 100)
             operation_type = arguments.get('operation_type', 'mixed')
             
@@ -751,9 +721,7 @@ class MultiProcessMCPServer(DaemonAwareComponent):
                     operations.append({"operation": op_type, "cid": f"{test_cid_base}{i:06d}"})
             
             start_time = time.time()
-            result = loop.run_until_complete(
-                self.daemon_client.batch_pin_operations(operations)
-            )
+            result = anyio.run(self.daemon_client.batch_pin_operations, operations)
             total_time = time.time() - start_time
             
             # Add stress test metrics
@@ -772,21 +740,13 @@ class MultiProcessMCPServer(DaemonAwareComponent):
     def _execute_backend_management_tool(self, arguments: dict) -> dict:
         """Execute backend management tool in process pool."""
         try:
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
             action = arguments.get('action')
             backend = arguments.get('backend')
             
             if action == "start":
-                result = loop.run_until_complete(
-                    self.daemon_client._make_request("POST", f"/backends/{backend}/start")
-                )
+                result = anyio.run(self.daemon_client._make_request, "POST", f"/backends/{backend}/start")
             elif action == "status":
-                result = loop.run_until_complete(
-                    self.daemon_client.get_health()
-                )
+                result = anyio.run(self.daemon_client.get_health)
                 # Filter for specific backend if not 'all'
                 if backend != 'all' and 'backends' in result:
                     backend_status = result['backends'].get(backend, {})
@@ -894,7 +854,7 @@ class MultiProcessMCPServer(DaemonAwareComponent):
         # Run both MCP server and web dashboard
         try:
             # Start web server in background
-            web_task = asyncio.create_task(server.serve())
+            anyio.lowlevel.spawn_system_task(server.serve)
             
             # Start MCP server
             from mcp.server.stdio import stdio_server
@@ -989,4 +949,4 @@ async def main():
 if __name__ == "__main__":
     # Set multiprocessing start method
     mp.set_start_method('spawn', force=True)
-    asyncio.run(main())
+    anyio.run(main)

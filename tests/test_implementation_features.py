@@ -47,7 +47,7 @@ def test_dht_methods():
         print(f"✗ DHT methods test failed: {e}")
         return False
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_add_content_method():
     """Test add_content method in IPFSModelAnyIO."""
     print("\nTesting add_content method in IPFSModelAnyIO...")

@@ -11,12 +11,13 @@ This module provides comprehensive testing capabilities including:
 """
 
 import unittest
-import asyncio
+import anyio
 import time
 import json
 import logging
 import traceback
 import importlib.util
+import inspect
 from typing import Dict, List, Any, Optional, Callable, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -185,8 +186,8 @@ class TestFramework:
         
         try:
             # Execute test
-            if asyncio.iscoroutinefunction(test_func):
-                asyncio.run(test_func())
+            if inspect.iscoroutinefunction(test_func):
+                anyio.run(test_func)
             else:
                 test_func()
             

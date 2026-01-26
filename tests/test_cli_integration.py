@@ -2,7 +2,7 @@
 """
 Test script to verify CLI integration with the comprehensive dashboard
 """
-import asyncio
+import anyio
 import subprocess
 import time
 import requests
@@ -83,7 +83,7 @@ def main():
     """Main test function."""
     try:
         # Run the async test
-        result = asyncio.run(test_cli_integration())
+        result = anyio.run(test_cli_integration)
         
         if result:
             print("\n🎉 All tests passed! CLI integration with comprehensive dashboard is working.")

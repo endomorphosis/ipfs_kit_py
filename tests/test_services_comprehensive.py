@@ -4,7 +4,6 @@ Test suite for the comprehensive services manager API
 """
 
 import json
-import asyncio
 import sys
 from pathlib import Path
 

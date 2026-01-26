@@ -4,7 +4,7 @@ Test script to demonstrate the MCP server fix for list_bucket_files tool.
 This script shows the difference between the broken state and the fixed state.
 """
 
-import asyncio
+import anyio
 import aiohttp
 import json
 import sys
@@ -89,4 +89,4 @@ async def main():
     print("AFTER FIX:  list_bucket_files returns proper file/directory listings")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

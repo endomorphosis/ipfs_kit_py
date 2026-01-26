@@ -17,7 +17,7 @@ Key Benefits:
 - No duplicate IPFS API calls - uses cached metadata
 """
 
-import asyncio
+import anyio
 import logging
 import time
 from typing import Dict, Any, List, Optional
@@ -115,9 +115,9 @@ class VFSIPFSKitIntegration:
         """Initialize the enhanced pin metadata index."""
         try:
             # Get the global enhanced pin index instance
-            self.enhanced_pin_index = await asyncio.get_event_loop().run_in_executor(
-                None, get_global_enhanced_pin_index
-            )
+                self.enhanced_pin_index = await anyio.to_thread.run_sync(
+                    get_global_enhanced_pin_index
+                )
             
             # Start background services if not already running
             if hasattr(self.enhanced_pin_index, 'start_background_services'):
@@ -139,9 +139,9 @@ class VFSIPFSKitIntegration:
         
         try:
             # Create arrow metadata index with default settings
-            self.arrow_metadata_index = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: ArrowMetadataIndex()
-            )
+                self.arrow_metadata_index = await anyio.to_thread.run_sync(
+                    lambda: ArrowMetadataIndex()
+                )
             logger.info("✓ Arrow metadata index initialized")
             
         except Exception as e:
@@ -151,9 +151,9 @@ class VFSIPFSKitIntegration:
     async def _initialize_ipfs_api(self):
         """Initialize the high-level IPFS API."""
         try:
-            self.ipfs_api = await asyncio.get_event_loop().run_in_executor(
-                None, IPFSSimpleAPI
-            )
+                self.ipfs_api = await anyio.to_thread.run_sync(
+                    IPFSSimpleAPI
+                )
             logger.info("✓ IPFS Simple API initialized")
             
         except Exception as e:
@@ -202,9 +202,9 @@ class VFSIPFSKitIntegration:
         if self.enhanced_pin_index:
             try:
                 # Use CLI helper for fast access
-                cli_metrics = await asyncio.get_event_loop().run_in_executor(
-                    None, get_cli_pin_metrics
-                )
+                    cli_metrics = await anyio.to_thread.run_sync(
+                        get_cli_pin_metrics
+                    )
                 
                 if 'error' not in cli_metrics:
                     stats.update({
@@ -288,9 +288,9 @@ class VFSIPFSKitIntegration:
                 return {}
             
             # Get tier analytics from enhanced pin index
-            tier_info = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: self.enhanced_pin_index.get_comprehensive_metrics()
-            )
+                tier_info = await anyio.to_thread.run_sync(
+                    lambda: self.enhanced_pin_index.get_comprehensive_metrics()
+                )
             
             return {
                 "tier_distribution": tier_info.tier_distribution,
@@ -347,9 +347,9 @@ class VFSIPFSKitIntegration:
         try:
             if self.enhanced_pin_index:
                 # Get pin details from enhanced index
-                pin_info = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: self.enhanced_pin_index.get_pin_details(cid)
-                )
+                    pin_info = await anyio.to_thread.run_sync(
+                        lambda: self.enhanced_pin_index.get_pin_details(cid)
+                    )
                 return {"success": True, "pin_details": pin_info}
             else:
                 return {"error": "Enhanced pin index not available"}
@@ -378,8 +378,8 @@ class VFSIPFSKitIntegration:
                 journal = self.enhanced_pin_index.journal
                 if journal:
                     # Get recent journal entries
-                    entries = await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: journal.get_recent_entries(limit=100)
+                    entries = await anyio.to_thread.run_sync(
+                        lambda: journal.get_recent_entries(limit=100)
                     )
                     
                     # Apply filters

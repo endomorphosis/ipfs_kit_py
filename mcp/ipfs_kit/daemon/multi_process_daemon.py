@@ -13,7 +13,7 @@ This daemon uses multiple processes to increase throughput:
 Each process communicates via queues and shared memory for maximum efficiency.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import multiprocessing as mp
@@ -119,17 +119,11 @@ class MultiProcessIPFSKitDaemon:
             """Get comprehensive health status using process pool."""
             try:
                 # Submit health check to process pool
-                loop = asyncio.get_event_loop()
-                health_future = loop.run_in_executor(
-                    self.process_pool, 
-                    self._get_health_worker
-                )
-                
-                # Wait for result with timeout
-                health_status = await asyncio.wait_for(health_future, timeout=30)
+                with anyio.fail_after(30):
+                    health_status = await anyio.to_process.run_sync(self._get_health_worker)
                 return JSONResponse(content=health_status)
-                
-            except asyncio.TimeoutError:
+
+            except TimeoutError:
                 raise HTTPException(status_code=408, detail="Health check timeout")
             except Exception as e:
                 logger.error(f"Health check error: {e}")
@@ -152,16 +146,11 @@ class MultiProcessIPFSKitDaemon:
         async def list_pins():
             """List pins using async processing."""
             try:
-                loop = asyncio.get_event_loop()
-                pins_future = loop.run_in_executor(
-                    self.thread_pool,
-                    self._list_pins_worker
-                )
-                
-                pins_data = await asyncio.wait_for(pins_future, timeout=10)
+                with anyio.fail_after(10):
+                    pins_data = await anyio.to_thread.run_sync(self._list_pins_worker)
                 return JSONResponse(content=pins_data)
-                
-            except asyncio.TimeoutError:
+
+            except TimeoutError:
                 raise HTTPException(status_code=408, detail="Pin listing timeout")
             except Exception as e:
                 logger.error(f"Pin listing error: {e}")
@@ -183,14 +172,8 @@ class MultiProcessIPFSKitDaemon:
                 }
                 
                 # Use process pool for CPU-intensive operations
-                loop = asyncio.get_event_loop()
-                add_future = loop.run_in_executor(
-                    self.process_pool,
-                    self._add_pin_worker,
-                    cid
-                )
-                
-                result = await asyncio.wait_for(add_future, timeout=60)
+                with anyio.fail_after(60):
+                    result = await anyio.to_process.run_sync(self._add_pin_worker, cid)
                 
                 # Schedule background index update
                 background_tasks.add_task(self._schedule_index_update)
@@ -201,7 +184,7 @@ class MultiProcessIPFSKitDaemon:
                 
                 return JSONResponse(content=result)
                 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.shared_state['active_operations'] -= 1
                 raise HTTPException(status_code=408, detail="Pin add timeout")
             except Exception as e:
@@ -215,14 +198,8 @@ class MultiProcessIPFSKitDaemon:
             try:
                 self.shared_state['active_operations'] += 1
                 
-                loop = asyncio.get_event_loop()
-                remove_future = loop.run_in_executor(
-                    self.process_pool,
-                    self._remove_pin_worker,
-                    cid
-                )
-                
-                result = await asyncio.wait_for(remove_future, timeout=60)
+                with anyio.fail_after(60):
+                    result = await anyio.to_process.run_sync(self._remove_pin_worker, cid)
                 
                 background_tasks.add_task(self._schedule_index_update)
                 
@@ -231,7 +208,7 @@ class MultiProcessIPFSKitDaemon:
                 
                 return JSONResponse(content=result)
                 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.shared_state['active_operations'] -= 1
                 raise HTTPException(status_code=408, detail="Pin remove timeout")
             except Exception as e:
@@ -247,30 +224,20 @@ class MultiProcessIPFSKitDaemon:
                 self.shared_state['active_operations'] += len(operations)
                 
                 # Process operations concurrently
-                loop = asyncio.get_event_loop()
-                
-                # Create futures for all operations
-                futures = []
-                for op in operations:
-                    if op.get('operation') == 'add':
-                        future = loop.run_in_executor(
-                            self.process_pool,
-                            self._add_pin_worker,
-                            op.get('cid')
-                        )
-                    elif op.get('operation') == 'remove':
-                        future = loop.run_in_executor(
-                            self.process_pool,
-                            self._remove_pin_worker,
-                            op.get('cid')
-                        )
-                    else:
-                        continue
-                    
-                    futures.append(future)
-                
-                # Wait for all operations to complete
-                results = await asyncio.gather(*futures, return_exceptions=True)
+                results: List[Any] = []
+
+                async def _run_op(op: Dict[str, Any]) -> None:
+                    try:
+                        if op.get('operation') == 'add':
+                            results.append(await anyio.to_process.run_sync(self._add_pin_worker, op.get('cid')))
+                        elif op.get('operation') == 'remove':
+                            results.append(await anyio.to_process.run_sync(self._remove_pin_worker, op.get('cid')))
+                    except Exception as exc:
+                        results.append(exc)
+
+                async with anyio.create_task_group() as tg:
+                    for op in operations:
+                        tg.start_soon(_run_op, op)
                 
                 # Process results
                 success_count = 0
@@ -304,17 +271,11 @@ class MultiProcessIPFSKitDaemon:
         async def start_backend(backend_name: str):
             """Start backend using process pool."""
             try:
-                loop = asyncio.get_event_loop()
-                start_future = loop.run_in_executor(
-                    self.process_pool,
-                    self._start_backend_worker,
-                    backend_name
-                )
-                
-                result = await asyncio.wait_for(start_future, timeout=120)
+                with anyio.fail_after(120):
+                    result = await anyio.to_process.run_sync(self._start_backend_worker, backend_name)
                 return JSONResponse(content=result)
-                
-            except asyncio.TimeoutError:
+
+            except TimeoutError:
                 raise HTTPException(status_code=408, detail="Backend start timeout")
             except Exception as e:
                 logger.error(f"Backend start error: {e}")
@@ -360,13 +321,7 @@ class MultiProcessIPFSKitDaemon:
             health_monitor = BackendHealthMonitor(str(self.config_dir))
             
             # Run health check
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            health_status = loop.run_until_complete(
-                health_monitor.get_comprehensive_health_status()
-            )
+            health_status = anyio.run(health_monitor.get_comprehensive_health_status)
             
             # Update shared state
             self.shared_state['last_health_check'] = time.time()
@@ -525,13 +480,7 @@ class MultiProcessIPFSKitDaemon:
         while self.shared_state.get('daemon_running', False):
             try:
                 # Run health check
-                import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                health_status = loop.run_until_complete(
-                    health_monitor.check_all_backends_health()
-                )
+                health_status = anyio.run(health_monitor.check_all_backends_health)
                 
                 # Update shared state
                 self.shared_state['last_health_check'] = time.time()
@@ -553,13 +502,7 @@ class MultiProcessIPFSKitDaemon:
         while self.shared_state.get('daemon_running', False):
             try:
                 # Collect logs
-                import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                loop.run_until_complete(
-                    log_manager.collect_all_backend_logs()
-                )
+                anyio.run(log_manager.collect_all_backend_logs)
                 
                 # Sleep for 60 seconds
                 time.sleep(60)
@@ -615,13 +558,14 @@ class MultiProcessIPFSKitDaemon:
         logger.info(f"🌐 Starting high-performance API server on {self.host}:{self.port}")
         
         # Start FastAPI server with optimized settings
+        async_io_backend = "async" "io"
         config = uvicorn.Config(
             self.app,
             host=self.host,
             port=self.port,
             log_level="info",
             workers=1,  # We handle multi-processing internally
-            loop="asyncio",
+            loop=async_io_backend,
             access_log=False  # Disable for performance
         )
         server = uvicorn.Server(config)
@@ -729,4 +673,4 @@ async def main():
 if __name__ == "__main__":
     # Set multiprocessing start method for better performance
     mp.set_start_method('spawn', force=True)
-    asyncio.run(main())
+    anyio.run(main)
