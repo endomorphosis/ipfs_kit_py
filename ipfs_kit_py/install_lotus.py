@@ -147,6 +147,14 @@ class install_lotus:
         else:
             self.auto_install_deps = bool(metadata_auto_install)
 
+        # Allow attempting a user-space dependency install into the package bin
+        # directory when sudo/root isn't available.
+        self.allow_userspace_deps = bool(
+            self.metadata.get("allow_userspace_deps")
+            or str(os.environ.get("IPFS_KIT_ALLOW_USERSPACE_DEPS", "")).strip().lower() in {"1", "true", "yes", "on"}
+            or str(os.environ.get("IPFS_KIT_USERSPACE_LOTUS_DEPS", "")).strip().lower() in {"1", "true", "yes", "on"}
+        )
+
         # Check and install system dependencies if needed
         self._install_system_dependencies()
         
@@ -698,6 +706,11 @@ class install_lotus:
                 shutil.copy2(binary_path, dest_path)
                 if platform.system() != "Windows":
                     os.chmod(dest_path, 0o755)
+
+                # If user-space libs were installed into bin/lib, make the binaries
+                # runnable without requiring the user to manually set env vars.
+                if bin_dir == getattr(self, "bin_path", None):
+                    self._wrap_binary_for_userspace_libs(dest_path)
                 
                 logger.info(f"Installed {binary_name}")
                 installed_binaries.append(dest_path)
@@ -833,6 +846,16 @@ class install_lotus:
             logger.info("Found libhwloc library installed on the system")
             return True
 
+        # Non-root environments commonly lack sudo access. In that case, try a
+        # user-space fallback that installs hwloc libs into our package bin dir.
+        if os_name == "linux" and os.geteuid() != 0 and not self._sudo_is_passwordless():
+            logger.warning(
+                "Lotus dependencies missing and sudo is unavailable; attempting "
+                "user-space dependency installation into the package bin directory."
+            )
+            if self._try_direct_library_installation():
+                return True
+
         if not getattr(self, "auto_install_deps", False):
             hint = self._dependency_install_hint(os_name)
             logger.error(
@@ -899,6 +922,7 @@ class install_lotus:
             "C:\\Windows\\System32",
             os.path.expanduser("~/.lotus/bin"),
             os.path.join(self.bin_path),
+            os.path.join(self.bin_path, "lib"),
         ]
         
         # Library name patterns to look for (covering different versions)
@@ -948,6 +972,91 @@ class install_lotus:
                 
         # Library not found
         return False
+
+    def _sudo_is_passwordless(self) -> bool:
+        """Return True if sudo can run non-interactively (or we are root)."""
+        if platform.system() != "Linux":
+            return False
+        if os.geteuid() == 0:
+            return True
+        try:
+            result = subprocess.run(
+                ["sudo", "-n", "true"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            return result.returncode == 0
+        except (FileNotFoundError, OSError):
+            return False
+
+    def _wrap_binary_for_userspace_libs(self, binary_path: str) -> None:
+        """Wrap a binary so it runs with user-space libs in bin/lib."""
+        if platform.system() == "Windows":
+            return
+
+        lib_dir = os.path.join(self.bin_path, "lib")
+        if not os.path.isdir(lib_dir):
+            return
+
+        # Only wrap if we actually have something that looks like a shared library.
+        try:
+            has_libs = any(
+                name.startswith("libhwloc") or name.startswith("libOpenCL") or name.endswith((".so", ".dylib"))
+                for name in os.listdir(lib_dir)
+            )
+        except OSError:
+            has_libs = False
+        if not has_libs:
+            return
+
+        real_path = binary_path + ".real"
+        if os.path.exists(real_path):
+            return
+
+        # If it's already a script, don't wrap.
+        try:
+            with open(binary_path, "rb") as f:
+                if f.read(2) == b"#!":
+                    return
+        except OSError:
+            return
+
+        try:
+            os.rename(binary_path, real_path)
+        except OSError as exc:
+            logger.debug(f"Could not rename {binary_path} for wrapping: {exc}")
+            return
+
+        real_basename = os.path.basename(real_path)
+        wrapper = f"""#!/usr/bin/env bash
+set -euo pipefail
+
+BIN_DIR="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
+LIB_DIR="$BIN_DIR/lib"
+OCL_VENDOR_DIR="$BIN_DIR/opencl/vendors"
+
+export LD_LIBRARY_PATH="$LIB_DIR:${{LD_LIBRARY_PATH:-}}"
+export DYLD_LIBRARY_PATH="$LIB_DIR:${{DYLD_LIBRARY_PATH:-}}"
+if [ -d "$OCL_VENDOR_DIR" ]; then
+    export OCL_ICD_VENDORS="$OCL_VENDOR_DIR"
+fi
+
+exec "$BIN_DIR/{real_basename}" "$@"
+"""
+
+        try:
+            with open(binary_path, "w", encoding="utf-8") as f:
+                f.write(wrapper)
+            os.chmod(binary_path, 0o755)
+        except OSError as exc:
+            logger.debug(f"Failed to write wrapper for {binary_path}: {exc}")
+            # Try to restore the original binary if wrapper creation failed.
+            try:
+                if os.path.exists(real_path) and not os.path.exists(binary_path):
+                    os.rename(real_path, binary_path)
+            except OSError:
+                pass
 
     def _dependency_install_hint(self, os_name):
         """Provide installation guidance for system dependencies."""
@@ -1110,19 +1219,27 @@ class install_lotus:
         
     def _try_direct_library_installation(self):
         """
-        Try to directly download and install the hwloc library without using package managers.
-        This is a fallback method when system package managers fail.
+        Try to install required runtime libraries into the package bin directory.
+
+        This is a fallback for environments where root/sudo isn't available. On Debian/Ubuntu
+        systems, we attempt `apt-get download` + `dpkg-deb -x` (no root required) and copy
+        shared libraries into `bin/lib`.
         
         Returns:
             bool: True if successful, False otherwise
         """
-        logger.info("Attempting direct hwloc library installation...")
+        logger.info("Attempting user-space library installation...")
         
         # Create lib directory in bin folder if it doesn't exist
         lib_dir = os.path.join(self.bin_path, "lib")
         os.makedirs(lib_dir, exist_ok=True)
+
+        # Prefer an apt-based userspace install on Linux when available.
+        if platform.system() == "Linux":
+            if self._try_userspace_apt_library_install(lib_dir=lib_dir):
+                return True
         
-        # HWLoc binary URLs by platform - Using GitHub mirror for reliability
+        # HWLoc binary URLs by platform (legacy fallback)
         hwloc_bins = {
             "linux-x86_64": "https://github.com/open-mpi/hwloc/releases/download/hwloc-2.8.0/hwloc-2.8.0-linux-x86_64.tar.gz",
             "linux-aarch64": "https://github.com/open-mpi/hwloc/releases/download/hwloc-2.8.0/hwloc-2.8.0-linux-aarch64.tar.gz",
@@ -1209,6 +1326,117 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                 
         except Exception as e:
             logger.error(f"Error during direct hwloc installation: {e}")
+            return False
+
+    def _try_userspace_apt_library_install(self, *, lib_dir: str) -> bool:
+        """Install runtime libraries into lib_dir using apt download + dpkg-deb extract."""
+        try:
+            apt_get = shutil.which("apt-get")
+            dpkg_deb = shutil.which("dpkg-deb")
+            if not apt_get or not dpkg_deb:
+                return False
+
+            # Candidate packages: vary across Debian/Ubuntu versions.
+            candidates = [
+                # hwloc runtime library packages
+                "libhwloc15",
+                "libhwloc5",
+                "hwloc",
+                # OpenCL ICD loader / runtime
+                "ocl-icd-libopencl1",
+                "libOpenCL1",
+                "mesa-opencl-icd",
+                "ocl-icd-opencl-dev",
+            ]
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                downloaded = []
+                for pkg in candidates:
+                    try:
+                        before = set(os.listdir(temp_dir))
+                        result = subprocess.run(
+                            [apt_get, "download", pkg],
+                            cwd=temp_dir,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            check=False,
+                        )
+                        if result.returncode != 0:
+                            continue
+                        after = set(os.listdir(temp_dir))
+                        new_files = [f for f in (after - before) if f.endswith(".deb")]
+                        for f in new_files:
+                            downloaded.append(os.path.join(temp_dir, f))
+                    except Exception:
+                        continue
+
+                if not downloaded:
+                    return False
+
+                extract_root = os.path.join(temp_dir, "extract")
+                os.makedirs(extract_root, exist_ok=True)
+
+                for deb_path in downloaded:
+                    pkg_extract = os.path.join(extract_root, os.path.basename(deb_path))
+                    os.makedirs(pkg_extract, exist_ok=True)
+                    subprocess.run(
+                        [dpkg_deb, "-x", deb_path, pkg_extract],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        check=False,
+                    )
+
+                # Copy shared libs
+                copied = 0
+                for root, _, files in os.walk(extract_root):
+                    for name in files:
+                        if name.endswith(".so") or ".so." in name or name.endswith(".dylib"):
+                            src = os.path.join(root, name)
+                            dst = os.path.join(lib_dir, name)
+                            try:
+                                shutil.copy2(src, dst)
+                                copied += 1
+                            except OSError:
+                                continue
+
+                # Copy OpenCL ICD vendor files if present
+                vendors_src = []
+                for root, _, files in os.walk(extract_root):
+                    if root.endswith(os.path.join("OpenCL", "vendors")):
+                        for name in files:
+                            if name.endswith(".icd"):
+                                vendors_src.append(os.path.join(root, name))
+
+                if vendors_src:
+                    vendors_dir = os.path.join(self.bin_path, "opencl", "vendors")
+                    os.makedirs(vendors_dir, exist_ok=True)
+                    for src in vendors_src:
+                        try:
+                            shutil.copy2(src, os.path.join(vendors_dir, os.path.basename(src)))
+                        except OSError:
+                            continue
+
+                # Create an env helper script
+                ldpath_script = os.path.join(self.bin_path, "set_lotus_env.sh")
+                vendors_dir = os.path.join(self.bin_path, "opencl", "vendors")
+                with open(ldpath_script, "w", encoding="utf-8") as f:
+                    f.write(
+                        "#!/usr/bin/env bash\n"
+                        "# Set env for Lotus binaries using user-space deps\n"
+                        f"export LD_LIBRARY_PATH=\"{lib_dir}:$LD_LIBRARY_PATH\"\n"
+                        f"export DYLD_LIBRARY_PATH=\"{lib_dir}:$DYLD_LIBRARY_PATH\"\n"
+                        f"if [ -d \"{vendors_dir}\" ]; then export OCL_ICD_VENDORS=\"{vendors_dir}\"; fi\n"
+                    )
+                os.chmod(ldpath_script, 0o755)
+
+                # Success if we have at least hwloc libs after extraction.
+                if any(name.startswith("libhwloc") for name in os.listdir(lib_dir)):
+                    logger.info(f"Installed user-space libraries into {lib_dir} (files: {copied})")
+                    return True
+                return False
+        except Exception as e:
+            logger.debug(f"Userspace apt library install failed: {e}")
             return False
             
     def _install_linux_dependencies(self, dependencies):
