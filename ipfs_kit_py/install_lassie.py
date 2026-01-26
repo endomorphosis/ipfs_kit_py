@@ -190,33 +190,31 @@ class install_lassie:
         """
         hardware = self.hardware_detect()
         hardware["architecture"] = " ".join([str(x) for x in hardware["architecture"]])
-        aarch = ""
-        
-        # Determine architecture
-        if "Intel" in hardware["processor"] or "AMD" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "x86_64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "Qualcomm" in hardware["processor"] or "ARM" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "arm"
-        elif "Apple" in hardware["processor"]:
-            if "64" in hardware["architecture"] or "arm64" in hardware["machine"].lower():
-                aarch = "arm64"
-            else:
-                aarch = "x86_64"
-        # Default to x86_64 if we can't determine architecture
+
+        # Prefer platform.machine() for robust ARM64 detection
+        machine = (hardware.get("machine") or platform.machine() or "").lower()
+        processor = (hardware.get("processor") or "").lower()
+
+        if machine in ["aarch64", "arm64"] or machine.startswith("armv8"):
+            aarch = "arm64"
+        elif machine in ["armv7l", "armv6l", "arm"]:
+            aarch = "arm"
+        elif machine in ["x86_64", "amd64"]:
+            aarch = "x86_64"
+        elif machine in ["i386", "i686", "x86"]:
+            aarch = "x86"
         else:
-            if "64" in hardware["architecture"] or "64" in hardware["machine"].lower():
+            # Fallback heuristics
+            if "apple" in processor:
+                aarch = "arm64" if ("arm" in machine or "64" in hardware["architecture"]) else "x86_64"
+            elif "arm" in processor or "aarch64" in processor:
+                aarch = "arm64" if "64" in hardware["architecture"] else "arm"
+            elif "64" in hardware["architecture"]:
                 aarch = "x86_64"
             else:
                 aarch = "x86"
-                
-        results = str(hardware["system"]).lower() + " " + aarch
-        return results
+
+        return str(hardware["system"]).lower() + " " + aarch
 
     def get_latest_lassie_version(self):
         """
@@ -496,11 +494,22 @@ class install_lassie:
         if not os.path.exists(lassie_path):
             return result
         
-        # Check lassie version
+        # Check lassie version (subcommand is the canonical interface)
         try:
-            output = subprocess.check_output([lassie_path, "--version"], 
-                                            stderr=subprocess.STDOUT, 
-                                            universal_newlines=True)
+            try:
+                output = subprocess.check_output(
+                    [lassie_path, "version"],
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=True,
+                )
+            except subprocess.SubprocessError:
+                # Fallback for any historical flags
+                output = subprocess.check_output(
+                    [lassie_path, "--version"],
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=True,
+                )
+
             version_match = re.search(r"lassie\s+version\s+v?(\d+\.\d+\.\d+)", output, re.IGNORECASE)
             if version_match:
                 result["version"] = version_match.group(1)
@@ -511,7 +520,14 @@ class install_lassie:
             logger.info(f"Found existing Lassie installation: {output.strip()}")
             
             return result
-        except (subprocess.SubprocessError, FileNotFoundError) as e:
+        except (subprocess.SubprocessError, FileNotFoundError, OSError) as e:
+            # Exec format errors typically mean the wrong-arch binary was installed.
+            if isinstance(e, OSError) and getattr(e, "errno", None) == 8:
+                logger.warning(
+                    f"Lassie binary at {lassie_path} is not executable on this platform (exec format error). Will reinstall."
+                )
+                return result
+
             logger.info(f"Lassie binary exists but could not determine version: {e}")
             result["installed"] = True
             return result
@@ -542,11 +558,11 @@ class install_lassie:
         try:
             # Test version command
             result = subprocess.run(
-                [lassie_bin, "--version"], 
-                check=True, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.STDOUT, 
-                universal_newlines=True
+                [lassie_bin, "version"],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
             )
             logger.info(f"Lassie version: {result.stdout.strip()}")
             
