@@ -377,11 +377,12 @@ class IPFSLibp2pPeer:
             except ImportError:
                 # sniffio not available, try to detect manually
                 try:
-                    asyncio.get_running_loop()
-                    # We're in an asyncio context, defer initialization
-                    self.logger.info("In asyncio context, deferring libp2p initialization")
+                    import anyio.lowlevel
+                    anyio.lowlevel.current_task()
+                    # We're in an async context, defer initialization
+                    self.logger.info("In async context (sniffio unavailable), deferring libp2p initialization")
                     self._deferred_init = True
-                except RuntimeError:
+                except Exception:
                     # No running loop, safe to run
                     self._deferred_init = False
                     try:
@@ -390,6 +391,10 @@ class IPFSLibp2pPeer:
                     except TypeError:
                         # Fallback for older anyio versions that don't support timeout
                         anyio.run(self._async_init)
+                    except RuntimeError:
+                        # anyio.run may fail if an event loop is already running
+                        self.logger.info("Unable to run anyio.run; deferring libp2p initialization")
+                        self._deferred_init = True
 
             # Connect to bootstrap peers
             if bootstrap_peers and not self._deferred_init:
@@ -2226,21 +2231,9 @@ class IPFSLibp2pPeer:
                     self._task_group.start_soon(provide_content)
                 else:
                     try:
-                        # Run with anyio directly
-                        anyio.run(provide_content)
-                    except RuntimeError as e:
-                        if "no running event loop" in str(e):
-                            # We're in a context where we can't create a new event loop
-                            # Try to get or create an event loop in the current thread
-                            try:
-                                import anyio
-                                loop = anyio.get_event_loop()
-                                # Run the coroutine in this loop
-                                loop.run_until_complete(provide_content())
-                            except Exception as inner_e:
-                                self.logger.warning(f"Could not run provide_content in asyncio loop: {inner_e}")
-                        else:
-                            raise
+                        _run_async_from_sync(provide_content)
+                    except Exception as inner_e:
+                        self.logger.warning(f"Could not run provide_content from sync context: {inner_e}")
 
             # Announce via pubsub
             if self.pubsub:
@@ -2287,7 +2280,7 @@ class IPFSLibp2pPeer:
 
                 async def find_in_dht():
                     try:
-                        # Use anyio timeout instead of asyncio
+                        # Use AnyIO timeout
                         with anyio.fail_after(timeout):
                             dht_providers = await self.dht.get_providers(cid, count=count - len(providers))
                             
@@ -3002,19 +2995,10 @@ class IPFSLibp2pPeer:
                     # Define async task
                     async def publish_async():
                         return await self.pubsub.publish(topic_id, data_bytes)
-                    
-                    # Try to get a running event loop or create a new one
+
+                    # Run from sync context safely
                     try:
-                        loop = anyio.get_event_loop()
-                    except RuntimeError:
-                        # No running event loop
-                        loop = anyio.new_event_loop()
-                        anyio.set_event_loop(loop)
-                    
-                    # Use anyio to run the task
-                    try:
-                        import anyio
-                        publish_result = anyio.run(publish_async)
+                        publish_result = _run_async_from_sync(publish_async)
                         result["publish_result"] = publish_result
                         result["success"] = True
                     except Exception as e:
@@ -3068,19 +3052,10 @@ class IPFSLibp2pPeer:
                     # Define async task
                     async def subscribe_async():
                         return await self.pubsub.subscribe(topic_id, handler)
-                    
-                    # Try to get a running event loop or create a new one
+
+                    # Run from sync context safely
                     try:
-                        loop = anyio.get_event_loop()
-                    except RuntimeError:
-                        # No running event loop
-                        loop = anyio.new_event_loop()
-                        anyio.set_event_loop(loop)
-                    
-                    # Use anyio to run the task
-                    try:
-                        import anyio
-                        subscription = anyio.run(subscribe_async)
+                        subscription = _run_async_from_sync(subscribe_async)
                         result["subscription"] = str(subscription)
                         result["success"] = True
                     except Exception as e:
@@ -3137,19 +3112,10 @@ class IPFSLibp2pPeer:
                             return await self.pubsub.unsubscribe(topic_id, handler)
                         else:
                             return await self.pubsub.unsubscribe(topic_id)
-                    
-                    # Try to get a running event loop or create a new one
+
+                    # Run from sync context safely
                     try:
-                        loop = anyio.get_event_loop()
-                    except RuntimeError:
-                        # No running event loop
-                        loop = anyio.new_event_loop()
-                        anyio.set_event_loop(loop)
-                    
-                    # Use anyio to run the task
-                    try:
-                        import anyio
-                        unsubscribe_result = anyio.run(unsubscribe_async)
+                        unsubscribe_result = _run_async_from_sync(unsubscribe_async)
                         result["unsubscribe_result"] = unsubscribe_result
                         result["success"] = True
                     except Exception as e:
@@ -3508,17 +3474,8 @@ def publish_to_topic(self, topic_id: str, data: Union[str, bytes]) -> Dict[str, 
                 async def publish_async():
                     return await self.pubsub.publish(topic_id, data_bytes)
                 
-                # Try to get a running event loop or create a new one
                 try:
-                    loop = anyio.get_event_loop()
-                except RuntimeError:
-                    # No running event loop
-                    loop = anyio.new_event_loop()
-                    anyio.set_event_loop(loop)
-                
-                # Use anyio to run the task
-                try:
-                    publish_result = anyio.run(publish_async)
+                    publish_result = _run_async_from_sync(publish_async)
                     result["publish_result"] = publish_result
                     result["success"] = True
                 except Exception as e:
@@ -3572,17 +3529,8 @@ def subscribe_to_topic(self, topic_id: str, handler: Callable) -> Dict[str, Any]
                 async def subscribe_async():
                     return await self.pubsub.subscribe(topic_id, handler)
                 
-                # Try to get a running event loop or create a new one
                 try:
-                    loop = anyio.get_event_loop()
-                except RuntimeError:
-                    # No running event loop
-                    loop = anyio.new_event_loop()
-                    anyio.set_event_loop(loop)
-                
-                # Use anyio to run the task
-                try:
-                    subscription = anyio.run(subscribe_async)
+                    subscription = _run_async_from_sync(subscribe_async)
                     result["subscription"] = str(subscription)
                     result["success"] = True
                 except Exception as e:
@@ -3639,17 +3587,8 @@ def unsubscribe_from_topic(self, topic_id: str, handler: Optional[Callable] = No
                     else:
                         return await self.pubsub.unsubscribe(topic_id)
                 
-                # Try to get a running event loop or create a new one
                 try:
-                    loop = anyio.get_event_loop()
-                except RuntimeError:
-                    # No running event loop
-                    loop = anyio.new_event_loop()
-                    anyio.set_event_loop(loop)
-                
-                # Use anyio to run the task
-                try:
-                    unsubscribe_result = anyio.run(unsubscribe_async)
+                    unsubscribe_result = _run_async_from_sync(unsubscribe_async)
                     result["unsubscribe_result"] = unsubscribe_result
                     result["success"] = True
                 except Exception as e:

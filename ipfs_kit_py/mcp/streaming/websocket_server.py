@@ -6,24 +6,17 @@ notifications system, addressing the WebSocket Integration requirements
 in the MCP roadmap, particularly the 'Connection management with automatic recovery' component.
 """
 
-import anyio
 import logging
 import json
 import time
-from typing import Dict, Any, Optional, List, Set
+from typing import Dict, Any, Optional
 import threading
+import anyio
 import websockets
 from websockets.server import WebSocketServerProtocol
 from websockets.exceptions import ConnectionClosed
 
-try:
-    import anyio
-    ANYIO_AVAILABLE = True
-except ImportError:
-    ANYIO_AVAILABLE = False
-
 from .websocket_notifications import get_ws_manager, EventType
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -54,6 +47,22 @@ class WebSocketServer:
         self.ws_manager = get_ws_manager()
         self.lock = threading.RLock()
         self.start_timestamp = None
+        self._background_tg: Optional[anyio.abc.TaskGroup] = None
+
+    async def _start_background_tasks(self) -> None:
+        if self._background_tg is not None:
+            return
+        self._background_tg = anyio.create_task_group()
+        await self._background_tg.__aenter__()
+        self._background_tg.start_soon(self.ping_clients)
+
+    async def _stop_background_tasks(self) -> None:
+        if self._background_tg is None:
+            return
+        self._background_tg.cancel_scope.cancel()
+        with anyio.move_on_after(2.0):
+            await self._background_tg.__aexit__(None, None, None)
+        self._background_tg = None
     
     async def start(self):
         """Start the WebSocket server."""
@@ -76,17 +85,8 @@ class WebSocketServer:
             
             self.running = True
             self.start_timestamp = time.time()
-            
-            # Start the ping task
-            if ANYIO_AVAILABLE:
-                try:
-                    import anyio.lowlevel
-                    anyio.lowlevel.current_task()
-                    asyncio.create_task(self.ping_clients())
-                except Exception:
-                    asyncio.create_task(self.ping_clients())
-            else:
-                asyncio.create_task(self.ping_clients())
+
+            await self._start_background_tasks()
             
             logger.info(f"WebSocket server started successfully on {self.host}:{self.port}")
             
@@ -113,12 +113,13 @@ class WebSocketServer:
         
         try:
             # Close all connections
-            close_tasks = []
-            for conn_id, connection in list(self.connections.items()):
-                close_tasks.append(self.close_connection(conn_id, 1001, "Server shutting down"))
-            
-            if close_tasks:
-                await asyncio.gather(*close_tasks, return_exceptions=True)
+            with self.lock:
+                conn_ids = list(self.connections.keys())
+
+            if conn_ids:
+                async with anyio.create_task_group() as tg:
+                    for conn_id in conn_ids:
+                        tg.start_soon(self.close_connection, conn_id, 1001, "Server shutting down")
             
             # Stop the WebSocket server
             self.server.close()
@@ -128,6 +129,7 @@ class WebSocketServer:
             self.ws_manager.stop()
             
             self.running = False
+            await self._stop_background_tasks()
             logger.info("WebSocket server stopped successfully")
             
         except Exception as e:
@@ -200,18 +202,18 @@ class WebSocketServer:
             code: WebSocket close code
             reason: Close reason
         """
+        websocket: Optional[WebSocketServerProtocol] = None
         with self.lock:
-            if conn_id in self.connections:
-                websocket = self.connections[conn_id]
-                try:
-                    await websocket.close(code, reason)
-                    logger.info(f"Closed WebSocket connection: {conn_id} - {code} {reason}")
-                except Exception as e:
-                    logger.error(f"Error closing WebSocket connection {conn_id}: {e}")
-                finally:
-                    # Remove the connection from our store
-                    if conn_id in self.connections:
-                        del self.connections[conn_id]
+            websocket = self.connections.pop(conn_id, None)
+
+        if websocket is None:
+            return
+
+        try:
+            await websocket.close(code, reason)
+            logger.info(f"Closed WebSocket connection: {conn_id} - {code} {reason}")
+        except Exception as e:
+            logger.error(f"Error closing WebSocket connection {conn_id}: {e}")
     
     async def ping_clients(self):
         """Periodically ping clients to keep connections alive."""
@@ -220,20 +222,14 @@ class WebSocketServer:
                 # Send ping to all connections
                 ping_count = 0
                 with self.lock:
-                    for conn_id, websocket in list(self.connections.items()):
+                    connections_snapshot = list(self.connections.items())
+
+                async with anyio.create_task_group() as tg:
+                    for conn_id, websocket in connections_snapshot:
                         try:
-                            pong_waiter = await websocket.ping()
+                            pong_waiter = websocket.ping()
                             ping_count += 1
-                            # Start a task to handle the pong response
-                            if ANYIO_AVAILABLE:
-                                try:
-                                    import anyio.lowlevel
-                                    anyio.lowlevel.current_task()
-                                    asyncio.create_task(self.handle_pong(conn_id, pong_waiter))
-                                except Exception:
-                                    asyncio.create_task(self.handle_pong(conn_id, pong_waiter))
-                            else:
-                                asyncio.create_task(self.handle_pong(conn_id, pong_waiter))
+                            tg.start_soon(self.handle_pong, conn_id, pong_waiter)
                         except Exception as e:
                             logger.error(f"Error pinging client {conn_id}: {e}")
                 
@@ -244,12 +240,9 @@ class WebSocketServer:
                 logger.error(f"Error in ping task: {e}")
             
             # Wait for the next ping interval
-            if ANYIO_AVAILABLE:
-                await anyio.sleep(self.ping_interval)
-            else:
-                await anyio.sleep(self.ping_interval)
+            await anyio.sleep(self.ping_interval)
     
-    async def handle_pong(self, conn_id: str, pong_waiter: asyncio.Future):
+    async def handle_pong(self, conn_id: str, pong_waiter: Any):
         """
         Handle a pong response from a client.
         
@@ -259,25 +252,28 @@ class WebSocketServer:
         """
         try:
             # Wait for the pong with a timeout
-            await asyncio.wait_for(pong_waiter, timeout=self.ping_interval / 2)
+            with anyio.fail_after(self.ping_interval / 2):
+                await pong_waiter
             
             # Update the last ping time
-            if conn_id in self.connections:
-                self.ws_manager.connections[conn_id]["last_ping"] = time.time()
+            with self.lock:
+                if conn_id in self.connections and conn_id in getattr(self.ws_manager, "connections", {}):
+                    self.ws_manager.connections[conn_id]["last_ping"] = time.time()
             
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"Client {conn_id} did not respond to ping, checking connection...")
             # Check if the connection is still open
-            if conn_id in self.connections:
+            with self.lock:
+                websocket = self.connections.get(conn_id)
+
+            if websocket is not None:
                 try:
-                    # Try to send a small message
-                    await self.connections[conn_id].send(json.dumps({
+                    await websocket.send(json.dumps({
                         "type": "ping",
                         "timestamp": time.time()
                     }))
                 except Exception:
                     logger.warning(f"Client {conn_id} appears to be disconnected, closing connection")
-                    # Close the connection
                     await self.close_connection(conn_id, 1001, "Ping timeout")
         except Exception as e:
             logger.error(f"Error handling pong from {conn_id}: {e}")
