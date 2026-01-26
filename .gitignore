@@ -22,6 +22,8 @@ ipfs_kit_py/bin/
 dist/
 lotus/
 lotus-bin/
+.cache
+bin/
 
 # Large binary files
 random_file.bin
