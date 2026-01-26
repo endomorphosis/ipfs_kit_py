@@ -13,21 +13,19 @@ config/__pycache__/
 config/__pycache__
 *package-lock.json
 __pycache__
+
+# Zero-touch / installer artifacts
+.zt_site/
+.venv_zt_test/
 ipfs_kit/bin/
 ipfs_kit_py/bin/
 dist/
-lotus
+lotus/
 lotus-bin/
 bin/
-ipfs_kit_py/bin
-ipfs_kit_py\bin\*
+
 # Large binary files
 random_file.bin
-**/ipfs_kit_py/bin/ipfs
-**/ipfs_kit_py/bin/ipfs.exe
-**/ipfs_kit_py/bin/ipfs-cluster-*
-**/ipfs_kit_py/bin/ipget***
-**/ipfs_kit_py/bin/ipfs**
 
 node_modules/
 *.venv/
@@ -187,6 +185,4 @@ bin/lotus-worker
 **/triton/_C/libtriton.so*
 # Temporary files from reorganization
 temp/
-ipfs_kit_py/bin/ipfs-cluster-follow.exe
-ipfs_kit_py/bin/ipfs-cluster-service.exe
-ipfs_kit_py/bin/ipfs.exe
+

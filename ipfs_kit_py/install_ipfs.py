@@ -106,8 +106,14 @@ class install_ipfs:
                 self.resources["ipfs_multiformats"] = ipfs_multiformats_py(resources, metadata)
                 self.ipfs_multiformats = self.resources["ipfs_multiformats"]
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
+        # Allow callers (e.g. zero-touch installer) to override where binaries land.
+        # Default remains the package-local bin directory.
+        if isinstance(self.metadata, dict) and self.metadata.get("bin_dir"):
+            self.bin_path = str(self.metadata["bin_dir"])
+        else:
+            self.bin_path = os.path.join(self.this_dir, "bin")
         if platform.system() == "Windows":
-            bin_path = os.path.join(self.this_dir, "bin").replace("/", "\\")
+            bin_path = str(self.bin_path).replace("/", "\\")
             self.path = f'"{self.path};{bin_path}"'
             self.path = self.path.replace("\\", "/")
             self.path = self.path.replace(";;", ";")
@@ -115,10 +121,10 @@ class install_ipfs:
             self.path = "/".join(self.path)
             self.path_string = "set PATH=" + self.path + " ; "
         elif platform.system() == "Linux":
-            self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
+            self.path = self.path + ":" + str(self.bin_path)
             self.path_string = "PATH=" + self.path
         elif platform.system() == "Darwin":
-            self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
+            self.path = self.path + ":" + str(self.bin_path)
             self.path_string = "PATH=" + self.path
         self.ipfs_cluster_service_dists = {
             "macos arm64": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_darwin-arm64.tar.gz",
@@ -250,8 +256,7 @@ class install_ipfs:
             "openbsd arm": "bafybeigk5q3g3q3k7m3qy4q3f",
         }
 
-        # Set up bin_path and tmp_path
-        self.bin_path = os.path.join(self.this_dir, "bin")
+        # Set up tmp_path (bin_path is initialized earlier)
         self.tmp_path = tempfile.mkdtemp()
 
         self.ipfs_cluster_follow_dists = {
@@ -785,38 +790,21 @@ class install_ipfs:
                     command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
                     results = subprocess.check_output(command, shell=True)
                     results = results.decode()
-                if platform.system() == "Linux" and os.geteuid() == 0:
-                    # command = "cd /tmp/kubo ; sudo bash install.sh"
-                    command = "sudo bash " + os.path.join(self.tmp_path, "kubo", "install.sh")
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode()
-                    command = "ipfs --version"
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode()
-                    with open(os.path.join(self.this_dir, "ipfs.service"), "r") as file:
-                        ipfs_service = file.read()
-                    with open("/etc/systemd/system/ipfs.service", "w") as file:
-                        file.write(ipfs_service)
-                    command = "systemctl enable ipfs"
-                    subprocess.call(command, shell=True)
-                    pass
-                elif platform.system() == "Linux" and os.geteuid() != 0:
-                    command = "cd " + self.tmp_path + "/kubo && bash install.sh"
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode()
-                    command = (
-                        "cd "
-                        + self.tmp_path
-                        + '/kubo && mkdir -p "'
-                        + self.this_dir
-                        + '/bin/" && mv ipfs "'
-                        + self.this_dir
-                        + '/bin/" && chmod +x "$'
-                        + self.this_dir
-                        + '/bin/ipfs"'
-                    )
-                    results = subprocess.check_output(command, shell=True)
-                    pass
+                if platform.system() == "Linux":
+                    # Zero-touch default: install into our bin directory (no system paths).
+                    try:
+                        os.makedirs(self.bin_path, exist_ok=True)
+                        source_path = os.path.join(self.tmp_path, "kubo", "ipfs")
+                        dest_path = os.path.join(self.bin_path, "ipfs")
+                        if os.path.exists(dest_path):
+                            os.remove(dest_path)
+                        if os.path.exists(source_path):
+                            shutil.move(source_path, dest_path)
+                            os.chmod(dest_path, 0o755)
+                        else:
+                            raise FileNotFoundError(f"IPFS binary not found after extraction: {source_path}")
+                    except Exception as move_err:
+                        raise Exception(f"Error moving IPFS binary into bin dir: {move_err}")
                 elif platform.system() == "Windows":
                     command = (
                         "move "
@@ -963,30 +951,18 @@ class install_ipfs:
                     command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
                     results = subprocess.check_output(command, shell=True)
                     results = results.decode()
-                if platform.system() == "Linux" and os.geteuid() == 0:
-                    # command = "cd /tmp/kubo ; sudo bash install.sh"
-                    command = "sudo bash " + os.path.join(self.tmp_path, "ipfs-cluster-follow", "install.sh")
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode()
-                    command = "ipfs-cluster-follow --version"
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode()
-                    with open(
-                        os.path.join(self.this_dir, "ipfs-cluster-follow.service"), "r"
-                    ) as file:
-                        ipfs_service = file.read()
-                    with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
-                        file.write(ipfs_service)
-                    command = "systemctl enable ipfs-cluster-follow"
-                    subprocess.call(command, shell=True)
-                    pass
-                elif platform.system() == "Linux" and os.geteuid() != 0:
-                    command = "cd " + self.tmp_path + "/ipfs-cluster-follow && bash install.sh"
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode()
-                    command = str("cd " + self.tmp_path + '/ipfs-cluster-follow && mkdir -p "' + self.this_dir + '/bin/" && mv ipfs-cluster-follow "' + self.this_dir + '/bin/" && chmod +x "$' + self.this_dir + '/bin/ipfs-cluster-follow"')
-                    results = subprocess.check_output(command, shell=True)
-                    pass
+                if platform.system() == "Linux":
+                    # Zero-touch default: install into our bin directory (no install.sh).
+                    os.makedirs(self.bin_path, exist_ok=True)
+                    source_path = os.path.join(self.tmp_path, "ipfs-cluster-follow", "ipfs-cluster-follow")
+                    dest_path = os.path.join(self.bin_path, "ipfs-cluster-follow")
+                    if os.path.exists(dest_path):
+                        os.remove(dest_path)
+                    if os.path.exists(source_path):
+                        shutil.move(source_path, dest_path)
+                        os.chmod(dest_path, 0o755)
+                    else:
+                        raise FileNotFoundError(f"ipfs-cluster-follow binary not found after extraction: {source_path}")
                 elif platform.system() == "Windows":
                     command = (
                         "move "
@@ -1008,7 +984,7 @@ class install_ipfs:
         if platform.system() == "Windows":
             command = os.path.join(self.bin_path, "ipfs-cluster-follow.exe") + " --version"
         else:
-            command = os.path.join(self.bin_path, "ipfs-cluster-follow") + "    --version"
+            command = os.path.join(self.bin_path, "ipfs-cluster-follow") + " --version"
         results = subprocess.check_output(command, shell=True).decode()
         if "ipfs" in results:
             return self.ipfs_multiformats.get_cid(
@@ -1134,42 +1110,18 @@ class install_ipfs:
                     command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
                     results = subprocess.check_output(command, shell=True)
                     results = results.decode()
-                if platform.system() == "Linux" and os.geteuid() == 0:
-                    # command = "cd /tmp/kubo ; sudo bash install.sh"
-                    command = "sudo bash " + os.path.join(
-                        self.tmp_path, "ipfs-cluster-ctl", "install.sh"
-                    )
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode()
-                    command = "ipfs-cluster-ctl --version"
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode()
-                    with open(
-                        os.path.join(self.this_dir, "ipfs-cluster-ctl.service"), "r"
-                    ) as file:
-                        ipfs_service = file.read()
-                    with open("/etc/systemd/system/ipfs-cluster-ctl.service", "w") as file:
-                        file.write(ipfs_service)
-                    command = "systemctl enable ipfs-cluster-ctl"
-                    subprocess.call(command, shell=True)
-                    pass
-                elif platform.system() == "Linux" and os.geteuid() != 0:
-                    command = "cd " + self.tmp_path + "/ipfs-cluster-ctl && bash install.sh"
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode()
-                    command = (
-                        "cd "
-                        + self.tmp_path
-                        + '/ipfs-cluster-ctl && mkdir -p "'
-                        + self.this_dir
-                        + '/bin/" && mv ipfs-cluster-ctl "'
-                        + self.this_dir
-                        + '/bin/" && chmod +x "$'
-                        + self.this_dir
-                        + '/bin/ipfs-cluster-ctl"'
-                    )
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode()
+                if platform.system() == "Linux":
+                    # Zero-touch default: install into our bin directory (no install.sh).
+                    os.makedirs(self.bin_path, exist_ok=True)
+                    source_path = os.path.join(self.tmp_path, "ipfs-cluster-ctl", "ipfs-cluster-ctl")
+                    dest_path = os.path.join(self.bin_path, "ipfs-cluster-ctl")
+                    if os.path.exists(dest_path):
+                        os.remove(dest_path)
+                    if os.path.exists(source_path):
+                        shutil.move(source_path, dest_path)
+                        os.chmod(dest_path, 0o755)
+                    else:
+                        raise FileNotFoundError(f"ipfs-cluster-ctl binary not found after extraction: {source_path}")
                     
         # Return version check result
         if platform.system() == "Windows":

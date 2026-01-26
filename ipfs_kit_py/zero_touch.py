@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import platform
 import sys
 from pathlib import Path
 
@@ -64,7 +65,12 @@ def install_all_binaries(*, include_cluster: bool = True, include_lassie: bool =
         lassie_installer.install_lassie_daemon()
 
     if include_lotus:
-        from ipfs_kit_py.install_lotus import install_lotus
+        # Lotus is only supported on Linux/macOS in our zero-touch pathway.
+        # On other platforms, skip rather than crashing.
+        os_name = platform.system()
+        if os_name not in {"Linux", "Darwin"}:
+            print(f"⚠️  Lotus install skipped on unsupported platform: {os_name}")
+            return
 
         # Safer default: only auto-install system deps when explicitly opted-in.
         auto_install_deps = (
@@ -73,12 +79,26 @@ def install_all_binaries(*, include_cluster: bool = True, include_lassie: bool =
             else _truthy_env("IPFS_KIT_AUTO_INSTALL_DEPS")
         )
 
-        lotus_metadata: dict[str, object] = {"role": "leecher", "bin_dir": str(bin_dir)}
-        if auto_install_deps is not None:
-            lotus_metadata["auto_install_deps"] = bool(auto_install_deps)
+        try:
+            from ipfs_kit_py.install_lotus import install_lotus
 
-        lotus_installer = install_lotus(metadata=lotus_metadata)
-        lotus_installer.install_lotus_daemon()
+            lotus_metadata: dict[str, object] = {"role": "leecher", "bin_dir": str(bin_dir)}
+            if auto_install_deps is not None:
+                lotus_metadata["auto_install_deps"] = bool(auto_install_deps)
+
+            lotus_installer = install_lotus(metadata=lotus_metadata)
+            lotus_installer.install_lotus_daemon()
+        except RuntimeError as e:
+            # On Linux/macOS we don't silently skip Lotus: if prerequisites are missing,
+            # fail with a clear message unless auto-install is explicitly enabled.
+            if auto_install_deps is True:
+                raise
+            message = str(e)
+            raise RuntimeError(
+                "Lotus prerequisites missing on a supported platform. "
+                "Install the listed packages manually, or rerun with IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS=1 (requires sudo).\n\n"
+                + message
+            )
 
 
 def main(argv: list[str] | None = None) -> int:
