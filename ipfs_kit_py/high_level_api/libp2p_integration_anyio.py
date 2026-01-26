@@ -192,7 +192,7 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
                                 max(max_peers - len(discovered_peers), 5)
                             )
 
-                        # Use anyio instead of asyncio
+                        # Use anyio
                         async def run_with_timeout():
                             with anyio.fail_after(remaining_time):
                                 return await find_dht_peers()

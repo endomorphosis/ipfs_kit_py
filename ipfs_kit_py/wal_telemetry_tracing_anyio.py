@@ -5,7 +5,7 @@ AnyIO-compatible distributed tracing module for the Write-Ahead Log (WAL) teleme
 
 This module provides distributed tracing capabilities for the WAL system, enabling
 tracking of operations across different components and services, with support for 
-both asyncio and trio backends through AnyIO. It includes:
+both async-io and trio backends through AnyIO. It includes:
 
 1. OpenTelemetry integration for standardized tracing
 2. Trace context propagation between components
@@ -209,7 +209,7 @@ class WALTracingAnyIO:
     
     This class provides tracing capabilities for WAL operations, allowing
     for tracking and analysis of distributed operations across components
-    and services. It supports both asyncio and trio backends through AnyIO.
+    and services. It supports both async-io and trio backends through AnyIO.
     """
     
     def __init__(

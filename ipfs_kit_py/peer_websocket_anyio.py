@@ -21,7 +21,7 @@ import logging
 from typing import Dict, List, Any, Optional, Set, Callable
 from enum import Enum
 
-# Import anyio instead of asyncio
+# Import anyio
 import anyio
 
 # WebSocket imports - wrapped in try/except for graceful fallback

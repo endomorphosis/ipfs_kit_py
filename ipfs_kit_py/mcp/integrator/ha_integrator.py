@@ -17,7 +17,7 @@ import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks are managed via AnyIO.
 
 # Configure logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -141,7 +141,7 @@ class HAIntegration:
         self.ha_cluster = None
         self.load_balancer = None
         self.api_router = None
-        self.status_task = None
+        self._status_task_group = None
         self.error = None
         
         # Try to load configuration from environment if not provided
@@ -193,7 +193,11 @@ class HAIntegration:
                 self.api_router = self._create_api_router()
             
             # Start status monitoring task
-            self.status_task = asyncio.create_task(self._monitor_status())
+            if self._status_task_group is None:
+                tg = anyio.create_task_group()
+                await tg.__aenter__()
+                self._status_task_group = tg
+            self._status_task_group.start_soon(self._monitor_status)
             
             self.initialized = True
             logger.info("HA integration initialized successfully")
@@ -217,12 +221,10 @@ class HAIntegration:
         
         try:
             # Cancel status monitoring task
-            if self.status_task:
-                self.status_task.cancel()
-                try:
-                    await self.status_task
-                except anyio.get_cancelled_exc_class():
-                    pass
+            if self._status_task_group is not None:
+                self._status_task_group.cancel_scope.cancel()
+                await self._status_task_group.__aexit__(None, None, None)
+                self._status_task_group = None
             
             # Stop the HA cluster
             if self.ha_cluster:

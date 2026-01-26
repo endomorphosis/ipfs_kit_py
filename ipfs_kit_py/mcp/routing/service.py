@@ -13,7 +13,7 @@ import random
 import math
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks are managed via AnyIO.
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +165,7 @@ class DataRoutingService:
         }
 
         # Background tasks
-        self.update_task = None
+        self._task_group = None
 
     async def start(self):
         """Start the data routing service."""
@@ -197,7 +197,11 @@ class DataRoutingService:
         await self.update_backends_metadata()
 
         # Start backend metadata update task
-        self.update_task = asyncio.create_task(self._update_backends_loop())
+        if self._task_group is None:
+            tg = anyio.create_task_group()
+            await tg.__aenter__()
+            self._task_group = tg
+        self._task_group.start_soon(self._update_backends_loop)
 
         logger.info("Data routing service started")
 
@@ -205,13 +209,10 @@ class DataRoutingService:
         """Stop the data routing service."""
         logger.info("Stopping data routing service")
 
-        # Cancel update task
-        if self.update_task:
-            self.update_task.cancel()
-            try:
-                await self.update_task
-            except anyio.get_cancelled_exc_class():
-                pass
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
 
         # Save routing policies
         await self.save_policies()

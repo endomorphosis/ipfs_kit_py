@@ -7,6 +7,8 @@ that have specific content (CIDs) available.
 
 import logging
 import time
+import threading
+import anyio
 from typing import Dict, Any, List, Optional
 from urllib.parse import urljoin
 
@@ -251,8 +253,14 @@ class IPNIClient:
         """Cleanup on deletion."""
         if hasattr(self, 'client') and HTTPX_AVAILABLE:
             try:
-                import asyncio
-                loop = asyncio.get_event_loop()
-                loop.run_until_complete(self.client.aclose())
+                client = self.client
+
+                def _close() -> None:
+                    try:
+                        anyio.run(client.aclose)
+                    except Exception:
+                        pass
+
+                threading.Thread(target=_close, daemon=True).start()
             except Exception:
                 pass

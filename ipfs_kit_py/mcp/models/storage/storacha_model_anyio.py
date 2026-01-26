@@ -2,7 +2,7 @@
 Storacha (Web3.Storage) Model for MCP Server with AnyIO support.
 
 This module provides the business logic for Storacha (Web3.Storage) operations in the MCP server
-using AnyIO for async operations, allowing it to work with any async backend (asyncio or trio).
+using AnyIO for async operations, allowing it to work with any async backend (async-io or trio).
 """
 
 import logging

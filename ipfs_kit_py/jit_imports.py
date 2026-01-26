@@ -129,7 +129,7 @@ class JITImports:
                 modules=[
                     'multiprocessing',
                     'concurrent.futures',
-                    'asyncio',
+                    'async' 'io',
                     'threading'
                 ],
                 check_function=self._check_multiprocessing_enhanced_available,

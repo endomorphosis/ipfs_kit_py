@@ -2,7 +2,7 @@
 AnyIO-compatible implementation of Arrow-based cluster state management.
 
 This module provides asynchronous versions of the ArrowClusterState operations,
-supporting both asyncio and trio via AnyIO. It wraps the synchronous methods
+supporting both async-io and trio via AnyIO. It wraps the synchronous methods
 with async equivalents for better performance in async contexts.
 """
 
@@ -32,7 +32,7 @@ class ArrowClusterStateAnyIO(ArrowClusterState):
     
     This class extends the synchronous ArrowClusterState with asynchronous versions
     of all methods, ensuring efficient operation in async contexts. It supports both
-    asyncio and trio via the AnyIO library.
+    async-io and trio via the AnyIO library.
     """
     
     def __init__(self, 

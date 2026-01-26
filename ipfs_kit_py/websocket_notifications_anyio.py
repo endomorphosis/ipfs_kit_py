@@ -14,7 +14,7 @@ Key features:
 5. Persistent Connections: Long-lived WebSocket connections for real-time updates
 6. Broadcast Support: Send notifications to multiple clients
 7. System Metrics: Real-time performance and health metrics
-8. Backend Agnostic: Works with asyncio, trio, or any other anyio-compatible backend
+8. Backend Agnostic: Works with async-io, trio, or any other AnyIO-compatible backend
 """
 
 import json
@@ -23,7 +23,7 @@ import time
 from enum import Enum
 from typing import Dict, List, Set, Any, Optional, Callable, Awaitable, Union
 
-# Import anyio instead of asyncio
+# Import anyio
 import anyio
 from anyio.abc import TaskGroup
 

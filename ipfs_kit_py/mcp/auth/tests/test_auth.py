@@ -339,7 +339,7 @@ class TestAPIKey:
 class TestBackendMiddleware:
     """Tests for the Backend Authorization Middleware."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_identify_backend_operation(self):
         """Test identifying backend and operation from request."""
         # Create mock backend manager
@@ -379,7 +379,7 @@ class TestBackendMiddleware:
 
 
 # Integration test for authorization middleware with FastAPI
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_auth_middleware_integration():
     """Test integration of authorization middleware with FastAPI."""
     # This is a more complex test that would typically use FastAPI's TestClient

@@ -12,7 +12,7 @@ import uuid
 import anyio
 from enum import Enum
 from typing import Dict, List, Any, Optional, Callable, Awaitable
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks should be started via AnyIO.
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -233,7 +233,7 @@ class NotificationManager:
                 self.history = self.history[-self.max_history :]
 
         # Deliver notification to subscribers
-        asyncio.create_task(self._deliver_notification(notification))
+        anyio.lowlevel.spawn_system_task(self._deliver_notification, notification)
 
         return notification
 

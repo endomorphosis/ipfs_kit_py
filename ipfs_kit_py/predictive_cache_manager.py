@@ -856,7 +856,7 @@ class PredictiveCacheManager:
         
         # Launch prefetch operation in background using anyio for improved concurrency
         if self.has_async and self.tiered_cache.config.get("async_prefetch_enabled", True):
-            # Use anyio instead of asyncio
+            # Use anyio
             if self._ensure_async_environment():
                 self.anyio.create_task(self._async_perform_stream_prefetch(cid, stream_size, chunk_size, num_chunks))
                 logger.debug(f"Started async prefetch for {cid} with {num_chunks} chunks")

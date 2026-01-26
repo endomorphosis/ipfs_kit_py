@@ -1133,7 +1133,7 @@ if __name__ == "__main__":
     # Enable debug logging
     logging.basicConfig(level=logging.INFO)
     
-    # Import asyncio for example
+    # Import async runtime for example
     import anyio
     
     # Example monitor callback
@@ -1175,7 +1175,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error in async example: {str(e)}")
     
-    # Run async example with asyncio
+    # Run async example
     # anyio.run(async_example())
     
     # Run async example with trio (uncomment to test)

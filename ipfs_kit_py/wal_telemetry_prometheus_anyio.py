@@ -769,7 +769,7 @@ if __name__ == "__main__":
     # Uncomment to run sync example
     # sync_example()
     
-    # Uncomment to run async example with asyncio
+    # Uncomment to run async example
     # import anyio
     # anyio.run(async_example())
     

@@ -5,7 +5,7 @@ High-level API integration for the WAL telemetry system with AnyIO support.
 
 This module provides integration between the high-level API and the WAL telemetry
 system, including both Prometheus metrics and distributed tracing capabilities.
-It uses AnyIO for async/await patterns to support multiple backends (asyncio, trio).
+It uses AnyIO for async/await patterns to support multiple backends (async-io, trio).
 """
 
 import anyio

@@ -1354,7 +1354,7 @@ Key features:
 5. Rate limiting and request validation
 """
 
-# Use anyio instead of asyncio for backend-agnostic async I/O
+# Use anyio for backend-agnostic async I/O
 import anyio
 import json
 import logging

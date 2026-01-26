@@ -164,8 +164,7 @@ class IPFSFSBridge:
             # Fall back to the synchronous API
             if hasattr(self.ipfs_model, 'cat'):
                 # Wrap the synchronous call in a thread
-                loop = asyncio.get_event_loop()
-                return await loop.run_in_executor(None, lambda: self.ipfs_model.cat(cid))
+                return await anyio.to_thread.run_sync(lambda: self.ipfs_model.cat(cid))
         
         logger.error("IPFS model has no cat or cat_async method")
         return None
@@ -180,8 +179,7 @@ class IPFSFSBridge:
             # Fall back to the synchronous API
             if hasattr(self.ipfs_model, 'add_content'):
                 # Wrap the synchronous call in a thread
-                loop = asyncio.get_event_loop()
-                return await loop.run_in_executor(None, lambda: self.ipfs_model.add_content(content))
+                return await anyio.to_thread.run_sync(lambda: self.ipfs_model.add_content(content))
         
         logger.error("IPFS model has no add_async or add_content method")
         return None

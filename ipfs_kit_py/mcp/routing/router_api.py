@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 
 from .data_router import DataRouter, ContentCategory, RoutingStrategy, RoutingPriority, BackendMetrics
 from .adaptive_optimizer import AdaptiveOptimizer, RouteOptimizationResult, create_adaptive_optimizer
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks should be started via AnyIO.
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -286,7 +286,7 @@ async def collect_all_metrics(backend_ids: List[str] = Body(...)):
     """
     try:
         # Collect metrics asynchronously
-        asyncio.create_task(adaptive_optimizer.collect_all_metrics(backend_ids))
+        anyio.lowlevel.spawn_system_task(adaptive_optimizer.collect_all_metrics, backend_ids)
         
         return {"status": "metrics collection started"}
         

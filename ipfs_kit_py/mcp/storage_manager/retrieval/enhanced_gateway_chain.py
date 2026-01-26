@@ -205,9 +205,7 @@ class EnhancedGatewayChain(GatewayChain):
                     content = response.content
                 else:
                     # Sync fallback
-                    loop = asyncio.get_event_loop()
-                    content = await loop.run_in_executor(
-                        None,
+                    content = await anyio.to_thread.run_sync(
                         lambda: self.session.get(url, timeout=req_timeout).content
                     )
                 

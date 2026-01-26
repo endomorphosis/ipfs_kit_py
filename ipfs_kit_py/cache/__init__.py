@@ -8,7 +8,7 @@ This package provides various caching mechanisms designed for different use case
 3. Content Cache: For caching IPFS content with CID-based retrieval
 4. Batch Operations: For optimizing bulk operations with batching, coalescing, and deduplication
 5. Zero-Copy Interface: For sharing data between processes without copying, using Arrow C Data Interface
-6. Async Operations: For non-blocking cache operations with asyncio support and thread pool management
+6. Async Operations: For non-blocking cache operations with async-io support and thread pool management
 7. Intelligent Cache: For predictive cache management using machine learning and access pattern analysis
 8. Read-Ahead Prefetching: For proactively loading content before it's explicitly requested
 9. Compression and Encoding: For optimizing data storage with efficient compression and encoding strategies

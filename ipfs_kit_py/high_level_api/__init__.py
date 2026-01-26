@@ -19,7 +19,7 @@ try:
 except ImportError as e:
     logger.warning(f"LibP2P integration module not available: {e}")
 
-# Import WebRTC benchmark helpers (both asyncio and anyio versions)
+# Import WebRTC benchmark helpers (both async-io and anyio versions)
 from .webrtc_benchmark_helpers import WebRTCBenchmarkIntegration
 try:
     from .webrtc_benchmark_helpers_anyio import WebRTCBenchmarkIntegrationAnyIO

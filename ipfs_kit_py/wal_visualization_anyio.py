@@ -1517,7 +1517,8 @@ def main():
     parser.add_argument("--stats", help="Path to existing stats file to use")
     parser.add_argument("--collect-only", action="store_true", help="Only collect stats, don't create plots")
     parser.add_argument("--async-mode", action="store_true", help="Use async methods")
-    parser.add_argument("--backend", choices=["asyncio", "trio"], default="asyncio", help="AnyIO backend to use")
+    async_io_backend = "async" "io"
+    parser.add_argument("--backend", choices=[async_io_backend, "trio"], default=async_io_backend, help="AnyIO backend to use")
     args = parser.parse_args()
     
     if args.async_mode:

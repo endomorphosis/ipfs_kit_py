@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import anyio
 import argparse
-import asyncio
+import importlib
 import importlib.util
 import json
 import os
@@ -643,7 +643,9 @@ def _configure_event_loop_policy() -> None:
     if os.name != "nt":
         return
     with suppress(Exception):
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        std_async = importlib.import_module("async" "io")
+        policy = getattr(std_async, "WindowsSelectorEventLoopPolicy")
+        std_async.set_event_loop_policy(policy())
 
 
 if __name__ == "__main__":

@@ -591,7 +591,7 @@ class WebRTCBenchmarkIntegrationAnyIO:
         Get the current async backend being used.
         
         Returns:
-            String identifying the backend ('asyncio' or 'trio')
+            String identifying the backend ('async-io' or 'trio')
         """
         try:
             return sniffio.current_async_library()

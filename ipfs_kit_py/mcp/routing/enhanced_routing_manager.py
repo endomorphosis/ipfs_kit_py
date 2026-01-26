@@ -17,7 +17,7 @@ from .routing_manager import (
     RoutingManager, RoutingManagerSettings, get_routing_manager
 )
 from .performance_optimization import (
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+    # NOTE: Background tasks are managed via AnyIO.
     RoutingDecisionCache, ContentSignatureCalculator, BatchProcessor,
     ConnectionPool, performance_metrics, measure_routing_performance,
     initialize_performance_optimizations, shutdown_performance_optimizations
@@ -76,7 +76,7 @@ class EnhancedRoutingManager(RoutingManager):
         self.memory_tracking = getattr(self.settings, "memory_tracking", False)
         
         # Background tasks
-        self._perf_monitor_task = None
+        self._perf_monitor_task_group = None
         
         # If memory tracking is enabled, start tracemalloc
         if self.memory_tracking:
@@ -100,7 +100,11 @@ class EnhancedRoutingManager(RoutingManager):
         
         # Start performance monitoring if enabled
         if self.enable_performance_monitoring:
-            self._perf_monitor_task = asyncio.create_task(self._performance_monitoring_loop())
+            if self._perf_monitor_task_group is None:
+                tg = anyio.create_task_group()
+                await tg.__aenter__()
+                self._perf_monitor_task_group = tg
+            self._perf_monitor_task_group.start_soon(self._performance_monitoring_loop)
         
         logger.info("Enhanced routing manager initialization complete")
     
@@ -416,12 +420,10 @@ class EnhancedRoutingManager(RoutingManager):
         await self.connection_pool.stop()
         
         # Stop performance monitoring
-        if self._perf_monitor_task:
-            self._perf_monitor_task.cancel()
-            try:
-                await self._perf_monitor_task
-            except anyio.get_cancelled_exc_class():
-                pass
+        if self._perf_monitor_task_group is not None:
+            self._perf_monitor_task_group.cancel_scope.cancel()
+            await self._perf_monitor_task_group.__aexit__(None, None, None)
+            self._perf_monitor_task_group = None
         
         # Shutdown performance optimizations
         await shutdown_performance_optimizations()

@@ -961,8 +961,9 @@ class IntelligentDaemonManager:
                     futures = []
                     for task in tasks_to_execute:
                         future = self.executor.submit(
-                            asyncio.run, 
-                            self.execute_task(task)
+                            anyio.run,
+                            self.execute_task,
+                            task,
                         )
                         futures.append((task, future))
                     

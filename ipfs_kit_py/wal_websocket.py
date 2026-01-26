@@ -20,7 +20,7 @@ import logging
 from typing import Dict, List, Any, Optional, Set, Callable
 from enum import Enum
 
-# Import anyio instead of asyncio for backend-agnostic async operations
+# Import anyio for backend-agnostic async operations
 import anyio
 from anyio.abc import TaskGroup
 

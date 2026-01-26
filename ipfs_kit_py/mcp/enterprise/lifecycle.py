@@ -592,33 +592,31 @@ class LifecycleManager:
     
     def _start_background_tasks(self):
         """Start background tasks."""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        # Start background tasks
-        tasks = [
-            self._retention_enforcement_task(),
-            self._archiving_task(),
-            self._cost_optimization_task(),
-            self._compliance_check_task(),
-            self._metadata_save_task()
-        ]
-        
-        self._background_tasks = [loop.create_task(task) for task in tasks]
-        
+        if not hasattr(self, "_background_stop"):
+            self._background_stop = threading.Event()
+
+        async def _runner() -> None:
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(self._retention_enforcement_task)
+                tg.start_soon(self._archiving_task)
+                tg.start_soon(self._cost_optimization_task)
+                tg.start_soon(self._compliance_check_task)
+                tg.start_soon(self._metadata_save_task)
+
+                while not self._background_stop.is_set():
+                    await anyio.sleep(0.5)
+
+                tg.cancel_scope.cancel()
+
         try:
-            loop.run_forever()
+            anyio.run(_runner)
         except Exception as e:
             logger.error(f"Error in background tasks: {e}")
-        finally:
-            loop.close()
     
     def _stop_background_tasks(self):
         """Stop background tasks."""
-        for task in self._background_tasks:
-            if not task.done():
-                task.cancel()
-        
+        if hasattr(self, "_background_stop"):
+            self._background_stop.set()
         self._background_tasks = []
     
     def _load_metadata(self):

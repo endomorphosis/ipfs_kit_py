@@ -1297,7 +1297,7 @@ class SessionManager:
     
     def _handle_cleanup_task_done(self, task):
         """Handle cleanup task completion."""
-        # Legacy no-op (asyncio task callbacks removed during AnyIO migration)
+        # Legacy no-op (task callbacks removed during AnyIO migration)
         return
 
     async def _cleanup_task_runner(self):

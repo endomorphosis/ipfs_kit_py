@@ -736,13 +736,12 @@ class ModernHybridMCPDashboard:
         print(f"💾 Data dir: {self.data_dir}")
         
         try:
-            # Check if we're already in an event loop
-            asyncio.get_running_loop()
-            # If we reach here, we're in an async context
+            import sniffio
+
+            sniffio.current_async_library()
             print("⚠️  Already in async context, use run_async() instead")
             raise RuntimeError("Cannot run sync mode from async context. Use run_async() method.")
-        except RuntimeError:
-            # No event loop running, safe to use uvicorn.run()
+        except Exception:
             uvicorn.run(
                 self.app,
                 host=self.host,

@@ -861,10 +861,10 @@ class CliController:
             )
 
             # Execute the command using the high-level API - identical implementation to execute_command
-            # but using anyio instead of asyncio where applicable
+            # but using anyio instead of direct stdlib event loop usage where applicable
 
             # Rest of the implementation is the same as execute_command
-            # Since this method doesn't use asyncio-specific features, we can reuse most of the code
+            # Since this method doesn't use stdlib loop-specific features, we can reuse most of the code
             # We're just providing this as an AnyIO-compatible alternative
 
             return await self.execute_command(command_request)

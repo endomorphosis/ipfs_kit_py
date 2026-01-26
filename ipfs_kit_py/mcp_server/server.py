@@ -91,7 +91,7 @@ from .controllers.mcp_storage_controller import MCPStorageController
 from .controllers.mcp_vfs_controller import MCPVFSController
 
 import psutil
-# NOTE: This file previously used asyncio primitives directly. It now uses AnyIO
+# NOTE: This file previously used stdlib event-loop primitives directly. It now uses AnyIO
 # and a BlockingPortal to bridge sync HTTP handlers to async controller methods.
 
 logger = logging.getLogger(__name__)

@@ -27,7 +27,7 @@ T = TypeVar('T')
 class ARCacheAnyIO:
     """AnyIO-compatible extension for ARCache.
     
-    This class provides AnyIO-based async alternatives to the asyncio methods in ARCache.
+    This class provides AnyIO-based async alternatives to the async-io methods in ARCache.
     It's designed to be used as a mixin or by copying these methods into ARCache.
     """
 

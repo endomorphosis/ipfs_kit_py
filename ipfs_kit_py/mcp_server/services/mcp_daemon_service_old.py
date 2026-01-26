@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable
 from dataclasses import dataclass, asdict
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks are managed via AnyIO.
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class MCPDaemonService:
         self.pending_tasks = 0
         
         # Background task management
-        self.sync_task = None
+        self._task_group = None
         self.daemon_manager = None
         
         # Callbacks for status updates
@@ -100,7 +100,11 @@ class MCPDaemonService:
         self.start_time = datetime.now()
         
         # Start background sync task
-        self.sync_task = asyncio.create_task(self._background_sync_loop())
+        if self._task_group is None:
+            tg = anyio.create_task_group()
+            await tg.__aenter__()
+            self._task_group = tg
+        self._task_group.start_soon(self._background_sync_loop)
         
         logger.info("MCP daemon service started successfully")
     
@@ -112,14 +116,11 @@ class MCPDaemonService:
         logger.info("Stopping MCP daemon service")
         
         self.is_running = False
-        
-        # Cancel background task
-        if self.sync_task and not self.sync_task.done():
-            self.sync_task.cancel()
-            try:
-                await self.sync_task
-            except anyio.get_cancelled_exc_class():
-                pass
+
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
         
         logger.info("MCP daemon service stopped")
     

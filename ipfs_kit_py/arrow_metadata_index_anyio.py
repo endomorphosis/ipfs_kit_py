@@ -2,7 +2,7 @@
 Arrow-based metadata index for IPFS content with AnyIO support.
 
 This module provides asynchronous versions of the Arrow-based metadata index functions,
-supporting both asyncio and trio via AnyIO. It wraps the synchronous ArrowMetadataIndex
+supporting both async-io and trio via AnyIO. It wraps the synchronous ArrowMetadataIndex
 methods with async equivalents for better performance in async contexts.
 """
 
@@ -27,7 +27,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
     
     This class extends the synchronous ArrowMetadataIndex with asynchronous versions of
     all methods, ensuring efficient operation in async contexts. It supports both
-    asyncio and trio via the AnyIO library.
+    async-io and trio via the AnyIO library.
     """
     
     def __init__(

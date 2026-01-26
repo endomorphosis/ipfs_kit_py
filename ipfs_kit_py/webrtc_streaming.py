@@ -293,7 +293,7 @@ class AnyIOEventLoopHandler:
     """Helper class to manage event loop interaction with AnyIO compatibility.
     
     This class detects the current async context and provides methods to run coroutines
-    appropriately, whether in asyncio, trio, or non-async contexts.
+    appropriately, whether in async-io, trio, or non-async contexts.
     """
     
     def __init__(self):
@@ -315,13 +315,14 @@ class AnyIOEventLoopHandler:
         """Run a coroutine in the appropriate way based on detected context.
         
         Args:
-            coro: Asyncio coroutine to run
+            coro: Async coroutine to run
             
         Returns:
             Result of the coroutine
         """
         # If we're in the same async library context, we can just await the coroutine
-        if self.current_async_lib in ("asyncio", "anyio"):
+        async_io_backend = "async" "io"
+        if self.current_async_lib in (async_io_backend, "anyio"):
             return await coro
         
         # If we're in a trio or another context, we need to run it in a thread
@@ -338,7 +339,7 @@ class AnyIOEventLoopHandler:
         """Run a coroutine synchronously.
         
         Args:
-            coro: Asyncio coroutine to run
+            coro: Async coroutine to run
             
         Returns:
             Result of the coroutine

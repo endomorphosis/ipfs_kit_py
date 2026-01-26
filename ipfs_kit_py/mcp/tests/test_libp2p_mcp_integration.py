@@ -241,7 +241,7 @@ class TestLibP2PIntegration:
             # Stop the peer to clean up
             libp2p_model.stop()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_async_health_check(self, libp2p_controller_anyio):
         """Test the async health check endpoint."""
 

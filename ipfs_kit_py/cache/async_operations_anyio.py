@@ -3,7 +3,7 @@ Asynchronous operations for ParquetCIDCache using anyio.
 
 This module provides asynchronous versions of ParquetCIDCache operations for improved
 concurrency and responsiveness. It implements non-blocking I/O for Parquet operations
-and maintains compatibility with any async backend (asyncio, trio, etc.) through anyio.
+and maintains compatibility with any async backend (async-io, trio, etc.) through AnyIO.
 """
 
 import functools

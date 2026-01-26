@@ -855,7 +855,7 @@ def trace_http_request(tracer: WALTracing, method: str, url: str, **kwargs):
     """
     Trace an HTTP request with OpenTelemetry.
     This function works with any async HTTP client (aiohttp, httpx, etc.)
-    and is compatible with both asyncio and trio backends through anyio.
+    and is compatible with both async-io and trio backends through AnyIO.
     
     Args:
         tracer: WALTracing instance

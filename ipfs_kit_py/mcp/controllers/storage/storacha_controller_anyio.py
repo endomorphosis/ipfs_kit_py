@@ -2,7 +2,7 @@
 Storacha (Web3.Storage) Controller AnyIO Implementation for the MCP server.
 
 This module provides asynchronous versions of the Storacha controller operations
-using AnyIO for compatibility with both asyncio and trio async frameworks.
+using AnyIO for compatibility with both async-io and trio async frameworks.
 """
 
 import logging

@@ -19,7 +19,7 @@ from enum import Enum
 
 from .models import BackendPermission, Role, User, APIKey
 from .audit import AuditEventType, get_instance as get_audit_logger
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks should be started via AnyIO.
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class BackendAuthorizationManager:
         logger.info("Initializing backend authorization manager")
         
         # Start cache cleanup task
-        asyncio.create_task(self._cleanup_cache())
+        anyio.lowlevel.spawn_system_task(self._cleanup_cache)
         
         # Create default backend permissions
         await self._create_default_backend_permissions()

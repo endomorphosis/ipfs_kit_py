@@ -13,7 +13,7 @@ import time
 import anyio
 import io
 from typing import Dict, List, Any, Optional, Union, BinaryIO, Tuple
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks should be started via AnyIO.
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class UnifiedStorageService:
         logger.info("Starting unified storage service")
 
         # Start background tasks
-        asyncio.create_task(self._update_content_location_map())
+        anyio.lowlevel.spawn_system_task(self._update_content_location_map)
 
         logger.info("Unified storage service started")
 

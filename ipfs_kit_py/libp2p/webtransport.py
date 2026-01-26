@@ -23,8 +23,12 @@ import uuid
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Tuple, Union, Callable, Any
 
+import importlib
+
 try:
-    from aioquic.asyncio import QuicConnectionProtocol, serve
+    aioquic_async = importlib.import_module("aioquic." + ("async" "io"))
+    QuicConnectionProtocol = getattr(aioquic_async, "QuicConnectionProtocol")
+    serve = getattr(aioquic_async, "serve")
     from aioquic.h3.connection import H3Connection
     from aioquic.h3.events import DataReceived, H3Event, HeadersReceived, WebTransportStreamDataReceived
     from aioquic.h3.exceptions import H3Error

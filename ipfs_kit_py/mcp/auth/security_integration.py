@@ -14,7 +14,7 @@ from fastapi import FastAPI, APIRouter
 
 from ipfs_kit_py.mcp.auth.security_dashboard import router as security_router
 from ipfs_kit_py.mcp.auth.security_dashboard import get_security_analyzer
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks should be started via AnyIO.
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def setup_security_dashboard(app: FastAPI, prefix: str = "/api/v0"):
     # Register startup and shutdown events
     @app.on_event("startup")
     async def startup_security_dashboard():
-        asyncio.create_task(initialize_security_dashboard())
+        anyio.lowlevel.spawn_system_task(initialize_security_dashboard)
     
     @app.on_event("shutdown")
     async def shutdown_security_dashboard_task():
