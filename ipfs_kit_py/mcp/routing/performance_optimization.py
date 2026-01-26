@@ -14,11 +14,11 @@ import hashlib
 import logging
 import functools
 import anyio
+import anyio.abc
 import inspect
 from typing import Dict, Any, List, Tuple, Optional, Union, Callable
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -431,22 +431,26 @@ class BatchProcessor:
         
         self._batch: List[Any] = []
         self._batch_lock = anyio.Lock()
-        self._processing_task = None
+        self._task_group: Optional[anyio.abc.TaskGroup] = None
         self._batch_event = anyio.Event()
         self._shutdown_event = anyio.Event()
     
     async def start(self) -> None:
         """Start the batch processor."""
-        if self._processing_task is None:
-            self._processing_task = asyncio.create_task(self._batch_processing_loop())
+        if self._task_group is None:
+            self._task_group = anyio.create_task_group()
+            await self._task_group.__aenter__()
+            self._task_group.start_soon(self._batch_processing_loop)
             logger.info("Started batch processor")
     
     async def stop(self) -> None:
         """Stop the batch processor."""
-        if self._processing_task is not None:
+        if self._task_group is not None:
             self._shutdown_event.set()
-            await self._processing_task
-            self._processing_task = None
+            # Wake the processing loop if it's waiting.
+            self._batch_event.set()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
             logger.info("Stopped batch processor")
     
     async def add_item(self, item: Any) -> None:
@@ -472,23 +476,17 @@ class BatchProcessor:
         """Background loop for batch processing."""
         try:
             while not self._shutdown_event.is_set():
-                # Wait for items or timeout
-                try:
-                    # Wait for either an item to be added or the timeout
-                    await asyncio.wait_for(self._batch_event.wait(), timeout=self.max_wait_time)
-                except asyncio.TimeoutError:
-                    # If we timed out and have items, process them
-                    async with self._batch_lock:
-                        if self._batch:
-                            await self._process_batch()
-                            self._batch_event.clear()
-                        continue
-                
-                # If we have items, process them
+                # Wait for either an item to be added or the timeout
+                with anyio.move_on_after(self.max_wait_time):
+                    await self._batch_event.wait()
+
+                # Process any accumulated items
                 async with self._batch_lock:
                     if self._batch:
                         await self._process_batch()
-                        self._batch_event.clear()
+
+                    # Reset the event for the next cycle.
+                    self._batch_event.clear()
         except anyio.get_cancelled_exc_class():
             logger.info("Batch processing task cancelled")
             raise
@@ -548,23 +546,26 @@ class ConnectionPool:
         self._lock = anyio.Lock()
         
         # Background task for cleanup
-        self._cleanup_task = None
+        self._cleanup_task_group: Optional[anyio.abc.TaskGroup] = None
         self._shutdown_event = anyio.Event()
         
         logger.info(f"Initialized connection pool with max_connections={max_connections}")
     
     async def start(self) -> None:
         """Start the connection pool cleanup task."""
-        if self._cleanup_task is None:
-            self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+        if self._cleanup_task_group is None:
+            self._cleanup_task_group = anyio.create_task_group()
+            await self._cleanup_task_group.__aenter__()
+            self._cleanup_task_group.start_soon(self._cleanup_loop)
             logger.info("Started connection pool cleanup task")
     
     async def stop(self) -> None:
         """Stop the connection pool and close all connections."""
-        if self._cleanup_task is not None:
+        if self._cleanup_task_group is not None:
             self._shutdown_event.set()
-            await self._cleanup_task
-            self._cleanup_task = None
+            self._cleanup_task_group.cancel_scope.cancel()
+            await self._cleanup_task_group.__aexit__(None, None, None)
+            self._cleanup_task_group = None
         
         # Close all connections
         async with self._lock:
