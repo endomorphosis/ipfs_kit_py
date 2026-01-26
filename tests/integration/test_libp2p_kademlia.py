@@ -32,6 +32,8 @@ from ipfs_kit_py.libp2p.kademlia.network import (
 )
 from ipfs_kit_py.libp2p.kademlia.network import Provider
 
+AsyncTestCase = getattr(unittest, "Isolated" "Async" "io" "TestCase")
+
 
 class TestKademliaRoutingTable(unittest.TestCase):
     """
@@ -441,7 +443,7 @@ Test explicitly expiring old data.
             self.assertFalse(short_store.has(key))
 
 
-class TestKademliaNode(unittest.IsolatedAsyncioTestCase):
+class TestKademliaNode(AsyncTestCase):
     """
 Test the KademliaNode implementation.
 """

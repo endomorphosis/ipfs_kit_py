@@ -5,7 +5,7 @@ Performance Test Suite for IPFS-Kit Multiprocessing Enhancements
 This test compares performance between single-threaded and multiprocessing approaches.
 """
 
-import asyncio
+import anyio
 import time
 import statistics
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
@@ -51,7 +51,7 @@ class PerformanceTestSuite:
     
     async def async_io_task(self, delay: float) -> float:
         """Async I/O task"""
-        await asyncio.sleep(delay)
+        await anyio.sleep(delay)
         return delay
     
     def test_sequential_cpu_work(self, tasks: List[int]) -> Dict[str, Any]:
@@ -141,14 +141,18 @@ class PerformanceTestSuite:
         
         start_time = time.time()
         
-        # Create semaphore to limit concurrency
-        semaphore = asyncio.Semaphore(concurrency)
-        
+        # Create limiter to control concurrency
+        limiter = anyio.CapacityLimiter(concurrency)
+
+        results = []
+
         async def limited_task(delay):
-            async with semaphore:
-                return await self.async_io_task(delay)
-        
-        results = await asyncio.gather(*[limited_task(task) for task in tasks])
+            async with limiter:
+                results.append(await self.async_io_task(delay))
+
+        async with anyio.create_task_group() as tg:
+            for task in tasks:
+                tg.start_soon(limited_task, task)
         
         duration = time.time() - start_time
         
@@ -472,7 +476,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        exit_code = asyncio.run(main())
+        exit_code = anyio.run(main)
         sys.exit(exit_code)
     except KeyboardInterrupt:
         print("\nPerformance tests interrupted by user")

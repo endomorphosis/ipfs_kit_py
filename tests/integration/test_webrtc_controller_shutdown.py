@@ -9,7 +9,6 @@ that resources are properly cleaned up during server shutdown.
 import os
 import sys
 import time
-import asyncio
 import signal
 import logging
 import platform

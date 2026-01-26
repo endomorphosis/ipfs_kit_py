@@ -8,11 +8,10 @@ work together properly.
 
 import os
 import sys
-import asyncio
-import unittest
 import tempfile
 import logging
 import random
+import pytest
 from typing import Dict, Any, List, Optional
 
 # Configure logging to a more minimal format for tests
@@ -26,10 +25,12 @@ logger = logging.getLogger("routing_integration_test")
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
-class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
+@pytest.mark.anyio
+class RoutingIntegrationTest:
     """Integration tests for the optimized data routing system."""
-    
-    async def asyncSetUp(self):
+
+    @pytest.fixture(autouse=True)
+    async def setup(self):
         """Set up the test environment."""
         # Create temporary directory for test data
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -89,8 +90,9 @@ class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
         )
         
         logger.info("Test environment set up")
-    
-    async def asyncTearDown(self):
+
+        yield
+
         """Clean up the test environment."""
         # Stop the routing manager
         if hasattr(self, "routing_manager") and self.routing_manager:
@@ -129,9 +131,7 @@ class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
             )
             
             # Verify backend selection
-            self.assertIn(
-                backend_id, 
-                self.test_backends,
+            assert backend_id in self.test_backends, (
                 f"Selected backend {backend_id} should be in available backends"
             )
             
@@ -165,9 +165,7 @@ class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
             )
             
             # Verify backend selection
-            self.assertIn(
-                backend_id, 
-                self.test_backends,
+            assert backend_id in self.test_backends, (
                 f"Selected backend {backend_id} should be in available backends"
             )
             
@@ -191,9 +189,7 @@ class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
             )
             
             # Verify backend selection
-            self.assertIn(
-                backend_id, 
-                self.test_backends,
+            assert backend_id in self.test_backends, (
                 f"Selected backend {backend_id} should be in available backends"
             )
             
@@ -216,9 +212,7 @@ class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
         )
         
         # Verify backend selection
-        self.assertIn(
-            backend_id, 
-            available_backends,
+        assert backend_id in available_backends, (
             f"Selected backend {backend_id} should be in available backends"
         )
         
@@ -230,9 +224,9 @@ class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
         insights = await self.routing_manager.get_routing_insights()
         
         # Verify insights structure
-        self.assertIsInstance(insights, dict, "Insights should be a dictionary")
-        self.assertIn("factor_weights", insights, "Insights should contain factor weights")
-        self.assertIn("backend_scores", insights, "Insights should contain backend scores")
+        assert isinstance(insights, dict), "Insights should be a dictionary"
+        assert "factor_weights" in insights, "Insights should contain factor weights"
+        assert "backend_scores" in insights, "Insights should contain backend scores"
         
         logger.info(f"Successfully retrieved routing insights")
     
@@ -324,9 +318,7 @@ class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
                 )
                 
                 # Verify backend selection
-                self.assertIn(
-                    backend_id, 
-                    self.test_backends,
+                assert backend_id in self.test_backends, (
                     f"Selected backend {backend_id} should be in available backends"
                 )
                 
@@ -377,17 +369,14 @@ class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
         loaded_config = self.config_manager.load_config()
         
         # Verify changes were persisted
-        self.assertEqual(
-            loaded_config["default_strategy"],
-            updates["default_strategy"],
+        assert loaded_config["default_strategy"] == updates["default_strategy"], (
             "Config changes should be persisted"
         )
         
-        self.assertEqual(
-            loaded_config["optimization_weights"]["network_quality"],
-            updates["optimization_weights"]["network_quality"],
-            "Nested config changes should be persisted"
-        )
+        assert (
+            loaded_config["optimization_weights"]["network_quality"]
+            == updates["optimization_weights"]["network_quality"]
+        ), "Nested config changes should be persisted"
         
         logger.info(f"Successfully tested configuration persistence")
     
@@ -448,13 +437,13 @@ class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
         
         # Test metrics retrieval
         success_rates = self.metrics_db.get_backend_success_rates(time_window_hours=24)
-        self.assertIsInstance(success_rates, dict, "Success rates should be a dictionary")
+        assert isinstance(success_rates, dict), "Success rates should be a dictionary"
         
         latency_stats = self.metrics_db.get_backend_latency_stats(time_window_hours=24)
-        self.assertIsInstance(latency_stats, dict, "Latency stats should be a dictionary")
+        assert isinstance(latency_stats, dict), "Latency stats should be a dictionary"
         
         usage_stats = self.metrics_db.get_backend_usage_stats(time_window_hours=24)
-        self.assertIsInstance(usage_stats, dict, "Usage stats should be a dictionary")
+        assert isinstance(usage_stats, dict), "Usage stats should be a dictionary"
         
         logger.info(f"Successfully tested metrics collection and retrieval")
     
@@ -470,7 +459,3 @@ class RoutingIntegrationTest(unittest.IsolatedAsyncioTestCase):
                 "tags": ["test", content_type.split('/')[-1]]
             }
         }
-
-
-if __name__ == "__main__":
-    unittest.main()

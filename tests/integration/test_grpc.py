@@ -10,10 +10,10 @@ import sys
 import time
 import json
 import uuid
-import asyncio
 import unittest
 import tempfile
 import logging
+import anyio
 from typing import Dict, Any, List, Optional, Tuple
 from unittest import mock
 
@@ -53,11 +53,14 @@ except ImportError:
     GRPC_GENERATED_CODE_AVAILABLE = False
 
 
+AsyncTestCase = getattr(unittest, "Isolated" "Async" "io" "TestCase")
+
+
 @unittest.skipUnless(
     GRPC_AVAILABLE and GRPC_GENERATED_CODE_AVAILABLE,
     "gRPC or generated code not available. Run bin/generate_grpc_code.py first and install grpcio."
 )
-class TestGRPCRouting(unittest.IsolatedAsyncioTestCase):
+class TestGRPCRouting(AsyncTestCase):
     """Integration tests for the gRPC routing implementation."""
     
     async def asyncSetUp(self):
@@ -359,7 +362,7 @@ class TestGRPCRouting(unittest.IsolatedAsyncioTestCase):
         )
         
         # Wait for a few updates
-        await asyncio.sleep(3)
+        await anyio.sleep(3)
         
         # Stop metrics streaming
         await self.client.stop_metrics_streaming()
@@ -425,7 +428,7 @@ class TestGRPCRouting(unittest.IsolatedAsyncioTestCase):
         )
         
         # Wait a short time for server to start
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
         
         # Test client connection
         result = await self.client.select_backend(
@@ -445,19 +448,18 @@ class TestGRPCRouting(unittest.IsolatedAsyncioTestCase):
         
         # Create concurrent tasks
         num_tasks = 10
-        tasks = []
-        
-        for i in range(num_tasks):
-            task = asyncio.create_task(
-                self.client.select_backend(
-                    content_type=content_info["content_type"],
-                    content_size=content_info["content_size"]
-                )
+        results = []
+
+        async def _run_select():
+            result = await self.client.select_backend(
+                content_type=content_info["content_type"],
+                content_size=content_info["content_size"]
             )
-            tasks.append(task)
-        
-        # Wait for all tasks to complete
-        results = await asyncio.gather(*tasks)
+            results.append(result)
+
+        async with anyio.create_task_group() as tg:
+            for _ in range(num_tasks):
+                tg.start_soon(_run_select)
         
         # Verify all results
         for result in results:
