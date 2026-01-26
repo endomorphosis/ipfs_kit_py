@@ -21,6 +21,7 @@ import psutil
 import sys
 import traceback
 import os
+import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Set, Union
@@ -1158,12 +1159,13 @@ class RefactoredUnifiedMCPDashboard:
         """Get IPFS daemon status."""
         try:
             # Check if IPFS daemon is running
-            result = await asyncio.create_subprocess_exec(
-                "ipfs", "id",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            result = await anyio.run_process(
+                ["ipfs", "id"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            stdout, stderr = await result.communicate()
+            stdout = result.stdout or b""
+            stderr = result.stderr or b""
             
             if result.returncode == 0:
                 daemon_info = json.loads(stdout.decode())
@@ -1182,12 +1184,12 @@ class RefactoredUnifiedMCPDashboard:
         """Check if a service is running by attempting to connect to its port."""
         try:
             # Check if port is listening
-            result = await asyncio.create_subprocess_exec(
-                "lsof", "-ti", f":{port}",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            result = await anyio.run_process(
+                ["lsof", "-ti", f":{port}"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            stdout, stderr = await result.communicate()
+            stdout = result.stdout or b""
             
             if result.returncode == 0 and stdout.decode().strip():
                 return {"status": "running", "port": port}
@@ -1224,12 +1226,11 @@ class RefactoredUnifiedMCPDashboard:
     async def _update_caches(self):
         """Update all data caches."""
         self.last_update = time.time()
-        await asyncio.gather(
-            self._update_backends_cache(),
-            self._update_services_cache(),
-            self._update_pins_cache(),
-            self._update_system_metrics_cache()
-        )
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(self._update_backends_cache)
+            tg.start_soon(self._update_services_cache)
+            tg.start_soon(self._update_pins_cache)
+            tg.start_soon(self._update_system_metrics_cache)
     
     async def _update_backends_cache(self):
         """Update backends cache."""
@@ -2486,12 +2487,12 @@ class RefactoredUnifiedMCPDashboard:
         """Get IPFS peer information."""
         try:
             # Try to get peers from IPFS
-            result = await asyncio.create_subprocess_exec(
-                "ipfs", "swarm", "peers",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            result = await anyio.run_process(
+                ["ipfs", "swarm", "peers"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            stdout, stderr = await result.communicate()
+            stdout = result.stdout or b""
             
             if result.returncode == 0:
                 peer_lines = stdout.decode().strip().split('\n')

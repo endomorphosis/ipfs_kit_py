@@ -12,6 +12,7 @@ The daemon itself is managed separately via 'ipfs-kit daemon' commands.
 import anyio
 import json
 import logging
+import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -298,22 +299,22 @@ class MCPDaemonService:
         """Get peer statistics from the IPFS daemon."""
         try:
             # Get connected peers
-            peers_result = await asyncio.create_subprocess_exec(
-                'ipfs', 'swarm', 'peers',
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            peers_result = await anyio.run_process(
+                ['ipfs', 'swarm', 'peers'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            peers_stdout, peers_stderr = await peers_result.communicate()
+            peers_stdout = peers_result.stdout
             peers_list = peers_stdout.decode().strip().split('\n') if peers_stdout else []
             connected_peers = len(peers_list) if peers_list and peers_list[0] != '' else 0
 
             # Get bandwidth stats
-            bw_result = await asyncio.create_subprocess_exec(
-                'ipfs', 'stats', 'bw',
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            bw_result = await anyio.run_process(
+                ['ipfs', 'stats', 'bw'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            bw_stdout, bw_stderr = await bw_result.communicate()
+            bw_stdout = bw_result.stdout
             bandwidth = {}
             if bw_stdout:
                 bw_output = bw_stdout.decode()

@@ -9,7 +9,9 @@ import os
 import io
 import json
 import logging
+import time
 import anyio
+import anyio.abc
 from typing import Dict, List, Any, Optional, Union, Tuple, BinaryIO
 from pathlib import Path
 
@@ -122,7 +124,7 @@ class ArrowRoutingInterface:
         
         # Use current time if timestamp not provided
         if timestamp is None:
-            timestamp = int(asyncio.get_event_loop().time() * 1000)
+            timestamp = int(time.monotonic() * 1000)
         
         # Convert dictionaries to JSON strings
         metadata_json = json.dumps(metadata or {})
@@ -214,7 +216,7 @@ class ArrowRoutingInterface:
         
         # Use current time if timestamp not provided
         if timestamp is None:
-            timestamp = int(asyncio.get_event_loop().time() * 1000)
+            timestamp = int(time.monotonic() * 1000)
         
         # Convert dictionaries to JSON strings
         factors_json = json.dumps(factors or {})
@@ -312,7 +314,7 @@ class ArrowRoutingInterface:
         
         # Use current time if timestamp not provided
         if timestamp is None:
-            timestamp = int(asyncio.get_event_loop().time() * 1000)
+            timestamp = int(time.monotonic() * 1000)
         
         # Create record batch
         batch_data = [
@@ -396,6 +398,8 @@ class ArrowIPCServer:
         self.routing_manager = routing_manager
         self.arrow_interface = ArrowRoutingInterface()
         self.server = None
+        self._listener: Optional[anyio.abc.SocketListener] = None
+        self._task_group: Optional[anyio.abc.TaskGroup] = None
         self.running = False
         
         logger.info(f"Arrow IPC server initialized with socket path: {self.socket_path}")
@@ -432,10 +436,10 @@ class ArrowIPCServer:
             os.unlink(self.socket_path)
         
         # Start server
-        self.server = await asyncio.start_unix_server(
-            self._handle_client,
-            path=self.socket_path
-        )
+        self._listener = await anyio.create_unix_listener(self.socket_path)
+        self._task_group = anyio.create_task_group()
+        await self._task_group.__aenter__()
+        self._task_group.start_soon(self._listener.serve, self._handle_client)
         self.running = True
         
         # Set socket permissions
@@ -449,9 +453,15 @@ class ArrowIPCServer:
         if not self.running:
             return
         
-        # Close server
-        self.server.close()
-        await self.server.wait_closed()
+        # Stop accepting/serving clients
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
+
+        if self._listener is not None:
+            await self._listener.aclose()
+            self._listener = None
         
         # Remove socket file
         if os.path.exists(self.socket_path):
@@ -460,11 +470,7 @@ class ArrowIPCServer:
         self.running = False
         logger.info("Arrow IPC server stopped")
     
-    async def _handle_client(
-        self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter
-    ) -> None:
+    async def _handle_client(self, stream: anyio.abc.SocketStream) -> None:
         """
         Handle a client connection.
         
@@ -472,16 +478,15 @@ class ArrowIPCServer:
             reader: Stream reader
             writer: Stream writer
         """
-        client_info = writer.get_extra_info("peername")
-        logger.debug(f"New client connection from {client_info}")
+        logger.debug("New client connection")
         
         try:
             # Read message length (4 bytes)
-            length_bytes = await reader.readexactly(4)
+            length_bytes = await self._read_exactly(stream, 4)
             message_length = int.from_bytes(length_bytes, byteorder="little")
             
             # Read message data
-            message_data = await reader.readexactly(message_length)
+            message_data = await self._read_exactly(stream, message_length)
             
             # Parse message type (first byte)
             message_type = message_data[0]
@@ -497,17 +502,24 @@ class ArrowIPCServer:
                 response = b"ERROR: Unknown message type"
             
             # Send response
-            writer.write(len(response).to_bytes(4, byteorder="little"))
-            writer.write(response)
-            await writer.drain()
+            await stream.send(len(response).to_bytes(4, byteorder="little") + response)
             
-        except asyncio.IncompleteReadError:
+        except anyio.EndOfStream:
             logger.debug("Client disconnected")
         except Exception as e:
             logger.error(f"Error handling client: {e}", exc_info=True)
         finally:
-            writer.close()
-            await writer.wait_closed()
+            await stream.aclose()
+
+    @staticmethod
+    async def _read_exactly(stream: anyio.abc.SocketStream, nbytes: int) -> bytes:
+        data = bytearray()
+        while len(data) < nbytes:
+            chunk = await stream.receive(nbytes - len(data))
+            if not chunk:
+                raise anyio.EndOfStream
+            data.extend(chunk)
+        return bytes(data)
     
     async def _handle_routing_request(self, data: bytes) -> bytes:
         """
@@ -624,8 +636,7 @@ class ArrowIPCClient:
         
         self.socket_path = socket_path or self._default_socket_path()
         self.arrow_interface = ArrowRoutingInterface()
-        self.reader = None
-        self.writer = None
+        self._stream: Optional[anyio.abc.SocketStream] = None
         
         logger.debug(f"Arrow IPC client initialized with socket path: {self.socket_path}")
     
@@ -641,11 +652,11 @@ class ArrowIPCClient:
     
     async def connect(self) -> None:
         """Connect to the Arrow IPC server."""
-        if self.reader is not None:
+        if self._stream is not None:
             return
         
         try:
-            self.reader, self.writer = await asyncio.open_unix_connection(self.socket_path)
+            self._stream = await anyio.connect_unix_socket(self.socket_path)
             logger.debug(f"Connected to Arrow IPC server at {self.socket_path}")
         except Exception as e:
             logger.error(f"Error connecting to Arrow IPC server: {e}", exc_info=True)
@@ -653,14 +664,12 @@ class ArrowIPCClient:
     
     async def disconnect(self) -> None:
         """Disconnect from the Arrow IPC server."""
-        if self.writer is None:
+        if self._stream is None:
             return
         
         try:
-            self.writer.close()
-            await self.writer.wait_closed()
-            self.reader = None
-            self.writer = None
+            await self._stream.aclose()
+            self._stream = None
             logger.debug("Disconnected from Arrow IPC server")
         except Exception as e:
             logger.warning(f"Error disconnecting from Arrow IPC server: {e}")
@@ -695,7 +704,7 @@ class ArrowIPCClient:
             ID of the selected backend
         """
         # Ensure connected
-        if self.reader is None:
+        if self._stream is None:
             await self.connect()
         
         # Generate request ID if not provided
@@ -720,16 +729,14 @@ class ArrowIPCClient:
         message = b"\x01" + request_data
         
         # Send request
-        self.writer.write(len(message).to_bytes(4, byteorder="little"))
-        self.writer.write(message)
-        await self.writer.drain()
+        await self._stream.send(len(message).to_bytes(4, byteorder="little") + message)
         
         # Read response length
-        length_bytes = await self.reader.readexactly(4)
+        length_bytes = await ArrowIPCServer._read_exactly(self._stream, 4)
         response_length = int.from_bytes(length_bytes, byteorder="little")
         
         # Read response
-        response_data = await self.reader.readexactly(response_length)
+        response_data = await ArrowIPCServer._read_exactly(self._stream, response_length)
         
         # Check response type
         response_type = response_data[0]
@@ -767,7 +774,7 @@ class ArrowIPCClient:
             error: Optional error message
         """
         # Ensure connected
-        if self.reader is None:
+        if self._stream is None:
             await self.connect()
         
         # Encode outcome
@@ -785,16 +792,14 @@ class ArrowIPCClient:
         message = b"\x03" + outcome_data
         
         # Send outcome
-        self.writer.write(len(message).to_bytes(4, byteorder="little"))
-        self.writer.write(message)
-        await self.writer.drain()
+        await self._stream.send(len(message).to_bytes(4, byteorder="little") + message)
         
         # Read response length
-        length_bytes = await self.reader.readexactly(4)
+        length_bytes = await ArrowIPCServer._read_exactly(self._stream, 4)
         response_length = int.from_bytes(length_bytes, byteorder="little")
         
         # Read response
-        response_data = await self.reader.readexactly(response_length)
+        response_data = await ArrowIPCServer._read_exactly(self._stream, response_length)
         
         # Check response type
         response_type = response_data[0]
