@@ -7,7 +7,7 @@ for management operations while still using IPFS-Kit libraries directly
 for retrieval operations.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -141,7 +141,7 @@ class DaemonClient:
             )
             
             # Wait a moment for startup
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             
             # Check if it started successfully
             if await self.is_daemon_running():
@@ -166,7 +166,7 @@ class DaemonClient:
             
             # Wait for shutdown
             for _ in range(10):
-                await asyncio.sleep(1)
+                await anyio.sleep(1)
                 if not await self.is_daemon_running():
                     return {"success": True, "message": "Daemon stopped"}
             
@@ -244,7 +244,7 @@ class DaemonClient:
                 
                 # Wait for daemon to process and create output file
                 for i in range(self.timeout):
-                    await asyncio.sleep(1)
+                    await anyio.sleep(1)
                     if os.path.exists(output_file):
                         return {"success": True, "message": "Arrow IPC data written"}
                     
@@ -426,7 +426,7 @@ class IPFSKitClientMixin:
         """Check if daemon should be used for management operations."""
         # Use daemon for management if it's running, otherwise fallback to direct management
         try:
-            return asyncio.run(self.daemon_client.is_daemon_running())
+            return anyio.run(self.daemon_client.is_daemon_running)
         except:
             return False
 

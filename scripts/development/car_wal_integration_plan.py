@@ -6,7 +6,6 @@ This document outlines how to integrate CAR-based WAL into the existing
 BucketVFS system as a drop-in enhancement.
 """
 
-import asyncio
 from pathlib import Path
 from typing import Dict, Any, Optional
 

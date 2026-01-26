@@ -7,7 +7,7 @@ This report documents the comprehensive testing results after the CLI reorganiza
 and log aggregation implementation.
 """
 
-import asyncio
+import anyio
 import subprocess
 import sys
 from datetime import datetime
@@ -16,15 +16,14 @@ from pathlib import Path
 async def run_cmd(cmd, timeout=10):
     """Run a command and return success, stdout, stderr"""
     try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-        return process.returncode == 0, stdout.decode(), stderr.decode()
-    except asyncio.TimeoutError:
+        with anyio.fail_after(timeout):
+            result = await anyio.run_process(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+        return result.returncode == 0, result.stdout.decode(), result.stderr.decode()
+    except TimeoutError:
         return False, "", "Command timed out"
     except Exception as e:
         return False, "", str(e)
@@ -210,5 +209,5 @@ The reorganization has successfully improved the CLI structure while maintaining
     return 0 if percentage >= 80 else 1
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

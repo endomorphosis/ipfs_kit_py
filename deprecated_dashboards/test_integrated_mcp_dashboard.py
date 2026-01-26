@@ -6,7 +6,7 @@ This script tests the integrated server that combines MCP functionality
 with the web dashboard on the same port.
 """
 
-import asyncio
+import anyio
 import json
 import aiohttp
 import sys
@@ -204,7 +204,8 @@ async def test_websocket_connection():
         uri = "ws://127.0.0.1:8765/dashboard/ws"
         async with websockets.connect(uri) as websocket:
             # Wait for initial data
-            response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+            with anyio.fail_after(5.0):
+                response = await websocket.recv()
             response_data = json.loads(response)
             
             print(f"✅ Dashboard WebSocket connection successful")
@@ -229,12 +230,12 @@ def main():
         return
     
     try:
-        asyncio.run(test_integrated_server())
+        anyio.run(test_integrated_server)
         
         # Test WebSockets if websockets package is available
         try:
             import websockets
-            asyncio.run(test_websocket_connection())
+            anyio.run(test_websocket_connection)
         except ImportError:
             print("\n📦 Install 'websockets' package to test WebSocket connections:")
             print("   pip install websockets")

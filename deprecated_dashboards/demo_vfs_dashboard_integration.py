@@ -38,7 +38,7 @@ Features demonstrated:
 - IPFS CID access to all columnar data
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from pathlib import Path
@@ -383,7 +383,7 @@ if __name__ == "__main__":
     print("🚀 Starting VFS Dashboard Integration Demo\n")
     
     # Run the main demo
-    asyncio.run(demo_vfs_dashboard_integration())
+    anyio.run(demo_vfs_dashboard_integration)
     
     # Show example usage patterns
     show_example_usage()

@@ -7,7 +7,7 @@ while efficiently reading metadata from ~/.ipfs_kit/ and delegating to
 the intelligent daemon for backend synchronization.
 """
 
-import asyncio
+import anyio
 import sys
 from pathlib import Path
 
@@ -18,4 +18,4 @@ sys.path.insert(0, str(project_root))
 from ipfs_kit_py.mcp_server.server import main
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

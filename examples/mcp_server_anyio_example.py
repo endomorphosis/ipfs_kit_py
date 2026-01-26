@@ -186,7 +186,7 @@ def run_example_server(
     isolation_mode: bool = False,
     host: str = "127.0.0.1",
     port: int = 9999,
-    backend: str = "asyncio",
+    backend: str = ASYNC_BACKEND,
 ):
     """Run the example server with the provided configuration."""
     app = create_example_app(

@@ -158,10 +158,9 @@ async def handle_bucket_add(args):
 class BucketDaemon:
     async def process_wal_entries(self):
         # Process both CAR and Parquet WAL concurrently
-        car_task = asyncio.create_task(self._process_car_wal())
-        parquet_task = asyncio.create_task(self._process_parquet_wal())
-        
-        await asyncio.gather(car_task, parquet_task)
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(self._process_car_wal)
+            task_group.start_soon(self._process_parquet_wal)
     
     async def _process_car_wal(self):
         car_files = self.car_wal_path.glob('wal_*.car')

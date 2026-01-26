@@ -7,7 +7,7 @@ This script performs a quick validation of the IPFS-Kit CLI after reorganization
 to ensure all commands are accessible and working properly.
 """
 
-import asyncio
+import anyio
 import subprocess
 import sys
 import time
@@ -16,15 +16,14 @@ from pathlib import Path
 async def run_cmd(cmd, timeout=10):
     """Run a command and return success, stdout, stderr"""
     try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-        return process.returncode == 0, stdout.decode(), stderr.decode()
-    except asyncio.TimeoutError:
+        with anyio.fail_after(timeout):
+            result = await anyio.run_process(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+        return result.returncode == 0, result.stdout.decode(), result.stderr.decode()
+    except TimeoutError:
         return False, "", "Command timed out"
     except Exception as e:
         return False, "", str(e)
@@ -101,4 +100,4 @@ async def main():
     return True
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

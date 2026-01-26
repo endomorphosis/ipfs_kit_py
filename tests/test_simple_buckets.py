@@ -3,7 +3,7 @@
 Test the simplified bucket implementation.
 """
 
-import asyncio
+import anyio
 import tempfile
 from pathlib import Path
 
@@ -110,4 +110,4 @@ async def test_simple_bucket_manager():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_simple_bucket_manager())
+    anyio.run(test_simple_bucket_manager)

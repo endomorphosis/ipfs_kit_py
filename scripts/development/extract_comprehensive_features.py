@@ -140,7 +140,7 @@ class FeatureExtractor:
             "- Comprehensive testing suite",
             '"""',
             "",
-            "import asyncio",
+            "import anyio",
             "import json",
             "import logging",
             "import logging.handlers",
@@ -391,7 +391,7 @@ Tests all 90+ endpoints and features to ensure proper integration
 with modern light initialization + bucket VFS architecture.
 """
 
-import asyncio
+import anyio
 import json
 import requests
 import pytest

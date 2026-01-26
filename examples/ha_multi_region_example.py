@@ -20,7 +20,7 @@ import signal
 import logging
 import argparse
 import tempfile
-import asyncio
+import anyio
 import subprocess
 from pathlib import Path
 from datetime import datetime
@@ -266,7 +266,7 @@ class MCPServerInstance:
         if not HAS_AIOHTTP:
             logger.warning("aiohttp not available, cannot check server readiness")
             # Sleep a bit to give the server time to start
-            await asyncio.sleep(5)
+            await anyio.sleep(5)
             return True
         
         start_time = time.time()
@@ -280,13 +280,13 @@ class MCPServerInstance:
                             return True
             except aiohttp.ClientConnectorError:
                 pass  # Server not ready yet
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass  # Server not responding yet
             except Exception as e:
                 logger.warning(f"Error checking server health: {e}")
             
             # Try again after a short delay
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
         
         return False
     
@@ -408,10 +408,17 @@ class MultiRegionHAExample:
                    (f" in region {region}" if region else ""))
         
         # Start servers in parallel
-        start_results = await asyncio.gather(
-            *[server.start() for server in servers_to_start],
-            return_exceptions=True
-        )
+        start_results = []
+        async with anyio.create_task_group() as task_group:
+            async def run_start(server: MCPServerInstance) -> None:
+                try:
+                    result = await server.start()
+                except Exception as exc:
+                    result = exc
+                start_results.append(result)
+
+            for server in servers_to_start:
+                task_group.start_soon(run_start, server)
         
         # Check if all servers started successfully
         success = all(result is True for result in start_results)
@@ -440,10 +447,17 @@ class MultiRegionHAExample:
                    (f" in region {region}" if region else ""))
         
         # Stop servers in parallel
-        stop_results = await asyncio.gather(
-            *[server.stop() for server in servers_to_stop],
-            return_exceptions=True
-        )
+        stop_results = []
+        async with anyio.create_task_group() as task_group:
+            async def run_stop(server: MCPServerInstance) -> None:
+                try:
+                    result = await server.stop()
+                except Exception as exc:
+                    result = exc
+                stop_results.append(result)
+
+            for server in servers_to_stop:
+                task_group.start_soon(run_stop, server)
         
         # Check if all servers stopped successfully
         success = all(result is True for result in stop_results)
@@ -549,7 +563,7 @@ class MultiRegionHAExample:
             current_state = await self.get_cluster_state()
             if not current_state:
                 logger.warning("Failed to get current cluster state, retrying...")
-                await asyncio.sleep(5)
+                await anyio.sleep(5)
                 continue
             
             # Extract active regions from current state
@@ -561,7 +575,7 @@ class MultiRegionHAExample:
                 return True
             
             # Check every 5 seconds
-            await asyncio.sleep(5)
+            await anyio.sleep(5)
         
         logger.warning(f"No failover detected within {timeout} seconds")
         return False
@@ -608,7 +622,7 @@ class MultiRegionHAExample:
             
             # Wait for cluster to stabilize
             logger.info("Waiting for cluster to stabilize (30s)")
-            await asyncio.sleep(30)
+            await anyio.sleep(30)
             
             # Check initial cluster state
             initial_state = await self.get_cluster_state()
@@ -619,14 +633,19 @@ class MultiRegionHAExample:
             logger.info(f"Initial active regions: {initial_state.get('active_regions', [])}")
             
             # Start monitoring for failover in the background
-            monitor_task = asyncio.create_task(self.monitor_failover(timeout=120))
-            
-            # Simulate failure of primary region
-            logger.info(f"Simulating failure of primary region: {self.primary_region}")
-            await self.trigger_region_failure(self.primary_region)
+            monitor_result = {"detected": False}
+            async with anyio.create_task_group() as task_group:
+                async def run_monitor() -> None:
+                    monitor_result["detected"] = await self.monitor_failover(timeout=120)
+
+                task_group.start_soon(run_monitor)
+
+                # Simulate failure of primary region
+                logger.info(f"Simulating failure of primary region: {self.primary_region}")
+                await self.trigger_region_failure(self.primary_region)
             
             # Wait for failover to be detected
-            failover_detected = await monitor_task
+            failover_detected = monitor_result["detected"]
             
             if failover_detected:
                 logger.info("Failover test succeeded!")
@@ -698,4 +717,4 @@ if __name__ == "__main__":
         signal.signal(sig, lambda *args: sys.exit(130))
     
     # Run the example
-    sys.exit(asyncio.run(main()))
+    sys.exit(anyio.run(main))

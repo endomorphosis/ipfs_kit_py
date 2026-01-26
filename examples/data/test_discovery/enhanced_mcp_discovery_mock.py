@@ -5,7 +5,7 @@ with network simulation capabilities for comprehensive testing.
 """
 
 import logging
-import asyncio
+import anyio
 import random
 import time
 from typing import Dict, List, Optional, Any, Callable, Set, Tuple
@@ -203,7 +203,7 @@ class MockNetwork:
         
         # Apply latency
         latency = self.connections[(from_id, to_id)]["latency_ms"] / 1000.0
-        await asyncio.sleep(latency)
+        await anyio.sleep(latency)
         
         # Log the message
         self.message_log.append({

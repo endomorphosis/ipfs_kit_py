@@ -6,7 +6,7 @@ This validates that all 9 core legacy features have been successfully
 mapped to the new bucket-centric architecture.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -248,7 +248,7 @@ async def main():
     
     try:
         # Wait a moment for dashboard to be ready
-        await asyncio.sleep(2)
+        await anyio.sleep(2)
         
         # Generate and display detailed report
         report = await validator.generate_detailed_report()
@@ -276,4 +276,4 @@ async def main():
         logger.error(f"Validation failed: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

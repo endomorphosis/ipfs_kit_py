@@ -4,7 +4,6 @@ Test script to verify that 'ipfs-kit mcp start' uses the refactored dashboard
 with proper backend/services/buckets management tabs.
 """
 
-import asyncio
 import subprocess
 import time
 import requests

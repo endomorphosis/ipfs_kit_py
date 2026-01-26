@@ -338,7 +338,7 @@ async def demo_car_wal():
 
 
 if __name__ == "__main__":
-    import asyncio
+    import anyio
     
     print("🚗 CAR-based WAL Demonstration for IPFS Kit")
     print("=" * 60)
@@ -347,7 +347,7 @@ if __name__ == "__main__":
     compare_wal_formats()
     
     # Run demo
-    asyncio.run(demo_car_wal())
+    anyio.run(demo_car_wal)
     
     print(f"\n✅ Demonstration complete!")
     print(f"   Check /tmp/car_wal_demo/ for generated CAR files")

@@ -4,7 +4,7 @@ Test script for the Enhanced MCP Dashboard
 Tests all major functionality to ensure the dashboard works correctly.
 """
 
-import asyncio
+import anyio
 import aiohttp
 import json
 import sys
@@ -162,13 +162,14 @@ class DashboardTester:
                 
                 # Wait for response
                 try:
-                    response = await asyncio.wait_for(websocket.recv(), timeout=3)
+                    with anyio.fail_after(3):
+                        response = await websocket.recv()
                     self.test_results.append({
                         'test': 'WebSocket Connection',
                         'success': True,
                         'response_received': bool(response)
                     })
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     self.test_results.append({
                         'test': 'WebSocket Connection',
                         'success': True,  # Connection worked, just no immediate response
@@ -275,4 +276,4 @@ async def main():
             sys.exit(1)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

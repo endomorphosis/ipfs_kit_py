@@ -5,7 +5,7 @@ Create enhanced pin metadata files in the actual user directory.
 
 import os
 import sys
-import asyncio
+import anyio
 from pathlib import Path
 
 # Add the ipfs_kit_py directory to the Python path
@@ -90,4 +90,4 @@ async def create_enhanced_metadata():
     print("🎯 Files ready for use with PIN operations!")
 
 if __name__ == "__main__":
-    asyncio.run(create_enhanced_metadata())
+    anyio.run(create_enhanced_metadata)

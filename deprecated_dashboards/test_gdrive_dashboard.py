@@ -3,7 +3,7 @@
 Test script to demonstrate Google Drive integration in the IPFS Kit dashboard.
 """
 
-import asyncio
+import anyio
 import json
 from mcp.ipfs_kit.backends import BackendHealthMonitor
 
@@ -110,4 +110,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

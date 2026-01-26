@@ -6,7 +6,7 @@ This demonstrates how to integrate CAR-based Write-Ahead Logging
 into the existing BucketVFS system for better IPFS integration.
 """
 
-import asyncio
+import anyio
 import json
 import time
 import hashlib
@@ -252,7 +252,7 @@ class CARWALEnhancedBucketVFS:
             print(f"   Size: {operation_data['content_size']} bytes")
             
             # Simulate successful upload
-            await asyncio.sleep(0.1)  # Simulate network delay
+            await anyio.sleep(0.1)  # Simulate network delay
             
             # Move to processed directory
             processed_path = self.dirs["wal_processed"] / car_file_path.name
@@ -421,7 +421,7 @@ if __name__ == "__main__":
     show_integration_benefits()
     
     # Run demo
-    bucket = asyncio.run(demo_car_wal_integration())
+    bucket = anyio.run(demo_car_wal_integration)
     
     print(f"\n✅ Integration demonstration complete!")
     print(f"   Check {bucket.storage_path} for generated files")

@@ -8,7 +8,7 @@ This script quickly checks the status of VFS functionality in the MCP server.
 
 import sys
 import os
-import asyncio
+import anyio
 from datetime import datetime
 
 # Add project root to path
@@ -212,5 +212,5 @@ async def main():
     return success
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
+    success = anyio.run(main)
     sys.exit(0 if success else 1)

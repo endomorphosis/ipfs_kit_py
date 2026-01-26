@@ -3,7 +3,7 @@
 Test script to validate the enhanced file management and metadata-first MCP tools.
 """
 
-import asyncio
+import anyio
 import json
 import tempfile
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     print("=== Enhanced File Management Test Suite ===")
     
     # Test the metadata-first tools
-    asyncio.run(test_metadata_first_tools())
+    anyio.run(test_metadata_first_tools)
     
     # Test the dashboard API
     test_dashboard_api()

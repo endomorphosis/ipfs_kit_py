@@ -6,7 +6,6 @@ This implementation focuses on proper MCP JSON-RPC integration and fixes the 404
 reported in the comments.
 """
 
-import asyncio
 import json
 import logging
 import os

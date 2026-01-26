@@ -13,7 +13,7 @@ Architecture:
 - Parquet Indexes: Fast routing decisions
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -331,10 +331,8 @@ class RefactoredMCPServer(IPFSKitClientMixin if DAEMON_CLIENT_AVAILABLE else obj
         if self.ipfs_kit:
             try:
                 # Simple test to see if IPFS Kit is responsive
-                result = await asyncio.wait_for(
-                    asyncio.create_task(self._test_ipfs_kit()),
-                    timeout=5
-                )
+                with anyio.fail_after(5):
+                    result = await self._test_ipfs_kit()
                 health["components"]["ipfs_kit_responsive"] = result
             except Exception as e:
                 health["components"]["ipfs_kit_error"] = str(e)
@@ -440,13 +438,13 @@ def main():
                 else:
                     logger.error(f"Failed to start daemon: {result.get('error')}")
         
-        asyncio.run(start_daemon_if_needed())
+        anyio.run(start_daemon_if_needed)
     
     # Start MCP server
     server = RefactoredMCPServer(host=args.host, port=args.port)
     
     try:
-        asyncio.run(server.start())
+        anyio.run(server.start)
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
     except Exception as e:

@@ -8,7 +8,7 @@ backend improvements.
 
 import sys
 import os
-import asyncio
+import anyio
 
 # Add parent directory to path to import modules directly
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -197,10 +197,10 @@ def main():
     example_filecoin_pin_backend()
     
     # Example 2: Unified Pin Service (async)
-    asyncio.run(example_unified_pin_service())
+    anyio.run(example_unified_pin_service)
     
     # Example 3: Gateway Chain (async)
-    asyncio.run(example_gateway_chain())
+    anyio.run(example_gateway_chain)
     
     print("\n" + "=" * 60)
     print("✅ All examples completed successfully!")

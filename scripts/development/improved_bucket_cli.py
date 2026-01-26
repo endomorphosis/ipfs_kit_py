@@ -13,7 +13,7 @@ Key Design Principles:
 """
 
 import argparse
-import asyncio
+import anyio
 import hashlib
 import json
 import logging
@@ -504,4 +504,4 @@ Storage backends are managed by the daemon based on bucket type and policies.
 
 
 if __name__ == '__main__':
-    sys.exit(asyncio.run(main()))
+    sys.exit(anyio.run(main))

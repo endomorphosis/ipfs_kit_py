@@ -13,7 +13,7 @@ This demo shows:
 5. Directory structure organization in ~/.ipfs_kit/
 """
 
-import asyncio
+import anyio
 import json
 import tempfile
 import os
@@ -430,4 +430,4 @@ async def main():
 
 if __name__ == "__main__":
     import sys
-    sys.exit(asyncio.run(main()))
+    sys.exit(anyio.run(main))

@@ -3,7 +3,7 @@
 Test script for comprehensive pin management dashboard
 """
 
-import asyncio
+import anyio
 import json
 import requests
 import time
@@ -160,7 +160,7 @@ def main():
     print("✅ Server is running, proceeding with tests...")
     
     # Run the async tests
-    asyncio.run(test_pin_features())
+    anyio.run(test_pin_features)
     
     return 0
 

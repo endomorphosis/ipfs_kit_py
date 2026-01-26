@@ -2,7 +2,6 @@
 
 import sys
 import os
-import asyncio
 import uvicorn
 import logging
 

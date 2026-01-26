@@ -9,7 +9,6 @@ used in MCP tool implementations and client calls.
 import inspect
 import logging
 import functools
-import asyncio
 from typing import Dict, Any, Callable, Optional
 
 logger = logging.getLogger("enhanced-parameter-adapter")

@@ -11,7 +11,6 @@ and handles requests/responses properly.
 """
 
 import pytest
-import asyncio
 import httpx
 import json
 import os
@@ -165,7 +164,7 @@ async def http_client():
 class TestHealthEndpoint:
     """Test the health check endpoint"""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_health_check_success(self, mcp_server, http_client):
         """Test successful health check"""
         response = await http_client.get(f"{mcp_server.base_url}/health")
@@ -176,7 +175,7 @@ class TestHealthEndpoint:
         assert "timestamp" in data
         assert "node_info" in data
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_health_check_includes_cluster_info(self, mcp_server, http_client):
         """Test that health check includes cluster information"""
         response = await http_client.get(f"{mcp_server.base_url}/health")
@@ -193,7 +192,7 @@ class TestHealthEndpoint:
 class TestClusterManagementEndpoints:
     """Test cluster management HTTP endpoints"""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_cluster_status(self, mcp_server, http_client):
         """Test getting cluster status via HTTP"""
         response = await http_client.get(f"{mcp_server.base_url}/cluster/status")
@@ -206,7 +205,7 @@ class TestClusterManagementEndpoints:
         assert "services" in data
         assert data["node_info"]["role"] == "master"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_add_peer_to_cluster(self, mcp_server, http_client):
         """Test adding a peer to the cluster via HTTP"""
         peer_data = {
@@ -227,7 +226,7 @@ class TestClusterManagementEndpoints:
         assert data["success"] is True
         assert data["peer_id"] == "test-worker-1"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_cluster_peers(self, mcp_server, http_client):
         """Test getting cluster peers via HTTP"""
         # First add a peer
