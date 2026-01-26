@@ -91,7 +91,8 @@ from .controllers.mcp_storage_controller import MCPStorageController
 from .controllers.mcp_vfs_controller import MCPVFSController
 
 import psutil
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: This file previously used asyncio primitives directly. It now uses AnyIO
+# and a BlockingPortal to bridge sync HTTP handlers to async controller methods.
 
 logger = logging.getLogger(__name__)
 
@@ -817,8 +818,12 @@ class MCPServer:
             logger.info(f"Received signal {signum}, shutting down gracefully...")
             # Clean up resources
             if hasattr(self.daemon_service, 'stop'):
-                asyncio.create_task(self.daemon_service.stop())
-            sys.exit(0)
+                # Signal handlers are synchronous; run async cleanup in a daemon thread.
+                threading.Thread(
+                    target=lambda: anyio.run(self.daemon_service.stop),
+                    daemon=True,
+                ).start()
+            raise SystemExit(0)
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
@@ -851,6 +856,14 @@ class MCPServer:
         # Create a simple HTTP server for status and health checks
         try:
             class MCPStatusHandler(BaseHTTPRequestHandler):
+                def _call_async(self, func, *args, **kwargs):
+                    """Call an async function from this synchronous HTTP handler."""
+                    portal = getattr(self.server, "portal", None)
+                    if portal is not None:
+                        return portal.call(func, *args, **kwargs)
+                    # Fallback: run with a fresh AnyIO loop in this thread.
+                    return anyio.run(func, *args, **kwargs)
+
                 def do_GET(self):
                     self.server.mcp_server.logger.debug(f"Received GET request for path: {self.path}")
                     if self.path == '/':
@@ -979,9 +992,9 @@ class MCPServer:
                         error = None
 
                         if method == 'ipfs.pin.ls':
-                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.list_pins(params), self.server.async_loop).result()
+                            result = self._call_async(self.server.mcp_server.cli_controller.list_pins, params)
                         elif method == 'ipfs.pin.add':
-                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.add_pin(params), self.server.async_loop).result()
+                            result = self._call_async(self.server.mcp_server.cli_controller.add_pin, params)
                         elif method == 'ipfs.pin.verify':
                             # Placeholder for verify
                             result = {"verified_pins": 0, "total_pins": 0}
@@ -1017,7 +1030,7 @@ class MCPServer:
                 
                 def _handle_backends_api(self):
                     try:
-                        backends = asyncio.run_coroutine_threadsafe(self.server.mcp_server.backend_controller.list_backends({}), self.server.async_loop).result()
+                        backends = self._call_async(self.server.mcp_server.backend_controller.list_backends, {})
                         # dashboard.js expects a 'backends' key in the response
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
@@ -1032,7 +1045,7 @@ class MCPServer:
                 def _handle_services_api(self):
                     try:
                         # Get services status from daemon
-                        daemon_status = asyncio.run_coroutine_threadsafe(self.server.mcp_server.daemon_service.get_daemon_status(), self.server.async_loop).result()
+                        daemon_status = self._call_async(self.server.mcp_server.daemon_service.get_daemon_status)
                         services = {
                             "ipfs": {
                                 "status": "running" if daemon_status.services.get("ipfs", False) else "stopped",
@@ -1061,7 +1074,7 @@ class MCPServer:
                 
                 def _handle_buckets_api(self):
                     try:
-                        buckets = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.list_buckets({}), self.server.async_loop).result()
+                        buckets = self._call_async(self.server.mcp_server.cli_controller.list_buckets, {})
                         # dashboard.js expects a 'buckets' key in the response
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
@@ -1080,10 +1093,7 @@ class MCPServer:
                         try:
                             from ...mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
                             service_manager = ComprehensiveServiceManager()
-                            services_data = asyncio.run_coroutine_threadsafe(
-                                service_manager.list_all_services(), 
-                                self.server.async_loop
-                            ).result()
+                            services_data = self._call_async(service_manager.list_all_services)
                         except ImportError as e:
                             logger.warning(f"ComprehensiveServiceManager not available: {e}")
                             # Fallback to mock comprehensive services data
@@ -1291,10 +1301,7 @@ class MCPServer:
                         try:
                             from ...mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
                             service_manager = ComprehensiveServiceManager()
-                            result = asyncio.run_coroutine_threadsafe(
-                                service_manager.perform_service_action(service_id, action, post_data), 
-                                self.server.async_loop
-                            ).result()
+                            result = self._call_async(service_manager.perform_service_action, service_id, action, post_data)
                         except ImportError as e:
                             logger.warning(f"ComprehensiveServiceManager not available: {e}")
                             # Mock service action result
@@ -1367,8 +1374,8 @@ class MCPServer:
                         self.end_headers()
                         
                         # Get daemon status
-                        daemon_status = asyncio.run_coroutine_threadsafe(self.server.mcp_server.daemon_service.get_daemon_status(), self.server.async_loop).result()
-                        backends = asyncio.run_coroutine_threadsafe(self.server.mcp_server.metadata_manager.get_backend_metadata(), self.server.async_loop).result()
+                        daemon_status = self._call_async(self.server.mcp_server.daemon_service.get_daemon_status)
+                        backends = self._call_async(self.server.mcp_server.metadata_manager.get_backend_metadata)
                         
                         status = {
                             "mcp_server": "running",
@@ -1391,7 +1398,7 @@ class MCPServer:
                         # Access the MCPServer's embedded Server instance where tools are registered
                         registered = getattr(self.server.mcp_server.server, "_tools", [])
                         for tool_func in registered:
-                            all_tools.extend(asyncio.run_coroutine_threadsafe(tool_func(), self.server.async_loop).result())
+                            all_tools.extend(self._call_async(tool_func))
                         
                         # Convert Tool objects to dictionaries for JSON serialization
                         tools_data = []
@@ -1430,17 +1437,17 @@ class MCPServer:
                         
                         # Dynamically route tool calls to appropriate controllers
                         if tool_name.startswith("backend_"):
-                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.backend_controller.handle_tool_call(tool_name, arguments), self.server.async_loop).result()
+                            result = self._call_async(self.server.mcp_server.backend_controller.handle_tool_call, tool_name, arguments)
                         elif tool_name.startswith("storage_"):
-                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.storage_controller.handle_tool_call(tool_name, arguments), self.server.async_loop).result()
+                            result = self._call_async(self.server.mcp_server.storage_controller.handle_tool_call, tool_name, arguments)
                         elif tool_name.startswith("daemon_"):
-                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.daemon_controller.handle_tool_call(tool_name, arguments), self.server.async_loop).result()
+                            result = self._call_async(self.server.mcp_server.daemon_controller.handle_tool_call, tool_name, arguments)
                         elif tool_name.startswith("vfs_"):
-                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.vfs_controller.handle_tool_call(tool_name, arguments), self.server.async_loop).result()
+                            result = self._call_async(self.server.mcp_server.vfs_controller.handle_tool_call, tool_name, arguments)
                         elif tool_name.startswith("pin_"):
-                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.handle_pin_tool_call(tool_name, arguments), self.server.async_loop).result()
+                            result = self._call_async(self.server.mcp_server.cli_controller.handle_pin_tool_call, tool_name, arguments)
                         elif tool_name.startswith("bucket_"):
-                            result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.handle_bucket_tool_call(tool_name, arguments), self.server.async_loop).result()
+                            result = self._call_async(self.server.mcp_server.cli_controller.handle_bucket_tool_call, tool_name, arguments)
                         else:
                             result = {"error": f"Unknown tool: {tool_name}"}
                         
@@ -1469,11 +1476,11 @@ class MCPServer:
 
                         # Get services and backends count from MCP server
                         services_count = len(self.server.mcp_server.daemon_service.get_services_status().services)
-                        backends_count = len(self.server.mcp_server.metadata_manager.get_backend_metadata())
-                        buckets_count = len(asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.list_buckets({}), self.server.async_loop).result())
+                        backends_count = len(self._call_async(self.server.mcp_server.metadata_manager.get_backend_metadata))
+                        buckets_count = len(self._call_async(self.server.mcp_server.cli_controller.list_buckets, {}))
 
                         # Get IPFS peer ID and addresses (if daemon is running)
-                        ipfs_status = asyncio.run_coroutine_threadsafe(self.server.mcp_server.daemon_service.get_daemon_status(), self.server.async_loop).result()
+                        ipfs_status = self._call_async(self.server.mcp_server.daemon_service.get_daemon_status)
                         peer_id = ipfs_status.peer_id if ipfs_status.is_running else None
                         addresses = ipfs_status.addresses if ipfs_status.is_running else []
 
@@ -1536,7 +1543,7 @@ class MCPServer:
                 def _handle_pins_api_get(self):
                     try:
                         # Get the list of pins from the CLI controller and return the raw list for parity with tools
-                        pins_result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.list_pins({}), self.server.async_loop).result()
+                        pins_result = self._call_async(self.server.mcp_server.cli_controller.list_pins, {})
                         # pins_result is a dict with a 'pins' key per controller contract
                         pins = pins_result.get('pins', []) if isinstance(pins_result, dict) else pins_result
                         self.send_response(200)
@@ -1563,7 +1570,7 @@ class MCPServer:
                             self.wfile.write(json.dumps({"success": False, "error": "CID is required"}).encode())
                             return
 
-                        result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.add_pin({"cid_or_file": cid, "name": name}), self.server.async_loop).result()
+                        result = self._call_async(self.server.mcp_server.cli_controller.add_pin, {"cid_or_file": cid, "name": name})
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
@@ -1583,7 +1590,7 @@ class MCPServer:
                             self.wfile.write(json.dumps({"success": False, "error": "CID is required"}).encode())
                             return
 
-                        result = asyncio.run_coroutine_threadsafe(self.server.mcp_server.cli_controller.remove_pin({"cid": cid}), self.server.async_loop).result()
+                        result = self._call_async(self.server.mcp_server.cli_controller.remove_pin, {"cid": cid})
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
@@ -1602,10 +1609,11 @@ class MCPServer:
             MCPStatusHandler.server_class = type('MCPServerRef', (), {'mcp_server': self})
             
             # Create HTTP server
-            loop = asyncio.get_running_loop()
+            portal_cm = anyio.from_thread.start_blocking_portal()
+            portal = portal_cm.__enter__()
             httpd = HTTPServer((host, port), MCPStatusHandler)
             httpd.mcp_server = self
-            httpd.async_loop = loop
+            httpd.portal = portal
             
             logger.info(f"MCP server daemon mode started on http://{host}:{port}")
             print(f"MCP_SERVER_PORT:{port}")
@@ -1637,6 +1645,8 @@ class MCPServer:
                 # Clean up PID file
                 if pid_file.exists():
                     pid_file.unlink()
+            finally:
+                portal_cm.__exit__(None, None, None)
                     
         except Exception as e:
             logger.error(f"Error in daemon mode: {e}")
