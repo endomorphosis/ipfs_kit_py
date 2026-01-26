@@ -193,15 +193,14 @@ class SSHFSKit:
             if self.port != 22:
                 ssh_cmd.extend(["-p", str(self.port)])
             
-            process = await asyncio.create_subprocess_exec(
-                *ssh_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            proc = await anyio.run_process(
+                ssh_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            
-            stdout, stderr = await process.communicate()
-            
-            if process.returncode == 0:
+            stderr = proc.stderr or b""
+
+            if proc.returncode == 0:
                 self.is_connected = True
                 result["success"] = True
                 result["message"] = f"SSH connection verified to {self.username}@{self.host}:{self.port}"
@@ -283,15 +282,14 @@ class SSHFSKit:
         if self.port != 22:
             ssh_cmd.extend(["-p", str(self.port)])
         
-        process = await asyncio.create_subprocess_exec(
-            *ssh_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+        proc = await anyio.run_process(
+            ssh_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-        
-        stdout, stderr = await process.communicate()
-        
-        if process.returncode != 0:
+        stderr = proc.stderr or b""
+
+        if proc.returncode != 0:
             raise Exception(f"Failed to create remote path: {stderr.decode()}")
     
     async def disconnect(self) -> Dict[str, Any]:
@@ -408,15 +406,14 @@ class SSHFSKit:
             f"{self.username}@{self.host}:{remote_path}"
         ])
         
-        process = await asyncio.create_subprocess_exec(
-            *scp_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+        proc = await anyio.run_process(
+            scp_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-        
-        stdout, stderr = await process.communicate()
-        
-        if process.returncode != 0:
+        stderr = proc.stderr or b""
+
+        if proc.returncode != 0:
             raise Exception(f"SCP upload failed: {stderr.decode()}")
     
     async def retrieve_file(self, 
@@ -482,15 +479,14 @@ class SSHFSKit:
             local_path
         ])
         
-        process = await asyncio.create_subprocess_exec(
-            *scp_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+        proc = await anyio.run_process(
+            scp_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-        
-        stdout, stderr = await process.communicate()
-        
-        if process.returncode != 0:
+        stderr = proc.stderr or b""
+
+        if proc.returncode != 0:
             raise Exception(f"SCP download failed: {stderr.decode()}")
     
     async def list_files(self, bucket: str = None) -> Dict[str, Any]:
@@ -564,16 +560,15 @@ class SSHFSKit:
                 
                 if self.port != 22:
                     ssh_cmd.extend(["-p", str(self.port)])
-                
-                process = await asyncio.create_subprocess_exec(
-                    *ssh_cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+
+                proc = await anyio.run_process(
+                    ssh_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                 )
-                
-                stdout, stderr = await process.communicate()
-                
-                if process.returncode != 0:
+                stderr = proc.stderr or b""
+
+                if proc.returncode != 0:
                     raise Exception(f"SSH delete failed: {stderr.decode()}")
             
             # Remove from tracking
