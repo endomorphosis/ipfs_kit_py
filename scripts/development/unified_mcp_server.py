@@ -1,5 +1,5 @@
 
-import asyncio
+import anyio
 import json
 from pathlib import Path
 import sys
@@ -232,4 +232,4 @@ async def main():
     await server.start()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

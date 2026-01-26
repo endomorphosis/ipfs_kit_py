@@ -8,7 +8,6 @@ MCP roadmap Phase 1: Core Functionality Enhancements (Q3 2025) works correctly.
 import os
 import json
 import pytest
-import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 
 from ipfs_kit_py.mcp.auth.oauth_manager import OAuthManager, OAuthProviderConfig, get_oauth_manager
@@ -161,7 +160,7 @@ def test_app(mock_auth_service):
 
 
 # Tests for OAuthManager
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_load_providers(oauth_manager, mock_oauth_persistence):
     """Test loading OAuth providers."""
     # Test loading providers
@@ -176,7 +175,7 @@ async def test_load_providers(oauth_manager, mock_oauth_persistence):
     mock_oauth_persistence.get_oauth_providers.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_add_provider(oauth_manager, mock_oauth_persistence):
     """Test adding a new OAuth provider."""
     new_provider = {
@@ -203,7 +202,7 @@ async def test_add_provider(oauth_manager, mock_oauth_persistence):
     mock_oauth_persistence.save_oauth_provider.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_create_authorization_url(oauth_manager):
     """Test creating an authorization URL."""
     # Create authorization URL
@@ -225,7 +224,7 @@ async def test_create_authorization_url(oauth_manager):
     assert "state=test_state" in auth_url
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_exchange_code_for_token(oauth_manager, mock_http_client):
     """Test exchanging an authorization code for a token."""
     # Exchange code for token
@@ -241,7 +240,7 @@ async def test_exchange_code_for_token(oauth_manager, mock_http_client):
     assert token_data["access_token"] == "test_access_token"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_get_user_info(oauth_manager, mock_http_client):
     """Test getting user info with an access token."""
     # Get user info

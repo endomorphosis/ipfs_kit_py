@@ -3,7 +3,7 @@
 Test script to verify the logs endpoint is working correctly.
 """
 
-import asyncio
+import anyio
 import sys
 import logging
 from pathlib import Path
@@ -79,5 +79,5 @@ async def test_logs_endpoint():
         return False
 
 if __name__ == "__main__":
-    success = asyncio.run(test_logs_endpoint())
+    success = anyio.run(test_logs_endpoint)
     sys.exit(0 if success else 1)

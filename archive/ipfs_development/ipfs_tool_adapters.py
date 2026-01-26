@@ -8,7 +8,6 @@ proper parameter mapping between client calls and tool implementations.
 
 import logging
 import inspect
-import asyncio
 from typing import Dict, Any, Callable, Optional, Union
 
 from enhanced_parameter_adapter import ToolContext

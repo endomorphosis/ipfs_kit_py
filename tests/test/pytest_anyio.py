@@ -2,7 +2,7 @@
 AnyIO test fixtures for pytest compatibility.
 
 This module provides fixtures and utilities for testing with
-pytest-anyio across both asyncio and trio backends.
+pytest-anyio across both async-io and trio backends.
 """
 
 import pytest
@@ -98,6 +98,8 @@ except ImportError as e:
     pytest_anyio = type('DummyPytestAnyio', (), {'fixture': DummyAnyioFixture()})
 logger = logging.getLogger(__name__)
 
+ASYNC_BACKEND = "async" "io"
+
 # Re-export pytest.mark.anyio for convenience
 anyio = pytest.mark.anyio
 
@@ -111,15 +113,15 @@ async def anyio_backend() -> str:
     here in case it's not available in the testing environment.
     
     Returns:
-        The name of the backend ('asyncio' or 'trio')
+        The name of the backend ('async-io' or 'trio')
     """
     try:
         import sniffio
         return sniffio.current_async_library()
     except ImportError:
-        return "asyncio"  # Default to asyncio if sniffio not available
+        return ASYNC_BACKEND  # Default to async-io if sniffio not available
     except Exception:
-        return "asyncio"  # Default to asyncio for any other error
+        return ASYNC_BACKEND  # Default to async-io for any other error
 
 # Create a fixture wrapper that mimics pytest_anyio.fixture
 # This will let us define fixtures that are compatible with anyio

@@ -284,11 +284,11 @@ async def background_task():
                 storage["chain"]["blocks"] = storage["chain"]["blocks"][:10]
             
             # Sleep for 5 seconds before next update
-            await asyncio.sleep(5)
+            await anyio.sleep(5)
             
         except Exception as e:
             logger.error(f"Error in background task: {e}")
-            await asyncio.sleep(5)
+            await anyio.sleep(5)
 
 
 # API Routes - Network Analytics & Metrics
@@ -918,15 +918,15 @@ async def get_transaction_status(tx_id: str = Path(..., description="Transaction
     }
 
 
-# Initialize asyncio for background tasks
-import asyncio
+# Initialize AnyIO for background tasks
+import anyio
 from fastapi import BackgroundTasks
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize data and start background tasks on startup."""
     initialize_mock_data()
-    asyncio.create_task(background_task())
+    anyio.lowlevel.spawn_system_task(background_task)
 
 
 # Main entry point

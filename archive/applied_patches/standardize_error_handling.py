@@ -17,6 +17,7 @@ import time
 import uuid
 import logging
 import traceback
+import inspect
 from enum import Enum
 from typing import Dict, Any, Optional, Union, Tuple, List, Type
 from http import HTTPStatus
@@ -892,7 +893,7 @@ async def async_safe_execute(
         # Call custom error handler if provided
         if error_handler:
             try:
-                if asyncio.iscoroutinefunction(error_handler):
+                if inspect.iscoroutinefunction(error_handler):
                     await error_handler(error)
                 else:
                     error_handler(error)

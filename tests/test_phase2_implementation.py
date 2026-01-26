@@ -5,7 +5,6 @@ This module tests the IPNI client, Saturn backend, and Enhanced Gateway Chain.
 """
 
 import pytest
-import asyncio
 from ipfs_kit_py.mcp.storage_manager.discovery.ipni_client import IPNIClient
 from ipfs_kit_py.mcp.storage_manager.backends.saturn_backend import SaturnBackend
 from ipfs_kit_py.mcp.storage_manager.retrieval.enhanced_gateway_chain import EnhancedGatewayChain
@@ -15,7 +14,7 @@ from ipfs_kit_py.mcp.storage_manager.storage_types import StorageBackendType
 class TestIPNIClient:
     """Test IPNI Client implementation."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_initialization(self):
         """Test IPNI client initialization."""
         client = IPNIClient()
@@ -24,7 +23,7 @@ class TestIPNIClient:
         assert len(client.endpoints) > 0
         assert client.timeout > 0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_initialization_custom_endpoints(self):
         """Test initialization with custom endpoints."""
         custom_endpoints = ["https://custom.ipni.example.com"]
@@ -33,7 +32,7 @@ class TestIPNIClient:
         assert len(client.endpoints) == 1
         assert client.endpoints[0] == custom_endpoints[0]
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_find_providers_mock(self):
         """Test finding providers (will fail gracefully without real IPNI)."""
         client = IPNIClient()
@@ -47,7 +46,7 @@ class TestIPNIClient:
             # Expected to fail without real IPNI service
             assert True
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_cache_operations(self):
         """Test cache operations."""
         client = IPNIClient(cache_duration=10)
@@ -152,7 +151,7 @@ class TestSaturnBackend:
 class TestEnhancedGatewayChain:
     """Test Enhanced Gateway Chain with IPNI and Saturn."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_initialization(self):
         """Test enhanced gateway chain initialization."""
         chain = EnhancedGatewayChain()
@@ -162,7 +161,7 @@ class TestEnhancedGatewayChain:
         assert chain.enable_saturn is True
         assert hasattr(chain, 'ipni_client')
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_initialization_disabled_features(self):
         """Test initialization with features disabled."""
         chain = EnhancedGatewayChain(
@@ -173,7 +172,7 @@ class TestEnhancedGatewayChain:
         assert chain.enable_ipni is False
         assert chain.enable_saturn is False
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_provider_ranking(self):
         """Test provider ranking by performance."""
         chain = EnhancedGatewayChain()
@@ -196,7 +195,7 @@ class TestEnhancedGatewayChain:
         # provider1 should rank highest (best success rate and speed)
         assert ranked[0]["provider_id"] == "provider1"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_update_provider_metrics(self):
         """Test updating provider metrics."""
         chain = EnhancedGatewayChain()

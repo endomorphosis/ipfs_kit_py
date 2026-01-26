@@ -7,7 +7,6 @@ to verify the anyio-based implementation is working properly.
 """
 
 import logging
-import asyncio
 import anyio
 import sys
 from typing import Dict, Any
@@ -63,7 +62,7 @@ def main():
     """Main entry point for running the tests."""
     logger.info("Starting direct test for libp2p controller")
     
-    # Run with anyio to be backend-agnostic (will work with both asyncio and trio)
+    # Run with anyio to be backend-agnostic (will work with both async-io and trio)
     result = anyio.run(run_all_tests)
     
     # Print final result

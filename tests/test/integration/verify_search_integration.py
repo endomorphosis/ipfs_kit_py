@@ -16,11 +16,12 @@ import sys
 import json
 import time
 import uuid
-import asyncio
+import anyio
 import hashlib
 import logging
 import tempfile
 import argparse
+import subprocess
 from typing import Dict, Any, List, Optional
 
 # Configure logging
@@ -156,18 +157,17 @@ class SearchVerificationTest:
         # Add content to IPFS
         for file_path, doc in content_files:
             # Add to IPFS
-            proc = await asyncio.create_subprocess_exec(
-                "ipfs", "add", "-q", file_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            result = await anyio.run_process(
+                ["ipfs", "add", "-q", file_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
-            stdout, stderr = await proc.communicate()
             
-            if proc.returncode != 0:
-                logger.error(f"Error adding file to IPFS: {stderr.decode()}")
+            if result.returncode != 0:
+                logger.error(f"Error adding file to IPFS: {result.stderr.decode()}")
                 continue
             
-            cid = stdout.decode().strip()
+            cid = result.stdout.decode().strip()
             logger.info(f"Added content to IPFS: {cid} ({doc['name']})")
             
             # Index in search service
@@ -203,7 +203,7 @@ class SearchVerificationTest:
         
         # Wait for indexing to complete
         logger.info("Waiting for indexing to complete...")
-        await asyncio.sleep(2)
+        await anyio.sleep(2)
         
         # Test 1: Basic text search
         logger.info("Test 1: Basic text search")
@@ -390,6 +390,5 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    exit_code = loop.run_until_complete(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

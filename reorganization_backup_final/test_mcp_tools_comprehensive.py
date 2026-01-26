@@ -9,7 +9,7 @@ with the server using the MCP protocol over stdio.
 
 import json
 import subprocess
-import asyncio
+import anyio
 import sys
 import os
 import tempfile
@@ -26,11 +26,11 @@ class MCPTester:
     async def start_server(self):
         """Start the MCP server process."""
         print(f"Starting MCP server: {self.server_path}")
-        self.process = await asyncio.create_subprocess_exec(
-            "python3", self.server_path,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+        self.process = subprocess.Popen(
+            ["python3", self.server_path],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         print("✓ MCP server started")
         
@@ -38,7 +38,7 @@ class MCPTester:
         """Stop the MCP server process."""
         if self.process:
             self.process.terminate()
-            await self.process.wait()
+            await anyio.to_thread.run_sync(self.process.wait)
             print("✓ MCP server stopped")
     
     async def send_request(self, method, params=None):
@@ -59,7 +59,7 @@ class MCPTester:
         request_json = json.dumps(request) + "\n"
         if self.process.stdin:
             self.process.stdin.write(request_json.encode())
-            await self.process.stdin.drain()
+            self.process.stdin.flush()
         else:
             raise Exception("Server stdin not available")
         
@@ -68,8 +68,9 @@ class MCPTester:
         if self.process.stdout:
             while True:
                 try:
-                    # Use asyncio.wait_for with a timeout to prevent indefinite blocking
-                    response_line_bytes = await asyncio.wait_for(self.process.stdout.readline(), timeout=10)
+                    # Use anyio.fail_after with a timeout to prevent indefinite blocking
+                    with anyio.fail_after(10):
+                        response_line_bytes = await anyio.to_thread.run_sync(self.process.stdout.readline)
                     response_line = response_line_bytes.decode().strip()
                     
                     if not response_line:
@@ -79,7 +80,7 @@ class MCPTester:
                     # Attempt to parse as JSON
                     response_json = json.loads(response_line)
                     break # Found valid JSON, exit loop
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     raise Exception("Timeout waiting for response from server")
                 except json.JSONDecodeError:
                     # Not a JSON line, continue reading
@@ -477,4 +478,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

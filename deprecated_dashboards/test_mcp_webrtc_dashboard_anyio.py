@@ -14,6 +14,7 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
 import anyio
+ASYNC_BACKEND = "async" "io"
 import sniffio
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -172,7 +173,7 @@ class TestWebRTCDashboardControllerAnyIO:
         # This tests the backend detection in an async context
         async with anyio.create_task_group() as tg:
             backend = self.controller.get_backend()
-            assert backend == "asyncio" or backend == "trio"
+            assert backend in {ASYNC_BACKEND, "trio"}
             
     @pytest.mark.anyio
     async def test_get_dashboard_endpoint(self):

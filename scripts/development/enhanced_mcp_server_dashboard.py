@@ -16,7 +16,7 @@ Key Features:
 - Modern web interface with WebSocket updates
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -566,7 +566,7 @@ class EnhancedMCPDashboard:
             return stop_result
         
         # Wait a moment before restarting
-        await asyncio.sleep(2)
+        await anyio.sleep(2)
         
         return await self._start_service(service_name, parameters)
     
@@ -1196,12 +1196,12 @@ class EnhancedMCPDashboard:
             while True:
                 try:
                     await self._update_all_services()
-                    await asyncio.sleep(10)  # Update every 10 seconds
+                    await anyio.sleep(10)  # Update every 10 seconds
                 except Exception as e:
                     logger.error(f"Error in monitoring task: {e}")
-                    await asyncio.sleep(30)  # Wait longer on error
+                    await anyio.sleep(30)  # Wait longer on error
         
-        self.monitoring_task = asyncio.create_task(monitor())
+        self.monitoring_task = anyio.lowlevel.spawn_system_task(monitor)
     
     async def start(self):
         """Start the dashboard server."""
@@ -1235,4 +1235,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

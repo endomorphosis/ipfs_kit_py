@@ -248,7 +248,7 @@ class TestClusterManagementEndpoints:
         assert len(data["peers"]) >= 1
         assert any(peer["id"] == "test-worker-2" for peer in data["peers"])
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_remove_peer_from_cluster(self, mcp_server, http_client):
         """Test removing a peer from the cluster via HTTP"""
         # First add a peer
@@ -270,7 +270,7 @@ class TestClusterManagementEndpoints:
         assert data["success"] is True
         assert data["peer_id"] == "test-worker-3"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_add_peer_validation(self, mcp_server, http_client):
         """Test peer addition validation"""
         # Missing required fields
@@ -293,7 +293,7 @@ class TestClusterManagementEndpoints:
 class TestLeaderElectionEndpoints:
     """Test leader election HTTP endpoints"""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_trigger_leader_election(self, mcp_server, http_client):
         """Test triggering leader election via HTTP"""
         response = await http_client.post(f"{mcp_server.base_url}/cluster/election/trigger")
@@ -305,7 +305,7 @@ class TestLeaderElectionEndpoints:
         assert "election_time" in data
         assert data["leader"]["role"] == "master"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_current_leader(self, mcp_server, http_client):
         """Test getting current leader via HTTP"""
         response = await http_client.get(f"{mcp_server.base_url}/cluster/leader")
@@ -318,7 +318,7 @@ class TestLeaderElectionEndpoints:
             assert "id" in data["leader"]
             assert "role" in data["leader"]
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_heartbeat_endpoint(self, mcp_server, http_client):
         """Test sending heartbeat via HTTP"""
         heartbeat_data = {
@@ -339,7 +339,7 @@ class TestLeaderElectionEndpoints:
 class TestReplicationEndpoints:
     """Test replication management HTTP endpoints"""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_initiate_replication_master(self, mcp_server, http_client):
         """Test initiating replication from master node via HTTP"""
         # First add some target peers
@@ -367,7 +367,7 @@ class TestReplicationEndpoints:
         assert data["success"] is True
         assert data["cid"] == "QmTestReplication123"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_replication_status(self, mcp_server, http_client):
         """Test getting replication status via HTTP"""
         response = await http_client.get(f"{mcp_server.base_url}/replication/status")
@@ -379,7 +379,7 @@ class TestReplicationEndpoints:
         assert "completed_tasks" in data
         assert "failed_tasks" in data
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_replication_validation(self, mcp_server, http_client):
         """Test replication request validation"""
         # Missing CID
@@ -400,7 +400,7 @@ class TestReplicationEndpoints:
 class TestIndexingEndpoints:
     """Test indexing service HTTP endpoints"""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_add_index_data_master(self, mcp_server, http_client):
         """Test adding index data from master node via HTTP"""
         index_data = {
@@ -422,7 +422,7 @@ class TestIndexingEndpoints:
         assert data["success"] is True
         assert data["key"] == "test-doc-1"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_index_data(self, mcp_server, http_client):
         """Test retrieving index data via HTTP"""
         # First add some data
@@ -446,7 +446,7 @@ class TestIndexingEndpoints:
         assert data["success"] is True
         assert data["key"] == "test-doc-2"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_all_index_data(self, mcp_server, http_client):
         """Test retrieving all index data for a type via HTTP"""
         response = await http_client.get(
@@ -459,7 +459,7 @@ class TestIndexingEndpoints:
         assert "total_entries" in data
         assert "data" in data
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_remove_index_data(self, mcp_server, http_client):
         """Test removing index data via HTTP"""
         # First add data
@@ -479,7 +479,7 @@ class TestIndexingEndpoints:
         data = response.json()
         assert data["success"] is True
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_search_embeddings(self, mcp_server, http_client):
         """Test embedding similarity search via HTTP"""
         # First add some embeddings
@@ -516,7 +516,7 @@ class TestIndexingEndpoints:
         assert "results" in data
         assert len(data["results"]) <= 2
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_index_statistics(self, mcp_server, http_client):
         """Test getting index statistics via HTTP"""
         response = await http_client.get(f"{mcp_server.base_url}/indexing/stats")
@@ -529,7 +529,7 @@ class TestIndexingEndpoints:
         assert "indexes" in data
         assert data["node_role"] == "master"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_indexing_validation(self, mcp_server, http_client):
         """Test indexing request validation"""
         # Invalid index type
@@ -552,14 +552,14 @@ class TestIndexingEndpoints:
 class TestErrorHandling:
     """Test HTTP API error handling"""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_invalid_endpoint(self, mcp_server, http_client):
         """Test request to invalid endpoint"""
         response = await http_client.get(f"{mcp_server.base_url}/invalid/endpoint")
         
         assert response.status_code == 404
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_malformed_json(self, mcp_server, http_client):
         """Test request with malformed JSON"""
         response = await http_client.post(
@@ -570,7 +570,7 @@ class TestErrorHandling:
         
         assert response.status_code == 400
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_missing_required_fields(self, mcp_server, http_client):
         """Test requests with missing required fields"""
         # Replication without CID
@@ -583,7 +583,7 @@ class TestErrorHandling:
         data = response.json()
         assert data["success"] is False
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_unauthorized_operations(self, mcp_server, http_client):
         """Test operations that should be unauthorized for certain roles"""
         # This would require setting up a non-master server
@@ -594,7 +594,7 @@ class TestErrorHandling:
 class TestConcurrentHTTPRequests:
     """Test concurrent HTTP request handling"""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_concurrent_cluster_status_requests(self, mcp_server, http_client):
         """Test handling multiple concurrent status requests"""
         tasks = []

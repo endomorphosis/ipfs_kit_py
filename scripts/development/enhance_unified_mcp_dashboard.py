@@ -16,7 +16,7 @@ Missing Features Being Restored:
 8. Complete MCP tool integration
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -180,7 +180,7 @@ class EnhancedMCPDashboardExtensions:
             
             try:
                 stop_result = await self._stop_service(service_name)
-                await asyncio.sleep(2)  # Wait before restart
+                await anyio.sleep(2)  # Wait before restart
                 start_result = await self._start_service(service_name)
                 
                 return JSONResponse(content={
@@ -304,7 +304,7 @@ class EnhancedMCPDashboardExtensions:
                         for log in new_logs:
                             yield f"data: {json.dumps(log)}\\n\\n"
                         last_count = len(current_logs)
-                    await asyncio.sleep(1)
+                    await anyio.sleep(1)
             
             return StreamingResponse(
                 log_generator(),
@@ -388,7 +388,7 @@ class EnhancedMCPDashboardExtensions:
                         'logs_count': len(self.log_handler.logs)
                     }
                     await websocket.send_text(json.dumps(update_data))
-                    await asyncio.sleep(5)  # Update every 5 seconds
+                    await anyio.sleep(5)  # Update every 5 seconds
             
             except WebSocketDisconnect:
                 self.websocket_connections.discard(websocket)

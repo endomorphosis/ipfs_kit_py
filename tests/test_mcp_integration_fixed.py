@@ -24,7 +24,7 @@ try:
     print("✅ Integration initialized successfully")
     
     # Test a simple operation
-    import asyncio
+    import anyio
     
     async def test_operation():
         try:
@@ -36,7 +36,7 @@ try:
             return False
     
     # Run the test
-    success = asyncio.run(test_operation())
+    success = anyio.run(test_operation)
     print(f"\nOverall test result: {'✅ Success' if success else '❌ Failed'}")
     
 except Exception as e:

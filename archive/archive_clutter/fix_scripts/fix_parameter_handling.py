@@ -188,7 +188,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import inspect
 from typing import Dict, Any, Optional
 import requests
 
@@ -262,7 +262,7 @@ def register_fixed_handler(server_url="http://localhost:9998"):
             f"{server_url}/register_handler",
             json={
                 "tool_name": "ipfs_add",
-                "handler_code": asyncio.inspect.getsource(jsonrpc_ipfs_add)
+                "handler_code": inspect.getsource(jsonrpc_ipfs_add)
             },
             timeout=5
         )

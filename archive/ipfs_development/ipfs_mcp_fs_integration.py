@@ -10,7 +10,7 @@ import os
 import sys
 import logging
 import json
-import asyncio
+import anyio
 from typing import Dict, List, Any, Optional, Union
 
 # Configure logging
@@ -94,7 +94,7 @@ def register_integration_tools(mcp_server) -> bool:
                 "fs_path": abs_fs_path,
                 "ipfs_path": ipfs_path,
                 "is_directory": is_dir,
-                "mapped_at": asyncio.get_event_loop().time(),
+                "mapped_at": anyio.current_time(),
                 "last_sync": None,
                 "recursive": recursive
             }
@@ -117,7 +117,7 @@ def register_integration_tools(mcp_server) -> bool:
                             "fs_path": dir_fs_path,
                             "ipfs_path": dir_ipfs_path,
                             "is_directory": True,
-                            "mapped_at": asyncio.get_event_loop().time(),
+                            "mapped_at": anyio.current_time(),
                             "last_sync": None,
                             "recursive": False,  # Only top-level is marked recursive
                             "parent": abs_fs_path
@@ -133,7 +133,7 @@ def register_integration_tools(mcp_server) -> bool:
                             "fs_path": file_fs_path,
                             "ipfs_path": file_ipfs_path,
                             "is_directory": False,
-                            "mapped_at": asyncio.get_event_loop().time(),
+                            "mapped_at": anyio.current_time(),
                             "last_sync": None,
                             "recursive": False,  # Only top-level is marked recursive
                             "parent": abs_fs_path
@@ -283,7 +283,7 @@ def register_integration_tools(mcp_server) -> bool:
             # 3. Update the IPFS directory structure
             # 4. Update last_sync timestamp
             
-            sync_time = asyncio.get_event_loop().time()
+            sync_time = anyio.current_time()
             sync_results = {}
             
             for path in paths_to_sync:

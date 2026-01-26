@@ -13,7 +13,7 @@ pytest.skip("Cluster services subsystem deprecated / module missing", allow_modu
 # ---------------------------------------------------------------------------
 
 import pytest
-import asyncio
+import anyio
 import threading
 import time
 import json
@@ -243,7 +243,7 @@ class TestReplicationManager:
         
         assert manager.can_receive_replication() is False
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_replication_from_master(self):
         """Test successful replication from master node"""
         manager = ReplicationManager(NodeRole.MASTER, self.mock_ipfs_kit)
@@ -260,7 +260,7 @@ class TestReplicationManager:
         assert result["target_count"] == 2
         assert "results" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_replication_from_non_master_fails(self):
         """Test that replication from non-master nodes fails"""
         manager = ReplicationManager(NodeRole.WORKER, self.mock_ipfs_kit)
@@ -274,7 +274,7 @@ class TestReplicationManager:
         assert result["success"] is False
         assert "Only master nodes can initiate replication" in result["message"]
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_replication_filters_invalid_targets(self):
         """Test that replication filters out invalid target peers"""
         manager = ReplicationManager(NodeRole.MASTER, self.mock_ipfs_kit)
@@ -343,7 +343,7 @@ class TestIndexingService:
         assert worker_service.can_read_index() is True
         assert leecher_service.can_read_index() is True
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_add_index_data_master(self):
         """Test adding index data from master node"""
         service = IndexingService(NodeRole.MASTER)
@@ -355,7 +355,7 @@ class TestIndexingService:
         assert result["key"] == "doc-1"
         assert result["index_type"] == "embeddings"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_add_index_data_non_master_fails(self):
         """Test that adding index data from non-master fails"""
         service = IndexingService(NodeRole.WORKER)
@@ -366,7 +366,7 @@ class TestIndexingService:
         assert result["success"] is False
         assert "Only master nodes can modify indexes" in result["message"]
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_remove_index_data_master(self):
         """Test removing index data from master node"""
         service = IndexingService(NodeRole.MASTER)
@@ -380,7 +380,7 @@ class TestIndexingService:
         
         assert result["success"] is True
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_remove_nonexistent_data(self):
         """Test removing non-existent index data"""
         service = IndexingService(NodeRole.MASTER)
@@ -390,7 +390,7 @@ class TestIndexingService:
         assert result["success"] is False
         assert "not found" in result["message"]
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_index_data_single_key(self):
         """Test retrieving single key from index"""
         service = IndexingService(NodeRole.MASTER)
@@ -406,7 +406,7 @@ class TestIndexingService:
         assert result["key"] == "doc-1"
         assert result["data"]["data"] == test_data
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_index_data_all_keys(self):
         """Test retrieving all keys from index"""
         service = IndexingService(NodeRole.MASTER)
@@ -426,7 +426,7 @@ class TestIndexingService:
         assert "doc-1" in result["data"]
         assert "doc-2" in result["data"]
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_invalid_index_type(self):
         """Test operations with invalid index type"""
         service = IndexingService(NodeRole.MASTER)
@@ -436,7 +436,7 @@ class TestIndexingService:
         assert result["success"] is False
         assert "Invalid index type" in result["message"]
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_embedding_search(self):
         """Test embedding similarity search"""
         service = IndexingService(NodeRole.MASTER)
@@ -480,9 +480,6 @@ class TestIndexingService:
         
         def add_data(thread_id):
             try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
                 async def async_add():
                     result = await service.add_index_data(
                         "embeddings", 
@@ -491,9 +488,8 @@ class TestIndexingService:
                     )
                     return result
                 
-                result = loop.run_until_complete(async_add())
+                result = anyio.run(async_add)
                 results.append(result)
-                loop.close()
             except Exception as e:
                 errors.append(e)
         
@@ -597,7 +593,7 @@ class TestEnhancedDaemonManager:
 class TestConcurrencyAndPerformance:
     """Test concurrency and performance aspects"""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_concurrent_replication_operations(self):
         """Test concurrent replication operations"""
         manager = ReplicationManager(NodeRole.MASTER, Mock())
@@ -612,14 +608,24 @@ class TestConcurrencyAndPerformance:
             tasks.append(task)
         
         # Execute all tasks concurrently
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = []
+        async with anyio.create_task_group() as task_group:
+            async def run_task(task_coro):
+                try:
+                    result = await task_coro
+                except Exception as exc:
+                    result = exc
+                results.append(result)
+
+            for task in tasks:
+                task_group.start_soon(run_task, task)
         
         # Check all succeeded
         for result in results:
             assert not isinstance(result, Exception)
             assert result["success"] is True
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_concurrent_indexing_operations(self):
         """Test concurrent indexing operations"""
         service = IndexingService(NodeRole.MASTER)
@@ -635,7 +641,17 @@ class TestConcurrencyAndPerformance:
             tasks.append(task)
         
         # Execute all tasks concurrently
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = []
+        async with anyio.create_task_group() as task_group:
+            async def run_task(task_coro):
+                try:
+                    result = await task_coro
+                except Exception as exc:
+                    result = exc
+                results.append(result)
+
+            for task in tasks:
+                task_group.start_soon(run_task, task)
         
         # Check all succeeded
         for result in results:
@@ -669,7 +685,7 @@ class TestConcurrencyAndPerformance:
 class TestErrorHandling:
     """Test error handling and edge cases"""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_replication_with_no_eligible_peers(self):
         """Test replication when no peers are eligible"""
         manager = ReplicationManager(NodeRole.MASTER, Mock())
@@ -685,7 +701,7 @@ class TestErrorHandling:
         assert result["success"] is False
         assert "No eligible target peers" in result["message"]
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_indexing_with_invalid_permissions(self):
         """Test indexing operations with invalid permissions"""
         service = IndexingService(NodeRole.LEECHER)
@@ -777,7 +793,7 @@ class TestIntegrationScenarios:
         elected_leader = list(leaders.values())[0]
         assert elected_leader.role == NodeRole.MASTER
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_full_cluster_workflow(self, cluster_setup):
         """Test a complete cluster workflow"""
         managers = cluster_setup

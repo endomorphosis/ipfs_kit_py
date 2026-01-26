@@ -9,7 +9,7 @@ Test VFS functionality by sending JSON-RPC requests to the MCP server.
 import os
 import sys
 import json
-import asyncio
+import anyio
 import subprocess
 import tempfile
 import time
@@ -40,7 +40,7 @@ async def test_mcp_server_with_vfs():
         )
         
         # Wait a moment for server to start
-        await asyncio.sleep(2)
+        await anyio.sleep(2)
         
         # Send initialization request
         init_request = {
@@ -229,6 +229,5 @@ async def main():
         return 2
 
 if __name__ == "__main__":
-    import asyncio
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

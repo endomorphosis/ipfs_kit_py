@@ -18,7 +18,7 @@ Features:
 - WebSocket real-time updates
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -2078,7 +2078,7 @@ class MCPIntegratedDashboard:
         try:
             while True:
                 # Send periodic updates
-                await asyncio.sleep(5)
+                await anyio.sleep(5)
                 
                 status = await self._get_system_status()
                 await websocket.send_text(json.dumps({
@@ -2101,7 +2101,11 @@ class MCPIntegratedDashboard:
         logger.info(f"Starting Enhanced MCP Dashboard on {host}:{port}")
         
         # Start background tasks
-        self.update_task = asyncio.create_task(self._background_update_loop())
+        self.update_task_scope = anyio.CancelScope()
+        async def run_updates():
+            with self.update_task_scope:
+                await self._background_update_loop()
+        anyio.lowlevel.spawn_system_task(run_updates)
         
         # Start the server
         config = uvicorn.Config(
@@ -2117,12 +2121,8 @@ class MCPIntegratedDashboard:
         """Stop the dashboard server."""
         self.is_running = False
         
-        if self.update_task:
-            self.update_task.cancel()
-            try:
-                await self.update_task
-            except asyncio.CancelledError:
-                pass
+        if getattr(self, "update_task_scope", None):
+            self.update_task_scope.cancel()
         
         logger.info("Enhanced MCP Dashboard stopped")
     
@@ -2130,7 +2130,7 @@ class MCPIntegratedDashboard:
         """Background loop for periodic updates."""
         while self.is_running:
             try:
-                await asyncio.sleep(self.config.get('update_interval', 5))
+                await anyio.sleep(self.config.get('update_interval', 5))
                 
                 # Broadcast updates to WebSocket clients
                 if self.websocket_clients:
@@ -2150,7 +2150,7 @@ class MCPIntegratedDashboard:
                     for client in disconnected:
                         self.websocket_clients.discard(client)
                         
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in background update loop: {e}")
@@ -2183,4 +2183,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -8,7 +8,7 @@ This script tests the complete intelligent daemon system with:
 3. Task scheduling and execution
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import tempfile
@@ -105,7 +105,7 @@ def test_filesystem_adapter():
             
             # Test health check
             logger.info("Testing filesystem health check...")
-            health_result = asyncio.run(adapter.health_check())
+            health_result = anyio.run(adapter.health_check)
             logger.info(f"Health check result: {health_result}")
             
             if health_result.get('healthy'):
@@ -115,7 +115,7 @@ def test_filesystem_adapter():
             
             # Test storage usage
             logger.info("Testing storage usage calculation...")
-            storage_usage = asyncio.run(adapter.get_storage_usage())
+            storage_usage = anyio.run(adapter.get_storage_usage)
             logger.info(f"Storage usage: {storage_usage}")
             
             # Test pin operations (with mock data)
@@ -132,14 +132,14 @@ def test_filesystem_adapter():
             
             # Test backup pin to storage
             adapter.pins_dir.mkdir(parents=True, exist_ok=True)
-            success = asyncio.run(adapter._backup_pin_to_storage(test_pin))
+            success = anyio.run(adapter._backup_pin_to_storage, test_pin)
             if success:
                 logger.info("✓ Pin backup test passed")
             else:
                 logger.error("✗ Pin backup test failed")
             
             # Test getting stored pins
-            stored_pins = asyncio.run(adapter._get_stored_pins())
+            stored_pins = anyio.run(adapter._get_stored_pins)
             logger.info(f"Stored pins: {len(stored_pins)}")
             
             logger.info("✓ Filesystem adapter tests completed")
@@ -351,7 +351,7 @@ def main():
         ("Filesystem Adapter", test_filesystem_adapter),
         ("Daemon Discovery", test_intelligent_daemon_discovery),
         ("Daemon Task System", test_daemon_task_system),
-        ("Adapter Health Checks", lambda: asyncio.run(test_adapter_health_checks())),
+        ("Adapter Health Checks", lambda: anyio.run(test_adapter_health_checks)),
     ]
     
     results = {}

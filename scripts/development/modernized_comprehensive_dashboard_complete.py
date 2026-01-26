@@ -6,7 +6,7 @@ This provides the full implementation that bridges old comprehensive features
 with new light initialization and bucket-based VFS architecture.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -728,7 +728,7 @@ class ModernizedComprehensiveDashboard:
         try:
             while True:
                 # Send periodic updates
-                await asyncio.sleep(5)
+                await anyio.sleep(5)
                 
                 update_data = {
                     "type": "system_update",
@@ -1173,4 +1173,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)
