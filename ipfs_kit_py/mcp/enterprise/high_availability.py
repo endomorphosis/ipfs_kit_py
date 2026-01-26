@@ -22,12 +22,12 @@ import uuid
 import logging
 import threading
 import anyio
+import anyio.abc
 from enum import Enum
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Any, Set, Tuple, Callable
 from datetime import datetime, timedelta
 import ipaddress
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -43,7 +43,6 @@ except ImportError:
 
 try:
     import redis
-    import redis.asyncio as aioredis
     HAS_REDIS = True
 except ImportError:
     HAS_REDIS = False
@@ -267,6 +266,9 @@ class HAStateManager:
         
         # Locks for thread safety
         self._state_lock = threading.RLock()
+
+        # Background tasks
+        self._task_group: Optional[anyio.abc.TaskGroup] = None
         
         # Initialize Redis if available
         self.redis_client = None
@@ -290,8 +292,11 @@ class HAStateManager:
         self._initialize_local_state()
         
         # Start background tasks
-        asyncio.create_task(self._heartbeat_task())
-        asyncio.create_task(self._health_check_task())
+        if self._task_group is None:
+            self._task_group = anyio.create_task_group()
+            await self._task_group.__aenter__()
+            self._task_group.start_soon(self._heartbeat_task)
+            self._task_group.start_soon(self._health_check_task)
         
         # Register with cluster
         await self._register_with_cluster()
@@ -302,6 +307,12 @@ class HAStateManager:
         """Stop the HA state manager and clean up resources."""
         # Unregister from cluster
         await self._unregister_from_cluster()
+
+        # Cancel background tasks
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
         
         # Clean up Redis connection if used
         if self.redis_client:
@@ -587,7 +598,7 @@ class HAStateManager:
                             with self._state_lock:
                                 if node_id in self.node_states:
                                     self.node_states[node_id].status = NodeStatus.DEGRADED
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     with self._state_lock:
                         if node_id in self.node_states:
                             self.node_states[node_id].status = NodeStatus.FAILING

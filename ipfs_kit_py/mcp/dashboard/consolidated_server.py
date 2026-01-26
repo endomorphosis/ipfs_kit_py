@@ -14,7 +14,8 @@ cascade of "name is not defined" errors. This docstring has been reduced and the
 imports + helpers restored below.
 """
 import anyio
-import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading
+import anyio.abc
+import os, sys, json, time, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading
 from collections import deque
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -44,7 +45,6 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconn
 from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import mimetypes
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 UTC = timezone.utc
 
@@ -428,7 +428,7 @@ class ConsolidatedMCPDashboard:
         self.api_token = self.config.get("api_token") or os.environ.get("MCP_API_TOKEN")
         self._start_time = time.time()
         # Metrics / accounting
-        self._realtime_task: Optional[asyncio.Task] = None
+        self._realtime_task_group: Optional[anyio.abc.TaskGroup] = None
         self._net_last: Optional[Dict[str, Any]] = None
         self._net_history: deque = deque(maxlen=360)
         self._sys_history: deque = deque(maxlen=360)
@@ -463,21 +463,18 @@ class ConsolidatedMCPDashboard:
                     if isinstance(data, dict):
                         self.endpoint_hits.update({k: int(v) for k, v in data.items() if isinstance(k, str)})
             with suppress(Exception):
-                if self._realtime_task is None:
-                    self._realtime_task = asyncio.create_task(self._broadcast_loop())
+                if self._realtime_task_group is None:
+                    self._realtime_task_group = anyio.create_task_group()
+                    await self._realtime_task_group.__aenter__()
+                    self._realtime_task_group.start_soon(self._broadcast_loop)
             try:
                 yield
             finally:
-                if self._realtime_task:
-                    self._realtime_task.cancel()
-                    try:
-                        await self._realtime_task
-                    except anyio.get_cancelled_exc_class():
-                        # Expected during graceful shutdown on Python 3.12+
-                        pass
-                    except Exception:
-                        pass
-                    self._realtime_task = None
+                if self._realtime_task_group is not None:
+                    self._realtime_task_group.cancel_scope.cancel()
+                    with suppress(Exception):
+                        await self._realtime_task_group.__aexit__(None, None, None)
+                    self._realtime_task_group = None
                 with suppress(Exception):
                     _atomic_write_json(self._hits_file, self.endpoint_hits)
                 with suppress(Exception):
@@ -1028,7 +1025,7 @@ class ConsolidatedMCPDashboard:
 
     # --- Run helpers (restored) ---
     async def run(self) -> None:
-        """Run the dashboard with uvicorn inside current asyncio loop."""
+        """Run the dashboard with uvicorn."""
         config = uvicorn.Config(self.app, host=self.host, port=self.port, log_level="info", reload=False)
         server = uvicorn.Server(config)
         await server.serve()
@@ -1086,25 +1083,23 @@ class ConsolidatedMCPDashboard:
         snap["avg_disk"] = _avg(p.get("disk") for p in last_sys)
         return snap
 
-    def _broadcast_loop(self):  # pragma: no cover (timing loop)
-        async def _inner():
-            while True:
-                try:
-                    snap = self._gather_metrics_snapshot()
-                    if self._ws_clients:
-                        payload = {**snap, "type": "metrics"}
-                        dead = []
-                        for ws in list(self._ws_clients):
-                            try:
-                                await ws.send_json(payload)
-                            except Exception:
-                                dead.append(ws)
-                        for ws in dead:
-                            self._ws_clients.discard(ws)
-                except Exception:
-                    self.log.exception("broadcast loop error")
-                await anyio.sleep(1.0)
-        return _inner()
+    async def _broadcast_loop(self) -> None:  # pragma: no cover (timing loop)
+        while True:
+            try:
+                snap = self._gather_metrics_snapshot()
+                if self._ws_clients:
+                    payload = {**snap, "type": "metrics"}
+                    dead = []
+                    for ws in list(self._ws_clients):
+                        try:
+                            await ws.send_json(payload)
+                        except Exception:
+                            dead.append(ws)
+                    for ws in dead:
+                        self._ws_clients.discard(ws)
+            except Exception:
+                self.log.exception("broadcast loop error")
+            await anyio.sleep(1.0)
 
     def _register_routes(self) -> None:
         app = self.app

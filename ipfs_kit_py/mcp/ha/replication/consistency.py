@@ -13,6 +13,7 @@ Features:
 """
 
 import anyio
+import anyio.abc
 import hashlib
 import json
 import logging
@@ -23,7 +24,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import aiohttp
 from pydantic import BaseModel, Field
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -215,9 +215,8 @@ class ConsistencyService:
         self.data_lock = anyio.Lock()
         self.sync_lock = anyio.Lock()
         
-        # Tasks
-        self.sync_task = None
-        self.consistency_check_task = None
+        # Background tasks
+        self._task_group: Optional[anyio.abc.TaskGroup] = None
         
         # Initialization flag
         self.initialized = False
@@ -234,8 +233,11 @@ class ConsistencyService:
             self.http_session = aiohttp.ClientSession()
         
         # Start background tasks
-        self.sync_task = asyncio.create_task(self._sync_loop())
-        self.consistency_check_task = asyncio.create_task(self._consistency_check_loop())
+        if self._task_group is None:
+            self._task_group = anyio.create_task_group()
+            await self._task_group.__aenter__()
+            self._task_group.start_soon(self._sync_loop)
+            self._task_group.start_soon(self._consistency_check_loop)
         
         self.initialized = True
         logger.info(f"Consistency service started on node {self.node_id}")
@@ -247,14 +249,11 @@ class ConsistencyService:
 
         logger.info(f"Stopping consistency service on node {self.node_id}")
         
-        # Cancel tasks
-        for task in [self.sync_task, self.consistency_check_task]:
-            if task:
-                task.cancel()
-                try:
-                    await task
-                except anyio.get_cancelled_exc_class():
-                    pass
+        # Cancel background tasks
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
         
         # Close HTTP session if we created it
         if self.http_session and not self.http_session.closed:
@@ -426,7 +425,8 @@ class ConsistencyService:
                 self.config.consistency_model == ConsistencyModel.STRONG
                 or self.config.read_repair
             ):
-                asyncio.create_task(self._check_read_repair(key, data))
+                if self._task_group is not None:
+                    self._task_group.start_soon(self._check_read_repair, key, data)
             
             return {
                 "success": True,

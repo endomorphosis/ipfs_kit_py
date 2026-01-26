@@ -149,24 +149,22 @@ class JavaScriptBridge:
         
         try:
             # Run the Node.js process
-            process = await asyncio.create_subprocess_exec(
-                'node', self.wrapper_script_path,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            # Send command as JSON
             input_data = json.dumps(command).encode('utf-8')
-            stdout, stderr = await process.communicate(input=input_data)
-            
-            if process.returncode != 0:
-                error_msg = stderr.decode('utf-8') if stderr else f"Process exited with code {process.returncode}"
+            proc = await anyio.run_process(
+                ['node', self.wrapper_script_path],
+                input=input_data,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+
+            if proc.returncode != 0:
+                error_msg = proc.stderr.decode('utf-8') if proc.stderr else f"Process exited with code {proc.returncode}"
                 raise SynapseConnectionError(f"JavaScript bridge error: {error_msg}")
             
             # Parse response
             try:
-                response = json.loads(stdout.decode('utf-8'))
+                response = json.loads(proc.stdout.decode('utf-8'))
                 return response
             except json.JSONDecodeError as e:
                 raise SynapseConnectionError(f"Invalid JSON response from JavaScript bridge: {e}")

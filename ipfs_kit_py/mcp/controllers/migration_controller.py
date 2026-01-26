@@ -14,6 +14,7 @@ to provide deeper integration with the MCP architecture.
 import logging
 import time
 import anyio
+import anyio.abc
 import uuid
 from typing import Dict, Any, Optional, Tuple
 
@@ -25,7 +26,6 @@ from ipfs_kit_py.mcp.models.migration import (
 )
 from ipfs_kit_py.mcp.persistence.migration_store import MigrationStore
 from ipfs_kit_py.mcp.persistence.policy_store import PolicyStore
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,14 @@ class MigrationController:
         self.migration_store = MigrationStore()
         self.policy_store = PolicyStore()
         self._active_migrations = {}
+        self._task_group: Optional[anyio.abc.TaskGroup] = None
+
+    async def _ensure_task_group(self) -> anyio.abc.TaskGroup:
+        if self._task_group is None:
+            self._task_group = anyio.create_task_group()
+            await self._task_group.__aenter__()
+            self._task_group.start_soon(self._cleanup_task)
+        return self._task_group
 
     async def start(self):
         """Start the migration controller and load existing migrations."""
@@ -59,9 +67,18 @@ class MigrationController:
                 await self.migration_store.update(migration_id, migration)
 
         # Start background cleanup task
-        asyncio.create_task(self._cleanup_task())
+        await self._ensure_task_group()
 
         logger.info(f"Migration controller started, loaded {len(migrations)} migrations")
+
+    async def _run_migration_task(self, migration_id: str) -> None:
+        try:
+            await self._perform_migration(migration_id)
+        finally:
+            task_info = self._active_migrations.get(migration_id)
+            if task_info is not None:
+                task_info["finished"] = True
+                task_info["updated_at"] = time.time()
 
     async def _cleanup_task(self):
         """Background task to clean up completed migrations."""
@@ -72,7 +89,7 @@ class MigrationController:
                 migration_ids = list(self._active_migrations.keys())
                 for migration_id in migration_ids:
                     task_info = self._active_migrations[migration_id]
-                    if task_info["task"].done() and (now - task_info["updated_at"]) > 3600:
+                    if task_info.get("finished") and (now - task_info["updated_at"]) > 3600:
                         # Remove from active migrations
                         del self._active_migrations[migration_id]
                         logger.debug(
@@ -159,12 +176,13 @@ class MigrationController:
         await self.migration_store.create(migration_id, migration)
 
         # Start migration task
-        task = asyncio.create_task(self._perform_migration(migration_id))
+        tg = await self._ensure_task_group()
         self._active_migrations[migration_id] = {
-            "task": task,
+            "finished": False,
             "created_at": time.time(),
             "updated_at": time.time(),
         }
+        tg.start_soon(self._run_migration_task, migration_id)
 
         return {
             "success": True,
@@ -238,12 +256,13 @@ class MigrationController:
             await self.migration_store.create(migration_id, migration)
 
             # Start migration task
-            task = asyncio.create_task(self._perform_migration(migration_id))
+            tg = await self._ensure_task_group()
             self._active_migrations[migration_id] = {
-                "task": task,
+                "finished": False,
                 "created_at": time.time(),
                 "updated_at": time.time(),
             }
+            tg.start_soon(self._run_migration_task, migration_id)
 
             migration_ids.append(migration_id)
 

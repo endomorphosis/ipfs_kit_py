@@ -331,16 +331,10 @@ class GitHubKit:
                 # Fallback to subprocess
                 clone_url = f"https://github.com/{repo}.git"
                 cmd = ['git', 'clone', '-b', branch, clone_url, str(local_path)]
-                
-                process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                
-                stdout, stderr = await process.communicate()
-                
-                if process.returncode == 0:
+
+                proc = await anyio.run_process(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+
+                if proc.returncode == 0:
                     result = {
                         'success': True,
                         'local_path': str(local_path),
@@ -349,7 +343,7 @@ class GitHubKit:
                         'method': 'subprocess'
                     }
                 else:
-                    raise RuntimeError(f"Git clone failed: {stderr.decode()}")
+                    raise RuntimeError(f"Git clone failed: {proc.stderr.decode()}")
             
             # Create VFS bucket metadata
             await self._create_vfs_metadata(local_path, repo, branch)
@@ -369,7 +363,7 @@ class GitHubKit:
             'branch': branch,
             'peer_id': repo.split('/')[0],  # Username as peerID
             'storage_backend': 'github',
-            'clone_timestamp': str(asyncio.get_event_loop().time()),
+            'clone_timestamp': str(anyio.current_time()),
             'vfs_labels': self._generate_vfs_labels(local_path)
         }
         
@@ -591,7 +585,7 @@ class GitHubKit:
                 'success': True,
                 'repo': repo,
                 'ipfs_hash': 'QmPlaceholder...',
-                'sync_timestamp': str(asyncio.get_event_loop().time()),
+                'sync_timestamp': str(anyio.current_time()),
                 'message': 'IPFS sync functionality would be implemented here'
             }
             

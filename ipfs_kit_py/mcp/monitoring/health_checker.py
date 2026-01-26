@@ -10,7 +10,7 @@ import time
 import anyio
 import threading
 from enum import Enum
-from typing import Dict, List, Any, Optional, Callable, Set, Union, Tuple
+from typing import Dict, List, Any, Optional, Callable, Set, Union, Tuple, Awaitable
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -106,7 +106,7 @@ class HealthChecker:
         self.check_interval = check_interval
         self._components: Dict[str, ComponentHealth] = {}
         self._check_functions: Dict[str, Callable] = {}
-        self._async_check_functions: Dict[str, Callable] = {}
+        self._async_check_functions: Dict[str, Callable[[], Awaitable[Tuple[HealthStatus, str]]]] = {}
         self._check_lock = threading.RLock()
         self._auto_check_thread = None
         self._shutdown_event = threading.Event()
@@ -116,7 +116,7 @@ class HealthChecker:
         self,
         component: str,
         check_function: Optional[Callable[[], Tuple[HealthStatus, str]]] = None,
-        async_check_function: Optional[Callable[[], asyncio.coroutine]] = None,
+        async_check_function: Optional[Callable[[], Awaitable[Tuple[HealthStatus, str]]]] = None,
         initial_status: HealthStatus = HealthStatus.UNKNOWN,
         initial_details: str = "Not checked yet",
     ) -> None:
@@ -309,16 +309,11 @@ class HealthChecker:
         with self._check_lock:
             components = list(self._components.keys())
         
-        # Check each component with async function
-        async_tasks = []
-        for component in components:
-            if component in self._async_check_functions:
-                task = asyncio.ensure_future(self.check_component_health_async(component))
-                async_tasks.append(task)
-        
-        # Wait for all async checks to complete
-        if async_tasks:
-            await asyncio.gather(*async_tasks, return_exceptions=True)
+        # Check each component with async function concurrently
+        async with anyio.create_task_group() as tg:
+            for component in components:
+                if component in self._async_check_functions:
+                    tg.start_soon(self.check_component_health_async, component)
         
         # Check remaining components with sync functions
         for component in components:
@@ -648,7 +643,7 @@ def check_component_health(
 def register_component(
     component: str,
     check_function: Optional[Callable[[], Tuple[HealthStatus, str]]] = None,
-    async_check_function: Optional[Callable[[], asyncio.coroutine]] = None,
+    async_check_function: Optional[Callable[[], Awaitable[Tuple[HealthStatus, str]]]] = None,
 ) -> None:
     """
     Register a component with the default health checker.

@@ -13,8 +13,9 @@ module docstring causing the original import section to be lost and producing a
 cascade of "name is not defined" errors. This docstring has been reduced and the
 imports + helpers restored below.
 """
-import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading, mimetypes
+import os, sys, json, time, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading, mimetypes
 import anyio
+import anyio.abc
 from collections import deque
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -44,7 +45,6 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconn
 from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import mimetypes
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 UTC = timezone.utc
 
@@ -570,7 +570,7 @@ class ConsolidatedMCPDashboard:
         self.api_token = self.config.get("api_token") or os.environ.get("MCP_API_TOKEN")
         self._start_time = time.time()
         # Metrics / accounting
-        self._realtime_task: Optional[asyncio.Task] = None
+        self._realtime_task_group: Optional[anyio.abc.TaskGroup] = None
         self._net_last: Optional[Dict[str, Any]] = None
         self._net_history: deque = deque(maxlen=360)
         self._sys_history: deque = deque(maxlen=360)
@@ -611,21 +611,20 @@ class ConsolidatedMCPDashboard:
                     if isinstance(data, dict):
                         self.endpoint_hits.update({k: int(v) for k, v in data.items() if isinstance(k, str)})
             with suppress(Exception):
-                if self._realtime_task is None:
-                    self._realtime_task = asyncio.create_task(self._broadcast_loop())
+                if self._realtime_task_group is None:
+                    self._realtime_task_group = anyio.create_task_group()
+                    await self._realtime_task_group.__aenter__()
+                    self._realtime_task_group.start_soon(self._broadcast_loop)
             try:
                 yield
             finally:
-                if self._realtime_task:
-                    self._realtime_task.cancel()
+                if self._realtime_task_group is not None:
+                    self._realtime_task_group.cancel_scope.cancel()
                     try:
-                        await self._realtime_task
-                    except anyio.get_cancelled_exc_class():
-                        # Expected during graceful shutdown on Python 3.12+
-                        pass
+                        await self._realtime_task_group.__aexit__(None, None, None)
                     except Exception:
                         pass
-                    self._realtime_task = None
+                    self._realtime_task_group = None
                 with suppress(Exception):
                     _atomic_write_json(self._hits_file, self.endpoint_hits)
                 with suppress(Exception):
@@ -876,7 +875,7 @@ class ConsolidatedMCPDashboard:
 
     # --- Run helpers (restored) ---
     async def run(self) -> None:
-        """Run the dashboard with uvicorn inside current asyncio loop."""
+        """Run the dashboard with uvicorn."""
         config = uvicorn.Config(
             self.app,
             host=self.host,
@@ -894,20 +893,20 @@ class ConsolidatedMCPDashboard:
                 if isinstance(data, dict):
                     self.endpoint_hits.update({k: int(v) for k, v in data.items() if isinstance(k, str)})
         with suppress(Exception):
-            if self._realtime_task is None:
-                self._realtime_task = asyncio.create_task(self._broadcast_loop())
+            if self._realtime_task_group is None:
+                self._realtime_task_group = anyio.create_task_group()
+                await self._realtime_task_group.__aenter__()
+                self._realtime_task_group.start_soon(self._broadcast_loop)
         try:
             await server.serve()
         finally:
-            if self._realtime_task:
-                self._realtime_task.cancel()
+            if self._realtime_task_group is not None:
+                self._realtime_task_group.cancel_scope.cancel()
                 try:
-                    await self._realtime_task
-                except anyio.get_cancelled_exc_class():
-                    pass
+                    await self._realtime_task_group.__aexit__(None, None, None)
                 except Exception:
                     pass
-                self._realtime_task = None
+                self._realtime_task_group = None
             with suppress(Exception):
                 _atomic_write_json(self._hits_file, self.endpoint_hits)
             with suppress(Exception):
@@ -966,9 +965,8 @@ class ConsolidatedMCPDashboard:
         snap["avg_disk"] = _avg(p.get("disk") for p in last_sys)
         return snap
 
-    def _broadcast_loop(self):  # pragma: no cover (timing loop)
-        async def _inner():
-            while True:
+    async def _broadcast_loop(self) -> None:  # pragma: no cover (timing loop)
+        while True:
                 try:
                     snap = self._gather_metrics_snapshot()
                     if self._ws_clients:
@@ -984,7 +982,6 @@ class ConsolidatedMCPDashboard:
                 except Exception:
                     self.log.exception("broadcast loop error")
                 await anyio.sleep(1.0)
-        return _inner()
 
     def _register_routes(self) -> None:
         app = self.app
@@ -6311,7 +6308,7 @@ class ConsolidatedMCPDashboard:
                 def _later_kill():
                     time.sleep(0.2)
                     os.kill(pid, signal.SIGTERM)
-                asyncio.get_event_loop().run_in_executor(None, _later_kill)
+                threading.Thread(target=_later_kill, daemon=True).start()
             except Exception:
                 pass
             return {"jsonrpc": "2.0", "result": {"ok": True, "message": "Shutting down"}, "id": None}
