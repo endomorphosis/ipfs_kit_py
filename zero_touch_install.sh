@@ -21,6 +21,9 @@ EXTRAS=""                # comma-separated extras override
 INSTALL_NODE="auto"       # auto|yes|no
 INSTALL_PLAYWRIGHT="auto" # auto|yes|no
 INSTALL_LIBMAGIC="auto"   # auto|yes|no
+INSTALL_IPFS="auto"       # auto|yes|no
+INSTALL_LASSIE="auto"     # auto|yes|no
+INSTALL_LOTUS="auto"      # auto|yes|no
 ALLOW_UNSUPPORTED_PYTHON="0"
 
 NODE_VERSION="20.11.1"   # LTS-ish; pinned for reproducibility
@@ -39,6 +42,9 @@ Options:
   --node <auto|yes|no>            Ensure Node.js is available (default: auto)
   --playwright <auto|yes|no>      Install Playwright deps + browsers (default: auto)
   --libmagic <auto|yes|no>        Build/install libmagic locally if needed (default: auto)
+  --ipfs <auto|yes|no>            Install IPFS/Kubo binaries into ./bin (default: auto)
+  --lassie <auto|yes|no>          Install Lassie binary into ./bin (default: auto)
+  --lotus <auto|yes|no>           Install Lotus binaries into ./bin (default: auto)
   --allow-unsupported-python      Proceed even if Python < 3.12 (best-effort)
   -h, --help                      Show this help
 
@@ -61,6 +67,9 @@ parse_args() {
       --node) INSTALL_NODE="${2:-}"; shift 2 ;;
       --playwright) INSTALL_PLAYWRIGHT="${2:-}"; shift 2 ;;
       --libmagic) INSTALL_LIBMAGIC="${2:-}"; shift 2 ;;
+      --ipfs) INSTALL_IPFS="${2:-}"; shift 2 ;;
+      --lassie) INSTALL_LASSIE="${2:-}"; shift 2 ;;
+      --lotus) INSTALL_LOTUS="${2:-}"; shift 2 ;;
       --allow-unsupported-python) ALLOW_UNSUPPORTED_PYTHON="1"; shift 1 ;;
       -h|--help) usage; exit 0 ;;
       *) err "Unknown option: $1"; usage; exit 2 ;;
@@ -74,6 +83,9 @@ parse_args() {
   case "$INSTALL_NODE" in auto|yes|no) : ;; *) err "Invalid --node: $INSTALL_NODE"; exit 2 ;; esac
   case "$INSTALL_PLAYWRIGHT" in auto|yes|no) : ;; *) err "Invalid --playwright: $INSTALL_PLAYWRIGHT"; exit 2 ;; esac
   case "$INSTALL_LIBMAGIC" in auto|yes|no) : ;; *) err "Invalid --libmagic: $INSTALL_LIBMAGIC"; exit 2 ;; esac
+  case "$INSTALL_IPFS" in auto|yes|no) : ;; *) err "Invalid --ipfs: $INSTALL_IPFS"; exit 2 ;; esac
+  case "$INSTALL_LASSIE" in auto|yes|no) : ;; *) err "Invalid --lassie: $INSTALL_LASSIE"; exit 2 ;; esac
+  case "$INSTALL_LOTUS" in auto|yes|no) : ;; *) err "Invalid --lotus: $INSTALL_LOTUS"; exit 2 ;; esac
 }
 
 ensure_dirs() {
@@ -381,10 +393,82 @@ install_playwright_browsers() {
   # If sudo is available, Playwright can install OS deps; otherwise do browser-only.
   if sudo_available; then
     log "Installing Playwright browsers (+ system deps via sudo)"
+    set +e
     (cd "$ROOT_DIR" && npx playwright install --with-deps)
+    local rc=$?
+    set -e
+    if [[ $rc -ne 0 ]]; then
+      err "WARNING: Playwright --with-deps failed (likely system package manager issues)."
+      err "Retrying browser-only install..."
+      (cd "$ROOT_DIR" && npx playwright install)
+    fi
   else
     log "Installing Playwright browsers (no sudo; browser-only)"
     (cd "$ROOT_DIR" && npx playwright install)
+  fi
+}
+
+install_native_tools() {
+  # Assumes venv already exists; re-activate to ensure we're using venv python.
+  activate_venv >/dev/null
+
+  local do_ipfs="$INSTALL_IPFS"
+  local do_lassie="$INSTALL_LASSIE"
+  local do_lotus="$INSTALL_LOTUS"
+
+  if [[ "$do_ipfs" == "auto" ]]; then
+    if [[ "$PROFILE" == "full" ]]; then do_ipfs="yes"; else do_ipfs="no"; fi
+  fi
+  if [[ "$do_lassie" == "auto" ]]; then
+    if [[ "$PROFILE" == "full" ]]; then do_lassie="yes"; else do_lassie="no"; fi
+  fi
+  if [[ "$do_lotus" == "auto" ]]; then
+    if [[ "$PROFILE" == "full" ]]; then do_lotus="yes"; else do_lotus="no"; fi
+  fi
+
+  if [[ "$do_ipfs" == "yes" ]]; then
+    log "Installing IPFS/Kubo binaries into ./bin (no sudo)"
+    python - <<PY
+from ipfs_kit_py.install_ipfs import install_ipfs
+
+inst = install_ipfs(metadata={"bin_dir": r"${BIN_DIR}"})
+inst.install_ipfs_daemon()
+
+# Cluster helper binaries are useful, but avoid systemd/service setup in zero-touch.
+try:
+    inst.install_ipfs_cluster_ctl()
+except Exception as e:
+    print(f"WARNING: ipfs-cluster-ctl install failed: {e}")
+try:
+    inst.install_ipfs_cluster_follow()
+except Exception as e:
+    print(f"WARNING: ipfs-cluster-follow install failed: {e}")
+PY
+  fi
+
+  if [[ "$do_lassie" == "yes" ]]; then
+    log "Installing Lassie into ./bin (no sudo)"
+    python - <<PY
+from ipfs_kit_py.install_lassie import install_lassie
+
+inst = install_lassie(metadata={"bin_dir": r"${BIN_DIR}"})
+inst.install_lassie_daemon()
+PY
+  fi
+
+  if [[ "$do_lotus" == "yes" ]]; then
+    log "Installing Lotus into ./bin (best-effort; no sudo)"
+    python - <<PY
+from ipfs_kit_py.install_lotus import install_lotus
+
+inst = install_lotus(metadata={
+    "bin_dir": r"${BIN_DIR}",
+    "auto_install_deps": False,
+    "allow_userspace_deps": True,
+    "skip_params": True,
+})
+inst.install_lotus_daemon()
+PY
   fi
 }
 
@@ -416,6 +500,9 @@ main() {
 
   create_venv
   install_python_deps
+
+  # Native daemons/CLIs (optional)
+  install_native_tools
 
   # Node/Playwright (optional)
   local do_node="$INSTALL_NODE"

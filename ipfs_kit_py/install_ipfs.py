@@ -109,9 +109,13 @@ class install_ipfs:
         # Allow callers (e.g. zero-touch installer) to override where binaries land.
         # Default remains the package-local bin directory.
         if isinstance(self.metadata, dict) and self.metadata.get("bin_dir"):
-            self.bin_path = str(self.metadata["bin_dir"])
+            bin_dir = str(self.metadata["bin_dir"])
+            if not os.path.isabs(bin_dir):
+                bin_dir = os.path.abspath(bin_dir)
+            self.bin_path = os.path.normpath(bin_dir)
+            self.metadata["bin_dir"] = self.bin_path
         else:
-            self.bin_path = os.path.join(self.this_dir, "bin")
+            self.bin_path = os.path.normpath(os.path.join(self.this_dir, "bin"))
         if platform.system() == "Windows":
             bin_path = str(self.bin_path).replace("/", "\\")
             self.path = f'"{self.path};{bin_path}"'
@@ -752,7 +756,7 @@ class install_ipfs:
                         )
                         move_source_path = move_source_path.split("/")
                         move_source_path = "/".join(move_source_path)
-                        move_dest_path = os.path.join(self.this_dir, "bin", "ipfs.exe").replace(
+                        move_dest_path = os.path.join(self.bin_path, "ipfs.exe").replace(
                             "\\", "/"
                         )
                         move_dest_path = move_dest_path.split("/")
@@ -778,11 +782,13 @@ class install_ipfs:
                         command = (
                             "cd "
                             + self.tmp_path
-                            + "/kubo && mv ipfs.exe "
-                            + self.this_dir
-                            + "/bin/ && chmod +x "
-                            + self.this_dir
-                            + "/bin/ipfs.exe"
+                            + "/kubo && mkdir -p \""
+                            + str(self.bin_path)
+                            + "\" && mv ipfs.exe \""
+                            + str(self.bin_path)
+                            + "\"/ && chmod +x \""
+                            + str(self.bin_path)
+                            + "\"/ipfs.exe"
                         )
                         results = subprocess.check_output(command, shell=True)
                         results = results.decode()
@@ -810,7 +816,7 @@ class install_ipfs:
                         "move "
                         + os.path.join(self.tmp_path, "kubo", "ipfs.exe")
                         + " "
-                        + os.path.join(self.this_dir, "bin", "ipfs.exe")
+                        + os.path.join(self.bin_path, "ipfs.exe")
                     )
                     results = subprocess.check_output(command, shell=True)
                     results = results.decode()
@@ -818,7 +824,7 @@ class install_ipfs:
                 else:
                     # NOTE: Clean this up and make better logging or drop the error all together
                     print("You need to be root to write to /etc/systemd/system/ipfs.service")
-                    command = f"cd {self.tmp_path}/kubo && mkdir -p \"{self.this_dir}/bin/\" && mv ipfs \"{self.this_dir}/bin/\" && chmod +x \"{self.this_dir}/bin/ipfs\""
+                    command = f"cd {self.tmp_path}/kubo && mkdir -p \"{self.bin_path}/\" && mv ipfs \"{self.bin_path}/\" && chmod +x \"{self.bin_path}/ipfs\""
                     results = subprocess.check_output(command, shell=True)
                     pass
             except Exception as e:
@@ -926,7 +932,7 @@ class install_ipfs:
                         move_source_path = move_source_path.split("/")
                         move_source_path = "/".join(move_source_path)
                         move_dest_path = os.path.join(
-                            self.this_dir, "bin", "ipfs-cluster-follow.exe"
+                            self.bin_path, "ipfs-cluster-follow.exe"
                         ).replace("\\", "/")
                         move_dest_path = move_dest_path.split("/")
                         move_dest_path = "/".join(move_dest_path)
@@ -945,7 +951,7 @@ class install_ipfs:
                         results = subprocess.check_output(command, shell=True)
                         results = results.decode()
                     else:
-                        command = f"unzip {this_tempfile.name} -d {self.tmp_path} && cd {self.tmp_path}/ipfs-cluster-follow && mv ipfs-cluster-follow.exe {self.this_dir}/bin/ && chmod +x {self.this_dir}/bin/ipfs-cluster-follow.exe"
+                        command = f"unzip {this_tempfile.name} -d {self.tmp_path} && cd {self.tmp_path}/ipfs-cluster-follow && mkdir -p \"{self.bin_path}\" && mv ipfs-cluster-follow.exe \"{self.bin_path}/\" && chmod +x \"{self.bin_path}/ipfs-cluster-follow.exe\""
                         results = subprocess.check_output(command, shell=True).decode()
                 else:
                     command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
@@ -968,14 +974,14 @@ class install_ipfs:
                         "move "
                         + os.path.join(self.tmp_path, "ipfs-cluster-follow", "ipfs-cluster-follow.exe")
                         + " "
-                        + os.path.join(self.this_dir, "bin", "ipfs-cluster-follow.exe")
+                        + os.path.join(self.bin_path, "ipfs-cluster-follow.exe")
                     )
                     results = subprocess.check_output(command, shell=True)
                     results = results.decode()
                     pass
                 else:
                     print("You need to be root to write to /etc/systemd/system/ipfs-cluster-follow.service")
-                    command = f"cd {self.tmp_path}/ipfs-cluster-follow && mkdir -p \"{self.this_dir}/bin/\" && mv ipfs \"{self.this_dir}/bin/\" && chmod +x \"{self.this_dir}/bin/ipfs-cluster-follow\""
+                    command = f"cd {self.tmp_path}/ipfs-cluster-follow && mkdir -p \"{self.bin_path}/\" && mv ipfs \"{self.bin_path}/\" && chmod +x \"{self.bin_path}/ipfs-cluster-follow\""
                     results = subprocess.check_output(command, shell=True)
                     pass
         bin_path = self.bin_path
@@ -1067,7 +1073,7 @@ class install_ipfs:
                         move_source_path = "/".join(move_source_path)
                         # move_source_path = os.path.normpath(move_source_path)
                         move_dest_path = os.path.join(
-                            self.this_dir, "bin", "ipfs-cluster-ctl.exe"
+                            self.bin_path, "ipfs-cluster-ctl.exe"
                         ).replace("\\", "/")
                         move_dest_path = move_dest_path.replace("\\", "/")
                         move_dest_path = move_dest_path.split("/")
@@ -1099,10 +1105,10 @@ class install_ipfs:
                             "cd "
                             + self.tmp_path
                             + "/ipfs-cluster-ctl && mv ipfs-cluster-ctl.exe "
-                            + self.this_dir
-                            + "/bin/ && chmod +x "
-                            + self.this_dir
-                            + "/bin/ipfs-cluster-ctl.exe"
+                            + str(self.bin_path)
+                            + "/ && chmod +x "
+                            + str(self.bin_path)
+                            + "/ipfs-cluster-ctl.exe"
                         )
                         results = subprocess.check_output(command, shell=True)
                         results = results.decode()

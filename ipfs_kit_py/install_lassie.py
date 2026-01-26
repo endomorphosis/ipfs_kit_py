@@ -97,24 +97,32 @@ class install_lassie:
         else:
             self.path = self.env_path
             
-        # Normalize paths for platform
+        # Bin directory setup (allow caller override via metadata["bin_dir"])
+        default_bin_dir = os.path.join(self.this_dir, "bin")
+        metadata_bin_dir = self.metadata.get("bin_dir") if isinstance(self.metadata, dict) else None
+        if metadata_bin_dir:
+            if not os.path.isabs(metadata_bin_dir):
+                metadata_bin_dir = os.path.abspath(metadata_bin_dir)
+            self.bin_path = os.path.normpath(metadata_bin_dir)
+        else:
+            self.bin_path = os.path.normpath(default_bin_dir)
+
+        # Ensure the resolved path is discoverable by downstream helpers
+        if isinstance(self.metadata, dict):
+            self.metadata["bin_dir"] = self.bin_path
+        os.makedirs(self.bin_path, exist_ok=True)
+
+        # Normalize PATH modifications for platform
         if platform.system() == "Windows":
-            bin_path = os.path.join(self.this_dir, "bin").replace("/", "\\")
+            bin_path = str(self.bin_path).replace("/", "\\")
             self.path = f'"{self.path};{bin_path}"'
             self.path = self.path.replace("\\", "/")
             self.path = self.path.split("/")
             self.path = "/".join(self.path)
             self.path_string = "set PATH=" + self.path + " ; "
         elif platform.system() in ["Linux", "Darwin"]:
-            self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
+            self.path = self.path + ":" + str(self.bin_path)
             self.path_string = "PATH=" + self.path
-            
-        # Bin directory setup
-        self.bin_path = os.path.join(self.this_dir, "bin")
-        self.bin_path = self.bin_path.replace("\\", "/")
-        self.bin_path = self.bin_path.split("/")
-        self.bin_path = "/".join(self.bin_path)
-        os.makedirs(self.bin_path, exist_ok=True)
         
         # Temporary directory setup
         if platform.system() == "Windows":
