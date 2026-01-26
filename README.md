@@ -85,6 +85,13 @@ The repository includes a modern, schema-driven MCP dashboard with:
 
 ## 🚀 Quickstart
 
+Install dependencies (no sudo required; installs local tools into `./bin` when needed):
+
+```bash
+./zero_touch_install.sh --profile dev
+source ./bin/env.sh
+```
+
 Start the dashboard server:
 
 ```bash

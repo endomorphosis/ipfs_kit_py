@@ -1,17 +1,12 @@
-#!/bin/bash
-# Setup virtual environment for the final MCP server
+#!/usr/bin/env bash
 
-echo "🚀 Setting up Python virtual environment..."
+# Compatibility wrapper: prefer the repository zero-touch installer.
+# This keeps all platform/arch detection and local (no-sudo) fallbacks in one place.
 
-# Remove existing venv if present
-if [ -d ".venv" ]; then
-    echo "Removing existing .venv directory..."
-    rm -rf .venv
-fi
+set -euo pipefail
 
-# Create new virtual environment
-echo "Creating virtual environment..."
-python3 -m venv .venv
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT_DIR"
 
 # Activate and install dependencies
 echo "Activating virtual environment and installing dependencies..."
@@ -28,3 +23,4 @@ python -m pip install -e ".[full]"
 echo "✅ Virtual environment setup complete!"
 echo "To activate: source .venv/bin/activate"
 echo "To test server: .venv/bin/python final_mcp_server.py --help"
+exec ./zero_touch_install.sh --profile dev --node no --playwright no "$@"
