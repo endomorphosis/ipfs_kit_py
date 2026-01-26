@@ -15,7 +15,7 @@ This example covers:
 import os
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import random
 from datetime import datetime
@@ -160,7 +160,7 @@ async def run_client_example():
         )
         
         # Wait for a few updates
-        await asyncio.sleep(5)
+        await anyio.sleep(5)
         
         # Stop metrics streaming
         await client.stop_metrics_streaming()
@@ -186,7 +186,7 @@ async def run_example():
     
     try:
         # Wait for server to initialize
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
         
         # Run client example
         await run_client_example()
@@ -198,7 +198,7 @@ async def run_example():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(run_example())
+        anyio.run(run_example)
     except KeyboardInterrupt:
         logger.info("Example stopped by user")
     except Exception as e:

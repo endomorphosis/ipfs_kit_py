@@ -5,7 +5,7 @@ Dashboard Example and Demo Script
 Demonstrates how to use the IPFS Kit Dashboard module.
 """
 
-import asyncio
+import anyio
 import logging
 import os
 import sys
@@ -215,7 +215,7 @@ def main():
             if not check_dependencies():
                 print("\n❌ Cannot run demo - missing dependencies")
                 return 1
-            asyncio.run(run_dashboard_demo())
+            anyio.run(run_dashboard_demo)
         else:
             print(f"Unknown command: {command}")
             print("Available commands: info, check, examples, demo")
@@ -228,7 +228,7 @@ def main():
             print("\n" + "=" * 50)
             response = input("Would you like to run the dashboard demo? (y/N): ").strip().lower()
             if response in ['y', 'yes']:
-                asyncio.run(run_dashboard_demo())
+                anyio.run(run_dashboard_demo)
         else:
             print("\n❌ Install missing dependencies to run the demo")
     

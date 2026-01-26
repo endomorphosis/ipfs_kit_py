@@ -7,7 +7,7 @@ simulating real-world scenarios like gradual migrations, traffic shifts, and
 failure detection.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -74,7 +74,7 @@ class MockIPFSServer:
         
         # Simulate server latency
         jitter = (self.request_count % 10) / 100.0  # Add some variability
-        await asyncio.sleep(self.latency + jitter)
+        await anyio.sleep(self.latency + jitter)
         
         # Check for simulated failures
         if not self.is_healthy or (self.failure_rate > 0 and self.request_count % int(1/self.failure_rate) == 0):
@@ -169,7 +169,7 @@ class MockIPFSServer:
     
     async def check_health(self) -> Dict[str, Any]:
         """Check server health."""
-        await asyncio.sleep(0.01)  # Small delay
+        await anyio.sleep(0.01)  # Small delay
         
         return {
             "success": self.is_healthy,
@@ -510,7 +510,7 @@ class PerformanceComparisonScenario(TestScenario):
         for i in range(50):
             # Small sleep to allow time for auto-adjustment
             if i % 10 == 0:
-                await asyncio.sleep(0.2)
+                await anyio.sleep(0.2)
             
             response = await self.proxy.handle_request({
                 "type": "ipfs",
@@ -664,7 +664,7 @@ async def run_end_to_end_test(config_path: str, scenarios: List[str] = None):
         results.append((scenario.name, success, scenario.error))
         
         # Short pause between scenarios
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
     
     # Print summary
     logger.info("=== Test Summary ===")
@@ -695,7 +695,7 @@ def main():
     
     # Run end-to-end tests
     try:
-        success = asyncio.run(run_end_to_end_test(args.config, args.scenarios))
+        success = anyio.run(run_end_to_end_test, args.config, args.scenarios)
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
         logger.info("Test interrupted by user")

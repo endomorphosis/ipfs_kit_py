@@ -14,9 +14,9 @@ import sys
 import os
 import json
 import time
-import asyncio
+import anyio
 import uuid
-from typing import Dict, Any, List, Optional, Union
+import anyio
 import websockets
 import aiohttp
 
@@ -345,8 +345,9 @@ async def run_websocket_test(
             received_message = None
             try:
                 # Set a timeout for receiving the message
-                received_message = await asyncio.wait_for(ws_client.receive(), timeout=2.0)
-            except asyncio.TimeoutError:
+                with anyio.fail_after(2.0):
+                    received_message = await ws_client.receive()
+            except TimeoutError:
                 logger.error("❌ Timeout waiting for broadcast message")
                 await ws_client.disconnect()
                 return False
@@ -381,11 +382,7 @@ async def run_websocket_test(
             logger.info(f"✅ Subscription to {ipfs_channel} successful")
             
             # Trigger IPFS event
-            test_cid = f"bafytest{uuid.uuid4().hex[:16]}"
-            ipfs_event_result = await rest_client.trigger_ipfs_event(
-                event_type="add",
-                cid=test_cid,
-                details={"size": 1024, "name": "test.txt"}
+    result = anyio.run(run_websocket_test, args.ws_url, args.rest_url)
             )
             
             logger.info(f"IPFS event result: {json.dumps(ipfs_event_result, indent=2)}")
@@ -397,8 +394,9 @@ async def run_websocket_test(
                 logger.info("Waiting for IPFS event...")
                 received_event = None
                 try:
-                    received_event = await asyncio.wait_for(ws_client.receive(), timeout=2.0)
-                except asyncio.TimeoutError:
+                    with anyio.fail_after(2.0):
+                        received_event = await ws_client.receive()
+                except TimeoutError:
                     logger.error("❌ Timeout waiting for IPFS event")
                     await ws_client.disconnect()
                     return False
@@ -453,8 +451,9 @@ async def run_websocket_test(
                 logger.info("Waiting for storage event...")
                 received_event = None
                 try:
-                    received_event = await asyncio.wait_for(ws_client.receive(), timeout=2.0)
-                except asyncio.TimeoutError:
+                    with anyio.fail_after(2.0):
+                        received_event = await ws_client.receive()
+                except TimeoutError:
                     logger.error("❌ Timeout waiting for storage event")
                     await ws_client.disconnect()
                     return False
@@ -501,7 +500,8 @@ async def run_websocket_test(
             # Wait a moment to see if we receive a message
             try:
                 # Use a very short timeout since we shouldn't receive anything
-                received_message = await asyncio.wait_for(ws_client.receive(), timeout=1.0)
+                with anyio.fail_after(1.0):
+                    received_message = await ws_client.receive()
                 
                 # If we received a message, make sure it's not from the unsubscribed channel
                 if received_message.get("type") == broadcast_message.get("type"):
@@ -510,7 +510,7 @@ async def run_websocket_test(
                     return False
                 else:
                     logger.info("Received message from another channel (which is fine)")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.info("✅ Did not receive message from unsubscribed channel (expected)")
         else:
             logger.error(f"❌ Unsubscribe from {test_channel} failed")
@@ -534,11 +534,12 @@ async def run_websocket_test(
             # Wait a moment to see if we receive a message
             try:
                 # Use a very short timeout since we shouldn't receive anything
-                received_message = await asyncio.wait_for(ws_client.receive(), timeout=1.0)
+                with anyio.fail_after(1.0):
+                    received_message = await ws_client.receive()
                 logger.error("❌ Received message after unsubscribing from all channels")
                 await ws_client.disconnect()
                 return False
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.info("✅ Did not receive message after unsubscribing from all channels (expected)")
         else:
             logger.error("❌ Unsubscribe from all channels failed")
@@ -551,7 +552,7 @@ async def run_websocket_test(
         logger.info("Disconnected from WebSocket server")
         
         # Wait a moment
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
         
         # Reconnect
         reconnected = await ws_client.connect()
@@ -590,11 +591,7 @@ if __name__ == "__main__":
         args = parser.parse_args([])
     
     # Run the test asynchronously
-    if sys.platform == "win32":
-        # Windows requires this for asyncio.run()
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    
-    result = asyncio.run(run_websocket_test(args.ws_url, args.rest_url))
+    result = anyio.run(run_websocket_test, args.ws_url, args.rest_url)
     
     if result:
         logger.info("✅ MCP WebSocket test passed!")

@@ -9,7 +9,7 @@ covering core IPFS operations and system monitoring tools.
 Tests both mock and real IPFS implementations where available.
 """
 
-import asyncio
+import anyio
 import json
 import subprocess
 import sys
@@ -35,11 +35,11 @@ class MCPTestClient:
         """Start the MCP server process."""
         print(f"Starting MCP server: {self.server_path}")
         
-        self.process = await asyncio.create_subprocess_exec(
+        self.process = await anyio.open_process(
             sys.executable, self.server_path,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         
         # Initialize the server
@@ -68,11 +68,10 @@ class MCPTestClient:
             print(f"→ {request_json.strip()}")
         
         # Send request
-        self.process.stdin.write(request_json.encode())
-        await self.process.stdin.drain()
+        await self.process.stdin.send(request_json.encode())
         
         # Read response
-        response_line = await self.process.stdout.readline()
+        response_line = await self.process.stdout.receive()
         response_json = response_line.decode().strip()
         
         if VERBOSE:
@@ -529,9 +528,10 @@ async def main():
         await client.start_server()
         
         # Run tests
-        await asyncio.wait_for(test_suite.run_all_tests(), timeout=TEST_TIMEOUT)
+        with anyio.fail_after(TEST_TIMEOUT):
+            await test_suite.run_all_tests()
         
-    except asyncio.TimeoutError:
+    except TimeoutError:
         print(f"\n⚠️  Tests timed out after {TEST_TIMEOUT} seconds")
         
     except Exception as e:
@@ -553,4 +553,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

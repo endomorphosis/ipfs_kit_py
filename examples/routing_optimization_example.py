@@ -8,7 +8,7 @@ dashboard.
 """
 
 import os
-import asyncio
+import anyio
 import logging
 from typing import Dict, Any, List
 import random
@@ -77,7 +77,7 @@ class MockBackendManager:
     async def store(self, backend_id: str, content: bytes, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """Store content in a backend."""
         # Simulate storage operation
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
         content_id = f"{backend_id}:{random.randint(100000, 999999)}"
         
         # Record operation
@@ -210,7 +210,7 @@ async def run_routing_example():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(run_routing_example())
+        anyio.run(run_routing_example)
     except KeyboardInterrupt:
         logger.info("Example stopped by user")
     except Exception as e:

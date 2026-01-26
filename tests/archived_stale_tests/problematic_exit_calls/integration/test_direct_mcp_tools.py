@@ -9,7 +9,7 @@ by communicating with the server via stdio.
 
 import json
 import subprocess
-import asyncio
+import anyio
 import sys
 import os
 import tempfile
@@ -26,11 +26,11 @@ class DirectMCPTester:
     async def start_server(self):
         """Start the MCP server process."""
         print(f"Starting Enhanced MCP server: {self.server_path}")
-        self.process = await asyncio.create_subprocess_exec(
+        self.process = await anyio.open_process(
             "python3", self.server_path,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         print("✓ Enhanced MCP server started")
         
@@ -57,15 +57,14 @@ class DirectMCPTester:
         
         # Send request
         request_json = json.dumps(request) + "\n"
-        self.process.stdin.write(request_json.encode())
-        await self.process.stdin.drain()
+        await self.process.stdin.send(request_json.encode())
         
         # Read response
-        response_line = await self.process.stdout.readline()
+        response_line = await self.process.stdout.receive()
         if not response_line:
             raise Exception("No response from server")
-            
-        response = json.loads(response_line.decode().strip())
+
+        response = json.loads(response_line.decode().strip().splitlines()[0])
         return response
     
     async def test_initialize(self):
@@ -333,4 +332,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -16,7 +16,7 @@ import json
 import time
 import uuid
 import random
-import asyncio
+import anyio
 from typing import Dict, Any, List, Optional
 
 # Configure logging
@@ -313,7 +313,7 @@ async def run_migration_test():
         
         # Wait for tasks to be processed
         logger.info("Waiting for tasks to be processed...")
-        await asyncio.sleep(3)
+        await anyio.sleep(3)
         
         # Test 7: Check task status
         logger.info("Test 7: Check task status")
@@ -556,11 +556,7 @@ def create_sample_content_references(backend_types, count=10):
 
 if __name__ == "__main__":
     # Run the test asynchronously
-    if sys.platform == "win32":
-        # Windows requires this for asyncio.run()
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    
-    result = asyncio.run(run_migration_test())
+    result = anyio.run(run_migration_test)
     
     if result:
         logger.info("✅ MCP Migration Controller test passed!")

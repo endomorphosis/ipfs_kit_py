@@ -11,7 +11,7 @@ of concerns between core routing functionality and interaction methods.
 
 import os
 import sys
-import asyncio
+import anyio
 import logging
 import random
 from typing import Dict, Any, List
@@ -22,6 +22,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("arrow_ipc_example")
+
+CancelledError = anyio.get_cancelled_exc_class()
 
 # Sample content types for demonstration
 SAMPLE_CONTENT_TYPES = [
@@ -75,8 +77,8 @@ async def run_ipc_server():
         # Keep server running
         try:
             while True:
-                await asyncio.sleep(1)
-        except asyncio.CancelledError:
+                await anyio.sleep(1)
+            except CancelledError:
             logger.info("Server task cancelled")
         finally:
             # Cleanup
@@ -153,25 +155,21 @@ async def run_ipc_client():
 async def run_example():
     """Run the complete Arrow IPC example."""
     # Start server in background task
-    server_task = asyncio.create_task(run_ipc_server())
-    
-    # Wait for server to start
-    await asyncio.sleep(2)
-    
-    try:
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(run_ipc_server)
+
+        # Wait for server to start
+        await anyio.sleep(2)
+
         # Run client
         await run_ipc_client()
-    finally:
+
         # Stop server
-        server_task.cancel()
-        try:
-            await server_task
-        except asyncio.CancelledError:
-            pass
+        tg.cancel_scope.cancel()
 
 if __name__ == "__main__":
     try:
-        asyncio.run(run_example())
+        anyio.run(run_example)
     except KeyboardInterrupt:
         logger.info("Example stopped by user")
     except Exception as e:

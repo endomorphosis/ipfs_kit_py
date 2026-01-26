@@ -2,7 +2,7 @@
 """
 Test the peer manager singleton pattern and thread safety.
 """
-import asyncio
+import anyio
 import sys
 from pathlib import Path
 
@@ -27,12 +27,17 @@ async def test_singleton_pattern():
     print("\nTesting thread-safe initialization...")
     
     # Start multiple times concurrently
-    results = await asyncio.gather(
-        start_peer_manager(),
-        start_peer_manager(),
-        start_peer_manager(),
-        return_exceptions=True
-    )
+    results = []
+
+    async def _start_manager():
+        try:
+            results.append(await start_peer_manager())
+        except Exception as exc:
+            results.append(exc)
+
+    async with anyio.create_task_group() as tg:
+        for _ in range(3):
+            tg.start_soon(_start_manager)
     
     # All should return the same instance
     managers = [r for r in results if not isinstance(r, Exception)]
@@ -124,4 +129,4 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(anyio.run(main))

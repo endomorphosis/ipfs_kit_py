@@ -3,7 +3,7 @@
 Live demonstration of your enhanced storage analytics working with HuggingFace
 """
 
-import asyncio
+import anyio
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -108,4 +108,4 @@ async def main():
     logger.info("🔗 Your dashboard now shows REAL storage data instead of zeros!")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -11,7 +11,7 @@ This test suite covers:
 6. Integration testing
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -681,7 +681,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        exit_code = asyncio.run(main())
+        exit_code = anyio.run(main)
         sys.exit(exit_code)
     except KeyboardInterrupt:
         print("\nTests interrupted by user")
