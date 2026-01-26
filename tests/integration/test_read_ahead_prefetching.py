@@ -26,9 +26,9 @@ from ipfs_kit_py.predictive_cache_manager import PredictiveCacheManager
 
 try:
     import anyio
-    HAS_ASYNCIO = True
+    HAS_ASYNC_BACKEND = True
 except ImportError:
-    HAS_ASYNCIO = False
+    HAS_ASYNC_BACKEND = False
 
 
 class TestReadAheadPrefetching(unittest.TestCase):
@@ -788,9 +788,9 @@ class TestPredictiveCacheManager(unittest.TestCase):
             # Shutdown executor
             executor.shutdown(wait=False)
 
-    @unittest.skipIf(not HAS_ASYNCIO, "asyncio not available")
+    @unittest.skipIf(not HAS_ASYNC_BACKEND, "async-io not available")
     def test_ensure_event_loop(self):
-        """Test that _ensure_event_loop properly sets up an asyncio event loop."""
+        """Test that _ensure_event_loop properly sets up an async-io event loop."""
         # Call the method
         loop = self.predictive_cache._ensure_event_loop()
         
@@ -798,7 +798,7 @@ class TestPredictiveCacheManager(unittest.TestCase):
         self.assertIsNotNone(loop)
         self.assertIsInstance(loop, anyio.AbstractEventLoop)
 
-    @unittest.skipIf(not HAS_ASYNCIO, "asyncio not available")
+    @unittest.skipIf(not HAS_ASYNC_BACKEND, "async-io not available")
     def test_async_stream_prefetch(self):
         """Test async streaming prefetch functionality."""
         # Create a custom event loop for testing

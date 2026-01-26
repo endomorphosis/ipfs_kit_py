@@ -4,7 +4,7 @@ Test script for IPFS Cluster API integration.
 Verifies that both cluster service and cluster follow work with proper API endpoints and port separation.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from ipfs_kit_py.ipfs_cluster_api import IPFSClusterAPIClient, IPFSClusterFollowAPIClient, IPFSClusterCTLWrapper
@@ -189,4 +189,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

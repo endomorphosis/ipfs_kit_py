@@ -89,12 +89,12 @@ When writing new tests:
 
 Most tests require the following dependencies:
 - pytest
-- pytest-asyncio (for async tests)
+- pytest-anyio (for async tests)
 - pytest-cov (for coverage reporting)
 
 You can install these with:
 ```bash
-pip install pytest pytest-asyncio pytest-cov
+pip install pytest pytest-anyio pytest-cov
 ```
 
 Some tests may require additional dependencies based on what they're testing.

@@ -7,7 +7,7 @@ Tests a subset of key tools to validate that our fixes work correctly.
 """
 
 import sys
-import asyncio
+import anyio
 import json
 import time
 
@@ -122,4 +122,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

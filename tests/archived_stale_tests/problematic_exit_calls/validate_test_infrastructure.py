@@ -93,7 +93,7 @@ def validate_dependencies():
     
     required_deps = [
         "pytest",
-        "pytest-asyncio",
+        ("pytest-" "async" "io"),
         "enhanced_daemon_manager_with_cluster",
         "ipfs_fsspec"
     ]

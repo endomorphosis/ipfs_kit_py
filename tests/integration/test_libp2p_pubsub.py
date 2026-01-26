@@ -21,7 +21,18 @@ from ipfs_kit_py.libp2p.tools.pubsub.utils import (
     format_pubsub_message,
     extract_pubsub_message_data,
     create_pubsub_subscription_handler,
+class TestMockPubSub:
     create_pubsub,
+    
+    pytestmark = pytest.mark.anyio
+    
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        """Set up a mock host and pubsub instance for each test."""
+        self.host = MagicMock()
+        self.host.get_id.return_value = "QmTestPeer"
+        self.pubsub = MockPubSub(self.host, router_type="gossipsub")
+        yield
     MockPubSub
 )
 
@@ -29,16 +40,16 @@ from ipfs_kit_py.libp2p.tools.pubsub.utils import (
 class TestTopicValidation(unittest.TestCase):
     """Test the pubsub topic validation function."""
     
-    def test_valid_topics(self):
-        """Test validation of valid topic names."""
+        assert result is True
+        assert self.pubsub.started is True
         valid_topics = [
             "test-topic",
             "chat/room/general",
             "ipfs/pubsub/demo",
             "a" * 1024,  # Maximum length
-            "special-chars_123"
-        ]
-        
+        assert result is True
+        assert self.pubsub.started is False
+        assert len(self.pubsub.subscriptions) == 0
         for topic in valid_topics:
             self.assertTrue(validate_pubsub_topic(topic))
     
@@ -52,16 +63,16 @@ class TestTopicValidation(unittest.TestCase):
             [],  # Not a string
             {}  # Not a string
         ]
-        
-        for topic in invalid_topics:
-            self.assertFalse(validate_pubsub_topic(topic))
+        assert result is True
+        assert "test-topic" in self.pubsub.subscriptions
+        assert handler in self.pubsub.subscriptions["test-topic"]
 
 
 class TestMessageFormatting(unittest.TestCase):
     """Test pubsub message formatting functions."""
     
-    def test_format_message_string(self):
-        """Test formatting a string message."""
+        assert result is True
+        assert "test-topic" not in self.pubsub.subscriptions
         data = "Hello, world!"
         sender_id = "QmTestPeer"
         
@@ -71,20 +82,20 @@ class TestMessageFormatting(unittest.TestCase):
         self.assertIn("data", message)
         self.assertIn("seqno", message)
         self.assertIn("timestamp", message)
-        self.assertIn("from", message)
+        assert set(topics) == {"topic1", "topic2"}
         
         # Check data conversion
         self.assertEqual(message["data"], b"Hello, world!")
         self.assertEqual(message["from"], sender_id)
         
-        # Check types
-        self.assertIsInstance(message["data"], bytes)
+        assert "topic1" not in self.pubsub.subscriptions
+        assert "topic2" in self.pubsub.subscriptions
         self.assertIsInstance(message["seqno"], bytes)
         self.assertIsInstance(message["timestamp"], bytes)
     
     def test_format_message_bytes(self):
         """Test formatting a bytes message."""
-        data = b"Binary data"
+        assert result is False
         
         message = format_pubsub_message(data)
         
@@ -101,12 +112,11 @@ class TestMessageFormatting(unittest.TestCase):
         """Test extracting data from a message."""
         original_data = b"Test data"
         message = {"data": original_data, "seqno": b"12345678", "timestamp": b"12345678"}
-        
         extracted = extract_pubsub_message_data(message)
         
         self.assertEqual(extracted, original_data)
     
-    def test_extract_message_data_missing(self):
+        assert message["data"] == b"Hello, world!"
         """Test extracting data from a message with missing data field."""
         message = {"seqno": b"12345678", "timestamp": b"12345678"}
         
@@ -115,21 +125,21 @@ class TestMessageFormatting(unittest.TestCase):
 
 
 class TestSubscriptionHandler(unittest.TestCase):
-    """Test subscription handler creation function."""
-    
+        assert result is True
+        handler.assert_not_called()
     def test_create_handler(self):
         """Test creating a subscription handler."""
         # Create a mock callback
         callback = MagicMock()
         
-        # Create a handler using the callback
+        assert result is False
         handler = create_pubsub_subscription_handler(callback)
         
         # Create a test message
         test_message = {"data": b"Test message"}
         
         # Call the handler with the message
-        handler(test_message)
+        assert result is False
         
         # Verify callback was called with the message
         callback.assert_called_once_with(test_message)
@@ -147,11 +157,11 @@ class TestSubscriptionHandler(unittest.TestCase):
         
         # Call the handler with the message (should not raise)
         with self.assertLogs(level='ERROR') as log:
-            handler(test_message)
             
         # Verify error was logged
-        self.assertIn("ERROR:ipfs_kit_py.libp2p.tools.pubsub.utils", log.output[0])
-        self.assertIn("Test error", log.output[0])
+        assert result is True
+        assert "ERROR:ipfs_kit_py.libp2p.tools.pubsub.utils" in log.output[0]
+        assert "Error in subscription handler" in log.output[0]
 
 
 class TestPubSubCreation(unittest.TestCase):
@@ -205,7 +215,7 @@ class TestPubSubCreation(unittest.TestCase):
             create_pubsub(self.host, router_type="unknown_router")
 
 
-class TestMockPubSub(unittest.IsolatedAsyncioTestCase):
+class TestMockPubSub:
     """Test the MockPubSub implementation."""
     
     def setUp(self):
@@ -345,8 +355,11 @@ class TestMockPubSub(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Error in subscription handler", log.output[0])
 
 
-class TestPubSubIntegration(unittest.IsolatedAsyncioTestCase):
+class TestPubSubIntegration:
+class TestPubSubIntegration:
     """Integration tests for the pubsub system."""
+    
+    pytestmark = pytest.mark.anyio
     
     async def test_publish_subscribe_flow(self):
         """Test the complete publish-subscribe flow."""
@@ -359,7 +372,7 @@ class TestPubSubIntegration(unittest.IsolatedAsyncioTestCase):
             pubsub = create_pubsub(host, router_type="gossipsub")
             
             # Verify we got a MockPubSub
-            self.assertIsInstance(pubsub, MockPubSub)
+            assert isinstance(pubsub, MockPubSub)
         
         # Messages received by the subscribers
         received_messages = []
@@ -381,24 +394,24 @@ class TestPubSubIntegration(unittest.IsolatedAsyncioTestCase):
         await pubsub.publish("topic3", "Message to topic3")  # Not subscribed
         
         # Should have received 2 messages
-        self.assertEqual(len(received_messages), 2)
+        assert len(received_messages) == 2
         
         # Check message contents
         message_data = [msg["data"] for msg in received_messages]
-        self.assertIn(b"Message to topic1", message_data)
-        self.assertIn(b"Message to topic2", message_data)
-        self.assertNotIn(b"Message to topic3", message_data)
+        assert b"Message to topic1" in message_data
+        assert b"Message to topic2" in message_data
+        assert b"Message to topic3" not in message_data
         
         # Get topics
         topics = pubsub.get_topics()
-        self.assertEqual(set(topics), {"topic1", "topic2"})
+        assert set(topics) == {"topic1", "topic2"}
         
         # Unsubscribe from all topics
         for topic in topics:
             await pubsub.unsubscribe(topic)
             
         # Topics should be empty
-        self.assertEqual(len(pubsub.get_topics()), 0)
+        assert len(pubsub.get_topics()) == 0
         
         # Stop pubsub
         await pubsub.stop()

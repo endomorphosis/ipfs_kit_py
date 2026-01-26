@@ -10,7 +10,6 @@ import unittest
 import pytest
 from unittest.mock import patch, MagicMock, Mock
 import tempfile
-import asyncio
 import logging
 from typing import Dict, List, Any, Optional
 
@@ -285,7 +284,7 @@ class TestUsagePattern(unittest.TestCase):
         self.assertAlmostEqual(load_dist["filecoin"], 0.6, places=5)  # 6000/10000 = 0.6
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestAdaptiveOptimizer:
     """Tests for the AdaptiveOptimizer class."""
     

@@ -5,7 +5,7 @@ Test cluster daemon startup with the new peer ID generation.
 
 import sys
 import os
-import asyncio
+import anyio
 sys.path.insert(0, os.path.dirname(__file__))
 
 from ipfs_kit_py.ipfs_cluster_daemon_manager import IPFSClusterDaemonManager
@@ -80,4 +80,4 @@ async def test_cluster_startup():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(test_cluster_startup())
+    anyio.run(test_cluster_startup)

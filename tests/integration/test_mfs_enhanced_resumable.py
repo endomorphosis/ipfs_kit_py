@@ -57,7 +57,7 @@ async def resumable_ops():
         os.rmdir(temp_dir)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_start_resumable_write(resumable_ops):
     """Test starting a resumable write operation."""
     resumable, mock_ipfs, temp_dir = resumable_ops
@@ -93,7 +93,7 @@ async def test_start_resumable_write(resumable_ops):
         assert chunk.status == "pending"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_start_resumable_write_with_parallel(resumable_ops):
     """Test starting a resumable write operation with parallel transfers."""
     resumable, mock_ipfs, temp_dir = resumable_ops
@@ -127,7 +127,7 @@ async def test_start_resumable_write_with_parallel(resumable_ops):
     mock_ipfs.files_write.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_write_chunk(resumable_ops):
     """Test writing a single chunk."""
     resumable, mock_ipfs, temp_dir = resumable_ops
@@ -168,7 +168,7 @@ async def test_write_chunk(resumable_ops):
     assert state.get_completion_percentage() == 25.0  # 1/4 chunks
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_parallel_write_chunk(resumable_ops):
     """Test writing a chunk with parallel transfers enabled."""
     resumable, mock_ipfs, temp_dir = resumable_ops
@@ -211,7 +211,7 @@ async def test_parallel_write_chunk(resumable_ops):
     assert state.get_completion_percentage() == 25.0  # 1/4 chunks
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_write_multiple_chunks(resumable_ops):
     """Test writing multiple chunks in parallel."""
     resumable, mock_ipfs, temp_dir = resumable_ops
@@ -256,7 +256,7 @@ async def test_write_multiple_chunks(resumable_ops):
     assert state.completed is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_read_multiple_chunks(resumable_ops):
     """Test reading multiple chunks in parallel."""
     resumable, mock_ipfs, temp_dir = resumable_ops
@@ -304,7 +304,7 @@ async def test_read_multiple_chunks(resumable_ops):
         assert chunk_result["chunk_data"][0] == i
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_concurrent_same_chunk_request_deduplication(resumable_ops):
     """Test that concurrent requests for the same chunk are deduplicated."""
     resumable, mock_ipfs, temp_dir = resumable_ops
@@ -351,7 +351,7 @@ async def test_concurrent_same_chunk_request_deduplication(resumable_ops):
     assert mock_ipfs.files_write.call_count == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_parallel_read_performance(resumable_ops):
     """Test that parallel reads improve performance."""
     resumable, mock_ipfs, temp_dir = resumable_ops
@@ -410,7 +410,7 @@ async def test_parallel_read_performance(resumable_ops):
     assert result["completed_chunks"] == 3
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_resume_operation(resumable_ops):
     """Test resuming an interrupted operation."""
     resumable, mock_ipfs, temp_dir = resumable_ops
@@ -446,7 +446,7 @@ async def test_resume_operation(resumable_ops):
     assert state.chunks[2].status == "pending"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_file_like_interface(resumable_ops):
     """Test file-like interface for reading and writing."""
     resumable, mock_ipfs, temp_dir = resumable_ops

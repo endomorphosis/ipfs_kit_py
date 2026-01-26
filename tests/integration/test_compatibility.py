@@ -9,15 +9,15 @@ primarily handling cases where optional dependencies may not be available.
 import pytest
 
 
-# Handle pytest_asyncio availability
+# Handle pytest_anyio availability
 try:
-    import pytest_asyncio
-    HAS_PYTEST_ASYNCIO = True
+    import pytest_anyio
+    HAS_PYTEST_ANYIO = True
 except ImportError:
-    HAS_PYTEST_ASYNCIO = False
+    HAS_PYTEST_ANYIO = False
     # Create dummy versions for compatibility
-    class DummyAsyncioFixture:
+    class DummyAnyioFixture:
         def __call__(self, func):
             return pytest.fixture(func)
-    
-    pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})
+
+    pytest_anyio = type('DummyPytestAnyio', (), {'fixture': DummyAnyioFixture()})

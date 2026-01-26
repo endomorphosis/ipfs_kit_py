@@ -7,7 +7,7 @@ Tests tool registration, execution, and mock implementations.
 import sys
 import os
 import traceback
-import asyncio
+import anyio
 
 # Add the project root to Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -134,5 +134,5 @@ async def main():
     return True
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
+    success = anyio.run(main)
     sys.exit(0 if success else 1)

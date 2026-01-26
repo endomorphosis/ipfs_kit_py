@@ -3,7 +3,7 @@
 Test script for the enhanced Vector & KB dashboard functionality.
 """
 
-import asyncio
+import anyio
 import sys
 import os
 import logging
@@ -140,9 +140,9 @@ if __name__ == "__main__":
     print("=" * 50)
     
     # Run availability tests
-    asyncio.run(test_search_engine_availability())
+    anyio.run(test_search_engine_availability)
     
     print("\n" + "=" * 50)
     
     # Run endpoint tests
-    asyncio.run(test_vector_kb_endpoints())
+    anyio.run(test_vector_kb_endpoints)

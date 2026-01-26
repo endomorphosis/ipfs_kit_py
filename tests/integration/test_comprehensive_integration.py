@@ -11,7 +11,7 @@ This script tests all the major improvements made to:
 Run this to validate the complete system integration.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import sys
@@ -516,4 +516,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(anyio.run(main))

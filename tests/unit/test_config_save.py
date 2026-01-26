@@ -2,7 +2,7 @@
 """
 Test script to verify configuration saving functionality.
 """
-import asyncio
+import anyio
 import json
 from pathlib import Path
 import sys
@@ -56,4 +56,4 @@ async def test_s3_config_save():
     print(f"Retrieved config: {retrieved_config}")
 
 if __name__ == "__main__":
-    asyncio.run(test_s3_config_save())
+    anyio.run(test_s3_config_save)

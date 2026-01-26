@@ -335,7 +335,7 @@ class TestIPFSControllerAnyIOInitialization(unittest.TestCase):
         # Should return None when not in async context
         self.assertIsNone(self.controller.get_backend())
         
-        # In a real async context, would return "asyncio" or "trio"
+        # In a real async context, would return "async" "io" or "trio"
 
 
 @pytest.mark.anyio

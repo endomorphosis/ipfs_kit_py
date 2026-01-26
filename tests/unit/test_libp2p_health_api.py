@@ -6,7 +6,6 @@ This script provides a simple API endpoint to test the LibP2P health status
 and verify that it shows as healthy in the dashboard.
 """
 
-import asyncio
 import json
 import logging
 from datetime import datetime

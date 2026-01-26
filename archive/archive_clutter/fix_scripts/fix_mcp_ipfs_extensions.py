@@ -35,7 +35,8 @@ def add_imports(content):
         "from sse_starlette.sse import EventSourceResponse",
         "import uuid",
         "import json",
-        "import time"
+        "import time",
+        "import anyio"
     ]
     
     # Check which imports already exist
@@ -79,9 +80,9 @@ async def sse_endpoint(request: Request):
         }
         
         # Store connection information
-        queue = asyncio.Queue()
+        send_stream, receive_stream = anyio.create_memory_object_stream(0)
         sse_connections[connection_id] = {
-            "queue": queue,
+            "send_stream": send_stream,
             "last_event_time": time.time()
         }
         
@@ -90,9 +91,10 @@ async def sse_endpoint(request: Request):
             while True:
                 # Check for new events in the queue
                 try:
-                    event = await asyncio.wait_for(queue.get(), timeout=30)
+                    with anyio.fail_after(30):
+                        event = await receive_stream.receive()
                     yield event
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # Send heartbeat if no events for 30 seconds
                     heartbeat_event = {
                         "type": "heartbeat",
@@ -124,7 +126,7 @@ async def send_event(connection_id: str, event: Dict[str, Any]):
     # This is used internally by the server.
     if connection_id in sse_connections:
         event_id = f"{connection_id}-{int(time.time())}"
-        await sse_connections[connection_id]["queue"].put({
+        await sse_connections[connection_id]["send_stream"].send({
             "event": event.get("event", "message"),
             "id": event_id,
             "data": json.dumps(event.get("data", {}))

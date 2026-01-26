@@ -7,7 +7,6 @@ This script tests the new lockfile management and daemon lifecycle functionality
 """
 
 import sys
-import asyncio
 import logging
 from pathlib import Path
 

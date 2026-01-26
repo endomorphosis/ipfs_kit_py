@@ -10,7 +10,7 @@ import sys
 import logging
 import json
 import tempfile
-import asyncio
+import anyio
 import signal
 import shutil
 import py_compile
@@ -124,8 +124,8 @@ server = FastMCP(
 
 # Server initialization state
 server_initialized = False
-initialization_lock = asyncio.Lock()
-initialization_event = asyncio.Event()
+initialization_lock = anyio.Lock()
+initialization_event = anyio.Event()
 
 # --- Utility Functions ---
 def _cleanup_temp_files(*paths):
@@ -140,7 +140,7 @@ def _cleanup_temp_files(*paths):
 
 async def delayed_shutdown(pid: int, delay: float):
     """Waits for a delay then sends SIGTERM."""
-    await asyncio.sleep(delay)
+    await anyio.sleep(delay)
     logger.info(f"Sending SIGTERM to process {pid} after {delay}s delay.")
     try:
         os.kill(pid, signal.SIGTERM)
@@ -327,7 +327,7 @@ async def perform_blue_green_deployment(modified_file=None):
                 }
                 deployment_in_progress = False
                 return {"success": False, "message": f"Health checks failed: {health_output}"}
-            await asyncio.sleep(DEPLOYMENT_CONFIG["health_check_interval"])
+            await anyio.sleep(DEPLOYMENT_CONFIG["health_check_interval"])
 
         # Switch the active version
         deployment_status["status"] = "switching"
@@ -344,7 +344,7 @@ async def perform_blue_green_deployment(modified_file=None):
         # Shutdown this instance
         deployment_status["status"] = "completing"
         logger.info(f"Deployment completed successfully. Shutting down {server_color} instance.")
-        asyncio.create_task(delayed_shutdown(os.getpid(), 3))
+        anyio.lowlevel.spawn_system_task(delayed_shutdown, os.getpid(), 3)
 
         deployment_status = {
             "status": "succeeded",
@@ -567,7 +567,10 @@ if imports_succeeded:
                 # Check if we need to do blue/green deployment
                 if deploy and absolute_path.endswith(".py"):
                     await ctx.info("Starting blue/green deployment process...")
-                    deployment_task = asyncio.create_task(perform_blue_green_deployment(absolute_path))
+                    deployment_task = anyio.lowlevel.spawn_system_task(
+                        perform_blue_green_deployment,
+                        absolute_path,
+                    )
                     return success_msg + " Blue/green deployment started."
 
                 # Trigger graceful shutdown for restart if it's a server file and not deploying
@@ -577,7 +580,7 @@ if imports_succeeded:
                         pid = os.getpid()
                         logger.warning(f"Tests passed for '{path}' (server file). Triggering server restart (PID: {pid})...")
                         await ctx.info("Server file updated. Triggering server restart...")
-                        asyncio.create_task(delayed_shutdown(pid, 1))
+                        anyio.lowlevel.spawn_system_task(delayed_shutdown, pid, 1)
                         return success_msg + " Server restarting."
                 return success_msg
             else:
@@ -790,7 +793,10 @@ if imports_succeeded:
                 # Check if we need to do blue/green deployment
                 if deploy and absolute_path.endswith(".py"):
                     await ctx.info("Starting blue/green deployment process...")
-                    deployment_task = asyncio.create_task(perform_blue_green_deployment(absolute_path))
+                    deployment_task = anyio.lowlevel.spawn_system_task(
+                        perform_blue_green_deployment,
+                        absolute_path,
+                    )
                     return success_msg + " Blue/green deployment started."
 
                 # Trigger graceful shutdown for restart if it's a server file and not deploying
@@ -800,7 +806,7 @@ if imports_succeeded:
                         pid = os.getpid()
                         logger.warning(f"Tests passed for '{path}' (server file). Triggering server restart (PID: {pid})...")
                         await ctx.info("Server file updated. Triggering server restart...")
-                        asyncio.create_task(delayed_shutdown(pid, 1))
+                        anyio.lowlevel.spawn_system_task(delayed_shutdown, pid, 1)
                         return success_msg + " Server restarting."
                 return success_msg
             else:

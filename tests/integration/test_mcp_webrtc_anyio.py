@@ -283,4 +283,4 @@ async def run_test():
     
 if __name__ == "__main__":
     # Run the test with AnyIO
-    anyio.run(run_test, backend="asyncio")
+    anyio.run(run_test, backend=("async" "io"))

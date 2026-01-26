@@ -12,7 +12,7 @@ import sys
 import json
 import uuid
 import logging
-import asyncio
+import anyio
 from typing import Dict, Any, List, Optional
 from http import HTTPStatus
 
@@ -252,7 +252,7 @@ class ErrorHandlingVerification:
         
         # Test successful async execution
         async def async_success_func(a, b):
-            await asyncio.sleep(0.1)  # Simulate async operation
+            await anyio.sleep(0.1)  # Simulate async operation
             return a + b
         
         success, result, error = await async_safe_execute(async_success_func, 1, 2)
@@ -262,7 +262,7 @@ class ErrorHandlingVerification:
         
         # Test failed async execution
         async def async_fail_func(a, b):
-            await asyncio.sleep(0.1)  # Simulate async operation
+            await anyio.sleep(0.1)  # Simulate async operation
             return a / b  # Will fail with ZeroDivisionError if b=0
         
         success, result, error = await async_safe_execute(async_fail_func, 1, 0, default_value="Error")
@@ -274,7 +274,7 @@ class ErrorHandlingVerification:
         # Test with async error handler
         errors_caught = []
         async def async_error_handler(err):
-            await asyncio.sleep(0.1)  # Simulate async operation
+            await anyio.sleep(0.1)  # Simulate async operation
             errors_caught.append(err)
         
         success, result, error = await async_safe_execute(
@@ -502,5 +502,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

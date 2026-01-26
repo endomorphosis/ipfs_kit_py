@@ -9,7 +9,7 @@ This module provides thorough testing of:
 5. Cross-bucket SQL query functionality
 """
 
-import asyncio
+import anyio
 import json
 import os
 import pytest
@@ -79,7 +79,7 @@ class TestBucketVFSCLI:
         except ImportError as e:
             pytest.skip(f"Bucket VFS CLI not available: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_cli_bucket_create_command(self, mock_bucket_manager):
         """Test CLI bucket creation command."""
         try:
@@ -116,7 +116,7 @@ class TestBucketVFSCLI:
         except ImportError as e:
             pytest.skip(f"Required modules not available: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_cli_bucket_list_command(self, mock_bucket_manager):
         """Test CLI bucket listing command."""
         try:
@@ -162,7 +162,7 @@ class TestBucketVFSCLI:
         except ImportError as e:
             pytest.skip(f"Required modules not available: {e}")
 
-    @pytest.mark.asyncio 
+    @pytest.mark.anyio
     async def test_cli_bucket_add_file_command(self, mock_bucket_manager, mock_bucket):
         """Test CLI add file to bucket command."""
         try:
@@ -195,7 +195,7 @@ class TestBucketVFSCLI:
         except ImportError as e:
             pytest.skip(f"Required modules not available: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_cli_bucket_cross_query_command(self, mock_bucket_manager):
         """Test CLI cross-bucket SQL query command."""
         try:
@@ -239,7 +239,7 @@ class TestBucketVFSCLI:
             
             with patch('ipfs_kit_py.bucket_vfs_cli.get_global_bucket_manager', return_value=None):
                 # This should handle the case gracefully
-                result = asyncio.run(handle_bucket_create(args))
+                result = anyio.run(handle_bucket_create, args)
                 
         except ImportError as e:
             pytest.skip(f"Required modules not available: {e}")
@@ -301,7 +301,7 @@ class TestBucketVFSMCPTools:
         except ImportError as e:
             pytest.skip(f"Required modules not available: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_mcp_bucket_create_tool(self, mock_bucket_manager):
         """Test MCP bucket creation tool."""
         try:
@@ -337,7 +337,7 @@ class TestBucketVFSMCPTools:
         except ImportError as e:
             pytest.skip(f"Required modules not available: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_mcp_bucket_list_tool(self, mock_bucket_manager):
         """Test MCP bucket listing tool."""
         try:
@@ -377,7 +377,7 @@ class TestBucketVFSMCPTools:
         except ImportError as e:
             pytest.skip(f"Required modules not available: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_mcp_bucket_add_file_tool(self, mock_bucket_manager):
         """Test MCP add file to bucket tool."""
         try:
@@ -415,7 +415,7 @@ class TestBucketVFSMCPTools:
         except ImportError as e:
             pytest.skip(f"Required modules not available: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_mcp_bucket_cross_query_tool(self, mock_bucket_manager):
         """Test MCP cross-bucket SQL query tool."""
         try:
@@ -451,7 +451,7 @@ class TestBucketVFSMCPTools:
         except ImportError as e:
             pytest.skip(f"Required modules not available: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_mcp_bucket_export_car_tool(self, mock_bucket_manager):
         """Test MCP bucket CAR export tool."""
         try:
@@ -484,7 +484,7 @@ class TestBucketVFSMCPTools:
         except ImportError as e:
             pytest.skip(f"Required modules not available: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_mcp_error_handling_missing_args(self):
         """Test MCP tools error handling for missing arguments."""
         try:
@@ -526,7 +526,7 @@ class TestBucketVFSIntegration:
         except ImportError as e:
             pytest.skip(f"Integration components not available: {e}")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_end_to_end_bucket_workflow(self):
         """Test end-to-end bucket workflow through both interfaces."""
         try:

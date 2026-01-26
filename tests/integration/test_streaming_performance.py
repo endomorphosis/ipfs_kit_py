@@ -192,7 +192,7 @@ class TestStreamingPerformance(unittest.TestCase):
                       f"{metrics['throughput_mbps']:.6f}".rjust(18))
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestAsyncStreamingPerformance:
     """Test performance of asynchronous streaming."""
     

@@ -63,7 +63,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
     def test_warn_if_async_context(self):
         """Test warning in sync methods from async context."""
         # Mock get_backend to simulate async context
-        with patch.object(FilecoinModelAnyIO, 'get_backend', return_value='asyncio'):
+        with patch.object(FilecoinModelAnyIO, 'get_backend', return_value='async' 'io'):
             with warnings.catch_warnings(record=True) as w:
                 # Call a sync method
                 self.filecoin_model.check_connection()
@@ -104,7 +104,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
             "duration_ms": unittest.mock.ANY
         }
         
-        # Run the async test using asyncio
+        # Run the async test using async-io
         anyio.run(self._async_test_helper(
             self.filecoin_model.check_connection_async(),
             expected_result

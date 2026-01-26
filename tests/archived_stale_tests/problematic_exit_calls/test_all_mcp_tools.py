@@ -9,7 +9,7 @@ and return sensible outputs. It tests both successful execution and error handli
 
 import sys
 import os
-import asyncio
+import anyio
 import json
 import traceback
 from datetime import datetime
@@ -413,7 +413,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        success = asyncio.run(main())
+        success = anyio.run(main)
         print(f"\n{'🎉 ALL TESTS COMPLETED SUCCESSFULLY!' if success else '⚠️  TESTS COMPLETED WITH ISSUES'}")
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:

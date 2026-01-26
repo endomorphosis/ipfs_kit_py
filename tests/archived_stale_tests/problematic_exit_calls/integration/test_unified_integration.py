@@ -13,7 +13,7 @@ This script tests the integration of:
 
 import sys
 import json
-import asyncio
+import anyio
 import aiohttp
 import websockets
 import time
@@ -303,7 +303,8 @@ class UnifiedMCPServerTester:
                 }
                 
                 await websocket.send(json.dumps(request))
-                response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+                with anyio.fail_after(5.0):
+                    response = await websocket.recv()
                 data = json.loads(response)
                 
                 print("✓ WebSocket communication successful")
@@ -314,7 +315,7 @@ class UnifiedMCPServerTester:
                 
                 return True
                 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             print("✗ WebSocket timeout")
             return False
         except Exception as e:
@@ -401,7 +402,7 @@ async def main():
     print(f"⏳ Waiting {args.wait} seconds for server to be ready...")
     
     # Wait for server to be ready
-    await asyncio.sleep(args.wait)
+    await anyio.sleep(args.wait)
     
     tester = UnifiedMCPServerTester(args.host, args.port)
     results = await tester.test_all()
@@ -419,4 +420,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -13,7 +13,7 @@ import sys
 import json
 import time
 import logging
-import asyncio
+import anyio
 import argparse
 import tempfile
 import requests
@@ -194,7 +194,7 @@ async def index_test_content(base_url: str) -> List[str]:
         # Give the indexing some time to complete (especially for vector embeddings)
         if cids:
             logger.info(f"Waiting for indexing to complete...")
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             
         return cids
         
@@ -576,7 +576,7 @@ async def main():
     
     # Wait a bit for indexing to complete
     if cids:
-        await asyncio.sleep(3)
+        await anyio.sleep(3)
     
     # Step 3: Test text search
     if test_results["indexing"]:
@@ -632,4 +632,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

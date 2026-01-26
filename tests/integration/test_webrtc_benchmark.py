@@ -240,7 +240,7 @@ class TestWebRTCBenchmark(unittest.TestCase):
         self.assertEqual(summary["keyframe_ratio"], 0.1)  # 1 out of 10
         self.assertEqual(summary["video_codec"], "")  # Not set in this test
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_generate_report(self):
         """Test generating benchmark report."""
         # Add some sample data
@@ -286,7 +286,7 @@ class TestWebRTCBenchmark(unittest.TestCase):
         self.assertEqual(len(report["time_series"]["rtt_ms"]), 1)
         self.assertEqual(report["time_series"]["rtt_ms"][0], 100)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_compare_benchmarks(self):
         """Test comparing benchmark reports."""
         # Create two reports with different values
@@ -352,7 +352,7 @@ class TestWebRTCBenchmark(unittest.TestCase):
         self.assertEqual(len(comparison["improvements"]), 1)
         self.assertIn("avg_jitter_ms", comparison["improvements"])
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_benchmark_monitoring(self):
         """Test the benchmark monitoring task."""
         # Override the collect metrics method for testing
@@ -381,7 +381,7 @@ class TestWebRTCBenchmark(unittest.TestCase):
 class TestWebRTCStreamingManagerIntegration(unittest.TestCase):
     """Test integrating benchmarking with WebRTCStreamingManager."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_add_benchmarking_to_manager(self):
         """Test adding benchmarking to WebRTCStreamingManager."""
         # Create mock API

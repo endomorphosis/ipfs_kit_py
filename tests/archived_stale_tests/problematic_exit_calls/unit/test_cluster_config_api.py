@@ -6,7 +6,7 @@ Tests the config_ functions for both cluster service and cluster follow,
 ensuring they can create, get, and set configurations programmatically.
 """
 
-import asyncio
+import anyio
 import json
 import os
 import tempfile
@@ -381,5 +381,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    import anyio
+    anyio.run(main)

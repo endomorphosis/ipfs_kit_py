@@ -298,7 +298,7 @@ def test_update_api_key_restrictions_endpoint(test_app, mock_auth_service):
 
 
 # Tests for API key validation
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_verify_api_key():
     """Test verifying an API key."""
     with patch("ipfs_kit_py.mcp.auth.service.AuthenticationService._verify_api_key") as mock_verify:
@@ -331,7 +331,7 @@ async def test_verify_api_key():
         assert result is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_verify_api_key_with_ip_restriction():
     """Test verifying an API key with IP restriction."""
     # This test would verify that IP restrictions are properly enforced
@@ -339,7 +339,7 @@ async def test_verify_api_key_with_ip_restriction():
     pass
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_create_access_token_from_api_key():
     """Test creating an access token from an API key."""
     # This test would verify that access tokens can be created from API keys

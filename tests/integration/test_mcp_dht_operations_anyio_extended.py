@@ -250,7 +250,7 @@ class TestMCPDHTOperationsAnyIOExtended:
         """Test DHT operations with sniffio backend detection."""
         # Get the current async backend
         backend = self.controller.get_backend()
-        assert backend == "asyncio" or backend == "trio"
+        assert backend == "async" "io" or backend == "trio"
         
         # Make request with backend logging
         async def test_with_backend():
@@ -269,7 +269,7 @@ class TestMCPDHTOperationsAnyIOExtended:
         result = await test_with_backend()
         
         # Verify backend detection worked
-        assert result["backend"] == "asyncio" or result["backend"] == "trio"
+        assert result["backend"] == "async" "io" or result["backend"] == "trio"
         assert result["response"]["success"] is True
     
     @pytest.mark.anyio

@@ -3,7 +3,7 @@
 Test script for the MCP server health API
 """
 
-import asyncio
+import anyio
 import sys
 from pathlib import Path
 
@@ -53,5 +53,5 @@ async def test_health_api():
     return True
 
 if __name__ == "__main__":
-    success = asyncio.run(test_health_api())
+    success = anyio.run(test_health_api)
     sys.exit(0 if success else 1)

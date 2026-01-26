@@ -61,8 +61,8 @@ except Exception as e:
         # Test content indexing
         print("📋 3. Testing content indexing...")
         test_code = """
-import sys
-import asyncio
+    import sys
+    import anyio
 sys.path.insert(0, 'mcp')
 from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
 
@@ -76,7 +76,7 @@ async def test_indexing():
     )
     return result
 
-result = asyncio.run(test_indexing())
+result = anyio.run(test_indexing)
 print(f'✅ Content indexing: {result["success"]=}')
 """
         
@@ -92,8 +92,8 @@ print(f'✅ Content indexing: {result["success"]=}')
         # Test text search
         print("📋 4. Testing search functionality...")
         test_code = """
-import sys
-import asyncio
+    import sys
+    import anyio
 sys.path.insert(0, 'mcp')
 from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
 
@@ -110,7 +110,7 @@ async def test_search():
     result = await engine.text_search("IPFS distributed", limit=5)
     return result
 
-result = asyncio.run(test_search())
+result = anyio.run(test_search)
 print(f'✅ Search functionality: {result["success"]=}, results={len(result.get("results", []))}')
 """
         

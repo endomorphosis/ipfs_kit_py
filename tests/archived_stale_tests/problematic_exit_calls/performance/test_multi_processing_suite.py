@@ -10,7 +10,7 @@ This script will:
 5. Provide detailed status reports
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -139,7 +139,7 @@ class IPFSKitTestSuite:
             launcher_content = f"""#!/usr/bin/env python3
 import sys
 import os
-import asyncio
+import anyio
 import logging
 from pathlib import Path
 
@@ -183,14 +183,14 @@ async def main():
         return False
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)
 """
             
             with open(launcher_script, 'w') as f:
                 f.write(launcher_content)
             
             launcher_script.chmod(0o755)
-            
+            anyio.run(main)
             # Start daemon process
             self.daemon_process = subprocess.Popen(
                 [sys.executable, str(launcher_script)],
@@ -216,14 +216,14 @@ if __name__ == "__main__":
                 except Exception:
                     pass
                 
-                await asyncio.sleep(2)
+                await anyio.sleep(2)
                 self.log_test_event(f"Waiting for daemon startup... (attempt {attempt + 1}/{max_attempts})")
             
             self.log_test_event("Daemon failed to start within timeout", "error")
             return False
             
         except Exception as e:
-            self.log_test_event(f"Failed to start daemon: {e}", "error")
+                        await anyio.sleep(2)
             return False
     
     async def test_daemon_health(self) -> Dict[str, Any]:
@@ -244,7 +244,7 @@ if __name__ == "__main__":
                     self.log_test_event(f"Fast health check: {fast_health.get('workers', 0)} workers, {fast_health.get('active_operations', 0)} active ops", "success")
                 else:
                     results['fast_health'] = {"error": f"HTTP {response.status_code}"}
-                    self.log_test_event(f"Fast health check failed: HTTP {response.status_code}", "error")
+                    await anyio.sleep(5)
                 
                 # Test comprehensive health check
                 self.log_test_event("Testing comprehensive health check...")
@@ -352,6 +352,13 @@ if __name__ == "__main__":
             results['error'] = str(e)
         
         return results
+
+    async def _run_request(self, make_request, results_list, index: int) -> None:
+        """Run a request and store the result for concurrency tests."""
+        try:
+            results_list[index] = await make_request()
+        except Exception as exc:
+            results_list[index] = exc
     
     async def test_concurrent_requests(self) -> Dict[str, Any]:
         """Test concurrent request handling."""
@@ -377,7 +384,11 @@ if __name__ == "__main__":
                     
                     # Execute concurrent requests
                     tasks = [make_request() for _ in range(concurrency)]
-                    request_results = await asyncio.gather(*tasks, return_exceptions=True)
+                    results_list = [None] * concurrency
+                    async with anyio.create_task_group() as task_group:
+                        for idx in range(concurrency):
+                            task_group.start_soon(self._run_request, make_request, results_list, idx)
+                    request_results = results_list
                     
                     total_time = time.time() - start_time
                     successful = sum(1 for r in request_results if r is True)
@@ -408,7 +419,7 @@ if __name__ == "__main__":
         
         initial_size = log_file.stat().st_size
         
-        await asyncio.sleep(duration)
+        await anyio.sleep(duration)
         
         try:
             with open(log_file, 'r') as f:
@@ -492,7 +503,7 @@ if __name__ == "__main__":
         if self.daemon_process:
             try:
                 self.daemon_process.terminate()
-                await asyncio.sleep(2)
+                await anyio.sleep(2)
                 if self.daemon_process.poll() is None:
                     self.daemon_process.kill()
                 self.log_test_event("Daemon process stopped", "success")
@@ -526,7 +537,7 @@ if __name__ == "__main__":
                 return False
             
             # Wait for daemon to fully initialize
-            await asyncio.sleep(5)
+            await anyio.sleep(5)
             
             # Run health tests
             self.log_test_event("Running health tests...")
@@ -604,4 +615,4 @@ if __name__ == "__main__":
     print("📋 This will test daemon startup, CLI operations, and monitor logs")
     print("=" * 80)
     
-    asyncio.run(main())
+    anyio.run(main)

@@ -223,7 +223,7 @@ class TestEnhancedGatewayChain:
         metrics = chain._provider_metrics[provider_id]
         assert metrics["fail_count"] == 1
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_provider_metrics(self):
         """Test getting provider metrics."""
         chain = EnhancedGatewayChain()
@@ -245,7 +245,7 @@ class TestIPNIIntegration:
     """Integration tests for IPNI client."""
     
     @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_find_providers_real(self):
         """Test finding providers with real IPNI service."""
         client = IPNIClient()
@@ -301,7 +301,7 @@ class TestEnhancedGatewayIntegration:
     """Integration tests for Enhanced Gateway Chain."""
     
     @pytest.mark.integration
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_fetch_with_discovery_real(self):
         """Test fetching with IPNI discovery."""
         chain = EnhancedGatewayChain(enable_ipni=True, enable_saturn=True)

@@ -4,7 +4,7 @@ This script tests the WebRTC controller's cleanup and shutdown methods.
 """
 import anyio
 import logging
-import unittest
+import pytest
 import json
 import time
 from unittest.mock import patch, MagicMock, AsyncMock
@@ -12,6 +12,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+pytestmark = pytest.mark.anyio
 
 # Import the controller class
 from ipfs_kit_py.mcp.controllers.webrtc_controller import WebRTCController
@@ -80,11 +81,11 @@ async def _perform_final_cleanup(self):
 # Add the method to the WebRTCController class
 WebRTCController._perform_final_cleanup = _perform_final_cleanup
 
-# Create test class for async tests
-class TestWebRTCControllerAsync(unittest.IsolatedAsyncioTestCase):
+class TestWebRTCController:
     """Test the WebRTC controller with async methods."""
-    
-    async def asyncSetUp(self):
+
+    @pytest.fixture(autouse=True)
+    async def _setup(self):
         """Set up the test."""
         # Mock IPFS model
         self.ipfs_model = MagicMock()
@@ -92,11 +93,11 @@ class TestWebRTCControllerAsync(unittest.IsolatedAsyncioTestCase):
         self.ipfs_model.close_webrtc_connection = MagicMock(return_value={"success": True})
         self.ipfs_model.close_all_webrtc_connections = MagicMock(return_value={"success": True})
         self.ipfs_model.async_close_all_webrtc_connections = AsyncMock(return_value={"success": True})
-        
+
         # Create controller with patched _start_cleanup_task
         with patch('ipfs_kit_py.mcp.controllers.webrtc_controller.WebRTCController._start_cleanup_task'):
             self.controller = WebRTCController(self.ipfs_model)
-            
+
         # Add some test data
         self.controller.active_streaming_servers = {
             "server1": {"cid": "testcid1", "started_at": time.time() - 600},
@@ -106,13 +107,14 @@ class TestWebRTCControllerAsync(unittest.IsolatedAsyncioTestCase):
             "conn1": {"added_at": time.time() - 600, "server_id": "server1"},
             "conn2": {"added_at": time.time() - 300, "server_id": "server2"}
         }
-        
+
         # Mock the cleanup task
         self.controller.cleanup_task = MagicMock()
         self.controller.cleanup_task.cancel = MagicMock()
-        
+
         # Patch close_all_streaming_servers to be an AsyncMock
         self.controller.close_all_streaming_servers = AsyncMock()
+        yield
     
     async def test_perform_final_cleanup(self):
         """Test the _perform_final_cleanup method we added."""
@@ -120,16 +122,16 @@ class TestWebRTCControllerAsync(unittest.IsolatedAsyncioTestCase):
         await self.controller._perform_final_cleanup()
         
         # Check that all servers were cleaned up
-        self.assertEqual(len(self.controller.active_streaming_servers), 0)
+        assert len(self.controller.active_streaming_servers) == 0
         
         # Check that all connections were cleaned up
-        self.assertEqual(len(self.controller.active_connections), 0)
+        assert len(self.controller.active_connections) == 0
         
         # Check that stop_webrtc_streaming was called for each server
-        self.assertEqual(self.ipfs_model.stop_webrtc_streaming.call_count, 2)
+        assert self.ipfs_model.stop_webrtc_streaming.call_count == 2
         
         # Check that close_webrtc_connection was called for each connection
-        self.assertEqual(self.ipfs_model.close_webrtc_connection.call_count, 2)
+        assert self.ipfs_model.close_webrtc_connection.call_count == 2
         
         # Check that close_all_webrtc_connections was called once
         self.ipfs_model.close_all_webrtc_connections.assert_called_once()
@@ -207,7 +209,7 @@ class TestWebRTCControllerAsync(unittest.IsolatedAsyncioTestCase):
             result_task = await self.controller.shutdown()
             
             # Check that is_shutting_down was set to True
-            self.assertTrue(self.controller.is_shutting_down)
+            assert self.controller.is_shutting_down
             
             # Check that cleanup_task was cancelled
             cleanup_task.cancel.assert_called_once()
@@ -219,23 +221,23 @@ class TestWebRTCControllerAsync(unittest.IsolatedAsyncioTestCase):
             self.ipfs_model.async_close_all_webrtc_connections.assert_called_once()
             
             # Check that all servers were cleaned up
-            self.assertEqual(len(self.controller.active_streaming_servers), 0)
+            assert len(self.controller.active_streaming_servers) == 0
             
             # Check that all connections were cleaned up
-            self.assertEqual(len(self.controller.active_connections), 0)
+            assert len(self.controller.active_connections) == 0
             
             # Check that stop_webrtc_streaming was called for each server (via _perform_final_cleanup)
-            self.assertEqual(self.ipfs_model.stop_webrtc_streaming.call_count, 2)
+            assert self.ipfs_model.stop_webrtc_streaming.call_count == 2
             
             # Check that close_webrtc_connection was called for each connection (via _perform_final_cleanup)
-            self.assertEqual(self.ipfs_model.close_webrtc_connection.call_count, 2)
+            assert self.ipfs_model.close_webrtc_connection.call_count == 2
             
             # Check that close_all_webrtc_connections was called once (via _perform_final_cleanup)
-            self.assertEqual(self.ipfs_model.close_all_webrtc_connections.call_count, 1)
+            assert self.ipfs_model.close_all_webrtc_connections.call_count == 1
             
         finally:
             # Restore original shutdown method
             self.controller.shutdown = original_shutdown
         
 if __name__ == "__main__":
-    unittest.main()
+    raise SystemExit(pytest.main([__file__, "-v"]))

@@ -3,7 +3,7 @@
 Simple test to isolate the vfs_list_mounts issue.
 """
 
-import asyncio
+import anyio
 import sys
 import os
 from pathlib import Path
@@ -37,4 +37,4 @@ async def test_vfs_list_mounts():
         return None
 
 if __name__ == "__main__":
-    result = asyncio.run(test_vfs_list_mounts())
+    result = anyio.run(test_vfs_list_mounts)

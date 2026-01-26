@@ -8,14 +8,13 @@ This script tests the search infrastructure for the MCP server, including:
 3. Vector search with sentence-transformers and FAISS
 4. Hybrid search combining text and vector results
 """
-
 import logging
 import sys
 import os
 import json
 import time
 import uuid
-import asyncio
+import anyio
 from typing import Dict, Any, List
 
 # Configure logging
@@ -144,7 +143,7 @@ async def run_search_test(sample_content_path: str = None):
             logger.error("❌ JSON content indexing failed")
         
         # Wait a moment for indexing to complete
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
         
         # Test 3: Text search
         text_query = SearchQuery(
@@ -279,11 +278,7 @@ if __name__ == "__main__":
     sample_content_path = sys.argv[1] if len(sys.argv) > 1 else None
     
     # Run the test asynchronously
-    if sys.platform == "win32":
-        # Windows requires this for asyncio.run()
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    
-    result = asyncio.run(run_search_test(sample_content_path))
+    result = anyio.run(run_search_test, sample_content_path)
     
     if result:
         logger.info("✅ MCP Search Integration test passed!")

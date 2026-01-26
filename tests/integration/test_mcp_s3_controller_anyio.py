@@ -2,7 +2,7 @@
 Test module for S3ControllerAnyIO in MCP server.
 
 This module tests the S3ControllerAnyIO class that handles HTTP endpoints for S3 operations
-with AnyIO support for asyncio and trio backends.
+with AnyIO support for async-io and trio backends.
 """
 
 import os
@@ -14,19 +14,6 @@ from io import BytesIO
 import pytest
 from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.testclient import TestClient
-
-# Handle case where pytest_asyncio is not available
-try:
-    import pytest_asyncio
-    HAS_PYTEST_ASYNCIO = True
-except ImportError:
-    HAS_PYTEST_ASYNCIO = False
-    # Create dummy versions for compatibility
-    class DummyAsyncioFixture:
-        def __call__(self, func):
-            return pytest.fixture(func)
-    
-    pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})
 
 from ipfs_kit_py.mcp.controllers.storage.s3_controller import (
     S3UploadRequest, S3DownloadRequest, S3DeleteRequest,

@@ -13,7 +13,7 @@ This script tests the VFS functionality through the MCP server by:
 import sys
 import os
 import json
-import asyncio
+import anyio
 import tempfile
 import shutil
 import subprocess
@@ -37,15 +37,15 @@ class MCPVFSClient:
         """Start the MCP server process."""
         logger.info(f"Starting MCP server: {self.server_path}")
         
-        self.server_process = await asyncio.create_subprocess_exec(
+        self.server_process = await anyio.open_process(
             sys.executable, self.server_path,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stdin=anyio.PIPE,
+            stdout=anyio.PIPE,
+            stderr=anyio.PIPE
         )
         
         # Wait a moment for server to start
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
         
         # Initialize the server
         await self.send_message({
@@ -91,11 +91,10 @@ class MCPVFSClient:
             
         # Send message
         message_str = json.dumps(message) + "\n"
-        self.server_process.stdin.write(message_str.encode())
-        await self.server_process.stdin.drain()
+        await self.server_process.stdin.send(message_str.encode())
         
         # Read response
-        response_line = await self.server_process.stdout.readline()
+        response_line = await self.server_process.stdout.receive()
         if not response_line:
             raise RuntimeError("No response from server")
             
@@ -108,8 +107,7 @@ class MCPVFSClient:
             raise RuntimeError("Server not started")
             
         message_str = json.dumps(message) + "\n"
-        self.server_process.stdin.write(message_str.encode())
-        await self.server_process.stdin.drain()
+        await self.server_process.stdin.send(message_str.encode())
         
     async def list_tools(self) -> dict:
         """List available tools."""
@@ -627,4 +625,4 @@ async def main():
         await client.stop_server()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

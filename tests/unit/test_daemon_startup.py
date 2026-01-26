@@ -3,7 +3,7 @@
 Simple daemon test to identify startup issues.
 """
 
-import asyncio
+import anyio
 import sys
 import time
 from pathlib import Path
@@ -262,7 +262,7 @@ async def main():
         if startup_success and connectivity_success:
             if console:
                 console.print("\n⏱️ Keeping daemon running for 10 seconds for testing...", style="blue")
-            await asyncio.sleep(10)
+            await anyio.sleep(10)
         
     except KeyboardInterrupt:
         if console:
@@ -278,4 +278,4 @@ if __name__ == "__main__":
     print("🧪 IPFS Kit Daemon Startup Test")
     print("=" * 40)
     
-    asyncio.run(main())
+    anyio.run(main)

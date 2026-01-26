@@ -17,7 +17,7 @@ import sys
 import json
 import time
 import uuid
-import asyncio
+import anyio
 import logging
 import argparse
 from typing import Dict, Any, List, Tuple, Optional
@@ -54,7 +54,7 @@ class MockWebSocket:
         self.accepted = False
         self.sent_messages = []
         self.closed = False
-        self.receive_queue = asyncio.Queue()
+        self._send_stream, self._receive_stream = anyio.create_memory_object_stream(100)
     
     async def accept(self):
         """Accept the WebSocket connection."""
@@ -70,7 +70,7 @@ class MockWebSocket:
     
     async def receive_text(self) -> str:
         """Receive text message."""
-        return await self.receive_queue.get()
+        return await self._receive_stream.receive()
     
     async def close(self):
         """Close the WebSocket connection."""
@@ -80,7 +80,7 @@ class MockWebSocket:
         """Add a message to the receive queue."""
         if isinstance(message, dict):
             message = json.dumps(message)
-        self.receive_queue.put_nowait(message)
+        self._send_stream.send_nowait(message)
     
     def get_json_messages(self) -> List[Dict[str, Any]]:
         """Get all sent JSON messages."""
@@ -163,79 +163,85 @@ class WebRTCVerificationTest:
         
         # Start handling peer1 in the background
         peer1_id = str(uuid.uuid4())
-        peer1_task = asyncio.create_task(
-            self.signaling_server.handle_signaling(
-                peer1_ws, room_id, peer1_id, {"name": "Peer 1"}
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(
+                self.signaling_server.handle_signaling,
+                peer1_ws,
+                room_id,
+                peer1_id,
+                {"name": "Peer 1"}
             )
-        )
-        
-        # Wait a moment for processing
-        await asyncio.sleep(0.1)
-        
-        # Check if peer1 received welcome message
-        peer1_messages = peer1_ws.get_json_messages()
-        welcome_messages = [msg for msg in peer1_messages if msg.get("type") == "welcome"]
-        
-        if welcome_messages and welcome_messages[0]["peer_id"] == peer1_id:
-            logger.info("✅ Peer 1 received welcome message")
-        else:
-            logger.error("❌ Peer 1 did not receive welcome message")
-            peer1_task.cancel()
-            return False
-        
-        # Start handling peer2 in the background
-        peer2_id = str(uuid.uuid4())
-        peer2_task = asyncio.create_task(
-            self.signaling_server.handle_signaling(
-                peer2_ws, room_id, peer2_id, {"name": "Peer 2"}
+
+            # Wait a moment for processing
+            await anyio.sleep(0.1)
+
+            # Check if peer1 received welcome message
+            peer1_messages = peer1_ws.get_json_messages()
+            welcome_messages = [msg for msg in peer1_messages if msg.get("type") == "welcome"]
+
+            if welcome_messages and welcome_messages[0]["peer_id"] == peer1_id:
+                logger.info("✅ Peer 1 received welcome message")
+            else:
+                logger.error("❌ Peer 1 did not receive welcome message")
+                await peer1_ws.close()
+                await peer2_ws.close()
+                return False
+
+            # Start handling peer2 in the background
+            peer2_id = str(uuid.uuid4())
+            task_group.start_soon(
+                self.signaling_server.handle_signaling,
+                peer2_ws,
+                room_id,
+                peer2_id,
+                {"name": "Peer 2"}
             )
-        )
-        
-        # Wait a moment for processing
-        await asyncio.sleep(0.1)
-        
-        # Check if peer2 received welcome message with peer1 in the list
-        peer2_messages = peer2_ws.get_json_messages()
-        welcome_messages = [msg for msg in peer2_messages if msg.get("type") == "welcome"]
-        
-        if welcome_messages:
-            welcome_msg = welcome_messages[0]
-            if welcome_msg["peer_id"] == peer2_id:
-                logger.info("✅ Peer 2 received welcome message")
-                peers_in_welcome = welcome_msg.get("peers", [])
-                if any(p["peer_id"] == peer1_id for p in peers_in_welcome):
-                    logger.info("✅ Peer 2 welcome message includes Peer 1")
+
+            # Wait a moment for processing
+            await anyio.sleep(0.1)
+
+            # Check if peer2 received welcome message with peer1 in the list
+            peer2_messages = peer2_ws.get_json_messages()
+            welcome_messages = [msg for msg in peer2_messages if msg.get("type") == "welcome"]
+
+            if welcome_messages:
+                welcome_msg = welcome_messages[0]
+                if welcome_msg["peer_id"] == peer2_id:
+                    logger.info("✅ Peer 2 received welcome message")
+                    peers_in_welcome = welcome_msg.get("peers", [])
+                    if any(p["peer_id"] == peer1_id for p in peers_in_welcome):
+                        logger.info("✅ Peer 2 welcome message includes Peer 1")
+                    else:
+                        logger.error("❌ Peer 2 welcome message does not include Peer 1")
+                        await peer1_ws.close()
+                        await peer2_ws.close()
+                        return False
                 else:
-                    logger.error("❌ Peer 2 welcome message does not include Peer 1")
-                    peer1_task.cancel()
-                    peer2_task.cancel()
+                    logger.error("❌ Peer 2 welcome message has incorrect peer_id")
+                    await peer1_ws.close()
+                    await peer2_ws.close()
                     return False
             else:
-                logger.error("❌ Peer 2 welcome message has incorrect peer_id")
-                peer1_task.cancel()
-                peer2_task.cancel()
+                logger.error("❌ Peer 2 did not receive welcome message")
+                await peer1_ws.close()
+                await peer2_ws.close()
                 return False
-        else:
-            logger.error("❌ Peer 2 did not receive welcome message")
-            peer1_task.cancel()
-            peer2_task.cancel()
-            return False
-        
-        # Verify room status
-        room_info = self.signaling_server.get_room_info(room_id)
-        if room_info and len(room_info["peers"]) == 2:
-            logger.info("✅ Room contains both peers")
-        else:
-            logger.error("❌ Room does not contain both peers")
-            peer1_task.cancel()
-            peer2_task.cancel()
-            return False
-        
-        # Clean up
-        peer1_task.cancel()
-        peer2_task.cancel()
-        await asyncio.sleep(0.1)  # Allow tasks to clean up
-        
+
+            # Verify room status
+            room_info = self.signaling_server.get_room_info(room_id)
+            if room_info and len(room_info["peers"]) == 2:
+                logger.info("✅ Room contains both peers")
+            else:
+                logger.error("❌ Room does not contain both peers")
+                await peer1_ws.close()
+                await peer2_ws.close()
+                return False
+
+            # Clean up
+            await peer1_ws.close()
+            await peer2_ws.close()
+            await anyio.sleep(0.1)  # Allow tasks to clean up
+
         return True
     
     async def test_signaling_messages(self):
@@ -252,116 +258,121 @@ class WebRTCVerificationTest:
         # Start handling peers in the background
         peer1_id = str(uuid.uuid4())
         peer2_id = str(uuid.uuid4())
-        
-        peer1_task = asyncio.create_task(
-            self.signaling_server.handle_signaling(
-                peer1_ws, room_id, peer1_id, {"name": "Peer 1"}
+
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(
+                self.signaling_server.handle_signaling,
+                peer1_ws,
+                room_id,
+                peer1_id,
+                {"name": "Peer 1"}
             )
-        )
-        
-        peer2_task = asyncio.create_task(
-            self.signaling_server.handle_signaling(
-                peer2_ws, room_id, peer2_id, {"name": "Peer 2"}
+
+            task_group.start_soon(
+                self.signaling_server.handle_signaling,
+                peer2_ws,
+                room_id,
+                peer2_id,
+                {"name": "Peer 2"}
             )
-        )
-        
-        # Wait for welcome messages
-        await asyncio.sleep(0.1)
-        
-        # Clear message queues
-        peer1_ws.sent_messages = []
-        peer2_ws.sent_messages = []
-        
-        # Test 3.1: Send offer from peer1 to peer2
-        offer_msg = {
-            "type": "offer",
-            "target": peer2_id,
-            "sdp": "dummy SDP offer data"
-        }
-        peer1_ws.add_message(json.dumps(offer_msg))
-        
-        # Let it process
-        await asyncio.sleep(0.1)
-        
-        # Check if the message was forwarded correctly
-        # Note: This is a bit of a limitation of our test setup.
-        # In actual use with WebSockets for forwarding, this wouldn't forward correctly
-        # in the mock environment. We're checking the logic here.
-        
-        peer_info = self.signaling_server.get_peers_in_room(room_id)
-        if len(peer_info) == 2:
-            logger.info("✅ Both peers still in room after offer")
-        else:
-            logger.error("❌ Peers not properly maintained in room after offer")
-            peer1_task.cancel()
-            peer2_task.cancel()
-            return False
-            
-        # Test 3.2: Send ICE candidate from peer2 to peer1
-        ice_msg = {
-            "type": "candidate",
-            "target": peer1_id,
-            "candidate": "dummy ICE candidate",
-            "sdpMLineIndex": 0,
-            "sdpMid": "0"
-        }
-        peer2_ws.add_message(json.dumps(ice_msg))
-        
-        # Let it process
-        await asyncio.sleep(0.1)
-        
-        # Check if peers are still connected
-        peer_info = self.signaling_server.get_peers_in_room(room_id)
-        if len(peer_info) == 2:
-            logger.info("✅ Both peers still in room after ICE candidate")
-        else:
-            logger.error("❌ Peers not properly maintained in room after ICE candidate")
-            peer1_task.cancel()
-            peer2_task.cancel()
-            return False
-        
-        # Test 3.3: Send answer from peer2 to peer1
-        answer_msg = {
-            "type": "answer",
-            "target": peer1_id,
-            "sdp": "dummy SDP answer data"
-        }
-        peer2_ws.add_message(json.dumps(answer_msg))
-        
-        # Let it process
-        await asyncio.sleep(0.1)
-        
-        # Verify signaling server statistics
-        stats = self.signaling_server.get_stats()
-        if stats["active_rooms"] >= 1 and stats["active_peers"] >= 2:
-            logger.info("✅ Signaling server stats show active room and peers")
-        else:
-            logger.error("❌ Signaling server stats incorrect")
-            peer1_task.cancel()
-            peer2_task.cancel()
-            return False
-        
-        # Test 3.4: Send ping and check for pong
-        ping_msg = {
-            "type": "ping"
-        }
-        peer1_ws.add_message(json.dumps(ping_msg))
-        
-        # Let it process
-        await asyncio.sleep(0.1)
-        
-        # Check for pong response
-        peer1_messages = peer1_ws.get_json_messages()
-        if any(json.loads(msg).get("type") == "pong" for msg in peer1_messages if isinstance(msg, str)):
-            logger.info("✅ Peer 1 received pong response")
-        else:
-            logger.warning("⚠️ Peer 1 did not receive pong response (might be WebSocket forwarding limitation)")
-        
-        # Clean up
-        peer1_task.cancel()
-        peer2_task.cancel()
-        await asyncio.sleep(0.1)  # Allow tasks to clean up
-        
+
+            # Wait for welcome messages
+            await anyio.sleep(0.1)
+
+            # Clear message queues
+            peer1_ws.sent_messages = []
+            peer2_ws.sent_messages = []
+
+            # Test 3.1: Send offer from peer1 to peer2
+            offer_msg = {
+                "type": "offer",
+                "target": peer2_id,
+                "sdp": "dummy SDP offer data"
+            }
+            peer1_ws.add_message(json.dumps(offer_msg))
+
+            # Let it process
+            await anyio.sleep(0.1)
+
+            # Check if the message was forwarded correctly
+            # Note: This is a bit of a limitation of our test setup.
+            # In actual use with WebSockets for forwarding, this wouldn't forward correctly
+            # in the mock environment. We're checking the logic here.
+
+            peer_info = self.signaling_server.get_peers_in_room(room_id)
+            if len(peer_info) == 2:
+                logger.info("✅ Both peers still in room after offer")
+            else:
+                logger.error("❌ Peers not properly maintained in room after offer")
+                await peer1_ws.close()
+                await peer2_ws.close()
+                return False
+
+            # Test 3.2: Send ICE candidate from peer2 to peer1
+            ice_msg = {
+                "type": "candidate",
+                "target": peer1_id,
+                "candidate": "dummy ICE candidate",
+                "sdpMLineIndex": 0,
+                "sdpMid": "0"
+            }
+            peer2_ws.add_message(json.dumps(ice_msg))
+
+            # Let it process
+            await anyio.sleep(0.1)
+
+            # Check if peers are still connected
+            peer_info = self.signaling_server.get_peers_in_room(room_id)
+            if len(peer_info) == 2:
+                logger.info("✅ Both peers still in room after ICE candidate")
+            else:
+                logger.error("❌ Peers not properly maintained in room after ICE candidate")
+                await peer1_ws.close()
+                await peer2_ws.close()
+                return False
+
+            # Test 3.3: Send answer from peer2 to peer1
+            answer_msg = {
+                "type": "answer",
+                "target": peer1_id,
+                "sdp": "dummy SDP answer data"
+            }
+            peer2_ws.add_message(json.dumps(answer_msg))
+
+            # Let it process
+            await anyio.sleep(0.1)
+
+            # Verify signaling server statistics
+            stats = self.signaling_server.get_stats()
+            if stats["active_rooms"] >= 1 and stats["active_peers"] >= 2:
+                logger.info("✅ Signaling server stats show active room and peers")
+            else:
+                logger.error("❌ Signaling server stats incorrect")
+                await peer1_ws.close()
+                await peer2_ws.close()
+                return False
+
+            # Test 3.4: Send ping and check for pong
+            ping_msg = {
+                "type": "ping"
+            }
+            peer1_ws.add_message(json.dumps(ping_msg))
+
+            # Let it process
+            await anyio.sleep(0.1)
+
+            # Check for pong response
+            peer1_messages = peer1_ws.get_json_messages()
+            if any(json.loads(msg).get("type") == "pong" for msg in peer1_messages if isinstance(msg, str)):
+                logger.info("✅ Peer 1 received pong response")
+            else:
+                logger.warning("⚠️ Peer 1 did not receive pong response (might be WebSocket forwarding limitation)")
+
+            # Clean up
+            await peer1_ws.close()
+            await peer2_ws.close()
+            await anyio.sleep(0.1)  # Allow tasks to clean up
+
         return True
     
     async def test_peer_leaving(self):
@@ -378,62 +389,67 @@ class WebRTCVerificationTest:
         # Start handling peers
         peer1_id = str(uuid.uuid4())
         peer2_id = str(uuid.uuid4())
-        
-        peer1_task = asyncio.create_task(
-            self.signaling_server.handle_signaling(
-                peer1_ws, room_id, peer1_id, {"name": "Peer 1"}
+
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(
+                self.signaling_server.handle_signaling,
+                peer1_ws,
+                room_id,
+                peer1_id,
+                {"name": "Peer 1"}
             )
-        )
-        
-        peer2_task = asyncio.create_task(
-            self.signaling_server.handle_signaling(
-                peer2_ws, room_id, peer2_id, {"name": "Peer 2"}
+
+            task_group.start_soon(
+                self.signaling_server.handle_signaling,
+                peer2_ws,
+                room_id,
+                peer2_id,
+                {"name": "Peer 2"}
             )
-        )
-        
-        # Wait for connection setup
-        await asyncio.sleep(0.1)
-        
-        # Verify both peers are in the room
-        room_info = self.signaling_server.get_room_info(room_id)
-        if room_info and len(room_info["peers"]) == 2:
-            logger.info("✅ Room contains both peers")
-        else:
-            logger.error("❌ Room does not contain both peers")
-            peer1_task.cancel()
-            peer2_task.cancel()
-            return False
-        
-        # Simulate peer1 disconnecting
-        peer1_task.cancel()
-        await asyncio.sleep(0.1)  # Allow cleanup
-        
-        # Verify peer1 was removed from the room
-        room_info = self.signaling_server.get_room_info(room_id)
-        if room_info and len(room_info["peers"]) == 1:
-            logger.info("✅ Room contains only peer2 after peer1 disconnected")
-            if room_info["peers"][0]["peer_id"] == peer2_id:
-                logger.info("✅ Remaining peer is peer2")
+
+            # Wait for connection setup
+            await anyio.sleep(0.1)
+
+            # Verify both peers are in the room
+            room_info = self.signaling_server.get_room_info(room_id)
+            if room_info and len(room_info["peers"]) == 2:
+                logger.info("✅ Room contains both peers")
             else:
-                logger.error("❌ Remaining peer is not peer2")
-                peer2_task.cancel()
+                logger.error("❌ Room does not contain both peers")
+                await peer1_ws.close()
+                await peer2_ws.close()
                 return False
-        else:
-            logger.error("❌ Room does not contain exactly one peer after disconnect")
-            peer2_task.cancel()
-            return False
-        
-        # Now disconnect peer2
-        peer2_task.cancel()
-        await asyncio.sleep(0.1)  # Allow cleanup
-        
-        # Verify the room was removed
-        if not self.signaling_server.get_room_info(room_id):
-            logger.info("✅ Room was removed after all peers disconnected")
-        else:
-            logger.error("❌ Room was not removed after all peers disconnected")
-            return False
-        
+
+            # Simulate peer1 disconnecting
+            await peer1_ws.close()
+            await anyio.sleep(0.1)  # Allow cleanup
+
+            # Verify peer1 was removed from the room
+            room_info = self.signaling_server.get_room_info(room_id)
+            if room_info and len(room_info["peers"]) == 1:
+                logger.info("✅ Room contains only peer2 after peer1 disconnected")
+                if room_info["peers"][0]["peer_id"] == peer2_id:
+                    logger.info("✅ Remaining peer is peer2")
+                else:
+                    logger.error("❌ Remaining peer is not peer2")
+                    await peer2_ws.close()
+                    return False
+            else:
+                logger.error("❌ Room does not contain exactly one peer after disconnect")
+                await peer2_ws.close()
+                return False
+
+            # Now disconnect peer2
+            await peer2_ws.close()
+            await anyio.sleep(0.1)  # Allow cleanup
+
+            # Verify the room was removed
+            if not self.signaling_server.get_room_info(room_id):
+                logger.info("✅ Room was removed after all peers disconnected")
+            else:
+                logger.error("❌ Room was not removed after all peers disconnected")
+                return False
+
         return True
     
     async def run_tests(self):
@@ -539,6 +555,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    exit_code = loop.run_until_complete(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

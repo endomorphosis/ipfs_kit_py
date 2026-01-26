@@ -26,11 +26,3 @@ try:
     )
 except ImportError:
     pass
-
-# Import compatibility layer
-try:
-    from .test_compatibility import (
-        HAS_PYTEST_ASYNCIO, pytest_asyncio
-    )
-except ImportError:
-    pass

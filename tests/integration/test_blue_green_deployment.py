@@ -5,7 +5,7 @@ This module provides comprehensive integration tests for the MCP Blue/Green
 deployment system, verifying that all components work together correctly.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -165,7 +165,7 @@ class MockServer:
         """Handle a request by returning a predefined response."""
         self.requests.append(request)
         # Add a small delay to simulate processing time
-        await asyncio.sleep(0.01)
+        await anyio.sleep(0.01)
         return self.responses.get(request.get("type", "default"), 
                                  self.responses.get("default", {"success": True}))
     
@@ -175,7 +175,7 @@ class MockServer:
 
 # Test cases
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_metrics_collector_records_requests(metrics_collector):
     """Test that metrics collector correctly records request metrics."""
     # Record some test metrics
@@ -198,7 +198,7 @@ async def test_metrics_collector_records_requests(metrics_collector):
     assert detailed["blue"]["requests"]["by_endpoint"]["test_endpoint"]["successes"] == 1
     assert detailed["blue"]["requests"]["by_endpoint"]["test_endpoint"]["failures"] == 1
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_response_validator_compares_responses(response_validator, mock_blue_response, mock_green_response):
     """Test that response validator correctly compares responses."""
     # Compare identical responses
@@ -223,7 +223,7 @@ async def test_response_validator_compares_responses(response_validator, mock_bl
     assert compatible_result["compatible"] == True
     assert compatible_result["critical_difference"] == False
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_traffic_controller_adjusts_traffic(traffic_controller):
     """Test that traffic controller correctly adjusts traffic distribution."""
     # Check initial state
@@ -250,7 +250,7 @@ async def test_traffic_controller_adjusts_traffic(traffic_controller):
     assert result["green_percentage"] == 100
     assert result["changed"] == True
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_traffic_controller_evaluates_metrics(traffic_controller):
     """Test that traffic controller correctly evaluates metrics."""
     # Create some test metrics
@@ -309,7 +309,7 @@ async def test_traffic_controller_evaluates_metrics(traffic_controller):
     # Verify action is to decrease green traffic
     assert action == TrafficAction.DECREASE_GREEN
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_proxy_route_selection(proxy, config):
     """Test that proxy correctly routes requests based on mode."""
     # Set up mock servers
@@ -338,7 +338,7 @@ async def test_proxy_route_selection(proxy, config):
     assert len(proxy.blue_server.requests) == 2  # Blue mode + Parallel mode
     assert len(proxy.green_server.requests) == 2  # Green mode + Parallel mode
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_proxy_gradual_routing(proxy, config):
     """Test gradual traffic routing distribution."""
     # Set up mock servers
@@ -372,7 +372,7 @@ async def test_proxy_gradual_routing(proxy, config):
     # All should be routed to blue
     assert all(r == "blue" for r in results)
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_integrated_components(config, mock_blue_response, mock_green_response):
     """Test integration between all components."""
     # Create instances
@@ -404,7 +404,7 @@ async def test_integrated_components(config, mock_blue_response, mock_green_resp
     assert response.get("cid") == mock_green_response.get("cid")
     
     # Wait for async processing
-    await asyncio.sleep(0.1)
+    await anyio.sleep(0.1)
     
     # Verify metrics were collected
     metrics_summary = metrics_collector.get_metrics_summary()
@@ -435,7 +435,7 @@ async def test_integrated_components(config, mock_blue_response, mock_green_resp
     assert "action" in result
     assert "changed" in result
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_health_checks(proxy):
     """Test health checking functionality."""
     # Set up mock servers with specific health responses

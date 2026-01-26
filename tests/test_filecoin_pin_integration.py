@@ -155,7 +155,7 @@ class TestFilecoinPinIntegration:
         controller = FilecoinPinController()
         assert controller is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_controller_pin_add(self):
         """Test controller pin_add method."""
         from ipfs_kit_py.mcp.controllers.filecoin_pin_controller import (
@@ -178,7 +178,7 @@ class TestFilecoinPinIntegration:
         assert "cid" in result
         assert result["backend"] == "filecoin_pin"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_controller_pin_list(self):
         """Test controller pin_list method."""
         from ipfs_kit_py.mcp.controllers.filecoin_pin_controller import (
@@ -197,7 +197,7 @@ class TestFilecoinPinIntegration:
         assert "pins" in result
         assert result["backend"] == "filecoin_pin"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_controller_pin_status(self):
         """Test controller pin_status method."""
         from ipfs_kit_py.mcp.controllers.filecoin_pin_controller import (
@@ -216,7 +216,7 @@ class TestFilecoinPinIntegration:
         assert result["cid"] == "bafybeibtest123"
         assert result["backend"] == "filecoin_pin"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_controller_pin_remove(self):
         """Test controller pin_remove method."""
         from ipfs_kit_py.mcp.controllers.filecoin_pin_controller import (
@@ -242,8 +242,8 @@ class TestFilecoinPinIntegration:
         manager = BackendManager()
         
         # Initialize backends (will add filecoin_pin if available)
-        import asyncio
-        asyncio.run(manager.initialize_default_backends())
+        import anyio
+        anyio.run(manager.initialize_default_backends)
         
         # Check if filecoin_pin backend was added
         backends = manager.list_backends()

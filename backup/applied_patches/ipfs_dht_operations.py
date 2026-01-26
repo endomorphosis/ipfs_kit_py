@@ -12,7 +12,7 @@ Key features:
 - DHT performance metrics
 """
 
-import asyncio
+import anyio
 import base64
 import hashlib
 import logging
@@ -791,12 +791,11 @@ class DHTOperations:
                 await discover_from_peer(new_peer_id)
 
         # Start processing peers
-        tasks = []
-        for peer_id in peers_to_process[:5]:  # Start with a few peers
-            tasks.append(discover_from_peer(peer_id))
-
+        tasks = peers_to_process[:5]
         if tasks:
-            await asyncio.gather(*tasks)
+            async with anyio.create_task_group() as task_group:
+                for peer_id in tasks:  # Start with a few peers
+                    task_group.start_soon(discover_from_peer, peer_id)
 
         # Return results
         return {
@@ -826,13 +825,12 @@ class DHTOperations:
         """
         try:
             # Run the async method in an event loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
-                self.discover_peers_async(bootstrap_peers, max_peers, timeout)
+            return anyio.run(
+                self.discover_peers_async,
+                bootstrap_peers,
+                max_peers,
+                timeout,
             )
-            loop.close()
-            return result
         except Exception as e:
             return {
                 "success": False,

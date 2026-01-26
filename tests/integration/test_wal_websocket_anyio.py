@@ -2,7 +2,7 @@
 Tests for the anyio-based WAL WebSocket implementation.
 
 These tests verify that the anyio implementation of the WAL WebSocket system
-works correctly and maintains the same functionality as the asyncio version,
+works correctly and maintains the same functionality as the async-io version,
 while providing the benefits of anyio's backend flexibility.
 """
 
@@ -668,6 +668,6 @@ async def test_register_wal_websocket(fastapi_app, mock_wal):
         # In a real test we would use TestClient.websocket_connect but that's not available in test mode
 
 if __name__ == "__main__":
-    # Run tests with anyio backend (defaults to asyncio)
+    # Run tests with anyio backend (defaults to async-io)
     import anyio
     anyio.run(pytest.main, ["-v", __file__])

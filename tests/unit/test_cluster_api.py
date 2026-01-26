@@ -6,7 +6,7 @@ This script tests the IPFS Cluster API endpoints to verify they're working corre
 and shows what the health monitor should be detecting.
 """
 
-import asyncio
+import anyio
 import httpx
 import json
 import time
@@ -173,4 +173,4 @@ async def main():
     print("and the health monitor should detect it as healthy.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

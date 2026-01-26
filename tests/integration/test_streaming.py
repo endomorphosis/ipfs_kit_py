@@ -310,7 +310,7 @@ class TestStreaming(unittest.TestCase):
 
 class TestAsyncStreaming:
     """Test asynchronous streaming functionality."""
-    pytestmark = pytest.mark.asyncio
+    pytestmark = pytest.mark.anyio
     
     # Use pytest_anyio.fixture instead of pytest.fixture to fix warnings
     @pytest.fixture(autouse=True)
@@ -408,9 +408,9 @@ class TestAsyncStreaming:
 
 class TestWebSocketStreaming:
     """Test WebSocket streaming functionality."""
-    pytestmark = pytest.mark.asyncio
+    pytestmark = pytest.mark.anyio
     
-    # Use event_loop fixture from pytest_asyncio
+    # Use event_loop fixture from pytest async-io plugin
     @pytest.fixture(autouse=True)
     def setup_and_cleanup(self, event_loop):
         """Setup and cleanup fixture that runs for each test."""
@@ -452,7 +452,7 @@ class TestWebSocketStreaming:
         if hasattr(self, 'test_dir') and self.test_dir:
             shutil.rmtree(self.test_dir)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch.object(IPFSSimpleAPI, 'stream_media_async')
     async def test_websocket_media_stream(self, mock_stream_media, setup):
         """Test WebSocket media streaming."""
@@ -492,7 +492,7 @@ class TestWebSocketStreaming:
             assert first_call_args["type"] == "metadata"
             # Don't assert content_length - it could be None in test environment
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch.object(IPFSSimpleAPI, 'add')
     async def test_websocket_upload_stream(self, mock_add, setup):
         """Test WebSocket upload streaming."""
@@ -566,7 +566,7 @@ class TestWebSocketStreaming:
         # Test for Hash or cid field, depending on implementation
         assert (last_call_args.get("cid") == test_cid or last_call_args.get("Hash") == test_cid)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch.object(IPFSSimpleAPI, 'stream_media_async')
     @patch.object(IPFSSimpleAPI, 'add')
     async def test_websocket_bidirectional_stream(self, mock_add, mock_stream_media, setup):
@@ -673,7 +673,7 @@ class TestWebSocketStreaming:
                     except Exception:
                         pass
                         
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_websocket_streaming_metrics_compatibility(self, setup):
         """Test that the metrics system is compatible with WebSocket streaming."""
         api, test_content, _, _, test_cid = setup

@@ -6,7 +6,7 @@ This script performs basic validation of the VFS version tracking system
 to ensure core functionality works as expected.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import tempfile
@@ -191,5 +191,5 @@ async def main():
 
 if __name__ == "__main__":
     import sys
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

@@ -14,7 +14,7 @@ import sys
 import os
 import json
 import time
-import asyncio
+import anyio
 import tempfile
 import hashlib
 import random
@@ -226,14 +226,16 @@ async def run_streaming_test():
                         f.write(f"Test file {i} content\n")
                 
                 # Add the directory to IPFS to get a DAG
-                process = await asyncio.create_subprocess_exec(
-                    "ipfs", "add", "-r", "-Q", dag_dir,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                process = await anyio.open_process(
+                    ["ipfs", "add", "-r", "-Q", dag_dir],
+                    stdout=anyio.PIPE,
+                    stderr=anyio.PIPE
                 )
-                stdout, stderr = await process.communicate()
+                stdout = await process.stdout.receive()
+                stderr = await process.stderr.receive()
+                returncode = await process.wait()
                 
-                if process.returncode == 0:
+                if returncode == 0:
                     dag_cid = stdout.decode().strip()
                     logger.info(f"Created test DAG with CID: {dag_cid}")
                     
@@ -286,11 +288,7 @@ async def run_streaming_test():
 
 if __name__ == "__main__":
     # Run the test asynchronously
-    if sys.platform == "win32":
-        # Windows requires this for asyncio.run()
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    
-    result = asyncio.run(run_streaming_test())
+    result = anyio.run(run_streaming_test)
     
     if result:
         logger.info("✅ MCP Streaming Operations test passed!")

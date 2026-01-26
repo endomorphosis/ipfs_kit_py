@@ -14,7 +14,7 @@ Test Categories:
 6. WebSocket real-time updates
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -68,7 +68,7 @@ class TestLightInitialization:
             assert isinstance(result, dict)
             assert "success" in result
         
-        asyncio.run(test_async())
+        anyio.run(test_async)
     
     def test_component_status_tracking(self):
         """Test that component availability is tracked correctly."""
@@ -141,7 +141,7 @@ class TestDataDirectoryIntegration:
             assert test_backend is not None
             assert test_backend["type"] == "s3"
         
-        asyncio.run(test_async())
+        anyio.run(test_async)
     
     def test_services_directory_reading(self):
         """Test reading services from ~/.ipfs_kit/services/."""
@@ -179,7 +179,7 @@ class TestBucketVFSIntegration:
             result = await dashboard.unified_bucket_interface.list_backend_buckets()
             assert isinstance(result, dict)
         
-        asyncio.run(test_async())
+        anyio.run(test_async)
     
     def test_bucket_manager_integration(self):
         """Test integration with bucket manager.""" 
@@ -480,7 +480,7 @@ class TestIntegrationScenarios:
             assert isinstance(health, dict)
             assert "success" in health
         
-        asyncio.run(test_async())
+        anyio.run(test_async)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ Test S3 and HuggingFace Backend Integration
 This script specifically tests the S3 and HuggingFace backends with your configured credentials.
 """
 
-import asyncio
+import anyio
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -130,4 +130,4 @@ async def main():
     logger.info("   python start_fixed_dashboard.py")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

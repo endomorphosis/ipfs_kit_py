@@ -7,7 +7,7 @@ Refactored from script style to a collectible test that:
  - Asserts acceptable success rate from the existing MCPToolsTester logic
 """
 
-import asyncio
+import anyio
 import json
 import traceback
 from pathlib import Path
@@ -312,7 +312,7 @@ def test_mcp_tools_comprehensive():
     """
     tester = MCPToolsTester()
     try:
-        success = asyncio.run(tester.run_all_tests())
+        success = anyio.run(tester.run_all_tests)
     finally:
         tester.cleanup()
     assert success, "Comprehensive MCP tools success rate below threshold (>=60% expected)"

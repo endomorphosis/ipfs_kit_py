@@ -7,7 +7,7 @@ import os
 import sys
 import tempfile
 import shutil
-import asyncio
+import anyio
 import pandas as pd
 from pathlib import Path
 
@@ -112,4 +112,4 @@ async def test_enhanced_pin_metadata():
         print("\n✨ Enhanced Pin Metadata Test Complete!")
 
 if __name__ == "__main__":
-    asyncio.run(test_enhanced_pin_metadata())
+    anyio.run(test_enhanced_pin_metadata)

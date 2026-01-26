@@ -3,7 +3,7 @@
 Comprehensive test to check which MCP tools are working with real IPFS data vs mocks.
 """
 
-import asyncio
+import anyio
 import json
 import sys
 import subprocess
@@ -66,7 +66,7 @@ async def test_tool_via_mcp():
     return results
 
 if __name__ == "__main__":
-    results = asyncio.run(test_tool_via_mcp())
+    results = anyio.run(test_tool_via_mcp)
     
     print("\n" + "="*50)
     print("SUMMARY:")

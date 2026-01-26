@@ -7,7 +7,6 @@ This script tests the new GraphRAG, vector search, and SPARQL capabilities
 of the enhanced MCP server.
 """
 
-import asyncio
 import json
 import subprocess
 import tempfile

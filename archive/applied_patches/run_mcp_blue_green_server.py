@@ -8,7 +8,7 @@ rollout management.
 """
 
 import argparse
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -65,8 +65,10 @@ def setup_signal_handlers():
     """Set up signal handlers for graceful shutdown."""
     def handle_signal(sig, frame):
         logger.info(f"Received signal {sig}, shutting down...")
-        if asyncio.get_event_loop().is_running():
-            asyncio.get_event_loop().create_task(shutdown())
+        try:
+            anyio.lowlevel.spawn_system_task(shutdown)
+        except Exception:
+            anyio.run(shutdown)
     
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
@@ -85,9 +87,7 @@ async def shutdown():
         logger.info("Stopping server proxy...")
         await server_proxy.stop()
     
-    # Stop the event loop
-    loop = asyncio.get_event_loop()
-    loop.stop()
+    return
 
 async def health_monitoring(interval: int = 60):
     """Periodically check server health and log statistics."""
@@ -124,13 +124,13 @@ async def health_monitoring(interval: int = 60):
                         recommendation = validation["recommendations"]
                         logger.info(f"Recommendation: {recommendation.get('action')} - {recommendation.get('message')}")
             
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
         
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             break
         except Exception as e:
             logger.error(f"Error in health monitoring: {e}")
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
 async def setup_web_dashboard(config: Dict[str, Any], host: str = "localhost", port: int = 8090):
     """Set up a web dashboard for monitoring the blue/green deployment."""
@@ -592,25 +592,25 @@ async def run_server(args):
         if "deployment" in config and "health_check_interval" in config["deployment"]:
             monitor_interval = config["deployment"]["health_check_interval"]
         
-        monitor_task = asyncio.create_task(health_monitoring(monitor_interval))
+        monitor_task_scope = anyio.CancelScope()
+        async def run_monitor():
+            with monitor_task_scope:
+                await health_monitoring(monitor_interval)
+        anyio.lowlevel.spawn_system_task(run_monitor)
         
         # Keep running until interrupted
         while True:
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
     
-    except asyncio.CancelledError:
+    except anyio.get_cancelled_exc_class():
         logger.info("Server task cancelled")
     except Exception as e:
         logger.error(f"Error running server: {e}")
         return 1
     finally:
         # Clean up tasks
-        if 'monitor_task' in locals():
-            monitor_task.cancel()
-            try:
-                await monitor_task
-            except asyncio.CancelledError:
-                pass
+        if 'monitor_task_scope' in locals():
+            monitor_task_scope.cancel()
         
         # Stop server if still running
         if server_proxy and server_proxy.running:
@@ -637,15 +637,10 @@ def main():
     
     # Run the server
     try:
-        loop = asyncio.get_event_loop()
-        exit_code = loop.run_until_complete(run_server(args))
+        exit_code = anyio.run(run_server, args)
         sys.exit(exit_code)
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
-    finally:
-        # Ensure event loop is closed
-        if not loop.is_closed():
-            loop.close()
 
 if __name__ == "__main__":
     main()

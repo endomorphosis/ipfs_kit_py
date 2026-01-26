@@ -15,7 +15,7 @@ Run with: python -m pytest tests/test_synapse_integration.py -v
 import os
 import sys
 import json
-import asyncio
+import anyio
 import tempfile
 import shutil
 import pytest
@@ -442,7 +442,7 @@ class TestSynapseStorageOperations:
             storage = synapse_storage(metadata={"network": "calibration"})
             return storage
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_store_data(self, mock_storage):
@@ -458,7 +458,7 @@ class TestSynapseStorageOperations:
         assert "proof_set_id" in result
         assert "storage_provider" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_retrieve_data(self, mock_storage):
@@ -470,7 +470,7 @@ class TestSynapseStorageOperations:
         assert isinstance(data, bytes)
         assert data == b"Hello, Synapse SDK!"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_store_file(self, mock_storage):
@@ -489,7 +489,7 @@ class TestSynapseStorageOperations:
         assert result["file_path"] == test_file
         assert result["filename"] == "test.txt"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_retrieve_file(self, mock_storage):
@@ -508,7 +508,7 @@ class TestSynapseStorageOperations:
             content = f.read()
         assert content == b"Hello, Synapse SDK!"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_get_balance(self, mock_storage):
@@ -520,7 +520,7 @@ class TestSynapseStorageOperations:
         assert "contract_balance" in result
         assert result["token"] == "USDFC"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_get_provider_recommendations(self, mock_storage):
@@ -532,7 +532,7 @@ class TestSynapseStorageOperations:
         assert len(result["providers"]) > 0
         assert "pricing" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_get_piece_status(self, mock_storage):
@@ -547,7 +547,7 @@ class TestSynapseStorageOperations:
         assert "proof_set_next_proof_due" in result
         assert "in_challenge_window" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_data_size_validation(self, mock_storage):
@@ -620,7 +620,7 @@ class TestMCPServerIntegration:
         os.chdir(self.original_dir)
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_mcp_server_synapse_initialization(self):
@@ -638,7 +638,7 @@ class TestMCPServerIntegration:
             
             assert server.synapse_storage is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_mcp_server_store_data_tool(self):
@@ -668,7 +668,7 @@ class TestMCPServerIntegration:
             assert "commp" in result
             assert result["filename"] == "mcp_test.txt"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {IMPORT_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_mcp_server_retrieve_data_tool(self):

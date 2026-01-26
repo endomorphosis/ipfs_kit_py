@@ -520,7 +520,7 @@ class TestWALReplicationIntegrationAnyIO(unittest.TestCase):
         self.assertGreaterEqual(final_metadata["replication"]["current_redundancy"], 3)
 
     # AnyIO Test Cases with pytest-anyio
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_external_tier_replication_via_wal_async(self):
         """Test that replication to external tiers goes through the WAL (async version)."""
         # Skip if WAL_ANYIO doesn't exist yet
@@ -612,7 +612,7 @@ class TestWALReplicationIntegrationAnyIO(unittest.TestCase):
             updated_metadata = self.cache_manager.get_metadata(test_key)
             self.assertIn("pending_replication", updated_metadata)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_process_wal_replication_operations_async(self):
         """Test that WAL replication operations are processed correctly with async handlers."""
         # Skip if WAL_ANYIO doesn't exist yet

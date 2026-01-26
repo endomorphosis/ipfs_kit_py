@@ -8,7 +8,6 @@ This script tests the basic functionality of the metrics and monitoring system.
 import os
 import sys
 import logging
-import asyncio
 import json
 import uuid
 import time

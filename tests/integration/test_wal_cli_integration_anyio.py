@@ -262,7 +262,7 @@ class TestWALCLIIntegrationAnyIO(unittest.TestCase):
         self.assertEqual(result["Pending"], 5)
         self.assertEqual(result["Failed"], 5)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_wal_status_command_async(self):
         """Test the WAL status command using async API."""
         # Set up our mock response with the correct structure
@@ -330,7 +330,7 @@ class TestWALCLIIntegrationAnyIO(unittest.TestCase):
         self.assertEqual(result["success"], True)
         self.assertEqual(len(result["operations"]), 1)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_wal_list_command_async(self):
         """Test the WAL list command using async API."""
         # Mock the response with the correct structure
@@ -403,7 +403,7 @@ class TestWALCLIIntegrationAnyIO(unittest.TestCase):
         self.assertEqual(result["backends"]["ipfs"]["status"], "healthy")
         self.assertEqual(result["backends"]["s3"]["status"], "unhealthy")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_wal_health_command_async(self):
         """Test the WAL health command using async API."""
         # Mock the response with the correct structure
@@ -457,7 +457,7 @@ class TestWALCLIIntegrationAnyIO(unittest.TestCase):
         
         self.assertEqual(str(context.exception), "WAL not enabled")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_wal_command_error_handling_async(self):
         """Test error handling in WAL commands with async API."""
         # Mock the API instance to raise an error

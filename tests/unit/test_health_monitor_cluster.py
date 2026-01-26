@@ -3,7 +3,7 @@
 Quick test of the health monitor to see cluster status
 """
 
-import asyncio
+import anyio
 from pathlib import Path
 
 async def test_health_monitor():
@@ -75,4 +75,4 @@ async def test_health_monitor():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(test_health_monitor())
+    anyio.run(test_health_monitor)

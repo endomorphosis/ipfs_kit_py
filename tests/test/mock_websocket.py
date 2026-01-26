@@ -4,7 +4,6 @@ This module provides mock implementations of FastAPI WebSocket classes
 for testing without requiring the actual FastAPI package.
 """
 
-import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Union, Callable
 

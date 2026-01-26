@@ -41,7 +41,7 @@ def parse_args():
     parser.add_argument("--skip-demos", action="store_true", help="Skip demo scripts")
     parser.add_argument("--skip-integration", action="store_true", help="Skip integration tests")
     parser.add_argument("--skip-server", action="store_true", help="Skip server tests")
-    parser.add_argument("--anyio-only", action="store_true", help="Only run AnyIO tests (skip asyncio)")
+    parser.add_argument("--anyio-only", action="store_true", help="Only run AnyIO tests (skip async-io)")
     parser.add_argument("--install-deps", action="store_true", help="Install dependencies before running tests")
     
     return parser.parse_args()
@@ -94,12 +94,12 @@ def run_demo_scripts(args):
     success = True
     
     if not args.anyio_only:
-        # Run asyncio demo
-        asyncio_success = run_command(
+        # Run async-io demo
+        async_io_success = run_command(
             ["python", "event_loop_issue_demo.py"],
-            "Running asyncio event loop demo"
+            "Running async-io event loop demo"
         )
-        if not asyncio_success:
+        if not async_io_success:
             success = False
     
     # Run AnyIO demo
@@ -166,22 +166,22 @@ def run_server_tests(args):
     success = True
     
     if not args.anyio_only:
-        # Test with asyncio-based server
-        asyncio_server = start_test_server("run_mcp_with_webrtc_fixed.py")
-        if asyncio_server:
+        # Test with async-io-based server
+        async_io_server = start_test_server("run_mcp_with_webrtc_fixed.py")
+        if async_io_server:
             try:
-                # Run the test against the asyncio server
-                asyncio_success = run_command(
+                # Run the test against the async-io server
+                async_io_success = run_command(
                     ["python", "test_webrtc_event_loop_fix.py", "--server-url", "http://127.0.0.1:9999", "--verbose"],
-                    "Testing asyncio-based server"
+                    "Testing async-io-based server"
                 )
-                if not asyncio_success:
+                if not async_io_success:
                     success = False
             finally:
                 # Stop the server
-                logger.info("Stopping asyncio server...")
-                asyncio_server.terminate()
-                asyncio_server.wait()
+                logger.info("Stopping async-io server...")
+                async_io_server.terminate()
+                async_io_server.wait()
     
     # Test with AnyIO-based server
     anyio_server = start_test_server("run_mcp_with_anyio_fixed.py", port=9998)

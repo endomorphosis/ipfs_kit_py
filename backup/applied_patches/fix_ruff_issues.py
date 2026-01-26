@@ -50,7 +50,7 @@ def fix_undefined_names(file_path, content):
     fixes = {
         "traceback": "import traceback",
         "uuid": "import uuid",
-        "asyncio": "import asyncio",
+        "anyio": "import anyio",
         "os": "import os",
         "aiofiles": "import aiofiles",
         "time": "import time",

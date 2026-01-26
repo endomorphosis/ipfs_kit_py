@@ -8,7 +8,7 @@ This script tests the basic functionality of the cross-backend migration system.
 import os
 import sys
 import logging
-import asyncio
+import anyio
 import json
 import uuid
 import time
@@ -319,4 +319,4 @@ async def run_tests():
 # Main entry point
 if __name__ == "__main__":
     # Run the test coroutine
-    asyncio.run(run_tests())
+    anyio.run(run_tests)

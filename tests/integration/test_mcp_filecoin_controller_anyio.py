@@ -2,7 +2,7 @@
 Test module for FilecoinControllerAnyIO in MCP server.
 
 This module tests the AnyIO version of FilecoinController which provides
-async/await support for both asyncio and trio backends.
+async/await support for both async-io and trio backends.
 """
 
 import pytest

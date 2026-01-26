@@ -260,7 +260,7 @@ class TestPeerWebSocket:
         assert client.tasks == set()
         assert client.task_group is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_client_server_connection(self, server_and_client):
         """Test establishing connection between client and server."""
         server, client, server_url = server_and_client
@@ -284,7 +284,7 @@ class TestPeerWebSocket:
         assert "ipfs" in discovered_peer.capabilities
         assert "ipfs_cluster" in discovered_peer.capabilities
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_peer_list_filtering(self, server_and_client):
         """Test filtering peer lists."""
         server, client, server_url = server_and_client

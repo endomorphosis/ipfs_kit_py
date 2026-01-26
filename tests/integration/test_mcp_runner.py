@@ -102,7 +102,7 @@ class MCPTestRunner:
         )
         
         # Start the MCP server with the run_mcp_server_anyio.py script
-        cmd = ["python", "run_mcp_server_anyio.py", "--host", self.host, "--port", str(self.port), "--backend", "asyncio"]
+        cmd = ["python", "run_mcp_server_anyio.py", "--host", self.host, "--port", str(self.port), "--backend", "anyio"]
         
         if self.debug:
             cmd.append("--debug")

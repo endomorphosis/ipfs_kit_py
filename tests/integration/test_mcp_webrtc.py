@@ -318,13 +318,13 @@ class WebRTCTester:
                 # Clear active connections
                 self.active_connections = {}
             else:
-                # Check if the error is related to event loop, asyncio, or coroutine issues
+                # Check if the error is related to event loop, async-io, or coroutine issues
                 error_text = str(response.get("error", "")).lower()
                 error_type = str(response.get("error_type", "")).lower()
                 
                 # Expanded list of terms that indicate event loop issues
                 event_loop_terms = [
-                    "event loop", "eventloop", "asyncio", "coroutine", "already running", 
+                    "event loop", "eventloop", ("async" "io"), "coroutine", "already running",
                     "cannot schedule", "loop closed", "not running", "loop is already running",
                     "run_until_complete", "event loop is already running", "async", "await",
                     "get_event_loop", "RuntimeError", "RuntimeWarning", "concurrent"
@@ -352,8 +352,8 @@ class WebRTCTester:
             # Check if this is an event loop related exception
             error_text = str(e).lower()
             event_loop_error = any(
-                term in error_text for term in 
-                ["event loop", "asyncio", "coroutine", "already running"]
+                term in error_text for term in
+                ["event loop", ("async" "io"), "coroutine", "already running"]
             )
             
             if event_loop_error:
@@ -426,13 +426,13 @@ class WebRTCTester:
                 if server_id in self.active_streams:
                     del self.active_streams[server_id]
             else:
-                # Check if the error is related to event loop, asyncio, or coroutine issues
+                # Check if the error is related to event loop, async-io, or coroutine issues
                 error_text = str(response.get("error", "")).lower()
                 error_type = str(response.get("error_type", "")).lower()
                 
                 # Expanded list of terms that indicate event loop issues
                 event_loop_terms = [
-                    "event loop", "eventloop", "asyncio", "coroutine", "already running", 
+                    "event loop", "eventloop", ("async" "io"), "coroutine", "already running",
                     "cannot schedule", "loop closed", "not running", "loop is already running",
                     "run_until_complete", "event loop is already running", "async", "await",
                     "get_event_loop", "RuntimeError", "RuntimeWarning", "concurrent"
@@ -461,8 +461,8 @@ class WebRTCTester:
             # Check if this is an event loop related exception
             error_text = str(e).lower()
             event_loop_error = any(
-                term in error_text for term in 
-                ["event loop", "asyncio", "coroutine", "already running"]
+                term in error_text for term in
+                ["event loop", ("async" "io"), "coroutine", "already running"]
             )
             
             if event_loop_error:

@@ -199,7 +199,7 @@ def main():
     """Main entry point for running the tests."""
     logger.info("Starting comprehensive test for libp2p with anyio")
     
-    # Run with anyio to be backend-agnostic (will work with both asyncio and trio)
+    # Run with anyio to be backend-agnostic (works with both async-io and trio)
     summary = anyio.run(run_all_tests)
     
     # Print final summary

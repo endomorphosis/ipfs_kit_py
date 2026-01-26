@@ -13,12 +13,10 @@ This test suite validates all integrated features:
 - Template system integration
 """
 
-import asyncio
 import json
 import logging
 import os
-import tempfile
-import unittest
+import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 import sys
@@ -37,63 +35,57 @@ except ImportError as e:
 # Configure logging for tests
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+pytestmark = pytest.mark.anyio
 
 
-class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
+class TestUnifiedComprehensiveDashboard:
     """Test cases for the unified comprehensive dashboard."""
-    
-    async def asyncSetUp(self):
+
+    @pytest.fixture(autouse=True)
+    async def _setup_dashboard(self, tmp_path):
         """Set up test environment."""
         if not DASHBOARD_AVAILABLE:
-            self.skipTest("Dashboard not available for testing")
-        
-        # Create temporary directory for testing
-        self.temp_dir = tempfile.mkdtemp()
+            pytest.skip("Dashboard not available for testing")
+
+        self.temp_dir = tmp_path
         self.test_config = {
             'host': '127.0.0.1',
             'port': 8081,  # Use different port for testing
-            'data_dir': self.temp_dir,
+            'data_dir': str(tmp_path),
             'debug': True,
             'websocket_enabled': True,
             'log_streaming': True
         }
-        
+
         # Initialize dashboard
         self.dashboard = UnifiedComprehensiveDashboard(self.test_config)
-        
+
         logger.info(f"✅ Test environment set up with temp dir: {self.temp_dir}")
-    
-    async def asyncTearDown(self):
-        """Clean up test environment."""
-        # Clean up temporary directory
-        import shutil
-        if hasattr(self, 'temp_dir') and Path(self.temp_dir).exists():
-            shutil.rmtree(self.temp_dir)
-        logger.info("🧹 Test environment cleaned up")
+        yield
     
     async def test_dashboard_initialization(self):
         """Test dashboard initialization with comprehensive features."""
         logger.info("🧪 Testing dashboard initialization...")
         
         # Test basic initialization
-        self.assertIsNotNone(self.dashboard)
-        self.assertEqual(self.dashboard.host, '127.0.0.1')
-        self.assertEqual(self.dashboard.port, 8081)
-        self.assertTrue(self.dashboard.websocket_enabled)
+        assert self.dashboard is not None
+        assert self.dashboard.host == '127.0.0.1'
+        assert self.dashboard.port == 8081
+        assert self.dashboard.websocket_enabled
         
         # Test state directories creation
-        self.assertTrue(self.dashboard.data_dir.exists())
-        self.assertTrue(self.dashboard.buckets_dir.exists())
-        self.assertTrue(self.dashboard.backends_dir.exists())
-        self.assertTrue(self.dashboard.services_dir.exists())
+        assert self.dashboard.data_dir.exists()
+        assert self.dashboard.buckets_dir.exists()
+        assert self.dashboard.backends_dir.exists()
+        assert self.dashboard.services_dir.exists()
         
         # Test FastAPI app creation
-        self.assertIsNotNone(self.dashboard.app)
-        self.assertEqual(self.dashboard.app.title, "IPFS Kit - Unified Comprehensive Dashboard")
+        assert self.dashboard.app is not None
+        assert self.dashboard.app.title == "IPFS Kit - Unified Comprehensive Dashboard"
         
         # Test MCP tools registration
-        self.assertIsInstance(self.dashboard.mcp_tools, dict)
-        self.assertGreater(len(self.dashboard.mcp_tools), 0)
+        assert isinstance(self.dashboard.mcp_tools, dict)
+        assert len(self.dashboard.mcp_tools) > 0
         
         logger.info("✅ Dashboard initialization test passed")
     
@@ -102,7 +94,7 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         logger.info("🧪 Testing light initialization fallbacks...")
         
         # Test that dashboard works even when optional components fail
-        self.assertIsNotNone(self.dashboard.unified_bucket_interface)
+        assert self.dashboard.unified_bucket_interface is not None
         
         # Test fallback behavior for missing components
         if hasattr(self.dashboard, 'ipfs_api') and self.dashboard.ipfs_api is None:
@@ -131,11 +123,11 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         ]
         
         for tool in required_tools:
-            self.assertIn(tool, self.dashboard.mcp_tools)
+            assert tool in self.dashboard.mcp_tools
             tool_def = self.dashboard.mcp_tools[tool]
-            self.assertIn("name", tool_def)
-            self.assertIn("description", tool_def)
-            self.assertIn("input_schema", tool_def)
+            assert "name" in tool_def
+            assert "description" in tool_def
+            assert "input_schema" in tool_def
         
         logger.info("✅ MCP protocol compatibility test passed")
     
@@ -145,16 +137,16 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         
         # Test system metrics tool
         metrics_result = await self.dashboard._execute_mcp_tool("system_metrics", {})
-        self.assertIsInstance(metrics_result, dict)
-        self.assertIn("timestamp", metrics_result)
+        assert isinstance(metrics_result, dict)
+        assert "timestamp" in metrics_result
         
         # Test daemon status tool
         status_result = await self.dashboard._execute_mcp_tool("daemon_status", {})
-        self.assertIsInstance(status_result, dict)
+        assert isinstance(status_result, dict)
         
         # Test list buckets tool
         buckets_result = await self.dashboard._execute_mcp_tool("list_buckets", {})
-        self.assertIsInstance(buckets_result, dict)
+        assert isinstance(buckets_result, dict)
         
         # Test file operations
         # First create a test file
@@ -166,21 +158,21 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
             "path": str(test_file),
             "content": test_content
         })
-        self.assertTrue(write_result.get("success", False))
+        assert write_result.get("success", False)
         
         # Test read file
         read_result = await self.dashboard._execute_mcp_tool("read_file", {
             "path": str(test_file)
         })
-        self.assertEqual(read_result.get("content"), test_content)
+        assert read_result.get("content") == test_content
         
         # Test list files
         list_result = await self.dashboard._execute_mcp_tool("list_files", {
             "path": str(self.temp_dir)
         })
-        self.assertIn("files", list_result)
+        assert "files" in list_result
         file_names = [f["name"] for f in list_result["files"]]
-        self.assertIn("test.txt", file_names)
+        assert "test.txt" in file_names
         
         logger.info("✅ MCP tool execution test passed")
     
@@ -190,13 +182,13 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         
         # Test service status retrieval
         service_status = await self.dashboard._get_service_status()
-        self.assertIsInstance(service_status, dict)
-        self.assertIn("mcp_server", service_status)
-        self.assertIn("dashboard", service_status)
+        assert isinstance(service_status, dict)
+        assert "mcp_server" in service_status
+        assert "dashboard" in service_status
         
         # Test that MCP server and dashboard show as running
-        self.assertEqual(service_status["mcp_server"]["status"], "running")
-        self.assertEqual(service_status["dashboard"]["status"], "running")
+        assert service_status["mcp_server"]["status"] == "running"
+        assert service_status["dashboard"]["status"] == "running"
         
         # Test service management tools (these would normally interact with real services)
         # For testing, we check that the methods exist and return proper structure
@@ -209,21 +201,21 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         
         # Test backend status retrieval
         backend_status = await self.dashboard._get_backend_status()
-        self.assertIsInstance(backend_status, dict)
-        self.assertIn("backends", backend_status)
-        self.assertIn("summary", backend_status)
+        assert isinstance(backend_status, dict)
+        assert "backends" in backend_status
+        assert "summary" in backend_status
         
         # Test backend health monitoring
         backend_health = await self.dashboard._get_backend_health()
-        self.assertIsInstance(backend_health, dict)
-        self.assertIn("timestamp", backend_health)
-        self.assertIn("backends", backend_health)
+        assert isinstance(backend_health, dict)
+        assert "timestamp" in backend_health
+        assert "backends" in backend_health
         
         # Test backend performance metrics
         performance = await self.dashboard._get_backend_performance("test_backend")
-        self.assertIsInstance(performance, dict)
-        self.assertIn("backend", performance)
-        self.assertIn("metrics", performance)
+        assert isinstance(performance, dict)
+        assert "backend" in performance
+        assert "metrics" in performance
         
         logger.info("✅ Backend monitoring test passed")
     
@@ -233,18 +225,18 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         
         # Test system metrics collection
         metrics = await self.dashboard._get_system_metrics()
-        self.assertIsInstance(metrics, dict)
-        self.assertIn("timestamp", metrics)
-        self.assertIn("cpu", metrics)
-        self.assertIn("memory", metrics)
-        self.assertIn("disk", metrics)
+        assert isinstance(metrics, dict)
+        assert "timestamp" in metrics
+        assert "cpu" in metrics
+        assert "memory" in metrics
+        assert "disk" in metrics
         
         # Test system overview
         overview = await self.dashboard._get_system_overview()
-        self.assertIsInstance(overview, dict)
-        self.assertIn("timestamp", overview)
-        self.assertIn("uptime", overview)
-        self.assertIn("system", overview)
+        assert isinstance(overview, dict)
+        assert "timestamp" in overview
+        assert "uptime" in overview
+        assert "system" in overview
         
         logger.info("✅ Real-time metrics test passed")
     
@@ -256,7 +248,7 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
             websocket_manager = self.dashboard.websocket_manager
             
             # Test initial state
-            self.assertEqual(len(websocket_manager.active_connections), 0)
+            assert len(websocket_manager.active_connections) == 0
             
             # Test broadcast with no connections (should not error)
             await websocket_manager.broadcast({"type": "test", "data": "test_data"})
@@ -278,14 +270,14 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
             
             # Retrieve logs
             logs = log_handler.get_logs(component="test_component", limit=10)
-            self.assertIsInstance(logs, list)
+            assert isinstance(logs, list)
             
             if logs:
                 log_entry = logs[-1]  # Get the most recent log
-                self.assertIn("message", log_entry)
-                self.assertIn("timestamp", log_entry)
-                self.assertIn("level", log_entry)
-                self.assertIn("component", log_entry)
+                assert "message" in log_entry
+                assert "timestamp" in log_entry
+                assert "level" in log_entry
+                assert "component" in log_entry
             
             logger.info("✅ Log streaming test passed")
         else:
@@ -296,18 +288,18 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         logger.info("🧪 Testing bucket VFS operations...")
         
         # Test bucket interface availability
-        self.assertIsNotNone(self.dashboard.unified_bucket_interface)
+        assert self.dashboard.unified_bucket_interface is not None
         
         # Test bucket listing
         try:
             bucket_result = await self.dashboard.unified_bucket_interface.list_backend_buckets()
-            self.assertIsInstance(bucket_result, dict)
+            assert isinstance(bucket_result, dict)
             logger.info("✅ Bucket interface responding correctly")
         except Exception as e:
             logger.info(f"⚠️ Bucket interface error (expected in test environment): {e}")
         
         # Test bucket directory structure
-        self.assertTrue(self.dashboard.buckets_dir.exists())
+        assert self.dashboard.buckets_dir.exists()
         
         logger.info("✅ Bucket VFS operations test passed")
     
@@ -327,8 +319,8 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         ]
         
         for dir_path in required_dirs:
-            self.assertTrue(dir_path.exists(), f"Directory {dir_path} should exist")
-            self.assertTrue(dir_path.is_dir(), f"Path {dir_path} should be a directory")
+            assert dir_path.exists(), f"Directory {dir_path} should exist"
+            assert dir_path.is_dir(), f"Path {dir_path} should be a directory"
         
         # Test writing and reading from state directories
         test_config_file = self.dashboard.config_dir / "test_config.json"
@@ -340,7 +332,7 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         with open(test_config_file, 'r') as f:
             loaded_data = json.load(f)
         
-        self.assertEqual(loaded_data, test_config_data)
+        assert loaded_data == test_config_data
         
         logger.info("✅ State directory management test passed")
     
@@ -359,7 +351,7 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         }
         
         for feature, available in feature_checks.items():
-            self.assertTrue(available, f"Feature '{feature}' should be available")
+            assert available, f"Feature '{feature}' should be available"
             logger.info(f"✅ {feature}: Available")
         
         # Test that the dashboard has all expected methods
@@ -375,8 +367,9 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         ]
         
         for method_name in expected_methods:
-            self.assertTrue(hasattr(self.dashboard, method_name), 
-                          f"Method '{method_name}' should be available")
+            assert hasattr(self.dashboard, method_name), (
+                f"Method '{method_name}' should be available"
+            )
         
         logger.info("✅ Comprehensive feature integration test passed")
     
@@ -386,49 +379,50 @@ class TestUnifiedComprehensiveDashboard(unittest.IsolatedAsyncioTestCase):
         
         # Test MCP tool execution with invalid tool
         invalid_result = await self.dashboard._execute_mcp_tool("invalid_tool", {})
-        self.assertIn("error", invalid_result)
+        assert "error" in invalid_result
         
         # Test MCP tool execution with invalid parameters
         invalid_params_result = await self.dashboard._execute_mcp_tool("read_file", {})
-        self.assertIn("error", invalid_params_result)
+        assert "error" in invalid_params_result
         
         # Test file operations with invalid paths
         invalid_file_result = await self.dashboard._execute_mcp_tool("read_file", {
             "path": "/nonexistent/file.txt"
         })
-        self.assertIn("error", invalid_file_result)
+        assert "error" in invalid_file_result
         
         logger.info("✅ Error handling and fallbacks test passed")
 
 
-class TestDashboardIntegration(unittest.TestCase):
+class TestDashboardIntegration:
     """Integration tests for dashboard functionality."""
-    
-    def setUp(self):
-        """Set up integration test environment."""
-        if not DASHBOARD_AVAILABLE:
-            self.skipTest("Dashboard not available for testing")
-    
+
     def test_dashboard_import(self):
         """Test that dashboard can be imported successfully."""
         logger.info("🧪 Testing dashboard import...")
-        
-        self.assertTrue(DASHBOARD_AVAILABLE, "Dashboard should be importable")
-        
+
+        if not DASHBOARD_AVAILABLE:
+            pytest.skip("Dashboard not available for testing")
+
+        assert DASHBOARD_AVAILABLE, "Dashboard should be importable"
+
         # Test that the main class is available
         from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
-        self.assertIsNotNone(UnifiedComprehensiveDashboard)
-        
+        assert UnifiedComprehensiveDashboard is not None
+
         logger.info("✅ Dashboard import test passed")
-    
+
     def test_dashboard_instantiation(self):
         """Test dashboard can be instantiated with default config."""
         logger.info("🧪 Testing dashboard instantiation...")
-        
+
+        if not DASHBOARD_AVAILABLE:
+            pytest.skip("Dashboard not available for testing")
+
         # Test with default config
         dashboard = UnifiedComprehensiveDashboard()
-        self.assertIsNotNone(dashboard)
-        
+        assert dashboard is not None
+
         # Test with custom config
         custom_config = {
             'host': '0.0.0.0',
@@ -436,49 +430,31 @@ class TestDashboardIntegration(unittest.TestCase):
             'debug': True
         }
         dashboard_custom = UnifiedComprehensiveDashboard(custom_config)
-        self.assertEqual(dashboard_custom.host, '0.0.0.0')
-        self.assertEqual(dashboard_custom.port, 9000)
-        self.assertTrue(dashboard_custom.debug)
-        
+        assert dashboard_custom.host == '0.0.0.0'
+        assert dashboard_custom.port == 9000
+        assert dashboard_custom.debug
+
         logger.info("✅ Dashboard instantiation test passed")
 
 
-async def run_comprehensive_tests():
-    """Run all comprehensive tests."""
+def run_comprehensive_tests():
+    """Run all comprehensive tests via pytest."""
     logger.info("🚀 Starting Comprehensive Dashboard Test Suite")
     logger.info("=" * 60)
-    
-    # Run async tests
-    if DASHBOARD_AVAILABLE:
-        suite = unittest.TestLoader().loadTestsFromTestCase(TestUnifiedComprehensiveDashboard)
-        runner = unittest.TextTestRunner(verbosity=2)
-        result = runner.run(suite)
-        
-        # Run sync tests
-        suite_sync = unittest.TestLoader().loadTestsFromTestCase(TestDashboardIntegration)
-        result_sync = runner.run(suite_sync)
-        
-        # Summary
-        total_tests = result.testsRun + result_sync.testsRun
-        total_failures = len(result.failures) + len(result_sync.failures)
-        total_errors = len(result.errors) + len(result_sync.errors)
-        
-        logger.info("=" * 60)
-        logger.info(f"📊 Test Summary:")
-        logger.info(f"   Total Tests: {total_tests}")
-        logger.info(f"   Passed: {total_tests - total_failures - total_errors}")
-        logger.info(f"   Failed: {total_failures}")
-        logger.info(f"   Errors: {total_errors}")
-        
-        if total_failures == 0 and total_errors == 0:
-            logger.info("🎉 ALL TESTS PASSED! Dashboard integration successful!")
-            return True
-        else:
-            logger.error("❌ Some tests failed. Check the output above for details.")
-            return False
-    else:
+
+    if not DASHBOARD_AVAILABLE:
         logger.error("❌ Dashboard not available for testing")
         return False
+
+    exit_code = pytest.main([__file__, "-v", "--tb=short"])
+    success = exit_code == 0
+
+    if success:
+        logger.info("🎉 ALL TESTS PASSED! Dashboard integration successful!")
+    else:
+        logger.error("❌ Some tests failed. Check the output above for details.")
+
+    return success
 
 
 def main():
@@ -494,7 +470,7 @@ def main():
         return False
     
     # Run tests
-    success = asyncio.run(run_comprehensive_tests())
+    success = run_comprehensive_tests()
     
     if success:
         print("\n🎯 INTEGRATION SUCCESS!")

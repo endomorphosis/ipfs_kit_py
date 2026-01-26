@@ -3,7 +3,7 @@
 Quick MCP Server Validation Test
 """
 
-import asyncio
+import anyio
 import sys
 import os
 
@@ -88,7 +88,7 @@ async def test_mcp_server():
         return False
 
 if __name__ == "__main__":
-    success = asyncio.run(test_mcp_server())
+    success = anyio.run(test_mcp_server)
     if success:
         print("\n🎉 MCP Server validation successful!")
         sys.exit(0)

@@ -6,7 +6,7 @@ This script tests all libp2p functionality to identify any compatibility issues
 with the current dependency versions, particularly protobuf.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -146,7 +146,7 @@ def test_libp2p_host_creation():
                 return False
         
         # Run the async test
-        success = asyncio.run(create_test_host())
+        success = anyio.run(create_test_host)
         results["host_creation_success"] = success
         
     except Exception as e:
@@ -211,7 +211,7 @@ def test_ipfs_libp2p_peer():
                 results["peer_test_traceback"] = traceback.format_exc()
                 return False
         
-        success = asyncio.run(test_peer_init())
+        success = anyio.run(test_peer_init)
         results["peer_test_success"] = success
         
     except Exception as e:

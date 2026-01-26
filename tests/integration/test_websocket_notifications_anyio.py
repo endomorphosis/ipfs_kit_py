@@ -2,7 +2,7 @@
 Tests for the anyio-based WebSocket notification system.
 
 These tests verify the anyio implementation of the WebSocket notification system
-works correctly and maintains the same functionality as the asyncio version while 
+works correctly and maintains the same functionality as the async-io version while 
 providing the benefits of anyio's backend flexibility.
 """
 
@@ -501,6 +501,6 @@ async def test_maintenance_tasks():
 
 
 if __name__ == "__main__":
-    # Run tests with anyio backend (defaults to asyncio)
+    # Run tests with anyio backend (defaults to async-io)
     import anyio
     anyio.run(pytest.main, ["-v", __file__])

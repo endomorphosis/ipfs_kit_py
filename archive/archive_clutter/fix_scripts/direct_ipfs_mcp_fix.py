@@ -29,7 +29,7 @@ import logging
 import inspect
 import hashlib
 import traceback
-import asyncio
+import anyio
 from typing import Dict, Any, Callable, Optional, Union, List
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

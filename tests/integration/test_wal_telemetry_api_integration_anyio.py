@@ -176,7 +176,7 @@ class TestWALTelemetryAPIIntegrationAnyIO(unittest.TestCase):
         self.mock_telemetry.get_metrics.assert_called_once()
         self.assertEqual(result, self.default_metrics)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_telemetry_metrics_async(self):
         """Test getting telemetry metrics asynchronously."""
         # Create a new mock API for direct async testing
@@ -206,7 +206,7 @@ class TestWALTelemetryAPIIntegrationAnyIO(unittest.TestCase):
         self.assertEqual(result["report_path"], self.temp_file)
         self.assertIn("report", result)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_generate_telemetry_report_async(self):
         """Test generating a telemetry report asynchronously."""
         # Create a new mock API for direct async testing
@@ -254,7 +254,7 @@ class TestWALTelemetryAPIIntegrationAnyIO(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["visualization_path"], viz_path)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_visualize_telemetry_metrics_async(self):
         """Test visualizing telemetry metrics asynchronously."""
         # Create a new mock API for direct async testing
@@ -307,7 +307,7 @@ class TestWALTelemetryAPIIntegrationAnyIO(unittest.TestCase):
             self.assertEqual(result["port"], 9090)
             mock_exporter.start.assert_called_once()
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @unittest.skipIf(not PROMETHEUS_AVAILABLE, "Prometheus client not available")
     async def test_prometheus_integration_async(self):
         """Test integration with Prometheus metrics asynchronously."""
@@ -356,7 +356,7 @@ class TestWALTelemetryAPIIntegrationAnyIO(unittest.TestCase):
             self.assertTrue(result["success"])
             mock_tracing.setup_tracing.assert_called_once()
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @unittest.skipIf(not OPENTELEMETRY_AVAILABLE, "OpenTelemetry not available")
     async def test_tracing_integration_async(self):
         """Test integration with distributed tracing asynchronously."""
@@ -402,7 +402,7 @@ class TestWALTelemetryAPIIntegrationAnyIO(unittest.TestCase):
         self.assertEqual(result["metrics_enabled"], True)
         self.assertEqual(result["log_level"], "INFO")
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_telemetry_configuration_async(self):
         """Test getting telemetry configuration asynchronously."""
         # Create a new mock API for direct async testing
@@ -451,7 +451,7 @@ class TestWALTelemetryAPIIntegrationAnyIO(unittest.TestCase):
         self.assertEqual(result["config"]["metrics_enabled"], False)
         self.assertEqual(result["config"]["log_level"], "DEBUG")
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_update_telemetry_configuration_async(self):
         """Test updating telemetry configuration asynchronously."""
         # Create a new mock API for direct async testing

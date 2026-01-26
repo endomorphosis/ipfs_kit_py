@@ -9,7 +9,7 @@ This test validates:
 4. Worker/follower node operations
 """
 
-import asyncio
+import anyio
 import json
 import sys
 import os
@@ -243,7 +243,7 @@ async def test_follow_leader_connection():
 async def main():
     """Run all cluster follow tests."""
     print("IPFS Cluster Follow Enhanced Test Suite")
-    print(f"Timestamp: {asyncio.get_event_loop().time()}")
+    print(f"Timestamp: {anyio.current_time()}")
     print("=" * 60)
     
     test_results = []
@@ -284,5 +284,5 @@ async def main():
     return passed == len(test_results)
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
+    success = anyio.run(main)
     sys.exit(0 if success else 1)

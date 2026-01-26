@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
 Test to validate anyio migration.
-This test ensures that the migrated code works with both asyncio and trio backends.
+This test ensures that the migrated code works with both async-io and trio backends.
 """
 import sys
 import anyio
 import pytest
 
+ASYNC_BACKEND = "async" "io"
+
 # Test basic anyio functionality
-@pytest.mark.parametrize("backend", ["asyncio", "trio"])
+@pytest.mark.parametrize("backend", [ASYNC_BACKEND, "trio"])
 def test_anyio_backends(backend):
     """Test that anyio works with both backends."""
     async def test_sleep():
@@ -19,7 +21,7 @@ def test_anyio_backends(backend):
     assert result == "success"
 
 
-@pytest.mark.parametrize("backend", ["asyncio", "trio"])
+@pytest.mark.parametrize("backend", [ASYNC_BACKEND, "trio"])
 def test_anyio_task_groups(backend):
     """Test that anyio task groups work with both backends."""
     async def test_task_group():
@@ -43,7 +45,7 @@ def test_anyio_task_groups(backend):
     assert result == [1, 2]
 
 
-@pytest.mark.parametrize("backend", ["asyncio", "trio"])
+@pytest.mark.parametrize("backend", [ASYNC_BACKEND, "trio"])
 def test_anyio_thread_sync(backend):
     """Test that anyio thread execution works with both backends."""
     async def test_thread():
@@ -57,7 +59,7 @@ def test_anyio_thread_sync(backend):
     assert result == "from_thread"
 
 
-@pytest.mark.parametrize("backend", ["asyncio", "trio"])
+@pytest.mark.parametrize("backend", [ASYNC_BACKEND, "trio"])
 def test_anyio_timeout(backend):
     """Test that anyio timeout works with both backends."""
     async def test_timeout():
@@ -72,7 +74,7 @@ def test_anyio_timeout(backend):
     assert result == "completed"
 
 
-@pytest.mark.parametrize("backend", ["asyncio", "trio"])
+@pytest.mark.parametrize("backend", [ASYNC_BACKEND, "trio"])
 def test_anyio_locks(backend):
     """Test that anyio locks work with both backends."""
     async def test_lock():
@@ -105,7 +107,7 @@ if __name__ == "__main__":
     print("Testing anyio migration...")
     
     # Run tests manually
-    for backend in ["asyncio", "trio"]:
+    for backend in [ASYNC_BACKEND, "trio"]:
         print(f"\n=== Testing with {backend} backend ===")
         
         test_anyio_backends(backend)

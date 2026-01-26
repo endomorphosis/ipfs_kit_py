@@ -679,7 +679,7 @@ class TestAria2ControllerAnyIO:
     async def test_warn_if_async_context(self, controller):
         """Test _warn_if_async_context method in async context."""
         # Override get_backend to simulate async context
-        with patch.object(controller, "get_backend", return_value="asyncio"):
+        with patch.object(controller, "get_backend", return_value="anyio"):
             with pytest.warns(UserWarning, match="Synchronous method health_check called from async context"):
                 controller.health_check()
 

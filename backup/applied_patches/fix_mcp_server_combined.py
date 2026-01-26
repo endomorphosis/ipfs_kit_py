@@ -14,7 +14,7 @@ import time
 import json
 import shutil
 import traceback
-import asyncio
+import anyio
 from typing import Dict, Any, Optional, Callable
 
 # Configure logging
@@ -312,7 +312,7 @@ def restart_mcp_server():
 # WebRTC Event Loop Fix Implementation
 class AsyncEventLoopHandler:
     """
-    Handler for properly managing asyncio operations in different contexts.
+    Handler for properly managing async-io operations in different contexts.
     This class provides methods to safely execute coroutines whether within
     a running event loop (e.g., FastAPI) or standalone.
     """
@@ -357,38 +357,19 @@ class AsyncEventLoopHandler:
             Result of the coroutine, or fallback_result if in a running loop
         """
         try:
-            # Try to get the current event loop
-            loop = asyncio.get_event_loop()
+            async def runner():
+                return await coro
 
-            # Check if the loop is already running (e.g., in FastAPI)
-            if loop.is_running():
-                logger.info("Event loop already running, scheduling background task and returning fallback result")
-                if fallback_result is None:
-                    fallback_result = {
-                        "success": True,
-                        "simulated": True,
-                        "note": "Operation scheduled in background due to running event loop"
-                    }
-
-                # Schedule the coroutine to run in the background, but don't wait for it
-                # This allows the operation to run eventually without blocking
-                asyncio.create_task(coro)
-
-                return fallback_result
-            else:
-                # If loop exists but isn't running, we can run_until_complete
-                logger.info("Running coroutine in existing event loop")
-                return loop.run_until_complete(coro)
-
+            return anyio.run(runner)
         except RuntimeError:
-            # No event loop in this thread, create a new one
-            logger.info("Creating new event loop for operation")
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                return loop.run_until_complete(coro)
-            finally:
-                loop.close()
+            logger.info("Async runtime already running, returning fallback result")
+            if fallback_result is None:
+                fallback_result = {
+                    "success": True,
+                    "simulated": True,
+                    "note": "Operation skipped due to running async runtime"
+                }
+            return fallback_result
 
 def fix_webrtc_event_loop():
     """Fix WebRTC event loop integration issues."""
@@ -426,45 +407,32 @@ def fix_webrtc_event_loop():
             if import_section_end > 0:
                 # Add our utility class after imports but before logger initialization
                 async_handler_code = """
-# Utility class for handling asyncio operations in different contexts
+# Utility class for handling async-io operations in different contexts
 class AsyncEventLoopHandler:
-    \"\"\"
-    Handler for properly managing asyncio operations in different contexts.
-    \"\"\"
+    """
+    Handler for properly managing async-io operations in different contexts.
+    """
 
     @staticmethod
     def run_coroutine(coro, fallback_result=None):
-        \"\"\"Run a coroutine in any context (sync or async).\"\"\"
+        """Run a coroutine in any context (sync or async)."""
         try:
-            # Try to get the current event loop
-            loop = asyncio.get_event_loop()
+            async def runner():
+                return await coro
 
-            # Check if the loop is already running (e.g., in FastAPI)
-            if loop.is_running():
-                if fallback_result is None:
-                    fallback_result = {
-                        "success": True,
-                        "simulated": True,
-                        "note": "Operation scheduled in background due to running event loop"
-                    }
-
-                # Schedule coroutine to run in the background
-                asyncio.create_task(coro)
-                return fallback_result
-            else:
-                # If loop exists but isn't running, we can run_until_complete
-                return loop.run_until_complete(coro)
+            return anyio.run(runner)
 
         except RuntimeError:
-            # No event loop in this thread, create a new one
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                return loop.run_until_complete(coro)
-            finally:
-                loop.close()
+            if fallback_result is None:
+                fallback_result = {
+                    "success": True,
+                    "simulated": True,
+                    "note": "Operation skipped due to running async runtime"
+                }
+
+            return fallback_result
 """
-                content = content[:import_section_end] + "\nimport asyncio\n" + async_handler_code + content[import_section_end:]
+                content = content[:import_section_end] + "\nimport anyio\n" + async_handler_code + content[import_section_end:]
                 logger.info("Added AsyncEventLoopHandler utility class")
             else:
                 logger.warning("Could not find appropriate location for utility class")

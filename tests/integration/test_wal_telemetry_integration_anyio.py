@@ -627,7 +627,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertEqual(update["config"]["retention_days"], new_retention)
 
     # AnyIO specific tests
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_async_metrics_collection(self):
         """Test that metrics are properly collected and accessible via async client."""
         # Skip if anyio client is not available
@@ -653,7 +653,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         op_count = metrics["operation_count"]
         self.assertGreater(sum(count for count in op_count.values()), 0)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_async_realtime_metrics(self):
         """Test that real-time metrics are accessible via async client."""
         # Skip if anyio client is not available
@@ -675,7 +675,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertIn("success_rate", response)
         self.assertIn("throughput", response)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_async_report_generation(self):
         """Test report generation through the async API client."""
         # Skip if anyio client is not available
@@ -707,7 +707,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertTrue(file_response["success"])
         self.assertIn("content", file_response)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_async_visualization(self):
         """Test visualization generation through the async API client."""
         # Skip if anyio client is not available
@@ -741,7 +741,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_async_config_endpoints(self):
         """Test configuration endpoints with async client."""
         # Skip if anyio client is not available
@@ -776,7 +776,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         updated_config = update_response["config"]
         self.assertEqual(updated_config["sampling_interval"], new_interval)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_async_metrics_over_time(self):
         """Test retrieving metrics over time with async client."""
         # Skip if anyio client is not available
@@ -811,7 +811,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
             self.assertIn("timestamp", point)
             self.assertIn("metrics", point)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_async_concurrent_monitoring(self):
         """Test real-time monitoring with async client."""
         # Skip if anyio client is not available
@@ -862,7 +862,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
             self.assertIn("latency", metrics)
             self.assertIn("success_rate", metrics)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_async_end_to_end_workflow(self):
         """Test a complete end-to-end async workflow."""
         # Skip if anyio client is not available
@@ -922,7 +922,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
 class TestAsyncServerSetup:
     """Standalone async test class for testing anyio-specific server setup."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_async_server_setup(self):
         """Test setting up and using a FastAPI server with anyio."""
         # Skip if anyio-compatible WAL API is not available

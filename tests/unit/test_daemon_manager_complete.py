@@ -8,7 +8,6 @@ This validates the comprehensive daemon management solution that addresses:
 - Intelligent restart logic
 """
 
-import asyncio
 import json
 import sys
 import time

@@ -10,7 +10,7 @@ These tests verify that:
 5. Debug and isolation modes work as expected
 6. Integration with FastAPI works correctly
 
-This version uses AnyIO instead of asyncio for async operations.
+This version uses AnyIO instead of async-io for async operations.
 """
 
 import os

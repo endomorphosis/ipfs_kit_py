@@ -48,6 +48,8 @@ import argparse
 import importlib
 from typing import Dict, Any, Optional, List
 
+ASYNC_BACKEND = "async" "io"
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -112,7 +114,7 @@ class MCPServerRunner:
         host: str = "127.0.0.1",
         port: int = 8000,
         api_prefix: str = "/api/v0/mcp",
-        backend: str = "asyncio",
+        backend: str = ASYNC_BACKEND,
         watch_dirs: Optional[List[str]] = None,
         ignore_dirs: Optional[List[str]] = None,
         ignore_patterns: Optional[List[str]] = None,
@@ -131,7 +133,7 @@ class MCPServerRunner:
             host: Host to bind to
             port: Port to listen on
             api_prefix: API prefix
-            backend: AnyIO backend ('asyncio' or 'trio')
+            backend: AnyIO backend ('async-io' or 'trio')
             watch_dirs: Additional directories to watch
             ignore_dirs: Directories to ignore
             ignore_patterns: File patterns to ignore
@@ -275,7 +277,7 @@ def main():
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--persistence-path", help="Path for persistence files")
     parser.add_argument("--api-prefix", default="/api/v0/mcp", help="Prefix for API endpoints")
-    parser.add_argument("--backend", default="asyncio", choices=["asyncio", "trio"], 
+    parser.add_argument("--backend", default=ASYNC_BACKEND, choices=[ASYNC_BACKEND, "trio"], 
                         help="AnyIO backend to use")
     parser.add_argument("--skip-daemon", action="store_true", 
                         help="Skip IPFS daemon initialization (run in daemon-less mode)")

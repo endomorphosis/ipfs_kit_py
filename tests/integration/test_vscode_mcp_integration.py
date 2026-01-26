@@ -3,7 +3,7 @@
 Quick test script to verify the enhanced MCP server works with VS Code configuration
 """
 
-import asyncio
+import anyio
 import json
 import subprocess
 import sys
@@ -18,12 +18,12 @@ async def test_mcp_server():
     print("Testing Enhanced MCP Server...")
     
     # Start the server
-    process = await asyncio.create_subprocess_exec(
+    process = await anyio.open_process(
         sys.executable,
         str((REPO_ROOT / "enhanced_mcp_server_phase1.py").resolve()),
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
     )
     
     try:
@@ -41,12 +41,12 @@ async def test_mcp_server():
         
         # Send request
         request_json = json.dumps(init_request) + "\n"
-        process.stdin.write(request_json.encode())
-        await process.stdin.drain()
+        await process.stdin.send(request_json.encode())
         
         # Read response
-        response_line = await asyncio.wait_for(process.stdout.readline(), timeout=5.0)
-        response = json.loads(response_line.decode().strip())
+        with anyio.fail_after(5.0):
+            response_line = await process.stdout.receive()
+        response = json.loads(response_line.decode().strip().splitlines()[0])
         
         if "error" in response:
             print(f"❌ Initialize failed: {response['error']}")
@@ -63,11 +63,11 @@ async def test_mcp_server():
         }
         
         request_json = json.dumps(tools_request) + "\n"
-        process.stdin.write(request_json.encode())
-        await process.stdin.drain()
+        await process.stdin.send(request_json.encode())
         
-        response_line = await asyncio.wait_for(process.stdout.readline(), timeout=5.0)
-        response = json.loads(response_line.decode().strip())
+        with anyio.fail_after(5.0):
+            response_line = await process.stdout.receive()
+        response = json.loads(response_line.decode().strip().splitlines()[0])
         
         if "error" in response:
             print(f"❌ Tools list failed: {response['error']}")
@@ -89,7 +89,7 @@ async def test_mcp_server():
         
         return True
         
-    except asyncio.TimeoutError:
+    except TimeoutError:
         print("❌ Server response timeout")
         return False
     except Exception as e:
@@ -99,8 +99,9 @@ async def test_mcp_server():
         # Clean up
         process.terminate()
         try:
-            await asyncio.wait_for(process.wait(), timeout=5.0)
-        except asyncio.TimeoutError:
+            with anyio.fail_after(5.0):
+                await process.wait()
+        except TimeoutError:
             process.kill()
 
 def test_vscode_config():
@@ -182,4 +183,4 @@ async def main():
     print("=" * 60)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

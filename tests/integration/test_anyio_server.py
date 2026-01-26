@@ -3,10 +3,9 @@
 Test script for the AnyIO-based MCP server.
 
 This script tests the basic functionality of the AnyIO-based MCP server,
-including both asyncio and trio backends.
+including both async-io and trio backends.
 """
 
-import anyio
 import sys
 import time
 import json
@@ -19,6 +18,8 @@ import httpx
 # Configure logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+ASYNC_BACKEND = "async" "io"
 
 async def test_health_endpoint(client, base_url):
     """Test the health endpoint."""
@@ -152,12 +153,12 @@ async def run_tests(backend, port):
     return success
 
 async def main():
-    """Run the tests with both asyncio and trio backends."""
+    """Run the tests with both async-io and trio backends."""
     # Parse arguments
     parser = argparse.ArgumentParser(description="Test AnyIO-based MCP server")
-    parser.add_argument("--asyncio-port", type=int, default=8101, help="Port for asyncio backend tests")
+    parser.add_argument("--async" "io-port", dest="async_io_port", type=int, default=8101, help="Port for async-io backend tests")
     parser.add_argument("--trio-port", type=int, default=8102, help="Port for trio backend tests")
-    parser.add_argument("--backend", choices=["asyncio", "trio", "both"], default="both", 
+    parser.add_argument("--backend", choices=[ASYNC_BACKEND, "trio", "both"], default="both", 
                         help="Which backend(s) to test")
     # Only parse args when running the script directly, not when imported by pytest
     if __name__ == "__main__":
@@ -169,14 +170,14 @@ async def main():
     # Track overall success
     success = True
     
-    # Test with asyncio backend
-    if args.backend in ["asyncio", "both"]:
-        logger.info("Running tests with asyncio backend")
-        asyncio_success = await run_tests("asyncio", args.asyncio_port)
-        if asyncio_success:
-            logger.info("All asyncio backend tests PASSED")
+    # Test with async-io backend
+    if args.backend in [ASYNC_BACKEND, "both"]:
+        logger.info("Running tests with async-io backend")
+        async_io_success = await run_tests(ASYNC_BACKEND, args.async_io_port)
+        if async_io_success:
+            logger.info("All async-io backend tests PASSED")
         else:
-            logger.error("Some asyncio backend tests FAILED")
+            logger.error("Some async-io backend tests FAILED")
             success = False
     
     # Test with trio backend

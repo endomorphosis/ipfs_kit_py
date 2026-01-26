@@ -11,7 +11,7 @@ This module tests the complete routing system, including:
 import os
 import json
 import time
-import asyncio
+import anyio
 import unittest
 from unittest import mock
 from typing import Dict, Any, List, Optional
@@ -314,7 +314,7 @@ class TestAdaptiveOptimizer:
         """Create a fresh adaptive optimizer instance for each test."""
         return AdaptiveOptimizer()
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_optimize_route(self, optimizer):
         """Test the optimize_route method."""
         # Define test content and backends
@@ -340,7 +340,7 @@ class TestAdaptiveOptimizer:
         assert result.content_analysis is not None
         assert result.execution_time_ms > 0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_multiple_priorities(self, optimizer):
         """Test optimization with different priorities."""
         content = b"Test content"
@@ -371,7 +371,7 @@ class TestAdaptiveOptimizer:
         # This might not always be true, but is likely with different priorities
         assert len(set(results.values())) > 1
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_learning_from_outcomes(self, optimizer):
         """Test learning from routing outcomes."""
         # Setup
@@ -410,7 +410,7 @@ class TestAdaptiveOptimizer:
         assert current_weights != initial_weights
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestRoutingManager:
     """Test suite for the Routing Manager."""
     
@@ -485,7 +485,7 @@ class TestRoutingManager:
         assert len(set(results.values())) >= 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestRoutingIntegration:
     """Test the integration of the routing system with MCP server."""
     

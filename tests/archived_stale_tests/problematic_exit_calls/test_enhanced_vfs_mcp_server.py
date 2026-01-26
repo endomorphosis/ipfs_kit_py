@@ -9,7 +9,7 @@ high-level API orchestration of storage backends.
 """
 
 import json
-import asyncio
+import anyio
 import subprocess
 import tempfile
 import os
@@ -73,18 +73,18 @@ class EnhancedVFSMCPTester:
                 raise FileNotFoundError(f"Server file not found: {self.server_path}")
             
             # Start server process
-            self.server_process = await asyncio.create_subprocess_exec(
+            self.server_process = await anyio.open_process(
                 sys.executable, self.server_path,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stdin=anyio.PIPE,
+                stdout=anyio.PIPE,
+                stderr=anyio.PIPE
             )
             
             # Wait for initialization
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             
             if self.server_process.returncode is not None:
-                stderr = await self.server_process.stderr.read()
+                stderr = await self.server_process.stderr.receive()
                 raise RuntimeError(f"Server failed to start: {stderr.decode()}")
             
             print("✅ Enhanced VFS MCP Server started successfully")
@@ -98,9 +98,10 @@ class EnhancedVFSMCPTester:
         if self.server_process:
             try:
                 self.server_process.terminate()
-                await asyncio.wait_for(self.server_process.wait(), timeout=5)
+                with anyio.fail_after(5):
+                    await self.server_process.wait()
                 print("✅ Server stopped successfully")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.server_process.kill()
                 await self.server_process.wait()
                 print("⚠️  Server force killed")
@@ -124,22 +125,22 @@ class EnhancedVFSMCPTester:
         try:
             # Send request
             request_json = json.dumps(request) + "\n"
-            self.server_process.stdin.write(request_json.encode())
-            await self.server_process.stdin.drain()
+            await self.server_process.stdin.send(request_json.encode())
             
-            # Read response
-            response_line = await asyncio.wait_for(
-                self.server_process.stdout.readline(), timeout=timeout
-            )
+            with anyio.fail_after(timeout):
+                response_line = await self.server_process.stdout.receive()
             
             if not response_line:
                 raise RuntimeError("Server closed connection")
             
             response = json.loads(response_line.decode().strip())
             return response
-            
-        except asyncio.TimeoutError:
-            raise RuntimeError(f"Request timed out after {timeout}s")
+        
+        except TimeoutError:
+            return {
+                "success": False,
+                "error": f"Request timed out after {timeout} seconds",
+            }
         except json.JSONDecodeError as e:
             raise RuntimeError(f"Invalid JSON response: {e}")
     
@@ -293,7 +294,7 @@ class EnhancedVFSMCPTester:
                     self.test_results[f"daemon_{test}"] = False
                 
                 # Small delay between tests
-                await asyncio.sleep(0.5)
+                await anyio.sleep(0.5)
                 
             except Exception as e:
                 print(f"   ❌ {test} failed: {e}")
@@ -349,7 +350,7 @@ class EnhancedVFSMCPTester:
                     print(f"   ❌ {test_name}: No result in response")
                     self.test_results[f"cache_{test_name}"] = False
                 
-                await asyncio.sleep(0.5)
+                await anyio.sleep(0.5)
                 
             except Exception as e:
                 print(f"   ❌ {test_name} failed: {e}")
@@ -459,7 +460,7 @@ class EnhancedVFSMCPTester:
                     print(f"   ❌ {test_name}: No result in response")
                     self.test_results[f"orchestration_{test_name}"] = False
                 
-                await asyncio.sleep(0.5)
+                await anyio.sleep(0.5)
                 
             except Exception as e:
                 print(f"   ❌ {test_name} failed: {e}")
@@ -618,7 +619,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        anyio.run(main)
     except KeyboardInterrupt:
         print("\n⚠️  Test interrupted by user")
     except Exception as e:

@@ -7,7 +7,7 @@ Tests the core logic fixes directly without full IPFS Kit initialization.
 """
 
 import sys
-import asyncio
+import anyio
 import os
 
 # Add the project root to path
@@ -122,4 +122,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

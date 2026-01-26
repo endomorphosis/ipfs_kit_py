@@ -9,7 +9,7 @@ This script tests the enhanced LibP2P manager with:
 - Bootstrap from existing networks
 """
 
-import asyncio
+import anyio
 import logging
 import sys
 import os
@@ -178,7 +178,7 @@ async def test_enhanced_libp2p():
         
         # Keep running for a bit to see discovery in action
         print("\\n🔄 Running discovery for 30 seconds...")
-        await asyncio.sleep(30)
+        await anyio.sleep(30)
         
         # Check final stats
         final_stats = manager.get_peer_statistics()
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     print()
     
     try:
-        asyncio.run(test_enhanced_libp2p())
+        anyio.run(test_enhanced_libp2p)
     except KeyboardInterrupt:
         print("\\n⚠️  Test interrupted by user")
     except Exception as e:

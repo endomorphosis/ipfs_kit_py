@@ -23,21 +23,6 @@ from unittest.mock import patch, MagicMock, AsyncMock
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Check for pytest_asyncio availability
-try:
-    import pytest_asyncio
-    HAS_PYTEST_ASYNCIO = True
-except ImportError:
-    HAS_PYTEST_ASYNCIO = False
-    # Create dummy decorator for compatibility
-    class DummyAsyncioFixture:
-        def __call__(self, func):
-            return pytest.fixture(func)
-    pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})
-
-
-
-
 # Import pytest_anyio from fix_libp2p_mocks or create a dummy
 try:
     import os
@@ -143,7 +128,7 @@ try:
         raise ImportError(f"Could not find fix_libp2p_mocks.py at {fix_script_path}")
 except ImportError as e:
     logger.warning(f"Failed to import pytest_anyio from fix_libp2p_mocks: {e}, falling back to dummy implementation")
-    # Use a dummy implementation similar to pytest_asyncio
+    # Use a dummy implementation similar to async fixture support
     class DummyAnyioFixture:
         def __call__(self, func):
             return pytest.fixture(func)
@@ -232,9 +217,9 @@ import sys
 if 'ipfs_kit_py.libp2p_peer' in sys.modules:
     sys.modules['ipfs_kit_py.libp2p_peer'].HAS_LIBP2P = True
 
-# Skip the entire test class if pytest_asyncio is not available
+# Skip the entire test class if async fixture support is not available
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestMCPServerCommunication:
     """Test communication between MCP server and ipfs_kit_py components."""
     

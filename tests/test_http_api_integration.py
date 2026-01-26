@@ -11,6 +11,7 @@ and handles requests/responses properly.
 """
 
 import pytest
+import anyio
 import httpx
 import json
 import os
@@ -96,7 +97,6 @@ class MCPServerManager:
             # Wait for server to start
             self._wait_for_server_start()
             return True
-            
         except Exception as e:
             print(f"Failed to start MCP server: {e}")
             return False
@@ -139,6 +139,10 @@ class MCPServerManager:
                 return response.status_code == 200
         except:
             return False
+
+
+async def _collect_response(request_coro, responses):
+    responses.append(await request_coro)
 
 
 @pytest.fixture(scope="module")
@@ -598,12 +602,15 @@ class TestConcurrentHTTPRequests:
     async def test_concurrent_cluster_status_requests(self, mcp_server, http_client):
         """Test handling multiple concurrent status requests"""
         tasks = []
-        
+
         for _ in range(10):
             task = http_client.get(f"{mcp_server.base_url}/cluster/status")
             tasks.append(task)
-        
-        responses = await asyncio.gather(*tasks)
+
+        responses = []
+        async with anyio.create_task_group() as tg:
+            for task in tasks:
+                tg.start_soon(_collect_response, task, responses)
         
         # All requests should succeed
         for response in responses:
@@ -611,7 +618,7 @@ class TestConcurrentHTTPRequests:
             data = response.json()
             assert "node_info" in data
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_concurrent_peer_operations(self, mcp_server, http_client):
         """Test concurrent peer addition operations"""
         tasks = []
@@ -625,8 +632,11 @@ class TestConcurrentHTTPRequests:
             }
             task = http_client.post(f"{mcp_server.base_url}/cluster/peers", json=peer_data)
             tasks.append(task)
-        
-        responses = await asyncio.gather(*tasks)
+
+        responses = []
+        async with anyio.create_task_group() as tg:
+            for task in tasks:
+                tg.start_soon(_collect_response, task, responses)
         
         # All requests should succeed
         for response in responses:
@@ -634,7 +644,7 @@ class TestConcurrentHTTPRequests:
             data = response.json()
             assert data["success"] is True
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_concurrent_indexing_operations(self, mcp_server, http_client):
         """Test concurrent indexing operations"""
         tasks = []
@@ -650,8 +660,11 @@ class TestConcurrentHTTPRequests:
             }
             task = http_client.post(f"{mcp_server.base_url}/indexing/data", json=index_data)
             tasks.append(task)
-        
-        responses = await asyncio.gather(*tasks)
+
+        responses = []
+        async with anyio.create_task_group() as tg:
+            for task in tasks:
+                tg.start_soon(_collect_response, task, responses)
         
         # All requests should succeed
         for response in responses:
@@ -663,7 +676,7 @@ class TestConcurrentHTTPRequests:
 class TestPerformanceAndLimits:
     """Test performance and limits of HTTP API"""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_large_peer_list_handling(self, mcp_server, http_client):
         """Test handling large peer lists"""
         # Add many peers
@@ -688,7 +701,7 @@ class TestPerformanceAndLimits:
         # Should respond quickly even with many peers
         assert end_time - start_time < 2.0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_large_index_data_handling(self, mcp_server, http_client):
         """Test handling large index data"""
         # Add many index entries

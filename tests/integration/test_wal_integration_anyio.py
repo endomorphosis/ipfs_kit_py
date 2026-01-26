@@ -410,7 +410,7 @@ class TestWALIntegrationAnyIO(unittest.TestCase):
         self.mock_wal.close.assert_called_once()
 
     # AnyIO Test Cases
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_with_wal_async(self):
         """Test the with_wal_async decorator."""
         # Skip if WALIntegrationAnyIO is not available
@@ -439,7 +439,7 @@ class TestWALIntegrationAnyIO(unittest.TestCase):
         self.assertIn("wal_operation_id", result)
         self.assertEqual(result["wal_operation_id"], "test-op-id-async")
         
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_skip_wal_parameter_async(self):
         """Test the skip_wal parameter with async decorator."""
         # Skip if WALIntegrationAnyIO is not available
@@ -464,7 +464,7 @@ class TestWALIntegrationAnyIO(unittest.TestCase):
         # Check that original function was called with skip_wal removed
         mock_func.assert_called_once_with("arg1")
         
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_wait_for_operation_async(self):
         """Test waiting for an operation to complete with async interface."""
         # Skip if WALIntegrationAnyIO is not available
@@ -488,7 +488,7 @@ class TestWALIntegrationAnyIO(unittest.TestCase):
         # Check that result was returned correctly
         self.assertEqual(result, operation_result)
         
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_operation_async(self):
         """Test getting an operation by ID with async interface."""
         # Skip if WALIntegrationAnyIO is not available
@@ -512,7 +512,7 @@ class TestWALIntegrationAnyIO(unittest.TestCase):
         # Check that result was returned correctly
         self.assertEqual(result, operation)
         
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_decorator_with_failed_operation_async(self):
         """Test async decorator behavior with a failed operation."""
         # Skip if WALIntegrationAnyIO is not available
@@ -539,7 +539,7 @@ class TestWALIntegrationAnyIO(unittest.TestCase):
         self.assertIn("wal_operation_id", result)
         self.assertEqual(result["wal_status"], "failed")
         
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_decorator_with_exception_async(self):
         """Test async decorator behavior when function raises an exception."""
         # Skip if WALIntegrationAnyIO is not available
@@ -566,7 +566,7 @@ class TestWALIntegrationAnyIO(unittest.TestCase):
         self.mock_wal_anyio.add_operation_async.assert_called_once()
         self.mock_wal_anyio.update_operation_status_async.assert_called_once()
         
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_backend_unavailable_async(self):
         """Test async decorator behavior when backend is unavailable."""
         # Skip if WALIntegrationAnyIO is not available
@@ -599,7 +599,7 @@ class TestWALIntegrationAnyIO(unittest.TestCase):
         self.assertEqual(result["status"], "pending")
         self.assertIn("operation_id", result)
         
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_with_wal_async_function(self):
         """Test the with_wal_async global function."""
         # Skip if with_wal_async is not available
@@ -633,7 +633,7 @@ class TestWALIntegrationAnyIO(unittest.TestCase):
         # Check that the result is the mock decorator
         self.assertEqual(result, mock_decorator)
         
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_close_async(self):
         """Test closing the WAL integration with async interface."""
         # Skip if WALIntegrationAnyIO is not available

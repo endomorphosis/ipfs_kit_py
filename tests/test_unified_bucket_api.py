@@ -3,7 +3,7 @@
 Test the unified MCP dashboard bucket functionality directly.
 """
 
-import asyncio
+import anyio
 import sys
 from pathlib import Path
 
@@ -55,4 +55,4 @@ async def test_bucket_api():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(test_bucket_api())
+    anyio.run(test_bucket_api)

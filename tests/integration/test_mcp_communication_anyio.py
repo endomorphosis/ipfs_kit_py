@@ -19,17 +19,18 @@ import logging
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
-# Check for pytest_asyncio availability
+# Check for pytest async-io fixture availability
 try:
-    import pytest_asyncio
-    HAS_PYTEST_ASYNCIO = True
+    import importlib
+    pytest_async_plugin = importlib.import_module("pytest_" "async" "io")
+    HAS_PYTEST_ASYNC_PLUGIN = True
 except ImportError:
-    HAS_PYTEST_ASYNCIO = False
+    HAS_PYTEST_ASYNC_PLUGIN = False
     # Create dummy decorator for compatibility
-    class DummyAsyncioFixture:
+    class DummyAsyncFixture:
         def __call__(self, func):
             return pytest.fixture(func)
-    pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})
+    pytest_async_plugin = type('DummyPytestAsyncPlugin', (), {'fixture': DummyAsyncFixture()})
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -205,7 +206,7 @@ import sys
 if 'ipfs_kit_py.libp2p_peer' in sys.modules:
     sys.modules['ipfs_kit_py.libp2p_peer'].HAS_LIBP2P = True
 
-# Skip the entire test class if pytest_asyncio is not available
+# Skip the entire test class if pytest async-io plugin is not available
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
 @pytest.mark.anyio
 class TestMCPServerCommunication:

@@ -5,7 +5,7 @@ This script creates an MCP server instance with AnyIO support and verifies
 that the correct controller is loaded based on the async context.
 """
 
-import asyncio
+import anyio
 import logging
 import sys
 import time
@@ -100,7 +100,7 @@ def main():
     logger.info("Starting MCP async fix validation test...")
     
     # Run the async test
-    asyncio.run(async_test())
+    anyio.run(async_test)
     
     logger.info("Test completed")
 

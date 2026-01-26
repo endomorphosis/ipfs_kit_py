@@ -3,7 +3,7 @@
 Minimal CLI test to isolate import issues
 """
 
-import asyncio
+import anyio
 import argparse
 import socket
 import subprocess
@@ -71,8 +71,8 @@ async def main():
 
 def sync_main():
     """Synchronous entry point."""
-    return asyncio.run(main())
+    return anyio.run(main)
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

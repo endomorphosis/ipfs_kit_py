@@ -8,7 +8,7 @@ This script tests the basic functionality of the unified data management system.
 import os
 import sys
 import logging
-import asyncio
+import anyio
 import json
 import uuid
 import time
@@ -96,8 +96,10 @@ def test_store_content():
         )
         
         # Store content
-        loop = asyncio.get_event_loop()
-        result = loop.run_until_complete(store_content(TEST_CONTENT, request))
+        async def _store():
+            return await store_content(TEST_CONTENT, request)
+
+        result = anyio.run(_store)
         
         # Verify result
         if not result.get("success", False):
@@ -134,8 +136,10 @@ def test_retrieve_content(cid):
         update_udm_status(mock_storage_backends)
         
         # Retrieve content
-        loop = asyncio.get_event_loop()
-        content, metadata = loop.run_until_complete(retrieve_content(cid))
+        async def _retrieve():
+            return await retrieve_content(cid)
+
+        content, metadata = anyio.run(_retrieve)
         
         # Verify content was retrieved
         if not content:

@@ -6,7 +6,7 @@ Test and start IPFS cluster backends
 This script will test the IPFS cluster backends and start the daemons if needed.
 """
 
-import asyncio
+import anyio
 import sys
 import os
 import subprocess
@@ -85,7 +85,7 @@ async def test_cluster_backends():
             print(f"Started cluster service daemon with PID: {cluster_proc.pid}")
             
             # Give it a moment to start
-            await asyncio.sleep(3)
+            await anyio.sleep(3)
             
             # Recheck health
             cluster_health = await health_monitor.check_backend_health("ipfs_cluster")
@@ -120,4 +120,4 @@ async def test_cluster_backends():
     return all_backends
 
 if __name__ == "__main__":
-    results = asyncio.run(test_cluster_backends())
+    results = anyio.run(test_cluster_backends)

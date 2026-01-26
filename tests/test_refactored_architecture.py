@@ -15,6 +15,7 @@ import time
 import json
 import logging
 from pathlib import Path
+import anyio
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -105,8 +106,6 @@ def test_streamlined_mcp_server_import():
                 
                 # Test a basic operation
                 logger.info("Testing basic IPFS operation through MCP server...")
-                import asyncio
-                
                 async def test_operation():
                     try:
                         result = await integration.execute_ipfs_operation("ipfs_id")
@@ -116,7 +115,7 @@ def test_streamlined_mcp_server_import():
                         return False
                 
                 # Run the async operation test
-                operation_result = asyncio.run(test_operation())
+                operation_result = anyio.run(test_operation)
                 logger.info(f"IPFS operation test: {'✓' if operation_result else '✗'}")
                 
                 return True
@@ -161,7 +160,6 @@ def test_mcp_tools():
         logger.info(f"Found {len(handlers)} tool handlers: {list(handlers.keys())}")
         
         # Test system health handler
-        import asyncio
         async def test_health():
             try:
                 result = await streamlined_module.system_health_handler()
@@ -170,7 +168,7 @@ def test_mcp_tools():
                 logger.error(f"Health test failed: {e}")
                 return {"success": False, "error": str(e)}
         
-        health_result = asyncio.run(test_health())
+        health_result = anyio.run(test_health)
         logger.info(f"System health test: {'✓' if health_result.get('success') else '✗'}")
         if not health_result.get('success'):
             logger.warning(f"Health check error: {health_result.get('error')}")

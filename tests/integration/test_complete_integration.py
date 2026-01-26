@@ -11,7 +11,7 @@ This test validates the complete integration of:
 7. Metadata replication
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -412,5 +412,5 @@ async def main():
 
 if __name__ == "__main__":
     import sys
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

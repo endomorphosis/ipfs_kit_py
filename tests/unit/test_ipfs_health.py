@@ -3,7 +3,7 @@
 Test IPFS health check functionality.
 """
 
-import asyncio
+import anyio
 from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
 
 
@@ -59,7 +59,7 @@ async def test_ipfs_health():
 
 def main():
     """Run the test."""
-    asyncio.run(test_ipfs_health())
+    anyio.run(test_ipfs_health)
 
 
 if __name__ == "__main__":

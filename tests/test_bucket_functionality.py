@@ -4,7 +4,7 @@ Comprehensive test script for bucket functionality in the MCP dashboard.
 Tests all CRUD operations: Create, Read, Upload, Download, Delete.
 """
 
-import asyncio
+import anyio
 import aiohttp
 import json
 import tempfile
@@ -154,4 +154,4 @@ async def main():
     await tester.test_bucket_operations()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -7,7 +7,8 @@ This script verifies that all VFS (Virtual File System) tools are properly
 integrated with the MCP server and functioning correctly.
 """
 
-import asyncio
+import anyio
+import inspect
 import json
 import sys
 import os
@@ -307,8 +308,8 @@ def run_all_tests():
         print('='*60)
         
         try:
-            if asyncio.iscoroutinefunction(test_func):
-                result = asyncio.run(test_func())
+            if inspect.iscoroutinefunction(test_func):
+                result = anyio.run(test_func)
             else:
                 result = test_func()
             results.append((test_name, result))

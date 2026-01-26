@@ -53,7 +53,7 @@ else:
     _can_test_webrtc = HAVE_WEBRTC
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestWebRTCMetadataReplication:
     """Test WebRTC integration with metadata replication."""
     

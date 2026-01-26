@@ -6,7 +6,7 @@ This script demonstrates and tests the enhanced configuration management
 system with real YAML persistence and interactive setup.
 """
 
-import asyncio
+import anyio
 import subprocess
 import sys
 from pathlib import Path
@@ -300,4 +300,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    anyio.run(main)

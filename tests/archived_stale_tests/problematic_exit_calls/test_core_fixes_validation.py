@@ -7,7 +7,7 @@ Tests only the core fixes without real IPFS operations that might hang.
 """
 
 import sys
-import asyncio
+import anyio
 import time
 
 # Add the project root to path
@@ -131,4 +131,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

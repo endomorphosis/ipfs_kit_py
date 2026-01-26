@@ -169,7 +169,7 @@ class TestWALTelemetryAIMLExtensionAnyIO(unittest.TestCase):
                     status="success"
                 )
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_track_model_operation_async(self):
         """Test tracking model operations asynchronously."""
         # Skip if WALTelemetryAIMLExtensionAnyIO is not available
@@ -269,7 +269,7 @@ class TestWALTelemetryAIMLExtensionAnyIO(unittest.TestCase):
                     batch_size="16"
                 )
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_track_inference_async(self):
         """Test tracking inference operations asynchronously."""
         # Skip if WALTelemetryAIMLExtensionAnyIO is not available
@@ -374,7 +374,7 @@ class TestWALTelemetryAIMLExtensionAnyIO(unittest.TestCase):
                     model_id="test_model"
                 )
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_track_training_epoch_async(self):
         """Test tracking training epochs asynchronously."""
         # Skip if WALTelemetryAIMLExtensionAnyIO is not available
@@ -438,7 +438,7 @@ class TestWALTelemetryAIMLExtensionAnyIO(unittest.TestCase):
         # Verify AIMLMetrics call
         self.mock_metrics.get_comprehensive_report.assert_called_once()
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_ai_ml_metrics_async(self):
         """Test getting AI/ML metrics asynchronously."""
         # Skip if WALTelemetryAIMLExtensionAnyIO is not available
@@ -471,7 +471,7 @@ class TestWALTelemetryAIMLExtensionAnyIO(unittest.TestCase):
         # Verify AIMLMetrics call
         self.mock_metrics.generate_formatted_report.assert_called_once_with(format="markdown")
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_generate_metrics_report_async(self):
         """Test generating metrics report asynchronously."""
         # Skip if WALTelemetryAIMLExtensionAnyIO is not available
@@ -520,7 +520,7 @@ class TestHelperFunctionsAnyIO(unittest.TestCase):
             # Should return None
             self.assertIsNone(result)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_extend_wal_telemetry_async(self):
         """Test extending WAL telemetry with AI/ML capabilities asynchronously."""
         # Skip if WALTelemetryAIMLExtensionAnyIO is not available
@@ -585,7 +585,7 @@ class TestHelperFunctionsAnyIO(unittest.TestCase):
                 # Verify API was returned
                 self.assertEqual(result, api)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_extend_high_level_api_with_aiml_telemetry_async(self):
         """Test extending high-level API with AI/ML telemetry asynchronously."""
         # Skip if WALTelemetryAIMLExtensionAnyIO is not available

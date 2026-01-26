@@ -8,7 +8,7 @@ Test the ipfs_ls tool with a CID that we know exists.
 
 import json
 import subprocess
-import asyncio
+import anyio
 import sys
 import os
 import tempfile
@@ -18,11 +18,11 @@ async def test_ipfs_ls_fix():
     """Test ipfs_ls with an existing CID."""
     
     # Start the server
-    process = await asyncio.create_subprocess_exec(
+    process = await anyio.open_process(
         "python3", "enhanced_mcp_server_phase1.py",
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
     )
     
     try:
@@ -38,9 +38,8 @@ async def test_ipfs_ls_fix():
             }
         }
         
-        process.stdin.write((json.dumps(init_request) + "\n").encode())
-        await process.stdin.drain()
-        await process.stdout.readline()  # Read response
+        await process.stdin.send((json.dumps(init_request) + "\n").encode())
+        await process.stdout.receive()  # Read response
         
         # First, add a directory structure to IPFS
         # Create a temp directory with files
@@ -76,10 +75,9 @@ async def test_ipfs_ls_fix():
                     }
                 }
                 
-                process.stdin.write((json.dumps(ls_request) + "\n").encode())
-                await process.stdin.drain()
-                response_line = await process.stdout.readline()
-                response = json.loads(response_line.decode().strip())
+                await process.stdin.send((json.dumps(ls_request) + "\n").encode())
+                response_line = await process.stdout.receive()
+                response = json.loads(response_line.decode().strip().splitlines()[0])
                 
                 if "error" in response:
                     print(f"✗ ipfs_ls failed: {response['error']}")
@@ -117,4 +115,4 @@ async def main():
         print("❌ ipfs_ls still has issues")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

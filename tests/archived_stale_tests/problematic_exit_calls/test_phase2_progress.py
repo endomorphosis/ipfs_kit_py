@@ -6,7 +6,7 @@ This script tests the current implementation of Phase 2 tool coverage
 to validate all 37 tools are properly registered and functional.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import sys
@@ -237,4 +237,4 @@ async def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

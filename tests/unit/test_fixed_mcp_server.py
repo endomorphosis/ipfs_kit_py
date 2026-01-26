@@ -4,7 +4,7 @@ Test the fixed MCP server
 """
 import sys
 import os
-import asyncio
+import anyio
 import traceback
 from pathlib import Path
 
@@ -47,5 +47,5 @@ async def test_mcp_server():
         return False
 
 if __name__ == "__main__":
-    success = asyncio.run(test_mcp_server())
+    success = anyio.run(test_mcp_server)
     sys.exit(0 if success else 1)

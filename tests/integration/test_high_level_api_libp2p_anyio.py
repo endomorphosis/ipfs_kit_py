@@ -75,7 +75,7 @@ class TestHighLevelAPILibP2PAnyIO:
         assert isinstance(result["peers"], list)
         assert result["operation"] == "discover_peers"
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_request_content_anyio_timeout(self, api_instance):
         """Test that the request_content_from_peer method handles timeouts properly with AnyIO."""
         # This test will verify the AnyIO timeout functionality
@@ -95,8 +95,8 @@ class TestHighLevelAPILibP2PAnyIO:
                 "timed out" in result["error"].lower())
 
     @pytest.mark.anyio
-    async def test_anyio_vs_asyncio_behavior(self):
-        """Test that the AnyIO integration works with both asyncio and trio backends."""
+    async def test_anyio_vs_async_backend_behavior(self):
+        """Test that the AnyIO integration works with both async-io and trio backends."""
         # Create a simple API instance
         api = IPFSSimpleAPI(role="leecher")
         
