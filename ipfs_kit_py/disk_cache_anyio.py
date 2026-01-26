@@ -154,8 +154,7 @@ class DiskCacheAnyIO:
             return await anyio.to_thread.run_sync(self.batch_get_metadata, cids)
             
         # We always return an awaitable with anyio
-        return anyio.create_task(_async_impl())
-        
+        return _async_impl()
     @experimental_api(since="0.19.0")
     def async_batch_put_metadata(self, metadata_dict: Dict[str, Dict[str, Any]]) -> Dict[str, bool]:
         """Async version of batch_put_metadata.
@@ -178,8 +177,7 @@ class DiskCacheAnyIO:
             return await anyio.to_thread.run_sync(self.batch_put_metadata, metadata_dict)
             
         # We always return an awaitable with anyio
-        return anyio.create_task(_async_impl())
-    
+        return _async_impl()
     @experimental_api(since="0.19.0")
     async def async_optimize_compression_settings(self, adaptive: bool = True) -> Dict[str, Any]:
         """Async version of optimize_compression_settings.

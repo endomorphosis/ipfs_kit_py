@@ -1,3 +1,40 @@
+
+
+def _run_async_from_sync(async_fn, *args, **kwargs):
+    """Run an async callable from sync code.
+
+    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.
+    - If called from plain sync code, uses `anyio.run`.
+    - If called while an async library is running in this thread, runs the
+      call in a dedicated helper thread.
+    """
+    try:
+        return anyio.from_thread.run(async_fn, *args, **kwargs)
+    except RuntimeError:
+        pass
+
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        return anyio.run(async_fn, *args, **kwargs)
+
+    result = []
+    error = []
+
+    def _thread_main() -> None:
+        try:
+            result.append(anyio.run(async_fn, *args, **kwargs))
+        except BaseException as exc:  # noqa: BLE001
+            error.append(exc)
+
+    t = threading.Thread(target=_thread_main, daemon=True)
+    t.start()
+    t.join()
+    if error:
+        raise error[0]
+    return result[0] if result else None
+import threading
+import sniffio
 """
 IPFS Kit High-Level API LibP2P Integration
 
@@ -164,11 +201,10 @@ def extend_high_level_api_class(high_level_api_cls):
                                 max(max_peers - len(discovered_peers), 5)
                             )
 
-                        loop = anyio.get_event_loop()
-                        dht_peers = loop.run_until_complete(
-                            anyio.wait_for(find_dht_peers(), timeout=remaining_time)
+                        dht_peers = _run_async_from_sync(
+                            anyio.wait_for,
+                            find_dht_peers(), timeout=remaining_time
                         )
-
                         source_peers = dht_peers or []
 
                     elif source == "pubsub":

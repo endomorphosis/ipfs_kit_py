@@ -554,8 +554,7 @@ class BaseStorageModel:
                     await listener(event_type, event_data)
                 else:
                     # Run synchronous listeners in the executor to avoid blocking
-                    await anyio.get_event_loop().run_in_executor(
-                        None, listener, event_type, event_data
+                    await anyio.to_thread.run_sync(listener, event_type, event_data
                     )
             except Exception as e:
                 logger.error(f"Error in event listener: {str(e)}")

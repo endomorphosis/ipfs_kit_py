@@ -1,3 +1,38 @@
+
+
+def _run_async_from_sync(async_fn, *args, **kwargs):
+    """Run an async callable from sync code.
+
+    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.
+    - If called from plain sync code, uses `anyio.run`.
+    - If called while an async library is running in this thread, runs the
+      call in a dedicated helper thread.
+    """
+    try:
+        return anyio.from_thread.run(async_fn, *args, **kwargs)
+    except RuntimeError:
+        pass
+
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        return anyio.run(async_fn, *args, **kwargs)
+
+    result = []
+    error = []
+
+    def _thread_main() -> None:
+        try:
+            result.append(anyio.run(async_fn, *args, **kwargs))
+        except BaseException as exc:  # noqa: BLE001
+            error.append(exc)
+
+    t = threading.Thread(target=_thread_main, daemon=True)
+    t.start()
+    t.join()
+    if error:
+        raise error[0]
+    return result[0] if result else None
 """
 IPFS LibP2P peer implementation for direct peer-to-peer communication.
 
@@ -1646,9 +1681,7 @@ class IPFSLibp2pPeer:
                     # Try to get or create an event loop in the current thread
                     try:
                         import anyio
-                        loop = anyio.get_event_loop()
-                        # Run the async function in this loop
-                        success = loop.run_until_complete(publish_async())
+                        success = _run_async_from_sync(publish_async)
                         result["success"] = bool(success)
                         return result
                     except Exception as inner_e:
@@ -1719,9 +1752,7 @@ class IPFSLibp2pPeer:
                     # Try to get or create an event loop in the current thread
                     try:
                         import anyio
-                        loop = anyio.get_event_loop()
-                        # Run the async function in this loop
-                        success = loop.run_until_complete(subscribe_async())
+                        success = _run_async_from_sync(subscribe_async)
                         result["success"] = bool(success)
                         return result
                     except Exception as inner_e:
@@ -1786,9 +1817,7 @@ class IPFSLibp2pPeer:
                     # Try to get or create an event loop in the current thread
                     try:
                         import anyio
-                        loop = anyio.get_event_loop()
-                        # Run the async function in this loop
-                        success = loop.run_until_complete(unsubscribe_async())
+                        success = _run_async_from_sync(unsubscribe_async)
                         result["success"] = bool(success)
                         return result
                     except Exception as inner_e:

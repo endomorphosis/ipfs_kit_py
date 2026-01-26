@@ -65,6 +65,9 @@ HARD_PATTERNS: Dict[str, str] = {
     r"\basyncio\.get_event_loop\(": "Manual: event loop access is asyncio-specific",
     r"\bloop\.run_until_complete\(": "Manual: run_until_complete is asyncio loop API",
     r"\banyio\.get_event_loop\(": "Manual/bug: anyio has no get_event_loop(); use anyio.run/anyio.from_thread.run",
+    r"\banyio\.new_event_loop\(": "Manual/bug: anyio has no new_event_loop(); use anyio.run/anyio.from_thread.run",
+    r"\banyio\.set_event_loop\(": "Manual/bug: anyio has no set_event_loop(); remove loop plumbing",
+    r"\banyio\.create_task\(": "Manual/bug: anyio has no create_task(); use task groups or return coroutine",
     r"\basyncio\.Future\b": "Manual: Futures are asyncio-specific",
     r"\basyncio\.Task\b": "Manual: Task typing / APIs are asyncio-specific",
     r"\basyncio\.Queue\b": "Manual: consider anyio.create_memory_object_stream",
@@ -203,30 +206,87 @@ def _apply_sync_bridge_rewrites(source: str) -> Tuple[str, Dict[str, int]]:
     applied: Dict[str, int] = {}
     new_source = source
 
-    spacer = r"(?:(?P=indent)[ \t]*(?:#.*)?\n)*"
+    # Allows one level of nested parentheses in args, which covers common patterns
+    # like min(...), dict(...), urljoin(...), etc. (Not a full parser by design.)
+    args_1level = r"(?P<args>(?:[^()]|\([^()]*\))*)"
+
+    # 0) Fix common mis-migration: `return anyio.create_task(foo())` -> `return foo()`
+    # This shows up in sync wrappers that want to return an awaitable when called
+    # from an async context.
+    pat_anyio_create_task = re.compile(
+        r"^(?P<indent>[ \t]*)return\s+anyio\.create_task\(\s*(?P<call>[\w\.]+)\(\s*\)\s*\)\s*$",
+        re.M,
+    )
+    new_source, n = pat_anyio_create_task.subn(r"\g<indent>return \g<call>()", new_source)
+    if n:
+        applied["anyio.create_task(foo()) -> foo()"] = n
+
+    # 0b) Fix mis-migration: try/except RuntimeError with anyio.new_event_loop fallback.
+    # If _run_async_from_sync exists/works, the fallback is unnecessary and uses
+    # nonexistent AnyIO loop APIs.
+    pat_anyio_loop_fallback = re.compile(
+        r"^(?P<indent>[ \t]*)try:\s*$\n"
+        r"(?P=indent)[ \t]+return\s+_run_async_from_sync\(\s*(?P<fn>[\w\.]+)\s*\)\s*$\n"
+        r"(?P=indent)except\s+RuntimeError:\s*$\n"
+        r"(?P=indent)[ \t]+#\s*No\s+event\s+loop\s+in\s+this\s+thread,\s+create\s+one\s+temporarily\s*$\n"
+        r"(?P=indent)[ \t]+loop\s*=\s*anyio\.new_event_loop\(\)\s*$\n"
+        r"(?P=indent)[ \t]+anyio\.set_event_loop\(loop\)\s*$\n"
+        r"(?P=indent)[ \t]+try:\s*$\n"
+        r"(?P=indent)[ \t]+[ \t]+return\s+loop\.run_until_complete\(\s*(?P=fn)\(\s*\)\s*\)\s*$\n"
+        r"(?P=indent)[ \t]+finally:\s*$\n"
+        r"(?P=indent)[ \t]+[ \t]+loop\.close\(\)\s*$\n",
+        re.M,
+    )
+
+    def repl_anyio_loop_fallback(m: re.Match) -> str:
+        indent = m.group("indent")
+        fn = m.group("fn")
+        return f"{indent}return _run_async_from_sync({fn})\n"
+
+    new_source, n = pat_anyio_loop_fallback.subn(repl_anyio_loop_fallback, new_source)
+    if n:
+        applied["remove anyio.new_event_loop fallback"] = n
+
+    def _format_bridge_call(indent: str, call: str, args: str) -> str:
+        args = args.strip()
+        if not args:
+            return f"{indent}_run_async_from_sync({call})"
+
+        # Preserve argument tokenization; only normalize leading indentation.
+        arg_lines = args.splitlines() or [args]
+        arg_lines = [line.lstrip() for line in arg_lines]
+        args_block = "\n".join(f"{indent}    {line}" if line else "" for line in arg_lines)
+
+        return (
+            f"{indent}_run_async_from_sync(\n"
+            f"{indent}    {call},\n"
+            f"{args_block}\n"
+            f"{indent})"
+        )
+
+    # Keep regexes fast: allow only a few optional comment/blank lines.
+    spacer = r"(?:(?P=indent)[ \t]*(?:#.*)?\n){0,6}"
 
     # 1) anyio.get_event_loop() + run_until_complete(...)  -> _run_async_from_sync(...)
     pat_anyio_loop_return = re.compile(
         r"^(?P<indent>[ \t]*)loop\s*=\s*anyio\.get_event_loop\(\)\s*$\n"
         + spacer
-        + r"(?P=indent)return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$",
+        + rf"(?P=indent)return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\({args_1level}\)\s*\)\s*$",
         re.M | re.S,
     )
 
     pat_anyio_loop_assign = re.compile(
         r"^(?P<indent>[ \t]*)loop\s*=\s*anyio\.get_event_loop\(\)\s*$\n"
         + spacer
-        + r"(?P=indent)(?P<var>\w+)\s*=\s*loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$",
+        + rf"(?P=indent)(?P<var>\w+)\s*=\s*loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\({args_1level}\)\s*\)\s*$",
         re.M | re.S,
     )
 
     def repl_anyio_loop(m: re.Match) -> str:
         indent = m.group("indent")
         call = m.group("call")
-        args = m.group("args").strip()
-        if args:
-            return f"{indent}return _run_async_from_sync({call}, {args})"
-        return f"{indent}return _run_async_from_sync({call})"
+        args = m.group("args")
+        return f"{indent}return " + _format_bridge_call(indent, call, args).lstrip()
 
     new_source, n = pat_anyio_loop_return.subn(repl_anyio_loop, new_source)
     if n:
@@ -236,10 +296,8 @@ def _apply_sync_bridge_rewrites(source: str) -> Tuple[str, Dict[str, int]]:
         indent = m.group("indent")
         var = m.group("var")
         call = m.group("call")
-        args = m.group("args").strip()
-        if args:
-            return f"{indent}{var} = _run_async_from_sync({call}, {args})"
-        return f"{indent}{var} = _run_async_from_sync({call})"
+        args = m.group("args")
+        return f"{indent}{var} = " + _format_bridge_call(indent, call, args).lstrip()
 
     new_source, n = pat_anyio_loop_assign.subn(repl_anyio_loop_assign, new_source)
     if n:
@@ -250,7 +308,7 @@ def _apply_sync_bridge_rewrites(source: str) -> Tuple[str, Dict[str, int]]:
         r"^(?P<indent>[ \t]*)loop\s*=\s*asyncio\.new_event_loop\(\)\s*$\n"
         r"(?P=indent)asyncio\.set_event_loop\(loop\)\s*$\n"
         r"(?P=indent)try:\s*$\n"
-        r"(?P=indent)[ \t]+(?P<var>\w+)\s*=\s*loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$\n"
+        rf"(?P=indent)[ \t]+(?P<var>\w+)\s*=\s*loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\({args_1level}\)\s*\)\s*$\n"
         r"(?P=indent)finally:\s*$\n"
         r"(?P=indent)[ \t]+loop\.close\(\)\s*$\n",
         re.M | re.S,
@@ -260,10 +318,8 @@ def _apply_sync_bridge_rewrites(source: str) -> Tuple[str, Dict[str, int]]:
         indent = m.group("indent")
         var = m.group("var")
         call = m.group("call")
-        args = m.group("args").strip()
-        if args:
-            return f"{indent}{var} = _run_async_from_sync({call}, {args})\n"
-        return f"{indent}{var} = _run_async_from_sync({call})\n"
+        args = m.group("args")
+        return f"{indent}{var} = " + _format_bridge_call(indent, call, args).lstrip() + "\n"
 
     new_source, n = pat_asyncio_try_assign.subn(repl_asyncio_try_assign, new_source)
     if n:
@@ -274,7 +330,7 @@ def _apply_sync_bridge_rewrites(source: str) -> Tuple[str, Dict[str, int]]:
         r"^(?P<indent>[ \t]*)loop\s*=\s*asyncio\.new_event_loop\(\)\s*$\n"
         r"(?P=indent)asyncio\.set_event_loop\(loop\)\s*$\n"
         r"(?P=indent)try:\s*$\n"
-        r"(?P=indent)[ \t]+return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$\n"
+        rf"(?P=indent)[ \t]+return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\({args_1level}\)\s*\)\s*$\n"
         r"(?P=indent)finally:\s*$\n"
         r"(?P=indent)[ \t]+loop\.close\(\)\s*$\n",
         re.M | re.S,
@@ -283,10 +339,8 @@ def _apply_sync_bridge_rewrites(source: str) -> Tuple[str, Dict[str, int]]:
     def repl_asyncio_try_return(m: re.Match) -> str:
         indent = m.group("indent")
         call = m.group("call")
-        args = m.group("args").strip()
-        if args:
-            return f"{indent}return _run_async_from_sync({call}, {args})\n"
-        return f"{indent}return _run_async_from_sync({call})\n"
+        args = m.group("args")
+        return f"{indent}return " + _format_bridge_call(indent, call, args).lstrip() + "\n"
 
     new_source, n = pat_asyncio_try_return.subn(repl_asyncio_try_return, new_source)
     if n:
@@ -301,17 +355,15 @@ def _apply_sync_bridge_rewrites(source: str) -> Tuple[str, Dict[str, int]]:
         r"(?P=indent)[ \t]+loop\s*=\s*asyncio\.new_event_loop\(\)\s*$\n"
         r"(?P=indent)[ \t]+asyncio\.set_event_loop\(loop\)\s*$\n"
         + spacer
-        + r"(?P=indent)return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$",
+        + rf"(?P=indent)return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\({args_1level}\)\s*\)\s*$",
         re.M | re.S,
     )
 
     def repl_asyncio_get_event_loop(m: re.Match) -> str:
         indent = m.group("indent")
         call = m.group("call")
-        args = m.group("args").strip()
-        if args:
-            return f"{indent}return _run_async_from_sync({call}, {args})"
-        return f"{indent}return _run_async_from_sync({call})"
+        args = m.group("args")
+        return f"{indent}return " + _format_bridge_call(indent, call, args).lstrip()
 
     new_source, n = pat_asyncio_get_event_loop.subn(repl_asyncio_get_event_loop, new_source)
     if n:
@@ -321,7 +373,7 @@ def _apply_sync_bridge_rewrites(source: str) -> Tuple[str, Dict[str, int]]:
     pat_asyncio_loop_direct = re.compile(
         r"^(?P<indent>[ \t]*)loop\s*=\s*asyncio\.get_event_loop\(\)\s*$\n"
         + spacer
-        + r"(?P=indent)return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$",
+        + rf"(?P=indent)return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\({args_1level}\)\s*\)\s*$",
         re.M | re.S,
     )
 

@@ -1,4 +1,41 @@
 
+
+def _run_async_from_sync(async_fn, *args, **kwargs):
+    """Run an async callable from sync code.
+
+    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.
+    - If called from plain sync code, uses `anyio.run`.
+    - If called while an async library is running in this thread, runs the
+      call in a dedicated helper thread.
+    """
+    try:
+        return anyio.from_thread.run(async_fn, *args, **kwargs)
+    except RuntimeError:
+        pass
+
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        return anyio.run(async_fn, *args, **kwargs)
+
+    result = []
+    error = []
+
+    def _thread_main() -> None:
+        try:
+            result.append(anyio.run(async_fn, *args, **kwargs))
+        except BaseException as exc:  # noqa: BLE001
+            error.append(exc)
+
+    t = threading.Thread(target=_thread_main, daemon=True)
+    t.start()
+    t.join()
+    if error:
+        raise error[0]
+    return result[0] if result else None
+import sniffio
+
+import anyio
 import os
 import time
 import json
@@ -478,22 +515,10 @@ class DiskCache:
             
         # If we're called from an async context, return awaitable
         if self.loop and self.loop.is_running():
-            return anyio.create_task(_async_impl())
-            
+            return _async_impl()
         # If we're called from a synchronous context but asyncio is available,
         # run the async function to completion
-        try:
-            loop = anyio.get_event_loop()
-            return loop.run_until_complete(_async_impl())
-        except RuntimeError:
-            # No event loop in this thread, create one temporarily
-            loop = anyio.new_event_loop()
-            anyio.set_event_loop(loop)
-            try:
-                return loop.run_until_complete(_async_impl())
-            finally:
-                loop.close()
-                
+        return _run_async_from_sync(_async_impl)
     @experimental_api(since="0.19.0")
     def async_batch_put_metadata(self, metadata_dict: Dict[str, Dict[str, Any]]) -> Dict[str, bool]:
         """Async version of batch_put_metadata.
@@ -517,22 +542,10 @@ class DiskCache:
             
         # If we're called from an async context, return awaitable
         if self.loop and self.loop.is_running():
-            return anyio.create_task(_async_impl())
-            
+            return _async_impl()
         # If we're called from a synchronous context but asyncio is available,
         # run the async function to completion
-        try:
-            loop = anyio.get_event_loop()
-            return loop.run_until_complete(_async_impl())
-        except RuntimeError:
-            # No event loop in this thread, create one temporarily
-            loop = anyio.new_event_loop()
-            anyio.set_event_loop(loop)
-            try:
-                return loop.run_until_complete(_async_impl())
-            finally:
-                loop.close()
-    
+        return _run_async_from_sync(_async_impl)
     @beta_api(since="0.19.0")
     def optimize_compression_settings(self, adaptive: bool = True) -> Dict[str, Any]:
         """Optimize compression settings based on data characteristics and available resources.

@@ -14,11 +14,40 @@ import anyio
 import random
 import io
 import statistics
+from dataclasses import dataclass
 from typing import Dict, List, Any, Optional, Union, Callable, Tuple
 from collections import defaultdict, deque
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _Deferred:
+    _event: anyio.Event
+    _result: Any = None
+    _exc: Optional[BaseException] = None
+
+    @classmethod
+    def create(cls) -> "_Deferred":
+        return cls(anyio.Event())
+
+    def done(self) -> bool:
+        return self._event.is_set()
+
+    def set_result(self, value: Any) -> None:
+        self._result = value
+        self._event.set()
+
+    def set_exception(self, exc: BaseException) -> None:
+        self._exc = exc
+        self._event.set()
+
+    async def get(self) -> Any:
+        await self._event.wait()
+        if self._exc is not None:
+            raise self._exc
+        return self._result
 
 
 class PerformanceOptimizationService:
@@ -29,8 +58,8 @@ class PerformanceOptimizationService:
     from the MCP roadmap.
     """
     def __init__(
-    self,
-    backend_registry,
+        self,
+        backend_registry,
         unified_storage_service,
         cache_size: int = 100,
         performance_window: int = 100,
@@ -72,26 +101,47 @@ class PerformanceOptimizationService:
         self.backend_weights = {}
 
         # Request queue for throttling
-        self.request_queue = {}
+        # backend -> (send_stream, receive_stream)
+        self.request_queue: Dict[str, Tuple[anyio.abc.ObjectSendStream, anyio.abc.ObjectReceiveStream]] = {}
         self.request_semaphores = {}
 
         # Cached backend capabilities
         self.backend_capabilities = {}
+
+        # Background task lifecycle
+        self._task_group: Optional[anyio.abc.TaskGroup] = None
+
+    async def _spawn(self, fn: Callable, *args) -> None:
+        if self._task_group is not None:
+            self._task_group.start_soon(fn, *args)
+        else:
+            await fn(*args)
 
     async def start(self):
         """Start the performance optimization service."""
         logger.info("Starting performance optimization service")
 
         # Initialize connection pools
+        self._task_group = anyio.create_task_group()
+        await self._task_group.__aenter__()
+
         await self.initialize_connection_pools()
 
         # Start background tasks
-        asyncio.create_task(self._process_batched_requests())
-        asyncio.create_task(self._update_performance_metrics())
-        asyncio.create_task(self._update_backend_health())
-        asyncio.create_task(self._update_backend_weights())
+        self._task_group.start_soon(self._process_batched_requests)
+        self._task_group.start_soon(self._update_performance_metrics)
+        self._task_group.start_soon(self._update_backend_health)
+        self._task_group.start_soon(self._update_backend_weights)
 
         logger.info("Performance optimization service started")
+
+    async def stop(self):
+        """Stop the performance optimization service and cancel background tasks."""
+        if self._task_group is None:
+            return
+        self._task_group.cancel_scope.cancel()
+        await self._task_group.__aexit__(None, None, None)
+        self._task_group = None
 
     async def initialize_connection_pools(self):
         """Initialize connection pools for all backends."""
@@ -106,15 +156,14 @@ class PerformanceOptimizationService:
             self.request_semaphores[backend] = anyio.Semaphore(10)
 
             # Initialize request queue
-            self.request_queue[backend] = asyncio.Queue()
+            send_stream, receive_stream = anyio.create_memory_object_stream(1000)
+            self.request_queue[backend] = (send_stream, receive_stream)
 
             # Start request processor for this backend
-            asyncio.create_task(self._process_request_queue(backend))
+            await self._spawn(self._process_request_queue, backend)
 
             # Start batch processor for this backend
-            self.batch_processors[backend] = asyncio.create_task(
-                self._process_backend_batch_queue(backend)
-            )
+            await self._spawn(self._process_backend_batch_queue, backend)
 
             # Initialize backend health
             self.backend_health[backend] = {
@@ -199,7 +248,8 @@ class PerformanceOptimizationService:
         while True:
             try:
                 # Get the next request from the queue
-                request_info = await self.request_queue[backend].get()
+                _, receive_stream = self.request_queue[backend]
+                request_info = await receive_stream.receive()
 
                 # Extract request details
                 func, args, kwargs, future = request_info
@@ -230,9 +280,6 @@ class PerformanceOptimizationService:
                         # Record latency
                         latency = time.time() - start_time
                         self.performance_metrics[backend]["latency"].append(latency)
-
-                        # Mark task as done
-                        self.request_queue[backend].task_done()
             except Exception as e:
                 logger.error(f"Error in request queue processor for {backend}: {e}")
                 await anyio.sleep(1)  # Prevent tight loop in case of repeated errors
@@ -265,7 +312,7 @@ class PerformanceOptimizationService:
                             ]
 
                             # Schedule batch processing
-                            asyncio.create_task(self._process_batch(backend, batch))
+                            await self._spawn(self._process_batch, backend, batch)
                         else:
                             # If batching not supported, process individually
                             for request in self.batched_requests[backend]:
@@ -520,13 +567,13 @@ class PerformanceOptimizationService:
             await anyio.sleep(60)
 
     async def schedule_request(
-    self,
-    backend: str
-        func: Callable
+        self,
+        backend: str,
+        func: Callable,
         *args,
-        future: asyncio.Future = None,
+        future: Optional[_Deferred] = None,
         **kwargs,
-    ):
+    ) -> _Deferred:
         """
         Schedule a request for a backend with throttling.
 
@@ -541,19 +588,20 @@ class PerformanceOptimizationService:
             Future for the request result
         """
         if future is None:
-            future = asyncio.Future()
+            future = _Deferred.create()
 
         # Create request info
         request_info = (func, args, kwargs, future)
 
         # Add to request queue
-        await self.request_queue[backend].put(request_info)
+        send_stream, _ = self.request_queue[backend]
+        await send_stream.send(request_info)
 
         return future
 
     async def batch_request(
         self, backend: str, func: Callable, op_type: str, *args, **kwargs
-    ) -> asyncio.Future:
+    ) -> _Deferred:
         """
         Add a request to the batch queue.
 
@@ -567,7 +615,7 @@ class PerformanceOptimizationService:
         Returns:
             Future for the request result
         """
-        future = asyncio.Future()
+        future = _Deferred.create()
 
         # Add to batch queue
         self.batched_requests[backend].append(
@@ -828,8 +876,10 @@ class PerformanceOptimizationService:
                     "capabilities": self.backend_capabilities.get(backend, {}),
                     "metrics": {
                         "latency": list(self.performance_metrics[backend]["latency"]),
-                        "success_rate": sum(self.performance_metrics[backend]["success"]),
-                        / max(len(self.performance_metrics[backend]["success"]), 1),
+                        "success_rate": (
+                            sum(self.performance_metrics[backend]["success"])
+                            / max(len(self.performance_metrics[backend]["success"]), 1)
+                        ),
                     },
                 }
                 for backend in self.backend_registry.get_available_backends()
@@ -837,7 +887,7 @@ class PerformanceOptimizationService:
             "cache": {
                 "size": len(self.content_cache),
                 "capacity": self.cache_size,
-                "hit_ratio": (,
+                "hit_ratio": (
                     sum(self.performance_metrics["cache"]["hit"])
                     / max(len(self.performance_metrics["cache"]["hit"]), 1)
                     if "cache" in self.performance_metrics
@@ -851,7 +901,8 @@ class PerformanceOptimizationService:
                 }
             },
             "request_queue": {
-                backend: self.request_queue[backend].qsize() for backend in self.request_queue
+                # Memory streams do not expose a reliable queue size.
+                backend: None for backend in self.request_queue
             },
         }
 

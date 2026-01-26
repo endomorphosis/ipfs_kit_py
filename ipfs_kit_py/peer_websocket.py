@@ -199,9 +199,24 @@ class PeerWebSocketServer:
         self.peers: Dict[str, PeerInfo] = {}
         self.connections: Dict[Any, str] = {}  # Use Any instead of WebSocketServerProtocol
         self.server = None
-        self.cleanup_task = None
-        self.heartbeat_task = None
+        self._background_tg: Optional[anyio.abc.TaskGroup] = None
         self.running = False
+
+    async def _start_background_tasks(self) -> None:
+        if self._background_tg is not None:
+            return
+        self._background_tg = anyio.create_task_group()
+        await self._background_tg.__aenter__()
+        self._background_tg.start_soon(self._cleanup_peers)
+        self._background_tg.start_soon(self._send_heartbeats)
+
+    async def _stop_background_tasks(self) -> None:
+        if self._background_tg is None:
+            return
+        self._background_tg.cancel_scope.cancel()
+        with anyio.move_on_after(2.0):
+            await self._background_tg.__aexit__(None, None, None)
+        self._background_tg = None
         
     async def start(self, host: str = "0.0.0.0", port: int = 8765):
         """
@@ -221,8 +236,7 @@ class PeerWebSocketServer:
         logger.info(f"Peer WebSocket server started on {host}:{port}")
         
         # Start background tasks
-        self.cleanup_task = anyio.create_task(self._cleanup_peers())
-        self.heartbeat_task = anyio.create_task(self._send_heartbeats())
+        await self._start_background_tasks()
         
         # Add local peer to known peers
         self.peers[self.local_peer_info.peer_id] = self.local_peer_info
@@ -230,29 +244,8 @@ class PeerWebSocketServer:
     async def stop(self):
         """Stop the WebSocket server."""
         self.running = False
-        
-        # Cancel background tasks
-        if self.cleanup_task:
-            try:
-                self.cleanup_task.cancel()
-                # Wait for cancellation to complete
-                try:
-                    await anyio.wait_for(self.cleanup_task, timeout=2.0)
-                except (anyio.TimeoutError, anyio.CancelledError):
-                    pass
-            except Exception as e:
-                logger.error(f"Error canceling cleanup task: {e}")
-            
-        if self.heartbeat_task:
-            try:
-                self.heartbeat_task.cancel()
-                # Wait for cancellation to complete
-                try:
-                    await anyio.wait_for(self.heartbeat_task, timeout=2.0)
-                except (anyio.TimeoutError, anyio.CancelledError):
-                    pass
-            except Exception as e:
-                logger.error(f"Error canceling heartbeat task: {e}")
+
+        await self._stop_background_tasks()
             
         # Close all active connections
         for websocket in list(self.connections.keys()):
@@ -544,7 +537,7 @@ class PeerWebSocketClient:
         self.connections: Dict[str, Any] = {}
         self.discovery_servers: Dict[str, Dict[str, Any]] = {}
         self.running = False
-        self.tasks = set()
+        self._task_group: Optional[anyio.abc.TaskGroup] = None
         
         # Add local peer to known peers
         self.peers[self.local_peer_info.peer_id] = self.local_peer_info
@@ -555,6 +548,9 @@ class PeerWebSocketClient:
             raise ImportError("WebSockets library not available")
             
         self.running = True
+        if self._task_group is None:
+            self._task_group = anyio.create_task_group()
+            await self._task_group.__aenter__()
         logger.info("Peer WebSocket client started")
         
     async def stop(self):
@@ -564,20 +560,12 @@ class PeerWebSocketClient:
             return
             
         self.running = False
-        
-        # Cancel all tasks with careful error handling
-        for task in list(self.tasks):
-            try:
-                task.cancel()
-                # Wait for cancellation to complete with timeout
-                try:
-                    await anyio.wait_for(anyio.gather(task, return_exceptions=True), timeout=2.0)
-                except (anyio.TimeoutError, anyio.CancelledError):
-                    pass
-            except Exception as e:
-                logger.error(f"Error cancelling task: {e}")
-            
-        self.tasks.clear()
+
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            with anyio.move_on_after(2.0):
+                await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
         
         # Close all connections with proper error handling
         for server_url, conn in list(self.connections.items()):
@@ -611,10 +599,11 @@ class PeerWebSocketClient:
             raise RuntimeError("Client not started")
             
         try:
-            # Create new connection task
-            task = anyio.create_task(self._maintain_server_connection(url))
-            self.tasks.add(task)
-            task.add_done_callback(self.tasks.discard)
+            if self._task_group is None:
+                raise RuntimeError("Client task group not initialized")
+
+            # Start new connection task
+            self._task_group.start_soon(self._maintain_server_connection, url)
             
             # Add to discovery servers
             self.discovery_servers[url] = {
@@ -649,108 +638,69 @@ class PeerWebSocketClient:
         while self.running and reconnect_attempts < self.max_reconnect_attempts:
             try:
                 # Connect to server with timeout
-                connection_task = websockets.connect(url)
                 try:
-                    websocket = await anyio.wait_for(connection_task, timeout=10.0)
-                    self.connections[url] = websocket
-                    connection_successful = True
-                    
-                    # Reset reconnect counter on successful connection
-                    if reconnect_attempts > 0:
-                        logger.info(f"Reconnected to {url} after {reconnect_attempts} attempts")
-                        reconnect_attempts = 0
-                        
-                    # Update server status
-                    self.discovery_servers[url]["connected"] = True
-                    self.discovery_servers[url]["last_connected"] = time.time()
-                    self.discovery_servers[url]["reconnect_attempts"] = reconnect_attempts
-                    
-                    logger.info(f"Connected to discovery server: {url}")
-                    
-                    # Send local peer info
-                    try:
-                        await anyio.wait_for(
-                            websocket.send(json.dumps({
-                                "type": MessageType.PEER_INFO,
-                                "peer": self.local_peer_info.to_dict(),
-                                "timestamp": time.time()
-                            })), 
-                            timeout=5.0
-                        )
-                    except anyio.TimeoutError:
-                        logger.warning(f"Timeout sending peer info to {url}")
-                        raise ConnectionError("Timeout sending initial peer info")
-                    
-                    # Request peer list
-                    try:
-                        await anyio.wait_for(
-                            websocket.send(json.dumps({
-                                "type": MessageType.PEER_REQUEST,
-                                "filter": {"exclude_self": True},
-                                "timestamp": time.time()
-                            })),
-                            timeout=5.0
-                        )
-                    except anyio.TimeoutError:
-                        logger.warning(f"Timeout requesting peer list from {url}")
-                        raise ConnectionError("Timeout requesting peer list")
-                    
-                    # Process messages
-                    while self.running:
-                        # Use try/except to properly handle timeouts and errors
-                        try:
-                            # Set up heartbeat
-                            heartbeat_task = anyio.create_task(self._send_heartbeat(websocket))
-                            
-                            # Wait for message or heartbeat completion
-                            message_task = anyio.create_task(websocket.recv())
-                            done, pending = await anyio.wait(
-                                [message_task, heartbeat_task],
-                                return_when=anyio.FIRST_COMPLETED,
-                                timeout=60.0
-                            )
-                            
-                            # If timeout occurred, no tasks completed
-                            if not done:
-                                # Cancel pending tasks
-                                for task in pending:
-                                    task.cancel()
-                                    
-                                # Send a ping to check if connection is still alive
-                                try:
-                                    pong = await anyio.wait_for(websocket.ping(), timeout=5.0)
-                                    if not pong:
-                                        raise ConnectionError("No ping response")
-                                except Exception:
-                                    raise ConnectionError("Failed to ping server")
-                                    
-                                # Continue to next iteration
-                                continue
-                            
-                            # Cancel pending tasks
-                            for task in pending:
-                                task.cancel()
-                                
-                            # Process completed tasks
-                            for task in done:
-                                if task is message_task:
-                                    # Process message
-                                    message = task.result()
-                                    await self._process_message(message)
-                                # If heartbeat completed, it's already done
-                                
-                        except anyio.TimeoutError:
-                            # Check if connection is still valid with ping
-                            try:
-                                pong = await anyio.wait_for(websocket.ping(), timeout=5.0)
-                                if not pong:
-                                    raise ConnectionError("No ping response")
-                            except Exception:
-                                raise ConnectionError("Connection appears dead")
-                
-                except anyio.TimeoutError:
+                    with anyio.fail_after(10.0):
+                        websocket = await websockets.connect(url)
+                except TimeoutError:
                     logger.warning(f"Timeout connecting to {url}")
                     raise ConnectionError("Connection timeout")
+
+                self.connections[url] = websocket
+                connection_successful = True
+                    
+                # Reset reconnect counter on successful connection
+                if reconnect_attempts > 0:
+                    logger.info(f"Reconnected to {url} after {reconnect_attempts} attempts")
+                    reconnect_attempts = 0
+
+                # Update server status
+                self.discovery_servers[url]["connected"] = True
+                self.discovery_servers[url]["last_connected"] = time.time()
+                self.discovery_servers[url]["reconnect_attempts"] = reconnect_attempts
+
+                logger.info(f"Connected to discovery server: {url}")
+
+                # Send local peer info
+                try:
+                    with anyio.fail_after(5.0):
+                        await websocket.send(json.dumps({
+                            "type": MessageType.PEER_INFO,
+                            "peer": self.local_peer_info.to_dict(),
+                            "timestamp": time.time()
+                        }))
+                except TimeoutError:
+                    logger.warning(f"Timeout sending peer info to {url}")
+                    raise ConnectionError("Timeout sending initial peer info")
+
+                # Request peer list
+                try:
+                    with anyio.fail_after(5.0):
+                        await websocket.send(json.dumps({
+                            "type": MessageType.PEER_REQUEST,
+                            "filter": {"exclude_self": True},
+                            "timestamp": time.time()
+                        }))
+                except TimeoutError:
+                    logger.warning(f"Timeout requesting peer list from {url}")
+                    raise ConnectionError("Timeout requesting peer list")
+
+                async with anyio.create_task_group() as tg:
+                    tg.start_soon(self._heartbeat_loop, websocket)
+
+                    # Process messages
+                    while self.running:
+                        try:
+                            with anyio.fail_after(60.0):
+                                message = await websocket.recv()
+                            await self._process_message(message)
+                        except TimeoutError:
+                            # Check if connection is still valid with ping
+                            try:
+                                with anyio.fail_after(5.0):
+                                    pong_waiter = websocket.ping()
+                                    await pong_waiter
+                            except Exception:
+                                raise ConnectionError("Connection appears dead")
                     
             except websockets.exceptions.ConnectionClosed as e:
                 logger.info(f"Connection closed to {url}: {e}")
@@ -805,16 +755,14 @@ class PeerWebSocketClient:
             await anyio.sleep(30)  # Send heartbeat every 30 seconds
             
             # Send heartbeat with timeout
-            await anyio.wait_for(
-                websocket.send(json.dumps({
+            with anyio.fail_after(5.0):
+                await websocket.send(json.dumps({
                     "type": MessageType.HEARTBEAT,
                     "timestamp": time.time()
-                })),
-                timeout=5.0  # 5 second timeout for sending heartbeat
-            )
+                }))
             
             return True
-        except anyio.TimeoutError:
+        except TimeoutError:
             # Log timeout but don't raise - let caller handle this
             logger.warning("Timeout sending heartbeat")
             return False
@@ -826,6 +774,12 @@ class PeerWebSocketClient:
             # Unexpected error
             logger.error(f"Error sending heartbeat: {e}")
             return False
+
+    async def _heartbeat_loop(self, websocket: Any) -> None:
+        while self.running:
+            ok = await self._send_heartbeat(websocket)
+            if not ok:
+                return
         
     async def _process_message(self, message: str):
         """
@@ -874,15 +828,13 @@ class PeerWebSocketClient:
                                 if '/p2p/' in addr or '/ipfs/' in addr:
                                     # Already has peer ID included
                                     # Attempt connection in a new task to not block processing
-                                    task = anyio.create_task(self._attempt_ipfs_connection(addr))
-                                    self.tasks.add(task)
-                                    task.add_done_callback(self.tasks.discard)
+                                    if self._task_group is not None:
+                                        self._task_group.start_soon(self._attempt_ipfs_connection, addr)
                                 else:
                                     # Need to append peer ID
                                     full_addr = f"{addr}/p2p/{peer_id}"
-                                    task = anyio.create_task(self._attempt_ipfs_connection(full_addr))
-                                    self.tasks.add(task)
-                                    task.add_done_callback(self.tasks.discard)
+                                    if self._task_group is not None:
+                                        self._task_group.start_soon(self._attempt_ipfs_connection, full_addr)
                             except Exception as e:
                                 logger.error(f"Error starting connection task to {addr}: {e}")
                     else:
@@ -922,15 +874,13 @@ class PeerWebSocketClient:
                                     if '/p2p/' in addr or '/ipfs/' in addr:
                                         # Already has peer ID included
                                         # Attempt connection in a new task to not block processing
-                                        task = anyio.create_task(self._attempt_ipfs_connection(addr))
-                                        self.tasks.add(task)
-                                        task.add_done_callback(self.tasks.discard)
+                                        if self._task_group is not None:
+                                            self._task_group.start_soon(self._attempt_ipfs_connection, addr)
                                     else:
                                         # Need to append peer ID
                                         full_addr = f"{addr}/p2p/{peer_id}"
-                                        task = anyio.create_task(self._attempt_ipfs_connection(full_addr))
-                                        self.tasks.add(task)
-                                        task.add_done_callback(self.tasks.discard)
+                                        if self._task_group is not None:
+                                            self._task_group.start_soon(self._attempt_ipfs_connection, full_addr)
                                 except Exception as e:
                                     logger.error(f"Error starting connection task to {addr}: {e}")
                         else:
@@ -1100,11 +1050,9 @@ def register_peer_websocket(app: FastAPI,
                 # Accept connection with proper error handling and timeout
                 try:
                     # Accept the connection
-                    await anyio.wait_for(
-                        websocket.accept(),
-                        timeout=5.0
-                    )
-                except anyio.TimeoutError:
+                    with anyio.fail_after(5.0):
+                        await websocket.accept()
+                except TimeoutError:
                     logger.error(f"Timeout accepting WebSocket connection")
                     return
                 except Exception as e:
@@ -1113,15 +1061,13 @@ def register_peer_websocket(app: FastAPI,
                 
                 # Send local peer info with timeout
                 try:
-                    await anyio.wait_for(
-                        websocket.send_json({
+                    with anyio.fail_after(5.0):
+                        await websocket.send_json({
                             "type": MessageType.PEER_INFO,
                             "peer": local_peer_info.to_dict(),
                             "timestamp": time.time()
-                        }),
-                        timeout=5.0
-                    )
-                except anyio.TimeoutError:
+                        })
+                except TimeoutError:
                     logger.error(f"Timeout sending initial peer info")
                     await websocket.close(code=1011, reason="Timeout sending initial info")
                     return
@@ -1146,10 +1092,8 @@ def register_peer_websocket(app: FastAPI,
                         timeout = max(1.0, ping_interval - time_since_activity)
                         
                         # Use shorter timeout as we get closer to ping time
-                        message = await anyio.wait_for(
-                            websocket.receive_text(),
-                            timeout=timeout
-                        )
+                        with anyio.fail_after(timeout):
+                            message = await websocket.receive_text()
                         
                         # Update activity time
                         last_activity_time = time.time()
@@ -1162,7 +1106,7 @@ def register_peer_websocket(app: FastAPI,
                         # Process message
                         await server._process_message(websocket, message)
                         
-                    except anyio.TimeoutError:
+                    except TimeoutError:
                         # No message received within timeout - check connection health
                         time_since_activity = time.time() - last_activity_time
                         
@@ -1178,13 +1122,11 @@ def register_peer_websocket(app: FastAPI,
                                 
                                 # Send heartbeat/ping
                                 ping_start = time.time()
-                                await anyio.wait_for(
-                                    websocket.send_json({
+                                with anyio.fail_after(5.0):
+                                    await websocket.send_json({
                                         "type": MessageType.HEARTBEAT,
                                         "timestamp": time.time()
-                                    }),
-                                    timeout=5.0
-                                )
+                                    })
                                 
                                 # Update activity time after successful ping
                                 last_activity_time = time.time()
@@ -1229,10 +1171,8 @@ def register_peer_websocket(app: FastAPI,
                 # Ensure socket is closed
                 try:
                     if hasattr(websocket, 'client_state') and websocket.client_state != WebSocketState.DISCONNECTED:
-                        await anyio.wait_for(
-                            websocket.close(code=1000, reason="Connection complete"),
-                            timeout=2.0
-                        )
+                        with anyio.fail_after(2.0):
+                            await websocket.close(code=1000, reason="Connection complete")
                 except Exception as e:
                     logger.debug(f"Error closing WebSocket: {e}")
                 
@@ -1241,8 +1181,7 @@ def register_peer_websocket(app: FastAPI,
         async def start_peer_websocket_server():
             logger.info("Starting peer WebSocket server...")
             server.running = True
-            server.cleanup_task = anyio.create_task(server._cleanup_peers())
-            server.heartbeat_task = anyio.create_task(server._send_heartbeats())
+            await server._start_background_tasks()
             logger.info("Peer WebSocket server started")
             
         # Add shutdown event to stop server
@@ -1250,29 +1189,8 @@ def register_peer_websocket(app: FastAPI,
         async def stop_peer_websocket_server():
             logger.info("Stopping peer WebSocket server...")
             server.running = False
-            
-            # Cancel background tasks
-            if server.cleanup_task:
-                try:
-                    server.cleanup_task.cancel()
-                    # Wait for cancellation to complete
-                    try:
-                        await anyio.wait_for(server.cleanup_task, timeout=2.0)
-                    except (anyio.TimeoutError, anyio.CancelledError):
-                        pass
-                except Exception as e:
-                    logger.error(f"Error canceling cleanup task: {e}")
-                
-            if server.heartbeat_task:
-                try:
-                    server.heartbeat_task.cancel()
-                    # Wait for cancellation to complete
-                    try:
-                        await anyio.wait_for(server.heartbeat_task, timeout=2.0)
-                    except (anyio.TimeoutError, anyio.CancelledError):
-                        pass
-                except Exception as e:
-                    logger.error(f"Error canceling heartbeat task: {e}")
+
+            await server._stop_background_tasks()
                 
             # Close all connections
             for websocket in list(server.connections.keys()):

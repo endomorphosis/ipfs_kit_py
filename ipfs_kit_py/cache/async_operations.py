@@ -669,7 +669,7 @@ class AsyncParquetCIDCache:
         # Call sync close method if it exists
         if hasattr(self.cache, 'close') and callable(self.cache.close):
             # Run in executor to avoid blocking
-            await anyio.get_event_loop().run_in_executor(None, self.cache.close)
+            await anyio.to_thread.run_sync(self.cache.close)
     
     # Context manager support
     async def __aenter__(self):
