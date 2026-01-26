@@ -17,8 +17,12 @@ import os
 import json
 import hashlib
 import tempfile
+import threading
 from typing import Dict, Any, Optional, Union, BinaryIO, List
 from urllib.parse import urljoin
+
+import anyio
+import sniffio
 
 try:
     import httpx
@@ -125,6 +129,39 @@ class FilecoinPinBackend(BackendStorage):
     def get_name(self) -> str:
         """Get the name of this backend implementation."""
         return "filecoin_pin"
+
+    def _run_async(self, async_fn):
+        """Run an async function from sync code.
+
+        Prefers AnyIO's thread bridge when available; otherwise starts a fresh
+        AnyIO run. If called from within an async context in the same thread,
+        falls back to running in a dedicated helper thread.
+        """
+        try:
+            return anyio.from_thread.run(async_fn)
+        except RuntimeError:
+            pass
+
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            return anyio.run(async_fn)
+
+        result: List[Any] = []
+        error: List[BaseException] = []
+
+        def _thread_main() -> None:
+            try:
+                result.append(anyio.run(async_fn))
+            except BaseException as exc:  # noqa: BLE001
+                error.append(exc)
+
+        t = threading.Thread(target=_thread_main, daemon=True)
+        t.start()
+        t.join()
+        if error:
+            raise error[0]
+        return result[0] if result else None
     
     def add_content(
         self,
@@ -181,26 +218,10 @@ class FilecoinPinBackend(BackendStorage):
             url = urljoin(self.api_endpoint, "/pin")
             
             if HTTPX_AVAILABLE:
-                # Use httpx (async-compatible) with anyio if available
-                try:
-                    import anyio
-                    
-                    async def _post():
-                        return await self.client.post(url, json=pin_data)
-                    
-                    response = anyio.from_thread.run(_post)
-                except ImportError:
-                    # Fallback to asyncio
-                    import anyio
-                    try:
-                        loop = asyncio.get_event_loop()
-                    except RuntimeError:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                    
-                    response = loop.run_until_complete(
-                        self.client.post(url, json=pin_data)
-                    )
+                async def _post():
+                    return await self.client.post(url, json=pin_data)
+
+                response = self._run_async(_post)
                 response.raise_for_status()
                 result = response.json()
             else:
@@ -260,24 +281,10 @@ class FilecoinPinBackend(BackendStorage):
                     url = urljoin(gateway_url, identifier)
                     
                     if HTTPX_AVAILABLE:
-                        try:
-                            import anyio
-                            
-                            async def _get():
-                                return await self.client.get(url)
-                            
-                            response = anyio.from_thread.run(_get)
-                        except ImportError:
-                            import anyio
-                            try:
-                                loop = asyncio.get_event_loop()
-                            except RuntimeError:
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-                            
-                            response = loop.run_until_complete(
-                                self.client.get(url)
-                            )
+                        async def _get():
+                            return await self.client.get(url)
+
+                        response = self._run_async(_get)
                         response.raise_for_status()
                         content = response.content
                     else:
@@ -332,24 +339,10 @@ class FilecoinPinBackend(BackendStorage):
             url = urljoin(self.api_endpoint, f"/pin/{identifier}")
             
             if HTTPX_AVAILABLE:
-                try:
-                    import anyio
-                    
-                    async def _delete():
-                        return await self.client.delete(url)
-                    
-                    response = anyio.from_thread.run(_delete)
-                except ImportError:
-                    import anyio
-                    try:
-                        loop = asyncio.get_event_loop()
-                    except RuntimeError:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                    
-                    response = loop.run_until_complete(
-                        self.client.delete(url)
-                    )
+                async def _delete():
+                    return await self.client.delete(url)
+
+                response = self._run_async(_delete)
                 response.raise_for_status()
             else:
                 response = self.session.delete(url)
@@ -397,24 +390,10 @@ class FilecoinPinBackend(BackendStorage):
             url = urljoin(self.api_endpoint, f"/pin/{identifier}")
             
             if HTTPX_AVAILABLE:
-                try:
-                    import anyio
-                    
-                    async def _get():
-                        return await self.client.get(url)
-                    
-                    response = anyio.from_thread.run(_get)
-                except ImportError:
-                    import anyio
-                    try:
-                        loop = asyncio.get_event_loop()
-                    except RuntimeError:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                    
-                    response = loop.run_until_complete(
-                        self.client.get(url)
-                    )
+                async def _get():
+                    return await self.client.get(url)
+
+                response = self._run_async(_get)
                 response.raise_for_status()
                 result = response.json()
             else:
@@ -472,24 +451,10 @@ class FilecoinPinBackend(BackendStorage):
                 params["status"] = status
             
             if HTTPX_AVAILABLE:
-                try:
-                    import anyio
-                    
-                    async def _get():
-                        return await self.client.get(url, params=params)
-                    
-                    response = anyio.from_thread.run(_get)
-                except ImportError:
-                    import anyio
-                    try:
-                        loop = asyncio.get_event_loop()
-                    except RuntimeError:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                    
-                    response = loop.run_until_complete(
-                        self.client.get(url, params=params)
-                    )
+                async def _get():
+                    return await self.client.get(url, params=params)
+
+                response = self._run_async(_get)
                 response.raise_for_status()
                 result = response.json()
             else:
@@ -637,18 +602,9 @@ class FilecoinPinBackend(BackendStorage):
         """Cleanup on deletion."""
         if hasattr(self, 'client') and HTTPX_AVAILABLE:
             try:
-                # Try anyio first
-                try:
-                    import anyio
-                    
-                    async def _close():
-                        await self.client.aclose()
-                    
-                    anyio.from_thread.run(_close)
-                except ImportError:
-                    # Fallback to asyncio
-                    import asyncio
-                    loop = asyncio.get_event_loop()
-                    loop.run_until_complete(self.client.aclose())
+                async def _close():
+                    await self.client.aclose()
+
+                self._run_async(_close)
             except Exception:
                 pass

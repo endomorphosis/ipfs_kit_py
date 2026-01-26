@@ -14,15 +14,52 @@ Key Features:
 """
 
 import anyio
+import sniffio
 import logging
 import time
 import shutil
 import os
 import stat
+import threading
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def _run_async_from_sync(async_fn, *args, **kwargs):
+    """Run an async callable from sync code.
+
+    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.
+    - If called from plain sync code, uses `anyio.run`.
+    - If called while an async library is running in this thread, runs the
+      call in a dedicated helper thread.
+    """
+    try:
+        return anyio.from_thread.run(async_fn, *args, **kwargs)
+    except RuntimeError:
+        pass
+
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        return anyio.run(async_fn, *args, **kwargs)
+
+    result: List[Any] = []
+    error: List[BaseException] = []
+
+    def _thread_main() -> None:
+        try:
+            result.append(anyio.run(async_fn, *args, **kwargs))
+        except BaseException as exc:  # noqa: BLE001
+            error.append(exc)
+
+    t = threading.Thread(target=_thread_main, daemon=True)
+    t.start()
+    t.join()
+    if error:
+        raise error[0]
+    return result[0] if result else None
 
 # Import core IPFS Kit components
 try:
@@ -322,66 +359,16 @@ class VFSManager:
                                      filters: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Synchronous wrapper for CLI use - handles both sync and async contexts."""
         try:
-            # Check if we're already in an async context
-            try:
-                loop = asyncio.get_running_loop()
-                # We're in an async context, create a task but don't await it
-                # Instead, use asyncio.create_task and handle synchronously
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(self._run_zero_copy_in_new_loop, limit, filters)
-                    return future.result(timeout=10)  # 10 second timeout
-            except RuntimeError:
-                # No running loop, safe to create one
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    return loop.run_until_complete(self.get_pin_index_zero_copy(limit, filters))
-                finally:
-                    loop.close()
+            return _run_async_from_sync(self.get_pin_index_zero_copy, limit, filters)
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
-    def _run_zero_copy_in_new_loop(self, limit: Optional[int] = None, 
-                                   filters: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
-        """Helper to run zero-copy in a new event loop (for thread pool execution)."""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(self.get_pin_index_zero_copy(limit, filters))
-        finally:
-            loop.close()
     
     def get_metrics_zero_copy_sync(self, metric_types: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
         """Synchronous wrapper for CLI use - handles both sync and async contexts."""
         try:
-            # Check if we're already in an async context
-            try:
-                loop = asyncio.get_running_loop()
-                # We're in an async context, use thread pool
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(self._run_metrics_zero_copy_in_new_loop, metric_types)
-                    return future.result(timeout=10)  # 10 second timeout
-            except RuntimeError:
-                # No running loop, safe to create one
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    return loop.run_until_complete(self.get_metrics_zero_copy(metric_types))
-                finally:
-                    loop.close()
+            return _run_async_from_sync(self.get_metrics_zero_copy, metric_types)
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
-    def _run_metrics_zero_copy_in_new_loop(self, metric_types: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
-        """Helper to run metrics zero-copy in a new event loop (for thread pool execution)."""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(self.get_metrics_zero_copy(metric_types))
-        finally:
-            loop.close()
     
     # =================================================================
     # VFS OPERATIONS
@@ -937,25 +924,12 @@ async def cleanup_global_vfs_manager():
 def execute_vfs_operation_sync(operation: str, **kwargs) -> Dict[str, Any]:
     """Execute a VFS operation synchronously for CLI use."""
     manager = get_global_vfs_manager()
-    
-    # Run async operation in event loop
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    return loop.run_until_complete(manager.execute_vfs_operation(operation, **kwargs))
+
+    return _run_async_from_sync(manager.execute_vfs_operation, operation, **kwargs)
 
 
 def get_vfs_statistics_sync() -> Dict[str, Any]:
     """Get VFS statistics synchronously for CLI use."""
     manager = get_global_vfs_manager()
-    
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    return loop.run_until_complete(manager.get_vfs_statistics())
+
+    return _run_async_from_sync(manager.get_vfs_statistics)

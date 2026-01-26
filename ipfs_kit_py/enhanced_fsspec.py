@@ -9,7 +9,9 @@ import os
 import time
 import logging
 import anyio
+import sniffio
 import tempfile
+import threading
 from typing import Dict, List, Any, Optional, Union, BinaryIO
 from pathlib import Path
 
@@ -19,6 +21,41 @@ from fsspec.spec import AbstractFileSystem
 from fsspec.callbacks import DEFAULT_CALLBACK
 
 logger = logging.getLogger(__name__)
+
+
+def _run_async_from_sync(async_fn, *args, **kwargs):
+    """Run an async callable from sync code.
+
+    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.
+    - If called from plain sync code, uses `anyio.run`.
+    - If called while an async library is running in this thread, runs the
+      call in a dedicated helper thread.
+    """
+    try:
+        return anyio.from_thread.run(async_fn, *args, **kwargs)
+    except RuntimeError:
+        pass
+
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        return anyio.run(async_fn, *args, **kwargs)
+
+    result: List[Any] = []
+    error: List[BaseException] = []
+
+    def _thread_main() -> None:
+        try:
+            result.append(anyio.run(async_fn, *args, **kwargs))
+        except BaseException as exc:  # noqa: BLE001
+            error.append(exc)
+
+    t = threading.Thread(target=_thread_main, daemon=True)
+    t.start()
+    t.join()
+    if error:
+        raise error[0]
+    return result[0] if result else None
 
 
 class IPFSFileSystem(AbstractFileSystem):
@@ -173,16 +210,7 @@ class IPFSFileSystem(AbstractFileSystem):
     def _ls_synapse(self, path: str, detail: bool = True, **kwargs) -> Union[List[Dict[str, Any]], List[str]]:
         """List Synapse stored data."""
         try:
-            # Use async wrapper
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                result = loop.run_until_complete(
-                    self.synapse_storage.synapse_list_stored_data(**kwargs)
-                )
-            finally:
-                loop.close()
+            result = _run_async_from_sync(self.synapse_storage.synapse_list_stored_data, **kwargs)
             
             if not result.get("success", False):
                 logger.error(f"Failed to list Synapse data: {result.get('error', 'Unknown error')}")
@@ -283,16 +311,7 @@ class IPFSFileSystem(AbstractFileSystem):
         commp = self._strip_protocol(path)
         
         try:
-            # Use async wrapper
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                data = loop.run_until_complete(
-                    self.synapse_storage.synapse_retrieve_data(commp, **kwargs)
-                )
-            finally:
-                loop.close()
+            data = _run_async_from_sync(self.synapse_storage.synapse_retrieve_data, commp, **kwargs)
             
             # Apply range if specified
             if start is not None or end is not None:
@@ -363,16 +382,7 @@ class IPFSFileSystem(AbstractFileSystem):
     def _put_file_synapse(self, lpath: str, rpath: str, **kwargs) -> None:
         """Upload file to Synapse storage."""
         try:
-            # Use async wrapper
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                result = loop.run_until_complete(
-                    self.synapse_storage.synapse_store_file(lpath, **kwargs)
-                )
-            finally:
-                loop.close()
+            result = _run_async_from_sync(self.synapse_storage.synapse_store_file, lpath, **kwargs)
             
             if not result.get("success", False):
                 raise IOError(f"Failed to upload to Synapse: {result.get('error', 'Unknown error')}")
@@ -435,16 +445,7 @@ class IPFSFileSystem(AbstractFileSystem):
         commp = self._strip_protocol(rpath)
         
         try:
-            # Use async wrapper
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                result = loop.run_until_complete(
-                    self.synapse_storage.synapse_retrieve_file(commp, lpath, **kwargs)
-                )
-            finally:
-                loop.close()
+            result = _run_async_from_sync(self.synapse_storage.synapse_retrieve_file, commp, lpath, **kwargs)
             
             if not result.get("success", False):
                 raise IOError(f"Failed to download from Synapse: {result.get('error', 'Unknown error')}")
@@ -502,16 +503,7 @@ class IPFSFileSystem(AbstractFileSystem):
         commp = self._strip_protocol(path)
         
         try:
-            # Use async wrapper
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                result = loop.run_until_complete(
-                    self.synapse_storage.synapse_get_piece_status(commp, **kwargs)
-                )
-            finally:
-                loop.close()
+            result = _run_async_from_sync(self.synapse_storage.synapse_get_piece_status, commp, **kwargs)
             
             return result.get("success", False) and result.get("exists", False)
             
@@ -566,16 +558,7 @@ class IPFSFileSystem(AbstractFileSystem):
         commp = self._strip_protocol(path)
         
         try:
-            # Use async wrapper
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                result = loop.run_until_complete(
-                    self.synapse_storage.synapse_get_piece_status(commp, **kwargs)
-                )
-            finally:
-                loop.close()
+            result = _run_async_from_sync(self.synapse_storage.synapse_get_piece_status, commp, **kwargs)
             
             if result.get("success", False):
                 return {

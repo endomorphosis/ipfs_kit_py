@@ -43,6 +43,8 @@ SAFE_REWRITES: List[Tuple[str, str]] = [
     (r"\bawait\s+asyncio\.sleep\(", "await anyio.sleep("),
     # Awaited to_thread
     (r"\bawait\s+asyncio\.to_thread\(", "await anyio.to_thread.run_sync("),
+    # Mis-migrations: anyio.get_event_loop().run_in_executor(None, ...) -> anyio.to_thread.run_sync(...)
+    (r"\bawait\s+anyio\.get_event_loop\(\)\.run_in_executor\(\s*None\s*,\s*", "await anyio.to_thread.run_sync("),
     # Cancellation exception
     (r"\bexcept\s+asyncio\.CancelledError\s*:\s*$", "except anyio.get_cancelled_exc_class():"),
     # Basic primitives
@@ -62,6 +64,7 @@ HARD_PATTERNS: Dict[str, str] = {
     r"\basyncio\.get_running_loop\(": "Manual: event loop access is asyncio-specific",
     r"\basyncio\.get_event_loop\(": "Manual: event loop access is asyncio-specific",
     r"\bloop\.run_until_complete\(": "Manual: run_until_complete is asyncio loop API",
+    r"\banyio\.get_event_loop\(": "Manual/bug: anyio has no get_event_loop(); use anyio.run/anyio.from_thread.run",
     r"\basyncio\.Future\b": "Manual: Futures are asyncio-specific",
     r"\basyncio\.Task\b": "Manual: Task typing / APIs are asyncio-specific",
     r"\basyncio\.Queue\b": "Manual: consider anyio.create_memory_object_stream",
@@ -69,6 +72,268 @@ HARD_PATTERNS: Dict[str, str] = {
 
 
 ANYIO_IMPORT_RE = re.compile(r"^\s*(from\s+anyio\b|import\s+anyio\b)", re.M)
+SNIFFIO_IMPORT_RE = re.compile(r"^\s*(from\s+sniffio\b|import\s+sniffio\b)", re.M)
+THREADING_IMPORT_RE = re.compile(r"^\s*(from\s+threading\b|import\s+threading\b)", re.M)
+
+
+SYNC_BRIDGE_HELPER_RE = re.compile(r"^\s*def\s+_run_async_from_sync\s*\(", re.M)
+
+
+SYNC_BRIDGE_HELPER = (
+    "\n\n"
+    "def _run_async_from_sync(async_fn, *args, **kwargs):\n"
+    "    \"\"\"Run an async callable from sync code.\n\n"
+    "    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.\n"
+    "    - If called from plain sync code, uses `anyio.run`.\n"
+    "    - If called while an async library is running in this thread, runs the\n"
+    "      call in a dedicated helper thread.\n"
+    "    \"\"\"\n"
+    "    try:\n"
+    "        return anyio.from_thread.run(async_fn, *args, **kwargs)\n"
+    "    except RuntimeError:\n"
+    "        pass\n\n"
+    "    try:\n"
+    "        sniffio.current_async_library()\n"
+    "    except sniffio.AsyncLibraryNotFoundError:\n"
+    "        return anyio.run(async_fn, *args, **kwargs)\n\n"
+    "    result = []\n"
+    "    error = []\n\n"
+    "    def _thread_main() -> None:\n"
+    "        try:\n"
+    "            result.append(anyio.run(async_fn, *args, **kwargs))\n"
+    "        except BaseException as exc:  # noqa: BLE001\n"
+    "            error.append(exc)\n\n"
+    "    t = threading.Thread(target=_thread_main, daemon=True)\n"
+    "    t.start()\n"
+    "    t.join()\n"
+    "    if error:\n"
+    "        raise error[0]\n"
+    "    return result[0] if result else None\n"
+)
+
+
+def _insert_import(source: str, import_line: str) -> str:
+    if re.search(rf"^\\s*{re.escape(import_line)}\\s*$", source, re.M):
+        return source
+
+    lines = source.splitlines(True)
+    insert_at = 0
+
+    # Preserve shebang
+    if lines and lines[0].startswith("#!"):
+        insert_at = 1
+
+    # Skip encoding line
+    if insert_at < len(lines) and re.match(r"^#\\s*coding\\s*[:=]", lines[insert_at]):
+        insert_at += 1
+
+    # Skip module docstring
+    if insert_at < len(lines) and re.match(r"^\\s*(\"\"\"|''')", lines[insert_at]):
+        quote = "\"\"\"" if "\"\"\"" in lines[insert_at] else "'''"
+        insert_at += 1
+        while insert_at < len(lines):
+            if quote in lines[insert_at]:
+                insert_at += 1
+                break
+            insert_at += 1
+        while insert_at < len(lines) and lines[insert_at].strip() == "":
+            insert_at += 1
+
+    # Place alongside other imports
+    for i in range(insert_at, min(insert_at + 120, len(lines))):
+        if re.match(r"^\\s*(import\\s+\\w|from\\s+\\w)", lines[i]):
+            insert_at = i
+            break
+
+    lines.insert(insert_at, f"{import_line}\n")
+    return "".join(lines)
+
+
+def _ensure_sync_bridge_helper(source: str) -> str:
+    if not re.search(r"\b_run_async_from_sync\b", source) or SYNC_BRIDGE_HELPER_RE.search(source):
+        return source
+
+    # Ensure imports required by the helper
+    source = _insert_anyio_import(source)
+    if not SNIFFIO_IMPORT_RE.search(source):
+        source = _insert_import(source, "import sniffio")
+    if not THREADING_IMPORT_RE.search(source):
+        source = _insert_import(source, "import threading")
+
+    lines = source.splitlines(True)
+    insert_at = 0
+
+    # Preserve shebang
+    if lines and lines[0].startswith("#!"):
+        insert_at = 1
+
+    # Skip encoding
+    if insert_at < len(lines) and re.match(r"^#\\s*coding\\s*[:=]", lines[insert_at]):
+        insert_at += 1
+
+    # Skip module docstring
+    if insert_at < len(lines) and re.match(r"^\\s*(\"\"\"|''')", lines[insert_at]):
+        quote = "\"\"\"" if "\"\"\"" in lines[insert_at] else "'''"
+        insert_at += 1
+        while insert_at < len(lines):
+            if quote in lines[insert_at]:
+                insert_at += 1
+                break
+            insert_at += 1
+        while insert_at < len(lines) and lines[insert_at].strip() == "":
+            insert_at += 1
+
+    # Insert after import block
+    last_import = None
+    for i in range(insert_at, min(insert_at + 240, len(lines))):
+        if re.match(r"^\\s*(import\\s+|from\\s+)", lines[i]):
+            last_import = i
+            continue
+        if last_import is not None:
+            insert_at = last_import + 1
+            break
+
+    lines.insert(insert_at, SYNC_BRIDGE_HELPER)
+    return "".join(lines)
+
+
+def _apply_sync_bridge_rewrites(source: str) -> Tuple[str, Dict[str, int]]:
+    """Opt-in rewrites for common sync wrappers around async calls."""
+
+    applied: Dict[str, int] = {}
+    new_source = source
+
+    spacer = r"(?:(?P=indent)[ \t]*(?:#.*)?\n)*"
+
+    # 1) anyio.get_event_loop() + run_until_complete(...)  -> _run_async_from_sync(...)
+    pat_anyio_loop_return = re.compile(
+        r"^(?P<indent>[ \t]*)loop\s*=\s*anyio\.get_event_loop\(\)\s*$\n"
+        + spacer
+        + r"(?P=indent)return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$",
+        re.M | re.S,
+    )
+
+    pat_anyio_loop_assign = re.compile(
+        r"^(?P<indent>[ \t]*)loop\s*=\s*anyio\.get_event_loop\(\)\s*$\n"
+        + spacer
+        + r"(?P=indent)(?P<var>\w+)\s*=\s*loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$",
+        re.M | re.S,
+    )
+
+    def repl_anyio_loop(m: re.Match) -> str:
+        indent = m.group("indent")
+        call = m.group("call")
+        args = m.group("args").strip()
+        if args:
+            return f"{indent}return _run_async_from_sync({call}, {args})"
+        return f"{indent}return _run_async_from_sync({call})"
+
+    new_source, n = pat_anyio_loop_return.subn(repl_anyio_loop, new_source)
+    if n:
+        applied["anyio.get_event_loop+run_until_complete (return)"] = n
+
+    def repl_anyio_loop_assign(m: re.Match) -> str:
+        indent = m.group("indent")
+        var = m.group("var")
+        call = m.group("call")
+        args = m.group("args").strip()
+        if args:
+            return f"{indent}{var} = _run_async_from_sync({call}, {args})"
+        return f"{indent}{var} = _run_async_from_sync({call})"
+
+    new_source, n = pat_anyio_loop_assign.subn(repl_anyio_loop_assign, new_source)
+    if n:
+        applied["anyio.get_event_loop+run_until_complete (assign)"] = n
+
+    # 2) asyncio new loop try/finally wrapper (assignment)
+    pat_asyncio_try_assign = re.compile(
+        r"^(?P<indent>[ \t]*)loop\s*=\s*asyncio\.new_event_loop\(\)\s*$\n"
+        r"(?P=indent)asyncio\.set_event_loop\(loop\)\s*$\n"
+        r"(?P=indent)try:\s*$\n"
+        r"(?P=indent)[ \t]+(?P<var>\w+)\s*=\s*loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$\n"
+        r"(?P=indent)finally:\s*$\n"
+        r"(?P=indent)[ \t]+loop\.close\(\)\s*$\n",
+        re.M | re.S,
+    )
+
+    def repl_asyncio_try_assign(m: re.Match) -> str:
+        indent = m.group("indent")
+        var = m.group("var")
+        call = m.group("call")
+        args = m.group("args").strip()
+        if args:
+            return f"{indent}{var} = _run_async_from_sync({call}, {args})\n"
+        return f"{indent}{var} = _run_async_from_sync({call})\n"
+
+    new_source, n = pat_asyncio_try_assign.subn(repl_asyncio_try_assign, new_source)
+    if n:
+        applied["asyncio.new_event_loop try/finally (assign)"] = n
+
+    # 3) asyncio new loop try/finally wrapper (return)
+    pat_asyncio_try_return = re.compile(
+        r"^(?P<indent>[ \t]*)loop\s*=\s*asyncio\.new_event_loop\(\)\s*$\n"
+        r"(?P=indent)asyncio\.set_event_loop\(loop\)\s*$\n"
+        r"(?P=indent)try:\s*$\n"
+        r"(?P=indent)[ \t]+return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$\n"
+        r"(?P=indent)finally:\s*$\n"
+        r"(?P=indent)[ \t]+loop\.close\(\)\s*$\n",
+        re.M | re.S,
+    )
+
+    def repl_asyncio_try_return(m: re.Match) -> str:
+        indent = m.group("indent")
+        call = m.group("call")
+        args = m.group("args").strip()
+        if args:
+            return f"{indent}return _run_async_from_sync({call}, {args})\n"
+        return f"{indent}return _run_async_from_sync({call})\n"
+
+    new_source, n = pat_asyncio_try_return.subn(repl_asyncio_try_return, new_source)
+    if n:
+        applied["asyncio.new_event_loop try/finally (return)"] = n
+
+    # 4) asyncio get_event_loop/new_event_loop wrapper (common CLI sync pattern)
+    pat_asyncio_get_event_loop = re.compile(
+        r"^(?P<indent>[ \t]*)try:\s*$\n"
+        r"(?P=indent)[ \t]+loop\s*=\s*asyncio\.get_event_loop\(\)\s*$\n"
+        + spacer
+        + r"(?P=indent)except\s+RuntimeError:\s*$\n"
+        r"(?P=indent)[ \t]+loop\s*=\s*asyncio\.new_event_loop\(\)\s*$\n"
+        r"(?P=indent)[ \t]+asyncio\.set_event_loop\(loop\)\s*$\n"
+        + spacer
+        + r"(?P=indent)return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$",
+        re.M | re.S,
+    )
+
+    def repl_asyncio_get_event_loop(m: re.Match) -> str:
+        indent = m.group("indent")
+        call = m.group("call")
+        args = m.group("args").strip()
+        if args:
+            return f"{indent}return _run_async_from_sync({call}, {args})"
+        return f"{indent}return _run_async_from_sync({call})"
+
+    new_source, n = pat_asyncio_get_event_loop.subn(repl_asyncio_get_event_loop, new_source)
+    if n:
+        applied["asyncio.get_event_loop try/except + run_until_complete"] = n
+
+    # 5) loop = asyncio.get_event_loop(); return loop.run_until_complete(...)
+    pat_asyncio_loop_direct = re.compile(
+        r"^(?P<indent>[ \t]*)loop\s*=\s*asyncio\.get_event_loop\(\)\s*$\n"
+        + spacer
+        + r"(?P=indent)return\s+loop\.run_until_complete\(\s*(?P<call>[\w\.]+)\((?P<args>.*?)\)\s*\)\s*$",
+        re.M | re.S,
+    )
+
+    new_source, n = pat_asyncio_loop_direct.subn(repl_anyio_loop, new_source)
+    if n:
+        applied["asyncio.get_event_loop+run_until_complete"] = n
+
+    # If any bridge rewrites were applied, ensure helper exists.
+    if applied:
+        new_source = _ensure_sync_bridge_helper(new_source)
+
+    return new_source, applied
 
 
 @dataclass
@@ -133,7 +398,7 @@ def _insert_anyio_import(source: str) -> str:
     return "".join(lines)
 
 
-def _apply_rewrites(path: Path, source: str) -> Tuple[str, Dict[str, int]]:
+def _apply_rewrites(path: Path, source: str, bridges: bool) -> Tuple[str, Dict[str, int]]:
     applied: Dict[str, int] = {}
     new_source = source
 
@@ -142,6 +407,11 @@ def _apply_rewrites(path: Path, source: str) -> Tuple[str, Dict[str, int]]:
         new_source, n = regex.subn(replacement, new_source)
         if n:
             applied[pattern] = n
+
+    if bridges:
+        new_source, bridge_applied = _apply_sync_bridge_rewrites(new_source)
+        for k, v in bridge_applied.items():
+            applied[f"bridge:{k}"] = v
 
     # If we made any replacements that introduce anyio usage, add import.
     if new_source != source:
@@ -161,7 +431,7 @@ def _scan_hard_patterns(source: str) -> Dict[str, int]:
 
 def process_file(path: Path, apply: bool) -> FileResult:
     original = path.read_text(encoding="utf-8")
-    rewritten, applied = _apply_rewrites(path, original)
+    rewritten, applied = _apply_rewrites(path, original, bridges=getattr(process_file, "_bridges", False))
     hard_hits = _scan_hard_patterns(rewritten)
 
     changed = rewritten != original
@@ -183,6 +453,15 @@ def main(argv: List[str]) -> int:
     mode.add_argument("--apply", action="store_true", help="Apply safe rewrites in-place")
 
     parser.add_argument(
+        "--bridges",
+        action="store_true",
+        help=(
+            "Also rewrite common sync wrappers around async calls (loop+run_until_complete patterns) "
+            "into an AnyIO sync->async bridge helper. Opt-in because it's more invasive than safe rewrites."
+        ),
+    )
+
+    parser.add_argument(
         "--include",
         action="append",
         default=[],
@@ -195,6 +474,9 @@ def main(argv: List[str]) -> int:
     )
 
     args = parser.parse_args(argv)
+
+    # Thread bridges flag through to process_file without changing its signature.
+    setattr(process_file, "_bridges", bool(args.bridges))
 
     results: List[FileResult] = []
     any_changes = False
