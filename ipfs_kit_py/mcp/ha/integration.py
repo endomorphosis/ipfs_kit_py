@@ -9,6 +9,7 @@ load balancing, and replication and consistency features.
 import anyio
 import logging
 import os
+import threading
 from typing import Any, Dict, Optional
 
 import aiohttp
@@ -24,7 +25,6 @@ from ipfs_kit_py.mcp.ha.replication.consistency import (
     ConflictResolutionStrategy
 )
 from ipfs_kit_py.mcp.ha.replication.router import register_with_app
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -87,6 +87,14 @@ class HighAvailabilityIntegration:
         
         if self.config.cluster_hosts:
             os.environ["MCP_CLUSTER_HOSTS"] = self.config.cluster_hosts
+
+    def _spawn_background(self, coro) -> None:
+        """Run an async coroutine in the background from sync context."""
+
+        async def _runner():
+            await coro
+
+        threading.Thread(target=lambda: anyio.run(_runner), daemon=True).start()
 
     async def start(self):
         """Initialize and start High Availability services."""
@@ -415,14 +423,14 @@ class HighAvailabilityIntegration:
             logger.info("This node is now the primary node")
             
             # Trigger any primary-specific initialization
-            asyncio.create_task(self._on_become_primary())
+            self._spawn_background(self._on_become_primary())
         
         # If we become secondary, we can shed primary responsibilities
         elif new_role == "secondary":
             logger.info("This node is now a secondary node")
             
             # Handle stepping down from primary role
-            asyncio.create_task(self._on_become_secondary())
+            self._spawn_background(self._on_become_secondary())
 
     async def _on_become_primary(self):
         """Handle becoming the primary node."""
@@ -475,11 +483,11 @@ class HighAvailabilityIntegration:
         # If we're involved in the failover, take appropriate action
         if event.new_primary == self.ha_service.node_id:
             logger.info("This node is the new primary after failover")
-            asyncio.create_task(self._on_become_primary())
+            self._spawn_background(self._on_become_primary())
         
         elif event.old_primary == self.ha_service.node_id:
             logger.info("This node is no longer the primary after failover")
-            asyncio.create_task(self._on_become_secondary())
+            self._spawn_background(self._on_become_secondary())
 
     def is_primary(self) -> bool:
         """
