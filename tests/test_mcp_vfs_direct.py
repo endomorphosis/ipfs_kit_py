@@ -9,7 +9,7 @@ Test VFS functionality through the MCP server with a direct server call.
 import os
 import sys
 import json
-import asyncio
+import anyio
 import logging
 
 # Add project root to path
@@ -203,4 +203,4 @@ async def main():
         return 2
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(anyio.run(main))

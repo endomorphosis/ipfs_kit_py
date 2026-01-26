@@ -1895,11 +1895,11 @@ if HAS_PYARROW:
         # For async compatibility
         try:
             import anyio
-            self.has_asyncio = True
+            self.has_anyio = True
             self.loop = None
             self._thread_limiter = anyio.CapacityLimiter(8)
         except ImportError:
-            self.has_asyncio = False
+            self.has_anyio = False
             self.loop = None
             self._thread_limiter = None
             
@@ -2552,7 +2552,7 @@ if HAS_PYARROW:
         Returns:
             True if CID is in cache, False otherwise
         """
-        if not self.has_asyncio:
+        if not self.has_anyio:
             # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.contains, cid)
             
@@ -2704,7 +2704,7 @@ if HAS_PYARROW:
         Returns:
             Dictionary with metadata for the CID or None if not found
         """
-        if not self.has_asyncio:
+        if not self.has_anyio:
             # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.get_metadata, cid)
             
@@ -3037,7 +3037,7 @@ if HAS_PYARROW:
         Returns:
             True if stored successfully, False otherwise
         """
-        if not self.has_asyncio:
+        if not self.has_anyio:
             # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.put_metadata, cid, metadata)
 
@@ -3055,7 +3055,7 @@ if HAS_PYARROW:
         Returns:
             Dictionary mapping CIDs to success status (True if stored successfully)
         """
-        if not self.has_asyncio:
+        if not self.has_anyio:
             # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.batch_put_metadata, cid_metadata_map)
             
@@ -3075,7 +3075,7 @@ if HAS_PYARROW:
         Returns:
             Dictionary mapping CIDs to their metadata (None for CIDs not found)
         """
-        if not self.has_asyncio:
+        if not self.has_anyio:
             # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.batch_get_metadata, cids)
             
@@ -4185,7 +4185,7 @@ if HAS_PYARROW:
         Returns:
             Dictionary with query results
         """
-        if not self.has_asyncio:
+        if not self.has_anyio:
             # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(
                 self.query, filters, columns, sort_by, limit, parallel, max_workers
@@ -4218,7 +4218,7 @@ if HAS_PYARROW:
         Returns:
             Dictionary with query results
         """
-        if not self.has_asyncio:
+        if not self.has_anyio:
             # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(
                 self.parallel_query, filters, columns, sort_by, limit, max_workers
@@ -4644,7 +4644,7 @@ if HAS_PYARROW:
         Returns:
             Dictionary mapping CIDs to their prefetch results
         """
-        if not self.has_asyncio:
+        if not self.has_anyio:
             # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.batch_prefetch, cids, metadata)
             
@@ -4919,7 +4919,7 @@ if HAS_PYARROW:
         Returns:
             Dictionary with prefetch statistics
         """
-        if not self.has_asyncio:
+        if not self.has_anyio:
             # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.get_prefetch_stats)
             
@@ -5138,7 +5138,7 @@ if HAS_PYARROW:
         Returns:
             True if deleted successfully, False otherwise
         """
-        if not self.has_asyncio:
+        if not self.has_anyio:
             # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.delete, cid)
         

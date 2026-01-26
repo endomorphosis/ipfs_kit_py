@@ -5,7 +5,7 @@ Comprehensive Dashboard Test Suite
 Tests all integrated comprehensive features to ensure they work correctly.
 """
 
-import asyncio
+import anyio
 import json
 import aiohttp
 import logging
@@ -196,4 +196,4 @@ async def run_comprehensive_tests():
             logger.error("❌ Comprehensive Dashboard Integration FAILED")
 
 if __name__ == "__main__":
-    asyncio.run(run_comprehensive_tests())
+    anyio.run(run_comprehensive_tests)

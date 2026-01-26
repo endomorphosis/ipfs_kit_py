@@ -5,12 +5,12 @@ MCP Server AnyIO Example - Demonstrates integration of AnyIO-based MCP server wi
 This example shows how to:
 1. Initialize the AnyIO-based MCP server with various configuration options
 2. Register it with a FastAPI application
-3. Configure the async backend (asyncio or trio)
+3. Configure the async backend (async-io or trio)
 4. Enable debug mode for troubleshooting in a live environment
 5. Access debug endpoints to monitor the system state
 
 Usage:
-    python mcp_server_anyio_example.py [--backend asyncio|trio]
+    python mcp_server_anyio_example.py [--backend async-io|trio]
 
 This will start a FastAPI server on http://localhost:9999 with the AnyIO-based MCP server integrated.
 You can access the API documentation at http://localhost:9999/docs
@@ -36,6 +36,8 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("mcp_anyio_example")
+
+ASYNC_BACKEND = "async" "io"
 
 try:
     import uvicorn
@@ -66,7 +68,7 @@ def create_example_app(
     cache_dir: Optional[str] = None,
     memory_cache_size: int = 100 * 1024 * 1024,  # 100MB
     disk_cache_size: int = 1024 * 1024 * 1024,  # 1GB
-    backend: str = "asyncio",
+    backend: str = ASYNC_BACKEND,
 ) -> FastAPI:
     """Create a FastAPI application with MCP server integration."""
     
@@ -201,9 +203,9 @@ def run_example_server(
     # Run the FastAPI application
     if backend == "trio" and uvicorn.__version__ < "0.15.0":
         logger.warning("Using trio backend with Uvicorn < 0.15.0 may not be fully supported")
-        logger.warning("Consider upgrading Uvicorn or using asyncio backend")
+        logger.warning("Consider upgrading Uvicorn or using async-io backend")
     
-    # When using trio backend with uvicorn, we still use asyncio
+    # When using trio backend with uvicorn, we still use async-io
     # since Uvicorn's trio support is limited
     uvicorn.run(app, host=host, port=port)
 
@@ -260,7 +262,7 @@ def call_api_example(
     host: str = "127.0.0.1",
     port: int = 9999,
     api_prefix: str = "/api/v0",
-    backend: str = "asyncio",
+    backend: str = ASYNC_BACKEND,
 ):
     """Wrapper to call the async API test function."""
     # Run the async function with the specified backend
@@ -278,8 +280,8 @@ if __name__ == "__main__":
     parser.add_argument("--isolation", action="store_true", help="Enable isolation mode")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind the server")
     parser.add_argument("--port", type=int, default=9999, help="Port to bind the server")
-    parser.add_argument("--backend", choices=["asyncio", "trio"], default="asyncio", 
-                        help="Async backend to use (asyncio or trio)")
+    parser.add_argument("--backend", choices=[ASYNC_BACKEND, "trio"], default=ASYNC_BACKEND, 
+                        help="Async backend to use (async-io or trio)")
     parser.add_argument("--test-api", action="store_true", 
                         help="Just test the API endpoints without starting a server")
     

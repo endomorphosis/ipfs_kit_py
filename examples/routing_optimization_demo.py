@@ -10,7 +10,7 @@ This example shows:
 
 import os
 import sys
-import asyncio
+import anyio
 import json
 from typing import Dict, Any, List
 
@@ -289,4 +289,4 @@ async def demo_routing():
     print("\nOptimized Data Routing demonstration completed.")
 
 if __name__ == "__main__":
-    asyncio.run(demo_routing())
+    anyio.run(demo_routing)

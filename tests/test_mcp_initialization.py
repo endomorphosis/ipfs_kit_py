@@ -6,7 +6,7 @@ This script will test if the MCP server properly initializes daemons during the 
 
 import sys
 import os
-import asyncio
+import anyio
 import json
 
 # Add the project root to Python path
@@ -153,5 +153,5 @@ if __name__ == "__main__":
         
         return success1 and success2
     
-    success = asyncio.run(main())
+    success = anyio.run(main)
     sys.exit(0 if success else 1)

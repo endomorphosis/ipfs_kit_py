@@ -8,7 +8,7 @@ This script tests the integration with existing backend files:
 3. Health monitoring using existing backend implementations
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import tempfile
@@ -210,8 +210,8 @@ def main():
     
     tests = [
         ("Backend Manager", test_backend_manager),
-        ("S3 Adapter Health", lambda: asyncio.run(test_s3_adapter_health())),
-        ("Backend Manager Operations", lambda: asyncio.run(test_backend_manager_operations())),
+        ("S3 Adapter Health", lambda: anyio.run(test_s3_adapter_health)),
+        ("Backend Manager Operations", lambda: anyio.run(test_backend_manager_operations)),
         ("Intelligent Daemon Integration", test_intelligent_daemon_integration),
     ]
     
