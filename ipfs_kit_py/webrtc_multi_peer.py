@@ -21,11 +21,17 @@ the notification system for signaling and session coordination.
 import anyio
 import json
 import logging
+import threading
 import time
 import uuid
 from enum import Enum
 from typing import Dict, List, Set, Optional, Any, Tuple
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+
+try:
+    import sniffio
+    HAS_SNIFFIO = True
+except ImportError:
+    HAS_SNIFFIO = False
 
 try:
     from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
@@ -48,6 +54,36 @@ except ImportError:
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+async def _run_background_task(async_fn, *args):
+    try:
+        return await async_fn(*args)
+    except Exception:
+        logger.exception("Background task failed: %r", async_fn)
+        return None
+
+
+def _spawn_background_task(async_fn, *args) -> None:
+    """Spawn an async function from sync or async contexts."""
+
+    def _run_in_thread() -> None:
+        try:
+            anyio.run(_run_background_task, async_fn, *args)
+        except Exception:
+            logger.exception("Background thread task failed: %r", async_fn)
+
+    if HAS_SNIFFIO:
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            threading.Thread(target=_run_in_thread, daemon=True).start()
+            return
+    else:
+        threading.Thread(target=_run_in_thread, daemon=True).start()
+        return
+
+    anyio.lowlevel.spawn_system_task(_run_background_task, async_fn, *args)
 
 
 class PeerRole(str, Enum):
@@ -1257,19 +1293,17 @@ class SessionManager:
         """Start background task for session cleanup."""
         # Create task and store it for proper cancellation during shutdown
         if not hasattr(self, 'cleanup_task') or self.cleanup_task is None:
-            self.cleanup_task = asyncio.create_task(self._periodic_cleanup())
-            # Make sure the task doesn't disappear due to garbage collection
-            self.cleanup_task.add_done_callback(lambda t: self._handle_cleanup_task_done(t))
+            _spawn_background_task(self._cleanup_task_runner)
     
     def _handle_cleanup_task_done(self, task):
         """Handle cleanup task completion."""
-        # Only log if the task wasn't cancelled as part of normal shutdown
-        if not task.cancelled() and task.exception() is not None:
-            self.logger.error(f"Cleanup task failed with error: {task.exception()}")
-        # Clear the reference if this matches our current cleanup task
-        if hasattr(self, 'cleanup_task') and self.cleanup_task == task:
-            self.cleanup_task = None
-        anyio.create_task(self._periodic_cleanup())
+        # Legacy no-op (asyncio task callbacks removed during AnyIO migration)
+        return
+
+    async def _cleanup_task_runner(self):
+        with anyio.CancelScope() as scope:
+            self.cleanup_task = scope
+            await self._periodic_cleanup()
     
     async def _periodic_cleanup(self):
         """Periodically check for inactive sessions and clean them up."""
@@ -1387,13 +1421,8 @@ class SessionManager:
         # Cancel cleanup task first
         if hasattr(self, 'cleanup_task') and self.cleanup_task is not None:
             try:
-                if not self.cleanup_task.done() and not self.cleanup_task.cancelled():
+                if isinstance(self.cleanup_task, anyio.CancelScope):
                     self.cleanup_task.cancel()
-                    # Wait for cancellation to complete with timeout
-                    try:
-                        await asyncio.wait_for(asyncio.gather(self.cleanup_task, return_exceptions=True), timeout=2.0)
-                    except (asyncio.TimeoutError, asyncio.CancelledError):
-                        pass
                 self.cleanup_task = None
             except Exception as e:
                 error_msg = f"Error cancelling cleanup task: {str(e)}"

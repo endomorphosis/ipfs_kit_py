@@ -12,10 +12,10 @@ import time
 import uuid
 import logging
 import anyio
+import threading
 from enum import Enum
 from typing import Dict, List, Set, Any, Optional, Union, Callable
 from dataclasses import dataclass
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 try:
     import anyio
@@ -23,8 +23,44 @@ try:
 except ImportError:
     ANYIO_AVAILABLE = False
 
+try:
+    import sniffio
+    HAS_SNIFFIO = True
+except ImportError:
+    HAS_SNIFFIO = False
+
 # Configure logger
 logger = logging.getLogger(__name__)
+
+
+async def _run_background_task(async_fn, *args):
+    try:
+        return await async_fn(*args)
+    except Exception:
+        logger.exception("Background task failed: %r", async_fn)
+        return None
+
+
+def _spawn_background_task(async_fn, *args) -> None:
+    """Spawn an async function from sync or async contexts."""
+
+    def _run_in_thread() -> None:
+        try:
+            anyio.run(_run_background_task, async_fn, *args)
+        except Exception:
+            logger.exception("Background thread task failed: %r", async_fn)
+
+    if HAS_SNIFFIO:
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            threading.Thread(target=_run_in_thread, daemon=True).start()
+            return
+    else:
+        threading.Thread(target=_run_in_thread, daemon=True).start()
+        return
+
+    anyio.lowlevel.spawn_system_task(_run_background_task, async_fn, *args)
 
 class EventType(Enum):
     """Types of events for WebSocket notifications."""
@@ -325,23 +361,7 @@ class WebSocketManager:
                 "data": data
             }
             
-            # Schedule broadcast in event loop
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Schedule in running loop
-                asyncio.create_task(self.broadcast(message, channel))
-            else:
-                # Create new loop (this should rarely happen)
-                async def _broadcast():
-                    await self.broadcast(message, channel)
-                
-                if ANYIO_AVAILABLE:
-                    try:
-                        anyio.from_thread.run(_broadcast)
-                    except Exception:
-                        anyio.run(_broadcast())
-                else:
-                    anyio.run(_broadcast())
+            _spawn_background_task(self.broadcast, message, channel)
             
             return True
         except Exception as e:

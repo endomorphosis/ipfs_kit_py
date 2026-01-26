@@ -2,12 +2,13 @@
 Asynchronous Streaming Module for MCP Server
 
 This module provides asynchronous streaming capabilities for efficient
-transfer of large content using asyncio.
+transfer of large content using AnyIO.
 """
 
 import os
 import anyio
 import logging
+import threading
 from typing import Dict, List, Any, Optional, AsyncIterator, Set, Union
 from pathlib import Path
 import contextlib
@@ -19,7 +20,6 @@ import hashlib
 from contextlib import asynccontextmanager
 
 from ipfs_kit_py.mcp.streaming import (
-# NOTE: This file contains asyncio.create_task() calls that need task group context
     StreamStatus, StreamDirection, StreamType, StreamOperation, 
     DEFAULT_CHUNK_SIZE, DEFAULT_BUFFER_SIZE, DEFAULT_PROGRESS_INTERVAL,
     StreamProgress
@@ -27,6 +27,43 @@ from ipfs_kit_py.mcp.streaming import (
 
 # Configure logger
 logger = logging.getLogger(__name__)
+
+
+try:
+    import sniffio
+    HAS_SNIFFIO = True
+except ImportError:
+    HAS_SNIFFIO = False
+
+
+async def _run_background_task(async_fn, *args):
+    try:
+        return await async_fn(*args)
+    except Exception:
+        logger.exception("Background task failed: %r", async_fn)
+        return None
+
+
+def _spawn_background_task(async_fn, *args) -> None:
+    """Spawn an async function from sync or async contexts."""
+
+    def _run_in_thread() -> None:
+        try:
+            anyio.run(_run_background_task, async_fn, *args)
+        except Exception:
+            logger.exception("Background thread task failed: %r", async_fn)
+
+    if HAS_SNIFFIO:
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            threading.Thread(target=_run_in_thread, daemon=True).start()
+            return
+    else:
+        threading.Thread(target=_run_in_thread, daemon=True).start()
+        return
+
+    anyio.lowlevel.spawn_system_task(_run_background_task, async_fn, *args)
 
 
 class AsyncStreamManager:
@@ -48,7 +85,8 @@ class AsyncStreamManager:
     async def initialize(self):
         """Initialize the stream manager."""
         # Start background progress update task
-        self._progress_task = asyncio.create_task(self._update_progress())
+        if self._progress_task is None:
+            _spawn_background_task(self._progress_task_runner)
         logger.info("Async stream manager initialized")
     
     async def shutdown(self):
@@ -77,13 +115,8 @@ class AsyncStreamManager:
         try:
             while not self._shutdown_event.is_set():
                 # Wait for interval or shutdown event
-                try:
-                    await asyncio.wait_for(
-                        self._shutdown_event.wait(), 
-                        timeout=self._progress_interval
-                    )
-                except asyncio.TimeoutError:
-                    pass
+                with anyio.move_on_after(self._progress_interval):
+                    await self._shutdown_event.wait()
                 
                 # Skip if shutting down
                 if self._shutdown_event.is_set():
@@ -99,6 +132,11 @@ class AsyncStreamManager:
         
         except Exception as e:
             logger.error(f"Error in progress update task: {e}")
+
+    async def _progress_task_runner(self):
+        with anyio.CancelScope() as scope:
+            self._progress_task = scope
+            await self._update_progress()
     
     async def create_stream(self, 
                            direction: StreamDirection,

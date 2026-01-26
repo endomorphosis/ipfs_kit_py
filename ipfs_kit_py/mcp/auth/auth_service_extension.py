@@ -9,11 +9,47 @@ issue mentioned in the MCP roadmap.
 import logging
 import time
 import anyio
+import threading
 from typing import Dict, Any, Optional, List, Callable, Set, Tuple
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+
+try:
+    import sniffio
+    HAS_SNIFFIO = True
+except ImportError:
+    HAS_SNIFFIO = False
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+
+async def _run_background_task(async_fn, *args):
+    try:
+        return await async_fn(*args)
+    except Exception:
+        logger.exception("Background task failed: %r", async_fn)
+        return None
+
+
+def _spawn_background_task(async_fn, *args) -> None:
+    """Spawn an async function from sync or async contexts."""
+
+    def _run_in_thread() -> None:
+        try:
+            anyio.run(_run_background_task, async_fn, *args)
+        except Exception:
+            logger.exception("Background thread task failed: %r", async_fn)
+
+    if HAS_SNIFFIO:
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            threading.Thread(target=_run_in_thread, daemon=True).start()
+            return
+    else:
+        threading.Thread(target=_run_in_thread, daemon=True).start()
+        return
+
+    anyio.lowlevel.spawn_system_task(_run_background_task, async_fn, *args)
 
 class AuthServiceApiKeyExtension:
     """
@@ -48,7 +84,8 @@ class AuthServiceApiKeyExtension:
         
         # Start background task for flushing last used updates
         self._stop_flush_task = anyio.Event()
-        self._flush_task = asyncio.create_task(self._flush_last_used_updates_loop())
+        self._flush_task: Optional[anyio.CancelScope] = None
+        _spawn_background_task(self._flush_task_runner)
         
         logger.info("AuthServiceApiKeyExtension initialized")
     
@@ -145,33 +182,27 @@ class AuthServiceApiKeyExtension:
                     await self._flush_last_used_updates()
                 
                 # Wait for next flush interval or until stopped
-                try:
-                    await asyncio.wait_for(
-                        self._stop_flush_task.wait(),
-                        timeout=30
-                    )
-                except asyncio.TimeoutError:
-                    # Normal timeout, continue
-                    pass
+                with anyio.move_on_after(30):
+                    await self._stop_flush_task.wait()
                 
         except anyio.get_cancelled_exc_class():
             # Task was cancelled
             logger.info("API key update flush task cancelled")
         except Exception as e:
             logger.error(f"Error in API key update flush loop: {e}")
+
+    async def _flush_task_runner(self) -> None:
+        with anyio.CancelScope() as scope:
+            self._flush_task = scope
+            await self._flush_last_used_updates_loop()
     
     async def stop(self) -> None:
         """Stop the extension and clean up resources."""
         # Stop the flush task
         self._stop_flush_task.set()
-        if self._flush_task:
-            try:
-                # Cancel the task
-                self._flush_task.cancel()
-                # Wait for it to complete
-                await asyncio.gather(self._flush_task, return_exceptions=True)
-            except Exception:
-                pass
+        if self._flush_task is not None:
+            self._flush_task.cancel()
+            self._flush_task = None
         
         # Final flush of any pending updates
         await self._flush_last_used_updates()

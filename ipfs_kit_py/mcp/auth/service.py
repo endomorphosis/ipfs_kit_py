@@ -8,6 +8,7 @@ as specified in the MCP roadmap for Phase 1: Core Functionality Enhancements (Q3
 import logging
 import time
 import anyio
+import threading
 import jwt
 import hashlib
 import secrets
@@ -28,7 +29,6 @@ from .models import (
     PermissionModel
 )
 from .persistence import (
-# NOTE: This file contains asyncio.create_task() calls that need task group context
     UserStore,
     RoleStore,
     PermissionStore,
@@ -38,6 +38,43 @@ from .persistence import (
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+try:
+    import sniffio
+    HAS_SNIFFIO = True
+except ImportError:
+    HAS_SNIFFIO = False
+
+
+async def _run_background_task(async_fn, *args):
+    try:
+        return await async_fn(*args)
+    except Exception:
+        logger.exception("Background task failed: %r", async_fn)
+        return None
+
+
+def _spawn_background_task(async_fn, *args) -> None:
+    """Spawn an async function from sync or async contexts."""
+
+    def _run_in_thread() -> None:
+        try:
+            anyio.run(_run_background_task, async_fn, *args)
+        except Exception:
+            logger.exception("Background thread task failed: %r", async_fn)
+
+    if HAS_SNIFFIO:
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            threading.Thread(target=_run_in_thread, daemon=True).start()
+            return
+    else:
+        threading.Thread(target=_run_in_thread, daemon=True).start()
+        return
+
+    anyio.lowlevel.spawn_system_task(_run_background_task, async_fn, *args)
 
 # Singleton instance
 _instance = None
@@ -50,13 +87,7 @@ def get_instance():
         secret_key = secrets.token_hex(32)
         _instance = AuthenticationService(secret_key=secret_key)
         # Only create async task if an event loop is running
-        try:
-            loop = asyncio.get_running_loop()
-            if loop.is_running():
-                asyncio.create_task(_instance.initialize())
-        except RuntimeError:
-            # No running event loop; skip async initialization for sync context
-            pass
+        _spawn_background_task(_instance.initialize)
     return _instance
 
 class AuthenticationService:
@@ -130,8 +161,8 @@ class AuthenticationService:
         await self._create_default_permissions()
 
         # Start background tasks
-        asyncio.create_task(self._cleanup_expired_sessions())
-        asyncio.create_task(self._cleanup_cache())
+        _spawn_background_task(self._cleanup_expired_sessions)
+        _spawn_background_task(self._cleanup_cache)
 
         self.initialized = True
         logger.info("Authentication service initialized")
