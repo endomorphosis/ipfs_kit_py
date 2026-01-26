@@ -38,7 +38,7 @@ from typing import Dict, List, Any, Optional, Union, Tuple
 from dataclasses import dataclass, asdict
 from collections import deque
 import tempfile
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+
 
 # DuckDB and analytics imports
 try:
@@ -247,7 +247,9 @@ class PinMetadataIndex:
         self.lock = threading.RLock()
         
         # Background services
-        self.background_task: Optional[asyncio.Task] = None
+        # AnyIO task group used to run background services
+        self._background_tg_cm: Optional[Any] = None
+        self._background_tg: Optional[Any] = None
         self.running: bool = False
         
         # Performance metrics
@@ -1033,21 +1035,31 @@ class PinMetadataIndex:
         """Start background update and analytics services."""
         if self.running:
             return
-        
+
         self.running = True
-        self.background_task = asyncio.create_task(self._background_service_loop())
+
+        # Start a long-lived AnyIO task group that owns the background loop.
+        if self._background_tg_cm is None:
+            self._background_tg_cm = anyio.create_task_group()
+            self._background_tg = await self._background_tg_cm.__aenter__()
+
+        # Ensure the loop is scheduled only once.
+        if self._background_tg is not None:
+            self._background_tg.start_soon(self._background_service_loop)
         logger.info("✓ Enhanced pin index background services started")
     
     async def stop_background_services(self):
         """Stop background services and save data."""
         self.running = False
-        
-        if self.background_task:
-            self.background_task.cancel()
-            try:
-                await self.background_task
-            except asyncio.CancelledError:
-                pass
+
+        if self._background_tg is not None:
+            # Cancel all running background tasks.
+            self._background_tg.cancel_scope.cancel()
+
+        if self._background_tg_cm is not None:
+            await self._background_tg_cm.__aexit__(None, None, None)
+            self._background_tg_cm = None
+            self._background_tg = None
         
         # Save data before stopping
         self._save_enhanced_cache()
@@ -1079,8 +1091,8 @@ class PinMetadataIndex:
                 
                 # Wait before next cycle
                 await anyio.sleep(min(60, self.update_interval // 5))
-                
-            except asyncio.CancelledError:
+
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Background service error: {e}")

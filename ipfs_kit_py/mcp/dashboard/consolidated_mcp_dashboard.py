@@ -14,6 +14,7 @@ cascade of "name is not defined" errors. This docstring has been reduced and the
 imports + helpers restored below.
 """
 import os, sys, json, time, asyncio, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading, mimetypes
+import anyio
 from collections import deque
 from pathlib import Path
 from datetime import datetime, timezone, timedelta

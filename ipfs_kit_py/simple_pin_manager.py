@@ -157,7 +157,7 @@ class SimplePinManager:
 
         Backwards-compatible async wrapper used by older tests/scripts.
         """
-        await asyncio.to_thread(self._initialize_shard_files_sync)
+        await anyio.to_thread.run_sync(self._initialize_shard_files_sync)
     
     async def add_pin_operation(
         self, 
