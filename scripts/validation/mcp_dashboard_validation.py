@@ -6,7 +6,7 @@ This script validates that the MCP dashboard is working correctly
 and the CI/CD changes haven't adversely affected functionality.
 """
 
-import asyncio
+import anyio
 import json
 import sys
 import time
@@ -290,4 +290,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

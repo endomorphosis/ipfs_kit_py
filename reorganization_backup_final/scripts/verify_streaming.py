@@ -13,7 +13,7 @@ import json
 import time
 import logging
 import tempfile
-import asyncio
+import anyio
 from pathlib import Path
 
 # Configure logging
@@ -270,7 +270,7 @@ async def test_websocket_manager(streaming_classes):
     manager.notify("test_channel", {"event": EventType.CONTENT_ADDED.value, "cid": "test_cid"})
     
     # Give the notification time to process
-    await asyncio.sleep(0.1)
+    await anyio.sleep(0.1)
     
     # Verify notification was sent
     if len(mock_socket.messages) < 2:
@@ -430,4 +430,4 @@ async def main():
     return True
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

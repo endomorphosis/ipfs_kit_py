@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import asyncio
+import anyio
 import threading
 import time
 import requests
@@ -18,7 +18,7 @@ PORT = 8004
 def run_server():
     app = RefactoredUnifiedMCPDashboard({"host": HOST, "port": PORT}).app
     server = Server(Config(app=app, host=HOST, port=PORT, log_level="info"))
-    asyncio.run(server.serve())
+    anyio.run(server.serve)
 
 def main():
     t = threading.Thread(target=run_server, daemon=True)

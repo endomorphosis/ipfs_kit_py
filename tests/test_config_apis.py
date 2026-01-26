@@ -3,7 +3,7 @@
 Simple test for configuration management API functionality.
 """
 
-import asyncio
+import anyio
 import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
@@ -99,4 +99,4 @@ async def test_config_apis():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(test_config_apis())
+    anyio.run(test_config_apis)

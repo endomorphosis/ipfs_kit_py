@@ -294,7 +294,7 @@ def fix_undefined_names(file_path):
         'time': 'import time',
         'os': 'import os',
         'sys': 'import sys',
-        'asyncio': 'import asyncio',
+        'anyio': 'import anyio',
         'traceback': 'import traceback',
     }
     

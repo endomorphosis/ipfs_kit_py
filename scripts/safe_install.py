@@ -132,7 +132,7 @@ def install_dependencies():
     
     # Install test dependencies
     print("\n4. Installing test dependencies...")
-    test_deps = ['pytest', 'pytest-asyncio', 'pytest-cov']
+    test_deps = ['pytest', 'pytest-anyio', 'pytest-cov']
     for dep in test_deps:
         run_command([sys.executable, '-m', 'pip', 'install', dep], retries=2)
     

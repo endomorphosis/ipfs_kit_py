@@ -4,7 +4,6 @@
 import pytest
 pytest.skip("Legacy EnhancedMCPServerWithDaemonMgmt missing; skipping mcp fixes test", allow_module_level=True)
 
-import asyncio
 import json
 import sys
 from pathlib import Path

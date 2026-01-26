@@ -88,7 +88,7 @@ def anyio_fixed_method():
     This method demonstrates the fixed approach using AnyIOEventLoopHandler.
     
     It safely handles running event loops by using AnyIO, which works across
-    different async backends (asyncio, trio, etc.) and detects if we're
+    different async backends (async-io, trio, etc.) and detects if we're
     already in an async context.
     """
     if not HAS_ANYIO:
@@ -204,9 +204,9 @@ def run_multi_backend_demo():
         logger.error("AnyIO not installed, cannot run multi-backend demo")
         return
         
-    # Run with asyncio backend
-    logger.info("\n=== RUNNING WITH ASYNCIO BACKEND ===")
-    anyio.run(run_demo_anyio, backend="asyncio")
+    # Run with async-io backend
+    logger.info("\n=== RUNNING WITH ASYNC-IO BACKEND ===")
+    anyio.run(run_demo_anyio, backend="async" "io")
     
     # Run with trio backend if available
     try:

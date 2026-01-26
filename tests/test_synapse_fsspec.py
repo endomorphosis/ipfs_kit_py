@@ -11,7 +11,7 @@ import sys
 import tempfile
 import shutil
 import pytest
-import asyncio
+import anyio
 from unittest.mock import Mock, patch, AsyncMock
 
 # Add project root to path
@@ -198,7 +198,7 @@ class TestFSSpecSynapseIntegration:
                 return result
             
             # Run the async operation
-            result = asyncio.run(mock_write())
+            result = anyio.run(mock_write)
             
             assert result["success"] == True
             assert "commp" in result
@@ -224,7 +224,7 @@ class TestFSSpecSynapseIntegration:
                 return data
             
             # Run the async operation
-            data = asyncio.run(mock_read())
+            data = anyio.run(mock_read)
             
             assert data == b"Hello, FSSpec test!"
     
@@ -245,7 +245,7 @@ class TestFSSpecSynapseIntegration:
                 return result
             
             # Run the async operation
-            result = asyncio.run(mock_list())
+            result = anyio.run(mock_list)
             
             assert result["success"] == True
             assert "items" in result
@@ -275,7 +275,7 @@ class TestFSSpecSynapseIntegration:
                 result = await mock_storage.synapse_store_file(test_file)
                 return result
             
-            upload_result = asyncio.run(mock_upload())
+            upload_result = anyio.run(mock_upload)
             
             assert upload_result["success"] == True
             assert "commp" in upload_result
@@ -290,7 +290,7 @@ class TestFSSpecSynapseIntegration:
                 result = await mock_storage.synapse_retrieve_file(commp, download_file)
                 return result
             
-            download_result = asyncio.run(mock_download())
+            download_result = anyio.run(mock_download)
             
             assert download_result["success"] == True
             assert download_result["output_path"] == download_file
@@ -332,7 +332,7 @@ class TestSynapseBackendMethods:
             assert hasattr(mock_storage, method_name), f"Method {method_name} not found"
             assert callable(getattr(mock_storage, method_name)), f"Method {method_name} not callable"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {SYNAPSE_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_synapse_backend_error_handling(self):
@@ -368,7 +368,7 @@ class TestSynapseBackendMethods:
         except Exception as e:
             assert "Invalid CID" in str(e)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.skipif(not SYNAPSE_MODULES_AVAILABLE, 
                        reason=f"Synapse modules not available: {SYNAPSE_ERROR if not SYNAPSE_MODULES_AVAILABLE else ''}")
     async def test_synapse_backend_metadata_handling(self):

@@ -6,7 +6,7 @@ This script tests all the JSON-RPC methods that replace WebSocket functionality
 to ensure the conversion is working correctly.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -70,7 +70,7 @@ async def test_jsonrpc_event_methods():
         
         # Test polling for events
         print("\n6. Testing event polling...")
-        await asyncio.sleep(0.1)  # Small delay to ensure event is processed
+        await anyio.sleep(0.1)  # Small delay to ensure event is processed
         result = await event_methods.poll_events(session_id, limit=10)
         assert result["success"], f"Event polling failed: {result}"
         events = result["events"]
@@ -302,7 +302,7 @@ async def test_performance():
             all_events.extend(events)
             if len(all_events) >= 100:
                 break
-            await asyncio.sleep(0.01)
+            await anyio.sleep(0.01)
         
         end_time = time.time()
         duration = end_time - start_time
@@ -328,7 +328,7 @@ async def test_performance():
                     found_event = event
                     break
             if not found_event:
-                await asyncio.sleep(0.001)  # 1ms delay
+                await anyio.sleep(0.001)  # 1ms delay
         
         end_time = time.time()
         latency = (end_time - start_time) * 1000  # Convert to milliseconds
@@ -402,5 +402,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     exit(exit_code)

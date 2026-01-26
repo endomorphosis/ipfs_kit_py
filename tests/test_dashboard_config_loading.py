@@ -5,7 +5,7 @@ This test verifies that the dashboard properly loads backend configurations
 from ~/.ipfs_kit/backends.json and populates form fields correctly.
 """
 
-import asyncio
+import anyio
 import json
 import tempfile
 from pathlib import Path
@@ -75,7 +75,7 @@ def sample_backends_config():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.skipif(not DASHBOARD_AVAILABLE, reason=f"Dashboard dependencies not available: {DASHBOARD_IMPORT_ERROR if not DASHBOARD_AVAILABLE else ''}")
 async def test_get_config_data_with_backends(temp_ipfs_kit_dir, sample_backends_config):
     """Test that _get_config_data properly loads backends.json."""
@@ -121,7 +121,7 @@ async def test_get_config_data_with_backends(temp_ipfs_kit_dir, sample_backends_
     print("✅ Test passed: Config data properly loaded from backends.json")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.skipif(not DASHBOARD_AVAILABLE, reason=f"Dashboard dependencies not available: {DASHBOARD_IMPORT_ERROR if not DASHBOARD_AVAILABLE else ''}")
 async def test_get_backend_configs(temp_ipfs_kit_dir, sample_backends_config):
     """Test that _get_backend_configs returns backend configurations."""
@@ -152,7 +152,7 @@ async def test_get_backend_configs(temp_ipfs_kit_dir, sample_backends_config):
     print("✅ Test passed: Backend configs properly loaded")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.skipif(not DASHBOARD_AVAILABLE, reason=f"Dashboard dependencies not available: {DASHBOARD_IMPORT_ERROR if not DASHBOARD_AVAILABLE else ''}")
 async def test_update_backend_config(temp_ipfs_kit_dir, sample_backends_config):
     """Test updating a backend configuration."""
@@ -201,7 +201,7 @@ async def test_update_backend_config(temp_ipfs_kit_dir, sample_backends_config):
     print("✅ Test passed: Backend config successfully updated")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.skipif(not DASHBOARD_AVAILABLE, reason=f"Dashboard dependencies not available: {DASHBOARD_IMPORT_ERROR if not DASHBOARD_AVAILABLE else ''}")
 async def test_empty_backends_file(temp_ipfs_kit_dir):
     """Test handling of non-existent backends.json file."""
@@ -226,7 +226,7 @@ async def test_empty_backends_file(temp_ipfs_kit_dir):
     print("✅ Test passed: Gracefully handles missing backends.json")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.skipif(not DASHBOARD_AVAILABLE, reason=f"Dashboard dependencies not available: {DASHBOARD_IMPORT_ERROR if not DASHBOARD_AVAILABLE else ''}")
 async def test_comprehensive_config_flow(temp_ipfs_kit_dir):
     """Test the complete config loading, updating, and persistence flow."""
@@ -361,4 +361,4 @@ if __name__ == "__main__":
                 import traceback
                 traceback.print_exc()
     
-    asyncio.run(run_tests())
+    anyio.run(run_tests)

@@ -3,7 +3,7 @@
 Minimal dashboard test to verify WebSocket route registration
 """
 
-import asyncio
+import anyio
 import sys
 from pathlib import Path
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     print("🧪 Minimal Dashboard WebSocket Test")
     print("=" * 50)
     
-    success = asyncio.run(test_minimal_dashboard())
+    success = anyio.run(test_minimal_dashboard)
     
     if success:
         print("\n✅ WebSocket route registration test passed!")

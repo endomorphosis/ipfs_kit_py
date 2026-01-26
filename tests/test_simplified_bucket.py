@@ -21,7 +21,7 @@ try:
     print("✓ Manager created")
     
     # Test creating bucket
-    import asyncio
+    import anyio
     
     async def test_bucket():
         result = await manager.create_bucket("test-bucket", "dataset", "hybrid")
@@ -31,7 +31,7 @@ try:
         result = await manager.list_buckets()
         print(f"List buckets result: {result}")
     
-    asyncio.run(test_bucket())
+    anyio.run(test_bucket)
     print("✓ Basic functionality works")
     
 except Exception as e:

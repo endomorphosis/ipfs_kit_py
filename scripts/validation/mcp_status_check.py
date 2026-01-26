@@ -30,7 +30,7 @@ def check_mcp_server():
     
     # Check if Python can import required modules
     try:
-        import asyncio
+        import anyio
         import json
         print("✅ Required Python modules available")
     except ImportError as e:

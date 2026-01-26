@@ -4,7 +4,7 @@ Apply WebRTC AnyIO fixes to MCP server.
 
 This script patches the problematic WebRTC methods in the MCP server
 to properly handle event loops using AnyIO, which works across different
-async frameworks (asyncio, trio, etc.) and integrates well with FastAPI.
+async frameworks (async-io, trio, etc.) and integrates well with FastAPI.
 """
 
 import os
