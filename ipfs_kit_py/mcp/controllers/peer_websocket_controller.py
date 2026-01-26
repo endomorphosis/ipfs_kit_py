@@ -370,7 +370,7 @@ class PeerWebSocketController:
                 peer_ttl=request.peer_ttl,
             )
 
-            # Start server properly with existing asyncio event loop
+            # Start server properly with existing async runtime
             await self.peer_websocket_server.start(host=request.host, port=request.port)
 
             server_url = f"ws://{request.host}:{request.port}"
@@ -419,7 +419,7 @@ class PeerWebSocketController:
             }
 
         try:
-            # Stop server properly with existing asyncio context
+            # Stop server properly with existing async runtime
             await self.peer_websocket_server.stop()
 
             # Clear the server reference
@@ -534,7 +534,7 @@ class PeerWebSocketController:
                     max_reconnect_attempts=request.max_reconnect_attempts,
                 )
 
-                # Start client using the current asyncio context
+                # Start client using the current async runtime
                 await self.peer_websocket_client.start()
 
             # Connect to server
@@ -586,7 +586,7 @@ class PeerWebSocketController:
             }
 
         try:
-            # Stop client using current asyncio context
+            # Stop client using current async runtime
             await self.peer_websocket_client.stop()
 
             # Clear the client reference

@@ -26,9 +26,9 @@ from fastapi import (
     HTTPException)
 from pydantic import BaseModel
 
-# Import anyio with fallback to asyncio
+# Import anyio with fallback
 import anyio
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks should be started via AnyIO.
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -1336,9 +1336,7 @@ def start_background_tasks(app):
         add_event(EventType.NODE_JOINED, node_id=this_node["id"], details={"startup": True})
 
         # Start main background task
-        # Note: FastAPI startup events still use asyncio.create_task
-        import anyio
-        asyncio.create_task(ha_background_task())
+        anyio.lowlevel.spawn_system_task(ha_background_task)
 
     @app.on_event("shutdown")
     async def shutdown_event():

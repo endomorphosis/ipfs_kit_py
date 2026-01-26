@@ -334,18 +334,19 @@ class GitVFSTranslationLayer:
     
     async def _run_git_command(self, cmd: List[str]) -> str:
         """Run a Git command and return output."""
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+        import subprocess
+
+        result = await anyio.run_process(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-        
-        stdout, stderr = await process.communicate()
-        
-        if process.returncode != 0:
-            raise Exception(f"Git command failed: {stderr.decode()}")
-        
-        return stdout.decode()
+
+        if result.returncode != 0:
+            stderr_text = (result.stderr or b"").decode(errors="replace")
+            raise Exception(f"Git command failed: {stderr_text}")
+
+        return (result.stdout or b"").decode(errors="replace")
     
     async def _analyze_file_tracking_gitpython(self, repo) -> Dict[str, Any]:
         """Analyze file tracking using GitPython."""

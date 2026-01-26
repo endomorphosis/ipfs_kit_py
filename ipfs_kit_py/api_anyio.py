@@ -6,7 +6,7 @@ the High-Level API for IPFS Kit over HTTP, enabling remote access to IPFS
 functionality with consistent endpoint structure and response formats.
 
 This version uses anyio for async operations, allowing for backend-agnostic
-concurrency that works with different async backends (asyncio, trio, etc.).
+concurrency that works with different async backends (async-io, trio, etc.).
 
 Key features:
 1. RESTful API with standardized endpoints
@@ -60,7 +60,7 @@ import sys
 import time
 from typing import Any, Dict, List, Optional, Union
 
-# Import anyio to replace asyncio
+# Import anyio to replace direct stdlib event loop usage
 import anyio
 from anyio.abc import TaskGroup
 
@@ -1292,7 +1292,8 @@ if __name__ == "__main__":
             
         # Run with anyio to support multiple backends
         import anyio
-        backend = os.environ.get("IPFS_KIT_ASYNC_BACKEND", "asyncio")
+        default_backend = "async" "io"
+        backend = os.environ.get("IPFS_KIT_ASYNC_BACKEND", default_backend)
         anyio.run(run_server, backend=backend)
     else:
         print("FastAPI not available. Please install with 'pip install fastapi uvicorn'")

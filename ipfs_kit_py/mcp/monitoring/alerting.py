@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 import aiofiles
 import aiohttp
 from pydantic import BaseModel, Field, validator
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks are managed via AnyIO task groups.
 
 logger = logging.getLogger(__name__)
 
@@ -134,10 +134,7 @@ class AlertingService:
         self.evaluation_state: Dict[str, Dict[str, Any]] = {}
 
         # Tasks
-        self.evaluation_task = None
-        self.notification_task = None
-        self.rule_load_task = None
-        self.channel_load_task = None
+        self._task_group = None
 
         # Configuration and state data paths
         self.rules_file = "/tmp/ipfs_kit/mcp/alerting/rules.json"
@@ -157,9 +154,14 @@ class AlertingService:
         await self.load_channels()
         await self.load_alerts()
 
+        if self._task_group is None:
+            tg = anyio.create_task_group()
+            await tg.__aenter__()
+            self._task_group = tg
+
         # Start background tasks
-        self.evaluation_task = asyncio.create_task(self._evaluate_rules_loop())
-        self.notification_task = asyncio.create_task(self._process_notifications_loop())
+        self._task_group.start_soon(self._evaluate_rules_loop)
+        self._task_group.start_soon(self._process_notifications_loop)
 
         logger.info("Alerting service started")
 
@@ -167,20 +169,10 @@ class AlertingService:
         """Stop the alerting service."""
         logger.info("Stopping alerting service")
 
-        # Cancel background tasks
-        if self.evaluation_task:
-            self.evaluation_task.cancel()
-            try:
-                await self.evaluation_task
-            except anyio.get_cancelled_exc_class():
-                pass
-
-        if self.notification_task:
-            self.notification_task.cancel()
-            try:
-                await self.notification_task
-            except anyio.get_cancelled_exc_class():
-                pass
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
 
         # Save current state
         await self.save_alerts()

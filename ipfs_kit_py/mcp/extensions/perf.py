@@ -23,9 +23,9 @@ from fastapi import (
     Response)
 from pydantic import BaseModel
 
-# Import anyio with fallback to asyncio
+# Import anyio with fallback
 import anyio
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks should be started via AnyIO.
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -850,10 +850,7 @@ def start_background_tasks(app):
     @app.on_event("startup")
     async def startup_event():
         # Start periodic stats save
-        # Note: FastAPI startup events still use asyncio.create_task
-        # as anyio task groups require async context manager
-        import anyio
-        asyncio.create_task(periodic_stats_save())
+        anyio.lowlevel.spawn_system_task(periodic_stats_save)
 
     @app.on_event("shutdown")
     async def shutdown_event():

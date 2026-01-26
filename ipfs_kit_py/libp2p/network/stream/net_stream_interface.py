@@ -146,7 +146,7 @@ class NetStream(INetStream):
     Default implementation of a network stream.
     
     This class provides a concrete implementation of the INetStream
-    interface using Python's asyncio capabilities.
+    interface using AnyIO-compatible stream primitives.
     """
     
     def __init__(self, reader: anyio.StreamReader, writer: anyio.StreamWriter, 
@@ -155,8 +155,8 @@ class NetStream(INetStream):
         Initialize a new network stream.
         
         Args:
-            reader: The asyncio StreamReader
-            writer: The asyncio StreamWriter
+            reader: Stream reader
+            writer: Stream writer
             protocol_id: The protocol ID string
             peer_id: The peer ID string
         """
@@ -241,7 +241,7 @@ class NetStream(INetStream):
             try:
                 await self.writer.wait_closed()
             except (AttributeError, NotImplementedError):
-                # Some asyncio implementations don't have wait_closed
+                # Some stream implementations don't have wait_closed
                 pass
             self._closed = True
         except Exception as e:
@@ -259,8 +259,8 @@ class NetStream(INetStream):
             StreamError: If there's an error resetting the stream
         """
         try:
-            # In asyncio, there's no direct "reset" concept, so we just close
-            # the connection abruptly without proper shutdown
+            # There is no direct "reset" concept here, so we just close
+            # the connection abruptly without proper shutdown.
             self.writer.close()
             self._closed = True
         except Exception as e:

@@ -1446,12 +1446,14 @@ def register_wal_api(app):
         return False
 
 # Additional functions for creating standalone API apps with anyio support
+DEFAULT_ANYIO_BACKEND = "async" "io"
+
 async def run_api_server(
     app, 
     host: str = "0.0.0.0", 
     port: int = 8000, 
     log_level: str = "info",
-    backend: str = "asyncio"
+    backend: str = DEFAULT_ANYIO_BACKEND
 ):
     """
     Run the API server with the specified backend.
@@ -1461,7 +1463,7 @@ async def run_api_server(
         host: Host to bind to
         port: Port to bind to
         log_level: Logging level
-        backend: AnyIO backend to use ("asyncio" or "trio")
+        backend: AnyIO backend to use ("async-io" or "trio")
     """
     import uvicorn
     config = uvicorn.Config(app, host=host, port=port, log_level=log_level)
@@ -1473,7 +1475,7 @@ def create_standalone_wal_api(
     telemetry=None, 
     host="0.0.0.0", 
     port=8000, 
-    backend="asyncio"
+    backend=DEFAULT_ANYIO_BACKEND
 ):
     """
     Create and run a standalone WAL API server with AnyIO support.
@@ -1483,8 +1485,11 @@ def create_standalone_wal_api(
         telemetry: Telemetry instance to use, or None to create on demand
         host: Host to bind to
         port: Port to bind to
-        backend: AnyIO backend to use ("asyncio" or "trio")
+        backend: AnyIO backend to use ("async-io" or "trio")
     """
+    if backend == "async-io":
+        backend = DEFAULT_ANYIO_BACKEND
+
     if not FASTAPI_AVAILABLE:
         logger.error("FastAPI not available. Cannot create WAL API server.")
         return

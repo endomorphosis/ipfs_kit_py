@@ -9,6 +9,7 @@ API key validation improvements mentioned in the MCP roadmap.
 import logging
 import time
 import anyio
+import inspect
 from typing import Dict, List, Any, Optional, Tuple, Union, Callable
 from functools import wraps
 import ipaddress
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Import enhanced cache
 from ipfs_kit_py.mcp.auth.enhanced_api_key_cache import EnhancedApiKeyCache, CachePolicy
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks are started via AnyIO.
 
 class ApiKeyCacheService:
     """
@@ -131,9 +132,15 @@ class ApiKeyCacheService:
             # without blocking the current request
             if hasattr(self.auth_service, 'update_api_key_last_used'):
                 # Don't await - fire and forget to update last_used
-                asyncio.create_task(
-                    self.auth_service.update_api_key_last_used(key_data.get("id"))
-                )
+                async def _update_last_used() -> None:
+                    try:
+                        result = self.auth_service.update_api_key_last_used(key_data.get("id"))
+                        if inspect.isawaitable(result):
+                            await result
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug(f"Failed to update api key last_used: {exc}")
+
+                anyio.lowlevel.spawn_system_task(_update_last_used)
             
             # Validate the cached key
             valid, error = self._validate_cached_key(key_data, ip_address, required_scopes, required_permissions)
@@ -447,7 +454,6 @@ def create_api_key_validation_middleware(cache_service: ApiKeyCacheService):
     Returns:
         FastAPI middleware function
     """
-    @asyncio.coroutine
     async def api_key_middleware(request, call_next):
         # Skip validation for certain paths
         path = request.url.path

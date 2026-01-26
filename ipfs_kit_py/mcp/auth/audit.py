@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Union, List, Counter
 import enum
 import aiofiles
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: Background tasks are managed via AnyIO task groups.
 
 # Create a dedicated logger for audit events
 _audit_logger = logging.getLogger("ipfs_kit_py.mcp.auth.audit")
@@ -203,8 +203,9 @@ class AuditLogger:
         self.json_logging = json_logging
         self.in_memory_logs = []
         self.running = False
-        self.log_queue = asyncio.Queue()
-        self._worker_task = None
+        self._send_stream = None
+        self._receive_stream = None
+        self._task_group = None
     
     async def start(self):
         """Start the audit logger worker."""
@@ -238,7 +239,13 @@ class AuditLogger:
         
         # Start the worker task for JSON logging
         if self.json_logging:
-            self._worker_task = asyncio.create_task(self._log_worker())
+            if self._task_group is None:
+                tg = anyio.create_task_group()
+                await tg.__aenter__()
+                self._task_group = tg
+
+            self._send_stream, self._receive_stream = anyio.create_memory_object_stream(1000)
+            self._task_group.start_soon(self._log_worker)
     
     async def stop(self):
         """Stop the audit logger worker."""
@@ -247,20 +254,27 @@ class AuditLogger:
         
         self.running = False
         
-        if self._worker_task:
-            # Give time for the worker to process remaining logs
-            await anyio.sleep(0.2)
-            self._worker_task.cancel()
-            try:
-                await self._worker_task
-            except anyio.get_cancelled_exc_class():
-                pass
+        # Give time for the worker to process remaining logs
+        await anyio.sleep(0.2)
+        if self._send_stream is not None:
+            await self._send_stream.aclose()
+            self._send_stream = None
+
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
+
+        self._receive_stream = None
     
     async def _log_worker(self):
         """Worker task for processing log entries asynchronously."""
+        if self._receive_stream is None:
+            return
+
         while self.running:
             try:
-                entry = await self.log_queue.get()
+                entry = await self._receive_stream.receive()
                 
                 # Add to in-memory logs
                 self.in_memory_logs.append(entry)
@@ -279,9 +293,9 @@ class AuditLogger:
                     except Exception as e:
                         print(f"Error writing to audit log file: {e}")
                 
-                self.log_queue.task_done()
-            
             except anyio.get_cancelled_exc_class():
+                break
+            except anyio.EndOfStream:
                 break
             except Exception as e:
                 print(f"Error in audit log worker: {e}")
@@ -294,7 +308,12 @@ class AuditLogger:
         Args:
             entry: The audit log entry to record
         """
-        await self.log_queue.put(entry)
+        if self.json_logging and self._send_stream is not None:
+            await self._send_stream.send(entry)
+        else:
+            self.in_memory_logs.append(entry)
+            while len(self.in_memory_logs) > 1000:
+                self.in_memory_logs.pop(0)
         
         # Also log using the standard logger
         log_auth_event(

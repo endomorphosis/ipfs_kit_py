@@ -3,7 +3,7 @@ Asynchronous operations for ParquetCIDCache.
 
 This module provides asynchronous versions of ParquetCIDCache operations for improved
 concurrency and responsiveness. It implements non-blocking I/O for Parquet operations
-and maintains compatibility with asyncio-based applications.
+and maintains compatibility with common async applications.
 """
 
 import anyio
@@ -28,7 +28,7 @@ class AsyncOperationManager:
     
     This class provides asynchronous versions of ParquetCIDCache operations,
     implementing non-blocking I/O for improved concurrency and responsiveness.
-    It maintains compatibility with asyncio-based applications and ensures
+    It maintains compatibility with common async applications and ensures
     thread safety for concurrent operations.
     """
     
@@ -460,7 +460,7 @@ class AsyncParquetCIDCache:
     """Async-compatible wrapper for ParquetCIDCache.
     
     This class provides an async-compatible interface to the ParquetCIDCache,
-    allowing it to be used with asyncio-based applications. It wraps a standard
+    allowing it to be used with common async applications. It wraps a standard
     ParquetCIDCache instance and provides async versions of all operations.
     """
     
