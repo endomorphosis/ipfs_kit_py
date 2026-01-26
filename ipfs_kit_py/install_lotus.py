@@ -1238,6 +1238,8 @@ exec "$BIN_DIR/{real_basename}" "$@"
         if platform.system() == "Linux":
             if self._try_userspace_apt_library_install(lib_dir=lib_dir):
                 return True
+            if self._try_userspace_rpm_library_install(lib_dir=lib_dir):
+                return True
         
         # HWLoc binary URLs by platform (legacy fallback)
         hwloc_bins = {
@@ -1334,6 +1336,12 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
             apt_get = shutil.which("apt-get")
             dpkg_deb = shutil.which("dpkg-deb")
             if not apt_get or not dpkg_deb:
+                logger.debug(
+                    "Userspace apt library install unavailable (missing tools): %s",
+                    ", ".join(
+                        [name for name, path in (("apt-get", apt_get), ("dpkg-deb", dpkg_deb)) if not path]
+                    ),
+                )
                 return False
 
             # Candidate packages: vary across Debian/Ubuntu versions.
@@ -1372,6 +1380,7 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                         continue
 
                 if not downloaded:
+                    logger.debug("Userspace apt library install: no .deb packages could be downloaded")
                     return False
 
                 extract_root = os.path.join(temp_dir, "extract")
@@ -1437,6 +1446,170 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                 return False
         except Exception as e:
             logger.debug(f"Userspace apt library install failed: {e}")
+            return False
+
+    def _try_userspace_rpm_library_install(self, *, lib_dir: str) -> bool:
+        """Install runtime libraries into lib_dir using RPM download + rpm2cpio extraction."""
+        try:
+            if platform.system() != "Linux":
+                return False
+
+            rpm2cpio = shutil.which("rpm2cpio")
+            cpio = shutil.which("cpio")
+            if not rpm2cpio or not cpio:
+                logger.debug(
+                    "Userspace RPM library install unavailable (missing tools): %s",
+                    ", ".join(
+                        [name for name, path in (("rpm2cpio", rpm2cpio), ("cpio", cpio)) if not path]
+                    ),
+                )
+                return False
+
+            dnf = shutil.which("dnf")
+            yumdownloader = shutil.which("yumdownloader")
+            microdnf = shutil.which("microdnf")
+            if not dnf and not yumdownloader and not microdnf:
+                logger.debug(
+                    "Userspace RPM library install unavailable (missing downloader): dnf/yumdownloader/microdnf"
+                )
+                return False
+
+            logger.info(
+                "Attempting userspace RPM library install using %s",
+                "dnf" if dnf else ("yumdownloader" if yumdownloader else "microdnf"),
+            )
+
+            # Candidate packages vary across Fedora/RHEL/CentOS. We try a small set.
+            candidates = [
+                # hwloc runtime
+                "hwloc-libs",
+                "hwloc",
+                # OpenCL ICD loader / runtime
+                "ocl-icd",
+                "ocl-icd-libopencl1",
+                "opencl-icd-loader",
+                "libOpenCL",
+                "mesa-libOpenCL",
+            ]
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                downloaded = []
+
+                def _download_with(cmd: List[str], pkg: str) -> List[str]:
+                    before = set(os.listdir(temp_dir))
+                    result = subprocess.run(
+                        cmd + [pkg],
+                        cwd=temp_dir,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        check=False,
+                    )
+                    if result.returncode != 0:
+                        return []
+                    after = set(os.listdir(temp_dir))
+                    return [os.path.join(temp_dir, f) for f in (after - before) if f.endswith(".rpm")]
+
+                for pkg in candidates:
+                    try:
+                        rpms: List[str] = []
+                        if dnf:
+                            rpms = _download_with([dnf, "-y", "download", "--destdir", temp_dir], pkg)
+                        if not rpms and yumdownloader:
+                            rpms = _download_with([yumdownloader, "--destdir", temp_dir], pkg)
+                        if not rpms and microdnf:
+                            # microdnf supports `download` on some distros/images.
+                            rpms = _download_with([microdnf, "download", "--destdir", temp_dir], pkg)
+
+                        for rpm_path in rpms:
+                            if rpm_path not in downloaded:
+                                downloaded.append(rpm_path)
+                    except Exception:
+                        continue
+
+                if not downloaded:
+                    logger.debug("Userspace RPM library install: no .rpm packages could be downloaded")
+                    return False
+
+                extract_root = os.path.join(temp_dir, "extract")
+                os.makedirs(extract_root, exist_ok=True)
+
+                for rpm_path in downloaded:
+                    pkg_extract = os.path.join(extract_root, os.path.basename(rpm_path))
+                    os.makedirs(pkg_extract, exist_ok=True)
+
+                    # Extract: rpm2cpio pkg.rpm | cpio -idmu
+                    try:
+                        p1 = subprocess.Popen(
+                            [rpm2cpio, rpm_path],
+                            cwd=pkg_extract,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL,
+                        )
+                        subprocess.run(
+                            [cpio, "-idmu"],
+                            cwd=pkg_extract,
+                            stdin=p1.stdout,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            check=False,
+                        )
+                        if p1.stdout:
+                            p1.stdout.close()
+                        p1.wait(timeout=30)
+                    except Exception:
+                        continue
+
+                # Copy shared libs
+                copied = 0
+                for root, _, files in os.walk(extract_root):
+                    for name in files:
+                        if name.endswith(".so") or ".so." in name or name.endswith(".dylib"):
+                            src = os.path.join(root, name)
+                            dst = os.path.join(lib_dir, name)
+                            try:
+                                shutil.copy2(src, dst)
+                                copied += 1
+                            except OSError:
+                                continue
+
+                # Copy OpenCL ICD vendor files if present (typically /etc/OpenCL/vendors/*.icd)
+                vendors_src = []
+                for root, _, files in os.walk(extract_root):
+                    if root.endswith(os.path.join("etc", "OpenCL", "vendors")):
+                        for name in files:
+                            if name.endswith(".icd"):
+                                vendors_src.append(os.path.join(root, name))
+
+                if vendors_src:
+                    vendors_dir = os.path.join(self.bin_path, "opencl", "vendors")
+                    os.makedirs(vendors_dir, exist_ok=True)
+                    for src in vendors_src:
+                        try:
+                            shutil.copy2(src, os.path.join(vendors_dir, os.path.basename(src)))
+                        except OSError:
+                            continue
+
+                # Create an env helper script
+                ldpath_script = os.path.join(self.bin_path, "set_lotus_env.sh")
+                vendors_dir = os.path.join(self.bin_path, "opencl", "vendors")
+                with open(ldpath_script, "w", encoding="utf-8") as f:
+                    f.write(
+                        "#!/usr/bin/env bash\n"
+                        "# Set env for Lotus binaries using user-space deps\n"
+                        f"export LD_LIBRARY_PATH=\"{lib_dir}:$LD_LIBRARY_PATH\"\n"
+                        f"export DYLD_LIBRARY_PATH=\"{lib_dir}:$DYLD_LIBRARY_PATH\"\n"
+                        f"if [ -d \"{vendors_dir}\" ]; then export OCL_ICD_VENDORS=\"{vendors_dir}\"; fi\n"
+                    )
+                os.chmod(ldpath_script, 0o755)
+
+                # Success if we have at least hwloc libs after extraction.
+                if any(name.startswith("libhwloc") for name in os.listdir(lib_dir)):
+                    logger.info(f"Installed user-space RPM libraries into {lib_dir} (files: {copied})")
+                    return True
+                return False
+        except Exception as e:
+            logger.debug(f"Userspace RPM library install failed: {e}")
             return False
             
     def _install_linux_dependencies(self, dependencies):
