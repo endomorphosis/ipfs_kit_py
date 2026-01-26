@@ -19,6 +19,7 @@ import logging
 import os
 import time
 import uuid
+from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -43,7 +44,6 @@ from .bucket_vfs_manager import BucketVFSManager, BucketType, VFSStructureType
 from .enhanced_bucket_index import EnhancedBucketIndex
 from .pins import EnhancedPinMetadataIndex
 from .error import create_result_dict
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +143,8 @@ class UnifiedBucketInterface:
         self.registry_file = self.ipfs_kit_dir / "bucket_registry.json"
         
         # Background sync task
-        self._sync_task: Optional[asyncio.Task] = None
+        self._sync_tg_cm: Optional[AbstractAsyncContextManager[anyio.abc.TaskGroup]] = None
+        self._sync_tg: Optional[anyio.abc.TaskGroup] = None
         self._shutdown_event = anyio.Event()
         
         logger.info(f"Unified Bucket Interface initialized at {self.ipfs_kit_dir}")
@@ -159,7 +160,13 @@ class UnifiedBucketInterface:
             
             # Start background sync
             if self.auto_sync_interval > 0:
-                self._sync_task = asyncio.create_task(self._background_sync())
+                # Reset the shutdown flag in case we're re-initializing
+                if self._shutdown_event.is_set():
+                    self._shutdown_event = anyio.Event()
+
+                self._sync_tg_cm = anyio.create_task_group()
+                self._sync_tg = await self._sync_tg_cm.__aenter__()
+                self._sync_tg.start_soon(self._background_sync)
             
             logger.info("Unified Bucket Interface initialization complete")
             return create_result_dict("initialize", success=True)
@@ -778,13 +785,17 @@ class UnifiedBucketInterface:
         """Clean up resources."""
         try:
             # Stop background sync
-            if self._sync_task and not self._sync_task.done():
+            if self._sync_tg is not None and self._sync_tg_cm is not None:
                 self._shutdown_event.set()
                 try:
                     with anyio.fail_after(5.0):
-                        await self._sync_task
+                        self._sync_tg.cancel_scope.cancel()
+                        await self._sync_tg_cm.__aexit__(None, None, None)
                 except TimeoutError:
-                    self._sync_task.cancel()
+                    self._sync_tg.cancel_scope.cancel()
+                finally:
+                    self._sync_tg = None
+                    self._sync_tg_cm = None
             
             # Close DuckDB connection
             if self.duckdb_conn:
@@ -917,11 +928,11 @@ class UnifiedBucketInterface:
         try:
             # Update bucket index
             if hasattr(self.global_bucket_index, 'update_from_bucket_manager'):
-                await asyncio.to_thread(self.global_bucket_index.update_from_bucket_manager)
+                await anyio.to_thread.run_sync(self.global_bucket_index.update_from_bucket_manager)
             
             # Update pin index  
             if hasattr(self.global_pin_index, 'refresh_index'):
-                await asyncio.to_thread(self.global_pin_index.refresh_index)
+                await anyio.to_thread.run_sync(self.global_pin_index.refresh_index)
                 
         except Exception as e:
             logger.error(f"Failed to update global indices: {e}")
@@ -1283,20 +1294,19 @@ class UnifiedBucketInterface:
         """Background task for periodic synchronization."""
         try:
             while not self._shutdown_event.is_set():
-                try:
-                    # Wait for sync interval or shutdown
-                    await asyncio.wait_for(
-                        self._shutdown_event.wait(),
-                        timeout=self.auto_sync_interval
-                    )
+                # Wait for sync interval or shutdown
+                with anyio.move_on_after(self.auto_sync_interval):
+                    await self._shutdown_event.wait()
+
+                if self._shutdown_event.is_set():
                     break  # Shutdown requested
-                except asyncio.TimeoutError:
-                    # Sync interval elapsed, perform sync
-                    logger.debug("Starting background sync")
-                    await self.sync_bucket_indices()
-                    logger.debug("Background sync complete")
+
+                # Sync interval elapsed, perform sync
+                logger.debug("Starting background sync")
+                await self.sync_bucket_indices()
+                logger.debug("Background sync complete")
                     
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Background sync task cancelled")
         except Exception as e:
             logger.error(f"Error in background sync: {e}")

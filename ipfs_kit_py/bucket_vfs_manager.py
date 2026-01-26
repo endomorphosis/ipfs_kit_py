@@ -47,7 +47,6 @@ from .parquet_car_bridge import ParquetCARBridge
 from .ipld_knowledge_graph import IPLDGraphDB, GraphRAG
 from .tiered_cache_manager import TieredCacheManager
 from .error import create_result_dict, handle_error
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Import CAR WAL Manager
 try:
@@ -121,6 +120,8 @@ class BucketVFSManager:
         # Bucket registry
         self.buckets: Dict[str, 'BucketVFS'] = {}
         self._bucket_metadata_file = self.storage_path / "bucket_registry.json"
+        self._registry_loaded = False
+        self._registry_lock = anyio.Lock()
         
         # DuckDB connection for cross-bucket queries
         if self.enable_duckdb_integration:
@@ -128,10 +129,19 @@ class BucketVFSManager:
         else:
             self.duckdb_conn = None
         
-        # Load existing buckets
-        asyncio.create_task(self._load_bucket_registry())
+        # Registry load is lazy (performed on first async API call) to avoid
+        # starting background tasks from a non-async __init__.
         
         logger.info(f"BucketVFSManager initialized at {storage_path}")
+
+    async def _ensure_bucket_registry_loaded(self) -> None:
+        if self._registry_loaded:
+            return
+        async with self._registry_lock:
+            if self._registry_loaded:
+                return
+            await self._load_bucket_registry()
+            self._registry_loaded = True
     
     async def create_bucket(
         self,
@@ -153,6 +163,7 @@ class BucketVFSManager:
             Result dictionary with bucket creation status
         """
         try:
+            await self._ensure_bucket_registry_loaded()
             if bucket_name in self.buckets:
                 return create_result_dict(
                     False, 
@@ -205,11 +216,13 @@ class BucketVFSManager:
     
     async def get_bucket(self, bucket_name: str) -> Optional['BucketVFS']:
         """Get bucket instance by name."""
+        await self._ensure_bucket_registry_loaded()
         return self.buckets.get(bucket_name)
     
     async def list_buckets(self) -> Dict[str, Any]:
         """List all available buckets."""
         try:
+            await self._ensure_bucket_registry_loaded()
             bucket_list = []
             
             for name, bucket in self.buckets.items():
@@ -255,6 +268,7 @@ class BucketVFSManager:
             force: Force deletion even if bucket contains data
         """
         try:
+            await self._ensure_bucket_registry_loaded()
             if bucket_name not in self.buckets:
                 return create_result_dict(
                     "delete_bucket",
@@ -310,6 +324,7 @@ class BucketVFSManager:
             bucket_filter: Optional list of bucket names to include
         """
         try:
+            await self._ensure_bucket_registry_loaded()
             if not self.enable_duckdb_integration:
                 return create_result_dict(
                     "cross_bucket_query",
@@ -367,6 +382,7 @@ class BucketVFSManager:
             include_indexes: Include vector and knowledge graph indexes
         """
         try:
+            await self._ensure_bucket_registry_loaded()
             if bucket_name not in self.buckets:
                 return create_result_dict(
                     "export_bucket_to_car",
@@ -573,7 +589,7 @@ class BucketVFS:
         """Setup knowledge graph structure."""
         if self.knowledge_graph:
             # Create bucket-specific entities
-            await asyncio.to_thread(
+            await anyio.to_thread.run_sync(
                 self.knowledge_graph.add_entity,
                 f"bucket_{self.name}",
                 "bucket",
@@ -634,7 +650,7 @@ class BucketVFS:
             }
             
             # Store in IPFS
-            self.root_cid = await asyncio.to_thread(
+            self.root_cid = await anyio.to_thread.run_sync(
                 self.ipfs_client.dag_put, 
                 root_node
             )
@@ -674,7 +690,7 @@ class BucketVFS:
             # Add to IPFS if client available
             file_cid = None
             if self.ipfs_client:
-                file_cid = await asyncio.to_thread(
+                file_cid = await anyio.to_thread.run_sync(
                     self.ipfs_client.add_bytes,
                     content
                 )
@@ -682,7 +698,7 @@ class BucketVFS:
             # Update knowledge graph
             if self.knowledge_graph:
                 file_entity_id = f"file_{self.name}_{file_path.replace('/', '_')}"
-                await asyncio.to_thread(
+                await anyio.to_thread.run_sync(
                     self.knowledge_graph.add_entity,
                     file_entity_id,
                     "file",
@@ -830,7 +846,7 @@ class BucketVFS:
             if self.knowledge_graph:
                 file_entity_id = f"file_{self.name}_{file_path.replace('/', '_')}"
                 try:
-                    await asyncio.to_thread(
+                    await anyio.to_thread.run_sync(
                         self.knowledge_graph.remove_entity,
                         file_entity_id
                     )
@@ -1123,7 +1139,7 @@ class BucketVFS:
             # Close any open connections
             if self.knowledge_graph:
                 # Persist any pending changes
-                await asyncio.to_thread(self.knowledge_graph._persist_indexes)
+                await anyio.to_thread.run_sync(self.knowledge_graph._persist_indexes)
             
             # Remove storage directory
             import shutil

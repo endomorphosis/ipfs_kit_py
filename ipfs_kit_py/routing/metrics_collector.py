@@ -646,7 +646,9 @@ class RoutingMetricsCollector:
         
         # Initialize state
         self.running = False
-        self.collection_task = None
+        self._collection_tg_cm = None
+        self._collection_tg = None
+        self._stop_event = anyio.Event()
         
         logger.debug("Routing metrics collector initialized")
     
@@ -656,7 +658,12 @@ class RoutingMetricsCollector:
             return
         
         self.running = True
-        self.collection_task = asyncio.create_task(self._collect_metrics_loop())
+        if self._stop_event.is_set():
+            self._stop_event = anyio.Event()
+
+        self._collection_tg_cm = anyio.create_task_group()
+        self._collection_tg = await self._collection_tg_cm.__aenter__()
+        self._collection_tg.start_soon(self._collect_metrics_loop)
         logger.info(f"Started metrics collection with interval {self.collection_interval}s")
     
     async def stop(self) -> None:
@@ -665,27 +672,28 @@ class RoutingMetricsCollector:
             return
         
         self.running = False
-        if self.collection_task:
-            self.collection_task.cancel()
-            try:
-                await self.collection_task
-            except asyncio.CancelledError:
-                pass
-            self.collection_task = None
+        self._stop_event.set()
+
+        if self._collection_tg is not None and self._collection_tg_cm is not None:
+            self._collection_tg.cancel_scope.cancel()
+            await self._collection_tg_cm.__aexit__(None, None, None)
+            self._collection_tg = None
+            self._collection_tg_cm = None
         
         logger.info("Stopped metrics collection")
     
     async def _collect_metrics_loop(self) -> None:
         """Continuously collect metrics at the specified interval."""
-        while self.running:
+        while self.running and not self._stop_event.is_set():
             try:
                 # Collect metrics
                 await self._collect_metrics()
                 
                 # Wait for next collection
-                await anyio.sleep(self.collection_interval)
+                with anyio.move_on_after(self.collection_interval):
+                    await self._stop_event.wait()
                 
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error collecting metrics: {e}", exc_info=True)
@@ -873,4 +881,3 @@ class RoutingMetricsCollector:
 
 # Add missing imports
 import random
-# NOTE: This file contains asyncio.create_task() calls that need task group context

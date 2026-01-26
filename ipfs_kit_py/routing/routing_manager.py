@@ -34,7 +34,6 @@ from .routing.adaptive_optimizer import (
 )
 from .routing.router_api import router as routing_api_router
 from .routing.data_router import ContentAnalyzer
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -196,12 +195,17 @@ class RoutingManager:
             self._set_geographic_location(self.settings.geo_location)
         
         # Background tasks
-        self._background_tasks = []
+        self._background_tg_cm = None
+        self._background_tg = None
         self._shutdown_event = anyio.Event()
         
         # Start background tasks if configured
         if self.settings.auto_start_background_tasks:
-            self.start_background_tasks()
+            logger.warning(
+                "RoutingManager settings request auto-start background tasks, "
+                "but background tasks must be started from an async context; "
+                "call 'await start_background_tasks()' explicitly."
+            )
         
         # Load configuration if provided
         if self.settings.config_path:
@@ -555,27 +559,33 @@ class RoutingManager:
         
         logger.info("Registered routing API endpoints")
     
-    def start_background_tasks(self) -> None:
+    async def start_background_tasks(self) -> None:
         """Start background tasks for the routing manager."""
-        # Start metrics collection task
-        metrics_task = asyncio.create_task(
-            self._metrics_collection_task(
-                interval_seconds=self.settings.telemetry_interval
-            )
+        if self._background_tg is not None:
+            return
+
+        if self._shutdown_event.is_set():
+            self._shutdown_event = anyio.Event()
+
+        self._background_tg_cm = anyio.create_task_group()
+        self._background_tg = await self._background_tg_cm.__aenter__()
+        self._background_tg.start_soon(
+            self._metrics_collection_task,
+            self.settings.telemetry_interval,
         )
-        self._background_tasks.append(metrics_task)
-        
+
         logger.info("Started routing manager background tasks")
     
     async def stop_background_tasks(self) -> None:
         """Stop background tasks for the routing manager."""
         # Signal shutdown
         self._shutdown_event.set()
-        
-        # Wait for tasks to complete
-        if self._background_tasks:
-            await asyncio.gather(*self._background_tasks, return_exceptions=True)
-            self._background_tasks.clear()
+
+        if self._background_tg is not None and self._background_tg_cm is not None:
+            self._background_tg.cancel_scope.cancel()
+            await self._background_tg_cm.__aexit__(None, None, None)
+            self._background_tg = None
+            self._background_tg_cm = None
         
         logger.info("Stopped routing manager background tasks")
     
@@ -592,15 +602,9 @@ class RoutingManager:
                 await self.collect_metrics()
                 
                 # Wait for next collection
-                try:
-                    await asyncio.wait_for(
-                        self._shutdown_event.wait(),
-                        timeout=interval_seconds
-                    )
-                except asyncio.TimeoutError:
-                    # Normal timeout, continue with next collection
-                    pass
-        except asyncio.CancelledError:
+                with anyio.move_on_after(interval_seconds):
+                    await self._shutdown_event.wait()
+        except anyio.get_cancelled_exc_class():
             logger.info("Metrics collection task cancelled")
         except Exception as e:
             logger.error(f"Error in metrics collection task: {str(e)}")
