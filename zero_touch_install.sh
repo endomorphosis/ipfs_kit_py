@@ -290,6 +290,17 @@ if [ -d "${LOCAL_DEPS_DIR}/libmagic/lib" ]; then
   export DYLD_LIBRARY_PATH="${LOCAL_DEPS_DIR}/libmagic/lib:\${DYLD_LIBRARY_PATH:-}"
 fi
 
+# Some installers (e.g., Lotus user-space deps) place runtime libs in ./bin/lib
+if [ -d "${BIN_DIR}/lib" ]; then
+  export LD_LIBRARY_PATH="${BIN_DIR}/lib:\${LD_LIBRARY_PATH:-}"
+  export DYLD_LIBRARY_PATH="${BIN_DIR}/lib:\${DYLD_LIBRARY_PATH:-}"
+fi
+
+# OpenCL ICD vendor search path (when present)
+if [ -d "${BIN_DIR}/opencl/vendors" ]; then
+  export OCL_ICD_VENDORS="${BIN_DIR}/opencl/vendors"
+fi
+
 # Keep Playwright browser downloads local to the repo
 export PLAYWRIGHT_BROWSERS_PATH="${CACHE_DIR}/ms-playwright"
 EOF
@@ -457,13 +468,14 @@ PY
   fi
 
   if [[ "$do_lotus" == "yes" ]]; then
-    log "Installing Lotus into ./bin (best-effort; no sudo)"
+    log "Installing Lotus into ./bin (best-effort; may use sudo if available)"
     python - <<PY
 from ipfs_kit_py.install_lotus import install_lotus
 
 inst = install_lotus(metadata={
     "bin_dir": r"${BIN_DIR}",
-    "auto_install_deps": False,
+    # Opt in: will use sudo when available, otherwise attempt user-space deps.
+    "auto_install_deps": True,
     "allow_userspace_deps": True,
     "skip_params": True,
 })

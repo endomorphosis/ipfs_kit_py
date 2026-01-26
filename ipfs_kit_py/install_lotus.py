@@ -182,7 +182,8 @@ class install_lotus:
             self.path = "/".join(self.path)
             self.path_string = "set PATH=" + self.path + " ; "
         elif platform.system() in ["Linux", "Darwin"]:
-            self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
+            # Ensure our selected bin dir (supports metadata["bin_dir"]) is on PATH.
+            self.path = self.path + ":" + self.bin_path
             self.path_string = "PATH=" + self.path
             
         # Bin directory is already set up above
@@ -423,33 +424,31 @@ class install_lotus:
         """
         hardware = self.hardware_detect()
         hardware["architecture"] = " ".join([str(x) for x in hardware["architecture"]])
-        aarch = ""
-        
-        # Determine architecture
-        if "Intel" in hardware["processor"] or "AMD" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "x86_64"
-            elif "32" in hardware["architecture"]:
-                aarch = "x86"
-        elif "Qualcomm" in hardware["processor"] or "ARM" in hardware["processor"]:
-            if "64" in hardware["architecture"]:
-                aarch = "arm64"
-            elif "32" in hardware["architecture"]:
-                aarch = "arm"
-        elif "Apple" in hardware["processor"]:
-            if "64" in hardware["architecture"] or "arm64" in hardware["machine"].lower():
-                aarch = "arm64"
-            else:
-                aarch = "x86_64"
-        # Default to x86_64 if we can't determine architecture
+
+        machine = (hardware.get("machine") or platform.machine() or "").lower()
+        processor = (hardware.get("processor") or "").lower()
+
+        # Prefer platform.machine() for reliable ARM64 detection
+        if machine in ["aarch64", "arm64"] or machine.startswith("armv8"):
+            aarch = "arm64"
+        elif machine in ["armv7l", "armv6l", "arm"]:
+            aarch = "arm"
+        elif machine in ["x86_64", "amd64"]:
+            aarch = "x86_64"
+        elif machine in ["i386", "i686", "x86"]:
+            aarch = "x86"
         else:
-            if "64" in hardware["architecture"] or "64" in hardware["machine"].lower():
+            # Fallback heuristics
+            if "apple" in processor:
+                aarch = "arm64" if ("arm" in machine or "64" in hardware["architecture"]) else "x86_64"
+            elif "arm" in processor or "aarch64" in processor:
+                aarch = "arm64" if "64" in hardware["architecture"] else "arm"
+            elif "64" in hardware["architecture"]:
                 aarch = "x86_64"
             else:
                 aarch = "x86"
-                
-        results = str(hardware["system"]).lower() + " " + aarch
-        return results
+
+        return str(hardware["system"]).lower() + " " + aarch
 
     def get_latest_lotus_version(self):
         """
@@ -535,22 +534,21 @@ class install_lotus:
                 }
                 arch = arch_map.get(platform_info[1], "amd64")
         
-        # Construct expected asset name pattern
-        asset_pattern = f"lotus_.*_{os_name}_{arch}(?:_v\\d+)?\\.(tar\\.gz|zip)$"
+        # Construct expected asset name pattern.
+        # Lotus releases have used both underscore and hyphen separators over time.
+        # Examples observed upstream:
+        # - lotus_v1.34.3_darwin_arm64.tar.gz
+        # - lotus_v1.34.3_linux_amd64_v1.tar.gz
+        asset_pattern = rf"^lotus_.*_{re.escape(os_name)}[-_]{re.escape(arch)}(?:_v\d+)?\.(?:tar\.gz|zip)$"
         
         for asset in release_info.get("assets", []):
             name = asset.get("name", "")
             if re.match(asset_pattern, name):
                 return asset["browser_download_url"], name
         
-        if os_name and os_name.lower().startswith("win"):
-            logger.warning(
-                f"Could not find download for {os_name}_{arch} in release {release_info.get('tag_name')}"
-            )
-        else:
-            logger.error(
-                f"Could not find download for {os_name}_{arch} in release {release_info.get('tag_name')}"
-            )
+        logger.warning(
+            f"Could not find download for {os_name}_{arch} in release {release_info.get('tag_name')}"
+        )
         return None, None
 
     def download_file(self, url, dest_path):
@@ -1234,6 +1232,9 @@ exec "$BIN_DIR/{real_basename}" "$@"
         lib_dir = os.path.join(self.bin_path, "lib")
         os.makedirs(lib_dir, exist_ok=True)
 
+        # Ensure common -l<name> symlinks exist (runtime packages often omit them).
+        self._ensure_userspace_linker_symlinks(lib_dir)
+
         # Prefer an apt-based userspace install on Linux when available.
         if platform.system() == "Linux":
             if self._try_userspace_apt_library_install(lib_dir=lib_dir):
@@ -1314,6 +1315,9 @@ exec "$BIN_DIR/{real_basename}" "$@"
                     return False
                     
                 logger.info(f"Installed hwloc libraries directly: {', '.join(copied_files)}")
+
+                # Ensure common -l<name> symlinks exist for building/linking.
+                self._ensure_userspace_linker_symlinks(lib_dir)
                 
                 # Create an LD_LIBRARY_PATH file to help with runtime loading
                 ldpath_script = os.path.join(self.bin_path, "set_lotus_env.sh")
@@ -1409,6 +1413,10 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                             except OSError:
                                 continue
 
+                # Runtime packages often do not include libOpenCL.so / libhwloc.so symlinks.
+                # Create them so build tooling using -lOpenCL/-lhwloc can link.
+                self._ensure_userspace_linker_symlinks(lib_dir)
+
                 # Copy OpenCL ICD vendor files if present
                 vendors_src = []
                 for root, _, files in os.walk(extract_root):
@@ -1447,6 +1455,51 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
         except Exception as e:
             logger.debug(f"Userspace apt library install failed: {e}")
             return False
+
+    def _ensure_userspace_linker_symlinks(self, lib_dir: str) -> None:
+        """Create missing linker-friendly symlinks in a user-space lib directory.
+
+        Many distros ship runtime-only packages with versioned .so files (e.g.
+        libOpenCL.so.1) but omit the unversioned symlink (libOpenCL.so) that the
+        linker expects for -lOpenCL.
+        """
+        if not lib_dir or not os.path.isdir(lib_dir):
+            return
+
+        def _pick_existing(candidates: List[str]) -> Optional[str]:
+            for name in candidates:
+                path = os.path.join(lib_dir, name)
+                if os.path.exists(path):
+                    return path
+            # fallback: glob patterns
+            for pattern in candidates:
+                if "*" in pattern:
+                    matches = sorted(glob.glob(os.path.join(lib_dir, pattern)))
+                    if matches:
+                        return matches[0]
+            return None
+
+        wanted = {
+            "libhwloc.so": ["libhwloc.so.15", "libhwloc.so.5", "libhwloc.so.*"],
+            "libOpenCL.so": ["libOpenCL.so.1", "libOpenCL.so.1.0.0", "libOpenCL.so.*", "libMesaOpenCL.so.1", "libMesaOpenCL.so.1.0.0"],
+        }
+
+        for link_name, candidates in wanted.items():
+            link_path = os.path.join(lib_dir, link_name)
+            if os.path.exists(link_path):
+                continue
+
+            src_path = _pick_existing(candidates)
+            if not src_path:
+                continue
+
+            try:
+                os.symlink(os.path.basename(src_path), link_path)
+            except OSError:
+                try:
+                    shutil.copy2(src_path, link_path)
+                except OSError:
+                    continue
 
     def _try_userspace_rpm_library_install(self, *, lib_dir: str) -> bool:
         """Install runtime libraries into lib_dir using RPM download + rpm2cpio extraction."""
@@ -3627,7 +3680,24 @@ WantedBy=multi-user.target
                 # Build Lotus
                 print("Compiling Lotus (this may take a while)...")
                 command = "make clean && make all"
-                subprocess.run(command, shell=True, check=True, cwd=repo_path, timeout=3600)
+                env = os.environ.copy()
+                lib_dir = os.path.join(self.bin_path, "lib")
+                if os.path.isdir(lib_dir) and os.listdir(lib_dir):
+                    # Ensure symlinks exist for -lOpenCL/-lhwloc.
+                    self._ensure_userspace_linker_symlinks(lib_dir)
+
+                    # Keep this to a simple library search path. Some Lotus Makefile
+                    # setups may thread env vars into Go -ldflags; adding rpath-style
+                    # flags can break cmd/link parsing.
+                    extra_ld = f"-L{lib_dir}"
+                    env["CGO_LDFLAGS"] = (extra_ld + " " + env.get("CGO_LDFLAGS", "")).strip()
+                    env["LIBRARY_PATH"] = (lib_dir + ":" + env.get("LIBRARY_PATH", "")).strip(":")
+                    env["LD_LIBRARY_PATH"] = (lib_dir + ":" + env.get("LD_LIBRARY_PATH", "")).strip(":")
+                    vendors_dir = os.path.join(self.bin_path, "opencl", "vendors")
+                    if os.path.isdir(vendors_dir):
+                        env.setdefault("OCL_ICD_VENDORS", vendors_dir)
+
+                subprocess.run(command, shell=True, check=True, cwd=repo_path, timeout=3600, env=env)
                 
                 # Install the binaries
                 built_binaries = []
