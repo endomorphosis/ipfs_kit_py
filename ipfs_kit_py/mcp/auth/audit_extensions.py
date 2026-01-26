@@ -13,6 +13,7 @@ Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
 import logging
 import json
 import anyio
+import sniffio
 import time
 import os
 import hashlib
@@ -21,7 +22,6 @@ from typing import Dict, List, Optional, Any, Union, Tuple, Set
 from pathlib import Path
 
 from ipfs_kit_py.mcp.auth.audit import AuditLogger, get_instance as get_audit_logger
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 
@@ -73,20 +73,22 @@ class AuditExtensions:
         self._alert_subscribers: List[callable] = []
         
         # Background tasks
-        self._background_tasks: List[asyncio.Task] = []
+        self._background_tg = None
         self._shutdown_event = anyio.Event()
         
         logger.info("Audit extensions initialized")
     
     async def start(self):
         """Start the audit extensions background tasks."""
-        # Start log integrity verification task
-        integrity_task = asyncio.create_task(self._verify_log_integrity_task())
-        self._background_tasks.append(integrity_task)
-        
-        # Start log retention task
-        retention_task = asyncio.create_task(self._enforce_retention_policy_task())
-        self._background_tasks.append(retention_task)
+        if self._background_tg is not None:
+            return
+
+        self._shutdown_event = anyio.Event()
+
+        self._background_tg = anyio.create_task_group()
+        await self._background_tg.__aenter__()
+        self._background_tg.start_soon(self._verify_log_integrity_task)
+        self._background_tg.start_soon(self._enforce_retention_policy_task)
         
         logger.info("Audit extensions background tasks started")
     
@@ -94,10 +96,11 @@ class AuditExtensions:
         """Stop the audit extensions background tasks."""
         # Signal tasks to shut down
         self._shutdown_event.set()
-        
-        # Wait for tasks to complete
-        if self._background_tasks:
-            await asyncio.gather(*self._background_tasks, return_exceptions=True)
+
+        if self._background_tg is not None:
+            self._background_tg.cancel_scope.cancel()
+            await self._background_tg.__aexit__(None, None, None)
+            self._background_tg = None
         
         logger.info("Audit extensions background tasks stopped")
     
@@ -322,14 +325,8 @@ class AuditExtensions:
                     await self._verify_log_integrity()
                     
                     # Wait for the next check or until shutdown
-                    try:
-                        await asyncio.wait_for(
-                            self._shutdown_event.wait(),
-                            timeout=3600  # 1 hour
-                        )
-                    except asyncio.TimeoutError:
-                        # Normal timeout, continue with next verification
-                        pass
+                    with anyio.move_on_after(3600):
+                        await self._shutdown_event.wait()
                     
                 except Exception as e:
                     logger.error(f"Error in log integrity verification: {e}")
@@ -436,14 +433,8 @@ class AuditExtensions:
                     await self._enforce_retention_policy()
                     
                     # Wait for the next check or until shutdown
-                    try:
-                        await asyncio.wait_for(
-                            self._shutdown_event.wait(),
-                            timeout=86400  # 24 hours
-                        )
-                    except asyncio.TimeoutError:
-                        # Normal timeout, continue with next verification
-                        pass
+                    with anyio.move_on_after(86400):
+                        await self._shutdown_event.wait()
                     
                 except Exception as e:
                     logger.error(f"Error enforcing log retention policy: {e}")
@@ -559,8 +550,15 @@ def extend_audit_logger():
     # Patch the method
     audit_logger.log_event = patched_log_event
     
-    # Start the extensions background tasks
-    asyncio.create_task(_audit_extensions.start())
+    # Start the extensions background tasks if we're currently in an async runtime.
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        logger.warning(
+            "No async runtime detected; call `await audit_extensions.start()` explicitly"
+        )
+    else:
+        anyio.lowlevel.spawn_system_task(_audit_extensions.start)
     
     logger.info("Audit logger extended with advanced features")
     

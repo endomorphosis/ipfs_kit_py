@@ -10,7 +10,6 @@ import anyio
 import functools
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar, Union, cast
 
 import numpy as np
@@ -59,20 +58,11 @@ class AsyncOperationManager:
         self.enable_priority = enable_priority
         self.enable_batching = enable_batching
         self.enable_stats = enable_stats
-        
-        # Initialize thread pools for different operation types
-        self.io_pool = ThreadPoolExecutor(
-            max_workers=io_workers, 
-            thread_name_prefix="async-io-worker"
-        )
-        self.compute_pool = ThreadPoolExecutor(
-            max_workers=compute_workers, 
-            thread_name_prefix="async-compute-worker"
-        )
-        self.general_pool = ThreadPoolExecutor(
-            max_workers=max_workers, 
-            thread_name_prefix="async-general-worker"
-        )
+
+        # AnyIO-native concurrency limiting for thread operations
+        self._io_limiter = anyio.CapacityLimiter(io_workers)
+        self._compute_limiter = anyio.CapacityLimiter(compute_workers)
+        self._general_limiter = anyio.CapacityLimiter(max_workers)
         
         # Operation statistics
         self.stats = {
@@ -89,9 +79,6 @@ class AsyncOperationManager:
         
         # Semaphore to limit concurrent operations
         self.semaphore = anyio.Semaphore(max_workers + io_workers + compute_workers)
-        
-        # Task registry for cleanup and tracking
-        self.tasks: Dict[str, anyio.Task] = {}
         
         # Flag to track if the manager is being shut down
         self.shutting_down = False
@@ -117,13 +104,13 @@ class AsyncOperationManager:
         Returns:
             The result of the function execution
         """
-        # Select the appropriate executor
+        # Select the appropriate limiter
         if executor_type == "io":
-            executor = self.io_pool
+            limiter = self._io_limiter
         elif executor_type == "compute":
-            executor = self.compute_pool
+            limiter = self._compute_limiter
         else:
-            executor = self.general_pool
+            limiter = self._general_limiter
         
         # Update statistics
         if self.enable_stats:
@@ -135,13 +122,12 @@ class AsyncOperationManager:
             self.stats["operation_counts"][operation_name] += 1
             start_time = time.time()
         
-        # Execute the function in the thread pool
+        # Execute the function in a worker thread
         try:
-            loop = anyio.get_event_loop()
             async with self.semaphore:
-                result = await loop.run_in_executor(
-                    executor, 
-                    functools.partial(func, *args, **kwargs)
+                result = await anyio.to_thread.run_sync(
+                    functools.partial(func, *args, **kwargs),
+                    limiter=limiter,
                 )
             
             # Update success statistics
@@ -411,66 +397,52 @@ class AsyncOperationManager:
             raise ValueError(f"Unsupported batch operation: {operation}")
         
         op_method = op_methods[operation]
-        
-        # Create a task for each operation
-        tasks = []
-        for item in items:
-            if operation == "get":
-                task = anyio.create_task(op_method(
-                    cache_instance,
-                    item["cid"],
-                    item.get("columns"),
-                    item.get("filters")
-                ))
-            elif operation == "put":
-                task = anyio.create_task(op_method(
-                    cache_instance,
-                    item["cid"],
-                    item["table"],
-                    item.get("metadata")
-                ))
-            elif operation == "delete":
-                task = anyio.create_task(op_method(
-                    cache_instance,
-                    item["cid"]
-                ))
-            elif operation == "contains":
-                task = anyio.create_task(op_method(
-                    cache_instance,
-                    item["cid"]
-                ))
-            elif operation == "get_metadata":
-                task = anyio.create_task(op_method(
-                    cache_instance,
-                    item["cid"]
-                ))
-            elif operation == "update_metadata":
-                task = anyio.create_task(op_method(
-                    cache_instance,
-                    item["cid"],
-                    item["metadata"],
-                    item.get("merge", True)
-                ))
-            tasks.append(task)
+
+        results: List[Any] = [None] * len(items)
+
+        async def _run_one(index: int, item: Dict[str, Any]) -> None:
+            try:
+                if operation == "get":
+                    results[index] = await op_method(
+                        cache_instance,
+                        item["cid"],
+                        item.get("columns"),
+                        item.get("filters"),
+                    )
+                elif operation == "put":
+                    results[index] = await op_method(
+                        cache_instance,
+                        item["cid"],
+                        item["table"],
+                        item.get("metadata"),
+                    )
+                elif operation == "delete":
+                    results[index] = await op_method(cache_instance, item["cid"])
+                elif operation == "contains":
+                    results[index] = await op_method(cache_instance, item["cid"])
+                elif operation == "get_metadata":
+                    results[index] = await op_method(cache_instance, item["cid"])
+                elif operation == "update_metadata":
+                    results[index] = await op_method(
+                        cache_instance,
+                        item["cid"],
+                        item["metadata"],
+                        item.get("merge", True),
+                    )
+            except Exception as e:
+                logger.error(f"Error in batch operation {operation}: {str(e)}")
+                results[index] = None
         
         # Update batch statistics
         if self.enable_stats:
             self.stats["batched_operations"] += len(items)
             self.stats["batch_sizes"].append(len(items))
-        
-        # Wait for all tasks to complete
-        results = await anyio.gather(*tasks, return_exceptions=True)
-        
-        # Process results to reraise exceptions
-        processed_results = []
-        for result in results:
-            if isinstance(result, Exception):
-                logger.error(f"Error in batch operation {operation}: {str(result)}")
-                processed_results.append(None)
-            else:
-                processed_results.append(result)
-        
-        return processed_results
+
+        async with anyio.create_task_group() as tg:
+            for index, item in enumerate(items):
+                tg.start_soon(_run_one, index, item)
+
+        return results
     
     async def shutdown(self, wait: bool = True) -> None:
         """Shutdown the async operation manager.
@@ -480,26 +452,7 @@ class AsyncOperationManager:
         """
         logger.info("Shutting down AsyncOperationManager")
         self.shutting_down = True
-        
-        # Cancel all running tasks if not waiting
-        if not wait:
-            for task_id, task in self.tasks.items():
-                if not task.done():
-                    logger.warning(f"Cancelling task {task_id}")
-                    task.cancel()
-        
-        # Wait for tasks to complete if requested
-        if wait and self.tasks:
-            pending_tasks = [task for task in self.tasks.values() if not task.done()]
-            if pending_tasks:
-                logger.info(f"Waiting for {len(pending_tasks)} tasks to complete")
-                await anyio.gather(*pending_tasks, return_exceptions=True)
-        
-        # Shutdown thread pools
-        self.io_pool.shutdown(wait=wait)
-        self.compute_pool.shutdown(wait=wait)
-        self.general_pool.shutdown(wait=wait)
-        
+
         logger.info("AsyncOperationManager shutdown complete")
 
 
@@ -712,8 +665,7 @@ async def async_cache_get_or_create(
     
     if need_create:
         # Run creator function in a thread to avoid blocking
-        loop = anyio.get_event_loop()
-        table, meta = await loop.run_in_executor(None, creator_func)
+        table, meta = await anyio.to_thread.run_sync(creator_func)
         
         # Add creation timestamp if not present
         if "created_at" not in meta:

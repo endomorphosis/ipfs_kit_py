@@ -1892,14 +1892,16 @@ if HAS_PYARROW:
             max_workers=8, thread_name_prefix="ParquetCIDCache"
         )
         
-        # For asyncio compatibility
+        # For async compatibility
         try:
             import anyio
             self.has_asyncio = True
-            # Create event loop for background tasks if needed
-            self.loop = anyio.get_event_loop() if anyio.get_event_loop().is_running() else None
+            self.loop = None
+            self._thread_limiter = anyio.CapacityLimiter(8)
         except ImportError:
             self.has_asyncio = False
+            self.loop = None
+            self._thread_limiter = None
             
         # Initialize probabilistic data structures
         self.probabilistic_config = probabilistic_config or self._get_default_probabilistic_config()
@@ -1933,9 +1935,6 @@ if HAS_PYARROW:
             self.hll_enabled = False
             self.cms_enabled = False
             self.minhash_enabled = False
-            self.has_asyncio = False
-            self.loop = None
-            logger.warning("AsyncIO not available, async operations will be limited")
         
         # Load current partition into memory
         self._load_current_partition()
@@ -2759,10 +2758,9 @@ if HAS_PYARROW:
         """
         import anyio
         
-        # Submit the task to the thread pool
-        return await anyio.get_event_loop().run_in_executor(
-            self.thread_pool, 
-            lambda: func(*args, **kwargs)
+        return await anyio.to_thread.run_sync(
+            lambda: func(*args, **kwargs),
+            limiter=getattr(self, "_thread_limiter", None),
         )
             
     @stable_api(since="0.19.0")
@@ -3042,6 +3040,8 @@ if HAS_PYARROW:
         if not self.has_asyncio:
             # Fallback to thread pool if asyncio not available
             return await self._run_in_thread_pool(self.put_metadata, cid, metadata)
+
+        return await self._run_in_thread_pool(self.put_metadata, cid, metadata)
             
     async def async_batch_put_metadata(self, cid_metadata_map: Dict[str, Dict[str, Any]]) -> Dict[str, bool]:
         """Async version of batch_put_metadata.
@@ -3081,39 +3081,6 @@ if HAS_PYARROW:
             
         # Delegate the actual work to a background thread to avoid blocking the event loop
         return await self._run_in_thread_pool(self.batch_get_metadata, cids)
-        
-    async def _async_disk_operations(self, needs_rotation: bool) -> None:
-            mask = pc.equal(pc.field('cid'), pa.scalar(cid))
-            existing = table.filter(mask)
-            
-            if existing.num_rows > 0:
-                # Remove existing entries
-                inverse_mask = pc.invert(mask)
-                filtered_table = table.filter(inverse_mask)
-                filtered_batches = filtered_table.to_batches()
-                
-                if filtered_batches:
-                    batch_without_cid = filtered_batches[0]
-                    self.in_memory_batch = pa.concat_batches([batch_without_cid, new_batch])
-                else:
-                    self.in_memory_batch = new_batch
-            else:
-                # Append new record
-                self.in_memory_batch = pa.concat_batches([self.in_memory_batch, new_batch])
-        
-            needs_rotation = self.in_memory_batch.num_rows >= self.max_partition_rows
-            self.modified_since_sync = True
-        
-            # Delegate disk operations to a background thread
-            if needs_rotation or (self.auto_sync and (time.time() - self.last_sync_time > self.sync_interval)):
-                # Run disk operations in background
-                anyio.create_task(self._async_disk_operations(needs_rotation))
-        
-            # Update C Data Interface if enabled (in background)
-            if self.enable_c_data_interface:
-                anyio.create_task(self._run_in_thread_pool(self._export_to_c_data_interface))
-            
-            return True
             
     async def _async_disk_operations(self, needs_rotation: bool) -> None:
         """Perform asynchronous disk operations.
@@ -4720,59 +4687,59 @@ if HAS_PYARROW:
             content_type_groups[content_type].append(cid)
         
         # Create tasks for each content type group
-        tasks = []
-        
-        for content_type, type_cids in content_type_groups.items():
-            if content_type == "parquet":
-                # Create task for Parquet batch processing
-                task = anyio.create_task(
-                    self._async_batch_prefetch_parquet(type_cids, metadata)
-                )
-                tasks.append((content_type, task))
-            elif content_type == "arrow":
-                # Create task for Arrow batch processing
-                task = anyio.create_task(
-                    self._async_batch_prefetch_arrow(type_cids, metadata)
-                )
-                tasks.append((content_type, task))
-            else:
-                # Generic processing - create individual tasks
-                for cid in type_cids:
-                    cid_metadata = metadata.get(cid) if metadata else None
-                    task = anyio.create_task(
-                        self._async_prefetch_content(cid, cid_metadata)
-                    )
-                    tasks.append((cid, task))
-        
-        # Await all tasks and collect results
-        for key, task in tasks:
+        import anyio
+
+        results_lock = anyio.Lock()
+
+        async def _run_task(key, coro, is_group: bool) -> None:
             try:
-                task_result = await task
-                
-                # Process results based on the task type
-                if isinstance(key, str) and key in content_type_groups:
-                    # This is a content type group result
-                    results.update(task_result)
-                else:
-                    # This is an individual CID result
-                    results[key] = task_result
+                task_result = await coro
+                async with results_lock:
+                    if is_group:
+                        results.update(task_result)
+                    else:
+                        results[key] = task_result
             except Exception as e:
-                # Handle task failure
-                if isinstance(key, str) and key in content_type_groups:
-                    # Mark all CIDs in this group as failed
-                    for cid in content_type_groups[key]:
-                        results[cid] = {
+                async with results_lock:
+                    if is_group:
+                        for cid in content_type_groups[key]:
+                            results[cid] = {
+                                "success": False,
+                                "error": f"Batch task failed: {str(e)}",
+                                "error_type": type(e).__name__
+                            }
+                    else:
+                        results[key] = {
                             "success": False,
-                            "error": f"Batch task failed: {str(e)}",
+                            "error": str(e),
                             "error_type": type(e).__name__
                         }
+
+        async with anyio.create_task_group() as tg:
+            for content_type, type_cids in content_type_groups.items():
+                if content_type == "parquet":
+                    tg.start_soon(
+                        _run_task,
+                        content_type,
+                        self._async_batch_prefetch_parquet(type_cids, metadata),
+                        True,
+                    )
+                elif content_type == "arrow":
+                    tg.start_soon(
+                        _run_task,
+                        content_type,
+                        self._async_batch_prefetch_arrow(type_cids, metadata),
+                        True,
+                    )
                 else:
-                    # Mark individual CID as failed
-                    results[key] = {
-                        "success": False,
-                        "error": str(e),
-                        "error_type": type(e).__name__
-                    }
+                    for cid in type_cids:
+                        cid_metadata = metadata.get(cid) if metadata else None
+                        tg.start_soon(
+                            _run_task,
+                            cid,
+                            self._async_prefetch_content(cid, cid_metadata),
+                            False,
+                        )
                     
                 # Remove from in-progress set
                 if isinstance(key, str) and key in content_type_groups:
@@ -5204,11 +5171,17 @@ if HAS_PYARROW:
             if in_memory_matches > 0 or match_found:
                 if self.modified_since_sync:
                     # Schedule sync in background
-                    anyio.create_task(self._run_in_thread_pool(self.sync))
+                    import anyio
+
+                    anyio.lowlevel.spawn_system_task(self._run_in_thread_pool, self.sync)
                 
                 # Update C Data Interface if enabled (in background)
                 if self.enable_c_data_interface:
-                    anyio.create_task(self._run_in_thread_pool(self._export_to_c_data_interface))
+                    import anyio
+
+                    anyio.lowlevel.spawn_system_task(
+                        self._run_in_thread_pool, self._export_to_c_data_interface
+                    )
             
             return in_memory_matches > 0 or match_found
             

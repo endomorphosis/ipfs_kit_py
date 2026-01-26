@@ -6,10 +6,14 @@ geo-distributed access to IPFS content.
 """
 
 import logging
+import threading
 import time
 import hashlib
 from typing import Dict, Any, Optional, Union, BinaryIO, List
 from urllib.parse import urljoin
+
+import anyio
+import sniffio
 
 try:
     import httpx
@@ -23,6 +27,41 @@ from ..storage_types import StorageBackendType
 
 # Configure logger
 logger = logging.getLogger(__name__)
+
+
+def _run_async_from_sync(async_fn, *args, **kwargs):
+    """Run an async callable from sync code.
+
+    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.
+    - If called from plain sync code, uses `anyio.run`.
+    - If called while an async library is running in this thread, runs the
+      call in a dedicated helper thread.
+    """
+    try:
+        return anyio.from_thread.run(async_fn, *args, **kwargs)
+    except RuntimeError:
+        pass
+
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        return anyio.run(async_fn, *args, **kwargs)
+
+    result = []
+    error = []
+
+    def _thread_main() -> None:
+        try:
+            result.append(anyio.run(async_fn, *args, **kwargs))
+        except BaseException as exc:  # noqa: BLE001
+            error.append(exc)
+
+    t = threading.Thread(target=_thread_main, daemon=True)
+    t.start()
+    t.join()
+    if error:
+        raise error[0]
+    return result[0] if result else None
 
 # Constants
 DEFAULT_ORCHESTRATOR_URL = "https://orchestrator.saturn.ms"
@@ -145,16 +184,7 @@ class SaturnBackend(BackendStorage):
                     url = self._build_url(node, identifier)
                     
                     if HTTPX_AVAILABLE:
-                        import anyio
-                        try:
-                            loop = asyncio.get_event_loop()
-                        except RuntimeError:
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                        
-                        response = loop.run_until_complete(
-                            self.client.get(url)
-                        )
+                        response = _run_async_from_sync(self.client.get, url)
                         response.raise_for_status()
                         content = response.content
                     else:
@@ -238,16 +268,7 @@ class SaturnBackend(BackendStorage):
             url = urljoin(self.orchestrator_url, "/nodes")
             
             if HTTPX_AVAILABLE:
-                import anyio
-                try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                
-                response = loop.run_until_complete(
-                    self.client.get(url, timeout=10)
-                )
+                response = _run_async_from_sync(self.client.get, url, timeout=10)
                 response.raise_for_status()
                 nodes_data = response.json()
             else:
@@ -320,8 +341,6 @@ class SaturnBackend(BackendStorage):
         """Cleanup on deletion."""
         if hasattr(self, 'client') and HTTPX_AVAILABLE:
             try:
-                import asyncio
-                loop = asyncio.get_event_loop()
-                loop.run_until_complete(self.client.aclose())
+                _run_async_from_sync(self.client.aclose)
             except Exception:
                 pass

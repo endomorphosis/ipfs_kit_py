@@ -18,7 +18,6 @@ from typing import Any, Callable, Dict, List, Optional
 import aiohttp
 from fastapi import BackgroundTasks, FastAPI
 from pydantic import BaseModel, Field
-# NOTE: This file contains asyncio.create_task() calls that need task group context
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +146,7 @@ class HighAvailabilityService:
         self.health_check_task = None
         self.state_sync_task = None
         self.failover_monitor_task = None
+        self._background_tg = None
 
         # Persistent state file
         self.state_file = "/tmp/ipfs_kit/mcp/ha/cluster_state.json"
@@ -451,38 +451,28 @@ class HighAvailabilityService:
         # Load or initialize cluster state
         await self._load_or_init_state()
 
-        # Start tasks
-        self.heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-        self.health_check_task = asyncio.create_task(self._health_check_loop())
-        self.state_sync_task = asyncio.create_task(self._state_sync_loop())
-        self.failover_monitor_task = asyncio.create_task(self._failover_monitor_loop())
-
-        # Set up signal handlers for graceful shutdown
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            self._setup_signal_handler(sig)
+        # Start background loops
+        self._background_tg = anyio.create_task_group()
+        await self._background_tg.__aenter__()
+        self._background_tg.start_soon(self._heartbeat_loop)
+        self._background_tg.start_soon(self._health_check_loop)
+        self._background_tg.start_soon(self._state_sync_loop)
+        self._background_tg.start_soon(self._failover_monitor_loop)
+        self._background_tg.start_soon(self._signal_listener)
 
         self.initialized = True
         logger.info(f"High availability service started on node {self.node_id}")
 
-    def _setup_signal_handler(self, sig):
-        """
-        Set up a signal handler for graceful shutdown.
-
-        Args:
-            sig: Signal to handle
-        """
-
-        def handler():
-            asyncio.create_task(self.stop())
-
+    async def _signal_listener(self) -> None:
+        """Listen for termination signals and stop the service."""
         try:
-            # Get the running event loop
-            loop = asyncio.get_running_loop()
-            # Add signal handler to the loop
-            loop.add_signal_handler(sig, handler)
-        except (NotImplementedError, RuntimeError):
-            # Fallback for systems that don't support add_signal_handler
-            signal.signal(sig, lambda s, f: asyncio.create_task(self.stop()))
+            async with anyio.open_signal_receiver(signal.SIGTERM, signal.SIGINT) as signals:
+                async for sig in signals:
+                    logger.info(f"Received signal {sig}; shutting down")
+                    anyio.lowlevel.spawn_system_task(self.stop)
+                    return
+        except Exception as e:
+            logger.debug(f"Signal listener unavailable: {e}")
 
     async def stop(self):
         """Stop the high availability service."""
@@ -491,19 +481,11 @@ class HighAvailabilityService:
 
         logger.info(f"Stopping high availability service on node {self.node_id}")
 
-        # Cancel tasks
-        for task in [
-            self.heartbeat_task,
-            self.health_check_task,
-            self.state_sync_task,
-            self.failover_monitor_task,
-        ]:
-            if task:
-                task.cancel()
-                try:
-                    await task
-                except anyio.get_cancelled_exc_class():
-                    pass
+        # Cancel background loops
+        if self._background_tg is not None:
+            self._background_tg.cancel_scope.cancel()
+            await self._background_tg.__aexit__(None, None, None)
+            self._background_tg = None
 
         # If we're the primary, try to hand off
         if self.node_info.role == "primary":
