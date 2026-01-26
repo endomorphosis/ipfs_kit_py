@@ -2553,7 +2553,7 @@ if HAS_PYARROW:
             True if CID is in cache, False otherwise
         """
         if not self.has_asyncio:
-            # Fallback to thread pool if asyncio not available
+            # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.contains, cid)
             
         # First check in-memory batch (fast, do this in current thread)
@@ -2705,7 +2705,7 @@ if HAS_PYARROW:
             Dictionary with metadata for the CID or None if not found
         """
         if not self.has_asyncio:
-            # Fallback to thread pool if asyncio not available
+            # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.get_metadata, cid)
             
         # First check in-memory batch (fast, do this in the current thread)
@@ -3038,7 +3038,7 @@ if HAS_PYARROW:
             True if stored successfully, False otherwise
         """
         if not self.has_asyncio:
-            # Fallback to thread pool if asyncio not available
+            # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.put_metadata, cid, metadata)
 
         return await self._run_in_thread_pool(self.put_metadata, cid, metadata)
@@ -3056,7 +3056,7 @@ if HAS_PYARROW:
             Dictionary mapping CIDs to success status (True if stored successfully)
         """
         if not self.has_asyncio:
-            # Fallback to thread pool if asyncio not available
+            # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.batch_put_metadata, cid_metadata_map)
             
         # Delegate the actual work to a background thread to avoid blocking the event loop
@@ -3076,7 +3076,7 @@ if HAS_PYARROW:
             Dictionary mapping CIDs to their metadata (None for CIDs not found)
         """
         if not self.has_asyncio:
-            # Fallback to thread pool if asyncio not available
+            # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.batch_get_metadata, cids)
             
         # Delegate the actual work to a background thread to avoid blocking the event loop
@@ -4186,7 +4186,7 @@ if HAS_PYARROW:
             Dictionary with query results
         """
         if not self.has_asyncio:
-            # Fallback to thread pool if asyncio not available
+            # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(
                 self.query, filters, columns, sort_by, limit, parallel, max_workers
             )
@@ -4219,7 +4219,7 @@ if HAS_PYARROW:
             Dictionary with query results
         """
         if not self.has_asyncio:
-            # Fallback to thread pool if asyncio not available
+            # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(
                 self.parallel_query, filters, columns, sort_by, limit, max_workers
             )
@@ -4645,7 +4645,7 @@ if HAS_PYARROW:
             Dictionary mapping CIDs to their prefetch results
         """
         if not self.has_asyncio:
-            # Fallback to thread pool if asyncio not available
+            # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.batch_prefetch, cids, metadata)
             
         if not cids:
@@ -4920,7 +4920,7 @@ if HAS_PYARROW:
             Dictionary with prefetch statistics
         """
         if not self.has_asyncio:
-            # Fallback to thread pool if asyncio not available
+            # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.get_prefetch_stats)
             
         # Since this is just reading in-memory stats, we can implement it directly
@@ -5139,7 +5139,7 @@ if HAS_PYARROW:
             True if deleted successfully, False otherwise
         """
         if not self.has_asyncio:
-            # Fallback to thread pool if asyncio not available
+            # Fallback to thread pool if async backend not available
             return await self._run_in_thread_pool(self.delete, cid)
         
         try:

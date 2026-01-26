@@ -8,6 +8,7 @@ content with automatic failover and performance tracking.
 import logging
 import time
 import anyio
+import threading
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urljoin
 
@@ -231,10 +232,8 @@ class GatewayChain:
                 response.raise_for_status()
                 content = response.content
             else:
-                # Run sync request in thread pool
-                loop = asyncio.get_event_loop()
-                content = await loop.run_in_executor(
-                    None,
+                # Run sync request in a worker thread
+                content = await anyio.to_thread.run_sync(
                     lambda: self.session.get(url, timeout=gateway_timeout).content
                 )
             
@@ -249,45 +248,56 @@ class GatewayChain:
             }
         
         # Create tasks for all healthy gateways
-        tasks = []
+        gateways: List[Dict[str, Any]] = []
         for gateway in self.gateways:
             if self._gateway_health[gateway["url"]]["available"]:
-                tasks.append(fetch_from_gateway(gateway))
+                gateways.append(gateway)
         
-        if not tasks:
+        if not gateways:
             raise Exception("No healthy gateways available")
         
-        # Race all tasks
+        result: Dict[str, Any] = {}
+        errors: List[Exception] = []
+
+        async def _attempt(gateway: Dict[str, Any], cancel_scope: anyio.CancelScope) -> None:
+            try:
+                content, metrics = await fetch_from_gateway(gateway)
+                if not result:
+                    result["content"] = content
+                    result["metrics"] = metrics
+                    cancel_scope.cancel()
+            except anyio.get_cancelled_exc_class():
+                raise
+            except Exception as e:
+                errors.append(e)
+
         try:
-            # Use wait with FIRST_COMPLETED
-            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-            
-            # Cancel remaining tasks
-            for task in pending:
-                task.cancel()
-            
-            # Get first successful result
-            for task in done:
-                try:
-                    content, metrics = task.result()
-                    
-                    # Update metrics
-                    self._update_metrics(metrics["gateway_used"], True, metrics["duration_ms"])
-                    
-                    # Cache the result
-                    self._add_to_cache(cid, content)
-                    
-                    logger.info(f"Retrieved {cid} from {metrics['gateway_used']} in {metrics['duration_ms']}ms (parallel)")
-                    return content, metrics
-                except Exception as e:
-                    logger.debug(f"Task failed: {e}")
-                    continue
-            
-            raise Exception("All parallel fetches failed")
-            
-        except Exception as e:
-            logger.error(f"Parallel fetch failed: {e}")
-            raise
+            async with anyio.create_task_group() as tg:
+                for gateway in gateways:
+                    tg.start_soon(_attempt, gateway, tg.cancel_scope)
+        except anyio.get_cancelled_exc_class():
+            # Expected when one attempt succeeds
+            pass
+
+        if result:
+            content = result["content"]
+            metrics = result["metrics"]
+
+            # Update metrics
+            self._update_metrics(metrics["gateway_used"], True, metrics["duration_ms"])
+
+            # Cache the result
+            self._add_to_cache(cid, content)
+
+            logger.info(
+                f"Retrieved {cid} from {metrics['gateway_used']} in {metrics['duration_ms']}ms (parallel)"
+            )
+            return content, metrics
+
+        logger.error("Parallel fetch failed: all attempts failed")
+        if errors:
+            raise errors[-1]
+        raise Exception("All parallel fetches failed")
     
     async def test_all(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -402,8 +412,12 @@ class GatewayChain:
         """Cleanup on deletion."""
         if hasattr(self, 'client') and HTTPX_AVAILABLE:
             try:
-                import asyncio
-                loop = asyncio.get_event_loop()
-                loop.run_until_complete(self.client.aclose())
+                def _close() -> None:
+                    try:
+                        anyio.run(self.client.aclose)
+                    except Exception:
+                        pass
+
+                threading.Thread(target=_close, daemon=True).start()
             except Exception:
                 pass

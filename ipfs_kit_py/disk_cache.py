@@ -504,21 +504,14 @@ class DiskCache:
         Returns:
             Dictionary mapping CIDs to their metadata
         """
-        if not self.has_asyncio:
-            # Fallback to synchronous version through thread pool if asyncio not available
-            future = self.thread_pool.submit(self.batch_get_metadata, cids)
-            return future.result()
-            
         async def _async_impl():
-            # This implementation delegates to the batch version but in a non-blocking way
-            return self.batch_get_metadata(cids)
-            
-        # If we're called from an async context, return awaitable
-        if self.loop and self.loop.is_running():
-            return _async_impl()
-        # If we're called from a synchronous context but asyncio is available,
-        # run the async function to completion
-        return _run_async_from_sync(_async_impl)
+            return await anyio.to_thread.run_sync(self.batch_get_metadata, cids)
+
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            return _run_async_from_sync(_async_impl)
+        return _async_impl()
     @experimental_api(since="0.19.0")
     def async_batch_put_metadata(self, metadata_dict: Dict[str, Dict[str, Any]]) -> Dict[str, bool]:
         """Async version of batch_put_metadata.
@@ -531,21 +524,14 @@ class DiskCache:
         Returns:
             Dictionary mapping CIDs to success status
         """
-        if not self.has_asyncio:
-            # Fallback to synchronous version through thread pool if asyncio not available
-            future = self.thread_pool.submit(self.batch_put_metadata, metadata_dict)
-            return future.result()
-            
         async def _async_impl():
-            # This implementation delegates to the batch version but in a non-blocking way
-            return self.batch_put_metadata(metadata_dict)
-            
-        # If we're called from an async context, return awaitable
-        if self.loop and self.loop.is_running():
-            return _async_impl()
-        # If we're called from a synchronous context but asyncio is available,
-        # run the async function to completion
-        return _run_async_from_sync(_async_impl)
+            return await anyio.to_thread.run_sync(self.batch_put_metadata, metadata_dict)
+
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            return _run_async_from_sync(_async_impl)
+        return _async_impl()
     @beta_api(since="0.19.0")
     def optimize_compression_settings(self, adaptive: bool = True) -> Dict[str, Any]:
         """Optimize compression settings based on data characteristics and available resources.
@@ -735,17 +721,7 @@ class DiskCache:
         Returns:
             Dictionary with optimization results
         """
-        if not self.has_asyncio:
-            # Fallback to synchronous version through thread pool if asyncio not available
-            future = self.thread_pool.submit(self.optimize_compression_settings, adaptive)
-            return future.result()
-            
-        # If asyncio is available, run in executor to avoid blocking
-        loop = anyio.get_event_loop()
-        return await loop.run_in_executor(
-            self.thread_pool, 
-            lambda: self.optimize_compression_settings(adaptive)
-        )
+        return await anyio.to_thread.run_sync(self.optimize_compression_settings, adaptive)
     
     @beta_api(since="0.19.0")
     def optimize_batch_operations(self, content_type_aware: bool = True) -> Dict[str, Any]:
@@ -945,17 +921,7 @@ class DiskCache:
         Returns:
             Dictionary with optimization results
         """
-        if not self.has_asyncio:
-            # Fallback to synchronous version through thread pool if asyncio not available
-            future = self.thread_pool.submit(self.optimize_batch_operations, content_type_aware)
-            return future.result()
-            
-        # If asyncio is available, run in executor to avoid blocking
-        loop = anyio.get_event_loop()
-        return await loop.run_in_executor(
-            self.thread_pool, 
-            lambda: self.optimize_batch_operations(content_type_aware)
-        )
+        return await anyio.to_thread.run_sync(self.optimize_batch_operations, content_type_aware)
     
     @beta_api(since="0.19.0")
     def batch_prefetch(self, cids: List[str], metadata: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Dict[str, Any]]:
@@ -1174,12 +1140,6 @@ class DiskCache:
         Returns:
             Dictionary with prefetch operation results
         """
-        if not self.has_asyncio:
-            # Fallback to synchronous version through thread pool if asyncio not available
-            future = self.thread_pool.submit(self.batch_prefetch, cids, metadata)
-            return future.result()
-            
-        # If asyncio is available, use parallel processing
         try:
             # Determine if we have content type awareness
             has_content_types = (hasattr(self, "content_type_registry") and 
@@ -1243,71 +1203,57 @@ class DiskCache:
                     "strategy": prefetch_strategy
                 }
                 
-                # Create a semaphore to limit concurrency
                 semaphore = anyio.Semaphore(max_concurrent)
-                
-                # Create a function to process each CID
-                async def process_cid(cid):
+                prefetch_results: Dict[str, Any] = {}
+
+                async def _run_one(cid: str) -> None:
                     async with semaphore:
-                        # Run prefetch in thread pool to avoid blocking
-                        loop = anyio.get_event_loop()
-                        return await loop.run_in_executor(
-                            self.thread_pool,
-                            lambda: self.prefetch(cid)
-                        )
-                
-                # Process all CIDs concurrently with controlled parallelism
-                tasks = []
+                        try:
+                            prefetch_results[cid] = await anyio.to_thread.run_sync(self.prefetch, cid)
+                        except Exception as exc:  # noqa: BLE001
+                            prefetch_results[cid] = exc
+
                 for cid in batch_cids:
                     if self.memory_cache.contains(cid):
                         # Skip if already in memory
                         type_stats["skipped"] += 1
                         result["results"][cid] = {"status": "skipped", "reason": "already_in_memory"}
-                    else:
-                        # Create task for this CID
-                        tasks.append(process_cid(cid))
-                
-                # Wait for all tasks to complete
-                if tasks:
-                    results = await anyio.gather(*tasks, return_exceptions=True)
-                    
-                    # Process results
-                    for i, prefetch_result in enumerate(results):
-                        cid = batch_cids[i]
-                        
-                        # Skip if we already marked it as skipped
+
+                async with anyio.create_task_group() as tg:
+                    for cid in batch_cids:
                         if cid in result["results"] and result["results"][cid].get("status") == "skipped":
                             continue
-                            
-                        if isinstance(prefetch_result, Exception):
-                            # Handle exception
-                            type_stats["failed"] += 1
-                            result["results"][cid] = {
-                                "status": "error",
-                                "error": str(prefetch_result),
-                                "error_type": type(prefetch_result).__name__
-                            }
-                        else:
-                            # Store result
-                            result["results"][cid] = prefetch_result
-                            
-                            if prefetch_result.get("success", False):
-                                type_stats["prefetched"] += 1
-                            else:
-                                type_stats["failed"] += 1
+                        tg.start_soon(_run_one, cid)
+
+                for cid, prefetch_result in prefetch_results.items():
+                    if isinstance(prefetch_result, Exception):
+                        type_stats["failed"] += 1
+                        result["results"][cid] = {
+                            "status": "error",
+                            "error": str(prefetch_result),
+                            "error_type": type(prefetch_result).__name__,
+                        }
+                        continue
+
+                    result["results"][cid] = prefetch_result
+                    if prefetch_result.get("success", False):
+                        type_stats["prefetched"] += 1
+                    else:
+                        type_stats["failed"] += 1
                 
                 return content_type, type_stats
             
-            # Process all content types in parallel
-            tasks = []
-            for content_type, batch_cids in batches.items():
-                tasks.append(process_content_type(content_type, batch_cids))
-                
-            # Wait for all content types to complete
-            content_type_results = await anyio.gather(*tasks)
-            
-            # Process results
-            for content_type, type_stats in content_type_results:
+            content_type_results: Dict[str, Dict[str, Any]] = {}
+
+            async def _run_content_type(content_type: str, batch_cids: List[str]) -> None:
+                ct, stats = await process_content_type(content_type, batch_cids)
+                content_type_results[ct] = stats
+
+            async with anyio.create_task_group() as tg:
+                for content_type, batch_cids in batches.items():
+                    tg.start_soon(_run_content_type, content_type, batch_cids)
+
+            for content_type, type_stats in content_type_results.items():
                 if type_stats:  # Skip empty results
                     result["content_types"][content_type] = type_stats
                     result["prefetched"] += type_stats.get("prefetched", 0)
@@ -1834,17 +1780,7 @@ class DiskCache:
         Returns:
             Dictionary with results and metadata
         """
-        if not self.has_asyncio:
-            # Fallback to synchronous version through thread pool if asyncio not available
-            future = self.thread_pool.submit(self.batch_get_metadata_zero_copy, cids)
-            return future.result()
-            
-        # If asyncio is available, run in executor to avoid blocking
-        loop = anyio.get_event_loop()
-        return await loop.run_in_executor(
-            self.thread_pool, 
-            lambda: self.batch_get_metadata_zero_copy(cids)
-        )
+        return await anyio.to_thread.run_sync(self.batch_get_metadata_zero_copy, cids)
         
     @experimental_api(since="0.19.0")
     def batch_put_metadata_zero_copy(self, metadata_dict: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
@@ -3570,14 +3506,4 @@ class DiskCache:
         Returns:
             Dictionary with operation results
         """
-        if not self.has_asyncio:
-            # Fallback to synchronous version through thread pool if asyncio not available
-            future = self.thread_pool.submit(self.batch_put_metadata_zero_copy, metadata_dict)
-            return future.result()
-            
-        # If asyncio is available, run in executor to avoid blocking
-        loop = anyio.get_event_loop()
-        return await loop.run_in_executor(
-            self.thread_pool, 
-            lambda: self.batch_put_metadata_zero_copy(metadata_dict)
-        )
+        return await anyio.to_thread.run_sync(self.batch_put_metadata_zero_copy, metadata_dict)

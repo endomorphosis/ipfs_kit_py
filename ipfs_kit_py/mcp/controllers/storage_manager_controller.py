@@ -9,6 +9,8 @@ import logging
 import time
 import sys
 import os
+import threading
+import sniffio
 from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, Body
 from pydantic import BaseModel, Field
@@ -26,6 +28,44 @@ from ipfs_kit_py.mcp import mcp_error_handling
 
 # Configure logger
 logger = logging.getLogger(__name__)
+
+
+def _run_async_from_sync(async_fn, *args, **kwargs):
+    """Run an async callable from sync code.
+
+    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.
+    - If called from plain sync code, uses `anyio.run`.
+    - If called while an async library is running in this thread, runs the
+      call in a dedicated helper thread.
+    """
+    if not HAS_ANYIO:
+        raise RuntimeError("AnyIO not available")
+
+    try:
+        return anyio.from_thread.run(async_fn, *args, **kwargs)
+    except RuntimeError:
+        pass
+
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        return anyio.run(async_fn, *args, **kwargs)
+
+    result = []
+    error = []
+
+    def _thread_main() -> None:
+        try:
+            result.append(anyio.run(async_fn, *args, **kwargs))
+        except BaseException as exc:  # noqa: BLE001
+            error.append(exc)
+
+    t = threading.Thread(target=_thread_main, daemon=True)
+    t.start()
+    t.join()
+    if error:
+        raise error[0]
+    return result[0] if result else None
 
 
 # Define Pydantic models for requests and responses
@@ -272,45 +312,11 @@ class StorageManagerController:
                 # Continue with standard shutdown which might fail gracefully
 
         try:
-            # Try using anyio (preferred method)
             if HAS_ANYIO:
-                try:
-                    anyio.run(self.shutdown)
-                    return
-                except Exception as e:
-                    logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
+                _run_async_from_sync(self.shutdown)
+                return
 
-            # Fallback to asyncio
-            import asyncio
-
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                # Create a new event loop if needed and not in shutdown
-                if is_interpreter_shutdown:
-                    logger.warning("Cannot get event loop during interpreter shutdown")
-                    # Just clear resources directly
-                    if hasattr(self, "active_transfers"):
-                        self.active_transfers.clear()
-                    return
-
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            # Run the shutdown method
-            try:
-                loop.run_until_complete(self.shutdown())
-            except RuntimeError as e:
-                if "This event loop is already running" in str(e):
-                    logger.warning("Cannot use run_until_complete in a running event loop")
-                    # Cannot handle properly in this case
-                elif "can't create new thread" in str(e):
-                    logger.warning("Thread creation failed during interpreter shutdown")
-                    # Clear resources directly
-                    if hasattr(self, "active_transfers"):
-                        self.active_transfers.clear()
-                else:
-                    raise
+            logger.warning("AnyIO not available; using manual shutdown")
 
         except Exception as e:
             logger.error(f"Error in sync_shutdown for Storage Manager Controller: {e}")

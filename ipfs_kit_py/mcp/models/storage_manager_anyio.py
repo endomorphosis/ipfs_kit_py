@@ -7,12 +7,49 @@ in the MCP server using AnyIO for backend-agnostic async capabilities.
 
 import logging
 import time
+import threading
+import anyio
 import sniffio
 import uuid
-# NOTE: This file contains asyncio.create_task() calls that need task group context
+# NOTE: This file is backend-agnostic; avoid backend-specific task APIs.
 
 # Configure logger
 logger = logging.getLogger(__name__)
+
+
+def _run_async_from_sync(async_fn, *args, **kwargs):
+    """Run an async callable from sync code.
+
+    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.
+    - If called from plain sync code, uses `anyio.run`.
+    - If called while an async library is running in this thread, runs the
+      call in a dedicated helper thread.
+    """
+    try:
+        return anyio.from_thread.run(async_fn, *args, **kwargs)
+    except RuntimeError:
+        pass
+
+    try:
+        sniffio.current_async_library()
+    except sniffio.AsyncLibraryNotFoundError:
+        return anyio.run(async_fn, *args, **kwargs)
+
+    result = []
+    error = []
+
+    def _thread_main() -> None:
+        try:
+            result.append(anyio.run(async_fn, *args, **kwargs))
+        except BaseException as exc:  # noqa: BLE001
+            error.append(exc)
+
+    t = threading.Thread(target=_thread_main, daemon=True)
+    t.start()
+    t.join()
+    if error:
+        raise error[0]
+    return result[0] if result else None
 
 
 class StorageManagerAnyIO:
@@ -160,61 +197,10 @@ class StorageManagerAnyIO:
             logger.warning(
                 f"Storage Manager shutdown called synchronously in async context ({backend})"
             )
-
-            if backend == "asyncio":
-                # For asyncio, we can use run_until_complete
-                try:
-                    import asyncio
-
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        logger.warning(
-                            "Cannot use run_until_complete in a running loop, using manual shutdown"
-                        )
-                        # Fall through to manual cleanup
-                    else:
-                        # We can use run_until_complete
-                        result = loop.run_until_complete(self.shutdown_async())
-                        return result
-                except (RuntimeError, ImportError) as e:
-                    logger.error(f"Error running asyncio shutdown: {e}")
-                    # Fall through to manual cleanup
-            elif backend == "trio":
-                # For trio, we need a different approach
-                try:
-                    import trio
-
-                    # Try to run directly if possible
-                    result = trio.run(self.shutdown_async)
-                    return result
-                except (RuntimeError, ImportError) as e:
-                    logger.error(f"Error running trio shutdown: {e}")
-                    # Fall through to manual cleanup
-
-            # Define a helper function for async shutdown
-            def run_async_in_background():
-                import anyio
-
-                async def _run_async():
-                    try:
-                        await self.shutdown_async()
-                    except Exception as e:
-                        logger.error(f"Error in async shutdown: {e}")
-
-                if backend == "asyncio":
-                    asyncio.create_task(_run_async())
-                elif backend == "trio":
-                    import trio
-
-                    # For trio, use system task as it doesn't require a nursery
-                    trio.lowlevel.spawn_system_task(_run_async)
-
-            # Try to run the async shutdown in the background
             try:
-                run_async_in_background()
-                logger.info(f"Started background {backend} task for shutdown")
+                return _run_async_from_sync(self.shutdown_async)
             except Exception as e:
-                logger.error(f"Failed to start background shutdown: {e}")
+                logger.error(f"Failed to run async shutdown from sync: {e}")
 
         # Perform manual synchronous cleanup
         logger.info("Performing manual synchronous cleanup")
