@@ -55,6 +55,13 @@ else
   python -m pip install -e .
 fi
 
+# Test tooling: expected to be available after zero-touch.
+# Opt out with: IPFS_KIT_INSTALL_TEST_DEPS=0
+INSTALL_TEST_DEPS="${IPFS_KIT_INSTALL_TEST_DEPS:-1}"
+if [ "$INSTALL_TEST_DEPS" != "0" ]; then
+  python -m pip install --upgrade pytest pytest-asyncio pytest-anyio pytest-cov
+fi
+
 python - <<'PY'
 import importlib
 
