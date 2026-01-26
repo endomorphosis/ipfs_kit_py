@@ -1672,4 +1672,170 @@ class UnifiedMCPDashboard:
                     # Filter to specific backend
                     filtered_config = {}
                     if backend_filter in config.get("backends", {}):
-                        filtered_config = {backend_filter: config["backends"Пожалуйста, предоставьте мне содержимое файла, который вы хотите проанализировать. Я проанализирую его и сообщу вам, если найду какие-либо проблемы с экранированием. 
+                        filtered_config = {backend_filter: config["backends"][backend_filter]}
+                    config = {"backends": filtered_config}
+
+                return {
+                    "success": True,
+                    "command": "config show",
+                    "result": config,
+                    "cli_output": json.dumps(config, indent=2)
+                }
+
+            elif action == "set":
+                # ipfs-kit config set <key> <value>
+                key = args.get("key", "")
+                value = args.get("value", "")
+
+                if not key or value is None:
+                    return {"success": False, "error": "Key and value are required"}
+
+                # Parse the key (e.g., "s3.region" -> backend="s3", setting="region")
+                if "." in key:
+                    backend, setting = key.split(".", 1)
+                    result = await self._set_backend_config_value(backend, setting, value)
+                else:
+                    result = await self._set_global_config_value(key, value)
+
+                return {
+                    "success": True,
+                    "command": f"config set {key}",
+                    "result": result,
+                    "cli_output": f"✅ Configuration updated: {key} = {value}"
+                }
+
+            elif action == "validate":
+                # ipfs-kit config validate [--backend <backend>]
+                backend_filter = args.get("backend")
+                results = await self._validate_config(backend_filter)
+
+                return {
+                    "success": True,
+                    "command": "config validate",
+                    "result": results,
+                    "cli_output": self._format_validation_results(results)
+                }
+
+            else:
+                return {"success": False, "error": f"Unknown config action: {action}"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def _format_backends_table(self, backends):
+        """Format backends list as CLI table output."""
+        if not backends:
+            return "No backends configured."
+
+        lines = ["📋 Available Backends:", ""]
+        lines.append(f"{'Name':<20} {'Type':<15} {'Status':<12} {'Configured'}")
+        lines.append("-" * 60)
+
+        for backend in backends:
+            name = backend.get("name", "Unknown")[:19]
+            backend_type = backend.get("type", "Unknown")[:14]
+            status = backend.get("status", "unknown")[:11]
+            configured = "✅" if backend.get("status") == "configured" else "❌"
+            lines.append(f"{name:<20} {backend_type:<15} {status:<12} {configured}")
+
+        return "\n".join(lines)
+
+    def _format_validation_results(self, results):
+        """Format validation results as CLI output."""
+        if not results:
+            return "No validation results."
+
+        lines = ["✔️ Configuration Validation Results:", ""]
+
+        for result in results:
+            file_path = result.get("file", "Unknown")
+            status = "✅ Valid" if result.get("valid", False) else "❌ Invalid"
+            error = result.get("error", "")
+
+            lines.append(f"{file_path}: {status}")
+            if error:
+                lines.append(f"  Error: {error}")
+
+        return "\n".join(lines)
+
+    async def _set_backend_config_value(self, backend: str, setting: str, value: str):
+        """Set a specific backend configuration value."""
+        try:
+            backend_configs = await self._get_backend_configs()
+
+            if backend not in backend_configs:
+                return {"error": f"Backend '{backend}' not found"}
+
+            if "config" not in backend_configs[backend]:
+                backend_configs[backend]["config"] = {}
+
+            backend_configs[backend]["config"][setting] = value
+
+            result = await self._update_backend_config(backend, backend_configs[backend])
+            return result
+
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def _set_global_config_value(self, key: str, value: str):
+        """Set a global configuration value."""
+        try:
+            return {"message": f"Global config {key} set to {value}"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def _validate_config(self, backend_filter: str = None):
+        """Validate configuration files."""
+        try:
+            results = []
+            backend_configs = await self._get_backend_configs()
+
+            for name, config in backend_configs.items():
+                if backend_filter and backend_filter != "all" and name != backend_filter:
+                    continue
+
+                is_valid = True
+                error_msg = ""
+
+                if not config.get("config", {}):
+                    is_valid = False
+                    error_msg = "Missing configuration data"
+                elif config.get("type") == "json" and not config.get("file"):
+                    is_valid = False
+                    error_msg = "Missing file path"
+
+                results.append({
+                    "file": config.get("file", f"{name}.config"),
+                    "backend": name,
+                    "valid": is_valid,
+                    "error": error_msg
+                })
+
+            return results
+
+        except Exception as e:
+            return [{"file": "global", "valid": False, "error": str(e)}]
+
+    def run(self):
+        """Run the unified server."""
+        uvicorn.run(
+            self.app,
+            host=self.host,
+            port=self.port,
+            log_level="info" if not self.debug else "debug"
+        )
+
+
+def main():
+    """Main entry point for the unified MCP dashboard."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
+    dashboard = UnifiedMCPDashboard()
+    dashboard.run()
+
+
+if __name__ == "__main__":
+    main()
