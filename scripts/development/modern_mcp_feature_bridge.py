@@ -13,7 +13,7 @@ This bridge properly adapts legacy functions to use:
 - Modern bucket-centric operations
 """
 
-import asyncio
+import anyio
 import inspect
 import json
 import logging
@@ -114,8 +114,8 @@ class ModernMCPFeatureBridge:
                     if hasattr(self.bucket_manager, 'list_buckets'):
                         bucket_list = self.bucket_manager.list_buckets()
                         if hasattr(bucket_list, '__await__'):
-                            import asyncio
-                            bucket_list = asyncio.run(bucket_list)
+                            import anyio
+                            bucket_list = anyio.run(bucket_list)
                         
                         for bucket_name in bucket_list:
                             buckets.append({
@@ -249,8 +249,8 @@ class ModernMCPFeatureBridge:
                         # Try to get stats if available
                         stats = self.bucket_manager.get_stats()
                         if hasattr(stats, '__await__'):
-                            import asyncio
-                            stats = asyncio.run(stats)
+                            import anyio
+                            stats = anyio.run(stats)
                         system_info['bucket_stats'] = stats
                 except Exception as e:
                     system_info['bucket_manager_status'] = f'error: {e}'
@@ -1247,4 +1247,4 @@ if __name__ == "__main__":
     parser.add_argument("--data", help="JSON payload for feature", default=None)
     args = parser.parse_args()
 
-    asyncio.run(run_cli(args.category, args.feature, args.data))
+    anyio.run(run_cli, args.category, args.feature, args.data)

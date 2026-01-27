@@ -9,7 +9,7 @@ This script shows how the refactored architecture works:
 4. Demonstrate the separation of concerns
 """
 
-import asyncio
+import anyio
 import sys
 import time
 from pathlib import Path
@@ -172,7 +172,7 @@ async def demo_client_operations():
 if __name__ == "__main__":
     # Run the client test
     try:
-        asyncio.run(demo_client_operations())
+        anyio.run(demo_client_operations)
     except Exception as e:
         print(f"Demo client test failed: {e}")
         

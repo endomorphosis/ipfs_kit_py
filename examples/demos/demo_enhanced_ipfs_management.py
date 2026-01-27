@@ -7,7 +7,7 @@ Demonstration script showing the complete IPFS Kit MCP Server with:
 4. API responsiveness monitoring
 """
 
-import asyncio
+import anyio
 import logging
 import sys
 from pathlib import Path
@@ -188,7 +188,7 @@ async def main():
         
         # Keep running for a bit to show monitoring
         print("\\n⏱️  Monitoring daemon for 30 seconds...")
-        await asyncio.sleep(30)
+        await anyio.sleep(30)
         
     except KeyboardInterrupt:
         print("\\n👋 Demo interrupted by user")
@@ -198,4 +198,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -4,7 +4,7 @@ Demonstration of the fixed MCP server health API
 Shows the health endpoints working with filesystem status from parquet files
 """
 
-import asyncio
+import anyio
 import json
 import sys
 from pathlib import Path
@@ -161,4 +161,4 @@ async def main():
     await show_parquet_file_contents()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

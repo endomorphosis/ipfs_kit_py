@@ -6,7 +6,7 @@ This script provides a comprehensive summary of the CAR-based WAL migration
 and verifies that all components are working correctly.
 """
 
-import asyncio
+import anyio
 import json
 from pathlib import Path
 from datetime import datetime
@@ -194,7 +194,7 @@ def main():
     generate_migration_summary()
     
     # Run verification
-    asyncio.run(verify_car_wal_functionality())
+    anyio.run(verify_car_wal_functionality)
     
     print(f"\n📝 Summary generated at: {datetime.now().isoformat()}")
 

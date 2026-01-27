@@ -13,7 +13,7 @@ Key Design Principles:
 5. Comprehensive testing and validation at each iteration
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -619,5 +619,5 @@ async def main():
     return 0
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

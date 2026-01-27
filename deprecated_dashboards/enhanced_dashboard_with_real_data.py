@@ -10,7 +10,7 @@ This dashboard properly integrates with all the data sources from ~/.ipfs_kit/:
 - Real-time system metrics
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -733,4 +733,4 @@ async def main():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
+    anyio.run(main)

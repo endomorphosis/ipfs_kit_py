@@ -4,7 +4,7 @@ Replication Management Demo
 Demonstrates comprehensive pin replication across multiple storage backends
 """
 
-import asyncio
+import anyio
 import logging
 import json
 import os
@@ -228,7 +228,7 @@ class ReplicationDemo:
         
         # Let it run for a few seconds
         logger.info("Monitoring active for 5 seconds...")
-        await asyncio.sleep(5)
+        await anyio.sleep(5)
         
         # Check status while monitoring is active
         status_result = await self.replication_manager.get_replication_status()
@@ -368,4 +368,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)

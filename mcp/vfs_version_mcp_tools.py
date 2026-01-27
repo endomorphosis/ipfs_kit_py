@@ -6,7 +6,6 @@ through the MCP server interface. These tools offer Git-like version control
 for virtual filesystems using IPFS content addressing.
 """
 
-import asyncio
 import json
 import logging
 from datetime import datetime

@@ -23,7 +23,7 @@ Features Included:
 - Mobile-responsive UI
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -4023,7 +4023,7 @@ class ComprehensiveMCPDashboard:
             elif action == "restart":
                 # Restart is a stop then a start
                 await self._control_service(service, "stop")
-                await asyncio.sleep(2) # Give it a moment to stop
+                await anyio.sleep(2) # Give it a moment to stop
                 return await self._control_service(service, "start")
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}
@@ -4971,11 +4971,11 @@ import sys
 import os
 sys.path.insert(0, "{os.path.dirname(__file__)}")
 from ipfs_kit_py.cli import FastCLI
-import asyncio
+import anyio
 async def get_logs():
     cli = FastCLI()
     return await cli.cmd_log_show(component="{component}", level="{level}", limit={limit})
-result = asyncio.run(get_logs())
+result = anyio.run(get_logs)
 print(result)
                         '''],
                         capture_output=True,
@@ -5303,7 +5303,7 @@ print(result)
             
             while True:
                 # Send periodic updates
-                await asyncio.sleep(self.update_interval)
+                await anyio.sleep(self.update_interval)
                 
                 status = await self._get_system_status()
                 await websocket.send_text(json.dumps({
@@ -5334,7 +5334,7 @@ print(result)
             (self.data_dir / "pin_metadata").mkdir(parents=True, exist_ok=True)
             
             # Start metrics collection task
-            asyncio.create_task(self._metrics_collection_task())
+            anyio.lowlevel.spawn_system_task(self._metrics_collection_task)
             
             # Start the server
             config = uvicorn.Config(
@@ -5356,10 +5356,10 @@ print(result)
         while True:
             try:
                 await self._get_detailed_metrics()
-                await asyncio.sleep(self.update_interval)
+                await anyio.sleep(self.update_interval)
             except Exception as e:
                 logger.error(f"Error in metrics collection: {e}")
-                await asyncio.sleep(self.update_interval)
+                await anyio.sleep(self.update_interval)
 
 
     # Comprehensive Configuration Management System
@@ -5716,7 +5716,7 @@ def main():
     dashboard = ComprehensiveMCPDashboard(config)
     
     try:
-        asyncio.run(dashboard.start())
+        anyio.run(dashboard.start)
     except KeyboardInterrupt:
         print("\nDashboard stopped by user")
     except Exception as e:

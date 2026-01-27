@@ -6,7 +6,7 @@ This module provides MCP server integration with the Pin WAL system,
 allowing non-blocking pin operations through the MCP interface.
 """
 
-import asyncio
+import anyio
 import logging
 from typing import Dict, Any, Optional, List
 from mcp.server.models import InitializationOptions
@@ -179,7 +179,7 @@ class PinWALMCPServer:
         try:
             metadata = {
                 "added_via": "mcp_server",
-                "mcp_timestamp": asyncio.get_event_loop().time()
+                "mcp_timestamp": anyio.current_time()
             }
             
             operation_id = await add_pin_to_wal(
@@ -223,7 +223,7 @@ class PinWALMCPServer:
         try:
             metadata = {
                 "removed_via": "mcp_server",
-                "mcp_timestamp": asyncio.get_event_loop().time()
+                "mcp_timestamp": anyio.current_time()
             }
             
             operation_id = await remove_pin_from_wal(
@@ -396,4 +396,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

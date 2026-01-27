@@ -257,7 +257,7 @@ class SimplifiedModernBridge:
             return handle_error(e, "get_available_comprehensive_features")
 
 if __name__ == "__main__":
-    import asyncio
+    import anyio
     
     async def test_simplified_bridge():
         """Test the simplified bridge."""
@@ -299,5 +299,5 @@ if __name__ == "__main__":
             print(f"❌ Test failed: {e}")
             return False
     
-    success = asyncio.run(test_simplified_bridge())
+    success = anyio.run(test_simplified_bridge)
     exit(0 if success else 1)

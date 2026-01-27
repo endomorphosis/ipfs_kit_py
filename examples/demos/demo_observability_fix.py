@@ -8,7 +8,7 @@ This demonstrates:
 3. Performance counters with actual IPFS data
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from datetime import datetime
@@ -162,5 +162,5 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     exit(exit_code)

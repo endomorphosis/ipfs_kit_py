@@ -78,7 +78,7 @@ echo ""
 
 # Install test dependencies
 echo "Installing test dependencies..."
-pip install pytest pytest-asyncio --quiet || echo "Warning: Could not install all test dependencies"
+pip install pytest pytest-anyio --quiet || echo "Warning: Could not install all test dependencies"
 echo ""
 
 # Run basic smoke tests

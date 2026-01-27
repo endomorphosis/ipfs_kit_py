@@ -10,7 +10,7 @@ This demonstrates:
 5. Full CLI and MCP integration
 """
 
-import asyncio
+import anyio
 import logging
 import tempfile
 import shutil
@@ -121,4 +121,4 @@ async def main():
             traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

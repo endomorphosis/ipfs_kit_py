@@ -30,7 +30,7 @@ This is a demonstration of advanced VFS features for repositories
 that exist as both Git repositories and content-addressed storage.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import tempfile
@@ -376,4 +376,4 @@ async def main():
     print("   - Explore VFS snapshots and content addressing")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

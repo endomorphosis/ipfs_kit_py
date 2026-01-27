@@ -3,7 +3,7 @@
 Test script to verify the dashboard fixes are working correctly.
 """
 
-import asyncio
+import anyio
 import sys
 import logging
 from pathlib import Path
@@ -70,5 +70,5 @@ async def test_dashboard_fixes():
         return False
 
 if __name__ == "__main__":
-    success = asyncio.run(test_dashboard_fixes())
+    success = anyio.run(test_dashboard_fixes)
     sys.exit(0 if success else 1)

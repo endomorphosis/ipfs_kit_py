@@ -1,13 +1,13 @@
 # Anyio Migration - Batches 8 & 9 Summary
 
 ## Overview
-Completed comprehensive migration of the core ipfs_kit_py package from asyncio to anyio for trio/asyncio compatibility.
+Completed comprehensive migration of the core ipfs_kit_py package from async-io to anyio for trio/async-io compatibility.
 
 ## Migration Scale
 - **Files Modified**: 77+ Python files across Batches 8 & 9
 - **Lines Changed**: ~350+ lines of code updated
 - **Import Changes**: 175+ anyio imports now present in codebase
-- **Remaining asyncio**: 133 mentions (mostly in FastAPI startup contexts or deep subdirectories)
+- **Remaining async-io**: 133 mentions (mostly in FastAPI startup contexts or deep subdirectories)
 
 ## Batch 8 Files (31 files)
 
@@ -132,13 +132,13 @@ Completed comprehensive migration of the core ipfs_kit_py package from asyncio t
 ### 1. Import Changes
 ```python
 # Before:
-import asyncio
+import async_io
 # or
 try:
     import anyio
     HAS_ANYIO = True
 except ImportError:
-    import asyncio
+    import async_io
     HAS_ANYIO = False
 
 # After:
@@ -148,7 +148,7 @@ import anyio
 ### 2. Sleep Calls
 ```python
 # Before:
-await asyncio.sleep(60)
+await async_io.sleep(60)
 
 # After:
 await anyio.sleep(60)
@@ -157,7 +157,7 @@ await anyio.sleep(60)
 ### 3. Run Function
 ```python
 # Before:
-asyncio.run(main())
+async_io.run(main())
 
 # After:
 anyio.run(main)
@@ -166,9 +166,9 @@ anyio.run(main)
 ### 4. Synchronization Primitives
 ```python
 # Before:
-lock = asyncio.Lock()
-event = asyncio.Event()
-semaphore = asyncio.Semaphore(5)
+lock = async_io.Lock()
+event = async_io.Event()
+semaphore = async_io.Semaphore(5)
 
 # After:
 lock = anyio.Lock()
@@ -179,7 +179,7 @@ semaphore = anyio.Semaphore(5)
 ### 5. Coroutine Detection
 ```python
 # Before:
-if asyncio.iscoroutinefunction(func):
+if async_io.iscoroutinefunction(func):
 
 # After:
 import inspect
@@ -192,7 +192,7 @@ if inspect.iscoroutinefunction(func):
 if HAS_ANYIO:
     await anyio.sleep(60)
 else:
-    await asyncio.sleep(60)
+    await async_io.sleep(60)
 
 # After:
 await anyio.sleep(60)
@@ -201,7 +201,7 @@ await anyio.sleep(60)
 ## Complex Patterns Documented (Not Fully Migrated)
 
 ### 1. Task Creation in FastAPI Startup
-**Status**: Kept as `asyncio.create_task()`
+**Status**: Kept as `async_io.create_task()`
 
 **Reason**: anyio task groups require async context managers, FastAPI startup events don't provide this context properly.
 
@@ -209,20 +209,20 @@ await anyio.sleep(60)
 ```python
 @app.on_event("startup")
 async def startup_event():
-    # Note: FastAPI startup events still use asyncio.create_task
-    import asyncio
-    asyncio.create_task(background_task())
+    # Note: FastAPI startup events still use async_io.create_task
+    import async_io
+    async_io.create_task(background_task())
 ```
 
 **Files Affected**: ~30+ files with FastAPI integration
 
-### 2. asyncio.gather() Patterns
+### 2. async_io.gather() Patterns
 **Status**: Needs manual migration to anyio task groups
 
 **Example Migration**:
 ```python
 # Before:
-results = await asyncio.gather(task1(), task2(), task3())
+results = await async_io.gather(task1(), task2(), task3())
 
 # After (needs manual implementation):
 async with anyio.create_task_group() as tg:
@@ -234,13 +234,13 @@ async with anyio.create_task_group() as tg:
 
 **Files Affected**: ~10+ files
 
-### 3. asyncio.wait_for() Patterns
+### 3. async_io.wait_for() Patterns
 **Status**: Needs migration to anyio.fail_after() or anyio.move_on_after()
 
 **Example Migration**:
 ```python
 # Before:
-result = await asyncio.wait_for(coroutine(), timeout=30)
+result = await async_io.wait_for(coroutine(), timeout=30)
 
 # After:
 with anyio.fail_after(30):
@@ -254,10 +254,10 @@ with anyio.fail_after(30):
 ### Pytest Configuration
 File `pytest.ini` has:
 ```ini
-asyncio_mode = auto
+backend_mode = auto
 ```
 
-This should work with anyio as well since anyio is compatible with pytest-asyncio.
+This should work with anyio as well since anyio is compatible with pytest-anyio.
 
 ### Test Files
 Test files in `tests/` directory were not migrated in this batch. They may need similar migration if they import modules that now require anyio.
@@ -281,12 +281,12 @@ python3 -c "import anyio"  # ✓ Success
 
 ## Remaining Work
 
-### Files Still Using asyncio (133 mentions)
+### Files Still Using async-io (133 mentions)
 Most of these are:
 1. Deep subdirectory files not yet processed
 2. FastAPI startup event handlers (documented above)
 3. Conditional imports in utility modules
-4. Comments or docstrings mentioning asyncio
+4. Comments or docstrings mentioning async-io
 
 ### Recommended Follow-Up
 1. Migrate remaining subdirectory files
@@ -298,7 +298,7 @@ Most of these are:
 ## Benefits of This Migration
 
 ### 1. Trio Compatibility
-The package can now work with both asyncio and trio backends through anyio's unified API.
+The package can now work with both async-io and trio backends through anyio's unified API.
 
 ### 2. LibP2P Integration
 Since libp2p uses trio, this migration enables better integration with libp2p-based features.

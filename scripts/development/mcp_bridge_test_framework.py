@@ -7,7 +7,7 @@ with the new bucket-centric architecture, ensuring all 191 functions work
 correctly with the modernized system.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -641,5 +641,5 @@ async def main():
         framework.cleanup()
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     exit(exit_code)

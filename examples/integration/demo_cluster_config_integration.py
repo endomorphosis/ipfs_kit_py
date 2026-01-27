@@ -10,7 +10,7 @@ This demonstrates:
 4. Integration with dashboard
 """
 
-import asyncio
+import anyio
 import json
 import tempfile
 import os
@@ -285,4 +285,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

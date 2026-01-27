@@ -3,7 +3,7 @@
 Quick bucket functionality test with timeout handling.
 """
 
-import asyncio
+import anyio
 import aiohttp
 import json
 import tempfile
@@ -46,10 +46,10 @@ async def quick_test():
                 else:
                     print(f"   ❌ Failed to list buckets: {resp.status}")
                     
-    except asyncio.TimeoutError:
+    except TimeoutError:
         print("⏰ Test timed out - this is expected in some environments")
     except Exception as e:
         print(f"❌ Test failed with error: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(quick_test())
+    anyio.run(quick_test)

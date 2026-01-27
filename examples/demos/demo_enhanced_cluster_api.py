@@ -10,7 +10,7 @@ system including:
 - MCP API integration for dashboard access
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -336,4 +336,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

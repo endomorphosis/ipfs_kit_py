@@ -31,7 +31,7 @@ import os
 import sys
 import json
 import time
-import asyncio
+import anyio
 import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -533,4 +533,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

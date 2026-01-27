@@ -21,7 +21,7 @@ All services run on the same port for unified access.
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import traceback
 import os
@@ -860,13 +860,14 @@ websocket_connections_active {len(self.websocket_connections)}
                             # Keep connection alive
                             while True:
                                 try:
-                                    data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                                    with anyio.fail_after(30.0):
+                                        data = await websocket.receive_text()
                                     
                                     # Handle client requests
                                     if data == "get_update":
                                         await self._send_dashboard_websocket_update(websocket)
                                     
-                                except asyncio.TimeoutError:
+                                except TimeoutError:
                                     # Send periodic update
                                     await self._send_dashboard_websocket_update(websocket)
                             
@@ -905,7 +906,7 @@ websocket_connections_active {len(self.websocket_connections)}
                     await self.backend_health_monitor.start_background_services()
                 
                 # Start metrics update task
-                asyncio.create_task(self._metrics_update_loop())
+                anyio.lowlevel.spawn_system_task(self._metrics_update_loop)
                 
                 logger.info("✓ Background services started")
             except Exception as e:
@@ -1538,9 +1539,9 @@ websocket_connections_active {len(self.websocket_connections)}
                         })
                 
                 # Wait for next update
-                await asyncio.sleep(5)  # Update every 5 seconds
+                await anyio.sleep(5)  # Update every 5 seconds
                 
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Metrics update loop cancelled")
         except Exception as e:
             logger.error(f"Error in metrics update loop: {e}")
@@ -1634,7 +1635,7 @@ async def main():
 if __name__ == "__main__":
     import sys
     try:
-        exit_code = asyncio.run(main())
+        exit_code = anyio.run(main)
         sys.exit(exit_code or 0)
     except KeyboardInterrupt:
         logger.info("Interrupted by user")

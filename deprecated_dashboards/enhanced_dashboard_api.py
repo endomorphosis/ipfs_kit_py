@@ -10,7 +10,7 @@ This module provides comprehensive API endpoints for dashboard management includ
 - Real-time metrics and performance data
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -1477,7 +1477,7 @@ class DashboardController:
                         action_result = daemon_manager._stop_single_daemon(request.daemon_name)
                     elif request.action == "restart":
                         stop_result = daemon_manager._stop_single_daemon(request.daemon_name)
-                        await asyncio.sleep(2)
+                        await anyio.sleep(2)
                         action_result = daemon_manager._start_single_daemon(request.daemon_name, "master")
                         action_result["stop_result"] = stop_result
                     else:

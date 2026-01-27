@@ -9,7 +9,7 @@ This demo showcases the enhanced replication management system with:
 - Data loss protection with traffic-aware operations
 """
 
-import asyncio
+import anyio
 import logging
 import json
 import sys
@@ -408,5 +408,5 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

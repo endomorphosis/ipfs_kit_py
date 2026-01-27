@@ -10,7 +10,7 @@ ipfs-cluster-follow, storacha, s3, lotus, synapse, and huggingface.
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import traceback
 import os
@@ -378,7 +378,7 @@ class BackendHealthMonitor:
                 lotus = lotus_kit()
                 
                 # Check daemon status using the proper method
-                daemon_status = await asyncio.to_thread(lotus.daemon_status)
+                daemon_status = await anyio.to_thread.run_sync(lotus.daemon_status)
                 daemon_running = daemon_status.get("process_running", False)
                 
                 if daemon_running:
@@ -706,21 +706,20 @@ class BackendHealthMonitor:
         
         results = {}
         
-        # Check backends in parallel
-        tasks = []
-        for backend_name in self.backends.keys():
-            task = asyncio.create_task(self.check_backend_health(backend_name))
-            tasks.append((backend_name, task))
-            
-        for backend_name, task in tasks:
+        async def _run_check(name: str) -> None:
             try:
-                results[backend_name] = await task
+                results[name] = await self.check_backend_health(name)
             except Exception as e:
-                results[backend_name] = {
+                results[name] = {
                     "status": "error",
                     "health": "unhealthy",
                     "error": str(e)
                 }
+
+        # Check backends in parallel
+        async with anyio.create_task_group() as tg:
+            for backend_name in self.backends.keys():
+                tg.start_soon(_run_check, backend_name)
                 
         return results
     
@@ -991,7 +990,7 @@ class BackendHealthMonitor:
                 try:
                     # Simple process management fallback
                     subprocess.run(["pkill", "-f", "lotus"], timeout=10)
-                    await asyncio.sleep(2)
+                    await anyio.sleep(2)
                     # Note: Starting lotus would require proper daemon management
                     return {"message": "Lotus processes stopped (manual restart required)"}
                     
@@ -1003,7 +1002,7 @@ class BackendHealthMonitor:
                 try:
                     # Stop IPFS
                     subprocess.run(["ipfs", "shutdown"], timeout=10)
-                    await asyncio.sleep(2)
+                    await anyio.sleep(2)
                     
                     # Start IPFS daemon in background
                     subprocess.Popen(["ipfs", "daemon"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -1042,10 +1041,7 @@ class BackendHealthMonitor:
         while self.monitoring_active:
             try:
                 # Run async health checks in sync context
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                results = loop.run_until_complete(self.check_all_backends())
+                results = anyio.run(self.check_all_backends)
                 
                 # Store metrics history
                 timestamp = datetime.now().isoformat()
@@ -1056,8 +1052,6 @@ class BackendHealthMonitor:
                         "health": result.get("health", "unknown"),
                         "metrics": result.get("metrics", {})
                     })
-                
-                loop.close()
                 
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {e}")
@@ -3519,7 +3513,7 @@ class EnhancedUnifiedMCPServer:
                         "type": "backend_update",
                         "data": backend_health
                     })
-                    await asyncio.sleep(30)
+                    await anyio.sleep(30)
             except Exception as e:
                 logger.error(f"WebSocket error: {e}")
             finally:

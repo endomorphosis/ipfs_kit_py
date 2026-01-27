@@ -10,7 +10,7 @@ where each bucket contains:
 - Automatic export to Parquet/Arrow for DuckDB support
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import sys
@@ -316,4 +316,4 @@ async def demo_bucket_vfs_system():
 
 
 if __name__ == "__main__":
-    asyncio.run(demo_bucket_vfs_system())
+    anyio.run(demo_bucket_vfs_system)

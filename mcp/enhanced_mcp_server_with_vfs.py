@@ -18,8 +18,8 @@ import sys
 print("✓ sys imported", file=sys.stderr, flush=True)
 import json
 print("✓ json imported", file=sys.stderr, flush=True)
-import asyncio
-print("✓ asyncio imported", file=sys.stderr, flush=True)
+import anyio
+print("✓ anyio imported", file=sys.stderr, flush=True)
 import logging
 print("✓ logging imported", file=sys.stderr, flush=True)
 import traceback
@@ -254,8 +254,8 @@ class VFSIntegration:
         try:
             # The ipfs_fsspec automatically mounts IPFS as a filesystem
             # We can verify it's working by listing the root
-            files = await asyncio.get_event_loop().run_in_executor(
-                None, self.vfs_filesystem.ls, ipfs_path
+            files = await anyio.to_thread.run_sync(
+                self.vfs_filesystem.ls, ipfs_path
             )
             
             return {
@@ -279,8 +279,8 @@ class VFSIntegration:
             return {"success": False, "error": "VFS filesystem not initialized"}
         
         try:
-            files = await asyncio.get_event_loop().run_in_executor(
-                None, self.vfs_filesystem.ls, path
+            files = await anyio.to_thread.run_sync(
+                self.vfs_filesystem.ls, path
             )
             
             return {
@@ -302,8 +302,8 @@ class VFSIntegration:
             return {"success": False, "error": "VFS filesystem not initialized"}
         
         try:
-            content = await asyncio.get_event_loop().run_in_executor(
-                None, self.vfs_filesystem.cat, path
+            content = await anyio.to_thread.run_sync(
+                self.vfs_filesystem.cat, path
             )
             
             # Try to decode as text, fall back to base64 for binary
@@ -344,8 +344,8 @@ class VFSIntegration:
                 data = content.encode(encoding)
             
             # Write the file
-            await asyncio.get_event_loop().run_in_executor(
-                None, self.vfs_filesystem.pipe, path, data
+            await anyio.to_thread.run_sync(
+                self.vfs_filesystem.pipe, path, data
             )
             
             return {
@@ -368,8 +368,8 @@ class VFSIntegration:
             return {"success": False, "error": "VFS filesystem not initialized"}
         
         try:
-            await asyncio.get_event_loop().run_in_executor(
-                None, self.vfs_filesystem.makedirs, path, exist_ok=True
+            await anyio.to_thread.run_sync(
+                self.vfs_filesystem.makedirs, path, exist_ok=True
             )
             
             return {
@@ -392,12 +392,12 @@ class VFSIntegration:
         
         try:
             if recursive:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, self.vfs_filesystem.rm, path, recursive=True
+                await anyio.to_thread.run_sync(
+                    self.vfs_filesystem.rm, path, recursive=True
                 )
             else:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, self.vfs_filesystem.rm, path
+                await anyio.to_thread.run_sync(
+                    self.vfs_filesystem.rm, path
                 )
             
             return {
@@ -420,8 +420,8 @@ class VFSIntegration:
             return {"success": False, "error": "VFS filesystem not initialized"}
         
         try:
-            info = await asyncio.get_event_loop().run_in_executor(
-                None, self.vfs_filesystem.info, path
+            info = await anyio.to_thread.run_sync(
+                self.vfs_filesystem.info, path
             )
             
             return {
@@ -444,8 +444,8 @@ class VFSIntegration:
             return {"success": False, "error": "Cache manager not initialized"}
         
         try:
-            evicted_count = await asyncio.get_event_loop().run_in_executor(
-                None, self.cache_manager.evict, target_size, emergency
+            evicted_count = await anyio.to_thread.run_sync(
+                self.cache_manager.evict, target_size, emergency
             )
             
             return {
@@ -496,8 +496,8 @@ class VFSIntegration:
         
         try:
             if hasattr(self.cache_manager, 'clear'):
-                await asyncio.get_event_loop().run_in_executor(
-                    None, self.cache_manager.clear
+                await anyio.to_thread.run_sync(
+                    self.cache_manager.clear
                 )
             
             return {
@@ -521,8 +521,8 @@ class VFSIntegration:
         
         try:
             # Start replication process
-            result = await asyncio.get_event_loop().run_in_executor(
-                None, self.replication_manager.start_replication, source_path, target_path, options
+            result = await anyio.to_thread.run_sync(
+                self.replication_manager.start_replication, source_path, target_path, options
             )
             
             return {
@@ -545,8 +545,8 @@ class VFSIntegration:
             return {"success": False, "error": "Replication manager not initialized"}
         
         try:
-            status = await asyncio.get_event_loop().run_in_executor(
-                None, getattr, self.replication_manager, 'get_status', lambda: {"status": "unknown"}
+            status = await anyio.to_thread.run_sync(
+                getattr, self.replication_manager, 'get_status', lambda: {"status": "unknown"}
             )
             
             if callable(status):
@@ -571,8 +571,8 @@ class VFSIntegration:
             return {"success": False, "error": "Replication manager not initialized"}
         
         try:
-            result = await asyncio.get_event_loop().run_in_executor(
-                None, getattr, self.replication_manager, 'sync', lambda: True
+            result = await anyio.to_thread.run_sync(
+                getattr, self.replication_manager, 'sync', lambda: True
             )
             
             if callable(result):
@@ -599,8 +599,8 @@ class VFSIntegration:
         
         try:
             if self.wal_manager and hasattr(self.wal_manager, 'checkpoint'):
-                result = await asyncio.get_event_loop().run_in_executor(
-                    None, self.wal_manager.checkpoint
+                result = await anyio.to_thread.run_sync(
+                    self.wal_manager.checkpoint
                 )
             else:
                 # Use module-level WAL functions if available
@@ -625,8 +625,8 @@ class VFSIntegration:
         
         try:
             if self.wal_manager and hasattr(self.wal_manager, 'get_status'):
-                status = await asyncio.get_event_loop().run_in_executor(
-                    None, self.wal_manager.get_status
+                status = await anyio.to_thread.run_sync(
+                    self.wal_manager.get_status
                 )
             else:
                 status = {"wal_enabled": True, "status": "active"}
@@ -650,8 +650,8 @@ class VFSIntegration:
         
         try:
             if self.wal_manager and hasattr(self.wal_manager, 'recover'):
-                result = await asyncio.get_event_loop().run_in_executor(
-                    None, self.wal_manager.recover, from_checkpoint
+                result = await anyio.to_thread.run_sync(
+                    self.wal_manager.recover, from_checkpoint
                 )
             else:
                 result = {"recovery_completed": True, "from_checkpoint": from_checkpoint}
@@ -1475,8 +1475,8 @@ class MCPServer:
         try:
             while True:
                 # Read JSON-RPC request from stdin
-                line = await asyncio.get_event_loop().run_in_executor(
-                    None, sys.stdin.readline
+                line = await anyio.to_thread.run_sync(
+                    sys.stdin.readline
                 )
                 
                 if not line:
@@ -1527,4 +1527,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -6,7 +6,7 @@ package, integrating with the enhanced MCP server and all available metadata sou
 Includes ALL features from previous MCP dashboards plus new conflict-free content-addressed operations.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -297,7 +297,7 @@ class EnhancedMCPDashboard:
             await self.websocket_manager.connect(websocket)
             try:
                 while True:
-                    await asyncio.sleep(5)  # Send updates every 5 seconds
+                    await anyio.sleep(5)  # Send updates every 5 seconds
                     if EnhancedDaemonManager:
                         daemon_manager = EnhancedDaemonManager()
                         daemon_status = daemon_manager.get_daemon_status() if hasattr(daemon_manager, 'get_daemon_status') else {"status": "unknown"}
@@ -768,4 +768,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

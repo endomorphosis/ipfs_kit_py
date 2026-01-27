@@ -4,7 +4,7 @@ Enhanced Dashboard with Replication Management Integration Demo
 Complete demonstration of IPFS Kit with comprehensive replication management
 """
 
-import asyncio
+import anyio
 import logging
 import json
 import os
@@ -336,7 +336,7 @@ class EnhancedDashboardIntegrationDemo:
             
             # Wait for automatic replication to process
             logger.info("Waiting for automatic replication (10 seconds)...")
-            await asyncio.sleep(10)
+            await anyio.sleep(10)
             
             # Check replication status
             status_result = await self.replication_manager.get_replication_status()
@@ -647,5 +647,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

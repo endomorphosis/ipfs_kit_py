@@ -12,7 +12,7 @@ Usage:
     python continuous_validation.py --ci      # CI-friendly output
 """
 
-import asyncio
+import anyio
 import subprocess
 import sys
 import time
@@ -34,12 +34,13 @@ class HealthChecker:
     
     async def run_cmd(self, cmd, timeout=10):
         try:
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            process = await anyio.open_process(
+                cmd,
+                stdout=anyio.subprocess.PIPE,
+                stderr=anyio.subprocess.PIPE
             )
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+            with anyio.fail_after(timeout):
+                stdout, stderr = await process.communicate()
             return process.returncode == 0, stdout.decode(), stderr.decode()
         except Exception as e:
             return False, "", str(e)
@@ -259,5 +260,5 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

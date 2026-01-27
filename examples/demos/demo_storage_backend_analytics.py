@@ -13,7 +13,7 @@ New Features:
 ✅ Enhanced API endpoint: /dashboard/api/storage
 """
 
-import asyncio
+import anyio
 import json
 import logging
 from datetime import datetime
@@ -205,4 +205,4 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    exit(asyncio.run(main()))
+    exit(anyio.run(main))

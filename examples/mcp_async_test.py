@@ -116,6 +116,6 @@ async def test_mcp_server_async():
     }
 
 if __name__ == "__main__":
-    # Run the async test using asyncio
+    # Run the async test using async-io
     result = anyio.run(test_mcp_server_async())
     logger.info(f"Test result: {result['success']}")

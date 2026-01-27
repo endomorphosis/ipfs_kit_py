@@ -10,7 +10,7 @@ This script demonstrates:
 5. Integration with existing IPFS Kit ecosystem
 """
 
-import asyncio
+import anyio
 import json
 import os
 import subprocess
@@ -339,4 +339,4 @@ async def main():
     print("   - Test Suite: python run_bucket_vfs_tests.py")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

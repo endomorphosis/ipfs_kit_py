@@ -15,7 +15,7 @@ Key Features:
 - Support for simulation and real implementations
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -172,7 +172,7 @@ class IPFSBackend(StorageBackend):
                                      stderr=subprocess.DEVNULL)
             
             # Wait a moment for startup
-            await asyncio.sleep(3)
+            await anyio.sleep(3)
             
             # Verify it started
             health = await self.check_health()
@@ -403,7 +403,7 @@ class FilecoinBackend(StorageBackend):
                                      stdout=subprocess.DEVNULL,
                                      stderr=subprocess.DEVNULL)
             
-            await asyncio.sleep(5)  # Lotus takes longer to start
+            await anyio.sleep(5)  # Lotus takes longer to start
             
             health = await self.check_health()
             if health["success"]:
@@ -558,7 +558,7 @@ class LassieBackend(StorageBackend):
                                      stdout=subprocess.DEVNULL,
                                      stderr=subprocess.DEVNULL)
             
-            await asyncio.sleep(3)
+            await anyio.sleep(3)
             
             health = await self.check_health()
             if health["success"]:
@@ -788,7 +788,7 @@ class EnhancedStorageBackendManager:
             return stop_result
         
         # Wait a moment
-        await asyncio.sleep(2)
+        await anyio.sleep(2)
         
         # Start again
         return await backend.start()
@@ -888,4 +888,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

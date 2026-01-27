@@ -16,7 +16,7 @@ This fixes the issues with the MCP server dashboard by ensuring:
 - Real-time status updates and monitoring
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -397,14 +397,14 @@ class IntegratedEnhancedMCPServer:
                     await self.dashboard._update_all_services()
                     
                     # Wait before next check
-                    await asyncio.sleep(30)  # Check every 30 seconds
+                    await anyio.sleep(30)  # Check every 30 seconds
                     
                 except Exception as e:
                     logger.error(f"Error in health check loop: {e}")
-                    await asyncio.sleep(60)  # Wait longer on error
+                    await anyio.sleep(60)  # Wait longer on error
         
         # Start background tasks
-        self.health_check_task = asyncio.create_task(health_check_loop())
+        self.health_check_task = anyio.lowlevel.spawn_system_task(health_check_loop)
         self.dashboard_monitoring_task = await self.dashboard.start_monitoring()
         
     async def stop_background_tasks(self):
@@ -429,7 +429,7 @@ class IntegratedEnhancedMCPServer:
         # Setup signal handlers
         def signal_handler(signum, frame):
             logger.info(f"Received signal {signum}, shutting down...")
-            asyncio.create_task(self.stop())
+            anyio.lowlevel.spawn_system_task(self.stop)
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
@@ -489,4 +489,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

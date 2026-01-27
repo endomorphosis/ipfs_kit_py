@@ -3,7 +3,6 @@
 Simplified demonstration of the modular IPFS Kit MCP Server.
 """
 
-import asyncio
 import logging
 from pathlib import Path
 

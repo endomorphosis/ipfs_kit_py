@@ -4,7 +4,6 @@ Standalone dashboard launcher - creates the dashboard without importing the modu
 """
 import sys
 import os
-import asyncio
 import uvicorn
 from pathlib import Path
 

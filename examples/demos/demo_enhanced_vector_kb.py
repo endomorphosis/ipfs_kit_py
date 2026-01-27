@@ -5,7 +5,7 @@ Demo script for Enhanced Vector & KB Dashboard functionality.
 This demonstrates the improved Vector & KB tab with real search capabilities.
 """
 
-import asyncio
+import anyio
 import sys
 import os
 import logging
@@ -259,4 +259,4 @@ async def demo_enhanced_vector_kb():
 
 
 if __name__ == "__main__":
-    asyncio.run(demo_enhanced_vector_kb())
+    anyio.run(demo_enhanced_vector_kb)

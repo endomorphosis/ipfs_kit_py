@@ -5,7 +5,7 @@ Provides a comprehensive web interface for monitoring IPFS Kit and MCP server
 performance, including real-time metrics, health status, and analytics.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -275,13 +275,14 @@ class WebDashboard:
                 while True:
                     # Wait for client messages (like ping/pong)
                     try:
-                        data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                        with anyio.fail_after(30.0):
+                            data = await websocket.receive_text()
                         
                         # Handle client requests
                         if data == "get_update":
                             await self._send_websocket_update(websocket)
                         
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         # Send periodic update
                         await self._send_websocket_update(websocket)
                     
@@ -1252,7 +1253,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await self.data_collector.start()
         
         # Start periodic metric aggregation
-        self.update_task = asyncio.create_task(self._update_metrics_loop())
+        self.update_task = anyio.lowlevel.spawn_system_task(self._update_metrics_loop)
         
         # Configure server
         server_host = host or self.config.host
@@ -1290,7 +1291,7 @@ document.addEventListener('DOMContentLoaded', () => {
             self.update_task.cancel()
             try:
                 await self.update_task
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 pass
         
         # Stop data collection
@@ -1314,9 +1315,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
                 
                 # Wait for next update
-                await asyncio.sleep(self.config.metrics_update_interval)
+                await anyio.sleep(self.config.metrics_update_interval)
                 
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             logger.info("Metrics update loop cancelled")
         except Exception as e:
             logger.exception(f"Error in metrics update loop: {e}")

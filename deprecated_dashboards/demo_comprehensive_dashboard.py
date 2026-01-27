@@ -19,7 +19,7 @@ Features Demonstrated:
 - Conflict-free distributed operations
 """
 
-import asyncio
+import anyio
 import logging
 import sys
 import os
@@ -191,7 +191,7 @@ async def demo_comprehensive_dashboard():
 def main():
     """Main function to run the comprehensive dashboard demo."""
     try:
-        asyncio.run(demo_comprehensive_dashboard())
+        anyio.run(demo_comprehensive_dashboard)
     except KeyboardInterrupt:
         print("\n👋 Demo terminated by user")
     except Exception as e:

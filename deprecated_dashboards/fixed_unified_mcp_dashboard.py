@@ -6,7 +6,6 @@ Fixed Unified MCP Dashboard Server with Comprehensive Pin Management
 This server combines the MCP server functionality with a comprehensive pin management dashboard.
 """
 
-import asyncio
 import json
 import logging
 import os

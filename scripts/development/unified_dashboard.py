@@ -6,7 +6,7 @@ This dashboard integrates all features from the comprehensive dashboard
 with the modern light initialization + bucket VFS architecture.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import logging.handlers
@@ -236,7 +236,7 @@ class UnifiedDashboard:
         async def restart_service(service_name: str):
             # Add logic to restart the service here
             self.service_status_cache[service_name] = {"status": "restarting"}
-            await asyncio.sleep(2)  # Simulate restart
+            await anyio.sleep(2)  # Simulate restart
             self.service_status_cache[service_name] = {"status": "running"}
             return self.service_status_cache[service_name]
 

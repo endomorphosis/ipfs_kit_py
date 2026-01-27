@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-import asyncio
+import anyio
 
 from simplified_modern_bridge import SimplifiedModernBridge, create_result_dict, handle_error
 
@@ -491,5 +491,5 @@ if __name__ == "__main__":
             traceback.print_exc()
             return False
     
-    success = asyncio.run(test_comprehensive_mapper())
+    success = anyio.run(test_comprehensive_mapper)
     exit(0 if success else 1)

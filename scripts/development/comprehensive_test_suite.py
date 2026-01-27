@@ -21,7 +21,7 @@ Usage:
     python comprehensive_test_suite.py --component virtualenv
 """
 
-import asyncio
+import anyio
 import subprocess
 import sys
 import os
@@ -86,25 +86,47 @@ class ComprehensiveTestSuite:
         timestamp = datetime.now().strftime('%H:%M:%S')
         print(f"{Colors.YELLOW}[{timestamp}] ⚠️  {message}{Colors.END}")
 
+    async def _read_line(self, stream, buffer: bytearray, timeout: float) -> bytes:
+        """Read a single line from a byte stream with timeout."""
+        with anyio.fail_after(timeout):
+            while True:
+                newline_index = buffer.find(b"\n")
+                if newline_index != -1:
+                    line = bytes(buffer[:newline_index + 1])
+                    del buffer[:newline_index + 1]
+                    return line
+                chunk = await stream.receive(1024)
+                if not chunk:
+                    if buffer:
+                        line = bytes(buffer)
+                        buffer.clear()
+                        return line
+                    return b""
+                buffer.extend(chunk)
+
     async def run_command(self, cmd: List[str], cwd: Optional[Path] = None, timeout: int = 30, check_success: bool = True) -> Tuple[bool, str, str]:
         """Run a command and return success, stdout, stderr"""
         try:
             self.log_info(f"Running: {' '.join(cmd)}")
             
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
+            process = await anyio.open_process(
+                cmd,
                 cwd=cwd or self.project_root,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stdout=anyio.subprocess.PIPE,
+                stderr=anyio.subprocess.PIPE
             )
             
             try:
-                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+                with anyio.fail_after(timeout):
+                    stdout, stderr = await process.communicate()
                 success = process.returncode == 0 if check_success else True
                 return success, stdout.decode('utf-8'), stderr.decode('utf-8')
-            except asyncio.TimeoutError:
-                process.kill()
-                await process.wait()
+            except TimeoutError:
+                with contextlib.suppress(Exception):
+                    process.terminate()
+                with contextlib.suppress(Exception):
+                    with anyio.fail_after(5):
+                        await process.wait()
                 return False, "", f"Command timed out after {timeout} seconds"
                 
         except Exception as e:
@@ -868,21 +890,33 @@ class ComprehensiveTestSuite:
             # Launch MCP server in daemon mode with random port (port None)
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
-            proc = await asyncio.create_subprocess_exec(
-                sys.executable, "-u", "-m", "ipfs_kit_py.mcp_server.server", "--daemon", "--host", "127.0.0.1",
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, cwd=self.project_root, env=env
+            proc = await anyio.open_process(
+                [
+                    sys.executable,
+                    "-u",
+                    "-m",
+                    "ipfs_kit_py.mcp_server.server",
+                    "--daemon",
+                    "--host",
+                    "127.0.0.1",
+                ],
+                stdout=anyio.subprocess.PIPE,
+                stderr=anyio.subprocess.STDOUT,
+                cwd=self.project_root,
+                env=env,
             )
 
             port = None
             # Read lines until we see MCP_SERVER_PORT
             deadline = time.time() + 25
+            buffer = bytearray()
             while time.time() < deadline:
                 try:
-                    line = await asyncio.wait_for(proc.stdout.readline(), timeout=2)
-                except asyncio.TimeoutError:
+                    line = await self._read_line(proc.stdout, buffer, 2)
+                except TimeoutError:
                     continue
                 if not line:
-                    await asyncio.sleep(0.2)
+                    await anyio.sleep(0.2)
                     continue
                 text = line.decode(errors="ignore").strip()
                 if "MCP_SERVER_PORT:" in text:
@@ -898,7 +932,8 @@ class ComprehensiveTestSuite:
                 if proc and proc.returncode is None:
                     proc.terminate()
                     with contextlib.suppress(Exception):
-                        await asyncio.wait_for(proc.wait(), timeout=5)
+                        with anyio.fail_after(5):
+                            await proc.wait()
                 return False
 
             base = f"http://127.0.0.1:{port}"
@@ -912,7 +947,7 @@ class ComprehensiveTestSuite:
                             return True, resp.read().decode()
                     except Exception as e:
                         return False, str(e)
-                return await asyncio.to_thread(_do)
+                return await anyio.to_thread.run_sync(_do)
 
             async def fetch_retry(path: str, attempts: int = 8, delay: float = 0.5) -> Tuple[bool, str]:
                 last = (False, "")
@@ -920,7 +955,7 @@ class ComprehensiveTestSuite:
                     ok, body = await fetch(path)
                     if ok:
                         return ok, body
-                    await asyncio.sleep(delay)
+                    await anyio.sleep(delay)
                     # small backoff
                     delay = min(delay * 1.5, 2.0)
                     last = (ok, body)
@@ -947,7 +982,8 @@ class ComprehensiveTestSuite:
                 with contextlib.suppress(Exception):
                     proc.terminate()
                 with contextlib.suppress(Exception):
-                    await asyncio.wait_for(proc.wait(), timeout=5)
+                    with anyio.fail_after(5):
+                        await proc.wait()
 
     async def test_dashboard_proxy_baseurl(self) -> bool:
         """Verify dashboard’s MCP base URL derivation from JSON-RPC env var."""
@@ -977,19 +1013,31 @@ class ComprehensiveTestSuite:
         proc = None
         try:
             env = os.environ.copy(); env['PYTHONUNBUFFERED'] = '1'
-            proc = await asyncio.create_subprocess_exec(
-                sys.executable, '-u', '-m', 'ipfs_kit_py.mcp_server.server', '--daemon', '--host', '127.0.0.1',
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, cwd=self.project_root, env=env
+            proc = await anyio.open_process(
+                [
+                    sys.executable,
+                    '-u',
+                    '-m',
+                    'ipfs_kit_py.mcp_server.server',
+                    '--daemon',
+                    '--host',
+                    '127.0.0.1',
+                ],
+                stdout=anyio.subprocess.PIPE,
+                stderr=anyio.subprocess.STDOUT,
+                cwd=self.project_root,
+                env=env,
             )
             # Discover port
             port = None; deadline = time.time() + 20
+            buffer = bytearray()
             while time.time() < deadline:
                 try:
-                    line = await asyncio.wait_for(proc.stdout.readline(), timeout=2)
-                except asyncio.TimeoutError:
+                    line = await self._read_line(proc.stdout, buffer, 2)
+                except TimeoutError:
                     continue
                 if not line:
-                    await asyncio.sleep(0.1); continue
+                    await anyio.sleep(0.1); continue
                 text = line.decode(errors='ignore').strip()
                 if 'MCP_SERVER_PORT:' in text:
                     try:
@@ -1030,7 +1078,8 @@ class ComprehensiveTestSuite:
                 with contextlib.suppress(Exception):
                     proc.terminate()
                 with contextlib.suppress(Exception):
-                    await asyncio.wait_for(proc.wait(), timeout=5)
+                    with anyio.fail_after(5):
+                        await proc.wait()
 
     async def test_mcp_tools_endpoint_sanity(self) -> bool:
         """Ensure /api/tools returns a non-empty list with expected core tools."""
@@ -1039,18 +1088,30 @@ class ComprehensiveTestSuite:
         proc = None
         try:
             env = os.environ.copy(); env['PYTHONUNBUFFERED'] = '1'
-            proc = await asyncio.create_subprocess_exec(
-                sys.executable, '-u', '-m', 'ipfs_kit_py.mcp_server.server', '--daemon', '--host', '127.0.0.1',
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, cwd=self.project_root, env=env
+            proc = await anyio.open_process(
+                [
+                    sys.executable,
+                    '-u',
+                    '-m',
+                    'ipfs_kit_py.mcp_server.server',
+                    '--daemon',
+                    '--host',
+                    '127.0.0.1',
+                ],
+                stdout=anyio.subprocess.PIPE,
+                stderr=anyio.subprocess.STDOUT,
+                cwd=self.project_root,
+                env=env,
             )
             port = None; deadline = time.time() + 20
+            buffer = bytearray()
             while time.time() < deadline:
                 try:
-                    line = await asyncio.wait_for(proc.stdout.readline(), timeout=2)
-                except asyncio.TimeoutError:
+                    line = await self._read_line(proc.stdout, buffer, 2)
+                except TimeoutError:
                     continue
                 if not line:
-                    await asyncio.sleep(0.1); continue
+                    await anyio.sleep(0.1); continue
                 text = line.decode(errors='ignore').strip()
                 if 'MCP_SERVER_PORT:' in text:
                     try:
@@ -1079,7 +1140,8 @@ class ComprehensiveTestSuite:
                 with contextlib.suppress(Exception):
                     proc.terminate()
                 with contextlib.suppress(Exception):
-                    await asyncio.wait_for(proc.wait(), timeout=5)
+                    with anyio.fail_after(5):
+                        await proc.wait()
 
     def generate_report(self) -> str:
         """Generate a comprehensive test report"""
@@ -1192,5 +1254,5 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

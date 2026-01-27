@@ -59,7 +59,7 @@ RUN pip install \
     pytest-rerunfailures \
     pytest-sugar \
     pytest-clarity \
-    pytest-asyncio \
+    pytest-anyio \
     pytest-memray \
     hypothesis \
     factory-boy \

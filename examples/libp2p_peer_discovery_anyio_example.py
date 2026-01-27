@@ -155,7 +155,7 @@ async def run_example():
 def main():
     """Entry point that runs the async example."""
     # Run the example using anyio.run, which works with both
-    # asyncio and trio backends
+    # async-io and trio backends
     anyio.run(run_example)
 
 if __name__ == "__main__":

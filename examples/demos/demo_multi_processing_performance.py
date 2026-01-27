@@ -12,7 +12,7 @@ enhanced IPFS Kit architecture:
 5. Throughput comparisons vs single-threaded operations
 """
 
-import asyncio
+import anyio
 import json
 import multiprocessing as mp
 import time
@@ -323,8 +323,17 @@ class MultiProcessingDemo:
                             return False
                     
                     # Execute concurrent requests
-                    tasks = [make_request() for _ in range(concurrency)]
-                    request_results = await asyncio.gather(*tasks, return_exceptions=True)
+                    request_results = []
+
+                    async def _run_request():
+                        try:
+                            request_results.append(await make_request())
+                        except Exception as exc:
+                            request_results.append(exc)
+
+                    async with anyio.create_task_group() as tg:
+                        for _ in range(concurrency):
+                            tg.start_soon(_run_request)
                     
                     total_time = time.time() - start_time
                     successful_requests = sum(1 for r in request_results if r is True)
@@ -615,4 +624,4 @@ if __name__ == "__main__":
     print("⚡ Make sure the daemon is running: python multi_process_launcher.py daemon")
     print("=" * 80)
     
-    asyncio.run(main())
+    anyio.run(main)

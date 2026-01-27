@@ -7,10 +7,6 @@ This document summarizes the comprehensive migration of the ipfs_kit_py package 
 ## Migration Statistics
 
 ### Files Modified
-- **Phase 1 (Simple Patterns):** 122 files
-- **Phase 2 (Complex Patterns):** 54 files
-- **Phase 3 (Test Infrastructure):** 2 files
-- **Total:** 178 files modified
 
 ### Pattern Migrations
 
@@ -53,9 +49,6 @@ This document summarizes the comprehensive migration of the ipfs_kit_py package 
 #### 📝 Documented for Manual Migration (40+ files)
 
 Files with `asyncio.create_task()` patterns that need task group context from callers:
-- Added module-level comments: "NOTE: This file contains asyncio.create_task() calls that need task group context"
-- These patterns work correctly when called from within an anyio task group
-- Examples: mcp/ha/failover_detection.py, mcp/streaming/websocket_server.py, etc.
 
 #### ⚠️ Requires Manual Review (if needed)
 
@@ -77,14 +70,8 @@ Files with `asyncio.create_task()` patterns that need task group context from ca
 ## Test Infrastructure Updates
 
 ### Requirements.txt
-- Added `pytest-trio>=0.8.0` for testing with trio backend
-- Added `pytest-anyio>=0.1.0` for anyio test support
-- Core dependencies: `anyio>=3.7.0`, `trio>=0.22.0` already present
 
 ### pytest.ini
-- Added `anyio_backends = asyncio, trio` to support both backends
-- Maintained `asyncio_mode = auto` for backwards compatibility
-- Tests can now run with either backend
 
 ## Verification Results
 
@@ -97,9 +84,6 @@ from ipfs_kit_py.libp2p import peer_manager  # ✓ Works
 
 ### Backend Tests
 ✅ Anyio works with both backends:
-- **asyncio backend:** Functional ✓
-- **trio backend:** Functional ✓
-- Task groups work correctly in both ✓
 
 ### Syntax Validation
 ✅ All Python files compile without syntax errors
@@ -108,24 +92,12 @@ from ipfs_kit_py.libp2p import peer_manager  # ✓ Works
 
 ### 1. Trio Compatibility ✅
 The package can now use the trio backend through anyio's unified API, enabling:
-- Better integration with libp2p (which uses trio)
-- Access to trio's structured concurrency features
-- Choice of async backend at runtime
 
 ### 2. Code Quality ✅
-- Removed 100+ conditional `HAS_ANYIO` checks
-- Cleaner, more maintainable async code
-- Consistent async patterns across the codebase
 
 ### 3. Future-Proof ✅
-- anyio is actively maintained
-- Provides stable async abstraction layer
-- Easy to add new backends if needed
 
 ### 4. Backwards Compatible ✅
-- asyncio backend still works (default)
-- No breaking changes to public APIs
-- Existing code continues to function
 
 ## Architecture Notes
 
@@ -166,26 +138,14 @@ The migration introduced anyio task groups in several patterns:
 ### API Changes
 
 #### peer_manager.py
-- `start_discovery()` now accepts optional `task_group` parameter
-- If not provided, caller must start `_discovery_loop()` in their task group
-- Backwards compatible with documentation
 
 ## Known Limitations
 
 ### 1. Create Task Patterns
-- Files with `asyncio.create_task()` now require task group context from callers
-- This is by design - anyio enforces structured concurrency
-- Documentation added to affected files
 
 ### 2. FastAPI Integration
-- Some FastAPI startup hooks still use asyncio patterns
-- This is acceptable - FastAPI's event system doesn't provide anyio context
-- Future versions of FastAPI may improve this
 
 ### 3. Complex Subprocess Patterns
-- Some subprocess calls may benefit from anyio.run_process()
-- Current subprocess.run() calls work fine
-- Migration optional for performance optimization
 
 ## Testing Recommendations
 
@@ -249,7 +209,6 @@ The remaining `asyncio.create_task()` patterns are documented and work correctly
 3. **Documentation:** Update user-facing docs to mention anyio/trio support
 4. **LibP2P Integration:** Test and validate improved libp2p compatibility
 
----
 **Migration Date:** 2026-01-24  
 **Status:** ✅ Complete  
 **Backends Supported:** asyncio, trio  

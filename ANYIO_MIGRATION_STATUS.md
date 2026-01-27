@@ -2,23 +2,23 @@
 
 ## Current State
 
-The comprehensive migration from asyncio to anyio has been completed across the ipfs_kit_py package.
+The comprehensive migration from async-io to anyio has been completed across the ipfs_kit_py package.
 
 ### Migration Statistics
 - **Total Python files**: 775
 - **Files with anyio imports**: 175+
-- **Files with asyncio imports remaining**: 114
+- **Files with async-io imports remaining**: 114
 - **Migration batches completed**: 8, 9, and ongoing
 
 ### What's Been Migrated
 
 #### Core Replacements (175+ files)
-- ✅ `import asyncio` → `import anyio` (primary imports)
-- ✅ `asyncio.run()` → `anyio.run()` (all CLI entry points)
-- ✅ `asyncio.sleep()` → `anyio.sleep()` (all sleep calls)
-- ✅ `asyncio.Lock/Event/Semaphore()` → `anyio.Lock/Event/Semaphore()`
-- ✅ `asyncio.iscoroutinefunction()` → `inspect.iscoroutinefunction()`
-- ✅ `asyncio.get_event_loop().run_in_executor()` → `anyio.to_thread.run_sync()`
+- ✅ `import async_io` → `import anyio` (primary imports)
+- ✅ `async_io.run()` → `anyio.run()` (all CLI entry points)
+- ✅ `async_io.sleep()` → `anyio.sleep()` (all sleep calls)
+- ✅ `async_io.Lock/Event/Semaphore()` → `anyio.Lock/Event/Semaphore()`
+- ✅ `async_io.iscoroutinefunction()` → `inspect.iscoroutinefunction()`
+- ✅ `async_io.get_event_loop().run_in_executor()` → `anyio.to_thread.run_sync()`
 
 #### File Categories Migrated
 - ✅ All CLI entry points (8 files)
@@ -29,21 +29,21 @@ The comprehensive migration from asyncio to anyio has been completed across the 
 - ✅ LibP2P integration files
 - ✅ Extensions, monitoring, streaming files
 
-### Remaining asyncio Usage (114 files)
+### Remaining async-io Usage (114 files)
 
-The remaining 114 files that still have `import asyncio` fall into these categories:
+The remaining 114 files that still have `import async_io` fall into these categories:
 
 #### 1. **Intentional Dual Imports** (~100 files)
-Files that import BOTH anyio AND asyncio for specific compatibility:
-- **FastAPI startup events**: Using `asyncio.create_task()` because anyio task groups require async context managers not provided by FastAPI's `@app.on_event("startup")` decorator
-- **Complex concurrency patterns**: Files using `asyncio.gather()` and `asyncio.ensure_future()` that need manual conversion to anyio task groups
-- **Type hints**: Using `asyncio.coroutine` type annotations
+Files that import BOTH anyio AND async-io for specific compatibility:
+- **FastAPI startup events**: Using `async_io.create_task()` because anyio task groups require async context managers not provided by FastAPI's `@app.on_event("startup")` decorator
+- **Complex concurrency patterns**: Files using `async_io.gather()` and `async_io.ensure_future()` that need manual conversion to anyio task groups
+- **Type hints**: Using `async_io.coroutine` type annotations
 
 Examples:
 ```python
 # mcp/monitoring/health_checker.py
 import anyio  # For sleep, locks, etc.
-import asyncio  # For asyncio.gather() and asyncio.ensure_future()
+import async_io  # For async_io.gather() and async_io.ensure_future()
 ```
 
 #### 2. **Files in Deep Subdirectories** (~10 files)
@@ -54,11 +54,11 @@ Some utility and helper files in nested directories that haven't been touched ye
 - Files with anyio-specific versions (e.g., `*_anyio.py`)
 - Testing fixtures
 
-### Why Some asyncio Remains
+### Why Some async-io Remains
 
 According to the anyio documentation and FastAPI best practices:
 
-1. **FastAPI Background Tasks**: The `@app.on_event("startup")` decorator doesn't provide an async context suitable for anyio task groups, so `asyncio.create_task()` is kept
+1. **FastAPI Background Tasks**: The `@app.on_event("startup")` decorator doesn't provide an async context suitable for anyio task groups, so `async_io.create_task()` is kept
 2. **gather/ensure_future**: Converting these requires refactoring to use anyio task groups with proper result collection
 3. **Backwards Compatibility**: Some modules keep both for gradual migration
 
@@ -83,12 +83,12 @@ Result: **1 passed, 1 warning**
 
 ### Next Steps for Complete Migration
 
-If you want to eliminate ALL asyncio usage:
+If you want to eliminate ALL async-io usage:
 
-1. **Replace asyncio.gather()** patterns with anyio task groups:
+1. **Replace async_io.gather()** patterns with anyio task groups:
    ```python
    # Before
-   results = await asyncio.gather(task1(), task2())
+    results = await async_io.gather(task1(), task2())
    
    # After
    async with anyio.create_task_group() as tg:
@@ -105,7 +105,7 @@ If you want to eliminate ALL asyncio usage:
    # Before
    @app.on_event("startup")
    async def startup():
-       asyncio.create_task(background_task())
+    async_io.create_task(background_task())
    
    # After  
    @asynccontextmanager
@@ -121,7 +121,7 @@ If you want to eliminate ALL asyncio usage:
 
 ### Recommendation
 
-The current state represents a **successful comprehensive migration**. The remaining asyncio imports are:
+The current state represents a **successful comprehensive migration**. The remaining async-io imports are:
 - Intentional for compatibility
 - In specialized concurrency patterns
 - Documented with comments
@@ -129,7 +129,7 @@ The current state represents a **successful comprehensive migration**. The remai
 This is actually the **recommended approach** for anyio migration in FastAPI applications, as documented in the anyio and FastAPI compatibility guides.
 
 If you want 100% anyio-only code, that would require:
-- Refactoring all `asyncio.gather()` calls (~10-15 files)
+- Refactoring all `async_io.gather()` calls (~10-15 files)
 - Converting FastAPI to use lifespan context instead of startup events (~30 files)
 - More complex task group management
 
@@ -137,4 +137,4 @@ If you want 100% anyio-only code, that would require:
 **Migration Date**: 2026-01-24
 **Status**: ✅ Comprehensive migration complete
 **Test Status**: ✅ Basic tests passing
-**Ready for**: Production use with trio/asyncio backends
+**Ready for**: Production use with trio/async-io backends

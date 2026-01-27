@@ -8,7 +8,7 @@ Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
 """
 
 import pytest
-import asyncio
+import anyio
 from unittest.mock import patch, MagicMock, AsyncMock
 import time
 from datetime import datetime, timedelta
@@ -188,7 +188,7 @@ async def security_analyzer(mock_audit_logger):
         yield analyzer
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_check_login_attempts(security_analyzer, mock_audit_logger):
     """Test detection of brute force login attempts."""
     # Process logs to check for suspicious login attempts
@@ -205,7 +205,7 @@ async def test_check_login_attempts(security_analyzer, mock_audit_logger):
     assert activity.details["failed_attempts"] == 6
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_permission_denials(security_analyzer, mock_audit_logger):
     """Test detection of multiple permission denials."""
     # Clear any existing suspicious activities
@@ -224,7 +224,7 @@ async def test_permission_denials(security_analyzer, mock_audit_logger):
     assert len(activity.event_ids) == 7  # Should have 7 denial events
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_backend_access_denials(security_analyzer, mock_audit_logger):
     """Test detection of backend access denials."""
     # Clear any existing suspicious activities
@@ -244,7 +244,7 @@ async def test_backend_access_denials(security_analyzer, mock_audit_logger):
         assert "backend_" in activity.details["backend"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_security_metrics(security_analyzer, mock_audit_logger):
     """Test generation of security metrics."""
     # Clear any existing suspicious activities
@@ -275,7 +275,7 @@ async def test_security_metrics(security_analyzer, mock_audit_logger):
     assert metrics.new_users == 1  # One OAuth user marked as new
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_security_report(security_analyzer, mock_audit_logger):
     """Test generation of security report."""
     # Generate a security report
@@ -297,7 +297,7 @@ async def test_security_report(security_analyzer, mock_audit_logger):
     assert len(report.user_statistics) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_suspicious_activity_filtering(security_analyzer):
     """Test filtering of suspicious activities."""
     # Clear existing activities

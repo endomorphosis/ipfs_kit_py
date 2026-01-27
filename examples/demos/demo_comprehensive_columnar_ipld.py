@@ -16,7 +16,7 @@ Features demonstrated:
 - Peer distribution via IPFS CIDs and Parquet files
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -90,12 +90,18 @@ def timeout(seconds=30):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             try:
-                return await asyncio.wait_for(func(*args, **kwargs), timeout=seconds)
-            except asyncio.TimeoutError:
+                with anyio.fail_after(seconds):
+                    return await func(*args, **kwargs)
+            except TimeoutError:
                 logger.error(f"Function {func.__name__} timed out after {seconds} seconds")
                 raise TimeoutError(f"{func.__name__} timed out after {seconds} seconds")
         return wrapper
     return decorator
+
+
+async def wait_for(awaitable, timeout: float):
+    with anyio.fail_after(timeout):
+        return await awaitable
 
 
 def safe_async(error_return=None):
@@ -497,7 +503,7 @@ class ColumnarIPLDDemo:
         # Store datasets in columnar format
         for dataset in sample_datasets:
             try:
-                result = await asyncio.wait_for(
+                result = await wait_for(
                     self.vfs_api.create_dataset(dataset), 
                     timeout=10
                 )
@@ -509,7 +515,7 @@ class ColumnarIPLDDemo:
         
         # Demonstrate conversion to CAR archive
         try:
-            conversion_result = await asyncio.wait_for(
+            conversion_result = await wait_for(
                 self.vfs_api.convert_dataset_to_car({
                     "dataset_id": "dataset_001",
                     "include_metadata": True
@@ -524,7 +530,7 @@ class ColumnarIPLDDemo:
         
         # List all datasets
         try:
-            datasets_list = await asyncio.wait_for(
+            datasets_list = await wait_for(
                 self.vfs_api.list_datasets(),
                 timeout=10
             )
@@ -571,7 +577,7 @@ class ColumnarIPLDDemo:
         # Store vectors in columnar format
         for vector_data in sample_vectors:
             try:
-                result = await asyncio.wait_for(
+                result = await wait_for(
                     self.vector_api.add_vector(vector_data),
                     timeout=10
                 )
@@ -583,7 +589,7 @@ class ColumnarIPLDDemo:
         
         # Demonstrate vector search
         try:
-            search_result = await asyncio.wait_for(
+            search_result = await wait_for(
                 self.vector_api.search_vectors({
                     "query_vector": [0.2, 0.3, 0.4, 0.5, 0.6],
                     "collection": "documents",
@@ -599,7 +605,7 @@ class ColumnarIPLDDemo:
         
         # Export to CAR archive
         try:
-            export_result = await asyncio.wait_for(
+            export_result = await wait_for(
                 self.vector_api.export_vector_indices_to_car(),
                 timeout=15
             )
@@ -659,7 +665,7 @@ class ColumnarIPLDDemo:
         # Store entities and relationships
         for entity in sample_entities:
             try:
-                result = await asyncio.wait_for(
+                result = await wait_for(
                     self.kg_api.create_entity(entity),
                     timeout=10
                 )
@@ -671,7 +677,7 @@ class ColumnarIPLDDemo:
         
         for relationship in sample_relationships:
             try:
-                result = await asyncio.wait_for(
+                result = await wait_for(
                     self.kg_api.create_relationship(relationship),
                     timeout=10
                 )
@@ -683,7 +689,7 @@ class ColumnarIPLDDemo:
         
         # Search knowledge graph
         try:
-            search_result = await asyncio.wait_for(
+            search_result = await wait_for(
                 self.kg_api.search_knowledge_graph({
                     "query": "Arctic temperature",
                     "search_type": "entity",
@@ -699,7 +705,7 @@ class ColumnarIPLDDemo:
         
         # Export to CAR archive
         try:
-            export_result = await asyncio.wait_for(
+            export_result = await wait_for(
                 self.kg_api.export_knowledge_graph_to_car(),
                 timeout=15
             )
@@ -746,7 +752,7 @@ class ColumnarIPLDDemo:
         # Add pins to management system
         for pin_data in sample_pins:
             try:
-                result = await asyncio.wait_for(
+                result = await wait_for(
                     self.pinset_api.add_pin(pin_data),
                     timeout=10
                 )
@@ -758,7 +764,7 @@ class ColumnarIPLDDemo:
         
         # List storage backends
         try:
-            backends_result = await asyncio.wait_for(
+            backends_result = await wait_for(
                 self.pinset_api.list_storage_backends(),
                 timeout=10
             )
@@ -770,7 +776,7 @@ class ColumnarIPLDDemo:
         
         # List all pins
         try:
-            pins_result = await asyncio.wait_for(
+            pins_result = await wait_for(
                 self.pinset_api.list_pins(),
                 timeout=10
             )
@@ -782,7 +788,7 @@ class ColumnarIPLDDemo:
         
         # Export pinset to CAR archive
         try:
-            export_result = await asyncio.wait_for(
+            export_result = await wait_for(
                 self.pinset_api.export_pinset_to_car({
                     "include_metadata": True,
                     "include_backend_info": True
@@ -829,11 +835,9 @@ class ColumnarIPLDDemo:
         
         # Convert parquet to CAR archive
         try:
-            # Create a task to run the sync method in a thread pool
-            loop = asyncio.get_event_loop()
-            car_result = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
+            # Run the sync method in a thread pool
+            car_result = await wait_for(
+                anyio.to_thread.run_sync(
                     lambda: self.car_bridge.convert_parquet_to_car(
                         parquet_path=str(parquet_path),
                         car_path=str(self.demo_data_dir / "demo_metadata.car"),
@@ -848,7 +852,7 @@ class ColumnarIPLDDemo:
             
             # Convert CAR archive back to parquet
             if car_result.get('success') and car_result.get('car_path'):
-                parquet_result = await asyncio.wait_for(
+                parquet_result = await wait_for(
                     loop.run_in_executor(
                         None,
                         lambda: self.car_bridge.convert_car_to_parquet(
@@ -877,7 +881,7 @@ class ColumnarIPLDDemo:
         
         # Get summary data from all components
         try:
-            summary_data = await asyncio.wait_for(
+            summary_data = await wait_for(
                 self.frontend.get_dashboard_summary(),
                 timeout=15
             )
@@ -897,7 +901,7 @@ class ColumnarIPLDDemo:
         
         for test_name, test_func in api_tests:
             try:
-                status_result = await asyncio.wait_for(test_func(), timeout=10)
+                status_result = await wait_for(test_func(), timeout=10)
                 logger.info(f"{test_name}: {status_result}")
                 results.append({
                     'test': test_name,
@@ -1142,7 +1146,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        anyio.run(main)
     except KeyboardInterrupt:
         print("\nDemo interrupted by user")
         sys.exit(130)

@@ -6,7 +6,7 @@ This script demonstrates how to use the resource tracking system to monitor
 bandwidth and storage consumption across remote filesystem backends.
 """
 
-import asyncio
+import anyio
 import time
 import random
 from pathlib import Path
@@ -90,7 +90,7 @@ async def demo_basic_tracking():
             )
         
         # Small delay to spread operations over time
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
     
     print("\n✅ Simulated operations completed!")
 
@@ -111,7 +111,7 @@ async def demo_context_manager():
             op_tracker.add_api_call({"file": f"bulk_file_{i}.dat", "size": file_size})
             
             print(f"    📤 Uploaded file_{i}.dat ({file_size / (1024*1024):.1f} MB)")
-            await asyncio.sleep(0.05)
+            await anyio.sleep(0.05)
         
         # Get operation summary
         summary = op_tracker.get_summary()
@@ -121,14 +121,14 @@ async def demo_context_manager():
 async def simulated_upload_function(data: bytes, filename: str):
     """Example function with upload tracking decorator."""
     print(f"  🔄 Uploading {filename} ({len(data)} bytes)...")
-    await asyncio.sleep(0.1)  # Simulate upload time
+    await anyio.sleep(0.1)  # Simulate upload time
     return {"status": "success", "size": len(data), "filename": filename}
 
 @track_api('demo_backend', BackendType.S3) 
 async def simulated_api_function(endpoint: str):
     """Example function with API call tracking decorator."""
     print(f"  🔧 Making API call to {endpoint}...")
-    await asyncio.sleep(0.05)  # Simulate API call time
+    await anyio.sleep(0.05)  # Simulate API call time
     return {"status": "success", "endpoint": endpoint}
 
 async def demo_decorators():
@@ -245,4 +245,4 @@ async def main():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

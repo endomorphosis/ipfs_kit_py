@@ -7,7 +7,7 @@ IPFS-Kit architecture with performance comparisons between single-threaded
 and multiprocessing approaches.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import multiprocessing as mp
@@ -401,4 +401,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

@@ -13,7 +13,6 @@ This test suite validates the integration of:
 Tests are designed to be run iteratively to ensure each feature works correctly.
 """
 
-import asyncio
 import json
 import requests
 import sys

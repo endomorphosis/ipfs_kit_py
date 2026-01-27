@@ -2,7 +2,7 @@
 """
 Final comprehensive test of the restored MCP dashboard functionality
 """
-import asyncio
+import anyio
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -117,7 +117,7 @@ async def test_complete_functionality():
 
 def main():
     """Run the comprehensive test"""
-    success = asyncio.run(test_complete_functionality())
+    success = anyio.run(test_complete_functionality)
     
     if success:
         print("\n🎉 ALL TESTS PASSED - MCP DASHBOARD FULLY RESTORED!")

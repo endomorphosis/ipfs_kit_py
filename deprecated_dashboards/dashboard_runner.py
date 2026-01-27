@@ -9,7 +9,7 @@ from the ipfs_kit_py package.
 import os
 import sys
 import argparse
-import asyncio
+import anyio
 import logging
 import uvicorn
 from pathlib import Path
@@ -89,9 +89,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        if sys.platform == 'win32':
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        asyncio.run(main())
+        anyio.run(main)
     except KeyboardInterrupt:
         logger.info("Dashboard server stopped by user")
     except Exception as e:

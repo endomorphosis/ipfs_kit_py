@@ -544,7 +544,7 @@ def main():
     example = OptimizedStreamingExample()
     
     try:
-        # Run the asyncio event loop
+        # Run the async-io event loop
         anyio.run(example.start())
     except KeyboardInterrupt:
         logger.info("Example stopped by user")

@@ -12,7 +12,7 @@ Key Features Demonstrated:
 - Integration with VFS Manager and CLI
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -396,4 +396,4 @@ async def main():
     print("\n🏁 Demonstration complete!")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

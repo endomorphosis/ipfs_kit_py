@@ -1886,7 +1886,7 @@ class MCPIntegratedDashboard:
                 logs = await self._get_logs_data(limit=10)
                 for log_entry in logs.get("logs", []):
                     yield f"data: {json.dumps(log_entry)}\n\n"
-                await asyncio.sleep(2)
+                await anyio.sleep(2)
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
     

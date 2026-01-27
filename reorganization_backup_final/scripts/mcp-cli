@@ -14,7 +14,6 @@ import yaml
 import logging
 import argparse
 import requests
-import asyncio
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 

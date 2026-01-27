@@ -6,7 +6,7 @@ This script shows the performance benefits of multi-processing
 without requiring a running daemon.
 """
 
-import asyncio
+import anyio
 import concurrent.futures
 import multiprocessing as mp
 import time
@@ -37,7 +37,7 @@ def io_simulation_task(delay):
 
 async def async_task(delay):
     """Simulate async I/O work."""
-    await asyncio.sleep(delay)
+    await anyio.sleep(delay)
     return f"Async task completed after {delay}s"
 
 class MultiProcessingDemo:
@@ -311,9 +311,8 @@ class MultiProcessingDemo:
         
         start_time = time.time()
         
-        # Create all async tasks
-        tasks = [async_task(async_delay) for _ in range(num_tasks)]
-        
+        results = []
+
         if console:
             with Progress(
                 TextColumn("[progress.description]{task.description}"),
@@ -323,15 +322,22 @@ class MultiProcessingDemo:
                 console=console
             ) as progress:
                 progress_task = progress.add_task("Async operations...", total=num_tasks)
-                
-                # Execute all tasks concurrently
-                results = []
-                for coro in asyncio.as_completed(tasks):
-                    result = await coro
+
+                async def _run_task():
+                    result = await async_task(async_delay)
                     results.append(result)
                     progress.update(progress_task, advance=1)
+
+                async with anyio.create_task_group() as tg:
+                    for _ in range(num_tasks):
+                        tg.start_soon(_run_task)
         else:
-            results = await asyncio.gather(*tasks)
+            async def _run_task():
+                results.append(await async_task(async_delay))
+
+            async with anyio.create_task_group() as tg:
+                for _ in range(num_tasks):
+                    tg.start_soon(_run_task)
             print(f"  All {num_tasks} async tasks completed")
         
         async_time = time.time() - start_time
@@ -463,4 +469,4 @@ if __name__ == "__main__":
     print("📊 This will show performance improvements without requiring a daemon")
     print("=" * 80)
     
-    asyncio.run(main())
+    anyio.run(main)

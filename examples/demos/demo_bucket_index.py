@@ -6,7 +6,7 @@ This demonstrates the new bucket index functionality that allows quick discovery
 of virtual filesystems in ~/.ipfs_kit/ similar to how the pin index works.
 """
 
-import asyncio
+import anyio
 import logging
 import tempfile
 from pathlib import Path
@@ -186,4 +186,4 @@ async def main():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

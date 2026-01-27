@@ -3,7 +3,7 @@
 Screenshot Tool for MCP Dashboard
 Takes screenshots of the MCP services interface to verify functionality.
 """
-import asyncio
+import anyio
 import time
 import sys
 import os
@@ -132,4 +132,4 @@ if __name__ == "__main__":
         sys.exit(1)
     
     # Run screenshot capture
-    asyncio.run(take_dashboard_screenshots())
+    anyio.run(take_dashboard_screenshots)

@@ -14,7 +14,6 @@ Features:
 - Avoid duplicating existing dashboard functionality
 """
 
-import asyncio
 import json
 import logging
 import os

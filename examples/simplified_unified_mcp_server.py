@@ -9,7 +9,7 @@ comprehensive observability and dashboard functionality.
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import traceback
 import os
@@ -1213,7 +1213,7 @@ class SimplifiedUnifiedMCPServer:
         self.monitoring_active = True
         
         # Start periodic health checks
-        asyncio.create_task(self._periodic_health_check())
+        anyio.lowlevel.spawn_system_task(self._periodic_health_check)
         
         logger.info("✓ Background monitoring started")
     
@@ -1222,7 +1222,7 @@ class SimplifiedUnifiedMCPServer:
         
         while self.monitoring_active:
             try:
-                await asyncio.sleep(60)  # Check every minute
+                await anyio.sleep(60)  # Check every minute
                 
                 # Update performance metrics
                 self._update_performance_metrics()
@@ -1322,7 +1322,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        anyio.run(main)
     except KeyboardInterrupt:
         logger.info("👋 Goodbye!")
     except Exception as e:

@@ -13,7 +13,7 @@ Usage:
     python demo_enhanced_backend_sync.py
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -387,5 +387,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
+    success = anyio.run(main)
     exit(0 if success else 1)

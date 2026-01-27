@@ -6,7 +6,6 @@ This script demonstrates the new pin download and streaming capabilities
 added to the IPFS-Kit CLI system.
 """
 
-import asyncio
 import subprocess
 import tempfile
 import sys

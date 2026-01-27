@@ -13,7 +13,7 @@ filesystems using IPFS content addressing. Features include:
 6. Integration with bucket VFS system
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -494,5 +494,5 @@ async def main():
 
 if __name__ == "__main__":
     import sys
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)
