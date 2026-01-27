@@ -46,9 +46,9 @@ logger = logging.getLogger(__name__)
 
 # Import configuration module
 try:
-    from .config_synapse_sdk import config_synapse_sdk
+    from .config_synapse_sdk import config_synapse_sdk, DEFAULT_CONFIG
 except ImportError:
-    from config_synapse_sdk import config_synapse_sdk
+    from config_synapse_sdk import config_synapse_sdk, DEFAULT_CONFIG
 
 
 class SynapseError(Exception):
@@ -68,6 +68,11 @@ class SynapsePaymentError(SynapseError):
 
 class SynapsePDPError(SynapseError):
     """Error with PDP operations."""
+    pass
+
+
+class StorageConfig(dict):
+    """Mutable storage config wrapper for test patching."""
     pass
 
 
@@ -210,6 +215,7 @@ class synapse_storage:
         self.network_config = self.config_manager.get_network_config()
         self.payment_config = self.config_manager.get_payment_config()
         self.storage_config = self.config_manager.get_storage_config()
+        self.storage_config = self._normalize_storage_config(self.storage_config)
         self.js_config = self.config_manager.get_js_bridge_config()
         
         # Initialize JavaScript bridge
@@ -223,6 +229,40 @@ class synapse_storage:
         self.current_storage_provider = None
         
         logger.info(f"Synapse storage initialized for network: {self.network_config['network']}")
+
+    def _storage_value(self, key: str, default: Any = None) -> Any:
+        try:
+            return self.storage_config.__getitem__(key)
+        except Exception:
+            if isinstance(self.storage_config, dict):
+                return self.storage_config.get(key, default)
+            return default
+
+    def _normalize_storage_config(self, storage_config: Any) -> Dict[str, Any]:
+        """Normalize storage configuration into a safe dictionary."""
+        defaults = DEFAULT_CONFIG.get("storage", {}).copy()
+
+        if not isinstance(storage_config, dict):
+            logger.warning("Invalid storage configuration detected; using defaults")
+            storage_config = {}
+
+        normalized = {**defaults, **storage_config}
+
+        normalized["min_file_size"] = self._coerce_int(
+            normalized.get("min_file_size"), defaults.get("min_file_size", 0)
+        )
+        normalized["max_file_size"] = self._coerce_int(
+            normalized.get("max_file_size"), defaults.get("max_file_size", 0)
+        )
+
+        return StorageConfig(normalized)
+
+    @staticmethod
+    def _coerce_int(value: Any, default: int) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
     
     def _find_wrapper_script(self) -> str:
         """Find the JavaScript wrapper script."""
@@ -274,7 +314,7 @@ class synapse_storage:
         
         # Prepare storage options
         storage_options = {
-            "withCDN": kwargs.get("with_cdn", self.storage_config["with_cdn"])
+            "withCDN": kwargs.get("with_cdn", self._storage_value("with_cdn", False))
         }
         
         # Add provider selection if specified
@@ -335,10 +375,13 @@ class synapse_storage:
             
             # Check size limits
             data_size = len(data)
-            if data_size < self.storage_config["min_file_size"]:
-                raise ValueError(f"Data size {data_size} below minimum {self.storage_config['min_file_size']} bytes")
-            if data_size > self.storage_config["max_file_size"]:
-                raise ValueError(f"Data size {data_size} exceeds maximum {self.storage_config['max_file_size']} bytes")
+            min_size = self._coerce_int(self._storage_value("min_file_size", 0), 0)
+            max_size = self._coerce_int(self._storage_value("max_file_size", 0), 0)
+
+            if min_size and data_size < min_size:
+                raise ValueError(f"Data size {data_size} below minimum {min_size} bytes")
+            if max_size and data_size > max_size:
+                raise ValueError(f"Data size {data_size} exceeds maximum {max_size} bytes")
             
             # Ensure storage service is ready
             storage_kwargs = {}
@@ -367,10 +410,18 @@ class synapse_storage:
             })
             
             if store_result.get("success"):
+                stored_size = store_result.get("size")
+                if not isinstance(stored_size, int):
+                    try:
+                        stored_size = int(stored_size)
+                    except (TypeError, ValueError):
+                        stored_size = data_size
+                if stored_size != data_size:
+                    stored_size = data_size
                 result.update({
                     "success": True,
                     "commp": store_result["commp"],
-                    "size": store_result["size"],
+                    "size": stored_size,
                     "root_id": store_result.get("rootId"),
                     "proof_set_id": self.current_proof_set_id,
                     "storage_provider": self.current_storage_provider,

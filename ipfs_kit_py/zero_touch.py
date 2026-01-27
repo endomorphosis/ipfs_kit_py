@@ -15,6 +15,7 @@ import argparse
 import os
 import platform
 import sys
+import subprocess
 from pathlib import Path
 
 
@@ -39,6 +40,25 @@ def _package_bin_dir() -> Path:
 def _prepend_path(path: Path) -> None:
     current = os.environ.get("PATH", "")
     os.environ["PATH"] = f"{path}{os.pathsep}{current}" if current else str(path)
+
+
+def _install_python_deps(level: str) -> None:
+    if level == "none":
+        return
+
+    requirements = Path(__file__).resolve().parents[1] / "requirements.txt"
+    if not requirements.exists():
+        raise RuntimeError(f"Requirements file not found: {requirements}")
+
+    print(f"📦 Installing Python dependencies ({level}) from {requirements}...")
+    subprocess.check_call([
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        str(requirements),
+    ])
 
 
 def install_all_binaries(*, include_cluster: bool = True, include_lassie: bool = True, include_lotus: bool = True) -> None:
@@ -109,11 +129,19 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("IPFS_KIT_ZERO_TOUCH_BINARIES", "full"),
         help="Which set of external binaries to install (default: full)",
     )
+    parser.add_argument(
+        "--python-deps",
+        choices=["none", "runtime", "tests"],
+        default=os.environ.get("IPFS_KIT_ZERO_TOUCH_PY_DEPS", "runtime"),
+        help="Install Python dependencies (default: runtime)",
+    )
     args = parser.parse_args(argv)
 
     include_cluster = args.binaries == "full"
     include_lassie = args.binaries == "full"
     include_lotus = args.binaries == "full"
+
+    _install_python_deps(args.python_deps)
 
     install_all_binaries(
         include_cluster=include_cluster,

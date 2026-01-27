@@ -53,7 +53,7 @@ DEFAULT_CONFIG = {
         "with_cdn": False,
         "default_replication": 1,
         "max_file_size": 209715200,  # 200 MiB
-        "min_file_size": 65
+        "min_file_size": 16
     },
     "providers": {
         "preferred": [],

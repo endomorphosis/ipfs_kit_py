@@ -13,6 +13,7 @@ allowing tests to import `ipfs_kit_py` in editable/installed environments.
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import os
 import signal
 import sys
@@ -54,7 +55,7 @@ def _sanitize_sys_path() -> None:
 
 _sanitize_sys_path()
 
-if os.name == "nt" and os.environ.get("IPFS_KIT_TEST_IGNORE_SIGINT", "1") == "1":
+if os.environ.get("IPFS_KIT_TEST_IGNORE_SIGINT", "1") == "1":
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
@@ -62,6 +63,20 @@ def pytest_collectstart(collector):  # noqa: ANN001
     # Re-sanitize during collection because some test modules mutate sys.path
     # at import time.
     _sanitize_sys_path()
+
+
+def pytest_collection_modifyitems(config, items):  # noqa: ANN001
+    for item in items:
+        func = getattr(item, "function", None)
+        if func is None or not inspect.iscoroutinefunction(func):
+            continue
+        if item.get_closest_marker("anyio"):
+            continue
+        if item.get_closest_marker("asyncio"):
+            continue
+        if item.get_closest_marker("trio"):
+            continue
+        item.add_marker(pytest.mark.anyio)
 
 
 def pytest_runtest_setup(item):  # noqa: ANN001

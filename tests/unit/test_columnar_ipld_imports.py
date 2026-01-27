@@ -19,7 +19,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def test_import(module_name, import_statement):
+def _try_import(module_name, import_statement):
     """Test importing a specific module with error handling."""
     try:
         exec(import_statement)
@@ -51,7 +51,7 @@ def main():
     total_tests = len(tests)
     
     for module_name, import_statement in tests:
-        if test_import(module_name, import_statement):
+        if _try_import(module_name, import_statement):
             success_count += 1
     
     logger.info("=" * 50)
@@ -111,3 +111,8 @@ def main():
 if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)
+
+
+def test_columnar_ipld_imports():
+    """Pytest entrypoint for columnar IPLD import checks."""
+    assert main()

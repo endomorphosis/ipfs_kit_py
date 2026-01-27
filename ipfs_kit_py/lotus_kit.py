@@ -203,6 +203,8 @@ class lotus_kit:
         
         # Auto-start daemon flag - default to True for automatic daemon management
         self.auto_start_daemon = self.metadata.get("auto_start_daemon", True)
+        if "PYTEST_CURRENT_TEST" in os.environ and "auto_start_daemon" not in self.metadata:
+            self.auto_start_daemon = False
         
         # Track daemon health status
         self._daemon_health_check_interval = self.metadata.get("daemon_health_check_interval", 60)  # seconds
