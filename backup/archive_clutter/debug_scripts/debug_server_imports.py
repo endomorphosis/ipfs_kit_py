@@ -24,7 +24,7 @@ def test_import_line_by_line():
         import os
         import json
         import logging
-        import asyncio
+        import anyio
         import signal
         import argparse
         import traceback

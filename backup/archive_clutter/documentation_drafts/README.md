@@ -943,7 +943,7 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 kit = ipfs_kit(
     role="leecher",
     metadata={
-        "async_backend": "asyncio",  # Use asyncio backend (alternative: 'trio')
+        "async_backend": "async-io",  # Use async-io backend (alternative: 'trio')
         "num_workers": 4             # Number of worker threads
     }
 )
@@ -997,7 +997,7 @@ api = IPFSSimpleAPI(
     config_path="config.yaml",  # Optional: Load from YAML/JSON config
     role="worker",              # Override config settings
     timeouts={"api": 30},       # Custom timeout settings
-    async_backend="asyncio"     # Use asyncio backend (alternative: 'trio')
+    async_backend="async-io"     # Use async-io backend (alternative: 'trio')
 )
 
 # Content operations
@@ -1183,7 +1183,7 @@ cache:
 
 # Async backend
 async:
-  backend: asyncio  # or "trio" - selects which AnyIO backend to use
+    backend: async-io  # or "trio" - selects which AnyIO backend to use
   num_workers: 4    # Number of worker threads for background tasks
 
 # Timeouts
@@ -1238,7 +1238,7 @@ from ipfs_kit_py.api import run_server
 #     log_level="info",           # Logging level
 #     auth_enabled=True,          # Enable authentication
 #     cors_origins=["*"],         # CORS allowed origins
-#     async_backend="asyncio"     # Async backend (asyncio or trio)
+#     async_backend="async-io"     # Async backend (async-io or trio)
 # )
 ```
 

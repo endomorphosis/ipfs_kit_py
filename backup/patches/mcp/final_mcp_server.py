@@ -20,7 +20,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import signal
 import argparse
 import traceback
@@ -46,8 +46,8 @@ __version__ = "1.0.0"
 # Global state
 PORT = 3000  # Default to port 3000 as recommended
 server_initialized = False
-initialization_lock = asyncio.Lock()
-initialization_event = asyncio.Event()
+initialization_lock = anyio.Lock()
+initialization_event = anyio.Event()
 
 # Tool registries - will be populated during startup
 registered_tools = {}

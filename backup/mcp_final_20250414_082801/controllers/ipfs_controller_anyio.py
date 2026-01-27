@@ -2074,7 +2074,7 @@ class IPFSControllerAnyIO:
             return Response(content=test_content, media_type="text/plain", headers=headers)
 
         try:
-            # Use anyio.move_on_after for timeout handling instead of asyncio timeout
+            # Use anyio.move_on_after for timeout handling instead of async-io timeout
             async with anyio.move_on_after(30):  # 30 second timeout
                 # Check if the model's get_content method is async
                 if hasattr(self.ipfs_model.get_content, "__await__"):

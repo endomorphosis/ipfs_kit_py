@@ -28,9 +28,9 @@ echo "Python 3 found: $(python3 --version)"
 
 # Check for required Python modules
 echo "Checking for required Python modules..."
-python3 -c "import asyncio, aiohttp, fastapi, uvicorn" 2>/dev/null || {
+python3 -c "import anyio, aiohttp, fastapi, uvicorn" 2>/dev/null || {
     echo "Installing required Python modules..."
-    pip install asyncio aiohttp fastapi uvicorn
+    pip install anyio aiohttp fastapi uvicorn
 }
 
 # Verify all IPFS tools are available
@@ -51,7 +51,7 @@ echo "Starting MCP server with IPFS integration..."
 python3 -c "
 import os
 import sys
-import asyncio
+import anyio
 
 # Add current directory to path
 sys.path.append(os.getcwd())
@@ -76,7 +76,7 @@ async def start_server():
     print('Server started!')
 
 # Run the server
-asyncio.run(start_server())
+anyio.run(start_server)
 " > logs/mcp_server.log 2>&1 &
 
 MCP_PID=$!

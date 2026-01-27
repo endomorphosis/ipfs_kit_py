@@ -4,7 +4,7 @@ Alerting system for the MCP server.
 This module provides alerting capabilities for monitoring MCP services.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -137,6 +137,7 @@ class AlertingService:
         self.notification_task = None
         self.rule_load_task = None
         self.channel_load_task = None
+        self._task_group = None
 
         # Configuration and state data paths
         self.rules_file = "/tmp/ipfs_kit/mcp/alerting/rules.json"
@@ -157,8 +158,10 @@ class AlertingService:
         await self.load_alerts()
 
         # Start background tasks
-        self.evaluation_task = asyncio.create_task(self._evaluate_rules_loop())
-        self.notification_task = asyncio.create_task(self._process_notifications_loop())
+        self._task_group = anyio.create_task_group()
+        await self._task_group.__aenter__()
+        self._task_group.start_soon(self._evaluate_rules_loop)
+        self._task_group.start_soon(self._process_notifications_loop)
 
         logger.info("Alerting service started")
 
@@ -167,19 +170,10 @@ class AlertingService:
         logger.info("Stopping alerting service")
 
         # Cancel background tasks
-        if self.evaluation_task:
-            self.evaluation_task.cancel()
-            try:
-                await self.evaluation_task
-            except asyncio.CancelledError:
-                pass
-
-        if self.notification_task:
-            self.notification_task.cancel()
-            try:
-                await self.notification_task
-            except asyncio.CancelledError:
-                pass
+        if self._task_group:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
 
         # Save current state
         await self.save_alerts()
@@ -296,7 +290,7 @@ class AlertingService:
                 logger.error(f"Error evaluating alert rules: {e}")
 
             # Sleep for 30 seconds before next evaluation
-            await asyncio.sleep(30)
+            await anyio.sleep(30)
 
     async def _evaluate_rules(self):
         """Evaluate all enabled alert rules."""
@@ -528,7 +522,7 @@ class AlertingService:
             await self.save_alerts()
 
             # Sleep for 10 seconds before next iteration
-            await asyncio.sleep(10)
+            await anyio.sleep(10)
 
     async def _send_alert_notifications(self, alert: AlertInstance):
         """

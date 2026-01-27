@@ -133,7 +133,7 @@ This module provides alerting capabilities for monitoring MCP services.
 import os
 import logging
 import time
-import asyncio
+import anyio
 import json
 import smtplib
 from email.mime.text import MIMEText

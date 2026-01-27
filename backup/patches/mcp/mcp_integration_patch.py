@@ -244,7 +244,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import requests
 
 # Configure logging
@@ -329,7 +329,7 @@ async def main():
     return 0
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)
 """)
 
         # Make the script executable

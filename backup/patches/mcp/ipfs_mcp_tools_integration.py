@@ -11,7 +11,7 @@ import sys
 import json
 import base64
 import logging
-import asyncio
+import anyio
 import tempfile
 from typing import Dict, List, Any, Optional, Union, BinaryIO
 

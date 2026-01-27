@@ -204,7 +204,7 @@ fi
 echo "Fixing storage_manager_anyio.py..."
 # Add missing import for run_async
 sed -i '/<function_calls>/,/run_async/''{
-  s/asyncio.create_task(run_async())/# Define run_async function first\n                async def run_async():\n                    """Run the async refresh operation."""\n                    try:\n                        await self.refresh_backend_info_async(backend_name)\n                    except Exception as e:\n                        logger.error(f"Error refreshing backend info: {e}")\n                asyncio.create_task(run_async())/
+    s/anyio.create_task_group()/# Define run_async function first\n                async def run_async():\n                    """Run the async refresh operation."""\n                    try:\n                        await self.refresh_backend_info_async(backend_name)\n                    except Exception as e:\n                        logger.error(f"Error refreshing backend info: {e}")\n                anyio.lowlevel.spawn_system_task(run_async)/
 }' ipfs_kit_py/mcp/models/storage_manager_anyio.py
 
 # Fix 6: Add missing imports

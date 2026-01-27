@@ -30,7 +30,7 @@ IPFS Controller for the MCP Server.
 This controller handles IPFS-related operations and requests.
 """
 
-import asyncio
+import anyio
 import logging
 from typing import Dict, Any, Optional, List
 
@@ -202,7 +202,7 @@ LibP2P Controller for the MCP Server.
 This controller handles LibP2P-related operations and requests.
 """
 
-import asyncio
+import anyio
 import logging
 from typing import Dict, Any, Optional, List
 
@@ -359,7 +359,7 @@ This controller handles storage-related operations and requests, including
 management of different storage backends.
 """
 
-import asyncio
+import anyio
 import logging
 from typing import Dict, Any, Optional, List
 

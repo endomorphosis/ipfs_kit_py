@@ -206,7 +206,7 @@ sed -i '1s/^/from fastapi import APIRouter, WebSocket\nfrom typing import Option
 
 # Fix undefined names in storage_manager_anyio.py
 echo "- Fixing storage_manager_anyio.py..."
-sed -i '/asyncio.create_task(run_async())/i\
+sed -i '/anyio.create_task_group()/i\
                 # Define run_async function\
                 async def run_async():\
                     """Run the async refresh operation."""\

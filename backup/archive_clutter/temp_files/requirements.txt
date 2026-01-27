@@ -53,7 +53,7 @@ matplotlib>=3.5.0
 
 # Testing dependencies - use [dev] extra for these
 # pytest>=7.0.0
-# pytest-asyncio>=0.21.0 # Added for async tests
+# pytest-anyio>=0.21.0 # Added for async tests
 # pytest-cov>=4.1.0
 # black>=23.3.0
 # isort>=5.12.0
