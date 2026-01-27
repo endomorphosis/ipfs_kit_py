@@ -132,8 +132,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--python-deps",
         choices=["none", "runtime", "tests"],
-        default=os.environ.get("IPFS_KIT_ZERO_TOUCH_PY_DEPS", "runtime"),
-        help="Install Python dependencies (default: runtime)",
+        default=os.environ.get("IPFS_KIT_ZERO_TOUCH_PY_DEPS", "tests"),
+        help="Install Python dependencies (default: tests)",
     )
     args = parser.parse_args(argv)
 
