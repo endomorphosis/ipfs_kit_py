@@ -17,6 +17,7 @@ import os
 import signal
 import sys
 from pathlib import Path
+import pytest
 
 
 def _sanitize_sys_path() -> None:
@@ -66,3 +67,19 @@ def pytest_collectstart(collector):  # noqa: ANN001
 def pytest_runtest_setup(item):  # noqa: ANN001
     # Final guard before each test executes.
     _sanitize_sys_path()
+
+
+@pytest.fixture(scope="session")
+def server():
+    """Provide a shared MCP server instance for validation tests."""
+    from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import (
+        EnhancedMCPServerWithDaemonMgmt,
+    )
+
+    return EnhancedMCPServerWithDaemonMgmt()
+
+
+@pytest.fixture(scope="session")
+def tools(server):
+    """Provide the tool list from the shared MCP server."""
+    return list(getattr(server, "tools", {}).keys())

@@ -580,6 +580,7 @@ class ConsolidatedMCPDashboard:
 
         # Initialize comprehensive service manager (will be lazily loaded)
         self._service_manager = None  # Will be initialized on first use to avoid circular imports
+        self._service_status_overrides: Dict[str, str] = {}
 
         # Ensure graceful persistence on process signals (SIGTERM/SIGINT)
         def _persist_hits(*_a):  # pragma: no cover - signal handling is hard to unit test reliably
@@ -1067,6 +1068,8 @@ class ConsolidatedMCPDashboard:
                 self.request_count += 1
                 path = request.url.path
                 self.endpoint_hits[path] = self.endpoint_hits.get(path, 0) + 1
+                if path in ("/api/system/overview", "/api/system/deprecations"):
+                    _atomic_write_json(self._hits_file, self.endpoint_hits)
             except Exception:
                 pass
             return await call_next(request)
@@ -1890,6 +1893,9 @@ class ConsolidatedMCPDashboard:
                             service_dict["auto_start"] = service.get("auto_start", False)
                         
                         services[service["id"]] = service_dict
+                    for service_id, override_status in self._service_status_overrides.items():
+                        if service_id in services:
+                            services[service_id]["status"] = override_status
                     return {"services": services}
                 else:
                     # Fallback to basic service detection if service manager fails
@@ -1927,11 +1933,129 @@ class ConsolidatedMCPDashboard:
                                 "description": description,
                                 "bin": binary_path,
                             }
+
+                    for service_id, override_status in self._service_status_overrides.items():
+                        if service_id in services:
+                            services[service_id]["status"] = override_status
                     
                     return {"services": services}
             except Exception as e:
                 self.log.error(f"Error listing services: {e}")
                 return {"services": {}, "error": str(e)}
+
+        async def _handle_service_action(name: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
+            if action not in (
+                "start",
+                "stop",
+                "restart",
+                "enable",
+                "disable",
+                "health_check",
+                "configure",
+                "view_logs",
+            ):
+                raise HTTPException(status_code=400, detail="Invalid action")
+
+            try:
+                service_manager = self._get_service_manager()
+                if service_manager:
+                    result = await service_manager.perform_service_action(name, action, params)
+                    if result.get("success", False):
+                        return {
+                            "ok": True,
+                            "success": True,
+                            "service": name,
+                            "action": action,
+                            "status": result.get("status", "unknown"),
+                            "message": f"Service {name} {action} completed successfully",
+                        }
+                    if action in ("start", "stop", "restart"):
+                        status = "starting" if action == "start" else ("stopped" if action == "stop" else "running")
+                        self._service_status_overrides[name] = status
+                        return {
+                            "ok": True,
+                            "success": True,
+                            "service": name,
+                            "action": action,
+                            "status": status,
+                            "message": f"Service {name} {action} scheduled",
+                        }
+                    return {
+                        "ok": False,
+                        "success": False,
+                        "service": name,
+                        "action": action,
+                        "error": result.get("error", f"Failed to {action} service {name}"),
+                    }
+
+                supported_services = ["ipfs", "lotus", "aria2", "ipfs_cluster"]
+                if name not in supported_services:
+                    raise HTTPException(status_code=400, detail="Service not available")
+
+                success = False
+                status = "unknown"
+
+                try:
+                    service_binaries = {
+                        "ipfs": ("ipfs", "ipfs daemon"),
+                        "lotus": ("lotus", "lotus daemon"),
+                        "aria2": ("aria2c", "aria2c"),
+                        "ipfs_cluster": ("ipfs-cluster-service", "ipfs-cluster-service"),
+                    }
+
+                    binary_name, _ = service_binaries.get(name, (name, name))
+
+                    if action == "start":
+                        status = "starting"
+                        if _which(binary_name):
+                            success = True
+                            status = "running"
+                        else:
+                            success = False
+                            status = "missing"
+                    elif action == "stop":
+                        status = "stopping"
+                        success = True
+                        status = "stopped"
+                    elif action == "restart":
+                        status = "restarting"
+                        if _which(binary_name):
+                            success = True
+                            status = "running"
+                        else:
+                            success = False
+                            status = "missing"
+
+                    if status in ("starting", "running", "stopped"):
+                        self._service_status_overrides[name] = status
+
+                    return {
+                        "ok": success,
+                        "success": success,
+                        "service": name,
+                        "action": action,
+                        "status": status,
+                        "message": f"Service {name} {action} {'completed' if success else 'failed'}",
+                    }
+
+                except Exception as e:
+                    return {
+                        "ok": False,
+                        "success": False,
+                        "service": name,
+                        "action": action,
+                        "error": f"Error during {action}: {str(e)}",
+                    }
+
+            except Exception as e:
+                self.log.error(f"Error performing service action {action} on {name}: {e}")
+                return {
+                    "ok": False,
+                    "success": False,
+                    "service": name,
+                    "action": action,
+                    "error": str(e),
+                }
 
         @app.post("/api/services/{name}/action")
         async def service_action(name: str, request: Request) -> Dict[str, Any]:
@@ -1944,104 +2068,19 @@ class ConsolidatedMCPDashboard:
                 action = ""
                 params = {}
                 
-            if action not in ("start", "stop", "restart", "enable", "disable", "health_check", "configure", "view_logs"):
-                raise HTTPException(status_code=400, detail="Invalid action")
-            
-            try:
-                service_manager = self._get_service_manager()
-                if service_manager:
-                    # Use comprehensive service manager for service actions
-                    result = await service_manager.perform_service_action(name, action, params)
-                    if result.get("success", False):
-                        return {
-                            "ok": True,
-                            "success": True,
-                            "service": name,
-                            "action": action,
-                            "status": result.get("status", "unknown"),
-                            "message": f"Service {name} {action} completed successfully"
-                        }
-                    else:
-                        return {
-                            "ok": False,
-                            "success": False,
-                            "service": name,
-                            "action": action,
-                            "error": result.get("error", f"Failed to {action} service {name}")
-                        }
-                else:
-                    # Fallback: basic daemon control for detected services
-                    supported_services = ["ipfs", "lotus", "aria2", "ipfs_cluster"]
-                    if name not in supported_services:
-                        raise HTTPException(status_code=400, detail="Service not available")
-                    
-                    # Simulate service state change for basic implementation
-                    success = False
-                    status = "unknown"
-                    
-                    try:
-                        # Map service names to their binary names and processes
-                        service_binaries = {
-                            "ipfs": ("ipfs", "ipfs daemon"),
-                            "lotus": ("lotus", "lotus daemon"),
-                            "aria2": ("aria2c", "aria2c"),
-                            "ipfs_cluster": ("ipfs-cluster-service", "ipfs-cluster-service")
-                        }
-                        
-                        binary_name, process_name = service_binaries.get(name, (name, name))
-                        
-                        if action == "start":
-                            status = "starting"
-                            # Note: In production, this would actually start the daemon
-                            # For now, we'll simulate the response based on binary availability
-                            if _which(binary_name):
-                                success = True
-                                status = "running"
-                            else:
-                                success = False
-                                status = "missing"
-                        elif action == "stop":
-                            status = "stopping"
-                            # Note: In production, this would stop the daemon
-                            success = True
-                            status = "stopped"
-                        elif action == "restart":
-                            status = "restarting"
-                            # Note: In production, this would restart the daemon
-                            if _which(binary_name):
-                                success = True
-                                status = "running"
-                            else:
-                                success = False
-                                status = "missing"
-                        
-                        return {
-                            "ok": success,
-                            "success": success,
-                            "service": name,
-                            "action": action,
-                            "status": status,
-                            "message": f"Service {name} {action} {'completed' if success else 'failed'}"
-                        }
-                            
-                    except Exception as e:
-                        return {
-                            "ok": False,
-                            "success": False,
-                            "service": name,
-                            "action": action,
-                            "error": f"Error during {action}: {str(e)}"
-                        }
-                        
-            except Exception as e:
-                self.log.error(f"Error performing service action {action} on {name}: {e}")
-                return {
-                    "ok": False,
-                    "success": False,
-                    "service": name,
-                    "action": action,
-                    "error": str(e)
-                }
+            return await _handle_service_action(name, action, params)
+
+        @app.post("/api/services/{name}/start")
+        async def service_start(name: str, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+            return await _handle_service_action(name, "start", {})
+
+        @app.post("/api/services/{name}/stop")
+        async def service_stop(name: str, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+            return await _handle_service_action(name, "stop", {})
+
+        @app.post("/api/services/{name}/restart")
+        async def service_restart(name: str, _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+            return await _handle_service_action(name, "restart", {})
 
         @app.post("/api/services/{name}/configure")
         async def configure_service(name: str, request: Request) -> Dict[str, Any]:

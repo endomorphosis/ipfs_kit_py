@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
-class StorageBackendType(Enum):
+class StorageBackendType(str, Enum):
     """Enum for supported storage backend types."""
     IPFS = "ipfs"
     MOCK = "mock"

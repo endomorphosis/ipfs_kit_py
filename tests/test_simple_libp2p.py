@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+import pytest
 from pathlib import Path
 
 
@@ -49,7 +50,10 @@ def _import_external_libp2p():
                 sys.modules.pop("libp2p", None)
 
         importlib.invalidate_caches()
-        libp2p = importlib.import_module("libp2p")
+        try:
+            libp2p = importlib.import_module("libp2p")
+        except ModuleNotFoundError:
+            pytest.skip("External libp2p dependency not installed")
 
         libp2p_file = getattr(libp2p, "__file__", "") or ""
         local_shadow_dir = (local_pkg_dir / "libp2p").resolve()

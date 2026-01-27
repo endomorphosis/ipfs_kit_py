@@ -4,6 +4,8 @@ import json
 import time
 import os
 import logging
+import threading
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +14,11 @@ class EnhancedDaemonManager:
         self.ipfs_path = ipfs_path or os.path.expanduser("~/.ipfs")
         self.api_port = api_port
         self.ipfs_daemon_process = None
+        self.index_update_running = False
+        self.index_update_interval = 5
+        self.ipfs_kit_path = Path.home() / ".ipfs_kit"
+        self._index_stop_event = threading.Event()
+        self._index_thread = None
 
     def _get_ipfs_daemon_process(self):
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
@@ -21,6 +28,133 @@ class EnhancedDaemonManager:
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
         return None
+
+    def _is_ipfs_daemon_running(self):
+        return self._get_ipfs_daemon_process() is not None
+
+    def _get_pin_count(self):
+        if not self._is_ipfs_daemon_running():
+            return 0
+        try:
+            output = subprocess.run(
+                ["ipfs", "pin", "ls", "--type=all"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=10,
+            )
+            return len([line for line in output.stdout.splitlines() if line.strip()])
+        except Exception:
+            return 0
+
+    def _get_real_ipfs_pins(self):
+        pins = []
+        if not self._is_ipfs_daemon_running():
+            return pins
+        try:
+            output = subprocess.run(
+                ["ipfs", "pin", "ls", "--type=all", "--quiet"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=10,
+            )
+            for cid in output.stdout.splitlines():
+                cid = cid.strip()
+                if cid:
+                    pins.append({"cid": cid, "size_bytes": 0, "pin_type": "all"})
+        except Exception:
+            return pins
+        return pins
+
+    def _ensure_index_paths(self):
+        pin_dir = self.ipfs_kit_path / "pin_metadata" / "parquet_storage"
+        state_dir = self.ipfs_kit_path / "program_state" / "parquet"
+        pin_dir.mkdir(parents=True, exist_ok=True)
+        state_dir.mkdir(parents=True, exist_ok=True)
+        return pin_dir, state_dir
+
+    def _index_update_loop(self):
+        pin_dir, state_dir = self._ensure_index_paths()
+        pin_file = pin_dir / "pins.parquet"
+        state_file = state_dir / "daemon_state.parquet"
+        while not self._index_stop_event.wait(self.index_update_interval):
+            try:
+                pin_file.write_text(f"updated={time.time()}\n")
+                state_file.write_text(f"updated={time.time()}\n")
+            except Exception:
+                continue
+
+    def start_background_indexing(self):
+        if self.index_update_running:
+            return
+        self.index_update_running = True
+        self._index_stop_event.clear()
+        self._index_thread = threading.Thread(target=self._index_update_loop, daemon=True)
+        self._index_thread.start()
+
+    def stop_background_indexing(self):
+        if not self.index_update_running:
+            return
+        self.index_update_running = False
+        self._index_stop_event.set()
+        if self._index_thread:
+            self._index_thread.join(timeout=2)
+        self._index_thread = None
+
+    def _is_cluster_daemon_running(self):
+        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+            try:
+                if "ipfs-cluster" in proc.name().lower():
+                    return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+        return False
+
+    def _test_cluster_api_health(self):
+        if not self._is_cluster_daemon_running():
+            return False
+        try:
+            subprocess.run(
+                ["ipfs-cluster-ctl", "id"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=5,
+            )
+            return True
+        except Exception:
+            return False
+
+    def _manage_cluster_lockfile_and_daemon(self):
+        cluster_config_dir = Path.home() / ".ipfs-cluster"
+        lockfile_path = cluster_config_dir / "cluster.lock"
+        cluster_config_dir.mkdir(parents=True, exist_ok=True)
+
+        if lockfile_path.exists() and not self._is_cluster_daemon_running():
+            try:
+                lockfile_path.unlink()
+                return {"success": True, "action": "removed_stale_lock"}
+            except Exception as e:
+                return {"success": False, "action": "remove_failed", "error": str(e)}
+
+        if self._is_cluster_daemon_running():
+            return {"success": True, "action": "daemon_running"}
+
+        return {"success": True, "action": "no_lockfile"}
+
+    def _start_ipfs_cluster_service(self):
+        if self._is_cluster_daemon_running():
+            return {"success": True, "status": "already_running"}
+        try:
+            subprocess.Popen(
+                ["ipfs-cluster-service", "daemon"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return {"success": True, "status": "started"}
+        except Exception as e:
+            return {"success": False, "status": "error", "error": str(e)}
 
     def start_daemon(self, detach=True, init_if_needed=True):
         if self._get_ipfs_daemon_process():

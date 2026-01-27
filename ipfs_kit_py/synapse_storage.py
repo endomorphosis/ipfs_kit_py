@@ -185,6 +185,8 @@ class synapse_storage:
     This class provides high-level methods for interacting with Filecoin storage
     via the Synapse SDK, including automated payment management and PDP verification.
     """
+
+    JavaScriptBridge = JavaScriptBridge
     
     def __init__(self, resources: Optional[Dict[str, Any]] = None, metadata: Optional[Dict[str, Any]] = None):
         """
@@ -212,7 +214,7 @@ class synapse_storage:
         
         # Initialize JavaScript bridge
         wrapper_script = self._find_wrapper_script()
-        self.js_bridge = JavaScriptBridge(wrapper_script)
+        self.js_bridge = self.JavaScriptBridge(wrapper_script)
         
         # State tracking
         self.synapse_initialized = False

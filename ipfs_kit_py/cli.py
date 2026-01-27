@@ -282,12 +282,14 @@ class FastCLI:
             if os.name == "nt":
                 creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
                 start_new_session = False
+            repo_root = Path(__file__).resolve().parents[1]
+            env.setdefault("PYTHONPATH", str(repo_root))
             with open(log_file, "ab", buffering=0) as lf:
                 proc = subprocess.Popen(
                     cmd,
                     stdout=lf,
                     stderr=lf,
-                    cwd=server_file.parent,
+                    cwd=str(repo_root),
                     start_new_session=start_new_session,
                     creationflags=creationflags,
                     env=env,

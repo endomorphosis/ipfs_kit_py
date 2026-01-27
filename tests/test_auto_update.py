@@ -26,6 +26,8 @@ def run_script(env, repo_dir):
 def init_sample_repo(repo_dir: Path):
     # Initialize a git repo with a known_good branch and a commit
     subprocess.run(["git", "init"], cwd=repo_dir, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_dir, check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_dir, check=True)
     (repo_dir / "README.md").write_text("sample repo\n")
     subprocess.run(["git", "add", "README.md"], cwd=repo_dir, check=True)
     subprocess.run(["git", "commit", "-m", "initial commit"], cwd=repo_dir, check=True)
