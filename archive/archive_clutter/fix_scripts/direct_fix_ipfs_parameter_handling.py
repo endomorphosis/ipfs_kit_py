@@ -8,6 +8,7 @@ This script directly modifies the ipfs_tool_adapters.py file to improve paramete
 import os
 import logging
 import traceback
+import inspect
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("direct-fix")
@@ -208,7 +209,7 @@ def fix_final_mcp_server():
                     if direct_handler:
                         logger.info(f"Found direct handler for {tool_name}, trying that...")
                         try:
-                            if asyncio.iscoroutinefunction(direct_handler):
+                            if inspect.iscoroutinefunction(direct_handler):
                                 # Try with context object first
                                 result = await direct_handler(context_obj)
                                 return result
@@ -219,7 +220,7 @@ def fix_final_mcp_server():
                         except Exception as handler_e:
                             logger.error(f"Direct handler failed with {handler_e}, trying with arguments")
                             # Try with arguments dict instead
-                            if asyncio.iscoroutinefunction(direct_handler):
+                            if inspect.iscoroutinefunction(direct_handler):
                                 result = await direct_handler(arguments)
                                 return result
                             else:

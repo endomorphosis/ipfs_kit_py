@@ -580,7 +580,7 @@ Total tools discovered: 2538
 | `parse_arguments` | ⚠️ | Auto-discovered tool from fix_vscode_mcp_integrati | unknown | manage_mcp_server.py |
 | `restart_servers` | ⚠️ | Auto-discovered tool from fix_vscode_mcp_integrati | unknown | fix_vscode_mcp_integration.py |
 | `restart_vscode` | ⚠️ | Auto-discovered tool from fix_vscode_mcp_integrati | unknown | fix_vscode_mcp_integration.py |
-| `fix_asyncio_sleep` | ⚠️ | Auto-discovered tool from fix_asyncio_sleep.py | unknown | fix_asyncio_sleep.py |
+| `fix_async_io_sleep` | ⚠️ | Auto-discovered tool from fix_async_io_sleep.py | unknown | fix_async_io_sleep.py |
 | `endpoint` | ⚠️ | Auto-discovered tool from simple_mcp_server.py | unknown | simple_mcp_server.py |
 | `tool_endpoint` | ⚠️ | Auto-discovered tool from simple_mcp_server.py | unknown | simple_mcp_server.py |
 | `fix_direct_mcp_server` | ⚠️ | Auto-discovered tool from fix_mcp_ipfs_integration | unknown | fix_mcp_ipfs_integration.py |
@@ -1778,7 +1778,7 @@ Total tools discovered: 2538
 | `_recover_metadata_backup` | ⚠️ | Auto-discovered tool from cache_manager.py | unknown | cache_manager.py |
 | `_close_mmap_files` | ⚠️ | Auto-discovered tool from cache_manager.py | unknown | cache_manager.py |
 | `_start_cleanup_task` | ⚠️ | Auto-discovered tool from webrtc_controller.py | unknown | webrtc_controller.py |
-| `handle_asyncio_cancel` | ⚠️ | Auto-discovered tool from webrtc_controller.py | unknown | webrtc_controller.py |
+| `handle_async_io_cancel` | ⚠️ | Auto-discovered tool from webrtc_controller.py | unknown | webrtc_controller.py |
 | `get_resource_stats` | ⚠️ | Auto-discovered tool from webrtc_controller.py | unknown | webrtc_controller.py |
 | `__init___v2` | ⚠️ | Auto-discovered tool from cli_controller_anyio.py | unknown | integration.py |
 | `execute_command` | ⚠️ | Auto-discovered tool from cli_controller_anyio.py | unknown | cli_controller_anyio.py |
@@ -2994,7 +2994,7 @@ Total tools discovered: 2538
 | `parse_arguments` | Schema | Medium |
 | `restart_servers` | Schema | Medium |
 | `restart_vscode` | Schema | Medium |
-| `fix_asyncio_sleep` | Schema | Medium |
+| `fix_async_io_sleep` | Schema | Medium |
 | `endpoint` | Schema | Medium |
 | `tool_endpoint` | Schema | Medium |
 | `fix_direct_mcp_server` | Schema | Medium |
@@ -4253,7 +4253,7 @@ Total tools discovered: 2538
 | `_recover_metadata_backup` | Schema | Medium |
 | `_close_mmap_files` | Schema | Medium |
 | `_start_cleanup_task` | Schema | Medium |
-| `handle_asyncio_cancel` | Schema | Medium |
+| `handle_async_io_cancel` | Schema | Medium |
 | `get_resource_stats` | Schema | Medium |
 | `__init___v2` | Schema | Medium |
 | `execute_command` | Schema | Medium |

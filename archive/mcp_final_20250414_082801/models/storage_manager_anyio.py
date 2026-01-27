@@ -159,22 +159,15 @@ class StorageManagerAnyIO:
             logger.warning(
                 f"Storage Manager shutdown called synchronously in async context ({backend})"
 
-            if backend == "asyncio":
-                # For asyncio, we can use run_until_complete
+            if backend == "async-io":
+                # For async-io, use anyio.run from sync context
                 try:
-                    import asyncio
+                    import anyio
 
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        logger.warning(
-                            "Cannot use run_until_complete in a running loop, using manual shutdown"
-                        # Fall through to manual cleanup
-                    else:
-                        # We can use run_until_complete
-                        result = loop.run_until_complete(self.shutdown_async())
-                        return result
+                    result = anyio.run(self.shutdown_async)
+                    return result
                 except (RuntimeError, ImportError) as e:
-                    logger.error(f"Error running asyncio shutdown: {e}")
+                    logger.error(f"Error running async-io shutdown: {e}")
                     # Fall through to manual cleanup
             elif backend == "trio":
                 # For trio, we need a different approach
@@ -190,16 +183,15 @@ class StorageManagerAnyIO:
 
             # Define a helper function for async shutdown
             def run_async_in_background():
-                import asyncio
-
+                import anyio
                 async def _run_async():
                     try:
                         await self.shutdown_async()
                     except Exception as e:
                         logger.error(f"Error in async shutdown: {e}")
 
-                if backend == "asyncio":
-                    asyncio.create_task(_run_async())
+                if backend == "async-io":
+                    anyio.lowlevel.spawn_system_task(_run_async)
                 elif backend == "trio":
                     import trio
 

@@ -7,14 +7,14 @@ This directory contains fixes for event loop issues in the WebRTC implementation
 We provide three implementations, with increasing levels of functionality:
 
 1. **AnyIO Solution (Recommended for Basic Fix)**: 
-   - Uses AnyIO for better compatibility across different async backends (asyncio, trio, etc.)
+   - Uses AnyIO for better compatibility across different async backends (async-io, trio, etc.)
    - Better integration with FastAPI which uses Starlette (built on AnyIO)
    - Better context detection through sniffio
    - Files: `webrtc_anyio_fix.py`, `apply_webrtc_anyio_fixes.py`
 
-2. **Asyncio Solution**: 
-   - Uses native asyncio
-   - Simpler implementation if you only need asyncio support
+2. **Async-io Solution**: 
+   - Uses native async-io
+   - Simpler implementation if you only need async-io support
    - Files: `webrtc_event_loop_fix.py`, `apply_webrtc_fixes.py`
 
 3. **AnyIO + Monitoring Integration (Enhanced Solution)**: 
@@ -142,8 +142,8 @@ The AnyIO + Monitoring solution combines the best of both worlds:
 
 - `webrtc_anyio_fix.py`: AnyIO implementation of the basic fixes
 - `apply_webrtc_anyio_fixes.py`: Script to apply the AnyIO fixes
-- `webrtc_event_loop_fix.py`: Asyncio implementation of the basic fixes
-- `apply_webrtc_fixes.py`: Script to apply the asyncio fixes
+- `webrtc_event_loop_fix.py`: Async-io implementation of the basic fixes
+- `apply_webrtc_fixes.py`: Script to apply the async-io fixes
 - `webrtc_monitor.py`: WebRTC monitoring implementation
 - `webrtc_anyio_monitor_integration.py`: Integration of AnyIO fixes with monitoring
 - `requirements.txt`: Required dependencies

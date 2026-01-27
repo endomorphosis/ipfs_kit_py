@@ -36,11 +36,11 @@ def fix_undefined_imports(file_path):
             flags=re.DOTALL
         )
     
-    # Fix missing asyncio imports
-    if 'asyncio.iscoroutinefunction' in content and 'import asyncio' not in content:
+    # Fix missing async-io imports
+    if 'async_io.iscoroutinefunction' in content and 'import async_io' not in content:
         content = re.sub(
             r'(import .*?\n\n)',
-            r'\1import asyncio\n\n',
+            r'\1import async_io\n\n',
             content,
             count=1,
             flags=re.DOTALL
