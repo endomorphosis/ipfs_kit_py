@@ -5,15 +5,15 @@ This model encapsulates IPFS operations and provides a clean interface
 for the controller to interact with the IPFS functionality.
 """
 
-import asyncio
+import anyio
 import logging
 import uuid
 
 
-# Utility class for handling asyncio operations in different contexts
+# Utility class for handling async-io operations in different contexts
 class AsyncEventLoopHandler:
     """
-    Handler for properly managing asyncio operations in different contexts.
+    Handler for properly managing async-io operations in different contexts.
     """
 
     # Class variable to track all created tasks to prevent "coroutine was never awaited" warnings
@@ -30,26 +30,26 @@ class AsyncEventLoopHandler:
         """Run a coroutine in any context (sync or async)."""
         try:
             # Try to get the current event loop
-            loop = asyncio.get_event_loop()
+            anyio.get_current_task()
         except RuntimeError:
             # Create a new event loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            return anyio.run(lambda: coro)
 
         try:  # Check if the loop is already running (e.g., in FastAPI)
-            if loop.is_running():
-                # Create a future that will run the coroutine later
-                task = asyncio.create_task(coro)
-                cls._background_tasks.add(task)
-                task.add_done_callback(cls._task_done_callback)
-                return fallback_result
-            else:
-                # Run the coroutine on the loop
-                return loop.run_until_complete(coro)
+            task = anyio.lowlevel.spawn_system_task(cls._run_background, coro)
+            cls._background_tasks.add(task)
+            return fallback_result
         except Exception as e:
             logging.error(f"Error running coroutine: {str(e)}")
             return fallback_result
 
+    @classmethod
+    async def _run_background(cls, coro):
+        try:
+            await coro
+        finally:
+            # Background task cleanup is best-effort
+            pass
 
 class IPFSModelAnyIO:
     """

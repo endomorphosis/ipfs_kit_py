@@ -20,7 +20,7 @@ import argparse
 import time
 import uuid
 import json
-import asyncio
+import anyio
 import traceback
 import shutil
 import py_compile  # Added import for Python file syntax checking
@@ -241,7 +241,7 @@ async def api_sse():
                 }
                 counter += 1
                 yield f"data: {json.dumps(event_data)}\n\n"
-                await asyncio.sleep(5)  # Send health update every 5 seconds
+                await anyio.sleep(5)  # Send health update every 5 seconds
         except Exception as e:
             logger.error(f"Error in SSE stream: {e}")
             logger.error(traceback.format_exc())
@@ -272,7 +272,7 @@ async def sse_test():
         """Generate test server-sent events."""
         for i in range(5):
             yield f"data: {json.dumps({'count': i, 'timestamp': time.time()})}\n\n"
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
     
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

@@ -26,7 +26,7 @@ import json
 import time
 import base64
 import os
-import asyncio
+import anyio
 import uvicorn
 
 # Create FastAPI app

@@ -6,7 +6,7 @@ Ultra-fast CLI that uses standalone JIT imports for sub-second response times.
 No heavy dependencies loaded for fast operations.
 """
 
-import asyncio
+import anyio
 import argparse
 import json
 import sys
@@ -154,7 +154,7 @@ class UltraFastCLI:
                     start_new_session=True
                 )
                 
-                await asyncio.sleep(2)
+                await anyio.sleep(2)
                 if await self._check_daemon_running():
                     print("✅ Daemon started successfully")
                     return 0
@@ -194,7 +194,7 @@ class UltraFastCLI:
                 for _ in range(10):
                     try:
                         os.kill(pid, 0)
-                        await asyncio.sleep(1)
+                        await anyio.sleep(1)
                     except ProcessLookupError:
                         break
                 
@@ -514,5 +514,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

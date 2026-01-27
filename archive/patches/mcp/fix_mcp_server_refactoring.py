@@ -31,7 +31,7 @@ This module provides the ability to perform blue-green deployments of the MCP se
 allowing seamless updates with zero downtime.
 """
 
-import asyncio
+import anyio
 import logging
 import os
 import signal
@@ -373,11 +373,9 @@ SERVER_ADD = '''
     def graceful_shutdown(self) -> None:
         """Perform a graceful shutdown of the server."""
         try:
-            loop = asyncio.get_event_loop()
             if self.running:
-                # Run the stop method in the event loop
-                stop_task = loop.create_task(self.stop())
-                loop.run_until_complete(stop_task)
+                # Run the stop method in an AnyIO event loop
+                anyio.run(self.stop)
                 logger.info("Server gracefully shut down")
             else:
                 logger.info("Server was not running, no shutdown needed")

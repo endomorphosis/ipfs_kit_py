@@ -14,7 +14,7 @@ import sys
 import json
 import time
 import logging
-import asyncio
+import anyio
 import importlib
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -532,10 +532,8 @@ from huggingface_hub import HfApi, HfFolder"""
             # Note: HF API doesn't have async methods, so we use run_in_executor
             api = HfApi(token=token)
             
-            # Run in executor to avoid blocking
-            loop = asyncio.get_event_loop()
-            upload_result = await loop.run_in_executor(
-                None,
+            # Run in thread to avoid blocking
+            upload_result = await anyio.to_thread.run_sync(
                 lambda: api.upload_file(
                     path_or_fileobj=content_bytes,
                     path_in_repo=path_in_repo,
@@ -635,7 +633,7 @@ import sys
 import logging
 import time
 import uuid
-import asyncio
+import anyio
 from fastapi import FastAPI, APIRouter
 
 import uvicorn

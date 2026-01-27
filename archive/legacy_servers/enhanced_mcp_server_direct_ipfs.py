@@ -15,7 +15,7 @@ Key features:
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import traceback
 import os
@@ -188,15 +188,14 @@ class DirectIPFSInterface:
             full_cmd = ['ipfs'] + cmd_args
             logger.info(f"Running IPFS command: {' '.join(full_cmd)}")
             
-            process = await asyncio.create_subprocess_exec(
-                *full_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            process = await anyio.open_process(
+                full_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
-            
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=timeout
-            )
+
+            with anyio.fail_after(timeout):
+                stdout, stderr = await process.communicate()
             
             if process.returncode == 0:
                 stdout_text = stdout.decode('utf-8').strip()
@@ -212,7 +211,7 @@ class DirectIPFSInterface:
                 logger.warning(f"IPFS command failed: {error_text}")
                 return {"success": False, "error": error_text}
                 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {"success": False, "error": f"Command timed out after {timeout}s"}
         except Exception as e:
             logger.error(f"Error running IPFS command: {e}")
@@ -704,7 +703,7 @@ async def main():
         while True:
             try:
                 # Read JSON-RPC message from stdin
-                line = await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
+                line = await anyio.to_thread.run_sync(sys.stdin.readline)
                 if not line:
                     break
                 
@@ -798,7 +797,7 @@ async def handle_message(server: EnhancedMCPServerDirect, message: Dict[str, Any
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        anyio.run(main)
     except KeyboardInterrupt:
         logger.info("Server shutting down...")
     except Exception as e:

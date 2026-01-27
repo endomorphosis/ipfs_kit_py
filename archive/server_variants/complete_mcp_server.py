@@ -8,7 +8,7 @@ import sys
 import json
 import uuid
 import logging
-import asyncio
+import anyio
 import argparse
 import tempfile
 import time
@@ -181,9 +181,9 @@ async def mcp_endpoint(request: Request) -> StreamingResponse:
         
         while True:
             try:
-                await asyncio.sleep(30)
+                await anyio.sleep(30)
                 yield f"event: heartbeat\ndata: {json.dumps({'timestamp': datetime.now().isoformat()})}\n\n"
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 logger.info(f"Connection closed for client {client_id}")
                 break
     

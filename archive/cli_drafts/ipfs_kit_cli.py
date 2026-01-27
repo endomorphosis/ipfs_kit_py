@@ -19,7 +19,7 @@ Usage:
 """
 
 import argparse
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -422,4 +422,4 @@ Examples:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

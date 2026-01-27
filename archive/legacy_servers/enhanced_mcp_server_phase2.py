@@ -22,7 +22,7 @@ Total tools: 26 (17 Phase 1 + 9 Phase 2)
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import traceback
 import hashlib
@@ -82,15 +82,14 @@ class IPFSInterface:
             full_cmd = ['ipfs'] + cmd_args
             logger.info(f"Running IPFS command: {' '.join(full_cmd)}")
             
-            process = await asyncio.create_subprocess_exec(
-                *full_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            process = await anyio.open_process(
+                full_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
-            
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=timeout
-            )
+
+            with anyio.fail_after(timeout):
+                stdout, stderr = await process.communicate()
             
             if process.returncode == 0:
                 stdout_text = stdout.decode('utf-8').strip()
@@ -105,7 +104,7 @@ class IPFSInterface:
                 error_text = stderr.decode('utf-8').strip()
                 return {"success": False, "error": error_text}
                 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {"success": False, "error": f"Command timed out after {timeout}s"}
         except Exception as e:
             return {"success": False, "error": str(e)}

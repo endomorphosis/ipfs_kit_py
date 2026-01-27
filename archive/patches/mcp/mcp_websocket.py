@@ -8,7 +8,7 @@ notifications, events, and content updates to clients.
 import os
 import json
 import time
-import asyncio
+import anyio
 import logging
 import uuid
 from typing import Dict, Any, List, Set, Optional, Callable, Union, Awaitable

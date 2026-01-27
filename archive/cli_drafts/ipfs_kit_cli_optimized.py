@@ -5,7 +5,7 @@ IPFS-Kit Enhanced CLI Tool - Optimized Version
 A comprehensive command-line interface with Just-in-Time imports for fast response times.
 """
 
-import asyncio
+import anyio
 import argparse
 import json
 import sys
@@ -230,7 +230,7 @@ class IPFSKitCLI:
                 )
                 
                 # Wait a moment and check if it started
-                await asyncio.sleep(2)
+                await anyio.sleep(2)
                 if await self._check_daemon_running():
                     print("✅ Daemon started successfully")
                     return 0
@@ -268,7 +268,7 @@ class IPFSKitCLI:
                 for _ in range(10):
                     try:
                         os.kill(pid, 0)  # Check if process exists
-                        await asyncio.sleep(1)
+                        await anyio.sleep(1)
                     except ProcessLookupError:
                         break
                 
@@ -287,7 +287,7 @@ class IPFSKitCLI:
         print("🔄 Restarting IPFS-Kit Daemon...")
         
         await self.cmd_daemon_stop()
-        await asyncio.sleep(2)
+        await anyio.sleep(2)
         return await self.cmd_daemon_start(detach=True, config=config)
     
     async def cmd_daemon_status(self, verbose: bool = False):
@@ -1147,5 +1147,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

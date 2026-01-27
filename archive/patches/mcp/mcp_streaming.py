@@ -7,7 +7,7 @@ including efficient uploads, downloads, and chunked processing.
 
 import os
 import time
-import asyncio
+import anyio
 import logging
 import tempfile
 import hashlib
@@ -78,10 +78,10 @@ class StreamingOperations:
             
             # Add the file to IPFS
             start_time = time.time()
-            process = await asyncio.create_subprocess_exec(
-                "ipfs", "add", "-Q", temp_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            process = await anyio.open_process(
+                ["ipfs", "add", "-Q", temp_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
             stdout, stderr = await process.communicate()
             
@@ -120,10 +120,10 @@ class StreamingOperations:
             Chunks of binary data
         """
         # Create a subprocess to stream data directly from IPFS
-        process = await asyncio.create_subprocess_exec(
-            "ipfs", "cat", cid,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+        process = await anyio.open_process(
+            ["ipfs", "cat", cid],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         
         # Check if the process started successfully
@@ -208,10 +208,10 @@ class StreamingOperations:
         """
         start_time = time.time()
         
-        process = await asyncio.create_subprocess_exec(
-            "ipfs", "pin", "add", cid,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+        process = await anyio.open_process(
+            ["ipfs", "pin", "add", cid],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         stdout, stderr = await process.communicate()
         
@@ -254,10 +254,10 @@ class StreamingOperations:
         Returns:
             Dict with unpin results
         """
-        process = await asyncio.create_subprocess_exec(
-            "ipfs", "pin", "rm", cid,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+        process = await anyio.open_process(
+            ["ipfs", "pin", "rm", cid],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         stdout, stderr = await process.communicate()
         
@@ -286,10 +286,10 @@ class StreamingOperations:
         Yields:
             Chunks of the CAR file
         """
-        process = await asyncio.create_subprocess_exec(
-            "ipfs", "dag", "export", cid,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+        process = await anyio.open_process(
+            ["ipfs", "dag", "export", cid],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         
         if process.stdout is None:
@@ -336,10 +336,10 @@ class StreamingOperations:
             
             # Import the DAG
             start_time = time.time()
-            process = await asyncio.create_subprocess_exec(
-                "ipfs", "dag", "import", temp_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            process = await anyio.open_process(
+                ["ipfs", "dag", "import", temp_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
             stdout, stderr = await process.communicate()
             

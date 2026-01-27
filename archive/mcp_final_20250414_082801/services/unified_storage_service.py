@@ -10,7 +10,7 @@ as specified in the MCP roadmap Q2 2025 priorities:
 
 import logging
 import time
-import asyncio
+import anyio
 import io
 from typing import Dict, List, Any, Optional, Union, BinaryIO, Tuple
 
@@ -51,7 +51,7 @@ class UnifiedStorageService:
         logger.info("Starting unified storage service")
 
         # Start background tasks
-        asyncio.create_task(self._update_content_location_map())
+        anyio.lowlevel.spawn_system_task(self._update_content_location_map)
 
         logger.info("Unified storage service started")
 
@@ -96,7 +96,7 @@ class UnifiedStorageService:
                 logger.error(f"Error in content location map update task: {e}")
 
             # Sleep for 5 minutes before updating again
-            await asyncio.sleep(300)
+            await anyio.sleep(300)
 
     async def get_content(self, backend: str, cid: str) -> Optional[bytes]:
         """

@@ -8,7 +8,7 @@ proper parameter mapping between client calls and tool implementations.
 
 import logging
 import inspect
-import asyncio
+import anyio
 from typing import Dict, Any, Callable, Optional, Union
 
 # Import the enhanced parameter adapter

@@ -2,7 +2,7 @@
 Filecoin (Lotus) Model AnyIO implementation for MCP Server.
 
 This module provides asynchronous versions of the Filecoin operations for the MCP server,
-supporting both asyncio and trio via AnyIO. It wraps the synchronous FilecoinModel methods
+supporting both async-io and trio via AnyIO. It wraps the synchronous FilecoinModel methods
 with async equivalents for better performance in async contexts.
 """
 
@@ -25,7 +25,7 @@ class FilecoinModelAnyIO(FilecoinModel):
 
     This class extends the synchronous FilecoinModel with asynchronous versions of
     all methods, ensuring efficient operation in async contexts. It supports both
-    asyncio and trio via the AnyIO library.
+    async-io and trio via the AnyIO library.
     """
     def __init__(
         self

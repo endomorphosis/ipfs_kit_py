@@ -62,7 +62,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import signal
 import argparse
 from datetime import datetime
@@ -253,7 +253,7 @@ class MinimalMCPServer:
             # Keep the connection alive
             while True:
                 # Send heartbeat every 30 seconds
-                await asyncio.sleep(30)
+                await anyio.sleep(30)
                 yield f"event: heartbeat\ndata: {json.dumps({'timestamp': datetime.now().isoformat()})}\n\n"
         
         return StreamingResponse(event_stream(), media_type="text/event-stream")

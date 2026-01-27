@@ -12,7 +12,7 @@ import sys
 import logging
 import json
 import tempfile
-import asyncio
+import anyio
 import signal
 import shutil
 import py_compile
@@ -150,8 +150,8 @@ logger.info("✅ Tool registration complete")
 
 # Server initialization state 
 server_initialized = False
-initialization_lock = asyncio.Lock()
-initialization_event = asyncio.Event()
+initialization_lock = anyio.Lock()
+initialization_event = anyio.Event()
 
 # --- Utility Functions ---
 def _cleanup_temp_files(*paths):
@@ -166,7 +166,7 @@ def _cleanup_temp_files(*paths):
 
 async def delayed_shutdown(pid: int, delay: float):
     """Waits for a delay then sends SIGTERM."""
-    await asyncio.sleep(delay)
+    await anyio.sleep(delay)
     logger.info("Sending SIGTERM to process %s after %ss delay.", pid, delay)
     try:
         os.kill(pid, signal.SIGTERM)
@@ -353,7 +353,7 @@ async def perform_blue_green_deployment(modified_file=None):
                 }
                 deployment_in_progress = False
                 return {"success": False, "message": f"Health checks failed: {health_output}"}
-            await asyncio.sleep(DEPLOYMENT_CONFIG["health_check_interval"])
+            await anyio.sleep(DEPLOYMENT_CONFIG["health_check_interval"])
         
         # Switch the active version
         deployment_status["status"] = "switching"
@@ -370,7 +370,7 @@ async def perform_blue_green_deployment(modified_file=None):
         # Shutdown this instance
         deployment_status["status"] = "completing"
         logger.info("Deployment completed successfully. Shutting down %s instance.", server_color)
-        asyncio.create_task(delayed_shutdown(os.getpid(), 3))
+        anyio.lowlevel.spawn_system_task(delayed_shutdown, os.getpid(), 3)
         
         deployment_status = {
             "status": "succeeded",
@@ -1741,8 +1741,7 @@ async def handle_jsonrpc(request):
     
     # Update VS Code settings if requested
     if args.update_vscode:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(update_vscode_settings())
+        anyio.run(update_vscode_settings)
     
     # Register startup and shutdown handlers
     @app.on_event("startup")

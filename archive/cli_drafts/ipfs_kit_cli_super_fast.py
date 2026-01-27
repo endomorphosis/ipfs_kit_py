@@ -6,7 +6,7 @@ A minimal command-line interface that loads heavy dependencies only when needed.
 Designed to show help instantly without any heavy imports.
 """
 
-import asyncio
+import anyio
 import argparse
 import json
 import sys
@@ -312,5 +312,5 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)
