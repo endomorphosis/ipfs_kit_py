@@ -8,7 +8,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 from typing import Dict, Any, List, Optional
 
 # Configure logging
@@ -220,4 +220,4 @@ async def main():
     return 0 if overall else 1
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

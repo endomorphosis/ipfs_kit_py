@@ -372,7 +372,7 @@ logging.basicConfig(level=logging.DEBUG)
 - `paramiko`: SSH connections
 - `scp`: SCP file transfers
 - `pathlib`: Path handling
-- `asyncio`: Asynchronous operations
+- `async-io`: Asynchronous operations
 
 ### Optional Dependencies
 

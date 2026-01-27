@@ -47,10 +47,10 @@ Error importing IPFSSimpleAPI: cannot import name 'IPFSKit' from 'ipfs_kit_py.ip
 
 ### 4. ✅ Missing Import Dependencies
 **Problem:**
-- Missing `asyncio`, `types` imports causing undefined variables
+- Missing `async-io`, `types` imports causing undefined variables
 
 **Solution:**
-- Added missing imports: `asyncio`, `types`
+- Added missing imports: `async-io`, `types`
 - Ensured all required modules properly imported
 
 **Result:** ✅ All variables properly defined

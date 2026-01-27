@@ -11,7 +11,8 @@ This module provides comprehensive testing capabilities including:
 """
 
 import unittest
-import asyncio
+import anyio
+import inspect
 import time
 import json
 import logging
@@ -185,8 +186,8 @@ class TestFramework:
         
         try:
             # Execute test
-            if asyncio.iscoroutinefunction(test_func):
-                asyncio.run(test_func())
+            if inspect.iscoroutinefunction(test_func):
+                anyio.run(test_func)
             else:
                 test_func()
             

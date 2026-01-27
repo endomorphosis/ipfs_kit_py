@@ -10,7 +10,7 @@ naming conventions consistently.
 import os
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import argparse
 import importlib
@@ -212,16 +212,16 @@ def main():
         # Test a specific tool
         print(f"Testing specific tool: {args.tool}")
         # TODO: Implement specific tool testing
-        asyncio.run(run_specific_tool_test(args.tool, []))
+        anyio.run(run_specific_tool_test, args.tool, [])
     elif args.ipfs_only:
         # Test only IPFS tools
-        asyncio.run(test_ipfs_parameters())
+        anyio.run(test_ipfs_parameters)
     elif args.multi_backend_only:
         # Test only multi-backend tools
-        asyncio.run(test_multi_backend_parameters())
+        anyio.run(test_multi_backend_parameters)
     else:
         # Run all tests
-        asyncio.run(run_all_tests())
+        anyio.run(run_all_tests)
 
 if __name__ == "__main__":
     main()

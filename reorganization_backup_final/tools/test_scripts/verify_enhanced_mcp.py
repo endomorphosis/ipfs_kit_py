@@ -18,7 +18,7 @@ import uuid
 import argparse
 import logging
 import requests
-import asyncio
+import anyio
 from typing import Dict, List, Any, Optional
 
 # Configure logging

@@ -2,15 +2,15 @@
 
 ## Overview
 
-This document outlines the async architecture of the ipfs_kit_py project, which uses anyio to provide a flexible async runtime that works with multiple backends (asyncio, trio, curio) while simplifying the async code.
+This document outlines the async architecture of the ipfs_kit_py project, which uses anyio to provide a flexible async runtime that works with multiple backends (async-io, trio, curio) while simplifying the async code.
 
 ## Why Anyio?
 
 [Anyio](https://anyio.readthedocs.io/) is a high-level asynchronous concurrency library that:
 
-1. **Provides Backend Flexibility**: Allows code to run on multiple async backends (asyncio, trio, curio)
+1. **Provides Backend Flexibility**: Allows code to run on multiple async backends (async-io, trio, curio)
 2. **Offers Simpler APIs**: Provides more intuitive APIs for common async patterns
-3. **Improves Cancellation**: Uses more reliable cancellation mechanisms compared to asyncio
+3. **Improves Cancellation**: Uses more reliable cancellation mechanisms compared to async-io
 4. **Standardizes Timeouts**: Provides consistent timeout handling across all operations
 5. **Better Resource Management**: Simplifies context management and resource cleanup
 6. **Concurrent Task Management**: Simplified task groups for running concurrent tasks
@@ -44,35 +44,35 @@ IPFS Kit uses AnyIO throughout its codebase to enable flexible async backends. T
 ### Testing Infrastructure
 
 - AnyIO-compatible testing utilities
-- Support for both asyncio and trio backends in tests
+- Support for both async-io and trio backends in tests
 - Performance benchmarking across different backends
 
 ## Implementation Guidelines
 
 ### Direct Replacements
 
-| asyncio                           | anyio                          |
+| async-io                          | anyio                          |
 |-----------------------------------|--------------------------------|
-| `asyncio.sleep()`                 | `anyio.sleep()`                |
-| `asyncio.gather()`                | `anyio.gather()`               |
-| `asyncio.create_task()`           | `anyio.create_task()`          |
-| `asyncio.wait_for()`              | `anyio.fail_after()`           |
-| `asyncio.TimeoutError`            | `anyio.TimeoutError`           |
-| `asyncio.run()`                   | `anyio.run()`                  |
-| `asyncio.current_task()`          | `anyio.get_current_task()`     |
-| `asyncio.create_task_group()`     | `anyio.create_task_group()`    |
-| `asyncio.to_thread()`             | `anyio.to_thread.run_sync()`   |
+| `async_io.sleep()`                | `anyio.sleep()`                |
+| `async_io.gather()`               | `anyio.gather()`               |
+| `async_io.create_task()`          | `anyio.create_task()`          |
+| `async_io.wait_for()`             | `anyio.fail_after()`           |
+| `async_io.TimeoutError`           | `anyio.TimeoutError`           |
+| `async_io.run()`                  | `anyio.run()`                  |
+| `async_io.current_task()`         | `anyio.get_current_task()`     |
+| `async_io.create_task_group()`    | `anyio.create_task_group()`    |
+| `async_io.to_thread()`            | `anyio.to_thread.run_sync()`   |
 
 ### Task Groups
 
 Anyio provides a more structured way to handle groups of tasks:
 
 ```python
-# asyncio
+# async-io
 async def main():
-    task1 = asyncio.create_task(some_function())
-    task2 = asyncio.create_task(another_function())
-    await asyncio.gather(task1, task2)
+    task1 = async_io.create_task(some_function())
+    task2 = async_io.create_task(another_function())
+    await async_io.gather(task1, task2)
 
 # anyio
 async def main():
@@ -86,10 +86,10 @@ async def main():
 Anyio offers a more intuitive timeout API:
 
 ```python
-# asyncio
+# async-io
 try:
-    await asyncio.wait_for(operation(), timeout=5.0)
-except asyncio.TimeoutError:
+    await async_io.wait_for(operation(), timeout=5.0)
+except async_io.TimeoutError:
     print("Operation timed out")
 
 # anyio
@@ -105,8 +105,8 @@ except anyio.TimeoutError:
 Anyio provides a unified API for streams and sockets:
 
 ```python
-# asyncio
-reader, writer = await asyncio.open_connection(host, port)
+# async-io
+reader, writer = await async_io.open_connection(host, port)
 data = await reader.read(1024)
 writer.write(response)
 await writer.drain()
@@ -124,7 +124,7 @@ async with await anyio.connect_tcp(host, port) as client:
 For WebSockets, anyio provides integrations with common libraries:
 
 ```python
-# Using websockets with asyncio
+# Using websockets with async-io
 async with websockets.connect(url) as websocket:
     await websocket.send(data)
     response = await websocket.recv()
@@ -164,7 +164,7 @@ async def test_async_function():
 
 ## FAQs
 
-### Can I mix asyncio and anyio in the same project?
+### Can I mix async-io and anyio in the same project?
 
 Yes, but it's recommended to use anyio consistently for new code and migrate existing code when possible.
 
@@ -174,7 +174,7 @@ No, anyio is designed to be a thin wrapper around the underlying backends with m
 
 ### How do I specify which backend to use?
 
-By default, anyio uses the asyncio backend. To specify a different backend:
+By default, anyio uses the async-io backend. To specify a different backend:
 
 ```python
 import anyio
@@ -182,9 +182,9 @@ import anyio
 anyio.run(main, backend="trio")  # Use trio backend
 ```
 
-### Can I use asyncio-specific libraries with anyio?
+### Can I use async-io-specific libraries with anyio?
 
-Yes, most asyncio libraries will work with anyio's asyncio backend. For trio-specific features, you may need to use anyio's adapter utilities.
+Yes, most async-io libraries will work with anyio's async-io backend. For trio-specific features, you may need to use anyio's adapter utilities.
 
 ## Implementation Examples
 
@@ -192,15 +192,15 @@ Yes, most asyncio libraries will work with anyio's asyncio backend. For trio-spe
 
 The API server (`api.py`) was successfully migrated to an anyio-based implementation (`api_anyio.py`). This migration involved:
 
-1. **Direct Replacements**: Replacing asyncio imports with anyio, and asyncio-specific functions with their anyio equivalents
+1. **Direct Replacements**: Replacing async-io imports with anyio, and async-io-specific functions with their anyio equivalents
 
 ```python
-# Before (asyncio-based)
-import asyncio
+# Before (async-io-based)
+import async_io
 
 try:
-    await asyncio.wait_for(operation(), timeout=5.0)
-except asyncio.TimeoutError:
+    await async_io.wait_for(operation(), timeout=5.0)
+except async_io.TimeoutError:
     # Handle timeout
     
 # After (anyio-based)
@@ -216,16 +216,16 @@ except anyio.TimeoutError:
 2. **Timeout Handling**: Using anyio's context manager-based timeout handling for streaming operations
 
 ```python
-# Before (with asyncio)
+# Before (with async-io)
 async def stream_content():
     try:
-        # Use asyncio.wait_for for timeout
-        result = await asyncio.wait_for(
+        # Use async-io wait_for for timeout
+        result = await async_io.wait_for(
             api.stream_media_async(path=path, chunk_size=chunk_size),
             timeout=timeout
         )
         return result
-    except asyncio.TimeoutError:
+    except async_io.TimeoutError:
         raise HTTPException(status_code=504, detail="Timeout streaming content")
 
 # After (with anyio)
@@ -246,7 +246,7 @@ async def stream_content():
 3. **Server Startup**: Using anyio.run to start the server to support different async backends
 
 ```python
-# Before (asyncio-based)
+# Before (async-io-based)
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api:app", host="0.0.0.0", port=8000)
@@ -266,7 +266,7 @@ if __name__ == "__main__":
         
     # Run with anyio to support multiple backends
     import anyio
-    backend = os.environ.get("IPFS_KIT_ASYNC_BACKEND", "asyncio")
+    backend = os.environ.get("IPFS_KIT_ASYNC_BACKEND", "async-io")
     anyio.run(run_server, backend=backend)
 ```
 
@@ -291,14 +291,14 @@ The migrated API server (`api_anyio.py`) preserves all the functionality of the 
 
 ### WebSocket Notifications Migration
 
-The WebSocket notifications system was migrated from asyncio to anyio in `websocket_notifications_anyio.py`, demonstrating these key patterns:
+The WebSocket notifications system was migrated from async-io to anyio in `websocket_notifications_anyio.py`, demonstrating these key patterns:
 
 1. **Task Group for Connection Management**: 
    - Replacing individual task creation and manual tracking with task groups for better error propagation and cleanup.
    - Task groups automatically cancel all tasks when exiting the context.
 
 2. **Memory Streams for Inter-Task Communication**:
-   - Using anyio's memory object streams instead of asyncio queues.
+    - Using anyio's memory object streams instead of async-io queues.
    - Streams provide more consistent behavior across backends and better backpressure handling.
 
 3. **Structured Cancellation**:
@@ -310,11 +310,11 @@ The WebSocket notifications system was migrated from asyncio to anyio in `websoc
 Similar patterns were applied when migrating the Write-Ahead Log WebSocket implementation:
 
 1. **Converting Timeouts**:
-   - Replacing `asyncio.wait_for()` with `anyio.fail_after()` context managers.
+    - Replacing `async_io.wait_for()` with `anyio.fail_after()` context managers.
    - This provides more intuitive timeout handling with proper cleanup.
 
 2. **Thread-to-Async Bridge**:
-   - Using `anyio.from_thread.run()` instead of asyncio's thread functions.
+    - Using `anyio.from_thread.run()` instead of async-io's thread functions.
    - This ensures compatibility across different backends.
 
 3. **Proper Task Cancellation**:
@@ -329,9 +329,9 @@ The WebRTC controller demonstrates effective use of AnyIO primitives throughout 
 
 ### Key Implementation Patterns:
 
-1. **Full AnyIO Implementation**: The WebRTC controller (`ipfs_kit_py/mcp/controllers/webrtc_controller.py`) exclusively uses AnyIO for asynchronous operations instead of asyncio.
+1. **Full AnyIO Implementation**: The WebRTC controller (`ipfs_kit_py/mcp/controllers/webrtc_controller.py`) exclusively uses AnyIO for asynchronous operations instead of async-io.
 
-2. **Thread Safety**: All synchronous operations use `anyio.to_thread.run_sync()` for proper thread handling, which works in both asyncio and trio contexts.
+2. **Thread Safety**: All synchronous operations use `anyio.to_thread.run_sync()` for proper thread handling, which works in both async-io and trio contexts.
 
 3. **Simplified Task Management**: Task creation and cancellation use straightforward AnyIO patterns that work across backends.
 
@@ -347,4 +347,4 @@ These patterns are replicated across controllers for a consistent implementation
 
 - [Anyio Documentation](https://anyio.readthedocs.io/)
 - [Trio Documentation](https://trio.readthedocs.io/)
-- [AsyncIO Documentation](https://docs.python.org/3/library/asyncio.html)
+- Async-IO documentation (Python standard library)

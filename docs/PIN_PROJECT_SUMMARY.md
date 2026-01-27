@@ -263,7 +263,7 @@ UI Update
 ### Backend
 - **Language**: Python 3.8+
 - **Framework**: FastAPI
-- **Async**: asyncio
+- **Async**: async-io
 - **Protocol**: JSON-RPC 2.0
 
 ### Frontend

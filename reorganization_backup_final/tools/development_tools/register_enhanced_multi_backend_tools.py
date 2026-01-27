@@ -9,7 +9,7 @@ parameter naming conventions.
 
 import sys
 import logging
-import asyncio
+import anyio
 from typing import Dict, Any, Callable, Optional
 
 # Configure logging

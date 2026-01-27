@@ -12,7 +12,7 @@ import sys
 import logging
 import importlib
 import traceback
-import asyncio
+import anyio
 from typing import Dict, Any, List, Optional, Union, Callable
 
 # Configure logging

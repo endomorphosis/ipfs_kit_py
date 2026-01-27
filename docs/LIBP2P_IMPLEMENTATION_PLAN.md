@@ -363,12 +363,12 @@ class EnhancedProtocolNegotiator:
 ```python
 # ipfs_kit_py/libp2p/web_transport.py
 
-import asyncio
+import anyio
 import logging
 import json
 from typing import Dict, List, Optional, Union
-from aioquic.asyncio.client import connect
-from aioquic.asyncio.server import serve
+from aioquic.client import connect
+from aioquic.server import serve
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.h3.connection import H3_ALPN
 
@@ -538,7 +538,7 @@ class WebTransportStream:
 ```python
 # ipfs_kit_py/libp2p/autonat.py
 
-import asyncio
+import anyio
 import logging
 import random
 import json
@@ -584,13 +584,13 @@ class AutoNAT:
         self.host.set_stream_handler(self.PROTOCOL_ID, self._handle_dial_back)
         
         # Start periodic checking
-        asyncio.create_task(self._periodic_check())
+        anyio.lowlevel.spawn_system_task(self._periodic_check)
         
     async def _periodic_check(self):
         """Periodically check NAT status."""
         while True:
             await self.check_nat_status()
-            await asyncio.sleep(self.query_interval)
+            await anyio.sleep(self.query_interval)
             
     async def check_nat_status(self):
         """Check the NAT status by requesting dial backs from remote peers."""
@@ -627,7 +627,7 @@ class AutoNAT:
             self.nat_status = "private"
             self.logger.info("NAT status: private (not directly reachable)")
             
-        self.last_check_time = asyncio.get_event_loop().time()
+        self.last_check_time = anyio.current_time()
         return {
             "status": self.nat_status,
             "addresses": list(self.public_addresses),
@@ -846,7 +846,7 @@ To implement these features, the following dependencies will be needed:
 - **WebRTC**: `aiortc` for Python WebRTC support
 - **WebTransport**: `aioquic` for HTTP/3 and WebTransport
 - **Noise Protocol**: `cryptography` for cryptographic primitives
-- **Testing**: `pytest`, `pytest-asyncio`, `hypothesis`
+- **Testing**: `pytest`, `pytest-anyio`, `hypothesis`
 - **Documentation**: `sphinx`, `sphinx-rtd-theme`
 - **Protocol Negotiation**: `semver` for semantic versioning
 

@@ -400,7 +400,7 @@ the High-Level API for IPFS Kit over HTTP, enabling remote access to IPFS
 functionality with consistent endpoint structure and response formats.
 
 This version uses anyio for async operations, allowing for backend-agnostic
-concurrency that works with different async backends (asyncio, trio, etc.).
+concurrency that works with different async backends (async-io, trio, etc.).
 
 Key features:
 1. RESTful API with standardized endpoints
@@ -633,7 +633,7 @@ This module implements the Arrow-based metadata index (Phase 4A Milestone 4.1), 
 Arrow-based metadata index for IPFS content with AnyIO support.
 
 This module provides asynchronous versions of the Arrow-based metadata index functions,
-supporting both asyncio and trio via AnyIO. It wraps the synchronous ArrowMetadataIndex
+supporting both async-io and trio via AnyIO. It wraps the synchronous ArrowMetadataIndex
 methods with async equivalents for better performance in async contexts.
 
 **Classes:**
@@ -1059,7 +1059,7 @@ Asynchronous operations for ParquetCIDCache using anyio.
 
 This module provides asynchronous versions of ParquetCIDCache operations for improved
 concurrency and responsiveness. It implements non-blocking I/O for Parquet operations
-and maintains compatibility with any async backend (asyncio, trio, etc.) through anyio.
+and maintains compatibility with any async backend (async-io, trio, etc.) through anyio.
 
 **Classes:**
 - `AsyncOperationManager`: Manager for asynchronous operations in ParquetCIDCache.
@@ -1113,7 +1113,7 @@ Asynchronous operations for ParquetCIDCache.
 
 This module provides asynchronous versions of ParquetCIDCache operations for improved
 concurrency and responsiveness. It implements non-blocking I/O for Parquet operations
-and maintains compatibility with asyncio-based applications.
+and maintains compatibility with async-io-based applications.
 
 **Classes:**
 - `AsyncOperationManager`: Manager for asynchronous operations in ParquetCIDCache.
@@ -1130,7 +1130,7 @@ This package provides various caching mechanisms designed for different use case
 3. Content Cache: For caching IPFS content with CID-based retrieval
 4. Batch Operations: For optimizing bulk operations with batching, coalescing, and deduplication
 5. Zero-Copy Interface: For sharing data between processes without copying, using Arrow C Data Interface
-6. Async Operations: For non-blocking cache operations with asyncio support and thread pool management
+6. Async Operations: For non-blocking cache operations with async-io support and thread pool management
 7. Intelligent Cache: For predictive cache management using machine learning and access pattern analysis
 8. Read-Ahead Prefetching: For proactively loading content before it's explicitly requested
 9. Compression and Encoding: For optimizing data storage with efficient compression and encoding strategies
@@ -1440,7 +1440,7 @@ making it ideal for distributed coordination.
 AnyIO-compatible implementation of Arrow-based cluster state management.
 
 This module provides asynchronous versions of the ArrowClusterState operations,
-supporting both asyncio and trio via AnyIO. It wraps the synchronous methods
+supporting both async-io and trio via AnyIO. It wraps the synchronous methods
 with async equivalents for better performance in async contexts.
 
 **Classes:**
@@ -4141,7 +4141,7 @@ event retrieval while maintaining all existing functionality.
 Asynchronous Streaming Module for MCP Server
 
 This module provides asynchronous streaming capabilities for efficient
-transfer of large content using asyncio.
+transfer of large content using async-io.
 
 **Classes:**
 - `AsyncStreamManager`: Manager for asynchronous streaming operations.
@@ -4986,7 +4986,7 @@ This model encapsulates IPFS operations and provides a clean interface
 for the controller to interact with the IPFS functionality.
 
 **Classes:**
-- `AsyncEventLoopHandler`: Handler for properly managing asyncio operations in different contexts.
+- `AsyncEventLoopHandler`: Handler for properly managing async-io operations in different contexts.
 - `IPFSModelAnyIO`: AnyIO compatible IPFS Model implementation.
 
 #### `mcp/models/aria2_model.py`
@@ -8589,7 +8589,7 @@ Storage Controller for the MCP server.
 S3 Controller for the MCP server with AnyIO support.
 
 This controller handles HTTP requests related to S3 operations and
-delegates the business logic to the S3 model, with support for both asyncio
+delegates the business logic to the S3 model, with support for both async-io
 and trio via the AnyIO library.
 
 **Classes:**
@@ -8651,7 +8651,7 @@ This module provides the Filecoin controller functionality for the MCP server.
 Storacha (Web3.Storage) Controller AnyIO Implementation for the MCP server.
 
 This module provides asynchronous versions of the Storacha controller operations
-using AnyIO for compatibility with both asyncio and trio async frameworks.
+using AnyIO for compatibility with both async-io and trio async frameworks.
 
 **Classes:**
 - `StorachaControllerAnyIO`: AnyIO-compatible controller for Storacha (Web3.Storage) operations.
@@ -11625,7 +11625,7 @@ High-level API integration for the WAL telemetry system with AnyIO support.
 
 This module provides integration between the high-level API and the WAL telemetry
 system, including both Prometheus metrics and distributed tracing capabilities.
-It uses AnyIO for async/await patterns to support multiple backends (asyncio, trio).
+It uses AnyIO for async/await patterns to support multiple backends (async-io, trio).
 
 **Classes:**
 - `WALTelemetryAPIExtensionAnyIO`: Extension for integrating WAL telemetry with the high-level API using AnyIO.
@@ -11814,7 +11814,7 @@ AnyIO-compatible distributed tracing module for the Write-Ahead Log (WAL) teleme
 
 This module provides distributed tracing capabilities for the WAL system, enabling
 tracking of operations across different components and services, with support for 
-both asyncio and trio backends through AnyIO. It includes:
+both async-io and trio backends through AnyIO. It includes:
 
 1. OpenTelemetry integration for standardized tracing
 2. Trace context propagation between components
@@ -12122,7 +12122,7 @@ Key features:
 5. Persistent Connections: Long-lived WebSocket connections for real-time updates
 6. Broadcast Support: Send notifications to multiple clients
 7. System Metrics: Real-time performance and health metrics
-8. Backend Agnostic: Works with asyncio, trio, or any other anyio-compatible backend
+8. Backend Agnostic: Works with async-io, trio, or any other anyio-compatible backend
 
 **Classes:**
 - `NotificationType`: Types of notifications that can be sent or subscribed to.

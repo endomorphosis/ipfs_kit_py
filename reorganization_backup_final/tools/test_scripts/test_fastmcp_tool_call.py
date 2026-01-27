@@ -7,7 +7,7 @@ in the FastMCP server. Based on the code analysis, FastMCP tools may be accessib
 through direct HTTP endpoints or through the app's internal router.
 """
 
-import asyncio
+import anyio
 import aiohttp
 import json
 import logging
@@ -201,4 +201,4 @@ async def main():
     logger.info("\n✅ FastMCP tool calling tests completed")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

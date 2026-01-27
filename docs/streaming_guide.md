@@ -236,21 +236,20 @@ async def websocket_bidirectional(websocket: WebSocket):
     await websocket.accept()
     
     # Set up concurrent tasks for sending and receiving
-    receive_task = asyncio.create_task(handle_incoming(websocket))
-    send_task = asyncio.create_task(handle_outgoing(websocket))
-    
-    # Wait for either task to complete
-    done, pending = await asyncio.wait(
-        [receive_task, send_task],
-        return_when=asyncio.FIRST_COMPLETED
-    )
-    
-    # Cancel the remaining task
-    for task in pending:
-        task.cancel()
+    async with anyio.create_task_group() as task_group:
+        async def run_incoming():
+            await handle_incoming(websocket)
+            task_group.cancel_scope.cancel()
+
+        async def run_outgoing():
+            await handle_outgoing(websocket)
+            task_group.cancel_scope.cancel()
+
+        task_group.start_soon(run_incoming)
+        task_group.start_soon(run_outgoing)
 ```
 
-This approach uses `asyncio` tasks to handle sending and receiving concurrently, enabling true bidirectional communication.
+This approach uses AnyIO task groups to handle sending and receiving concurrently, enabling true bidirectional communication.
 
 ### Server-Sent Events (SSE)
 
@@ -362,7 +361,7 @@ class IPFSMediaStreamTrack(MediaStreamTrack):
         self.cid = cid
         self.kind = kind
         self.frame_rate = frame_rate
-        self._buffer = asyncio.Queue(maxsize=30)  # Frame buffer
+        self._buffer_send, self._buffer_receive = anyio.create_memory_object_stream(30)  # Frame buffer
         self._task = None
         self._start_time = None
         self._frame_count = 0
@@ -382,7 +381,7 @@ class IPFSMediaStreamTrack(MediaStreamTrack):
         
         # Start loading content if CID is provided
         if self.ipfs_api and self.cid:
-            self._task = asyncio.create_task(self._load_content())
+            self._task = anyio.lowlevel.spawn_system_task(self._load_content)
 ```
 
 The key methods of `IPFSMediaStreamTrack` include:
@@ -910,14 +909,11 @@ class IPFSDesktopApp(QMainWindow):
         # Connect signals and slots
         self.streamButton.clicked.connect(self.toggle_streaming)
         
-        # Start event loop for async operations
-        self.async_loop = asyncio.new_event_loop()
-        self.async_thread = QThread()
-        self.async_thread.run = lambda: asyncio.set_event_loop(self.async_loop)
-        self.async_thread.start()
-        
+        # Start an AnyIO blocking portal for async operations
+        self.portal = anyio.from_thread.start_blocking_portal()
+
         # Connect services
-        asyncio.run_coroutine_threadsafe(self.connect_services(), self.async_loop)
+        self.portal.call(self.connect_services)
     
     async def connect_services(self):
         """Connect to IPFS services."""
@@ -965,17 +961,11 @@ class IPFSDesktopApp(QMainWindow):
                 return
             
             # Start streaming
-            asyncio.run_coroutine_threadsafe(
-                self.webrtc_client.request_stream(cid),
-                self.async_loop
-            )
+            self.portal.call(self.webrtc_client.request_stream, cid)
             self.streamButton.setText("Stop Streaming")
         else:
             # Stop streaming
-            asyncio.run_coroutine_threadsafe(
-                self.webrtc_client.close_all_connections(),
-                self.async_loop
-            )
+            self.portal.call(self.webrtc_client.close_all_connections)
             self.streamButton.setText("Start Streaming")
 ```
 
@@ -1095,11 +1085,12 @@ class StreamBuffer:
         self.target_duration = target_duration
         self.max_duration = max_duration
         self.min_duration = min_duration
-        self.buffer = asyncio.Queue()
+        self.buffer_send, self.buffer_receive = anyio.create_memory_object_stream(100)
+        self.buffer_count = 0
         self.buffer_duration = 0.0
         self.frame_durations = []  # For calculating average frame duration
-        self.playback_ready = asyncio.Event()
-        self.throttle = asyncio.Event()
+        self.playback_ready = anyio.Event()
+        self.throttle = anyio.Event()
         self.throttle.set()  # Start unthrottled
     
     async def add_frame(self, frame):
@@ -1113,7 +1104,8 @@ class StreamBuffer:
         await self.throttle.wait()
         
         # Add frame to buffer
-        await self.buffer.put(frame)
+        await self.buffer_send.send(frame)
+        self.buffer_count += 1
         
         # Update buffer duration estimate
         if hasattr(frame, 'time_base') and hasattr(frame, 'pts'):
@@ -1122,10 +1114,10 @@ class StreamBuffer:
             if len(self.frame_durations) > 30:
                 self.frame_durations = self.frame_durations[-30:]
             
-            self.buffer_duration = self.buffer.qsize() * (sum(self.frame_durations) / len(self.frame_durations))
+            self.buffer_duration = self.buffer_count * (sum(self.frame_durations) / len(self.frame_durations))
         else:
             # Estimate based on queue size
-            self.buffer_duration = self.buffer.qsize() / 30.0  # Assume 30fps
+            self.buffer_duration = self.buffer_count / 30.0  # Assume 30fps
         
         # Set playback_ready when buffer reaches minimum duration
         if self.buffer_duration >= self.min_duration and not self.playback_ready.is_set():
@@ -1146,7 +1138,8 @@ class StreamBuffer:
         await self.playback_ready.wait()
         
         # Get frame from buffer
-        frame = await self.buffer.get()
+        frame = await self.buffer_receive.receive()
+        self.buffer_count = max(0, self.buffer_count - 1)
         
         # Update buffer duration estimate
         if hasattr(frame, 'time_base') and hasattr(frame, 'pts'):
@@ -1553,7 +1546,7 @@ async def monitor_system_metrics(websocket):
             )
             
             # Wait before sending next update
-            await asyncio.sleep(1.0)
+            await anyio.sleep(1.0)
     except WebSocketDisconnect:
         pass
 ```
@@ -1687,20 +1680,21 @@ async def websocket_notifications(websocket: WebSocket):
     await websocket.accept()
     
     # Set up ping-pong for connection keepalive
-    ping_task = asyncio.create_task(ping_client(websocket))
-    
-    try:
-        # Normal notification handling
-        # ...
-    finally:
-        # Clean up ping task
-        ping_task.cancel()
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(ping_client, websocket)
+        try:
+            # Normal notification handling
+            # ...
+            pass
+        finally:
+            # Clean up ping task
+            task_group.cancel_scope.cancel()
 
 async def ping_client(websocket):
     """Send periodic pings to keep connection alive."""
     while True:
         try:
-            await asyncio.sleep(30)  # Every 30 seconds
+            await anyio.sleep(30)  # Every 30 seconds
             await websocket.send_json({"type": "ping", "timestamp": time.time()})
         except Exception:
             break
@@ -1768,30 +1762,28 @@ async def websocket_stream(websocket: WebSocket, cid: str):
             chunk_size=32 * 1024  # 32KB chunks
         )
         
-        # Start content fetching in background
-        fetch_task = asyncio.create_task(
-            fetch_content_to_pipe(cid, pipe)
-        )
-        
-        try:
-            # Stream from pipe to client
-            async for chunk in pipe:
-                await websocket.send_bytes(chunk)
-                
-                # Release memory explicitly
-                del chunk
-                
-                # Give event loop a chance to run GC
-                await asyncio.sleep(0)
-                
-        except WebSocketDisconnect:
-            # Cancel fetch task on disconnect
-            fetch_task.cancel()
-            
-        except Exception as e:
-            # Handle errors
-            fetch_task.cancel()
-            logger.error(f"Streaming error: {e}")
+        async with anyio.create_task_group() as task_group:
+            # Start content fetching in background
+            task_group.start_soon(fetch_content_to_pipe, cid, pipe)
+            try:
+                # Stream from pipe to client
+                async for chunk in pipe:
+                    await websocket.send_bytes(chunk)
+
+                    # Release memory explicitly
+                    del chunk
+
+                    # Give event loop a chance to run GC
+                    await anyio.sleep(0)
+
+            except WebSocketDisconnect:
+                # Cancel fetch task on disconnect
+                task_group.cancel_scope.cancel()
+
+            except Exception as e:
+                # Handle errors
+                task_group.cancel_scope.cancel()
+                logger.error(f"Streaming error: {e}")
             
             # Send error to client if still connected
             try:
@@ -1881,7 +1873,7 @@ class ResilienceContentStream:
                         raise Exception(f"Failed to retrieve content after all retries: {e}")
                 
                 # Brief delay before retry
-                await asyncio.sleep(0.5 * min(self.retry_count, 3))
+                await anyio.sleep(0.5 * min(self.retry_count, 3))
     
     async def _local_iter_chunks(self, chunk_size):
         """Iterate through chunks from local IPFS node."""

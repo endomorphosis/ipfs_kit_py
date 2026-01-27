@@ -6,7 +6,7 @@ Direct IPFS Tools Registration Test
 import os
 import sys
 import logging
-import asyncio
+import anyio
 
 # Configure logging
 logging.basicConfig(
@@ -80,7 +80,7 @@ def test_direct_registration():
                 return False
         
         # Run the async test
-        success = asyncio.run(test_tool_call())
+        success = anyio.run(test_tool_call)
         
         if success:
             logger.info("✅ Direct registration test PASSED")

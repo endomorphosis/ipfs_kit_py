@@ -9,7 +9,7 @@ conventions to verify that the enhanced parameter handling is working correctly.
 import os
 import sys
 import json
-import asyncio
+import anyio
 import logging
 from pathlib import Path
 
@@ -237,4 +237,4 @@ async def run_all_tests():
 
 if __name__ == "__main__":
     # Run all tests
-    asyncio.run(run_all_tests())
+    anyio.run(run_all_tests)

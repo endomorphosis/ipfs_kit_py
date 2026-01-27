@@ -2,7 +2,7 @@
 """
 Direct test of IPFS functionality without MCP server.
 """
-import asyncio
+import anyio
 import sys
 import os
 import logging
@@ -151,5 +151,5 @@ async def main():
     return overall_success
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
+    success = anyio.run(main)
     sys.exit(0 if success else 1)

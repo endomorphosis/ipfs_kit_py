@@ -18,7 +18,7 @@ It also enables prefetching, search, and format conversion capabilities.
 import os
 import sys
 import logging
-import asyncio
+import anyio
 import json
 import requests
 import time

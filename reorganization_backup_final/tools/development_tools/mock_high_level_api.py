@@ -38,8 +38,8 @@ class MockIPFSSimpleAPI:
     
     def add(self, data, **kwargs):
         """Add content to IPFS."""
-        import asyncio
-        return asyncio.run(self.add_async(data, **kwargs))
+        import anyio
+        return anyio.run(self.add_async, data, **kwargs)
     
     async def cat_async(self, cid, **kwargs):
         """Cat content from IPFS asynchronously."""
@@ -50,8 +50,8 @@ class MockIPFSSimpleAPI:
     
     def cat(self, cid, **kwargs):
         """Cat content from IPFS."""
-        import asyncio
-        return asyncio.run(self.cat_async(cid, **kwargs))
+        import anyio
+        return anyio.run(self.cat_async, cid, **kwargs)
     
     async def get_async(self, cid, **kwargs):
         """Get content from IPFS asynchronously."""
@@ -59,8 +59,8 @@ class MockIPFSSimpleAPI:
     
     def get(self, cid, **kwargs):
         """Get content from IPFS."""
-        import asyncio
-        return asyncio.run(self.get_async(cid, **kwargs))
+        import anyio
+        return anyio.run(self.get_async, cid, **kwargs)
     
     async def pin_add_async(self, cid, **kwargs):
         """Pin content in IPFS asynchronously."""
@@ -70,8 +70,8 @@ class MockIPFSSimpleAPI:
     
     def pin_add(self, cid, **kwargs):
         """Pin content in IPFS."""
-        import asyncio
-        return asyncio.run(self.pin_add_async(cid, **kwargs))
+        import anyio
+        return anyio.run(self.pin_add_async, cid, **kwargs)
     
     async def pin_rm_async(self, cid, **kwargs):
         """Unpin content from IPFS asynchronously."""
@@ -83,8 +83,8 @@ class MockIPFSSimpleAPI:
     
     def pin_rm(self, cid, **kwargs):
         """Unpin content from IPFS."""
-        import asyncio
-        return asyncio.run(self.pin_rm_async(cid, **kwargs))
+        import anyio
+        return anyio.run(self.pin_rm_async, cid, **kwargs)
     
     async def pin_ls_async(self, **kwargs):
         """List pinned content in IPFS asynchronously."""
@@ -93,8 +93,8 @@ class MockIPFSSimpleAPI:
     
     def pin_ls(self, **kwargs):
         """List pinned content in IPFS."""
-        import asyncio
-        return asyncio.run(self.pin_ls_async(**kwargs))
+        import anyio
+        return anyio.run(self.pin_ls_async, **kwargs)
     
     async def files_write_async(self, path, data, **kwargs):
         """Write to MFS asynchronously."""
@@ -107,8 +107,8 @@ class MockIPFSSimpleAPI:
     
     def files_write(self, path, data, **kwargs):
         """Write to MFS."""
-        import asyncio
-        return asyncio.run(self.files_write_async(path, data, **kwargs))
+        import anyio
+        return anyio.run(self.files_write_async, path, data, **kwargs)
     
     async def files_read_async(self, path, **kwargs):
         """Read from MFS asynchronously."""
@@ -119,8 +119,8 @@ class MockIPFSSimpleAPI:
     
     def files_read(self, path, **kwargs):
         """Read from MFS."""
-        import asyncio
-        return asyncio.run(self.files_read_async(path, **kwargs))
+        import anyio
+        return anyio.run(self.files_read_async, path, **kwargs)
     
     async def files_rm_async(self, path, **kwargs):
         """Remove from MFS asynchronously."""
@@ -132,8 +132,8 @@ class MockIPFSSimpleAPI:
     
     def files_rm(self, path, **kwargs):
         """Remove from MFS."""
-        import asyncio
-        return asyncio.run(self.files_rm_async(path, **kwargs))
+        import anyio
+        return anyio.run(self.files_rm_async, path, **kwargs)
     
     async def files_ls_async(self, path="/", **kwargs):
         """List MFS directory asynchronously."""
@@ -147,8 +147,8 @@ class MockIPFSSimpleAPI:
     
     def files_ls(self, path="/", **kwargs):
         """List MFS directory."""
-        import asyncio
-        return asyncio.run(self.files_ls_async(path, **kwargs))
+        import anyio
+        return anyio.run(self.files_ls_async, path, **kwargs)
     
     async def name_publish_async(self, cid, **kwargs):
         """Publish to IPNS asynchronously."""
@@ -159,8 +159,8 @@ class MockIPFSSimpleAPI:
     
     def name_publish(self, cid, **kwargs):
         """Publish to IPNS."""
-        import asyncio
-        return asyncio.run(self.name_publish_async(cid, **kwargs))
+        import anyio
+        return anyio.run(self.name_publish_async, cid, **kwargs)
     
     async def name_resolve_async(self, name, **kwargs):
         """Resolve from IPNS asynchronously."""
@@ -172,8 +172,8 @@ class MockIPFSSimpleAPI:
     
     def name_resolve(self, name, **kwargs):
         """Resolve from IPNS."""
-        import asyncio
-        return asyncio.run(self.name_resolve_async(name, **kwargs))
+        import anyio
+        return anyio.run(self.name_resolve_async, name, **kwargs)
     
     async def ls_async(self, cid, **kwargs):
         """List object content asynchronously."""
@@ -181,8 +181,8 @@ class MockIPFSSimpleAPI:
     
     def ls(self, cid, **kwargs):
         """List object content."""
-        import asyncio
-        return asyncio.run(self.ls_async(cid, **kwargs))
+        import anyio
+        return anyio.run(self.ls_async, cid, **kwargs)
     
     def create_wallet(self, **kwargs):
         """Create a mock wallet."""

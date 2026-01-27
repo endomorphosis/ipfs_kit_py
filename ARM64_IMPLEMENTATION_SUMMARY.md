@@ -281,7 +281,7 @@ source test_venv/bin/activate
 
 # Install dependencies
 pip install --timeout=300 --retries=5 -e .
-pip install --timeout=300 --retries=5 pytest pytest-cov pytest-asyncio
+pip install --timeout=300 --retries=5 pytest pytest-cov pytest-anyio
 
 # Run tests
 pytest tests/test_arm64_basic.py -v

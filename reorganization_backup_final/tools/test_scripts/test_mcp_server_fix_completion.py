@@ -3,7 +3,7 @@
 Quick test to verify MCP server tools are properly registered and working
 """
 
-import asyncio
+import anyio
 import json
 import sys
 import logging
@@ -42,7 +42,7 @@ async def test_mcp_tools():
         return False
 
 if __name__ == "__main__":
-    success = asyncio.run(test_mcp_tools())
+    success = anyio.run(test_mcp_tools)
     if success:
         logger.info("🎉 All MCP server fixes completed successfully!")
         sys.exit(0)

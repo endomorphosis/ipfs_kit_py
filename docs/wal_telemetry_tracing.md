@@ -399,7 +399,7 @@ tracer = WALTracing(
 Here's a more complete example showing how to use the tracing system in a distributed environment:
 
 ```python
-import asyncio
+import anyio
 import aiohttp
 from fastapi import FastAPI, Request
 from ipfs_kit_py.storage_wal import StorageWriteAheadLog, BackendHealthMonitor
@@ -462,12 +462,12 @@ async def add_operation(request: Request, operation_type: str, backend: str):
         
         # Schedule background processing
         if result.get("success"):
-            asyncio.create_task(process_operation(
+            anyio.lowlevel.spawn_system_task(process_operation,
                 result["operation_id"], 
                 operation_type, 
                 backend,
                 tracer.generate_trace_context()  # Pass trace context to background task
-            ))
+            )
             
         return {
             "success": result.get("success", False),

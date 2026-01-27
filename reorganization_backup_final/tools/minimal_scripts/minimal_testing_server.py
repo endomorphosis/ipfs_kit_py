@@ -11,7 +11,7 @@ import sys
 import json
 import uuid
 import logging
-import asyncio
+import anyio
 import signal
 import argparse
 from datetime import datetime
@@ -648,7 +648,7 @@ async def sse_endpoint(request: Request) -> StreamingResponse:
             
             # Keep the connection open
             while True:
-                await asyncio.sleep(30)
+                await anyio.sleep(30)
                 
                 # Send a heartbeat event
                 yield f"event: heartbeat\n"
@@ -656,7 +656,7 @@ async def sse_endpoint(request: Request) -> StreamingResponse:
                     'type': 'heartbeat',
                     'timestamp': datetime.now().isoformat()
                 })}\n\n"
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             pass
         finally:
             # Clean up on disconnect

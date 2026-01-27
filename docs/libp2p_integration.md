@@ -294,7 +294,7 @@ peer.announce_content(cid, metadata={"size": len(content)})
 
 ```python
 from ipfs_kit_py.libp2p_peer import IPFSLibp2pPeer
-import asyncio
+import anyio
 
 # Create a peer with advanced configuration
 peer = IPFSLibp2pPeer(

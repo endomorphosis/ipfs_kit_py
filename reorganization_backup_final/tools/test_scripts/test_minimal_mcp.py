@@ -7,7 +7,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 from typing import Dict, Any
 
 # Configure logging
@@ -99,7 +99,7 @@ def test_ipfs_tools_registration():
                     return mock_func
                 
                 # Register the tool
-                mock_handler = asyncio.run(create_mock())
+                mock_handler = anyio.run(create_mock)
                 server.register_tool(tool_name, mock_handler, description)
                 registered_count += 1
                 
@@ -172,7 +172,7 @@ def main():
     registration_success = test_ipfs_tools_registration()
     
     # Test execution
-    execution_success = asyncio.run(test_tool_execution())
+    execution_success = anyio.run(test_tool_execution)
     
     if registration_success and execution_success:
         logger.info("✅ ALL TESTS PASSED - IPFS tools registration is working!")

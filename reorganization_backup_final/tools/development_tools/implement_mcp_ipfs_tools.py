@@ -207,7 +207,7 @@ import json
 import base64
 import tempfile
 import logging
-import asyncio
+import anyio
 from typing import Dict, Any, List, Optional, Union
 
 # Set up logging
@@ -963,7 +963,7 @@ async def main():
     return 0
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)
 """
     
     try:

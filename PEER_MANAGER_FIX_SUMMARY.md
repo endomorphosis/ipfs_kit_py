@@ -31,12 +31,12 @@ if 'multihash' not in sys.modules:
 **File**: `ipfs_kit_py/libp2p/peer_manager.py`
 
 **Changes**:
-- Added `asyncio.Lock` (`_peer_manager_lock`) to prevent race conditions
+- Added `anyio.Lock` (`_peer_manager_lock`) to prevent race conditions
 - Added `_started` flag to prevent multiple initialization calls
 - Updated `start_peer_manager()` to use the lock and check if already started
 
 ```python
-_peer_manager_lock = asyncio.Lock()
+_peer_manager_lock = anyio.Lock()
 
 async def start_peer_manager(config_dir: Path = None, ipfs_kit=None):
     async with _peer_manager_lock:
@@ -68,7 +68,7 @@ async def get_peers_summary(self):
 
 **After**:
 ```python
-_init_lock = asyncio.Lock()  # ✅ Class-level lock
+_init_lock = anyio.Lock()  # ✅ Class-level lock
 
 async def _ensure_peer_manager(self):
     if not PeerEndpoints._initialized:
@@ -121,7 +121,7 @@ Created comprehensive test suite in `test_peer_manager_singleton.py`:
 
 ### Tests Cover:
 1. **Singleton Pattern**: Verifies that multiple calls to `get_peer_manager()` return the same instance
-2. **Thread Safety**: Tests concurrent initialization with `asyncio.gather()`
+2. **Thread Safety**: Tests concurrent initialization with task groups
 3. **Multihash Compatibility**: Checks that the namespace resolution works
 4. **MCP Handlers**: Validates that all handlers can be instantiated and work correctly
 
@@ -135,7 +135,7 @@ Created comprehensive test suite in `test_peer_manager_singleton.py`:
 
 ### After
 - ✅ Single global peer manager instance (singleton)
-- ✅ Thread-safe with `asyncio.Lock`
+- ✅ Thread-safe with `anyio.Lock`
 - ✅ Multihash namespace conflicts resolved
 - ✅ Fully functional MCP handlers using the singleton
 

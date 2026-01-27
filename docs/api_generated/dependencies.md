@@ -108,7 +108,7 @@ This document lists all dependencies used in IPFS Kit Python and their purposes.
 
 - `pytest>=7.0.0`
 - `pytest-cov>=4.1.0`
-- `pytest-asyncio>=0.21.0`
+- `pytest-anyio>=0.21.0`
 - `black>=23.3.0`
 - `isort>=5.12.0`
 - `mypy>=1.3.0`

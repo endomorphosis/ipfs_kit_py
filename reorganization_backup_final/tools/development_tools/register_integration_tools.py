@@ -8,7 +8,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import requests
 from typing import Dict, Any, List, Optional
 

@@ -230,7 +230,7 @@ This script tests all the available IPFS tools.
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import requests
 from datetime import datetime

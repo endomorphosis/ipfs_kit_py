@@ -11,7 +11,7 @@ import sys
 import json
 import uuid
 import logging
-import asyncio
+import anyio
 import argparse
 from datetime import datetime
 
@@ -140,7 +140,7 @@ async def mcp_endpoint(request):
         yield f"event: connection\ndata: {json.dumps({'client_id': client_id})}\n\n"
         
         while True:
-            await asyncio.sleep(30)
+            await anyio.sleep(30)
             yield f"event: heartbeat\ndata: {json.dumps({'timestamp': datetime.now().isoformat()})}\n\n"
     
     return StreamingResponse(event_stream(), media_type="text/event-stream")
@@ -233,7 +233,7 @@ def main():
     PORT = args.port
     
     # Register default tools
-    asyncio.run(register_default_tools())
+    anyio.run(register_default_tools)
     
     # Run the server
     import uvicorn

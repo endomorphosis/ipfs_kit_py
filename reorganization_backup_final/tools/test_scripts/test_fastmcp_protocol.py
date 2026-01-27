@@ -6,7 +6,7 @@ This script tests the actual protocol communication with the FastMCP server
 to understand how tools are exposed and accessed.
 """
 
-import asyncio
+import anyio
 import aiohttp
 import json
 import logging
@@ -210,4 +210,4 @@ async def main():
     logger.info("FastMCP protocol tests completed")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

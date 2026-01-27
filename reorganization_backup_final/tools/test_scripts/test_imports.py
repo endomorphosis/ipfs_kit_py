@@ -13,7 +13,7 @@ try:
     print("   ✅ Path added")
     
     print("2. Testing basic Python imports...")
-    import asyncio
+    import anyio
     import logging
     print("   ✅ Basic imports successful")
     

@@ -12,7 +12,7 @@ import json
 import time
 import logging
 import tempfile
-import asyncio
+import anyio
 from pathlib import Path
 
 # Configure logging
@@ -390,4 +390,4 @@ async def main():
     return True
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

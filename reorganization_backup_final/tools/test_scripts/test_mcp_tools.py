@@ -9,7 +9,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import requests
 import tempfile
 from pathlib import Path

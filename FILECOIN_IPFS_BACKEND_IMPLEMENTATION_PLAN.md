@@ -1046,7 +1046,7 @@ security:
 ### Workflow 1: Pin Large Dataset with Filecoin Backing
 
 ```python
-import asyncio
+import anyio
 from ipfs_kit_py.mcp.storage_manager import UnifiedStorageManager
 from ipfs_kit_py.mcp.storage_manager.formats import CARManager
 
@@ -1091,9 +1091,9 @@ async def pin_large_dataset():
             print("Dataset is now active on Filecoin!")
             break
         
-        await asyncio.sleep(60)  # Check every minute
+        await anyio.sleep(60)  # Check every minute
 
-asyncio.run(pin_large_dataset())
+anyio.run(pin_large_dataset)
 ```
 
 ### Workflow 2: Intelligent Content Retrieval
@@ -1130,7 +1130,7 @@ async def retrieve_with_best_performance():
     
     return content
 
-content = asyncio.run(retrieve_with_best_performance())
+content = anyio.run(retrieve_with_best_performance)
 ```
 
 ### Workflow 3: Cost-Optimized Storage Migration
@@ -1188,7 +1188,7 @@ async def optimize_storage_costs():
         )
         
         # Unpin from old backend (after verification)
-        await asyncio.sleep(60)  # Wait for pin to stabilize
+        await anyio.sleep(60)  # Wait for pin to stabilize
         await pin_service.unpin(
             cid=migration['cid'],
             backends=[migration['from']]
@@ -1196,7 +1196,7 @@ async def optimize_storage_costs():
         
         print(f"  ✓ Saved ${migration['savings']:.4f}/month")
 
-asyncio.run(optimize_storage_costs())
+anyio.run(optimize_storage_costs)
 ```
 
 ---

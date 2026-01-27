@@ -76,7 +76,7 @@ IPFS Model / Simulation Layer
 
 ## Key Technologies
 
-- **Backend**: Python 3, FastAPI, asyncio
+- **Backend**: Python 3, FastAPI, async-io
 - **Frontend**: HTML5, CSS3, JavaScript (ES6+)
 - **Protocol**: JSON-RPC 2.0 (MCP)
 - **Integration**: IPFS (with simulation fallback)

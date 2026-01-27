@@ -29,7 +29,7 @@ def test_basic_imports():
     """Test basic Python imports."""
     import os
     import json
-    import asyncio
+    import anyio
     import signal
     import argparse
     import traceback

@@ -2,7 +2,7 @@
 """
 Test script for IPFS MCP tools with the real implementation.
 """
-import asyncio
+import anyio
 import json
 import aiohttp
 import logging
@@ -133,4 +133,4 @@ async def main():
     await tester.run_all_tests()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

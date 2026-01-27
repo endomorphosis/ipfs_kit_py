@@ -68,7 +68,7 @@ async def get_enhanced_vector_index_status(self) -> Dict[str, Any]:
     """Get real vector index status from search engines."""
     search_engine = await self._get_search_engine()
     if search_engine:
-        stats = await asyncio.to_thread(self._get_search_engine_stats, search_engine)
+        stats = await anyio.to_thread.run_sync(self._get_search_engine_stats, search_engine)
         # Return actual statistics instead of mock data
 ```
 

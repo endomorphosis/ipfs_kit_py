@@ -7,7 +7,7 @@ the MCP server and the ipfs_kit_py virtual filesystem.
 
 import sys
 import json
-import asyncio
+import anyio
 import logging
 import requests
 import argparse

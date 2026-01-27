@@ -26,7 +26,7 @@ The ParquetCIDCache implementation offers several opportunities for substantial 
 - Add async versions of all cache methods (`async_get()`, `async_put()`, etc.)
 - Implement non-blocking I/O for Parquet operations
 - Create background worker pools for I/O-bound operations
-- Provide compatibility with asyncio-based applications
+- Provide compatibility with async-io-based applications
 - Ensure thread safety for concurrent operations
 
 ### 4. Intelligent Cache Management

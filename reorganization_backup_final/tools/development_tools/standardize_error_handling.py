@@ -10,7 +10,7 @@ import sys
 import uuid
 import enum
 import traceback
-import asyncio
+import inspect
 import logging
 from typing import Dict, Any, List, Optional, Callable, Tuple, TypeVar, Union, Type
 from http import HTTPStatus
@@ -550,7 +550,7 @@ EXCEPTION_TO_ERROR_CODE = {
     ConnectionRefusedError: ErrorCode.DEPENDENCY_UNAVAILABLE,
     ConnectionResetError: ErrorCode.CONNECTION_RESET,
     BrokenPipeError: ErrorCode.CONNECTION_RESET,
-    asyncio.TimeoutError: ErrorCode.OPERATION_TIMEOUT,
+    TimeoutError: ErrorCode.OPERATION_TIMEOUT,
     ModuleNotFoundError: ErrorCode.DEPENDENCY_UNAVAILABLE,
     ImportError: ErrorCode.DEPENDENCY_UNAVAILABLE,
     NotImplementedError: ErrorCode.INTERNAL_SERVER_ERROR,
@@ -688,7 +688,7 @@ async def async_safe_execute(
         if error_handler:
             try:
                 # Check if error handler is a coroutine function
-                if asyncio.iscoroutinefunction(error_handler):
+                if inspect.iscoroutinefunction(error_handler):
                     await error_handler(error)
                 else:
                     error_handler(error)

@@ -222,25 +222,25 @@ curl http://localhost:9998/indexing/stats | jq '.'
 
 ```bash
 # Install dependencies
-pip install httpx asyncio
+pip install httpx anyio
 
 # Run load test
 python -c "
-import asyncio
+import anyio
 import httpx
 
 async def load_test():
     async with httpx.AsyncClient() as client:
-        tasks = []
-        for i in range(100):
-            task = client.get('http://localhost:9998/health')
-            tasks.append(task)
-        
-        responses = await asyncio.gather(*tasks)
+    responses = []
+    async def fetch_health():
+      responses.append(await client.get('http://localhost:9998/health'))
+    async with anyio.create_task_group() as task_group:
+      for _ in range(100):
+        task_group.start_soon(fetch_health)
         success_count = sum(1 for r in responses if r.status_code == 200)
         print(f'Success rate: {success_count}/100')
 
-asyncio.run(load_test())
+anyio.run(load_test)
 "
 ```
 

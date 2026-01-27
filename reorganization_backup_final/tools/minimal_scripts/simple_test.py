@@ -183,8 +183,8 @@ def run_test(test_info):
     try:
         # Check if it's an async function
         if inspect.iscoroutinefunction(test_func):
-            import asyncio
-            asyncio.run(test_func())
+            import anyio
+            anyio.run(test_func)
         else:
             test_func()
         

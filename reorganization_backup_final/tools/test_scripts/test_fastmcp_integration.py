@@ -7,7 +7,7 @@ decorators are not accessible through the Starlette app returned by server.sse_a
 We need to bridge this gap.
 """
 
-import asyncio
+import anyio
 import aiohttp
 import json
 import logging
@@ -224,4 +224,4 @@ async def main():
     logger.info("We need to create a bridge to make these tools accessible via HTTP.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)

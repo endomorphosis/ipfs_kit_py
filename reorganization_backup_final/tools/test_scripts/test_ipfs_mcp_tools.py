@@ -11,7 +11,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import unittest
 import pytest
 import requests
