@@ -2,7 +2,7 @@
 S3 Controller for the MCP server with AnyIO support.
 
 This controller handles HTTP requests related to S3 operations and
-delegates the business logic to the S3 model, with support for both asyncio
+delegates the business logic to the S3 model, with support for both async-io
 and trio via the AnyIO library.
 """
 
@@ -61,7 +61,7 @@ class S3ControllerAnyIO(S3Controller):
     Controller for S3 operations with AnyIO support.
 
     Handles HTTP requests related to S3 operations and delegates
-    the business logic to the S3 model, supporting both asyncio
+    the business logic to the S3 model, supporting both async-io
     and trio backends through AnyIO compatibility.
     """
     @staticmethod

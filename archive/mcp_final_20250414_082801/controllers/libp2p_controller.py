@@ -13,7 +13,7 @@ from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, HTTPException, Query, Path, status, Response
 from pydantic import BaseModel, Field
 
-# Use anyio for async operations (compatible with both asyncio and trio)
+# Use anyio for async operations (compatible with both async-io and trio)
 
 
 # Configure logger

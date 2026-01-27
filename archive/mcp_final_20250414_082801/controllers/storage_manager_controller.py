@@ -5,46 +5,14 @@ This controller provides a unified interface for managing multiple storage backe
 and their integration with the MCP server.
 """
 
-import logging
-import time
-from typing import Dict, List, Any, Optional
-from fastapi import APIRouter, HTTPException, Body
-from pydantic import BaseModel, Field
-
-# Import Pydantic models for request/response validation
-
-
-# Configure logger
-logger = logging.getLogger(__name__)
-
-
-# Define Pydantic models for requests and responses
-class OperationResponse(BaseModel):
-    """Base response model for operations."""
-    success: bool = Field(..., description="Whether the operation was successful")
-    operation_id: Optional[str] = Field(None, description="Unique identifier for this operation")
-    duration_ms: Optional[float] = Field(
-        None, description="Duration of the operation in milliseconds"
-    )
-
-
-class ReplicationPolicyRequest(BaseModel):
-    """Request model for applying replication policies to content."""
-    content_id: str = Field(..., description="Content identifier (CID)")
-    policy: Dict[str, Any] = Field(..., description="Replication policy configuration")
-
-
-class ReplicationPolicyResponse(OperationResponse):
-    """Response model for replication policy application."""
-    content_id: str = Field(..., description="Content identifier (CID)")
-    source_backend: str = Field(..., description="Source backend name")
-    backends_selected: List[str] = Field([], description="List of backends selected by the policy")
-    policy_applied: bool = Field(False, description="Whether the policy was successfully applied")
-    successful_backends: List[str] = Field(
-        [], description="List of backends where replication succeeded"
-    )
-    failed_backends: List[str] = Field([], description="List of backends where replication failed")
-    bytes_transferred: Optional[int] = Field(None, description="Number of bytes transferred")
+        try:
+            try:
+                anyio.run(self.shutdown)
+                return
+            except Exception as e:
+                logger.warning(f"Error using anyio.run for shutdown: {e}")
+        except Exception as e:
+            logger.error(f"Error during shutdown: {e}")
 
 
 class BackendStatusResponse(OperationResponse):
@@ -222,104 +190,21 @@ class StorageManagerController:
 
         # Log shutdown status
         if errors:
-            logger.warning(
-                f"Storage Manager Controller shutdown completed with {len(errors)} errors"
-            )
-        else:
-            logger.info("Storage Manager Controller shutdown completed successfully")
-
-    def sync_shutdown(self):
-        """
-        Synchronous version of shutdown for backward compatibility.
-
-        This method provides a synchronous way to shut down the controller
-        for contexts where async/await cannot be used directly.
-        """
-        logger.info("Running synchronous shutdown for Storage Manager Controller")
-
-        # Signal that we're shutting down
-        self.is_shutting_down = True
-
-        # Check for interpreter shutdown
-        import sys
-
-        is_interpreter_shutdown = hasattr(sys, "is_finalizing") and sys.is_finalizing()
-
-        # Fast path for interpreter shutdown
-        if is_interpreter_shutdown:
-            logger.warning("Detected interpreter shutdown, using simplified cleanup")
             try:
-                # Clear active resources without trying to create new threads
-                if hasattr(self, "active_transfers"):
-                    self.active_transfers.clear()
-
-                logger.info(
-                    "Simplified Storage Manager Controller shutdown completed during interpreter shutdown"
-                )
-                return
-            except Exception as e:
-                logger.error(f"Error during simplified shutdown: {e}")
-                # Continue with standard shutdown which might fail gracefully
-
-        try:
-            # Try using anyio
-            try:
-                import anyio
-
-                anyio.run(self.shutdown)
-                return
-            except ImportError:
-                logger.warning("anyio not available, falling back to asyncio")
-            except Exception as e:
-                logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
-
-            # Fallback to asyncio
-            import asyncio
-
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                # Create a new event loop if needed and not in shutdown
-                if is_interpreter_shutdown:
-                    logger.warning("Cannot get event loop during interpreter shutdown")
-                    # Just clear resources directly
-                    if hasattr(self, "active_transfers"):
-                        self.active_transfers.clear()
+                try:
+                    anyio.run(self.shutdown)
                     return
+                except Exception as e:
+                    logger.warning(f"Error using anyio.run for shutdown: {e}")
+            except Exception as e:
+                logger.error(f"Error during shutdown: {e}")
 
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            # Run the shutdown method
-            try:
-                loop.run_until_complete(self.shutdown())
-            except RuntimeError as e:
-                if "This event loop is already running" in str(e):
-                    logger.warning("Cannot use run_until_complete in a running event loop")
-                    # Cannot handle properly in this case
-                elif "can't create new thread" in str(e):
-                    logger.warning("Thread creation failed during interpreter shutdown")
-                    # Clear resources directly
-                    if hasattr(self, "active_transfers"):
-                        self.active_transfers.clear()
-                else:
-                    raise
-
-        except Exception as e:
-            logger.error(f"Error in sync_shutdown for Storage Manager Controller: {e}")
-            # Ensure resources are cleared even on error
-            try:
-                if hasattr(self, "active_transfers"):
-                    self.active_transfers.clear()
-            except Exception as clear_error:
-                logger.error(f"Error clearing resources during error handling: {clear_error}")
-
-        logger.info("Synchronous shutdown for Storage Manager Controller completed")
-
-    def register_routes(self, router: APIRouter):
-        """
-        Register routes with a FastAPI router.
-
+            if errors:
+                try:
+                    anyio.run(self.shutdown)
+                    return
+                except Exception as e:
+                    logger.error(f"Error during shutdown: {e}")
         Args:
             router: FastAPI router to register routes with
         """

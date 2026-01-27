@@ -2,7 +2,7 @@
 Hugging Face Controller for the MCP server with AnyIO support.
 
 This controller handles HTTP requests related to Hugging Face Hub operations and
-delegates the business logic to the Hugging Face model, with support for both asyncio
+delegates the business logic to the Hugging Face model, with support for both async-io
 and trio via the AnyIO library.
 """
 
@@ -50,7 +50,7 @@ class HuggingFaceControllerAnyIO(HuggingFaceController):
     """
     Controller for Hugging Face Hub operations with AnyIO support.
 
-    Provides endpoints for Hugging Face Hub operations supporting both asyncio
+    Provides endpoints for Hugging Face Hub operations supporting both async-io
     and trio backends through AnyIO compatibility.
     """
     @staticmethod

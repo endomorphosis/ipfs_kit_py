@@ -7,7 +7,7 @@ as specified in the MCP roadmap for Phase 1: Core Functionality Enhancements (Q3
 
 import logging
 import time
-import asyncio
+import anyio
 import jwt
 import hashlib
 import secrets
@@ -109,8 +109,8 @@ class AuthenticationService:
         await self._create_default_permissions()
 
         # Start background tasks
-        asyncio.create_task(self._cleanup_expired_sessions())
-        asyncio.create_task(self._cleanup_cache())
+        anyio.lowlevel.spawn_system_task(self._cleanup_expired_sessions)
+        anyio.lowlevel.spawn_system_task(self._cleanup_cache)
 
         self.initialized = True
         logger.info("Authentication service initialized")
@@ -227,7 +227,7 @@ class AuthenticationService:
                 logger.error(f"Error cleaning up expired sessions: {e}")
 
             # Sleep for 1 hour before checking again
-            await asyncio.sleep(3600)
+            await anyio.sleep(3600)
 
     async def _cleanup_cache(self):
         """Background task to clean up memory caches."""
@@ -243,7 +243,7 @@ class AuthenticationService:
                 logger.error(f"Error cleaning up caches: {e}")
 
             # Sleep for 6 hours before clearing again
-            await asyncio.sleep(21600)
+            await anyio.sleep(21600)
 
     def _get_password_hash(self, password: str) -> str:
         """

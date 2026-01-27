@@ -16,7 +16,7 @@ import time
 import json
 import random
 import logging
-import asyncio
+import anyio
 import ipaddress
 import math
 from typing import Dict, List, Any, Optional
@@ -1197,10 +1197,10 @@ async def periodic_metrics_update():
             save_performance_data()
 
             # Wait for next update interval
-            await asyncio.sleep(routing_config["update_interval_seconds"])
+            await anyio.sleep(routing_config["update_interval_seconds"])
         except Exception as e:
             logger.error(f"Error in periodic metrics update: {e}")
-            await asyncio.sleep(60)  # Wait a minute and try again
+            await anyio.sleep(60)  # Wait a minute and try again
 
 
 # Create router

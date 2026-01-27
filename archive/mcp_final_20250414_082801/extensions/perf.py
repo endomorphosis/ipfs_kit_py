@@ -14,7 +14,7 @@ import os
 import time
 import json
 import logging
-import asyncio
+import anyio
 import random
 import hashlib
 from typing import Dict, List, Any, Optional
@@ -838,10 +838,10 @@ async def periodic_stats_save():
     while True:
         try:
             save_stats()
-            await asyncio.sleep(60)  # Save every minute
+            await anyio.sleep(60)  # Save every minute
         except Exception as e:
             logger.error(f"Error in periodic stats save: {e}")
-            await asyncio.sleep(60)
+            await anyio.sleep(60)
 
 
 # Start background tasks
@@ -850,7 +850,7 @@ def start_background_tasks(app):
     @app.on_event("startup")
     async def startup_event():
         # Start periodic stats save
-        asyncio.create_task(periodic_stats_save())
+        anyio.lowlevel.spawn_system_task(periodic_stats_save)
 
     @app.on_event("shutdown")
     async def shutdown_event():

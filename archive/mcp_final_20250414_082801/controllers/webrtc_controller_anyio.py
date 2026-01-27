@@ -39,8 +39,8 @@ class WebRTCControllerAnyIO:
         """
         self.ipfs_model = ipfs_model
         self.active_streaming_servers = {}
-        self.active_connections = {}
-        self.cleanup_task = None
+        def handle_async_io_cancel():
+            """Handle cancellation in async-io context"""
         self.is_shutting_down = False
 
         # Start periodic cleanup task
@@ -72,7 +72,7 @@ class WebRTCControllerAnyIO:
                     try:
                         # Sleep for the specified interval
                         await anyio.sleep(cleanup_interval)
-
+                logger.warning(f"Error cancelling cleanup task with async-io: {e}")
                         # Skip if we're shutting down
                         if self.is_shutting_down:
                             break
@@ -123,7 +123,7 @@ class WebRTCControllerAnyIO:
                             )
                             if result.get("success", False):
                                 connections = result.get("connections", [])
-
+            # Import async-io for handling async tasks
                                 # Get current live connection IDs
                                 current_connection_ids = {
                                     conn.get("id") for conn in connections if conn.get("id")
@@ -295,8 +295,8 @@ class WebRTCControllerAnyIO:
         self.is_shutting_down = True
 
         # Helper function to handle different async frameworks
-        def handle_asyncio_cancel():
-            """Handle cancellation in asyncio context"""
+        def handle_async_io_cancel():
+            """Handle cancellation in async-io context"""
             try:
                 # Try to get the event loop and cancel the task
 
@@ -328,7 +328,7 @@ class WebRTCControllerAnyIO:
                 except Exception as e:
                     logger.warning(f"Error waiting for cleanup task cancellation: {e}")
             except Exception as e:
-                logger.warning(f"Error cancelling cleanup task with asyncio: {e}")
+                logger.warning(f"Error cancelling cleanup task with async-io: {e}")
 
         # Helper function to handle AnyIO cancellation
         def handle_anyio_cancel():
@@ -366,11 +366,11 @@ class WebRTCControllerAnyIO:
                     # The task should check this flag periodically
             except Exception as e:
                 logger.warning(f"Error cancelling cleanup task with AnyIO: {e}")
-                # Fall back to asyncio method as a last resort
+                # Fall back to async-io method as a last resort
                 try:
-                    handle_asyncio_cancel()
+                    handle_async_io_cancel()
                 except Exception as nested_e:
-                    logger.warning(f"Fallback asyncio cancellation also failed: {nested_e}")
+                    logger.warning(f"Fallback async-io cancellation also failed: {nested_e}")
 
         # Cancel the cleanup task if it's running
         if self.cleanup_task is not None:
@@ -378,7 +378,7 @@ class WebRTCControllerAnyIO:
                 f"Attempting to cancel cleanup task (type: {type(self.cleanup_task).__name__})"
             )
 
-            # Import asyncio for handling asyncio tasks
+            # Import async-io for handling async tasks
 
             # Use AnyIO since we already imported it at the top of the file
             handle_anyio_cancel()

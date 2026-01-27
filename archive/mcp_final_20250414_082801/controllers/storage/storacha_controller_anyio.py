@@ -2,7 +2,7 @@
 Storacha (Web3.Storage) Controller for the MCP server with AnyIO support.
 
 This controller handles HTTP requests related to Storacha (Web3.Storage) operations and
-delegates the business logic to the Storacha model, with support for both asyncio
+delegates the business logic to the Storacha model, with support for both async-io
 and trio via the AnyIO library.
 """
 
@@ -59,7 +59,7 @@ class StorachaControllerAnyIO(StorachaController):
     Controller for Storacha (Web3.Storage) operations with AnyIO support.
 
     Handles HTTP requests related to Storacha operations and delegates
-    the business logic to the Storacha model, supporting both asyncio
+    the business logic to the Storacha model, supporting both async-io
     and trio backends through AnyIO compatibility.
     """
     @staticmethod

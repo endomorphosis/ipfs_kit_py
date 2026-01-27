@@ -10,14 +10,43 @@ as specified in the MCP roadmap Q2 2025 priorities:
 
 import logging
 import time
-import asyncio
+import anyio
 import random
 import io
 import statistics
+from dataclasses import dataclass
 from typing import Dict, List, Any, Optional, Union, Callable, Tuple
 from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _Deferred:
+    _event: anyio.Event
+    _result: Any = None
+    _exc: Optional[BaseException] = None
+
+    @classmethod
+    def create(cls) -> "_Deferred":
+        return cls(anyio.Event())
+
+    def done(self) -> bool:
+        return self._event.is_set()
+
+    def set_result(self, value: Any) -> None:
+        self._result = value
+        self._event.set()
+
+    def set_exception(self, exc: BaseException) -> None:
+        self._exc = exc
+        self._event.set()
+
+    async def get(self) -> Any:
+        await self._event.wait()
+        if self._exc is not None:
+            raise self._exc
+        return self._result
 
 
 class PerformanceOptimizationService:
@@ -71,7 +100,9 @@ class PerformanceOptimizationService:
         self.backend_weights = {}
 
         # Request queue for throttling
+        # backend -> (send_stream, receive_stream)
         self.request_queue = {}
+        self.request_queue_sizes = {}
         self.request_semaphores = {}
 
         # Cached backend capabilities
@@ -85,10 +116,10 @@ class PerformanceOptimizationService:
         await self.initialize_connection_pools()
 
         # Start background tasks
-        asyncio.create_task(self._process_batched_requests())
-        asyncio.create_task(self._update_performance_metrics())
-        asyncio.create_task(self._update_backend_health())
-        asyncio.create_task(self._update_backend_weights())
+        anyio.lowlevel.spawn_system_task(self._process_batched_requests)
+        anyio.lowlevel.spawn_system_task(self._update_performance_metrics)
+        anyio.lowlevel.spawn_system_task(self._update_backend_health)
+        anyio.lowlevel.spawn_system_task(self._update_backend_weights)
 
         logger.info("Performance optimization service started")
 
@@ -102,17 +133,18 @@ class PerformanceOptimizationService:
 
             # Initialize request semaphore (limit concurrent requests)
             # Default to 10 concurrent requests per backend
-            self.request_semaphores[backend] = asyncio.Semaphore(10)
+            self.request_semaphores[backend] = anyio.Semaphore(10)
 
             # Initialize request queue
-            self.request_queue[backend] = asyncio.Queue()
+            self.request_queue[backend] = anyio.create_memory_object_stream(1000)
+            self.request_queue_sizes[backend] = 0
 
             # Start request processor for this backend
-            asyncio.create_task(self._process_request_queue(backend))
+            anyio.lowlevel.spawn_system_task(self._process_request_queue, backend)
 
             # Start batch processor for this backend
-            self.batch_processors[backend] = asyncio.create_task(
-                self._process_backend_batch_queue(backend)
+            self.batch_processors[backend] = anyio.lowlevel.spawn_system_task(
+                self._process_backend_batch_queue, backend
             )
 
             # Initialize backend health
@@ -198,7 +230,8 @@ class PerformanceOptimizationService:
         while True:
             try:
                 # Get the next request from the queue
-                request_info = await self.request_queue[backend].get()
+                _, receive_stream = self.request_queue[backend]
+                request_info = await receive_stream.receive()
 
                 # Extract request details
                 func, args, kwargs, future = request_info
@@ -231,17 +264,20 @@ class PerformanceOptimizationService:
                         self.performance_metrics[backend]["latency"].append(latency)
 
                         # Mark task as done
-                        self.request_queue[backend].task_done()
+                        if backend in self.request_queue_sizes:
+                            self.request_queue_sizes[backend] = max(
+                                0, self.request_queue_sizes[backend] - 1
+                            )
             except Exception as e:
                 logger.error(f"Error in request queue processor for {backend}: {e}")
-                await asyncio.sleep(1)  # Prevent tight loop in case of repeated errors
+                await anyio.sleep(1)  # Prevent tight loop in case of repeated errors
 
     async def _process_batched_requests(self):
         """Process batched requests for all backends."""
         while True:
             try:
                 # Sleep for a short time to allow batching
-                await asyncio.sleep(0.1)
+                await anyio.sleep(0.1)
 
                 # Process batches for each backend
                 for backend in list(self.batched_requests.keys()):
@@ -264,7 +300,9 @@ class PerformanceOptimizationService:
                             ]
 
                             # Schedule batch processing
-                            asyncio.create_task(self._process_batch(backend, batch))
+                            anyio.lowlevel.spawn_system_task(
+                                self._process_batch, backend, batch
+                            )
                         else:
                             # If batching not supported, process individually
                             for request in self.batched_requests[backend]:
@@ -281,7 +319,7 @@ class PerformanceOptimizationService:
                             self.batched_requests[backend] = []
             except Exception as e:
                 logger.error(f"Error processing batched requests: {e}")
-                await asyncio.sleep(1)  # Prevent tight loop in case of repeated errors
+                await anyio.sleep(1)  # Prevent tight loop in case of repeated errors
 
     async def _process_backend_batch_queue(self, backend: str):
         """
@@ -311,10 +349,10 @@ class PerformanceOptimizationService:
                     await self._process_batch(backend, batch)
 
                 # Sleep for a short time
-                await asyncio.sleep(0.1)
+                await anyio.sleep(0.1)
             except Exception as e:
                 logger.error(f"Error in batch processor for {backend}: {e}")
-                await asyncio.sleep(1)  # Prevent tight loop in case of repeated errors
+                await anyio.sleep(1)  # Prevent tight loop in case of repeated errors
 
     async def _process_batch(self, backend: str, batch: List[Dict[str, Any]]):
         """
@@ -413,7 +451,7 @@ class PerformanceOptimizationService:
                 logger.error(f"Error updating performance metrics: {e}")
 
             # Sleep for 10 seconds before updating again
-            await asyncio.sleep(10)
+            await anyio.sleep(10)
 
     async def _update_backend_health(self):
         """Update health status for all backends."""
@@ -463,7 +501,7 @@ class PerformanceOptimizationService:
                 logger.error(f"Error updating backend health: {e}")
 
             # Sleep for 30 seconds before updating again
-            await asyncio.sleep(30)
+            await anyio.sleep(30)
 
     async def _update_backend_weights(self):
         """Update weights for load balancing."""
@@ -516,16 +554,16 @@ class PerformanceOptimizationService:
                 logger.error(f"Error updating backend weights: {e}")
 
             # Sleep for 60 seconds before updating again
-            await asyncio.sleep(60)
+            await anyio.sleep(60)
 
     async def schedule_request(
-    self,
-    backend: str
-        func: Callable
+        self,
+        backend: str,
+        func: Callable,
         *args,
-        future: asyncio.Future = None,
+        future: Optional[_Deferred] = None,
         **kwargs,
-    ):
+    ) -> _Deferred:
         """
         Schedule a request for a backend with throttling.
 
@@ -540,19 +578,22 @@ class PerformanceOptimizationService:
             Future for the request result
         """
         if future is None:
-            future = asyncio.Future()
+            future = _Deferred.create()
 
         # Create request info
         request_info = (func, args, kwargs, future)
 
         # Add to request queue
-        await self.request_queue[backend].put(request_info)
+        send_stream, _ = self.request_queue[backend]
+        await send_stream.send(request_info)
+        if backend in self.request_queue_sizes:
+            self.request_queue_sizes[backend] += 1
 
         return future
 
     async def batch_request(
         self, backend: str, func: Callable, op_type: str, *args, **kwargs
-    ) -> asyncio.Future:
+    ) -> _Deferred:
         """
         Add a request to the batch queue.
 
@@ -566,16 +607,16 @@ class PerformanceOptimizationService:
         Returns:
             Future for the request result
         """
-        future = asyncio.Future()
+        future = _Deferred.create()
 
         # Add to batch queue
         self.batched_requests[backend].append(
             {
-                "func": func
-                "args": args
-                "kwargs": kwargs
-                "future": future
-                "op_type": op_type
+                "func": func,
+                "args": args,
+                "kwargs": kwargs,
+                "future": future,
+                "op_type": op_type,
                 "timestamp": time.time(),
             }
         )
@@ -850,7 +891,8 @@ class PerformanceOptimizationService:
                 }
             },
             "request_queue": {
-                backend: self.request_queue[backend].qsize() for backend in self.request_queue
+                backend: self.request_queue_sizes.get(backend, 0)
+                for backend in self.request_queue
             },
         }
 

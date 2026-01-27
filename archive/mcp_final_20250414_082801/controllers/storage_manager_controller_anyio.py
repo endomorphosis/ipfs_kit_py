@@ -2,7 +2,7 @@
 Storage Manager Controller for MCP Server with AnyIO support.
 
 This controller provides a unified interface for managing multiple storage backends
-and their integration with the MCP server, with support for both asyncio and trio
+and their integration with the MCP server, with support for both async-io and trio
 via the AnyIO library.
 """
 
@@ -54,7 +54,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
     Controller for storage manager operations with AnyIO support.
 
     Provides endpoints for managing multiple storage backends and
-    transferring content between them, supporting both asyncio and trio
+    transferring content between them, supporting both async-io and trio
     backends through AnyIO compatibility.
     """
     @staticmethod

@@ -15,7 +15,7 @@ import os
 import time
 import json
 import logging
-import asyncio
+import anyio
 import random
 import socket
 import uuid
@@ -903,10 +903,10 @@ async def ha_background_task():
             await check_replication_status()
 
             # Wait for next iteration
-            await asyncio.sleep(config["heartbeat"]["interval_seconds"])
+            await anyio.sleep(config["heartbeat"]["interval_seconds"])
         except Exception as e:
             logger.error(f"Error in HA background task: {e}")
-            await asyncio.sleep(config["heartbeat"]["interval_seconds"])
+            await anyio.sleep(config["heartbeat"]["interval_seconds"])
 
 
 async def close_http_session():
@@ -1336,7 +1336,7 @@ def start_background_tasks(app):
         add_event(EventType.NODE_JOINED, node_id=this_node["id"], details={"startup": True})
 
         # Start main background task
-        asyncio.create_task(ha_background_task())
+        anyio.lowlevel.spawn_system_task(ha_background_task)
 
     @app.on_event("shutdown")
     async def shutdown_event():

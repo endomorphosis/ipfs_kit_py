@@ -13,7 +13,7 @@ to provide deeper integration with the MCP architecture.
 
 import logging
 import time
-import asyncio
+import anyio
 import uuid
 from typing import Dict, Any, Optional, Tuple
 from ..models.migration import (
@@ -60,7 +60,7 @@ class MigrationController:
                 await self.migration_store.update(migration_id, migration)
 
         # Start background cleanup task
-        asyncio.create_task(self._cleanup_task())
+        anyio.lowlevel.spawn_system_task(self._cleanup_task)
 
         logger.info(f"Migration controller started, loaded {len(migrations)} migrations")
 
@@ -83,7 +83,7 @@ class MigrationController:
                 logger.error(f"Error in migration cleanup task: {e}")
 
             # Sleep for 5 minutes
-            await asyncio.sleep(300)
+            await anyio.sleep(300)
 
     async def verify_backends(self, source_backend: str, target_backend: str) -> Tuple[bool, str]:
         """
@@ -160,7 +160,7 @@ class MigrationController:
         await self.migration_store.create(migration_id, migration)
 
         # Start migration task
-        task = asyncio.create_task(self._perform_migration(migration_id))
+        task = anyio.lowlevel.spawn_system_task(self._perform_migration, migration_id)
         self._active_migrations[migration_id] = {
             "task": task
             "created_at": time.time(),
@@ -239,7 +239,7 @@ class MigrationController:
             await self.migration_store.create(migration_id, migration)
 
             # Start migration task
-            task = asyncio.create_task(self._perform_migration(migration_id))
+            task = anyio.lowlevel.spawn_system_task(self._perform_migration, migration_id)
             self._active_migrations[migration_id] = {
                 "task": task
                 "created_at": time.time(),

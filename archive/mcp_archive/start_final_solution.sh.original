@@ -380,7 +380,7 @@ This script performs detailed tests of the MCP server implementation, with a foc
 """
 
 import argparse
-import asyncio
+import anyio
 import json
 import logging
 import os

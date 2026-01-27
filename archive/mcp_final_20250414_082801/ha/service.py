@@ -5,7 +5,7 @@ This module implements the core High Availability functionality
 as specified in the MCP roadmap for Phase 2: Enterprise Features (Q4 2025).
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -133,10 +133,10 @@ class HighAvailabilityService:
         self.cluster_state: Optional[ClusterState] = None
 
         # State lock for thread safety
-        self.state_lock = asyncio.Lock()
+        self.state_lock = anyio.Lock()
 
         # Election lock for leader election
-        self.election_lock = asyncio.Lock()
+        self.election_lock = anyio.Lock()
 
         # Initialization flag
         self.initialized = False
@@ -146,6 +146,7 @@ class HighAvailabilityService:
         self.health_check_task = None
         self.state_sync_task = None
         self.failover_monitor_task = None
+        self._background_tg = None
 
         # Persistent state file
         self.state_file = "/tmp/ipfs_kit/mcp/ha/cluster_state.json"
@@ -451,10 +452,12 @@ class HighAvailabilityService:
         await self._load_or_init_state()
 
         # Start tasks
-        self.heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-        self.health_check_task = asyncio.create_task(self._health_check_loop())
-        self.state_sync_task = asyncio.create_task(self._state_sync_loop())
-        self.failover_monitor_task = asyncio.create_task(self._failover_monitor_loop())
+        self._background_tg = anyio.create_task_group()
+        await self._background_tg.__aenter__()
+        self._background_tg.start_soon(self._heartbeat_loop)
+        self._background_tg.start_soon(self._health_check_loop)
+        self._background_tg.start_soon(self._state_sync_loop)
+        self._background_tg.start_soon(self._failover_monitor_loop)
 
         # Set up signal handlers for graceful shutdown
         for sig in (signal.SIGTERM, signal.SIGINT):
@@ -471,17 +474,13 @@ class HighAvailabilityService:
             sig: Signal to handle
         """
 
-        def handler():
-            asyncio.create_task(self.stop())
+        def handler(signum=None, frame=None):
+            anyio.lowlevel.spawn_system_task(self.stop)
 
         try:
-            # Get the running event loop
-            loop = asyncio.get_running_loop()
-            # Add signal handler to the loop
-            loop.add_signal_handler(sig, handler)
-        except (NotImplementedError, RuntimeError):
-            # Fallback for systems that don't support add_signal_handler
-            signal.signal(sig, lambda s, f: asyncio.create_task(self.stop()))
+            signal.signal(sig, handler)
+        except Exception:
+            logger.debug("Signal handler registration failed")
 
     async def stop(self):
         """Stop the high availability service."""
@@ -491,18 +490,10 @@ class HighAvailabilityService:
         logger.info(f"Stopping high availability service on node {self.node_id}")
 
         # Cancel tasks
-        for task in [
-            self.heartbeat_task,
-            self.health_check_task,
-            self.state_sync_task,
-            self.failover_monitor_task,
-        ]:
-            if task:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
+        if self._background_tg is not None:
+            self._background_tg.cancel_scope.cancel()
+            await self._background_tg.__aexit__(None, None, None)
+            self._background_tg = None
 
         # If we're the primary, try to hand off
         if self.node_info.role == "primary":
@@ -808,14 +799,14 @@ class HighAvailabilityService:
                                             )
                                 except Exception as e:
                                     logger.warning(f"Error sending heartbeat: {e}")
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in heartbeat loop: {e}")
 
             # Sleep for heartbeat interval
             interval = self.cluster_state.config.heartbeat_interval if self.cluster_state else 10
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
     async def _get_load_metrics(self) -> Dict[str, float]:
         """
@@ -866,7 +857,7 @@ class HighAvailabilityService:
                 if self.cluster_state and self.node_info.role == "primary":
                     await self._check_node_health()
                     await self._check_service_health()
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in health check loop: {e}")
@@ -875,7 +866,7 @@ class HighAvailabilityService:
             interval = (
                 self.cluster_state.config.heartbeat_interval if self.cluster_state else 10
             ) / 2
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
     async def _check_node_health(self):
         """Check health of all nodes in the cluster."""
@@ -1018,7 +1009,7 @@ class HighAvailabilityService:
                     else:
                         # If we're not the primary, sync from the primary
                         await self._sync_from_primary()
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in state sync loop: {e}")
@@ -1027,7 +1018,7 @@ class HighAvailabilityService:
             interval = (
                 self.cluster_state.config.heartbeat_interval if self.cluster_state else 10
             ) * 2
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
     async def _propagate_state_update(self):
         """Propagate state updates to all active nodes in the cluster."""
@@ -1116,7 +1107,7 @@ class HighAvailabilityService:
                             await self._elect_new_primary(
                                 f"Primary node {primary_node_id} is {primary_node.status}"
                             )
-            except asyncio.CancelledError:
+            except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
                 logger.error(f"Error in failover monitor loop: {e}")
@@ -1125,7 +1116,7 @@ class HighAvailabilityService:
             interval = (
                 self.cluster_state.config.heartbeat_interval if self.cluster_state else 10
             ) / 2
-            await asyncio.sleep(interval)
+            await anyio.sleep(interval)
 
     async def _elect_new_primary(self, reason: str):
         """

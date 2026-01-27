@@ -7,6 +7,7 @@ various storage services like IPFS, S3, Storacha, and Filecoin.
 
 import logging
 import time
+import anyio
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -195,56 +196,13 @@ class CredentialController:
                 logger.error(f"Error during simplified shutdown: {e}")
 
         try:
-            # Try using anyio
             try:
-                import anyio
-
                 anyio.run(self.shutdown)
                 return
-            except ImportError:
-                logger.warning("anyio not available, falling back to asyncio")
             except Exception as e:
-                logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
-
-            # Fallback to asyncio
-            import asyncio
-
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                # Create a new event loop if needed and not in shutdown
-                if is_interpreter_shutdown:
-                    logger.warning("Cannot get event loop during interpreter shutdown")
-                    return
-
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            # Run the shutdown method
-            try:
-                loop.run_until_complete(self.shutdown())
-            except RuntimeError as e:
-                if "This event loop is already running" in str(e):
-                    logger.warning("Cannot use run_until_complete in a running event loop")
-                elif "can't create new thread" in str(e):
-                    logger.warning("Thread creation failed during interpreter shutdown")
-                else:
-                    raise
+                logger.warning(f"Error using anyio.run for shutdown: {e}")
         except Exception as e:
-            logger.error(f"Error in sync_shutdown for Credential Controller: {e}")
-
-        logger.info("Synchronous shutdown for Credential Controller completed")
-
-    def register_routes(self, router: APIRouter):
-        """
-        Register routes with a FastAPI router.
-
-        Args:
-            router: FastAPI router to register routes with
-        """
-        # List credentials route
-        router.add_api_route(
-            "/credentials",
+            logger.error(f"Error during shutdown: {e}")
             self.list_credentials,
             methods=["GET"],
             response_model=CredentialInfoResponse,

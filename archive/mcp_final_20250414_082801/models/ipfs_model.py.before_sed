@@ -1,4 +1,6 @@
-"""
+"""Archive shim for IPFS model (before_sed)."""
+
+from ipfs_kit_py.mcp.models.ipfs_model import *  # noqa: F401,F403"""
 IPFS Model for the MCP server.
 
 This model encapsulates IPFS operations and provides a clean interface
@@ -10,7 +12,7 @@ import time
 import os
 import tempfile
 import json
-import asyncio
+import anyio
 from datetime import datetime
 import uuid
 import random  # For generating random data in benchmarks
@@ -2029,7 +2031,7 @@ class IPFSModel:
 
         try:
             # Safer approach: always provide a simulated successful response
-            # This avoids asyncio event loop issues in various contexts (FastAPI, etc.)
+            # This avoids anyio event loop issues in various contexts (FastAPI, etc.)
             logger.info(f"Stopping WebRTC stream for server {server_id} with safe implementation")
 
             # Get current stats to check for connections to close
@@ -2056,14 +2058,14 @@ class IPFSModel:
             # issues are resolved more comprehensively:
             #
             # try:
-            #     import nest_asyncio
-            #     nest_asyncio.apply()
-            #     loop = asyncio.get_event_loop()
+            #     import nest_anyio
+            #     nest_anyio.apply()
+            #     loop = anyio.get_current_task()
             #     stop_result = loop.run_until_complete(
             #         self.webrtc_manager.stop_server(server_id)
             #     )
             # except (ImportError, RuntimeError):
-            #     # Fall back to our current approach if nest_asyncio is not available
+            #     # Fall back to our current approach if nest_anyio is not available
             #     stop_result = {
             #         "connections_closed": connection_count,
             #         "simulated": True,
@@ -2429,17 +2431,17 @@ class IPFSModel:
             # Use a safer approach to handle async operations
             # Create a new event loop if needed
             try:
-                loop = asyncio.get_event_loop()
+                loop = anyio.get_current_task()
                 if loop.is_running():
                     # Create a new event loop for this operation
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
+                    new_loop = anyio.new_event_loop()
+                    anyio.set_event_loop(new_loop)
                     loop = new_loop
                     logger.info("Created new event loop for WebRTC connection close operation")
             except RuntimeError:
                 # No event loop in this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                loop = anyio.new_event_loop()
+                anyio.set_event_loop(loop)
                 logger.info("Created new event loop in current thread for WebRTC operation")
 
             # Handle close operation with the appropriate loop
@@ -2515,7 +2517,7 @@ class IPFSModel:
             connection_count = stats.get("active_connections", 0)
 
             # Safer approach: always provide a simulated successful response
-            # This avoids asyncio event loop issues in various contexts (FastAPI, etc.)
+            # This avoids anyio event loop issues in various contexts (FastAPI, etc.)
             logger.info("Closing all WebRTC connections with safe implementation")
 
             # Create a simulated success result
@@ -2533,14 +2535,14 @@ class IPFSModel:
             # issues are resolved more comprehensively:
             #
             # try:
-            #     import nest_asyncio
-            #     nest_asyncio.apply()
-            #     loop = asyncio.get_event_loop()
+            #     import nest_anyio
+            #     nest_anyio.apply()
+            #     loop = anyio.get_current_task()
             #     close_result = loop.run_until_complete(
             #         self.webrtc_manager.close_all_connections()
             #     )
             # except (ImportError, RuntimeError):
-            #     # Fall back to our current approach if nest_asyncio is not available
+            #     # Fall back to our current approach if nest_anyio is not available
             #     close_result = {
             #         "connections_closed": connection_count,
             #         "simulated": True
@@ -2841,8 +2843,8 @@ class IPFSModel:
                         random_key = "".join(random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=20))
 
                         # Run DHT search
-                        dht_peers = asyncio.get_event_loop().run_until_complete(
-                            asyncio.wait_for(
+                        dht_peers = anyio.get_current_task().run_until_complete(
+                            anyio.wait_for(
                                 libp2p_peer._perform_random_walk(),
                                 timeout=timeout/3
                             )
@@ -3400,16 +3402,16 @@ class IPFSModel:
                 self._websocket_discovered_peers = {}
 
             # Set up async operations
-            import asyncio
+            import anyio
 
             # Set up event loop
             try:
                 # Get existing event loop or create a new one
-                loop = asyncio.get_event_loop()
+                loop = anyio.get_current_task()
             except RuntimeError:
                 # No event loop exists in this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                loop = anyio.new_event_loop()
+                anyio.set_event_loop(loop)
 
             # Discovery task
             async def do_discovery():
@@ -3423,7 +3425,7 @@ class IPFSModel:
                         await self._websocket_client.connect_to_discovery_server(server_url)
 
                 # Allow time for discovery to work
-                await asyncio.sleep(min(5, timeout))
+                await anyio.sleep(min(5, timeout))
 
                 # Get discovered peers with filtering
                 return self._websocket_client.get_discovered_peers(
@@ -3434,7 +3436,7 @@ class IPFSModel:
             # Run discovery with timeout
             try:
                 discovered_peers = loop.run_until_complete(
-                    asyncio.wait_for(do_discovery(), timeout)
+                    anyio.wait_for(do_discovery(), timeout)
                 )
 
                 # Convert PeerInfo objects to dictionaries
@@ -3454,7 +3456,7 @@ class IPFSModel:
 
                 logger.info(f"Found {len(peer_list)} peers via WebSockets")
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(f"WebSocket peer discovery timed out after {timeout} seconds")
 
                 result["error"] = f"Discovery timed out after {timeout} seconds"

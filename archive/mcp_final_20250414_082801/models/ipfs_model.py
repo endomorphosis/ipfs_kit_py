@@ -1,4 +1,6 @@
-"""
+"""Archive shim for IPFS model."""
+
+from ipfs_kit_py.mcp.models.ipfs_model import *  # noqa: F401,F403"""
 IPFS Model for the MCP server.
 
 This model encapsulates IPFS operations and provides a clean interface
@@ -9,14 +11,14 @@ import logging
 import time
 import os
 import uuid
-import asyncio
+import anyio
 from typing import Dict, List, Any, Union
 
 
-# Utility class for handling asyncio operations in different contexts
+# Utility class for handling anyio operations in different contexts
 class AsyncEventLoopHandler:
     """
-    Handler for properly managing asyncio operations in different contexts.
+    Handler for properly managing anyio operations in different contexts.
     """
     # Class variable to track all created tasks to prevent "coroutine was never awaited" warnings
     _background_tasks = set()
@@ -32,7 +34,7 @@ class AsyncEventLoopHandler:
         """Run a coroutine in any context (sync or async)."""
         try:
             # Try to get the current event loop
-            loop = asyncio.get_event_loop()
+            loop = anyio.get_current_task()
 
             # Check if the loop is already running (e.g., in FastAPI)
             if loop.is_running():
@@ -44,7 +46,7 @@ class AsyncEventLoopHandler:
                     }
 
                 # Schedule coroutine to run in the background and track it
-                task = asyncio.create_task(coro)
+                task = anyio.create_task(coro)
                 # Add to tracking set
                 cls._background_tasks.add(task)
                 # Add callback to remove when done
@@ -56,8 +58,8 @@ class AsyncEventLoopHandler:
 
         except RuntimeError:
             # No event loop in this thread, create a new one
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            loop = anyio.new_event_loop()
+            anyio.set_event_loop(loop)
             try:
                 return loop.run_until_complete(coro)
             finally:
@@ -705,11 +707,11 @@ use_progressive_loading=use_progressive_loading
         try:
             # Try to get/create an event loop
             try:
-                loop = asyncio.get_event_loop()
+                loop = anyio.get_current_task()
             except RuntimeError:
                 # No event loop exists in this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                loop = anyio.new_event_loop()
+                anyio.set_event_loop(loop)
 
             # Run async shutdown
             if loop.is_running():
@@ -2525,10 +2527,10 @@ This model encapsulates IPFS operations and provides a clean interface
 for the controller to interact with the IPFS functionality.
 """
 
-# Utility class for handling asyncio operations in different contexts#
+# Utility class for handling anyio operations in different contexts#
 # class AsyncEventLoopHandler:
 #     """
-#     Handler for properly managing asyncio operations in different contexts.
+#     Handler for properly managing anyio operations in different contexts.
 #     """
 #
 #     # Class variable to track all created tasks to prevent "coroutine was never awaited" warnings
@@ -2545,7 +2547,7 @@ for the controller to interact with the IPFS functionality.
 #         """Run a coroutine in any context (sync or async)."""
 #         try:
 #             # Try to get the current event loop
-#             loop = asyncio.get_event_loop()
+#             loop = anyio.get_current_task()
 #
 #             # Check if the loop is already running (e.g., in FastAPI)
 #             if loop.is_running():
@@ -2557,7 +2559,7 @@ for the controller to interact with the IPFS functionality.
 #                     }
 #
 #                 # Schedule coroutine to run in the background and track it
-#                 task = asyncio.create_task(coro)
+#                 task = anyio.create_task(coro)
 #                 # Add to tracking set
 #                 cls._background_tasks.add(task)
 #                 # Add callback to remove when done
@@ -2569,8 +2571,8 @@ for the controller to interact with the IPFS functionality.
 #
 #         except RuntimeError:
 #             # No event loop in this thread, create a new one
-#             loop = asyncio.new_event_loop()
-#             asyncio.set_event_loop(loop)
+#             loop = anyio.new_event_loop()
+#             anyio.set_event_loop(loop)
 #             try:
 #                 return loop.run_until_complete(coro)
 #             finally:
@@ -3229,11 +3231,11 @@ for the controller to interact with the IPFS functionality.
 #         try:
 #             # Try to get/create an event loop
 #             try:
-#                 loop = asyncio.get_event_loop()
+#                 loop = anyio.get_current_task()
 #             except RuntimeError:
 #                 # No event loop exists in this thread
-#                 loop = asyncio.new_event_loop()
-#                 asyncio.set_event_loop(loop)
+#                 loop = anyio.new_event_loop()
+#                 anyio.set_event_loop(loop)
 #
 #             # Run async shutdown
 #             if loop.is_running():

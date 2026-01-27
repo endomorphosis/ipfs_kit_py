@@ -16,7 +16,7 @@ import sys
 import json
 import uuid
 import logging
-import asyncio
+import anyio
 import signal
 import argparse
 import traceback
@@ -1719,7 +1719,7 @@ async def sse_event_generator(request: Request) -> AsyncGenerator[str, None]:
     # Keep the connection alive
     while True:
         # Send a heartbeat event every 30 seconds
-        await asyncio.sleep(30)
+        await anyio.sleep(30)
         yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now().isoformat()})}\n\n"
 
 async def handle_sse(request):

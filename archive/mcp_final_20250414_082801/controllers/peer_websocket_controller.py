@@ -8,6 +8,7 @@ through WebSocket connections even in environments with NAT or firewalls.
 import logging
 import time
 import uuid
+import anyio
 from typing import Dict, List, Any, Optional
 from fastapi import (
 from pydantic import BaseModel, Field
@@ -253,16 +254,10 @@ class PeerWebSocketController:
 
     def shutdown_sync(self):
         """Synchronous wrapper to shutdown the peer websocket components."""
-        import asyncio
-
         try:
-            loop = asyncio.get_running_loop()
+            anyio.run(self._shutdown)
         except RuntimeError:
-            loop = None
-        if loop and loop.is_running():
-            asyncio.create_task(self._shutdown())
-        else:
-            asyncio.run(self._shutdown())
+            anyio.lowlevel.spawn_system_task(self._shutdown)
 
     async def check_websocket_support(self) -> Dict[str, Any]:
         """
@@ -327,7 +322,7 @@ class PeerWebSocketController:
                 peer_ttl=request.peer_ttl,
             )
 
-            # Start server properly with existing asyncio event loop
+            # Start server properly with existing async-io event loop
             await self.peer_websocket_server.start(host=request.host, port=request.port)
 
             server_url = f"ws://{request.host}:{request.port}"
@@ -376,7 +371,7 @@ class PeerWebSocketController:
             }
 
         try:
-            # Stop server properly with existing asyncio context
+            # Stop server properly with existing async-io context
             await self.peer_websocket_server.stop()
 
             # Clear the server reference
@@ -491,7 +486,7 @@ class PeerWebSocketController:
                     max_reconnect_attempts=request.max_reconnect_attempts,
                 )
 
-                # Start client using the current asyncio context
+                # Start client using the current async-io context
                 await self.peer_websocket_client.start()
 
             # Connect to server
@@ -543,7 +538,7 @@ class PeerWebSocketController:
             }
 
         try:
-            # Stop client using current asyncio context
+            # Stop client using current async-io context
             await self.peer_websocket_client.stop()
 
             # Clear the client reference
@@ -700,27 +695,7 @@ class PeerWebSocketController:
                 anyio.run(self.shutdown)
                 return
             except ImportError:
-                logger.warning("anyio not available, falling back to asyncio")
-
-            # Fallback to asyncio
-            import asyncio
-
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                # Create a new event loop if no event loop is set
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            # Run the shutdown method
-            try:
-                loop.run_until_complete(self.shutdown())
-            except RuntimeError as e:
-                if "This event loop is already running" in str(e):
-                    logger.warning("Cannot use run_until_complete in a running event loop")
-                    # Cannot handle properly in this case - controller shutdown might be incomplete
-                else:
-                    raise
+                logger.warning("anyio not available; shutdown skipped")
         except Exception as e:
             logger.error(f"Error in sync_shutdown for Peer WebSocket Controller: {e}")
 

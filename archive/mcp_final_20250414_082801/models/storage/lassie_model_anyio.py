@@ -2,7 +2,7 @@
 Lassie Model for MCP Server with AnyIO support.
 
 This module provides the business logic for Lassie operations in the MCP server,
-with support for running under any async backend (asyncio or trio) using anyio.
+with support for running under any async backend (async-io or trio) using anyio.
 """
 
 import anyio

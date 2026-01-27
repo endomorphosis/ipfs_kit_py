@@ -28,57 +28,16 @@ try:
         HAVE_CV2,
         HAVE_NUMPY,
         HAVE_AIORTC,
-        WebRTCStreamingManager,
-        check_webrtc_dependencies)
-except ImportError:
-    # Set flags to False if the module is not available
-    HAVE_WEBRTC = False
-    HAVE_AV = False
-    HAVE_CV2 = False
-    HAVE_NUMPY = False
-    HAVE_AIORTC = False
-
-    # Create stub for check_webrtc_dependencies
-    def check_webrtc_dependencies():
-        return {
-            "webrtc_available": False
-            "dependencies": {
-                "numpy": False
-                "opencv": False
-                "av": False
-                "aiortc": False
-                "websockets": False
-                "notifications": False
-            },
-            "installation_command": "pip install ipfs_kit_py[webrtc]",
-        }
-
-
-# Configure logger
-logger = logging.getLogger(__name__)
-
-
-# Define Pydantic models for requests and responses
-class WebRTCResponse(BaseModel):
-    """Base response model for WebRTC operations."""
-    success: bool = Field(..., description="Whether the operation was successful")
-    operation_id: str = Field(None, description="Unique identifier for this operation")
-
-
-class ResourceStatsResponse(WebRTCResponse):
-    """Response model for resource statistics."""
-    servers: Dict[str, Any] = Field(None, description="Streaming server statistics")
-    connections: Dict[str, Any] = Field(None, description="Connection statistics")
-    timestamp: float = Field(None, description="Timestamp of the statistics")
-    is_shutting_down: bool = Field(False, description="Whether the controller is shutting down")
-    cleanup_task_active: bool = Field(False, description="Whether the cleanup task is active")
-
-
-class StreamRequest(BaseModel):
-    """Request model for starting a WebRTC stream."""
-    cid: str = Field(..., description="Content Identifier (CID) of the media to stream")
-    address: str = Field("127.0.0.1", description="Address to bind the WebRTC signaling server")
-    port: int = Field(8080, description="Port for the WebRTC signaling server")
+        def handle_async_io_cancel():
+            """Handle cancellation in async-io context"""
+        try:
+            try:
+                anyio.run(self.shutdown)
+                return
+            except Exception as e:
+                logger.warning(f"Error using anyio.run for shutdown: {e}")
+        except Exception as e:
+            logger.error(f"Error during shutdown: {e}")
     quality: str = Field("medium", description="Streaming quality preset (low, medium, high, auto)")
     ice_servers: Optional[List[Dict[str, Any]]] = Field(
         None, description="List of ICE server objects"
@@ -112,7 +71,7 @@ class ConnectionsListResponse(WebRTCResponse):
     )
 
 
-class ConnectionStatsResponse(WebRTCResponse):
+            # Use async-io since we already imported it at the top of the file
     """Response model for WebRTC connection statistics."""
     stats: Optional[Dict[str, Any]] = Field(
         None, description="Statistics for the WebRTC connection"
@@ -142,7 +101,7 @@ class BenchmarkResponse(WebRTCResponse):
 
 
 class QualityRequest(BaseModel):
-    """Request model for changing WebRTC quality."""
+                    "warning": "Interpreter shutting down, connections may not be fully closed"
     connection_id: str = Field(..., description="ID of the WebRTC connection")
     quality: str = Field(..., description="Quality preset to use (low, medium, high, auto)")
 
@@ -159,14 +118,14 @@ class WebRTCController:
         Initialize the WebRTC controller.
 
         Args:
-            ipfs_model: IPFS model to use for WebRTC operations
+                                "warning": "Interpreter shutting down, connections may not be fully closed"
         """
         self.ipfs_model = ipfs_model
         self.active_streaming_servers = {}
         self.active_connections = {}
         self.cleanup_task = None
         self.is_shutting_down = False
-        self.last_auto_cleanup = None
+                        "warning": "Interpreter shutting down, connections may not be fully closed"
 
         # Set default resource limits
         self.max_servers = 10
@@ -399,8 +358,8 @@ class WebRTCController:
         self.is_shutting_down = True
 
         # Helper function to handle different async frameworks
-        def handle_asyncio_cancel():
-            """Handle cancellation in asyncio context"""
+        def handle_async_io_cancel():
+            """Handle cancellation in async-io context"""
             try:
                 # Try to get the event loop and cancel the task
                 loop = anyio.get_event_loop()
@@ -431,7 +390,7 @@ class WebRTCController:
                 except Exception as e:
                     logger.warning(f"Error waiting for cleanup task cancellation: {e}")
             except Exception as e:
-                logger.warning(f"Error cancelling cleanup task with asyncio: {e}")
+                logger.warning(f"Error cancelling cleanup task with async-io: {e}")
 
         # Helper function to handle AnyIO cancellation
         def handle_anyio_cancel():
@@ -469,20 +428,17 @@ class WebRTCController:
                     # The task should check this flag periodically
             except Exception as e:
                 logger.warning(f"Error cancelling cleanup task with AnyIO: {e}")
-                # Fall back to asyncio method as a last resort
+                # Fall back to async-io method as a last resort
                 try:
-                    handle_asyncio_cancel()
+                    handle_async_io_cancel()
                 except Exception as nested_e:
-                    logger.warning(f"Fallback asyncio cancellation also failed: {nested_e}")
+                    logger.warning(f"Fallback async-io cancellation also failed: {nested_e}")
 
         # Cancel the cleanup task if it's running
         if self.cleanup_task is not None:
             logger.info(
                 f"Attempting to cancel cleanup task (type: {type(self.cleanup_task).__name__})"
             )
-
-            # Import asyncio for handling asyncio tasks
-            
 
             # Use AnyIO since we already imported it at the top of the file
             handle_anyio_cancel()
@@ -597,51 +553,11 @@ class WebRTCController:
                 # Continue with standard shutdown which might fail gracefully
 
         try:
-            # Try using anyio (preferred method)
             try:
-                
-
                 anyio.run(self.shutdown)
                 return
-            except ImportError:
-                logger.warning("anyio not available, falling back to asyncio")
             except Exception as e:
-                logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
-
-            # Fallback to asyncio
-            import asyncio
-
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                # Don't create a new event loop during interpreter shutdown
-                if is_interpreter_shutdown:
-                    logger.warning("Cannot get event loop during interpreter shutdown")
-                    # Signal shutdown and clear resources directly
-                    self.is_shutting_down = True
-                    self.active_streaming_servers.clear()
-                    self.active_connections.clear()
-                    return
-
-                # Create a new event loop if no event loop is set and not in shutdown
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            # Run the shutdown method
-            try:
-                loop.run_until_complete(self.shutdown())
-            except RuntimeError as e:
-                if "This event loop is already running" in str(e):
-                    logger.warning("Cannot use run_until_complete in a running event loop")
-                    # Cannot handle properly in this case - controller shutdown might be incomplete
-                elif "can't create new thread" in str(e):
-                    logger.warning("Thread creation failed during interpreter shutdown")
-                    # Signal shutdown and clear resources directly
-                    self.is_shutting_down = True
-                    self.active_streaming_servers.clear()
-                    self.active_connections.clear()
-                else:
-                    raise
+                logger.warning(f"Error using anyio.run for shutdown: {e}")
         except Exception as e:
             logger.error(f"Error in sync_shutdown for WebRTC Controller: {e}")
             # Ensure resources are cleared even on error

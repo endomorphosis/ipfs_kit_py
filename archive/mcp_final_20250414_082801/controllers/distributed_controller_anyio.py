@@ -177,7 +177,7 @@ class DistributedControllerAnyIO:
     - Distributed task scheduling
 
     This implementation uses AnyIO for backend-agnostic async operations,
-    supporting both asyncio and trio.
+    supporting both async-io and trio.
     """
     def __init__(self, ipfs_model):
         """

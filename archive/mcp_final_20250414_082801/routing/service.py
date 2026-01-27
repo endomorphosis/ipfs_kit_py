@@ -7,7 +7,7 @@ as specified in the MCP roadmap for Phase 1: Core Functionality Enhancements (Q3
 
 import logging
 import time
-import asyncio
+import anyio
 import json
 import random
 import math
@@ -164,7 +164,7 @@ class DataRoutingService:
         }
 
         # Background tasks
-        self.update_task = None
+        self._task_group = None
 
     async def start(self):
         """Start the data routing service."""
@@ -196,7 +196,11 @@ class DataRoutingService:
         await self.update_backends_metadata()
 
         # Start backend metadata update task
-        self.update_task = asyncio.create_task(self._update_backends_loop())
+        if self._task_group is None:
+            tg = anyio.create_task_group()
+            await tg.__aenter__()
+            self._task_group = tg
+        self._task_group.start_soon(self._update_backends_loop)
 
         logger.info("Data routing service started")
 
@@ -205,12 +209,10 @@ class DataRoutingService:
         logger.info("Stopping data routing service")
 
         # Cancel update task
-        if self.update_task:
-            self.update_task.cancel()
-            try:
-                await self.update_task
-            except asyncio.CancelledError:
-                pass
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+            await self._task_group.__aexit__(None, None, None)
+            self._task_group = None
 
         # Save routing policies
         await self.save_policies()
@@ -363,7 +365,7 @@ class DataRoutingService:
                 logger.error(f"Error updating backend metadata: {e}")
 
             # Sleep for 60 seconds before next update
-            await asyncio.sleep(60)
+            await anyio.sleep(60)
 
     async def update_backends_metadata(self):
         """Update metadata for all backends."""

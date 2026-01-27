@@ -6,7 +6,7 @@ Filecoin Controller for the MCP server with AnyIO support.
 
 This controller handles HTTP requests related to Filecoin operations and
 delegates the business logic to the Filecoin model, using the AnyIO library
-to provide support for any async backend (asyncio or trio).
+to provide support for any async backend (async-io or trio).
 """
 
 import warnings

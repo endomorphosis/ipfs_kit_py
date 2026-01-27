@@ -5,7 +5,7 @@ This controller provides an interface to the CLI functionality through the MCP A
 """
 
 import argparse
-import asyncio
+import inspect
 import importlib.util
 import logging
 import os
@@ -803,10 +803,10 @@ class CliController:
             )
 
             # Execute the command using the high-level API - identical implementation to execute_command
-            # but using anyio instead of asyncio where applicable
+            # but using anyio instead of async-io where applicable
 
             # Rest of the implementation is the same as execute_command
-            # Since this method doesn't use asyncio-specific features, we can reuse most of the code
+            # Since this method doesn't use async-io-specific features, we can reuse most of the code
             # We're just providing this as an AnyIO-compatible alternative
 
             return await self.execute_command(command_request)
@@ -1360,11 +1360,11 @@ class CliController:
                 self.api.sync_shutdown()
             elif hasattr(self.api, "close"):
                 # Try direct call for sync methods
-                if not asyncio.iscoroutinefunction(self.api.close):
+                if not inspect.iscoroutinefunction(self.api.close):
                     self.api.close()
             elif hasattr(self.api, "shutdown"):
                 # Try direct call for sync methods
-                if not asyncio.iscoroutinefunction(self.api.shutdown):
+                if not inspect.iscoroutinefunction(self.api.shutdown):
                     self.api.shutdown()
 
             # For async methods in a sync context, we have limited options

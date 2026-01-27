@@ -9,7 +9,7 @@ import logging
 import time
 import threading
 import uuid
-import asyncio
+import anyio
 from enum import Enum
 from typing import Dict, List, Any, Optional, Callable, Awaitable
 
@@ -232,7 +232,7 @@ class NotificationManager:
                 self.history = self.history[-self.max_history :]
 
         # Deliver notification to subscribers
-        asyncio.create_task(self._deliver_notification(notification))
+        anyio.lowlevel.spawn_system_task(self._deliver_notification, notification)
 
         return notification
 
