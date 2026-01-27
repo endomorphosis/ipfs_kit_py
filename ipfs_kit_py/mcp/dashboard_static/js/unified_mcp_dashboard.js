@@ -13,7 +13,7 @@ Usage: ipfs-kit mcp start
 Port: 8004 (single port for both MCP and dashboard)
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -22,6 +22,7 @@ import sys
 import traceback
 import os
 import yaml
+import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Set, Union
@@ -545,10 +546,10 @@ class UnifiedMCPDashboard:
         """Get IPFS daemon status."""
         try:
             # Check if IPFS daemon is running
-            result = await asyncio.create_subprocess_exec(
-                "ipfs", "id",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            result = await anyio.open_process(
+                ["ipfs", "id"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
             stdout, stderr = await result.communicate()
             
@@ -569,10 +570,10 @@ class UnifiedMCPDashboard:
         """Check if a service is running by attempting to connect to its port."""
         try:
             # Check if port is listening
-            result = await asyncio.create_subprocess_exec(
-                "lsof", "-ti", f":{port}",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            result = await anyio.open_process(
+                ["lsof", "-ti", f":{port}"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
             stdout, stderr = await result.communicate()
             
@@ -586,10 +587,10 @@ class UnifiedMCPDashboard:
     async def _check_binary_availability(self, binary_name: str) -> bool:
         """Check if a binary is available in PATH."""
         try:
-            result = await asyncio.create_subprocess_exec(
-                "which", binary_name,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            result = await anyio.open_process(
+                ["which", binary_name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
             stdout, stderr = await result.communicate()
             return result.returncode == 0
@@ -985,12 +986,11 @@ class UnifiedMCPDashboard:
     async def _update_caches(self):
         """Update all data caches."""
         self.last_update = time.time()
-        await asyncio.gather(
-            self._update_backends_cache(),
-            self._update_services_cache(),
-            self._update_pins_cache(),
-            self._update_system_metrics_cache()
-        )
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(self._update_backends_cache)
+            task_group.start_soon(self._update_services_cache)
+            task_group.start_soon(self._update_pins_cache)
+            task_group.start_soon(self._update_system_metrics_cache)
     
     async def _update_backends_cache(self):
         """Update backends cache from UnifiedBucketInterface."""
@@ -1457,10 +1457,10 @@ class UnifiedMCPDashboard:
                 
                 try:
                     # Simple test - check if IPFS daemon is responding
-                    result = await asyncio.create_subprocess_exec(
-                        "ipfs", "id",
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE
+                    result = await anyio.open_process(
+                        ["ipfs", "id"],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
                     )
                     stdout, stderr = await result.communicate()
                     

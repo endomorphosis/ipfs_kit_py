@@ -9,7 +9,7 @@ import os
 import time
 import json
 import logging
-import asyncio
+import anyio
 import threading
 from concurrent import futures
 from datetime import datetime
@@ -467,9 +467,9 @@ class RoutingServicer(RoutingServiceServicer):
                     yield update
                     
                     # Wait for next update
-                    await asyncio.sleep(interval)
+                        await anyio.sleep(interval)
                     
-                except asyncio.CancelledError:
+                except anyio.get_cancelled_exc_class():
                     # Stream was cancelled
                     break
                 except Exception as update_err:
@@ -485,9 +485,9 @@ class RoutingServicer(RoutingServiceServicer):
                     yield error_update
                     
                     # Wait before retrying
-                    await asyncio.sleep(interval)
+                        await anyio.sleep(interval)
             
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             # Stream was cancelled
             pass
         except Exception as e:

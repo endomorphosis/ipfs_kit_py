@@ -6,7 +6,7 @@ A command-line interface that loads heavy dependencies only when needed.
 Designed to show help instantly without any heavy imports.
 """
 
-import asyncio
+import anyio
 import argparse
 import json
 import sys
@@ -2374,7 +2374,7 @@ class FastCLI:
             # Check daemon status
             try:
                 import aiohttp
-                import asyncio
+                import anyio
                 
                 host = daemon_config.get('host', '127.0.0.1') 
                 port = daemon_config.get('port', 8000)
@@ -2490,7 +2490,7 @@ class FastCLI:
             # Check if daemon is running
             try:
                 import aiohttp
-                import asyncio
+                import anyio
                 
                 timeout = aiohttp.ClientTimeout(total=3)
                 async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -3966,7 +3966,7 @@ class FastCLI:
     async def _mcp_start(self, args):
         """Start the MCP (Model Context Protocol) server."""
         try:
-            import asyncio
+            import anyio
             import subprocess
             import psutil
             from pathlib import Path
@@ -4028,7 +4028,7 @@ class FastCLI:
                 )
                 
                 # Wait a moment to see if it starts successfully
-                await asyncio.sleep(2)
+                await anyio.sleep(2)
                 
                 if process.poll() is None:
                     # Process is still running
@@ -4086,9 +4086,9 @@ class FastCLI:
                 os.kill(pid, signal.SIGTERM)
                 
                 # Wait for graceful shutdown
-                import asyncio
+                import anyio
                 for i in range(10):  # Wait up to 10 seconds
-                    await asyncio.sleep(1)
+                    await anyio.sleep(1)
                     try:
                         os.kill(pid, 0)  # Check if process exists
                     except OSError:
@@ -4099,7 +4099,7 @@ class FastCLI:
                 # Force kill if still running
                 print("⚠️  Forcing MCP server shutdown...")
                 os.kill(pid, signal.SIGKILL)
-                await asyncio.sleep(1)
+                await anyio.sleep(1)
                 
                 print("✅ MCP server stopped (forced)")
                 await self._clear_mcp_pid()
@@ -4155,7 +4155,7 @@ class FastCLI:
             print(f"🌐 Endpoint: {endpoint_url}")
             
             try:
-                import asyncio
+                import anyio
                 timeout = aiohttp.ClientTimeout(total=5)
                 async with aiohttp.ClientSession(timeout=timeout) as session:
                     async with session.get(endpoint_url) as response:
@@ -4195,8 +4195,8 @@ class FastCLI:
         await self._mcp_stop(args)
         
         # Wait a moment
-        import asyncio
-        await asyncio.sleep(2)
+        import anyio
+        await anyio.sleep(2)
         
         # Start again
         return await self._mcp_start(args)
@@ -9228,14 +9228,14 @@ async def main():
 
 def sync_main():
     """Synchronous entry point for setuptools console scripts."""
-    import asyncio
+    import anyio
     import sys
     import platform
     
     try:
         # Check if we're already in an event loop
         try:
-            loop = asyncio.get_running_loop()
+            anyio.get_current_task()
             # We're in an event loop, this shouldn't happen for CLI scripts
             # but let's handle it gracefully
             print("Warning: Already in event loop, using thread executor", file=sys.stderr)
@@ -9243,15 +9243,15 @@ def sync_main():
             import threading
             
             def run_main():
-                return asyncio.run(main())
+                return anyio.run(main)
             
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(run_main)
                 exit_code = future.result(timeout=30)
                 
         except RuntimeError:
-            # No event loop running, safe to use asyncio.run()
-            exit_code = asyncio.run(main())
+            # No event loop running, safe to use anyio.run()
+            exit_code = anyio.run(main)
             
     except KeyboardInterrupt:
         print("\n❌ Interrupted by user", file=sys.stderr)
@@ -9265,5 +9265,5 @@ def sync_main():
     sys.exit(exit_code)
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main)
     sys.exit(exit_code)

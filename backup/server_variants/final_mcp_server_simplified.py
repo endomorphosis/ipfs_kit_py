@@ -11,7 +11,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import argparse
 import traceback
 from pathlib import Path
@@ -56,7 +56,7 @@ class SimplifiedIPFSKit:
     
     async def cat(self, cid: str, **kwargs) -> bytes:
         """Get content from IPFS (mock)"""
-        content = f"Mock content for CID: {cid} (timestamp: {asyncio.get_event_loop().time()})".encode('utf-8')
+        content = f"Mock content for CID: {cid} (timestamp: {anyio.current_time()})".encode('utf-8')
         logger.info(f"Mock IPFS cat: {cid} -> {len(content)} bytes")
         return content
     
@@ -165,7 +165,7 @@ try:
         return {
             "status": "healthy",
             "version": __version__,
-            "timestamp": asyncio.get_event_loop().time()
+            "timestamp": anyio.current_time()
         }
     
     @app.get("/")

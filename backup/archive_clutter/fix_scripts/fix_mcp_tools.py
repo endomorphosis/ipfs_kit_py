@@ -54,7 +54,7 @@ def fix_execute_tool():
                 # Check if the function accepts kwargs
                 if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
                     # Function accepts kwargs, can pass arguments directly
-                    if asyncio.iscoroutinefunction(func):
+                    if inspect.iscoroutinefunction(func):
                         kwargs = {param_name: context_obj}
                         kwargs.update(arguments)
                         result = await func(**kwargs)
@@ -64,14 +64,14 @@ def fix_execute_tool():
                         result = func(**kwargs)
                 else:
                     # Function doesn't accept kwargs, just pass the context
-                    if asyncio.iscoroutinefunction(func):
+                    if inspect.iscoroutinefunction(func):
                         result = await func(context_obj)
                     else:
                         result = func(context_obj)
             else:
                 # Tool expects direct arguments
                 logger.debug(f"Executing tool {tool_name} with direct arguments")
-                if asyncio.iscoroutinefunction(func):
+                if inspect.iscoroutinefunction(func):
                     result = await func(**arguments)
                 else:
                     result = func(**arguments)
@@ -92,7 +92,7 @@ def fix_execute_tool():
                     direct_handler = get_tool_handler(tool_name)
                     if direct_handler:
                         logger.info(f"Found direct handler for {tool_name}, trying that...")
-                        if asyncio.iscoroutinefunction(direct_handler):
+                        if inspect.iscoroutinefunction(direct_handler):
                             result = await direct_handler(arguments)
                         else:
                             result = direct_handler(arguments)

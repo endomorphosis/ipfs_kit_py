@@ -7,7 +7,7 @@ This module provides a client interface for the optimized data routing gRPC serv
 
 import os
 import sys
-import asyncio
+import anyio
 import logging
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Union, AsyncGenerator
@@ -409,7 +409,7 @@ class RoutingClient:
                 
         except grpc.RpcError as e:
             logger.error(f"RPC error: {e.details()}")
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             # Stream was cancelled
             raise
         finally:
@@ -465,4 +465,4 @@ if __name__ == "__main__":
     )
     
     # Run example
-    asyncio.run(example_usage())
+    anyio.run(example_usage)

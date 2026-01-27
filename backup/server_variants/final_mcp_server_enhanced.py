@@ -20,7 +20,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import argparse
 import traceback
 import hashlib

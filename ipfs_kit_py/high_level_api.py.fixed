@@ -33,7 +33,7 @@ import sys
 import tempfile
 import time
 import mimetypes
-import asyncio
+import anyio
 from pathlib import Path
 from io import IOBase, BytesIO
 from typing import Any, BinaryIO, Callable, Dict, List, Optional, Tuple, Union, TypeVar, Literal, Iterator, AsyncIterator
@@ -357,7 +357,7 @@ class IPFSSimpleAPI:
             for i in range(0, len(test_content), chunk_size):
                 yield test_content[i:i+chunk_size]
                 # Add a small delay to allow other tasks to run
-                await asyncio.sleep(0.001)
+                await anyio.sleep(0.001)
             return
             
         try:
@@ -375,7 +375,7 @@ class IPFSSimpleAPI:
                     fallback_content = b"Fallback content for testing" * 1000
                     for i in range(0, len(fallback_content), chunk_size):
                         yield fallback_content[i:i+chunk_size]
-                        await asyncio.sleep(0.001)
+                        await anyio.sleep(0.001)
                     return
                 # Re-raise other attribute errors
                 raise
@@ -384,7 +384,7 @@ class IPFSSimpleAPI:
             for i in range(0, len(content), chunk_size):
                 yield content[i:i+chunk_size]
                 # Add a small delay to allow other tasks to run
-                await asyncio.sleep(0.001)
+                await anyio.sleep(0.001)
                 
         except Exception as e:
             logger.error(f"Error async streaming media {path}: {e}")
@@ -534,25 +534,27 @@ class IPFSSimpleAPI:
                 bytes_written = 0
                 while True:
                     # Use run_in_executor for non-blocking file reads
-                    chunk = await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: file_obj.read(chunk_size)
+                    chunk = await anyio.to_thread.run_sync(
+                        file_obj.read,
+                        chunk_size
                     )
                     if not chunk:
                         break
                     
                     # Use run_in_executor for non-blocking file writes
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: temp_file.write(chunk)
+                    await anyio.to_thread.run_sync(
+                        temp_file.write,
+                        chunk
                     )
                     bytes_written += len(chunk)
                     
                     # Allow other tasks to run
-                    await asyncio.sleep(0.001)
+                    await anyio.sleep(0.001)
             
             try:
                 # Add the temp file to IPFS (wrap in run_in_executor for non-blocking)
                 add_func = lambda: self.add(temp_file_path, **kwargs)
-                result = await asyncio.get_event_loop().run_in_executor(None, add_func)
+                result = await anyio.to_thread.run_sync(add_func)
                 
                 # Add size information if not already present
                 if "size" not in result and bytes_written > 0:
@@ -569,8 +571,9 @@ class IPFSSimpleAPI:
                 return result
             finally:
                 # Clean up temporary file
-                await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: os.unlink(temp_file_path)
+                await anyio.to_thread.run_sync(
+                    os.unlink,
+                    temp_file_path
                 )
                 
         except Exception as e:
@@ -623,7 +626,7 @@ class IPFSSimpleAPI:
                 for i in range(0, content_length, chunk_size):
                     chunk = test_content[i:i+chunk_size]
                     await websocket.send_bytes(chunk)
-                    await asyncio.sleep(0.001)  # Small delay to prevent blocking
+                    await anyio.sleep(0.001)  # Small delay to prevent blocking
                     
                 # Send completion message
                 await websocket.send_json({
@@ -652,7 +655,7 @@ class IPFSSimpleAPI:
             for i in range(0, len(content), chunk_size):
                 chunk = content[i:i+chunk_size]
                 await websocket.send_bytes(chunk)
-                await asyncio.sleep(0.001)  # Small delay to prevent blocking
+                await anyio.sleep(0.001)  # Small delay to prevent blocking
                 
             # Send completion message
             await websocket.send_json({
@@ -705,8 +708,20 @@ class IPFSSimpleAPI:
                 })
                 return
                 
+            async def _receive_json_with_timeout():
+                if timeout is None:
+                    return await websocket.receive_json()
+                with anyio.fail_after(timeout):
+                    return await websocket.receive_json()
+
+            async def _receive_bytes_with_timeout():
+                if timeout is None:
+                    return await websocket.receive_bytes()
+                with anyio.fail_after(timeout):
+                    return await websocket.receive_bytes()
+
             # Receive metadata
-            metadata = await asyncio.wait_for(websocket.receive_json(), timeout=timeout)
+            metadata = await _receive_json_with_timeout()
             if metadata.get("type") != "metadata":
                 raise ValueError("Expected metadata message first")
                 
@@ -723,11 +738,11 @@ class IPFSSimpleAPI:
                 # Receive content in chunks
                 while bytes_received < content_length:
                     try:
-                        message = await asyncio.wait_for(websocket.receive_json(), timeout=timeout)
+                        message = await _receive_json_with_timeout()
                         
                         if message.get("type") == "content_chunk":
                             # Receive binary data
-                            chunk = await asyncio.wait_for(websocket.receive_bytes(), timeout=timeout)
+                            chunk = await _receive_bytes_with_timeout()
                             temp_file.write(chunk)
                             bytes_received += len(chunk)
                             
@@ -744,7 +759,7 @@ class IPFSSimpleAPI:
                         else:
                             # Unexpected message
                             raise ValueError(f"Unexpected message type: {message.get('type')}")
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         raise TimeoutError(f"Upload timed out after {timeout} seconds")
             
             try:
@@ -814,13 +829,25 @@ class IPFSSimpleAPI:
                 })
                 return
                 
+            async def _receive_json_with_timeout():
+                if timeout is None:
+                    return await websocket.receive_json()
+                with anyio.fail_after(timeout):
+                    return await websocket.receive_json()
+
+            async def _receive_bytes_with_timeout():
+                if timeout is None:
+                    return await websocket.receive_bytes()
+                with anyio.fail_after(timeout):
+                    return await websocket.receive_bytes()
+
             # Process commands until client disconnects
             while True:
                 # Receive command
                 try:
-                    message = await asyncio.wait_for(websocket.receive_json(), timeout=timeout)
+                    message = await _receive_json_with_timeout()
                     command = message.get("command")
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # Timeout waiting for command
                     logger.warning("Timeout waiting for command in bidirectional WebSocket")
                     continue
@@ -851,7 +878,7 @@ class IPFSSimpleAPI:
                         for i in range(0, len(content), chunk_size):
                             chunk = content[i:i+chunk_size]
                             await websocket.send_bytes(chunk)
-                            await asyncio.sleep(0.001)
+                            await anyio.sleep(0.001)
                             
                         # Send completion
                         await websocket.send_json({
@@ -882,17 +909,11 @@ class IPFSSimpleAPI:
                         # Receive content in chunks
                         while bytes_received < content_length:
                             try:
-                                chunk_message = await asyncio.wait_for(
-                                    websocket.receive_json(), 
-                                    timeout=timeout
-                                )
+                                chunk_message = await _receive_json_with_timeout()
                                 
                                 if chunk_message.get("command") == "content_chunk":
                                     # Receive binary data
-                                    chunk = await asyncio.wait_for(
-                                        websocket.receive_bytes(), 
-                                        timeout=timeout
-                                    )
+                                    chunk = await _receive_bytes_with_timeout()
                                     temp_file.write(chunk)
                                     bytes_received += len(chunk)
                                     
@@ -909,7 +930,7 @@ class IPFSSimpleAPI:
                                 else:
                                     # Unexpected message
                                     raise ValueError(f"Unexpected message type: {chunk_message.get('command')}")
-                            except asyncio.TimeoutError:
+                            except TimeoutError:
                                 raise TimeoutError(f"Upload timed out after {timeout} seconds")
                     
                     try:
@@ -2295,7 +2316,7 @@ MIT
         # Convert to async iterator
         for chunk in sync_iterator:
             # Allow other async tasks to run between chunks
-            await asyncio.sleep(0)
+            await anyio.sleep(0)
             yield chunk
             
     def stream_to_ipfs(
@@ -2499,8 +2520,9 @@ MIT
                         continue
                         
                     # Write chunk to temp file
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, lambda c=chunk: temp_file.write(c)
+                    await anyio.to_thread.run_sync(
+                        temp_file.write,
+                        chunk
                     )
                     
                     # Update metrics
@@ -2531,13 +2553,13 @@ MIT
                 add_result = await mock_add(temp_path, **add_kwargs)
             elif mock_add := getattr(self, '_mock_add', None):
                 # Fall back to synchronous mock if async not available
-                add_result = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: mock_add(temp_path, **add_kwargs)
+                add_result = await anyio.to_thread.run_sync(
+                    lambda: mock_add(temp_path, **add_kwargs)
                 )
             else:
                 # Add to IPFS (wrap in run_in_executor for non-blocking)
                 add_func = lambda: self.add(temp_path, **add_kwargs)
-                add_result = await asyncio.get_event_loop().run_in_executor(None, add_func)
+                add_result = await anyio.to_thread.run_sync(add_func)
             
             # If result is None (mock may not be set up correctly), create a fake result
             if add_result is None:
@@ -2566,8 +2588,9 @@ MIT
             
             # Clean up
             try:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: os.unlink(temp_path)
+                await anyio.to_thread.run_sync(
+                    os.unlink,
+                    temp_path
                 )
             except Exception as e:
                 logger.warning(f"Failed to remove temporary file {temp_path}: {e}")
@@ -2582,8 +2605,9 @@ MIT
             # Clean up if temp file was created
             if temp_path:
                 try:
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: os.unlink(temp_path)
+                    await anyio.to_thread.run_sync(
+                        os.unlink,
+                        temp_path
                     )
                 except Exception:
                     pass
