@@ -1,6 +1,6 @@
 # IPFS Datasets Integration
 
-This document describes the integration of `ipfs_datasets_py` distributed dataset manipulation services into `ipfs_kit_py`.
+This document describes the integration of `ipfs_datasets_py` distributed dataset manipulation services into `ipfs_kit_py`, including search and indexing capabilities.
 
 ## Overview
 
@@ -10,6 +10,7 @@ The IPFS Datasets integration enables local-first and decentralized filesystem o
 - **Dataset Versioning**: Track dataset versions with full provenance and lineage
 - **Event Logging**: Comprehensive logging of all dataset operations
 - **Provenance Tracking**: Complete history of dataset transformations and parent versions
+- **Search & Indexing**: GraphRAG-powered semantic search and knowledge graph indexing
 - **Graceful Fallbacks**: Works seamlessly even when `ipfs_datasets_py` is not installed (important for CI/CD)
 
 ## Architecture
@@ -22,13 +23,19 @@ The IPFS Datasets integration enables local-first and decentralized filesystem o
    - Event and provenance logging
    - Automatic fallback to local operations
 
-2. **`filesystem_journal.py`**: Extended with dataset operation tracking:
+2. **`ipfs_datasets_search.py`**: **NEW** Search and indexing integration:
+   - `DatasetSearchIndexer`: Indexes datasets for search and retrieval
+   - Integration with GraphRAG for semantic search
+   - Knowledge graph building from dataset relationships
+   - Provenance-aware search across dataset versions
+
+3. **`filesystem_journal.py`**: Extended with dataset operation tracking:
    - `store_dataset()`: Store datasets with journal logging
    - `version_dataset()`: Create versioned datasets with provenance
    - `get_dataset_event_log()`: Retrieve dataset operation history
    - `get_dataset_provenance_log()`: Access dataset lineage information
 
-3. **`mcp/ai/dataset_manager.py`**: Enhanced DatasetManager with IPFS backend:
+4. **`mcp/ai/dataset_manager.py`**: Enhanced DatasetManager with IPFS backend:
    - `store_dataset_to_ipfs()`: Store datasets to IPFS
    - `load_dataset_from_ipfs()`: Load datasets from IPFS by CID
    - `version_dataset_with_ipfs()`: Version datasets with IPFS provenance
@@ -327,16 +334,175 @@ python -c "from ipfs_kit_py.ipfs_datasets_integration import IPFS_DATASETS_AVAIL
 
 Warning messages about journal write errors during test cleanup are normal and can be ignored - they occur because temporary directories are cleaned up before journal sync completes.
 
+## Search and Indexing Features
+
+### Overview
+
+The search and indexing integration (`ipfs_datasets_search.py`) provides powerful capabilities for discovering and analyzing datasets across your IPFS filesystem:
+
+- **Automatic Indexing**: Datasets are automatically indexed when stored or versioned
+- **GraphRAG Integration**: Semantic search using graph-based retrieval augmented generation
+- **Knowledge Graph**: Build relationship graphs between datasets showing lineage and transformations
+- **Arrow Metadata Index**: Efficient metadata queries using Apache Arrow
+- **Provenance-Aware Search**: Search across dataset versions with full lineage tracking
+
+### Using the Search Indexer
+
+```python
+from ipfs_kit_py.ipfs_datasets_search import get_dataset_search_indexer
+
+# Initialize the search indexer with optional components
+indexer = get_dataset_search_indexer(
+    ipfs_client=ipfs_client,  # Optional IPFS client
+    enable_graphrag=True,      # Enable semantic search
+    enable_knowledge_graph=True # Enable relationship tracking
+)
+
+# Index a dataset
+result = indexer.index_dataset(
+    dataset_id="training-data",
+    dataset_path="/path/to/dataset.csv",
+    metadata={
+        "description": "ML training dataset",
+        "tags": ["machine-learning", "classification"],
+        "version": "1.0"
+    },
+    cid="Qm..."  # Optional IPFS CID
+)
+
+print(f"Indexed in: {result['indexed_components']}")
+# Output: ['knowledge_graph', 'graphrag', 'arrow_index']
+```
+
+### Searching Datasets
+
+```python
+# Simple text search
+results = indexer.search_datasets(
+    query="machine learning",
+    limit=10
+)
+
+for dataset in results:
+    print(f"Found: {dataset['dataset_id']} - {dataset.get('description')}")
+
+# Search with filters
+results = indexer.search_datasets(
+    query="training",
+    filters={"content_type": "tabular", "version": "1.0"},
+    use_semantic_search=True  # Use vector embeddings if available
+)
+
+# List all indexed datasets
+all_datasets = indexer.list_indexed_datasets()
+print(f"Total indexed datasets: {len(all_datasets)}")
+
+# Filter by type
+csv_datasets = indexer.list_indexed_datasets(
+    filters={"content_type": "tabular"}
+)
+```
+
+### Tracking Dataset Lineage
+
+```python
+# Get complete provenance of a dataset
+lineage = indexer.get_dataset_lineage("training-data-v2")
+
+print(f"Parents: {lineage['parents']}")
+# Output: ['training-data-v1']
+
+print(f"Children: {lineage['children']}")
+# Output: ['training-data-v3']
+
+print(f"Transformations: {lineage['transformations']}")
+# Output: ['normalize', 'augment', 'balance']
+```
+
+### Automatic Integration with Dataset Manager
+
+The search indexer can automatically index datasets when they are stored through the dataset manager:
+
+```python
+from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+from ipfs_kit_py.ipfs_datasets_search import (
+    get_dataset_search_indexer,
+    integrate_with_dataset_manager
+)
+
+# Get both managers
+dataset_manager = get_ipfs_datasets_manager(enable=True)
+search_indexer = get_dataset_search_indexer(enable_graphrag=True)
+
+# Integrate them so indexing happens automatically
+integrate_with_dataset_manager(dataset_manager, search_indexer)
+
+# Now storing datasets automatically indexes them
+result = dataset_manager.store("dataset.csv", metadata={"type": "training"})
+# Dataset is automatically indexed with GraphRAG, knowledge graph, etc.
+```
+
+### Knowledge Graph Queries
+
+When the knowledge graph is enabled, you can query dataset relationships:
+
+```python
+# The indexer builds a knowledge graph of dataset relationships
+# Entities are created for each dataset
+# Relationships track derivation (parent->child with transformations)
+
+# Example: Find all datasets derived from a specific version
+# (This would use the knowledge graph's query capabilities)
+```
+
+### GraphRAG Semantic Search
+
+When GraphRAG is enabled, you can perform semantic searches that understand context:
+
+```python
+# Semantic search finds datasets based on meaning, not just keywords
+results = indexer.search_datasets(
+    query="customer churn prediction models",
+    use_semantic_search=True
+)
+
+# This might find datasets with descriptions like:
+# - "User retention analysis data"
+# - "Subscription cancellation patterns"
+# - "Client attrition metrics"
+# Even without exact keyword matches
+```
+
+### Search Index Persistence
+
+The search index is automatically saved to disk and reloaded:
+
+```python
+# Index is saved at: ~/.ipfs_kit/dataset_index/dataset_index.json
+
+# Create indexer and add datasets
+indexer1 = get_dataset_search_indexer()
+indexer1.index_dataset("ds1", "/path/to/data.csv")
+
+# Later, create new indexer - it automatically loads the saved index
+indexer2 = get_dataset_search_indexer()
+print(len(indexer2.dataset_index))  # Still has ds1
+```
+
 ## Future Enhancements
 
 Planned improvements include:
 
+- [x] Search and indexing integration with GraphRAG
+- [x] Knowledge graph for dataset relationships
 - [ ] Integration with ipfs_kit main class
-- [ ] CLI commands for dataset operations
-- [ ] Web UI for dataset management
-- [ ] Advanced provenance queries
-- [ ] Dataset deduplication
-- [ ] Automatic dataset migration
+- [ ] CLI commands for dataset operations and search
+- [ ] Web UI for dataset management and search
+- [ ] Advanced provenance queries with temporal search
+- [ ] Dataset deduplication using content hashing
+- [ ] Automatic dataset migration between storage backends
+- [ ] Real-time indexing with filesystem watchers
+- [ ] Collaborative filtering for dataset recommendations
 
 ## Contributing
 
