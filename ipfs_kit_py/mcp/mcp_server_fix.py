@@ -210,7 +210,9 @@ async def handle_list_buckets(arguments: Dict[str, Any]) -> Dict[str, Any]:
 @app.get("/test")
 async def test_dashboard():
     """Serve the test dashboard HTML."""
-    return FileResponse("test_dashboard.html")
+    # Path to test dashboard relative to repository root
+    dashboard_path = Path(__file__).parent.parent.parent / "tests" / "fixtures" / "test_dashboard.html"
+    return FileResponse(str(dashboard_path))
 
 @app.get("/health")
 async def health_check():

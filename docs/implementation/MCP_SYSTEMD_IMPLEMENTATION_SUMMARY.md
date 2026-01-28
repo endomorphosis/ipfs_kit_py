@@ -18,7 +18,7 @@
 - ✅ **Restart tested**: Service restarts correctly
 
 ### 3. Management Tools
-- ✅ **Management script**: `./manage-mcp-service.sh` with full functionality
+- ✅ **Management script**: `./scripts/deployment/manage-mcp-service.sh` with full functionality
 - ✅ **Shell alias**: `ipfs-kit-mcp` command for easy access
 - ✅ **CLI compatibility**: Original `python ipfs_kit_cli.py mcp` commands work
 
@@ -40,11 +40,11 @@ systemctl status ipfs-kit-mcp.service        # Status
 
 ### Method 2: Management Script (Recommended)
 ```bash
-./manage-mcp-service.sh start     # Start
-./manage-mcp-service.sh stop      # Stop
-./manage-mcp-service.sh restart   # Restart
-./manage-mcp-service.sh status    # Status + MCP details
-./manage-mcp-service.sh logs -f   # View logs
+./scripts/deployment/manage-mcp-service.sh start     # Start
+./scripts/deployment/manage-mcp-service.sh stop      # Stop
+./scripts/deployment/manage-mcp-service.sh restart   # Restart
+./scripts/deployment/manage-mcp-service.sh status    # Status + MCP details
+./scripts/deployment/manage-mcp-service.sh logs -f   # View logs
 ```
 
 ### Method 3: Shell Alias (Convenient)
@@ -108,7 +108,7 @@ python ipfs_kit_cli.py mcp status # Check status
 ## Files Created
 
 - `/etc/systemd/system/ipfs-kit-mcp.service` - Main service file
-- `/home/barberb/ipfs_kit_py/manage-mcp-service.sh` - Management script
+- `/home/barberb/ipfs_kit_py/scripts/deployment/manage-mcp-service.sh` - Management script
 - `/home/barberb/ipfs_kit_py/SYSTEMD_MCP_SERVICE_SETUP.md` - User documentation
 - `~/.bashrc` alias: `ipfs-kit-mcp` - Convenient command alias
 
@@ -122,7 +122,7 @@ systemctl status ipfs-kit-mcp.service
 curl -s http://127.0.0.1:8004/api/system/health
 
 # Use management script
-./manage-mcp-service.sh status
+./scripts/deployment/manage-mcp-service.sh status
 
 # Test CLI compatibility
 python ipfs_kit_cli.py mcp status
