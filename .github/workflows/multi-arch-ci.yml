@@ -183,11 +183,11 @@ jobs:
     - name: Run ARM64 specific tests
       run: |
         source .venv/bin/activate
-        if [ -f test_arm64_complete.py ]; then
-          python test_arm64_complete.py || echo "ARM64 tests had issues"
+        if [ -f tests/test_arm64_complete.py ]; then
+          python tests/test_arm64_complete.py || echo "ARM64 tests had issues"
         fi
-        if [ -f test_arm64_installation.py ]; then
-          python test_arm64_installation.py || echo "ARM64 installation tests had issues"
+        if [ -f tests/test_arm64_installation.py ]; then
+          python tests/test_arm64_installation.py || echo "ARM64 installation tests had issues"
         fi
       continue-on-error: true
     

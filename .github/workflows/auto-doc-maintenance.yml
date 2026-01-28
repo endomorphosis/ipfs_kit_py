@@ -316,7 +316,7 @@ jobs:
           
           ### MCP Server
           - Entry: `ipfs_kit_py/mcp/`
-          - Dashboard: `consolidated_mcp_dashboard.py`
+          - Dashboard: `ipfs_kit_py/dashboard/consolidated_mcp_dashboard.py`
           
           ### CLI
           - Entry: `ipfs_kit_py.cli`
