@@ -139,7 +139,7 @@ class IPFSKitServiceLauncher:
         """Run the CLI tool with given arguments."""
         cmd = [
             sys.executable,
-            str(Path(__file__).parent / "ipfs_kit_cli.py")
+            str(project_root / "scripts" / "cli" / "ipfs_kit_cli.py")
         ] + args
         
         try:
