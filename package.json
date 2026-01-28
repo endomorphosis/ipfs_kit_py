@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "description": "Playwright E2E tests for the consolidated MCP dashboard",
   "scripts": {
-    "e2e": "node node_modules/@playwright/test/cli.js test --config=playwright.config.js",
-    "e2e:headed": "node node_modules/@playwright/test/cli.js test --headed --config=playwright.config.js",
+    "e2e": "node node_modules/@playwright/test/cli.js test --config=playwright_tests/playwright.config.js",
+    "e2e:headed": "node node_modules/@playwright/test/cli.js test --headed --config=playwright_tests/playwright.config.js",
     "e2e:report": "node node_modules/@playwright/test/cli.js show-report",
     "build:css": "tailwindcss -i ./src/css/input.css -o ./static/css/tailwind.css --minify",
     "build:css:dev": "tailwindcss -i ./src/css/input.css -o ./static/css/tailwind.css",
