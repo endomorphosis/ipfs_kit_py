@@ -4,6 +4,7 @@ Test script for the enhanced Vector & KB dashboard functionality.
 """
 
 import anyio
+import pytest
 import sys
 import os
 import logging
@@ -18,6 +19,8 @@ from mcp.ipfs_kit.api.vector_kb_endpoints import VectorKBEndpoints
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.anyio
 
 
 async def test_vector_kb_endpoints():

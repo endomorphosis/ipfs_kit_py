@@ -6,7 +6,10 @@ Simple test for configuration management API functionality.
 import anyio
 import sys
 import os
+import pytest
 sys.path.insert(0, os.path.dirname(__file__))
+
+pytestmark = pytest.mark.anyio
 
 async def test_config_apis():
     """Test the configuration management APIs directly."""

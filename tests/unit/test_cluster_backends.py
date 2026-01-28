@@ -7,6 +7,7 @@ This script will test the IPFS cluster backends and start the daemons if needed.
 """
 
 import anyio
+import pytest
 import sys
 import os
 import subprocess
@@ -23,6 +24,8 @@ from mcp.ipfs_kit.backends import BackendHealthMonitor
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.anyio
 
 async def test_cluster_backends():
     """Test and diagnose IPFS cluster backends."""

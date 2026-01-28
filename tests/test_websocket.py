@@ -6,6 +6,9 @@ Simple WebSocket test to verify WebSocket functionality
 import anyio
 import websockets
 import json
+import pytest
+
+pytestmark = pytest.mark.anyio
 
 async def test_websocket():
     """Test WebSocket connection to the dashboard."""

@@ -14,6 +14,7 @@ Usage:
 
 import sys
 import os
+import pytest
 
 # Add current directory to path
 sys.path.insert(0, '.')
@@ -55,13 +56,14 @@ def test_leecher_role():
             status = "ENABLED" if api.kit.ipfs_cluster_follow is not None else "DISABLED"
             print(f"   ipfs_cluster_follow: {status}")
             
-        return True
+        assert api is not None
+        assert getattr(api, "disabled_components", None) is not None
         
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(f"Leecher role test failed: {e}")
 
 def test_normal_role():
     """Test normal role without disabled components."""
@@ -91,13 +93,13 @@ def test_normal_role():
             status = "ENABLED" if api.kit.synapse_storage is not None else "DISABLED"
             print(f"   synapse_storage: {status}")
             
-        return True
+        assert api is not None
         
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(f"Normal role test failed: {e}")
 
 def main():
     """Main test function."""

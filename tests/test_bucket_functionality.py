@@ -10,6 +10,9 @@ import json
 import tempfile
 import os
 from pathlib import Path
+import pytest
+
+pytestmark = pytest.mark.anyio
 
 class BucketFunctionalityTester:
     def __init__(self, dashboard_url="http://127.0.0.1:8085"):

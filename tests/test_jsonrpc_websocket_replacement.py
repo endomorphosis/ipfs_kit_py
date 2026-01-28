@@ -12,10 +12,13 @@ import logging
 import time
 from datetime import datetime
 from typing import Dict, Any
+import pytest
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.anyio
 
 
 async def test_jsonrpc_event_methods():

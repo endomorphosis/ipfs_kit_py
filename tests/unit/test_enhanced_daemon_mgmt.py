@@ -9,6 +9,7 @@ import os
 import json
 import traceback
 from pathlib import Path
+import pytest
 
 # Add the project root to Python path
 project_root = Path(__file__).parent
@@ -59,12 +60,16 @@ def test_daemon_config_manager():
         print(f"Daemons failed: {startup_result.get('daemons_failed', [])}")
         print(f"Startup errors: {len(startup_result.get('errors', []))}")
         
-        return True
+        assert isinstance(status_report, dict)
+        assert isinstance(config_result, dict)
+        assert "success" in config_result
+        assert isinstance(startup_result, dict)
+        assert "success" in startup_result
         
     except Exception as e:
         print(f"❌ Error testing DaemonConfigManager: {str(e)}")
         traceback.print_exc()
-        return False
+        pytest.fail(f"DaemonConfigManager test failed: {e}")
 
 def test_ipfs_kit_integration():
     """Test IPFSKit integration with enhanced daemon management"""
@@ -94,12 +99,13 @@ def test_ipfs_kit_integration():
             status_report = kit.daemon_manager.get_detailed_status_report()
             print(f"Status report available: {len(status_report)} sections")
         
-        return True
+        assert isinstance(startup_result, dict)
+        assert "success" in startup_result
         
     except Exception as e:
         print(f"❌ Error testing IPFSKit integration: {str(e)}")
         traceback.print_exc()
-        return False
+        pytest.fail(f"IPFSKit integration test failed: {e}")
 
 def test_filesystem_integration():
     """Test filesystem integration with enhanced error handling"""
@@ -120,12 +126,13 @@ def test_filesystem_integration():
         fs2 = IPFSFileSystem()
         print(f"✅ Successfully created IPFSFileSystem: {type(fs2)}")
         
-        return True
+        assert fs is not None
+        assert fs2 is not None
         
     except Exception as e:
         print(f"❌ Error testing filesystem integration: {str(e)}")
         traceback.print_exc()
-        return False
+        pytest.fail(f"Filesystem integration test failed: {e}")
 
 def main():
     """Run all enhancement tests"""

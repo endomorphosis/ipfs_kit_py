@@ -6,9 +6,12 @@ Simple test of the simplified bucket manager
 import sys
 import os
 from pathlib import Path
+import pytest
 
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
+
+pytestmark = pytest.mark.anyio
 
 print("Testing simplified bucket manager...")
 

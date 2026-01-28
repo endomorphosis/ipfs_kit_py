@@ -4,7 +4,10 @@ Quick test of the health monitor to see cluster status
 """
 
 import anyio
+import pytest
 from pathlib import Path
+
+pytestmark = pytest.mark.anyio
 
 async def test_health_monitor():
     """Test the health monitor cluster status."""

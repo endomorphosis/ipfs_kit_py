@@ -11,10 +11,13 @@ import json
 import logging
 import tempfile
 from pathlib import Path
+import pytest
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.anyio
 
 async def test_vfs_version_tracking():
     """Test basic VFS version tracking functionality."""

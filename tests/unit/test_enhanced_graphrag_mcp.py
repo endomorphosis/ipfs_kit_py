@@ -13,6 +13,7 @@ import tempfile
 import os
 import sys
 from datetime import datetime
+import pytest
 
 def test_mcp_server():
     """Test the enhanced MCP server with GraphRAG capabilities."""
@@ -59,15 +60,16 @@ def test_mcp_server():
         try:
             # Start the MCP server process
             server_process = subprocess.Popen(
-                [sys.executable, "mcp/enhanced_mcp_server_with_daemon_mgmt.py"],
+                [sys.executable, "mcp/ipfs_kit/mcp/enhanced_mcp_server_with_daemon_mgmt.py"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 cwd=os.getcwd()
             )
-            
-            # Send initialization request first for any non-initialize request
+
+            # Build input payload
+            payload = []
             if method != "initialize":
                 init_request = {
                     "jsonrpc": "2.0",
@@ -79,31 +81,20 @@ def test_mcp_server():
                         "clientInfo": {"name": "test-client", "version": "1.0.0"}
                     }
                 }
-                init_json = json.dumps(init_request) + "\n"
-                server_process.stdin.write(init_json)
-                server_process.stdin.flush()
-                
-                # Send notifications/initialized
+                payload.append(json.dumps(init_request))
                 notify_request = {
                     "jsonrpc": "2.0",
                     "method": "notifications/initialized",
                     "params": {}
                 }
-                notify_json = json.dumps(notify_request) + "\n"
-                server_process.stdin.write(notify_json)
-                server_process.stdin.flush()
-            
-            # Send actual request
-            request_json = json.dumps(request) + "\n"
-            server_process.stdin.write(request_json)
-            server_process.stdin.flush()
-            
-            # Close stdin to signal end of input
-            server_process.stdin.close()
-            
+                payload.append(json.dumps(notify_request))
+
+            payload.append(json.dumps(request))
+            input_data = "\n".join(payload) + "\n"
+
             # Read response with timeout
             try:
-                stdout, stderr = server_process.communicate(timeout=30)
+                stdout, stderr = server_process.communicate(input=input_data, timeout=30)
                 
                 if stderr:
                     print(f"Server stderr: {stderr}")
@@ -150,7 +141,7 @@ def test_mcp_server():
     
     if "error" in response:
         print(f"❌ Initialization failed: {response['error']}")
-        return False
+        pytest.fail(f"MCP server initialization failed: {response['error']}")
     else:
         print("✅ Server initialized successfully")
         print(f"Server: {response.get('result', {}).get('serverInfo', {}).get('name', 'Unknown')}")
@@ -394,7 +385,7 @@ def test_mcp_server():
     print("✅ SPARQL queries on RDF data")
     print("✅ Search statistics and capabilities")
     
-    return True
+    assert True
 
 if __name__ == "__main__":
     try:

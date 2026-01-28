@@ -15,6 +15,8 @@ This script tests:
 # manager elsewhere.
 import pytest
 
+pytestmark = pytest.mark.anyio
+
 pytest.skip("Integration harness; skipped in automated test runs", allow_module_level=True)
 
 import anyio

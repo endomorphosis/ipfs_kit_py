@@ -6,10 +6,13 @@ import anyio
 import sys
 import os
 from pathlib import Path
+import pytest
 
 # Add the current directory to Python path
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
+
+pytestmark = pytest.mark.anyio
 
 from modern_mcp_feature_bridge import ModernMCPFeatureBridge
 

@@ -8,9 +8,6 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Skip this test module until UnifiedMCPDashboard is implemented
-pytestmark = pytest.mark.skip(reason="UnifiedMCPDashboard not implemented yet")
-
 try:
     from ipfs_kit_py.unified_mcp_dashboard import UnifiedMCPDashboard
 except ImportError:

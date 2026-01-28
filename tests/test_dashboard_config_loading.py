@@ -31,6 +31,8 @@ except Exception as e:  # Catch broad exceptions to prevent collection-time fail
 
 import pytest
 
+pytestmark = pytest.mark.anyio
+
 
 @pytest.fixture
 def temp_ipfs_kit_dir():

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+import subprocess
 import pytest
 from pathlib import Path
 
@@ -53,7 +54,9 @@ def _import_external_libp2p():
         try:
             libp2p = importlib.import_module("libp2p")
         except ModuleNotFoundError:
-            pytest.skip("External libp2p dependency not installed")
+            if not _attempt_install_libp2p():
+                pytest.skip("External libp2p dependency not installed")
+            libp2p = importlib.import_module("libp2p")
 
         libp2p_file = getattr(libp2p, "__file__", "") or ""
         local_shadow_dir = (local_pkg_dir / "libp2p").resolve()
@@ -64,6 +67,23 @@ def _import_external_libp2p():
         return libp2p
     finally:
         sys.path = original_sys_path
+
+
+def _attempt_install_libp2p() -> bool:
+    """Attempt to install libp2p dependencies in zero-touch fashion."""
+    try:
+        subprocess.check_call([
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--user",
+            "--break-system-packages",
+            "libp2p>=0.2.0",
+        ])
+        return True
+    except Exception:
+        return False
 
 
 def test_libp2p_api_imports():

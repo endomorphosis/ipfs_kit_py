@@ -219,7 +219,8 @@ class EnhancedGatewayChain(GatewayChain):
                     "node": node,
                     "duration_ms": duration_ms,
                     "size_bytes": len(content),
-                    "method": "saturn_cdn"
+                    "method": "saturn_cdn",
+                    "success": True,
                 }
                 
             except Exception as e:

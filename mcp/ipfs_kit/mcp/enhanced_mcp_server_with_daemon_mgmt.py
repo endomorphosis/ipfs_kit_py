@@ -78,7 +78,7 @@ class IPFSKitIntegration:
                 self.use_mock_fallback = False
             else:
                 logger.warning("IPFS daemon not accessible, attempting to start")
-                if self.auto_start_daemon:
+                if self.auto_start_daemons:
                     self._ensure_daemon_running()
                 else:
                     self.use_mock_fallback = True
@@ -2504,7 +2504,7 @@ class EnhancedMCPServerWithDaemonMgmt:
         
         # Optional: Verify daemon health during MCP initialization
         daemon_healthy = self.ipfs_integration._test_ipfs_connection()
-        if not daemon_healthy and self.ipfs_integration.auto_start_daemon:
+        if not daemon_healthy and self.ipfs_integration.auto_start_daemons:
             logger.info("Daemon not accessible during MCP init, attempting restart...")
             self.ipfs_integration._ensure_daemon_running()
         

@@ -103,7 +103,8 @@ class FilecoinPinBackend(BackendStorage):
         if HTTPX_AVAILABLE:
             self.client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self.timeout),
-                headers=self._get_headers()
+                headers=self._get_headers(),
+                follow_redirects=True,
             )
             logger.info("Initialized Filecoin Pin backend with httpx client")
         else:

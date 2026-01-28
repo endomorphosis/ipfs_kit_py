@@ -9,6 +9,7 @@ This script tests the new lockfile management and daemon lifecycle functionality
 import sys
 import logging
 from pathlib import Path
+import pytest
 
 # Add project root to Python path
 current_dir = Path(__file__).parent
@@ -69,7 +70,10 @@ def test_cluster_lockfile_management():
         print(f"API healthy: {daemon_manager._test_cluster_api_health()}")
     
     print("\n✨ Test complete!")
-    return result
+    assert isinstance(result, dict)
+    assert "success" in result
+    assert isinstance(startup_result, dict)
+    assert "success" in startup_result
 
 if __name__ == "__main__":
     result = test_cluster_lockfile_management()

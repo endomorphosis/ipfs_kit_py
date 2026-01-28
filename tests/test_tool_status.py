@@ -8,6 +8,7 @@ import json
 import sys
 import subprocess
 import time
+import pytest
 
 # List of tools to test (excluding those that require specific parameters)
 tools_to_test = [
@@ -23,6 +24,8 @@ tools_to_test = [
     ("vfs_read", {"path": "/vfs/test"}),
     ("system_health", {}),
 ]
+
+pytestmark = pytest.mark.anyio
 
 async def test_tool_via_mcp():
     """Test tools directly via MCP."""

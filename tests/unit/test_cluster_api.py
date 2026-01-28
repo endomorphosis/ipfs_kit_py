@@ -7,10 +7,13 @@ and shows what the health monitor should be detecting.
 """
 
 import anyio
+import pytest
 import httpx
 import json
 import time
 from datetime import datetime
+
+pytestmark = pytest.mark.anyio
 
 async def test_cluster_api():
     """Test IPFS Cluster API endpoints."""

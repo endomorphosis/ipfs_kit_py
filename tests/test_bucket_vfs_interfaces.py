@@ -19,6 +19,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any, List
 
+pytestmark = pytest.mark.anyio
+
 # Test environment setup
 TEST_STORAGE_PATH = "/tmp/test_bucket_vfs"
 

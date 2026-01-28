@@ -7,9 +7,12 @@ import anyio
 import sys
 import logging
 from pathlib import Path
+import pytest
 
 # Add the project root to path
 sys.path.insert(0, str(Path(__file__).parent))
+
+pytestmark = pytest.mark.anyio
 
 async def test_logs_endpoint():
     """Test the logs endpoint functionality."""

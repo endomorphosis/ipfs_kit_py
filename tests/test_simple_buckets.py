@@ -6,6 +6,9 @@ Test the simplified bucket implementation.
 import anyio
 import tempfile
 from pathlib import Path
+import pytest
+
+pytestmark = pytest.mark.anyio
 
 async def test_simple_bucket_manager():
     """Test the simplified bucket manager."""

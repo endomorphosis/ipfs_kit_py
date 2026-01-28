@@ -6,6 +6,7 @@ Updated comprehensive test to check which MCP tools are working with real IPFS d
 import anyio
 import json
 import sys
+import pytest
 
 # List of tools to test (updated to focus on key tools)
 tools_to_test = [
@@ -21,6 +22,8 @@ tools_to_test = [
     ("vfs_read", {"path": "/vfs/test"}),
     # Note: system_health is not an IPFS operation, it's handled separately
 ]
+
+pytestmark = pytest.mark.anyio
 
 async def test_tool_via_mcp():
     """Test tools directly via MCP."""

@@ -32,6 +32,7 @@ fsspec>=2023.3.0
 requests-unixsocket>=0.3.0
 pyarrow>=11.0.0
 pandas>=1.3.0
+duckdb>=0.10.0
 numpy>=1.20.0
 matplotlib>=3.7.0
 
@@ -50,10 +51,8 @@ eth-keys>=0.4.0
 # Development dependencies
 pytest>=7.0.0
 pytest-cov>=4.1.0
-pytest-anyio>=0.0.0
 pytest-asyncio>=0.23.0
 pytest-trio>=0.8.0  # For testing with trio backend
-pytest-anyio>=0.0.0; python_version < '3.14'  # For testing with anyio (current PyPI release is 0.0.0)
 black>=23.3.0
 isort>=5.12.0
 ipfs-api>=0.1.0

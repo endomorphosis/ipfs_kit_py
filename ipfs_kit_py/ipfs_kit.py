@@ -410,6 +410,9 @@ class ipfs_kit:
         self._filesystem = None
         self._tiered_cache_manager = None # Initialize tiered cache manager
 
+        # Ensure optional kits are always present as attributes
+        self.lotus_kit = None
+
         # Metadata index and sync handler (initialized on demand)
         self._metadata_index = None
         self._metadata_sync_handler = None

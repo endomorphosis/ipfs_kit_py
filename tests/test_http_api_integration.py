@@ -10,7 +10,6 @@ These tests ensure the HTTP API correctly exposes cluster functionality
 and handles requests/responses properly.
 """
 
-import pytest
 import anyio
 import httpx
 import json
@@ -22,12 +21,15 @@ import time
 import signal
 from unittest.mock import Mock, patch, AsyncMock
 from contextlib import asynccontextmanager
+import pytest
 
 # Add project root to path
 import os
 import sys
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
+
+pytestmark = pytest.mark.anyio
 
 # Mock dependencies to avoid import issues
 try:

@@ -7,10 +7,13 @@ import anyio
 import sys
 import os
 from pathlib import Path
+import pytest
 
 # Add the project root to the Python path
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
+
+pytestmark = pytest.mark.anyio
 
 async def test_vfs_list_mounts():
     """Test vfs_list_mounts specifically."""

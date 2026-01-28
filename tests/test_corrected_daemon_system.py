@@ -14,10 +14,13 @@ import logging
 import tempfile
 import time
 from pathlib import Path
+import pytest
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.anyio
 
 
 def test_backend_manager():

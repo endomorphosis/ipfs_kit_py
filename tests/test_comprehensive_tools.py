@@ -7,11 +7,14 @@ import sys
 import os
 import anyio
 import traceback
+import pytest
 
 # Add the project root to Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+
+pytestmark = pytest.mark.anyio
 
 async def test_tool_categories():
     """Test different categories of tools."""

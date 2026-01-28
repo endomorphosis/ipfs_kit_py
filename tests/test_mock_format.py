@@ -8,6 +8,9 @@ sys.path.insert(0, str(repo_root))
 
 from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
 import anyio
+import pytest
+
+pytestmark = pytest.mark.anyio
 
 async def test_mock_format():
     integration = IPFSKitIntegration()

@@ -10,6 +10,7 @@ import anyio
 import logging
 import sys
 from pathlib import Path
+import pytest
 
 # Add the package to the path
 sys.path.insert(0, str(Path(__file__).parent / "ipfs_kit_py"))
@@ -21,6 +22,8 @@ from ipfs_kit_py.mcp_metadata_wrapper import get_enhanced_mcp_tools
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.anyio
 
 
 async def test_metadata_manager():

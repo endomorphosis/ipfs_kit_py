@@ -47,13 +47,18 @@ fi
 
 python -m pip install --upgrade pip setuptools wheel
 
+PACKAGE_REF="ipfs_kit_py"
+REPO_URL="git+https://github.com/endomorphosis/ipfs_kit_py@known_good"
 if [ -n "$EXTRAS" ]; then
-  echo "Installing ipfs_kit_py with extras: [$EXTRAS]"
-  python -m pip install -e ".[${EXTRAS}]"
+  echo "Installing ipfs_kit_py from ${REPO_URL} with extras: [$EXTRAS]"
+  python -m pip install "${PACKAGE_REF}[${EXTRAS}] @ ${REPO_URL}"
 else
-  echo "Installing ipfs_kit_py (no extras)"
-  python -m pip install -e .
+  echo "Installing ipfs_kit_py from ${REPO_URL} (no extras)"
+  python -m pip install "${PACKAGE_REF} @ ${REPO_URL}"
 fi
+
+echo "Installing libp2p from git main"
+python -m pip install "libp2p @ git+https://github.com/libp2p/py-libp2p@main"
 
 # Test tooling: expected to be available after zero-touch.
 # Opt out with: IPFS_KIT_INSTALL_TEST_DEPS=0

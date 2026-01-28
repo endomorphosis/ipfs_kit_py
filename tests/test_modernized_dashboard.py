@@ -31,6 +31,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from modernized_comprehensive_dashboard import ModernizedComprehensiveDashboard, MemoryLogHandler
 
+pytestmark = pytest.mark.anyio
+
 
 class TestLightInitialization:
     """Test light initialization patterns with fallback imports."""

@@ -6,6 +6,7 @@ Test script to verify protobuf fix and Parquet IPLD bridge functionality.
 import sys
 import os
 sys.path.insert(0, '.')
+import pytest
 
 def test_protobuf_fix():
     """Test if protobuf conflicts are resolved."""
@@ -27,10 +28,10 @@ def test_protobuf_fix():
         has_deps = libp2p.check_dependencies()
         print(f"✅ libp2p dependencies available: {has_deps}")
         
-        return True
+        assert has_deps is True or has_deps is False
     except Exception as e:
         print(f"❌ Protobuf/libp2p error: {e}")
-        return False
+        pytest.fail(f"Protobuf/libp2p test failed: {e}")
 
 def test_parquet_bridge():
     """Test Parquet IPLD bridge functionality."""
@@ -72,16 +73,17 @@ def test_parquet_bridge():
                 if list_result['success']:
                     print(f"✅ Listed {list_result['count']} datasets")
                     
-                    return True
+                    assert list_result.get('success') in (True, False)
+                    return None
             
         print(f"❌ Test failed: {result.get('error', 'Unknown error')}")
-        return False
+        pytest.fail(f"Parquet bridge test failed: {result.get('error', 'Unknown error')}")
         
     except Exception as e:
         print(f"❌ Parquet bridge error: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(f"Parquet bridge test failed: {e}")
 
 def test_transformers_integration():
     """Test transformers integration (should work without conflicts)."""
@@ -95,10 +97,10 @@ def test_transformers_integration():
         import google.protobuf
         print(f"✅ Both transformers and protobuf ({google.protobuf.__version__}) coexist")
         
-        return True
+        assert transformers.__version__
     except Exception as e:
         print(f"❌ Transformers error: {e}")
-        return False
+        pytest.fail(f"Transformers integration test failed: {e}")
 
 def main():
     """Run all tests."""

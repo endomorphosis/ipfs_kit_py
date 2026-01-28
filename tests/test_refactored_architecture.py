@@ -16,6 +16,7 @@ import json
 import logging
 from pathlib import Path
 import anyio
+import pytest
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -25,6 +26,8 @@ logger = logging.getLogger(__name__)
 project_root = str(Path(__file__).resolve().parents[1])
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+
+pytestmark = pytest.mark.anyio
 
 def test_enhanced_daemon_manager():
     """Test the enhanced daemon manager directly."""

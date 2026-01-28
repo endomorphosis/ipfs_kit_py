@@ -9,6 +9,8 @@ import pytest
 
 ASYNC_BACKEND = "async" "io"
 
+pytestmark = pytest.mark.anyio
+
 # Test basic anyio functionality
 @pytest.mark.parametrize("backend", [ASYNC_BACKEND, "trio"])
 def test_anyio_backends(backend):

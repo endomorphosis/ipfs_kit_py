@@ -8,6 +8,7 @@ import sys
 import tempfile
 import shutil
 from pathlib import Path
+from unittest.mock import patch
 
 def test_standalone_vfs():
     """Test the VFS system in standalone mode."""
@@ -30,14 +31,17 @@ def test_standalone_vfs():
             ipfs_fsspec = importlib.util.module_from_spec(spec)
             
             # Mock the problematic imports before loading
-            sys.modules['ipfs_kit_py.tiered_cache_manager'] = type('MockModule', (), {'TieredCacheManager': type('MockClass', (), {})})()
-            sys.modules['ipfs_kit_py.lotus_kit'] = type('MockModule', (), {'LotusKit': type('MockClass', (), {}), 'LOTUS_AVAILABLE': False})()
-            sys.modules['ipfs_kit_py.storacha_kit'] = type('MockModule', (), {'storacha_kit': type('MockClass', (), {})})()
-            sys.modules['ipfs_kit_py.lassie_kit'] = type('MockModule', (), {'lassie_kit': type('MockClass', (), {}), 'LASSIE_AVAILABLE': False})()
-            sys.modules['ipfs_kit_py.filesystem_journal'] = type('MockModule', (), {'FilesystemJournalManager': type('MockClass', (), {})})()
-            sys.modules['ipfs_kit_py.libp2p'] = type('MockModule', (), {'libp2p_peer': type('MockClass', (), {})})()
-            
-            spec.loader.exec_module(ipfs_fsspec)
+            mock_modules = {
+                'ipfs_kit_py.tiered_cache_manager': type('MockModule', (), {'TieredCacheManager': type('MockClass', (), {})})(),
+                'ipfs_kit_py.lotus_kit': type('MockModule', (), {'LotusKit': type('MockClass', (), {}), 'LOTUS_AVAILABLE': False})(),
+                'ipfs_kit_py.storacha_kit': type('MockModule', (), {'storacha_kit': type('MockClass', (), {})})(),
+                'ipfs_kit_py.lassie_kit': type('MockModule', (), {'lassie_kit': type('MockClass', (), {}), 'LASSIE_AVAILABLE': False})(),
+                'ipfs_kit_py.filesystem_journal': type('MockModule', (), {'FilesystemJournalManager': type('MockClass', (), {})})(),
+                'ipfs_kit_py.libp2p': type('MockModule', (), {'libp2p_peer': type('MockClass', (), {})})(),
+            }
+
+            with patch.dict(sys.modules, mock_modules):
+                spec.loader.exec_module(ipfs_fsspec)
             
             # Test the classes
             VFSBackendRegistry = ipfs_fsspec.VFSBackendRegistry

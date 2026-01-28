@@ -5,6 +5,7 @@ Simple test to verify the lotus_kit daemon_status fix
 import sys
 import os
 from pathlib import Path
+import pytest
 
 # Add the project root to Python path
 project_root = Path(__file__).parent
@@ -30,13 +31,14 @@ def test_lotus_daemon_status():
         process_running = result.get("process_running", False)
         print(f"Process running: {process_running}")
         
-        return True
+        assert isinstance(result, dict)
+        assert "process_running" in result
         
     except Exception as e:
         print(f"Error: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(f"Lotus daemon status test failed: {e}")
 
 if __name__ == "__main__":
     success = test_lotus_daemon_status()

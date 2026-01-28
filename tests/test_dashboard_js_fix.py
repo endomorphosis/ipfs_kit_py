@@ -10,10 +10,13 @@ import requests
 import time
 import subprocess
 import signal
+import pytest
 
 # Add paths
 sys.path.insert(0, '/home/devel/ipfs_kit_py')
 sys.path.insert(0, '/home/devel/ipfs_kit_py/ipfs_kit_py')
+
+pytestmark = pytest.mark.anyio
 
 async def test_dashboard_api():
     """Test dashboard API endpoints to verify they return correct data structure."""

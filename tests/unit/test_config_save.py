@@ -3,6 +3,7 @@
 Test script to verify configuration saving functionality.
 """
 import anyio
+import pytest
 import json
 from pathlib import Path
 import sys
@@ -11,6 +12,8 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
 from mcp.ipfs_kit.backends import BackendHealthMonitor
+
+pytestmark = pytest.mark.anyio
 
 async def test_s3_config_save():
     """Test S3 configuration saving."""

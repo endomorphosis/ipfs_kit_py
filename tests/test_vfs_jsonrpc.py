@@ -14,6 +14,9 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
+import pytest
+
+pytestmark = pytest.mark.anyio
 
 async def test_mcp_server_with_vfs():
     """Test MCP server with VFS operations using subprocess communication."""

@@ -20,6 +20,8 @@ from ipfs_kit_py.mcp.storage_manager.pinning.unified_pin_service import UnifiedP
 from ipfs_kit_py.mcp.storage_manager.retrieval.gateway_chain import GatewayChain
 from ipfs_kit_py.mcp.storage_manager.retrieval.enhanced_gateway_chain import EnhancedGatewayChain
 
+pytestmark = pytest.mark.anyio
+
 
 class TestFilecoinPinBackendOperations:
     """Test Filecoin Pin backend add/retrieve operations."""

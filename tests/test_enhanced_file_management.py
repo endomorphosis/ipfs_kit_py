@@ -6,11 +6,14 @@ Test script to validate the enhanced file management and metadata-first MCP tool
 import anyio
 import json
 import tempfile
+import pytest
 
 from fastapi.testclient import TestClient
 
 from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDashboard
 from ipfs_kit_py.mcp.metadata_first_tools import get_metadata_tools
+
+pytestmark = pytest.mark.anyio
 
 async def test_metadata_first_tools():
     """Test the metadata-first MCP tools functionality."""

@@ -339,6 +339,8 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
             enable_metrics: Whether to enable performance metrics
             **kwargs: Additional arguments
         """
+        backend = kwargs.pop("backend", "ipfs")
+        metadata = kwargs.pop("metadata", None)
         super().__init__(**kwargs)
         self.ipfs_client = ipfs_client
         self.tiered_cache_manager = tiered_cache_manager
@@ -349,12 +351,24 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
         self.use_gateway_fallback = use_gateway_fallback
         self.cache_options = cache_options or {} # Renamed to cache_options
         self.enable_metrics = enable_metrics
+        self.backend = backend
+        self.metadata = metadata or {}
         
         # Initialize performance metrics
         self.metrics = PerformanceMetrics(enable_metrics=enable_metrics)
         
         # Track open files
         self.open_files = {}
+
+        # Optional Synapse backend support
+        self.synapse_storage = None
+        if self.backend == "synapse":
+            try:
+                from .synapse_storage import synapse_storage
+
+                self.synapse_storage = synapse_storage(metadata=self.metadata)
+            except Exception as e:
+                logger.warning(f"Failed to initialize Synapse storage: {e}")
         
         logger.info(f"Initialized IPFS FSSpec filesystem with role: {role}")
     

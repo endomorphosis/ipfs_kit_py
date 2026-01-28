@@ -4,11 +4,14 @@ Test script for the MCP server health API
 """
 
 import anyio
+import pytest
 import sys
 from pathlib import Path
 
 # Add project to path
 sys.path.insert(0, str(Path(__file__).parent))
+
+pytestmark = pytest.mark.anyio
 
 async def test_health_api():
     """Test the health API functionality."""

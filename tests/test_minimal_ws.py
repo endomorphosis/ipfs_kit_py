@@ -6,9 +6,12 @@ Minimal dashboard test to verify WebSocket route registration
 import anyio
 import sys
 from pathlib import Path
+import pytest
 
 # Add the project root to path
 sys.path.insert(0, str(Path(__file__).parent))
+
+pytestmark = pytest.mark.anyio
 
 async def test_minimal_dashboard():
     """Test minimal dashboard with WebSocket focus."""

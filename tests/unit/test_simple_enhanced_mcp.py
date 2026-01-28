@@ -11,6 +11,7 @@ import subprocess
 import sys
 import os
 from pathlib import Path
+import pytest
 
 def test_server_startup():
     """Test that the enhanced MCP server starts and responds."""
@@ -18,10 +19,12 @@ def test_server_startup():
     print("🚀 Testing Enhanced GraphRAG MCP Server Startup")
     print("=" * 50)
     
+    tools_found = False
+
     try:
         # Start the server
         server_process = subprocess.Popen(
-            [sys.executable, "mcp/enhanced_mcp_server_with_daemon_mgmt.py"],
+            [sys.executable, "mcp/ipfs_kit/mcp/enhanced_mcp_server_with_daemon_mgmt.py"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -106,20 +109,22 @@ def test_server_startup():
                                 else:
                                     print(f"  ⚙️ {name}: {desc[:60]}...")
                             
-                            return True
+                            tools_found = True
+                            break
                     except json.JSONDecodeError:
                         print(f"  RAW: {line}")
         
-        print("\n❌ No valid tools response found")
-        return False
+        if not tools_found:
+            print("\n❌ No valid tools response found")
+        assert tools_found
         
     except subprocess.TimeoutExpired:
         print("❌ Server timeout")
         server_process.kill()
-        return False
+        pytest.fail("Server timeout")
     except Exception as e:
         print(f"❌ Test failed: {e}")
-        return False
+        pytest.fail(f"Enhanced MCP server test failed: {e}")
 
 def check_dependencies():
     """Check which optional dependencies are available."""

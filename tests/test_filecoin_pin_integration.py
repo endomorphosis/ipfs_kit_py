@@ -11,9 +11,11 @@ import sys
 from pathlib import Path
 
 # Add parent directory to path
+import anyio
 sys.path.insert(0, str(Path(__file__).parent.parent / "ipfs_kit_py"))
 
 
+pytestmark = pytest.mark.anyio
 class TestFilecoinPinIntegration:
     """Test Filecoin Pin integration with ipfs_kit_py."""
     
@@ -273,10 +275,6 @@ class TestFilecoinPinIntegration:
         assert filecoin_parser is not None
 
 
-@pytest.mark.skipif(
-    not os.getenv('FILECOIN_PIN_API_KEY'),
-    reason="FILECOIN_PIN_API_KEY not set - skipping integration tests"
-)
 class TestFilecoinPinRealAPI:
     """Test Filecoin Pin with real API (requires API key)."""
     
@@ -285,21 +283,24 @@ class TestFilecoinPinRealAPI:
         """Test backend initialization with real API key."""
         from ipfs_kit_py.mcp.storage_manager.backends import FilecoinPinBackend
         
-        api_key = os.getenv('FILECOIN_PIN_API_KEY')
+        api_key = os.getenv('FILECOIN_PIN_API_KEY', '')
         resources = {"api_key": api_key}
         metadata = {"default_replication": 3}
         
         backend = FilecoinPinBackend(resources, metadata)
         
         assert backend.get_name() == "filecoin_pin"
-        assert backend.mock_mode == False
+        if api_key:
+            assert backend.mock_mode is False
+        else:
+            assert backend.mock_mode is True
     
     @pytest.mark.integration
     def test_real_api_list_pins(self):
         """Test listing pins with real API."""
         from ipfs_kit_py.mcp.storage_manager.backends import FilecoinPinBackend
         
-        api_key = os.getenv('FILECOIN_PIN_API_KEY')
+        api_key = os.getenv('FILECOIN_PIN_API_KEY', '')
         resources = {"api_key": api_key}
         metadata = {}
         

@@ -10,9 +10,12 @@ import anyio
 import json
 import sys
 from pathlib import Path
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
+
+pytestmark = pytest.mark.anyio
 
 async def test_mcp_atomic_operations():
     """Test MCP server atomic operations."""

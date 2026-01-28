@@ -6,11 +6,14 @@ Test the unified MCP dashboard bucket functionality directly.
 import anyio
 import sys
 from pathlib import Path
+import pytest
 
 # Add the package to the path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from ipfs_kit_py.unified_mcp_dashboard import UnifiedMCPDashboard
+
+pytestmark = pytest.mark.anyio
 
 async def test_bucket_api():
     """Test bucket API methods."""

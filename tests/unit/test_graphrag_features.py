@@ -10,6 +10,11 @@ import tempfile
 import time
 import os
 from pathlib import Path
+import textwrap
+
+import pytest
+
+pytestmark = pytest.mark.anyio
 
 
 def test_basic_server():
@@ -33,21 +38,21 @@ def test_basic_server():
             print("✅ Server imports successfully")
         else:
             print(f"❌ Import failed: {result.stderr}")
-            return False
+            pytest.fail(f"Server import failed: {result.stderr}")
             
         # Test that GraphRAG search engine can be created
         print("📋 2. Testing GraphRAG engine...")
-        test_code = """
-import sys
-sys.path.insert(0, 'mcp')
-from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
-try:
-    engine = GraphRAGSearchEngine()
-    stats = engine.get_search_stats()
-    print(f'✅ GraphRAG engine created: {stats["vector_search_available"]=}, {stats["graph_search_available"]=}, {stats["sparql_available"]=}')
-except Exception as e:
-    print(f'❌ GraphRAG engine failed: {e}')
-"""
+        test_code = textwrap.dedent("""
+            import sys
+            sys.path.insert(0, 'mcp')
+            from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
+            try:
+                engine = GraphRAGSearchEngine()
+                stats = engine.get_search_stats()
+                print(f'✅ GraphRAG engine created: {stats["vector_search_available"]=}, {stats["graph_search_available"]=}, {stats["sparql_available"]=}')
+            except Exception as e:
+                print(f'❌ GraphRAG engine failed: {e}')
+        """)
         
         result = subprocess.run([venv_python, "-c", test_code], 
                       capture_output=True, text=True, timeout=15, cwd=str(repo_root))
@@ -56,29 +61,29 @@ except Exception as e:
             print(result.stdout.strip())
         else:
             print(f"❌ GraphRAG test failed: {result.stderr}")
-            return False
+            pytest.fail(f"GraphRAG engine test failed: {result.stderr}")
             
         # Test content indexing
         print("📋 3. Testing content indexing...")
-        test_code = """
-    import sys
-    import anyio
-sys.path.insert(0, 'mcp')
-from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
+        test_code = textwrap.dedent("""
+            import sys
+            import anyio
+            sys.path.insert(0, 'mcp')
+            from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
 
-async def test_indexing():
-    engine = GraphRAGSearchEngine()
-    result = await engine.index_content(
-        cid="test123",
-        path="/test/doc.txt", 
-        content="This is a test document about IPFS and distributed systems.",
-        metadata={"topic": "test"}
-    )
-    return result
+            async def test_indexing():
+                engine = GraphRAGSearchEngine()
+                result = await engine.index_content(
+                    cid="test123",
+                    path="/test/doc.txt",
+                    content="This is a test document about IPFS and distributed systems.",
+                    metadata={"topic": "test"}
+                )
+                return result
 
-result = anyio.run(test_indexing)
-print(f'✅ Content indexing: {result["success"]=}')
-"""
+            result = anyio.run(test_indexing)
+            print(f'✅ Content indexing: {result["success"]=}')
+        """)
         
         result = subprocess.run([venv_python, "-c", test_code],
                       capture_output=True, text=True, timeout=15, cwd=str(repo_root))
@@ -87,32 +92,32 @@ print(f'✅ Content indexing: {result["success"]=}')
             print(result.stdout.strip())
         else:
             print(f"❌ Indexing test failed: {result.stderr}")
-            return False
+            pytest.fail(f"Indexing test failed: {result.stderr}")
             
         # Test text search
         print("📋 4. Testing search functionality...")
-        test_code = """
-    import sys
-    import anyio
-sys.path.insert(0, 'mcp')
-from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
+        test_code = textwrap.dedent("""
+            import sys
+            import anyio
+            sys.path.insert(0, 'mcp')
+            from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
 
-async def test_search():
-    engine = GraphRAGSearchEngine()
-    # Index content first
-    await engine.index_content(
-        cid="test123",
-        path="/test/doc.txt", 
-        content="This is a test document about IPFS and distributed systems.",
-        metadata={"topic": "test"}
-    )
-    # Search for it
-    result = await engine.text_search("IPFS distributed", limit=5)
-    return result
+            async def test_search():
+                engine = GraphRAGSearchEngine()
+                # Index content first
+                await engine.index_content(
+                    cid="test123",
+                    path="/test/doc.txt",
+                    content="This is a test document about IPFS and distributed systems.",
+                    metadata={"topic": "test"}
+                )
+                # Search for it
+                result = await engine.text_search("IPFS distributed", limit=5)
+                return result
 
-result = anyio.run(test_search)
-print(f'✅ Search functionality: {result["success"]=}, results={len(result.get("results", []))}')
-"""
+            result = anyio.run(test_search)
+            print(f'✅ Search functionality: {result["success"]=}, results={len(result.get("results", []))}')
+        """)
         
         result = subprocess.run([venv_python, "-c", test_code],
                       capture_output=True, text=True, timeout=15, cwd=str(repo_root))
@@ -121,17 +126,17 @@ print(f'✅ Search functionality: {result["success"]=}, results={len(result.get(
             print(result.stdout.strip())
         else:
             print(f"❌ Search test failed: {result.stderr}")
-            return False
+            pytest.fail(f"Search test failed: {result.stderr}")
             
         print("\n🎉 All basic tests passed!")
-        return True
+        assert True
         
     except subprocess.TimeoutExpired:
         print("❌ Test timeout")
-        return False
+        pytest.fail("GraphRAG test timed out")
     except Exception as e:
         print(f"❌ Test error: {e}")
-        return False
+        pytest.fail(f"GraphRAG test failed: {e}")
 
 def check_capabilities():
     """Check what search capabilities are available."""

@@ -6,10 +6,13 @@ This script specifically tests the S3 and HuggingFace backends with your configu
 """
 
 import anyio
+import pytest
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.anyio
 
 async def test_s3_backend():
     """Test S3 backend with configured credentials."""

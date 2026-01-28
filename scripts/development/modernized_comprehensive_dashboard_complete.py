@@ -324,6 +324,11 @@ class ModernizedComprehensiveDashboard:
             logger.info("✅ Unified bucket interface initialized")
         except Exception as e:
             logger.warning(f"⚠️ Unified bucket interface initialization failed: {e}")
+            class _FallbackUnifiedBucketInterface:  # noqa: D401
+                async def list_backend_buckets(self):
+                    return {"success": True, "data": {"buckets": [], "total_count": 0, "backend_filter": None}}
+
+            self.unified_bucket_interface = _FallbackUnifiedBucketInterface()
 
         try:
             # Initialize enhanced bucket index

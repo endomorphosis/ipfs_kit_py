@@ -8,11 +8,14 @@ import sys
 import os
 import traceback
 import anyio
+import pytest
 
 # Add the project root to Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+
+pytestmark = pytest.mark.anyio
 
 def test_server_import():
     """Test importing the MCP server module."""

@@ -5,6 +5,7 @@ import os
 import sys
 import anyio
 import logging
+import pytest
 
 # Add current directory to Python path
 sys.path.insert(0, os.getcwd())
@@ -12,6 +13,8 @@ sys.path.insert(0, os.getcwd())
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.anyio
 
 async def test_daemon_manager():
     """Test the daemon manager initialization"""

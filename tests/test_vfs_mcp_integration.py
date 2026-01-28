@@ -16,6 +16,7 @@ import tempfile
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional
+import pytest
 
 # Configure logging
 logging.basicConfig(
@@ -27,6 +28,8 @@ logger = logging.getLogger("vfs-mcp-integration")
 # Add project root to path
 project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
+
+pytestmark = pytest.mark.anyio
 
 class MCPVFSIntegrationTest:
     """Test VFS operations through MCP server interface."""

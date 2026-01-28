@@ -8,6 +8,7 @@ Quick test script to verify Phase 1 components are working correctly.
 import sys
 import os
 from pathlib import Path
+import pytest
 
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -43,7 +44,7 @@ def test_phase1_components():
         
     except Exception as e:
         print(f"   ✗ Tool Registry failed: {e}")
-        return False
+        pytest.fail(f"Tool Registry test failed: {e}")
     
     # Test 2: Service Manager
     print("2. Testing Service Manager...")
@@ -58,7 +59,7 @@ def test_phase1_components():
         
     except Exception as e:
         print(f"   ✗ Service Manager failed: {e}")
-        return False
+        pytest.fail(f"Service Manager test failed: {e}")
     
     # Test 3: Error Handler
     print("3. Testing Error Handler...")
@@ -80,7 +81,7 @@ def test_phase1_components():
         
     except Exception as e:
         print(f"   ✗ Error Handler failed: {e}")
-        return False
+        pytest.fail(f"Error Handler test failed: {e}")
     
     # Test 4: Test Framework
     print("4. Testing Test Framework...")
@@ -109,13 +110,12 @@ def test_phase1_components():
         
     except Exception as e:
         print(f"   ✗ Test Framework failed: {e}")
-        return False
+        pytest.fail(f"Test Framework test failed: {e}")
     
     print()
     print("=" * 40)
     print("All Phase 1 components working correctly! ✓")
     print("=" * 40)
-    return True
 
 if __name__ == "__main__":
     success = test_phase1_components()

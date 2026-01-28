@@ -10,6 +10,8 @@ from ipfs_kit_py.mcp.storage_manager.pinning import UnifiedPinService
 from ipfs_kit_py.mcp.storage_manager.retrieval import GatewayChain
 from ipfs_kit_py.mcp.storage_manager.storage_types import StorageBackendType
 
+pytestmark = pytest.mark.anyio
+
 
 class TestFilecoinPinBackend:
     """Test Filecoin Pin backend implementation."""
@@ -264,15 +266,12 @@ class TestFilecoinPinIntegration:
     """Integration tests for Filecoin Pin backend."""
     
     @pytest.mark.integration
-    @pytest.mark.skipif(
-        "FILECOIN_PIN_API_KEY" not in __import__('os').environ,
-        reason="FILECOIN_PIN_API_KEY not set"
-    )
     def test_real_pin_operation(self):
-        """Test real pinning operation with API key."""
+        """Test pinning operation with API key when available, otherwise mock mode."""
         import os
         
-        resources = {"api_key": os.environ["FILECOIN_PIN_API_KEY"]}
+        api_key = os.environ.get("FILECOIN_PIN_API_KEY", "")
+        resources = {"api_key": api_key}
         metadata = {}
         backend = FilecoinPinBackend(resources, metadata)
         
@@ -284,8 +283,13 @@ class TestFilecoinPinIntegration:
         
         assert result["success"] is True
         assert "cid" in result
+        if api_key:
+            assert backend.mock_mode is False
+        else:
+            assert backend.mock_mode is True
+            assert result.get("mock") is True
         
-        # Clean up
+        # Clean up (no-op in mock mode)
         backend.remove_content(result["cid"])
 
 

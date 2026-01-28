@@ -20,7 +20,7 @@ from pathlib import Path
 if "pytest" in sys.modules:
     import pytest
 
-    pytestmark = pytest.mark.integration
+    pytestmark = [pytest.mark.integration, pytest.mark.anyio]
     if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION", "").lower() not in {"1", "true", "yes"}:
         pytest.skip(
             "Opt-in integration smoke test. Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run.",

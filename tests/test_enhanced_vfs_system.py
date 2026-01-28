@@ -7,6 +7,9 @@ import anyio
 import tempfile
 import shutil
 from pathlib import Path
+import pytest
+
+pytestmark = pytest.mark.anyio
 
 async def test_enhanced_vfs_system():
     """Test the enhanced VFS system with all available backends."""

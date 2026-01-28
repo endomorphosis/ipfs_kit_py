@@ -10,9 +10,12 @@ import json
 import aiohttp
 import logging
 from pathlib import Path
+import pytest
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.anyio
 
 class ComprehensiveDashboardTester:
     def __init__(self, base_url: str = "http://127.0.0.1:8007"):

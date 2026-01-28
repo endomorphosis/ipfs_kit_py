@@ -3,12 +3,17 @@
 Test script to verify CLI integration with the comprehensive dashboard
 """
 import anyio
+import pytest
 import subprocess
 import time
 import requests
 import sys
 from pathlib import Path
+import pytest
 
+pytestmark = pytest.mark.anyio
+
+@pytest.mark.anyio
 async def test_cli_integration():
     """Test the CLI integration with comprehensive dashboard."""
     print("🧪 Testing CLI integration with comprehensive dashboard...")

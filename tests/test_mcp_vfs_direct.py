@@ -11,6 +11,7 @@ import sys
 import json
 import anyio
 import logging
+import pytest
 
 # Add project root to path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -19,6 +20,8 @@ sys.path.insert(0, project_root)
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("mcp-vfs-test")
+
+pytestmark = pytest.mark.anyio
 
 async def test_mcp_vfs_operations():
     """Test VFS operations through the MCP server."""

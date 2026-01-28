@@ -10,11 +10,14 @@ import shutil
 import anyio
 import pandas as pd
 from pathlib import Path
+import pytest
 
 # Add the ipfs_kit_py directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'ipfs_kit_py'))
 
 from ipfs_kit_py.simple_pin_manager import SimplePinManager
+
+pytestmark = pytest.mark.anyio
 
 async def test_enhanced_pin_metadata():
     """Test enhanced pin metadata file creation."""

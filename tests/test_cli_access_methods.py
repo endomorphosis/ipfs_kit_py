@@ -10,6 +10,9 @@ import subprocess
 import sys
 from pathlib import Path
 import anyio
+import pytest
+
+pytestmark = pytest.mark.anyio
 
 async def run_cmd(cmd, timeout=10):
     """Run a command and return success, stdout, stderr"""

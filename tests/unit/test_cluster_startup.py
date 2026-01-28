@@ -6,9 +6,12 @@ Test cluster daemon startup with the new peer ID generation.
 import sys
 import os
 import anyio
+import pytest
 sys.path.insert(0, os.path.dirname(__file__))
 
 from ipfs_kit_py.ipfs_cluster_daemon_manager import IPFSClusterDaemonManager
+
+pytestmark = pytest.mark.anyio
 
 async def test_cluster_startup():
     """Test starting the cluster daemon with properly generated peer IDs."""

@@ -21,6 +21,20 @@ from pathlib import Path
 import pytest
 
 
+def _prepend_zero_touch_bin() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    candidate_bins = [repo_root / "bin", repo_root / "ipfs_kit_py" / "bin"]
+    existing = [str(path) for path in candidate_bins if path.is_dir()]
+    if not existing:
+        return
+    current = os.environ.get("PATH", "")
+    parts = [p for p in current.split(os.pathsep) if p]
+    for path in reversed(existing):
+        if path not in parts:
+            parts.insert(0, path)
+    os.environ["PATH"] = os.pathsep.join(parts)
+
+
 def _sanitize_sys_path() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     local_pkg_dir = (repo_root / "ipfs_kit_py").resolve()
@@ -54,6 +68,7 @@ def _sanitize_sys_path() -> None:
 
 
 _sanitize_sys_path()
+_prepend_zero_touch_bin()
 
 if os.environ.get("IPFS_KIT_TEST_IGNORE_SIGINT", "1") == "1":
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -67,7 +82,7 @@ def pytest_collectstart(collector):  # noqa: ANN001
 
 def pytest_collection_modifyitems(config, items):  # noqa: ANN001
     for item in items:
-        func = getattr(item, "function", None)
+        func = getattr(item, "function", None) or getattr(item, "obj", None)
         if func is None or not inspect.iscoroutinefunction(func):
             continue
         if item.get_closest_marker("anyio"):
@@ -79,9 +94,55 @@ def pytest_collection_modifyitems(config, items):  # noqa: ANN001
         item.add_marker(pytest.mark.anyio)
 
 
+def pytest_itemcollected(item):  # noqa: ANN001
+    func = getattr(item, "obj", None)
+    if func is None or not inspect.iscoroutinefunction(func):
+        return
+    if item.get_closest_marker("anyio"):
+        return
+    if item.get_closest_marker("asyncio"):
+        return
+    if item.get_closest_marker("trio"):
+        return
+    item.add_marker(pytest.mark.anyio)
+
+
 def pytest_runtest_setup(item):  # noqa: ANN001
     # Final guard before each test executes.
     _sanitize_sys_path()
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_pyfunc_call(pyfuncitem):  # noqa: ANN001
+    func = getattr(pyfuncitem, "obj", None)
+    if func is None or not inspect.iscoroutinefunction(func):
+        return None
+
+    if (
+        pyfuncitem.get_closest_marker("anyio")
+        or pyfuncitem.get_closest_marker("asyncio")
+        or pyfuncitem.get_closest_marker("trio")
+    ):
+        return None
+
+    testargs = {
+        arg: pyfuncitem.funcargs[arg]
+        for arg in pyfuncitem._fixtureinfo.argnames
+        if arg in pyfuncitem.funcargs
+    }
+
+    instance = getattr(pyfuncitem, "_instance", None)
+    sig = inspect.signature(func)
+    params = list(sig.parameters)
+
+    import anyio
+
+    if instance is not None and params and params[0] == "self":
+        anyio.run(func, instance, **testargs)
+    else:
+        anyio.run(func, **testargs)
+
+    return True
 
 
 @pytest.fixture(scope="session")
@@ -92,6 +153,12 @@ def server():
     )
 
     return EnhancedMCPServerWithDaemonMgmt()
+
+
+@pytest.fixture(scope="session")
+def anyio_backend():
+    """Force anyio to use asyncio backend for tests."""
+    return "asyncio"
 
 
 @pytest.fixture(scope="session")

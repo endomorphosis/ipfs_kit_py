@@ -5,6 +5,7 @@ Test the daemon management fix in the MCP server.
 
 import sys
 import os
+import pytest
 
 # Add the project root to Python path
 from pathlib import Path
@@ -12,6 +13,8 @@ from pathlib import Path
 
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
+
+pytestmark = pytest.mark.anyio
 
 try:
     from mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration

@@ -1,11 +1,11 @@
 {
   "operations": {
     "add": {
-      "count": 16,
-      "success": 16,
+      "count": 33,
+      "success": 33,
       "failed": 0,
       "response_times": [
-        0.000659942626953125
+        0.00043702125549316406
       ]
     },
     "get": {
@@ -41,8 +41,8 @@
   },
   "throughput": {
     "uploads": {
-      "bytes": 464,
-      "operations": 16
+      "bytes": 957,
+      "operations": 33
     },
     "downloads": {
       "bytes": 0,
@@ -50,14 +50,14 @@
     }
   },
   "last_hour": {
-    "operations": 16,
+    "operations": 33,
     "success_rate": 100.0,
-    "avg_response_time": 0.000659942626953125
+    "avg_response_time": 0.00043702125549316406
   },
   "total": {
-    "operations": 16,
+    "operations": 33,
     "success_rate": 100.0,
-    "avg_response_time": 0.000659942626953125
+    "avg_response_time": 0.00043702125549316406
   },
-  "last_updated": 1769501443.2950811
+  "last_updated": 1769557889.7688916
 }

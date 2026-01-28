@@ -7,10 +7,13 @@ import os
 import anyio
 import traceback
 from pathlib import Path
+import pytest
 
 # Add the project root to Python path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
+
+pytestmark = pytest.mark.anyio
 
 async def test_mcp_server():
     """Test the fixed MCP server"""
