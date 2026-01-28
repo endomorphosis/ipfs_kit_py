@@ -29,7 +29,7 @@ from unittest.mock import Mock, patch, AsyncMock
 import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
-from modernized_comprehensive_dashboard import ModernizedComprehensiveDashboard, MemoryLogHandler
+from ipfs_kit_py.dashboard.modernized_comprehensive_dashboard import ModernizedComprehensiveDashboard, MemoryLogHandler
 
 pytestmark = pytest.mark.anyio
 

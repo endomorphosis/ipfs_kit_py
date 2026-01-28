@@ -38,7 +38,7 @@ def setup_storacha_mock_server():
         os.makedirs(STORACHA_MOCK_DIR, exist_ok=True)
         
         # Create a mock Storacha server
-        server_path = os.path.join(os.getcwd(), "storacha_mock_server.py")
+        server_path = os.path.join(os.getcwd(), "tests/mocks/storacha_mock_server.py")
         
         with open(server_path, 'w') as f:
             f.write(f"""#!/usr/bin/env python3

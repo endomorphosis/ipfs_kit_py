@@ -15,7 +15,7 @@ import re
 import sys
 from pathlib import Path
 
-from consolidated_mcp_dashboard import ConsolidatedMCPDashboard
+from ipfs_kit_py.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDashboard
 
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 

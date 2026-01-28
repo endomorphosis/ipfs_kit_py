@@ -233,7 +233,7 @@ def create_backend_config(config_dir=None):
 def update_mcp_server():
     """Update MCP server to use real API implementations."""
     # Path to real API implementation
-    impl_file = Path("real_api_storage_backends.py")
+    impl_file = Path("ipfs_kit_py/backends/real_api_storage_backends.py")
     
     # Write implementation file
     impl_code = """
@@ -386,7 +386,7 @@ def patch_mcp_server():
     \"\"\"Patch MCP server to use real API implementations.\"\"\"
     # Load real API implementation
     try:
-        spec = importlib.util.spec_from_file_location("real_api_storage_backends", "real_api_storage_backends.py")
+        spec = importlib.util.spec_from_file_location("real_api_storage_backends", "ipfs_kit_py/backends/real_api_storage_backends.py")
         real_apis = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(real_apis)
         logger.info("✅ Loaded real API implementation")
@@ -461,7 +461,7 @@ from fastapi.responses import JSONResponse
 import uvicorn
 
 # Import real API implementation
-from real_api_storage_backends import get_all_backends_status
+from ipfs_kit_py.backends.real_api_storage_backends import get_all_backends_status
 
 # Configure logging
 logging.basicConfig(

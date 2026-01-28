@@ -208,7 +208,7 @@ def setup_filecoin_dev_node():
     """Set up a Filecoin development node"""
     try:
         # Set up a mock API server with Python's http.server
-        api_server_path = os.path.join(os.getcwd(), "filecoin_mock_api_server.py")
+        api_server_path = os.path.join(os.getcwd(), "tests/mocks/filecoin_mock_api_server.py")
         
         with open(api_server_path, 'w') as f:
             f.write("""#!/usr/bin/env python3

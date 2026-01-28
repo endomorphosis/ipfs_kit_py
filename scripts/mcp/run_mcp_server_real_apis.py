@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 import uvicorn
 
 # Import real API implementation
-from real_api_storage_backends import get_all_backends_status
+from ipfs_kit_py.backends.real_api_storage_backends import get_all_backends_status
 
 # Configure logging
 logging.basicConfig(
