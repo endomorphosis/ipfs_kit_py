@@ -258,11 +258,18 @@ class DatasetManager:
     """
     Manager for dataset operations.
     
-    This class provides methods for managing and accessing datasets.
+    This class provides methods for managing and accessing datasets, with optional
+    IPFS backend support for distributed dataset storage and retrieval.
     """
     
-    def __init__(self):
-        """Initialize the dataset manager."""
+    def __init__(self, enable_ipfs_backend: bool = False, ipfs_client=None):
+        """
+        Initialize the dataset manager.
+        
+        Args:
+            enable_ipfs_backend: Enable IPFS backend for distributed dataset operations
+            ipfs_client: Optional IPFS client instance for backend
+        """
         # For thread safety
         self.lock = threading.RLock()
         
@@ -277,6 +284,30 @@ class DatasetManager:
         
         # Create storage directory if it doesn't exist
         os.makedirs(self.storage_path, exist_ok=True)
+        
+        # Initialize IPFS backend if requested
+        self.enable_ipfs_backend = enable_ipfs_backend
+        self.ipfs_backend = None
+        if enable_ipfs_backend:
+            try:
+                # Try to import and initialize IPFS backend
+                try:
+                    from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+                    self.ipfs_backend = get_ipfs_datasets_manager(
+                        ipfs_client=ipfs_client,
+                        enable=True
+                    )
+                    if self.ipfs_backend and self.ipfs_backend.is_available():
+                        logger.info("IPFS backend enabled for DatasetManager")
+                    else:
+                        logger.info("IPFS backend not available, using local storage only")
+                        self.ipfs_backend = None
+                except ImportError:
+                    logger.info("ipfs_datasets_integration not available, using local storage only")
+                    self.ipfs_backend = None
+            except Exception as e:
+                logger.warning(f"Failed to initialize IPFS backend: {e}")
+                self.ipfs_backend = None
         
         # Metrics
         try:
@@ -860,6 +891,122 @@ class DatasetManager:
                 self.metrics.counter("dataset_manager.files_added")
             
             return version
+    
+    def store_dataset_to_ipfs(self, dataset_path: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Store a dataset to IPFS using the IPFS backend.
+        
+        This method provides distributed dataset storage with proper event logging
+        and CID generation. Falls back to local storage if IPFS backend is not available.
+        
+        Args:
+            dataset_path: Path to the dataset file or directory
+            metadata: Optional metadata to attach
+        
+        Returns:
+            Dictionary containing:
+                - success: bool
+                - cid: Content identifier (if IPFS backend enabled)
+                - local_path: Path to local storage
+                - distributed: bool indicating if stored to IPFS
+        """
+        if self.ipfs_backend and self.ipfs_backend.is_available():
+            try:
+                result = self.ipfs_backend.store(dataset_path, metadata)
+                logger.info(f"Stored dataset to IPFS: {result.get('cid', 'N/A')}")
+                return result
+            except Exception as e:
+                logger.error(f"Failed to store dataset to IPFS: {e}")
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "local_path": dataset_path,
+                    "distributed": False
+                }
+        else:
+            logger.info("IPFS backend not available, dataset stored locally only")
+            return {
+                "success": True,
+                "local_path": dataset_path,
+                "metadata": metadata or {},
+                "distributed": False,
+                "message": "IPFS backend not available"
+            }
+    
+    def load_dataset_from_ipfs(self, cid: str, target_path: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Load a dataset from IPFS using its CID.
+        
+        Args:
+            cid: Content identifier of the dataset
+            target_path: Optional target path for downloaded content
+        
+        Returns:
+            Dictionary containing:
+                - success: bool
+                - path: Path where dataset is available
+                - metadata: Associated metadata
+        """
+        if self.ipfs_backend and self.ipfs_backend.is_available():
+            try:
+                result = self.ipfs_backend.load(cid, target_path)
+                logger.info(f"Loaded dataset from IPFS CID: {cid}")
+                return result
+            except Exception as e:
+                logger.error(f"Failed to load dataset from IPFS: {e}")
+                return {
+                    "success": False,
+                    "error": str(e)
+                }
+        else:
+            return {
+                "success": False,
+                "error": "IPFS backend not available"
+            }
+    
+    def version_dataset_with_ipfs(self, dataset_id: str, version: str,
+                                  parent_version: Optional[str] = None,
+                                  transformations: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Create a versioned dataset with IPFS provenance tracking.
+        
+        This method creates a new version with full lineage tracking via IPFS,
+        including transformations applied and parent versions.
+        
+        Args:
+            dataset_id: Dataset identifier
+            version: New version string
+            parent_version: Optional parent version for lineage
+            transformations: Optional list of transformation descriptions
+        
+        Returns:
+            Dictionary with version info and CID if IPFS enabled
+        """
+        if self.ipfs_backend and self.ipfs_backend.is_available():
+            try:
+                result = self.ipfs_backend.version(
+                    dataset_id=dataset_id,
+                    version=version,
+                    parent_version=parent_version,
+                    transformations=transformations
+                )
+                logger.info(f"Created IPFS-backed version {dataset_id}:{version}")
+                return result
+            except Exception as e:
+                logger.error(f"Failed to create IPFS-backed version: {e}")
+                return {
+                    "success": False,
+                    "error": str(e)
+                }
+        else:
+            logger.info("IPFS backend not available, version tracked locally only")
+            return {
+                "success": True,
+                "dataset_id": dataset_id,
+                "version": version,
+                "distributed": False,
+                "message": "IPFS backend not available"
+            }
 
 
 # Singleton instance
