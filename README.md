@@ -88,7 +88,7 @@ The repository includes a modern, schema-driven MCP dashboard with:
 Install dependencies (no sudo required; installs local tools into `./bin` when needed):
 
 ```bash
-./zero_touch_install.sh --profile dev
+./scripts/deployment/zero_touch_install.sh --profile dev
 source ./bin/env.sh
 ```
 
@@ -302,7 +302,7 @@ Notes:
 - **Smart Pattern Recognition**: Learns from the entire GitHub ecosystem, not just patterns
 - **Automated PR Creation**: Creates detailed PRs with explanations and test recommendations
 - **Zero Configuration**: Works out of the box after one-time repository setup
-- **📚 [Copilot Auto-Healing Guide](./COPILOT_AUTO_HEALING_GUIDE.md)** | **[Quick Reference](./COPILOT_AUTO_HEALING_QUICK_REF.md)** | **[Original Guide](./AUTO_HEALING_WORKFLOWS.md)**
+- **📚 [Copilot Auto-Healing Guide](./docs/features/copilot/COPILOT_AUTO_HEALING_GUIDE.md)** | **[Quick Reference](./docs/features/copilot/COPILOT_AUTO_HEALING_QUICK_REF.md)** | **[Original Guide](./docs/features/auto-healing/AUTO_HEALING_WORKFLOWS.md)**
 
 ### 🎛️ **MCP Server Integration**
 - **Production Ready**: Advanced cluster-ready MCP server with multi-backend support
@@ -340,7 +340,7 @@ git clone https://github.com/endomorphosis/ipfs_kit_py.git
 cd ipfs_kit_py
 
 # Zero-touch install (creates .venv, installs deps, runs a quick import check)
-./scripts/zero_touch_install.sh
+./scripts/deployment/zero_touch_install.sh
 
 # Alternatively (legacy):
 # pip install -r requirements.txt
@@ -790,8 +790,8 @@ ipfs_kit_py/
 - **[Test Results](./CLUSTER_TEST_RESULTS.md)**: Comprehensive validation results
 - **[API Reference](./docs/API_REFERENCE.md)**: Complete API documentation
 - **[Architecture Guide](./docs/ARCHITECTURE.md)**: System design and components
-- **[Auto-Healing Workflows](./AUTO_HEALING_WORKFLOWS.md)**: ⭐ NEW - Automated workflow repair system
-- **[Auto-Healing Quick Start](./AUTO_HEALING_QUICK_START.md)**: ⭐ NEW - 5-minute setup guide
+- **[Auto-Healing Workflows](./docs/features/auto-healing/AUTO_HEALING_WORKFLOWS.md)**: ⭐ NEW - Automated workflow repair system
+- **[Auto-Healing Quick Start](./docs/features/auto-healing/AUTO_HEALING_QUICK_START.md)**: ⭐ NEW - 5-minute setup guide
 
 ### Tutorials & Examples
 - **[Getting Started](./docs/GETTING_STARTED.md)**: Step-by-step setup guide
