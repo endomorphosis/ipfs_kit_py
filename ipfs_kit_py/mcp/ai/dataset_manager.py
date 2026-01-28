@@ -290,21 +290,19 @@ class DatasetManager:
         self.ipfs_backend = None
         if enable_ipfs_backend:
             try:
-                # Try to import and initialize IPFS backend
-                try:
-                    from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
-                    self.ipfs_backend = get_ipfs_datasets_manager(
-                        ipfs_client=ipfs_client,
-                        enable=True
-                    )
-                    if self.ipfs_backend and self.ipfs_backend.is_available():
-                        logger.info("IPFS backend enabled for DatasetManager")
-                    else:
-                        logger.info("IPFS backend not available, using local storage only")
-                        self.ipfs_backend = None
-                except ImportError:
-                    logger.info("ipfs_datasets_integration not available, using local storage only")
+                from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+                self.ipfs_backend = get_ipfs_datasets_manager(
+                    ipfs_client=ipfs_client,
+                    enable=True
+                )
+                if self.ipfs_backend and self.ipfs_backend.is_available():
+                    logger.info("IPFS backend enabled for DatasetManager")
+                else:
+                    logger.info("IPFS backend not available, using local storage only")
                     self.ipfs_backend = None
+            except ImportError:
+                logger.info("ipfs_datasets_integration not available, using local storage only")
+                self.ipfs_backend = None
             except Exception as e:
                 logger.warning(f"Failed to initialize IPFS backend: {e}")
                 self.ipfs_backend = None

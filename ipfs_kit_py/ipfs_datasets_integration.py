@@ -87,6 +87,23 @@ class DatasetIPFSBackend:
         # Ensure base path exists for local fallback
         self.base_path.mkdir(parents=True, exist_ok=True)
     
+    @staticmethod
+    def _is_cid(identifier: str) -> bool:
+        """
+        Check if the identifier looks like an IPFS CID.
+        
+        Supports common CID formats:
+        - CIDv0: Starts with 'Qm'
+        - CIDv1: Starts with 'b' (base32), 'z' (base58btc), 'f' (base32), 'u' (base64url)
+        
+        Args:
+            identifier: String to check
+        
+        Returns:
+            True if identifier appears to be a CID
+        """
+        return identifier.startswith(('Qm', 'b', 'z', 'f', 'u'))
+    
     def is_available(self) -> bool:
         """Check if distributed operations are available."""
         return self.enable_distributed and self.backend is not None
@@ -113,7 +130,7 @@ class DatasetIPFSBackend:
             if not dataset_path.exists():
                 return {
                     "success": False,
-                    "error": f"Dataset path does not exist: {dataset_path}"
+                    "error": f"Dataset file or directory does not exist: {dataset_path}"
                 }
             
             # Add event log metadata
@@ -173,8 +190,8 @@ class DatasetIPFSBackend:
                 - error: Error message if operation failed
         """
         try:
-            # Check if identifier looks like a CID (starts with Qm or b for CIDv0/v1)
-            is_cid = identifier.startswith(('Qm', 'b', 'z'))
+            # Check if identifier looks like a CID
+            is_cid = self._is_cid(identifier)
             
             if is_cid and self.is_available():
                 try:
@@ -285,7 +302,7 @@ class DatasetIPFSBackend:
             Dictionary containing metadata or error
         """
         try:
-            is_cid = identifier.startswith(('Qm', 'b', 'z'))
+            is_cid = self._is_cid(identifier)
             
             if is_cid and self.is_available():
                 try:

@@ -59,6 +59,7 @@ class JournalOperationType(str, Enum):
     CHECKPOINT = "checkpoint"  # Completed transaction checkpoint
     MOUNT = "mount"            # Mount a new CID
     UNMOUNT = "unmount"        # Unmount a CID
+    DATASET = "dataset"        # Dataset operation (store, version, etc.)
 
 
 class JournalEntryStatus(str, Enum):
@@ -897,7 +898,7 @@ class FilesystemJournal:
         with self._lock:
             # Add journal entry for the dataset store operation
             entry = self.add_journal_entry(
-                operation_type=JournalOperationType.METADATA,  # Using METADATA type for dataset operations
+                operation_type=JournalOperationType.DATASET,  # Using DATASET type for dataset operations
                 path=dataset_path,
                 data={
                     "operation": "dataset_store",
@@ -990,7 +991,7 @@ class FilesystemJournal:
             
             # Add journal entry for versioning operation
             entry = self.add_journal_entry(
-                operation_type=JournalOperationType.METADATA,
+                operation_type=JournalOperationType.DATASET,  # Using DATASET type for dataset operations
                 path=f"dataset:{dataset_id}",
                 data={
                     "operation": "dataset_version",
