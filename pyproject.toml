@@ -116,6 +116,13 @@ ipld-github = [
     "dag-cbor>=0.2.0",  # Required by ipld-car
     "multiformats>=0.3.0",
 ]
+ipfs_datasets = [
+    # Distributed dataset manipulation services
+    # Install with: pip install -e .[ipfs_datasets]
+    # Note: ipfs_datasets_py must be installed separately or from GitHub if available
+    # This extra defines the optional integration, but does not include the package itself
+    # to maintain flexibility for different deployment scenarios
+]
 api = [
     "fastapi>=0.100.0",
     "uvicorn>=0.22.0",
