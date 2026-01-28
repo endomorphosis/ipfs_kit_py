@@ -40,9 +40,9 @@ def stop_existing_processes():
     # Process names to check
     processes = [
         "enhanced_mcp_server.py",
-        "filecoin_mock_api_server.py",
-        "storacha_mock_server.py",
-        "lassie_mock_server.py"
+        "tests/mocks/filecoin_mock_api_server.py",
+        "tests/mocks/storacha_mock_server.py",
+        "tests/mocks/lassie_mock_server.py"
     ]
     
     for proc in processes:

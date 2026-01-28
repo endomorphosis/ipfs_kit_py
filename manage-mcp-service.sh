@@ -70,7 +70,7 @@ case "${1:-}" in
         systemctl status "$SERVICE_NAME" --no-pager
         echo ""
         echo -e "${BLUE}MCP CLI Status:${NC}"
-        cd "$SCRIPT_DIR" && python ipfs_kit_cli.py mcp status
+        cd "$SCRIPT_DIR" && python scripts/cli/ipfs_kit_cli.py mcp status
         ;;
     enable)
         check_service_exists
@@ -93,7 +93,7 @@ case "${1:-}" in
     mcp)
         shift # Remove 'mcp' from arguments
         echo -e "${BLUE}Running MCP CLI command...${NC}"
-        cd "$SCRIPT_DIR" && python ipfs_kit_cli.py mcp "$@"
+        cd "$SCRIPT_DIR" && python scripts/cli/ipfs_kit_cli.py mcp "$@"
         ;;
     "")
         usage

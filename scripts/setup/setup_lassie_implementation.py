@@ -36,7 +36,7 @@ def setup_lassie_mock_server():
         os.makedirs(LASSIE_MOCK_DIR, exist_ok=True)
         
         # Create a mock Lassie server
-        server_path = os.path.join(os.getcwd(), "lassie_mock_server.py")
+        server_path = os.path.join(os.getcwd(), "tests/mocks/lassie_mock_server.py")
         
         with open(server_path, 'w') as f:
             f.write(f"""#!/usr/bin/env python3

@@ -14,7 +14,7 @@ sys.path.insert(0, str(current_dir))
 
 pytestmark = pytest.mark.anyio
 
-from modern_mcp_feature_bridge import ModernMCPFeatureBridge
+from ipfs_kit_py.mcp.modern_mcp_feature_bridge import ModernMCPFeatureBridge
 
 async def test_modern_bridge():
     """Test the modern bridge with proper async initialization."""
