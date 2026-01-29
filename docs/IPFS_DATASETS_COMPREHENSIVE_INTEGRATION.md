@@ -223,17 +223,61 @@ health_mgr.flush_health_results_to_dataset()
   manager.close()
   ```
 
-### 📋 Phase 4: MCP Handlers (DEFERRED)
+### ✅ Phase 4: MCP Infrastructure (COMPLETED)
 
-**Status**: Deferred to future work
+**Status**: Phase 4A Complete - Infrastructure-level integration
 
-High-impact handlers identified for future dataset integration:
-- `get_logs_handler.py` - Retrieve logs from datasets
-- `stream_logs_handler.py` - Stream from dataset storage
-- File operation handlers - Track operations as datasets
-- Action handlers - Log actions to datasets
+**Strategy**: Instead of modifying 97+ individual handler files, integrated at the **infrastructure level** where all MCP operations flow through common code paths. This provides comprehensive coverage with minimal code changes.
 
-**Rationale**: Given the scale of MCP handlers (97+ files), Phase 4 focused on high-impact integration points. Full handler integration can be completed as Phase 4b in future work based on specific use case requirements.
+#### 10. Enhanced MCP Server (`mcp/enhanced_server.py`)
+- **Purpose**: Track all MCP operations, commands, and actions at the infrastructure level
+- **Features**:
+  - Batch storage of MCP command operations (default batch_size: 100)
+  - Automatic tracking of ALL commands (success and failure)
+  - Enhanced log export to dataset storage
+  - Log statistics tracking with CIDs
+  - Captures: command, subcommand, action, success, error, timestamp, server_id
+  - JSON Lines format for efficient querying
+- **Configuration**:
+  ```python
+  from ipfs_kit_py.mcp.enhanced_server import EnhancedMCPServer
+  
+  # Initialize with dataset storage
+  server = EnhancedMCPServer(
+      host="127.0.0.1",
+      port=8001,
+      enable_dataset_storage=True,
+      ipfs_client=ipfs_client,
+      dataset_batch_size=100
+  )
+  
+  # All commands automatically tracked
+  # Manual flush if needed
+  server.flush_to_dataset()
+  ```
+
+**Benefits of Infrastructure Approach:**
+- ✅ Single integration point covers all 97+ handlers automatically
+- ✅ All commands tracked without individual handler modifications
+- ✅ Consistent behavior across entire MCP system
+- ✅ Maintainable and extensible
+- ✅ Future-proof design
+
+**What's Tracked:**
+- All MCP command executions
+- Command parameters and metadata
+- Success/failure status
+- Error messages and context
+- Server identity and timestamps
+- Log exports with CIDs
+- Log statistics with provenance
+
+**Phase 4B (Optional Future Work)**:
+Additional MCP components that could benefit from dataset integration:
+- `mcp_error_handling.py` - Centralized error tracking
+- `jsonrpc_methods.py` - JSON-RPC method invocation tracking
+- `monitoring.py` - Additional monitoring integration
+- `mcp_manager.py` - Manager lifecycle tracking
 
 ### ✅ Phase 5: Enterprise Features (COMPLETED)
 
@@ -591,16 +635,20 @@ logger = AuditLogger(log_file="/var/log/audit.log")
 - ✅ **Phase 3**: File systems & replication (2 integrations)
   - fs_journal_monitor.py
   - fs_journal_replication.py
+- ✅ **Phase 4**: MCP infrastructure (1 integration) ⭐
+  - mcp/enhanced_server.py (infrastructure-level integration covering all commands)
 - ✅ **Phase 5**: Enterprise features (2 integrations)
   - mcp/enterprise/lifecycle.py
   - mcp/enterprise/data_lifecycle.py
 
-**Total**: 9 complete integrations across all critical systems
+**Total**: 10 complete integrations across all critical systems
 
-### Deferred
-- 📋 **Phase 4**: MCP handlers (~10-15 integrations)
-  - Deferred for future work based on specific use cases
-  - High-impact handlers identified for selective integration
+### Optional Future Work
+- 📋 **Phase 4B**: Additional MCP components (optional)
+  - mcp_error_handling.py - Centralized error tracking
+  - jsonrpc_methods.py - JSON-RPC method tracking
+  - monitoring.py - Additional monitoring
+  - mcp_manager.py - Manager lifecycle
 
 ### Future Enhancements
 - Real-time streaming to datasets
@@ -608,7 +656,6 @@ logger = AuditLogger(log_file="/var/log/audit.log")
 - Cross-dataset analytics and correlation
 - Dataset compression options
 - Retention policy automation
-- Phase 4b: Selective MCP handler integration based on usage patterns
 - Advanced provenance tracking
 - Dataset version control
 - Cross-repository dataset sharing
