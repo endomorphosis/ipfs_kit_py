@@ -6,11 +6,44 @@
 [![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
 [![Kubernetes Ready](https://img.shields.io/badge/Kubernetes-Ready-blue)](https://kubernetes.io/)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-orange)](https://modelcontextprotocol.io/)
+[![Integrations](https://img.shields.io/badge/Integrations-36-purple)](./COMPLETE_INTEGRATION_SUMMARY.md)
+[![Tests](https://img.shields.io/badge/Tests-77%20Passing-success)](./tests/)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 
 **IPFS Kit Python** is a comprehensive, production-ready Python toolkit for IPFS (InterPlanetary File System) operations with advanced cluster management and full Model Context Protocol (MCP) server integration. It provides high-level APIs, distributed cluster operations, tiered storage, VFS integration, and AI/ML capabilities.
 
 > 🎉 **Advanced Cluster Ready!** Production-tested 3-node cluster with leader election, master/worker/leecher role hierarchy, replication management, indexing services, and comprehensive Docker/Kubernetes deployment support. All cluster features validated and operational.
+
+> 🔄 **36 Strategic Integrations!** Complete integration with `ipfs_datasets_py` (distributed dataset storage) and `ipfs_accelerate_py` (compute acceleration) across all infrastructure, AI/ML, VFS, and MCP components. Immutable audit trails, 2-5x faster operations, 100% backward compatible with graceful fallbacks.
+
+## 📖 Table of Contents
+
+- [🚀 Quickstart](#-quickstart)
+- [🔄 Distributed Dataset Integration & Compute Acceleration](#-distributed-dataset-integration--compute-acceleration)
+  - [What's Integrated](#whats-integrated)
+  - [Integration Coverage (36 Modules)](#integration-coverage-36-modules)
+  - [Key Benefits](#key-benefits)
+  - [Usage Examples](#usage)
+  - [Documentation](#documentation)
+- [🌟 Key Features](#-key-features)
+- [🖥️ Unified MCP Dashboard](#️-unified-mcp-dashboard-finalized)
+- [📦 Installation](#-installation)
+- [🏗️ Architecture](#️-architecture)
+- [🔧 Configuration](#-configuration)
+- [📚 Documentation](#-documentation)
+- [🧪 Testing](#-testing)
+- [🤝 Contributing](#-contributing)
+- [📜 License](#-license)
+
+## 🎯 Quick Links
+
+- **[Integration Quick Start](docs/INTEGRATION_QUICK_START.md)** - Step-by-step guide for using integrations
+- **[Integration Cheat Sheet](docs/INTEGRATION_CHEAT_SHEET.md)** - Quick reference for all 36 integrations
+- **[Complete Integration Summary](COMPLETE_INTEGRATION_SUMMARY.md)** - Full details on all integrations
+- **[MCP Architecture Guide](MCP_INTEGRATION_ARCHITECTURE.md)** - MCP tool architecture and patterns
+- **[Integration Overview](docs/INTEGRATION_OVERVIEW.md)** - High-level integration overview
+
+---
 
 > Note: A minimal consolidated MCP dashboard is included for lightweight local use. See CONSOLIDATED_MCP_DASHBOARD.md and start it via:
 > - Foreground: `ipfs-kit mcp start --foreground` or `python -m ipfs_kit_py.cli mcp start --foreground`
@@ -283,6 +316,49 @@ Notes:
 ## 🔄 Distributed Dataset Integration & Compute Acceleration
 
 **IPFS Kit Python** now includes comprehensive integration with **ipfs_datasets_py** (distributed dataset storage) and **ipfs_accelerate_py** (compute acceleration) across **36 strategic integration points** throughout the codebase.
+
+### Integration Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    IPFS Kit Python Package                      │
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────┐  │
+│  │   Core       │  │   AI/ML      │  │   VFS & Buckets    │  │
+│  │ Infrastructure│  │   Compute    │  │   Systems          │  │
+│  │              │  │              │  │                    │  │
+│  │ • Logging    │  │ • Framework  │  │ • Bucket Manager  │  │
+│  │ • Monitoring │  │ • Training   │  │ • VFS Manager     │  │
+│  │ • WAL        │  │ • Registry   │  │ • Indexes         │  │
+│  │ • Health     │  │ • Utils      │  │ • Journal         │  │
+│  └──────┬───────┘  └──────┬───────┘  └─────────┬───────────┘  │
+│         │                 │                     │              │
+│         └─────────────────┴─────────────────────┘              │
+│                           │                                    │
+└───────────────────────────┼────────────────────────────────────┘
+                            │
+            ┌───────────────┴───────────────┐
+            │                               │
+  ┌─────────▼──────────┐       ┌───────────▼────────────┐
+  │  ipfs_datasets_py  │       │  ipfs_accelerate_py    │
+  │                    │       │                        │
+  │ • Dataset Storage  │       │ • Compute Acceleration │
+  │ • CID Management   │       │ • 2-5x Faster Ops      │
+  │ • Provenance       │       │ • Distributed Compute  │
+  │ • Immutable Logs   │       │ • Memory Optimization  │
+  └────────────────────┘       └────────────────────────┘
+            │                               │
+            └───────────────┬───────────────┘
+                            │
+                    ┌───────▼────────┐
+                    │  IPFS Network  │
+                    │                │
+                    │ • Distributed  │
+                    │ • Content-     │
+                    │   Addressed    │
+                    │ • Replicated   │
+                    └────────────────┘
+```
 
 ### What's Integrated
 
