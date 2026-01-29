@@ -306,7 +306,11 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
     def tearDown(self):
         """Clean up test fixtures."""
         if os.path.exists(self.test_dir):
-            shutil.rmtree(self.test_dir)
+            try:
+                shutil.rmtree(self.test_dir)
+            except OSError:
+                # If cleanup fails due to race conditions, ignore
+                shutil.rmtree(self.test_dir, ignore_errors=True)
     
     def test_fs_journal_monitor_without_dataset(self):
         """Test journal monitor works without dataset storage."""
@@ -442,6 +446,118 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
             self.skipTest("fs_journal_replication not available")
 
 
+class TestPhase5EnterpriseIntegration(unittest.TestCase):
+    """Test Phase 5: Enterprise lifecycle integration with ipfs_datasets_py."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        self.test_dir = tempfile.mkdtemp()
+        self.lifecycle_path = os.path.join(self.test_dir, "lifecycle")
+        self.data_lifecycle_path = os.path.join(self.test_dir, "data_lifecycle")
+    
+    def tearDown(self):
+        """Clean up test fixtures."""
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+    
+    def test_lifecycle_manager_without_dataset(self):
+        """Test lifecycle manager works without dataset storage."""
+        try:
+            from mcp.enterprise.lifecycle import LifecycleManager
+            
+            manager = LifecycleManager(
+                metadata_db_path=os.path.join(self.lifecycle_path, "metadata.json"),
+                enable_dataset_storage=False
+            )
+            
+            # Should work without dataset storage
+            self.assertIsNotNone(manager)
+            self.assertFalse(manager.enable_dataset_storage)
+            
+            # Save metadata should work
+            manager._save_metadata()
+            
+            # Stop manager
+            manager.stop()
+            
+        except ImportError:
+            self.skipTest("lifecycle module not available")
+    
+    def test_lifecycle_manager_with_dataset(self):
+        """Test lifecycle manager with dataset storage enabled."""
+        try:
+            from mcp.enterprise.lifecycle import LifecycleManager
+            
+            manager = LifecycleManager(
+                metadata_db_path=os.path.join(self.lifecycle_path, "metadata.json"),
+                enable_dataset_storage=True,
+                dataset_batch_size=10
+            )
+            
+            # Should initialize (may or may not have dataset support)
+            self.assertIsNotNone(manager)
+            
+            # If dataset storage enabled, should have manager
+            if manager.enable_dataset_storage:
+                self.assertIsNotNone(manager.dataset_manager)
+            
+            # Manual flush should not raise error
+            manager.flush_to_dataset()
+            
+            # Stop manager
+            manager.stop()
+            
+        except ImportError:
+            self.skipTest("lifecycle module not available")
+    
+    def test_data_lifecycle_manager_without_dataset(self):
+        """Test data lifecycle manager without dataset storage."""
+        try:
+            from mcp.enterprise.data_lifecycle import DataLifecycleManager
+            
+            manager = DataLifecycleManager(
+                storage_path=self.data_lifecycle_path,
+                enable_dataset_storage=False
+            )
+            
+            # Should work without dataset storage
+            self.assertIsNotNone(manager)
+            self.assertFalse(manager.enable_dataset_storage)
+            
+            # Stop manager
+            manager.stop()
+            
+        except ImportError:
+            self.skipTest("data_lifecycle module not available")
+    
+    def test_data_lifecycle_manager_with_dataset(self):
+        """Test data lifecycle manager with dataset storage enabled."""
+        try:
+            from mcp.enterprise.data_lifecycle import DataLifecycleManager
+            
+            manager = DataLifecycleManager(
+                storage_path=self.data_lifecycle_path,
+                enable_dataset_storage=True,
+                dataset_batch_size=10
+            )
+            
+            # Should initialize (may or may not have dataset support)
+            self.assertIsNotNone(manager)
+            
+            # If dataset storage enabled, should have manager
+            if manager.enable_dataset_storage:
+                self.assertIsNotNone(manager.dataset_manager)
+            
+            # Manual flush should not raise error
+            manager.flush_to_dataset()
+            
+            # Stop manager
+            manager.stop()
+            
+        except ImportError:
+            self.skipTest("data_lifecycle module not available")
+
+
 def run_tests():
     """Run all tests."""
     loader = unittest.TestLoader()
@@ -457,6 +573,9 @@ def run_tests():
     
     # Phase 3 tests
     suite.addTests(loader.loadTestsFromTestCase(TestPhase3FileSystemIntegration))
+    
+    # Phase 5 tests
+    suite.addTests(loader.loadTestsFromTestCase(TestPhase5EnterpriseIntegration))
     
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)

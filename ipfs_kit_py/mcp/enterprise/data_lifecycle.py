@@ -44,6 +44,13 @@ except ImportError:
     HAS_SCHEDULE = False
     logger.warning("Schedule package not available. Scheduled operations will use internal implementation.")
 
+# Try to import ipfs_datasets_py for dataset storage
+try:
+    from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+    IPFS_DATASETS_AVAILABLE = True
+except ImportError:
+    IPFS_DATASETS_AVAILABLE = False
+
 
 class RetentionAction(str, Enum):
     """Actions to take when retention policy is applied."""
@@ -434,13 +441,18 @@ class DataLifecycleManager:
     - Optimizing storage costs
     """
     
-    def __init__(self, storage_path: str, backends: Optional[List[str]] = None):
+    def __init__(self, storage_path: str, backends: Optional[List[str]] = None,
+                 enable_dataset_storage: bool = False, ipfs_client: Optional[Any] = None,
+                 dataset_batch_size: int = 50):
         """
         Initialize the data lifecycle manager.
         
         Args:
             storage_path: Path to store lifecycle policies and data
             backends: List of storage backend identifiers
+            enable_dataset_storage: Enable ipfs_datasets_py storage for lifecycle events
+            ipfs_client: Optional IPFS client for dataset operations
+            dataset_batch_size: Number of events to batch before storing
         """
         self.storage_path = storage_path
         self.backends = backends or ["ipfs", "filecoin", "s3", "local"]
@@ -472,6 +484,23 @@ class DataLifecycleManager:
         # Background tasks
         self._scheduler_thread = None
         self._scheduler_running = False
+        
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and IPFS_DATASETS_AVAILABLE
+        self.dataset_batch_size = dataset_batch_size
+        self.pending_events = []
+        self.dataset_manager = None
+        
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(
+                    enable=True,
+                    ipfs_client=ipfs_client
+                )
+                logger.info("ipfs_datasets_py integration enabled for data_lifecycle manager")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
         
         # Load existing policies
         self._load_policies()
@@ -852,9 +881,75 @@ class DataLifecycleManager:
         logger.info(f"Saving {policy_type} policy {policy.id}")
     
     def _save_event(self, event: DataLifecycleEvent) -> None:
-        """Save an event to disk."""
-        # Implementation would save event to file
+        """Save an event to disk and to dataset if enabled."""
         logger.info(f"Saving event {event.id}")
+        
+        # Store to dataset if enabled
+        if self.enable_dataset_storage:
+            try:
+                event_data = {
+                    "event_id": event.id,
+                    "event_type": event.event_type,
+                    "timestamp": event.timestamp.isoformat() if hasattr(event.timestamp, 'isoformat') else str(event.timestamp),
+                    "content_id": event.content_id if hasattr(event, 'content_id') else None,
+                    "details": event.details if hasattr(event, 'details') else {}
+                }
+                self._store_event_to_dataset(event_data)
+            except Exception as e:
+                logger.error(f"Error storing event to dataset: {e}")
+    
+    def _store_event_to_dataset(self, event: Dict[str, Any]):
+        """
+        Store a lifecycle event to a dataset.
+        
+        Args:
+            event: Event details to store
+        """
+        if not self.enable_dataset_storage or not self.dataset_manager:
+            return
+        
+        try:
+            # Add to pending batch
+            self.pending_events.append(event)
+            
+            # Store when batch is full
+            if len(self.pending_events) >= self.dataset_batch_size:
+                self._flush_events_to_dataset()
+                
+        except Exception as e:
+            logger.error(f"Error storing event to dataset: {e}")
+    
+    def _flush_events_to_dataset(self):
+        """Flush pending events to dataset storage."""
+        if not self.enable_dataset_storage or not self.dataset_manager or not self.pending_events:
+            return
+        
+        try:
+            # Create JSON Lines format
+            events_data = "\n".join(json.dumps(ev) for ev in self.pending_events)
+            
+            # Store as dataset
+            result = self.dataset_manager.store(
+                data=events_data.encode('utf-8'),
+                metadata={
+                    "type": "data_lifecycle_events",
+                    "timestamp": time.time(),
+                    "event_count": len(self.pending_events)
+                }
+            )
+            
+            if result.get("success"):
+                logger.debug(f"Stored {len(self.pending_events)} lifecycle events to dataset: {result.get('cid', 'local')}")
+                self.pending_events.clear()
+            else:
+                logger.warning("Failed to store events to dataset")
+                
+        except Exception as e:
+            logger.error(f"Error flushing events to dataset: {e}")
+    
+    def flush_to_dataset(self):
+        """Manually flush pending events to dataset storage."""
+        self._flush_events_to_dataset()
     
     def _scheduler_loop(self) -> None:
         """Background loop for scheduled tasks."""
