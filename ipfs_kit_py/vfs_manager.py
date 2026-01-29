@@ -109,7 +109,7 @@ except ImportError:
 try:
     import sys
     from pathlib import Path as PathlibPath
-    accelerate_path = PathlibPath(__file__).parent.parent / "external" / "ipfs_accelerate_py"
+    accelerate_path = PathlibPath(__file__).parent.parent / "ipfs_accelerate_py"
     if accelerate_path.exists():
         sys.path.insert(0, str(accelerate_path))
     

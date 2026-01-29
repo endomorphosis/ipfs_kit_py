@@ -343,7 +343,7 @@ def check_dependencies() -> Dict[str, bool]:
     try:
         import sys
         from pathlib import Path as DependencyPath
-        accelerate_path = DependencyPath(__file__).parent.parent.parent / "external" / "ipfs_accelerate_py"
+        accelerate_path = DependencyPath(__file__).parent.parent.parent / "ipfs_accelerate_py"
         if accelerate_path.exists():
             sys.path.insert(0, str(accelerate_path))
         from ipfs_accelerate_py import AccelerateCompute

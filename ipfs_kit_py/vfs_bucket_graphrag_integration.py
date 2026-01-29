@@ -58,7 +58,7 @@ try:
     import sys
     from pathlib import Path
     # Add ipfs_accelerate_py to path if it exists as submodule
-    accelerate_path = Path(__file__).parent.parent / "external" / "ipfs_accelerate_py"
+    accelerate_path = Path(__file__).parent.parent / "ipfs_accelerate_py"
     if accelerate_path.exists() and str(accelerate_path) not in sys.path:
         sys.path.insert(0, str(accelerate_path))
     

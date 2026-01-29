@@ -37,12 +37,12 @@
 [submodule "py-ipld-unixfs"]
 	path = py-ipld-unixfs
 	url = https://github.com/storacha/py-ipld-unixfs.git
-[submodule "external/ipfs_transformers_py"]
-	path = external/ipfs_transformers_py
+[submodule "ipfs_transformers_py"]
+	path = ipfs_transformers_py
 	url = https://github.com/endomorphosis/ipfs_transformers_py.git
-[submodule "external/ipfs_accelerate_py"]
-	path = external/ipfs_accelerate_py
+[submodule "ipfs_accelerate_py"]
+	path = ipfs_accelerate_py
 	url = https://github.com/Endomorphosis/ipfs_accelerate_py.git
-[submodule "external/ipfs_datasets_py"]
-	path = external/ipfs_datasets_py
+[submodule "ipfs_datasets_py"]
+	path = ipfs_datasets_py
 	url = https://github.com/endomorphosis/ipfs_datasets_py.git

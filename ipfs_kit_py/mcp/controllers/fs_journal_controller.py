@@ -32,7 +32,7 @@ except ImportError:
 HAS_ACCELERATE = False
 try:
     from pathlib import Path as PathLib
-    accelerate_path = PathLib(__file__).parent.parent.parent / "external" / "ipfs_accelerate_py"
+    accelerate_path = PathLib(__file__).parent.parent.parent / "ipfs_accelerate_py"
     if accelerate_path.exists():
         sys.path.insert(0, str(accelerate_path))
     from ipfs_accelerate_py import AccelerateCompute

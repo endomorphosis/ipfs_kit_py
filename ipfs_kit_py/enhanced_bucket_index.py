@@ -38,7 +38,7 @@ except ImportError:
 # Import ipfs_accelerate_py for compute acceleration
 try:
     import sys
-    accelerate_path = Path(__file__).parent.parent / "external" / "ipfs_accelerate_py"
+    accelerate_path = Path(__file__).parent.parent / "ipfs_accelerate_py"
     if accelerate_path.exists():
         sys.path.insert(0, str(accelerate_path))
     
