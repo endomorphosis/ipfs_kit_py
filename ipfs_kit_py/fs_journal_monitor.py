@@ -44,6 +44,13 @@ from ipfs_kit_py.fs_journal_backends import (
     TieredStorageJournalBackend
 )
 
+# Try to import ipfs_datasets_py for dataset storage
+try:
+    from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+    IPFS_DATASETS_AVAILABLE = True
+except ImportError:
+    IPFS_DATASETS_AVAILABLE = False
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -64,7 +71,10 @@ class JournalHealthMonitor:
         backend: Optional[TieredStorageJournalBackend] = None,
         check_interval: int = 60,
         alert_callback: Optional[callable] = None,
-        stats_dir: str = "~/.ipfs_kit/journal_stats"
+        stats_dir: str = "~/.ipfs_kit/journal_stats",
+        enable_dataset_storage: bool = False,
+        ipfs_client: Optional[Any] = None,
+        dataset_batch_size: int = 100
     ):
         """
         Initialize the journal health monitor.
@@ -75,6 +85,9 @@ class JournalHealthMonitor:
             check_interval: How often to check health (seconds)
             alert_callback: Function to call for alerts
             stats_dir: Directory to store stats
+            enable_dataset_storage: Enable ipfs_datasets_py storage for monitoring data
+            ipfs_client: Optional IPFS client for dataset operations
+            dataset_batch_size: Number of stats entries to batch before storing
         """
         self.journal = journal
         self.backend = backend
@@ -105,6 +118,23 @@ class JournalHealthMonitor:
         
         # Track active transactions
         self.active_transactions = {}
+        
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and IPFS_DATASETS_AVAILABLE
+        self.dataset_batch_size = dataset_batch_size
+        self.pending_stats = []
+        self.dataset_manager = None
+        
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(
+                    enable=True,
+                    ipfs_client=ipfs_client
+                )
+                logger.info("ipfs_datasets_py integration enabled for fs_journal_monitor")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
         
         # Start monitoring thread
         self._stop_monitor = False
@@ -143,11 +173,69 @@ class JournalHealthMonitor:
                 # Periodically save stats to disk
                 self._save_stats_periodically(stats)
                 
+                # Store to dataset if enabled
+                if self.enable_dataset_storage:
+                    self._store_stats_to_dataset(stats)
+                
             except Exception as e:
                 logger.error(f"Error in journal monitoring loop: {e}")
             
             # Sleep until next check
             time.sleep(self.check_interval)
+    
+    def _store_stats_to_dataset(self, stats: Dict[str, Any]):
+        """
+        Store monitoring statistics to a dataset.
+        
+        Args:
+            stats: Statistics to store
+        """
+        if not self.enable_dataset_storage or not self.dataset_manager:
+            return
+        
+        try:
+            # Add to pending batch
+            self.pending_stats.append(stats)
+            
+            # Store when batch is full
+            if len(self.pending_stats) >= self.dataset_batch_size:
+                self._flush_stats_to_dataset()
+                
+        except Exception as e:
+            logger.error(f"Error storing stats to dataset: {e}")
+    
+    def _flush_stats_to_dataset(self):
+        """Flush pending stats to dataset storage."""
+        if not self.enable_dataset_storage or not self.dataset_manager or not self.pending_stats:
+            return
+        
+        try:
+            # Create JSON Lines format
+            stats_data = "\n".join(json.dumps(s) for s in self.pending_stats)
+            
+            # Store as dataset
+            result = self.dataset_manager.store(
+                data=stats_data.encode('utf-8'),
+                metadata={
+                    "type": "fs_journal_monitor_stats",
+                    "timestamp": time.time(),
+                    "stats_count": len(self.pending_stats),
+                    "monitor_node": self.journal.base_path if self.journal else "unknown"
+                }
+            )
+            
+            if result.get("success"):
+                logger.debug(f"Stored {len(self.pending_stats)} stats entries to dataset: {result.get('cid', 'local')}")
+                self.pending_stats.clear()
+            else:
+                logger.warning("Failed to store stats to dataset")
+                
+        except Exception as e:
+            logger.error(f"Error flushing stats to dataset: {e}")
+    
+    def flush_to_dataset(self):
+        """Manually flush pending stats to dataset storage."""
+        self._flush_stats_to_dataset()
     
     def collect_stats(self) -> Dict[str, Any]:
         """
