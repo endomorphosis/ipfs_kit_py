@@ -49,6 +49,9 @@ try:
 except ImportError:
     ANALYTICS_AVAILABLE = False
 
+# Create logger first
+logger = logging.getLogger(__name__)
+
 # Import ipfs_datasets_py integration with fallback
 try:
     from .ipfs_datasets_integration import get_ipfs_datasets_manager

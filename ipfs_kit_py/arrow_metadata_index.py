@@ -51,6 +51,9 @@ except ImportError:
     PLASMA_AVAILABLE = False
     plasma = None
 
+# Create logger first
+logger = logging.getLogger(__name__)
+
 # Import ipfs_datasets_py integration with fallback
 try:
     from .ipfs_datasets_integration import get_ipfs_datasets_manager
@@ -77,7 +80,7 @@ except ImportError:
     AccelerateCompute = None
     logger.info("ipfs_accelerate_py not available - using default compute")
 
-# Create logger
+#
 logger = logging.getLogger(__name__)
 
 
