@@ -158,8 +158,7 @@ class TestEnhancedServerIntegration(unittest.TestCase):
             server.flush_to_dataset()
             
             # Buffer should be cleared after successful flush
-            # (May not be cleared if dataset storage failed, which is OK)
-            self.assertLessEqual(len(server._operation_buffer), 5)
+            self.assertEqual(len(server._operation_buffer), 0)
             
         except ImportError:
             self.skipTest("Dependencies not available")

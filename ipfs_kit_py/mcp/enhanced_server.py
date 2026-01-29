@@ -308,19 +308,32 @@ class EnhancedMCPServer:
             # Store operations as JSON Lines dataset
             dataset_content = "\n".join(json.dumps(op) for op in self._operation_buffer)
             
-            result = self.dataset_manager.store(
-                dataset_content,
-                metadata={
-                    "type": "mcp_operations",
-                    "server_id": self.server_id,
-                    "timestamp": datetime.now().isoformat(),
-                    "operation_count": len(self._operation_buffer),
-                }
-            )
+            # Write to temporary file
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+                f.write(dataset_content)
+                temp_path = f.name
             
-            if result.get("success"):
-                logger.debug(f"Stored {len(self._operation_buffer)} MCP operations to dataset")
-                self._operation_buffer.clear()
+            try:
+                result = self.dataset_manager.store(
+                    temp_path,
+                    metadata={
+                        "type": "mcp_operations",
+                        "server_id": self.server_id,
+                        "timestamp": datetime.now().isoformat(),
+                        "operation_count": len(self._operation_buffer),
+                    }
+                )
+                
+                if result.get("success"):
+                    logger.debug(f"Stored {len(self._operation_buffer)} MCP operations to dataset")
+                    self._operation_buffer.clear()
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
             
         except Exception as e:
             logger.error(f"Error storing operations to dataset: {e}")
@@ -1363,17 +1376,30 @@ class LogCommandHandler(BaseCommandHandler):
             # Store stats to dataset if enabled
             if self.server.enable_dataset_storage and self.server.dataset_manager:
                 try:
-                    result = self.server.dataset_manager.store(
-                        json.dumps(stats),
-                        metadata={
-                            "type": "log_statistics",
-                            "timestamp": stats["timestamp"],
-                            "server_id": self.server.server_id,
-                        }
-                    )
-                    if result.get("success"):
-                        stats["stored_to_dataset"] = True
-                        stats["cid"] = result.get("cid")
+                    # Write stats to temporary file
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                        json.dump(stats, f)
+                        temp_path = f.name
+                    
+                    try:
+                        result = self.server.dataset_manager.store(
+                            temp_path,
+                            metadata={
+                                "type": "log_statistics",
+                                "timestamp": stats["timestamp"],
+                                "server_id": self.server.server_id,
+                            }
+                        )
+                        if result.get("success"):
+                            stats["stored_to_dataset"] = True
+                            stats["cid"] = result.get("cid")
+                    finally:
+                        # Clean up temporary file
+                        try:
+                            os.unlink(temp_path)
+                        except:
+                            pass
                 except Exception as e:
                     logger.debug(f"Error storing log stats to dataset: {e}")
             
@@ -1423,31 +1449,45 @@ class LogCommandHandler(BaseCommandHandler):
                                 logger.warning(f"Error reading log file {log_file}: {e}")
                         
                         if logs_content:
-                            # Store to dataset
+                            # Write combined logs to temporary file
+                            import tempfile
                             combined_logs = "\n".join(logs_content)
-                            result = self.server.dataset_manager.store(
-                                combined_logs,
-                                metadata={
-                                    "type": "log_export",
-                                    "component": component,
-                                    "format": format_type,
-                                    "timestamp": datetime.now().isoformat(),
-                                    "server_id": self.server.server_id,
-                                    "file_count": len(log_files)
-                                }
-                            )
                             
-                            if result.get("success"):
-                                return MCPCommandResponse(
-                                    success=True,
-                                    command="log",
-                                    result={
-                                        "message": "Logs exported to dataset",
-                                        "cid": result.get("cid"),
-                                        "distributed": result.get("distributed", False),
+                            with tempfile.NamedTemporaryFile(mode='w', suffix='.log', delete=False) as f:
+                                f.write(combined_logs)
+                                temp_path = f.name
+                            
+                            try:
+                                # Store to dataset
+                                result = self.server.dataset_manager.store(
+                                    temp_path,
+                                    metadata={
+                                        "type": "log_export",
+                                        "component": component,
+                                        "format": format_type,
+                                        "timestamp": datetime.now().isoformat(),
+                                        "server_id": self.server.server_id,
                                         "file_count": len(log_files)
                                     }
                                 )
+                                
+                                if result.get("success"):
+                                    return MCPCommandResponse(
+                                        success=True,
+                                        command="log",
+                                        result={
+                                            "message": "Logs exported to dataset",
+                                            "cid": result.get("cid"),
+                                            "distributed": result.get("distributed", False),
+                                            "file_count": len(log_files)
+                                        }
+                                    )
+                            finally:
+                                # Clean up temporary file
+                                try:
+                                    os.unlink(temp_path)
+                                except:
+                                    pass
                 
             # Fallback to standard export
             return MCPCommandResponse(
