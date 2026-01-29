@@ -24,6 +24,14 @@ try:
 except ImportError:
     ARROW_AVAILABLE = False
 
+# Try to import ipfs_datasets integration
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager, IPFS_DATASETS_AVAILABLE
+except ImportError:
+    IPFS_DATASETS_AVAILABLE = False
+    def get_ipfs_datasets_manager(*args, **kwargs):
+        return None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -78,7 +86,9 @@ class StorageWriteAheadLog:
                 retry_delay: int = 60,
                 archive_completed: bool = True,
                 process_interval: int = 5,
-                health_monitor: Optional[Any] = None):
+                health_monitor: Optional[Any] = None,
+                enable_dataset_storage: bool = False,
+                ipfs_client=None):
         """
         Initialize the storage write-ahead log.
         
@@ -90,6 +100,8 @@ class StorageWriteAheadLog:
             archive_completed: Whether to move completed operations to archive
             process_interval: Interval in seconds for processing pending operations
             health_monitor: Optional backend health monitor
+            enable_dataset_storage: Enable ipfs_datasets_py for distributed WAL storage
+            ipfs_client: Optional IPFS client for dataset storage
         """
         if not ARROW_AVAILABLE:
             logger.warning("PyArrow not available. Write-ahead log will operate in limited mode.")
@@ -125,6 +137,25 @@ class StorageWriteAheadLog:
         self.current_partition_id = None
         self.current_partition_path = None
         self.current_partition_count = 0
+        
+        # Initialize ipfs_datasets integration if requested
+        self.enable_dataset_storage = enable_dataset_storage and IPFS_DATASETS_AVAILABLE
+        self.datasets_manager = None
+        
+        if self.enable_dataset_storage:
+            try:
+                self.datasets_manager = get_ipfs_datasets_manager(
+                    ipfs_client=ipfs_client,
+                    enable=True
+                )
+                if self.datasets_manager and self.datasets_manager.is_available():
+                    logger.info("ipfs_datasets_py integration enabled for WAL storage")
+                else:
+                    logger.info("ipfs_datasets_py not available, using local-only WAL storage")
+                    self.enable_dataset_storage = False
+            except Exception as e:
+                logger.warning(f"Failed to initialize ipfs_datasets for WAL: {e}")
+                self.enable_dataset_storage = False
         
         # Initialize partitions
         self._init_partitions()
@@ -1713,6 +1744,10 @@ class StorageWriteAheadLog:
         This method should be called when the WAL is no longer needed.
         """
         try:
+            # Store current partition to dataset if enabled
+            if self.enable_dataset_storage:
+                self._store_partition_to_dataset()
+            
             # Stop the processing thread
             if hasattr(self, '_stop_processing') and self._stop_processing is not None:
                 self._stop_processing_thread()
@@ -1739,6 +1774,94 @@ class StorageWriteAheadLog:
         except Exception as e:
             logger.error(f"Error during WAL close: {e}")
             # Continue with cleanup despite errors
+    
+    def _store_partition_to_dataset(self):
+        """Store current WAL partition as a dataset."""
+        if not self.datasets_manager or not self.current_partition_path:
+            return
+        
+        try:
+            if not os.path.exists(self.current_partition_path):
+                return
+            
+            # Store partition as dataset
+            metadata = {
+                "type": "wal_partition",
+                "partition_id": self.current_partition_id,
+                "operation_count": self.current_partition_count,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+            
+            result = self.datasets_manager.store(
+                self.current_partition_path,
+                metadata=metadata
+            )
+            
+            if result.get("success"):
+                logger.info(f"Stored WAL partition {self.current_partition_id} to dataset: {result.get('cid')}")
+            else:
+                logger.warning(f"Failed to store WAL partition to dataset: {result.get('error')}")
+                
+        except Exception as e:
+            logger.error(f"Error storing WAL partition to dataset: {e}")
+    
+    def archive_to_dataset(self, partition_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Archive WAL partition(s) as datasets using ipfs_datasets_py.
+        
+        Args:
+            partition_id: Optional specific partition ID to archive, or None for all archives
+        
+        Returns:
+            Dictionary with archive results
+        """
+        if not self.enable_dataset_storage:
+            return {"success": False, "error": "Dataset storage not enabled"}
+        
+        try:
+            archived_count = 0
+            errors = []
+            
+            # Determine which partitions to archive
+            if partition_id:
+                partition_path = self._get_partition_path(partition_id)
+                partitions_to_archive = [(partition_id, partition_path)] if os.path.exists(partition_path) else []
+            else:
+                # Archive all files in archives directory
+                partitions_to_archive = []
+                if os.path.exists(self.archives_path):
+                    for filename in os.listdir(self.archives_path):
+                        if filename.endswith('.parquet'):
+                            part_id = filename.replace('.parquet', '')
+                            partitions_to_archive.append((part_id, os.path.join(self.archives_path, filename)))
+            
+            # Archive each partition
+            for part_id, part_path in partitions_to_archive:
+                metadata = {
+                    "type": "wal_archive",
+                    "partition_id": part_id,
+                    "archived_at": datetime.datetime.now().isoformat()
+                }
+                
+                result = self.datasets_manager.store(
+                    part_path,
+                    metadata=metadata
+                )
+                
+                if result.get("success"):
+                    archived_count += 1
+                    logger.debug(f"Archived WAL partition {part_id} to dataset: {result.get('cid')}")
+                else:
+                    errors.append(f"Failed to archive {part_id}: {result.get('error')}")
+            
+            return {
+                "success": len(errors) == 0,
+                "archived_count": archived_count,
+                "errors": errors if errors else None
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
         
     def get_config(self) -> Dict[str, Any]:
         """Get the current WAL configuration.
