@@ -298,47 +298,42 @@ jobs:
           PROPOSAL_JSON=$(cat /tmp/fix-proposal.json)
           
           # Extract recommendations
-          RECOMMENDATIONS=$(echo "$ANALYSIS_JSON" | jq -r '.recommendations | join("\n- ")' || echo "")
+          RECOMMENDATIONS=$(echo "$ANALYSIS_JSON" | jq -r '.recommendations | join("\n- ")' || echo "None")
+          HEAD_BRANCH="${{ steps.get_run_details.outputs.head_branch }}"
+          HEAD_SHA="${{ steps.get_run_details.outputs.head_sha }}"
+          REPO="${{ github.repository }}"
           
-          # Create issue body
-          cat > /tmp/issue.md << 'ISSUE_EOF'
-# Workflow Failure: $WORKFLOW_NAME
+          # Create issue body with proper escaping
+          cat > /tmp/issue.md << ISSUE_EOF
+# Workflow Failure: ${WORKFLOW_NAME}
 
 ## Summary
-Workflow **$WORKFLOW_NAME** failed with run ID: **$RUN_ID**
+Workflow **${WORKFLOW_NAME}** failed with run ID: **${RUN_ID}**
 
 ## Failure Details
-- **Error Type**: $ERROR_TYPE
-- **Root Cause**: $ROOT_CAUSE
+- **Error Type**: ${ERROR_TYPE}
+- **Root Cause**: ${ROOT_CAUSE}
 - **Fix Confidence**: ${CONFIDENCE}%
-- **Branch**: ${{ steps.get_run_details.outputs.head_branch }}
-- **SHA**: ${{ steps.get_run_details.outputs.head_sha }}
+- **Branch**: ${HEAD_BRANCH}
+- **SHA**: ${HEAD_SHA}
 
 ## Auto-Fix Analysis
 This failure has been automatically analyzed. A fix proposal will be generated.
 
 ### Recommendations
-- $RECOMMENDATIONS
+${RECOMMENDATIONS}
 
 ## Links
-- **Workflow Run**: https://github.com/${{ github.repository }}/actions/runs/$RUN_ID
-- **Workflow File**: `.github/workflows/` (see analysis)
+- **Workflow Run**: https://github.com/${REPO}/actions/runs/${RUN_ID}
+- **Workflow File**: \`.github/workflows/\` (see analysis)
 
 ---
 
 *This issue was automatically created by the auto-healing system.*
 *A draft PR with proposed fixes will be created shortly.*
 
-Run ID: $RUN_ID
+Run ID: ${RUN_ID}
 ISSUE_EOF
-          
-          # Substitute variables
-          sed -i "s/\$WORKFLOW_NAME/$WORKFLOW_NAME/g" /tmp/issue.md
-          sed -i "s/\$RUN_ID/$RUN_ID/g" /tmp/issue.md
-          sed -i "s/\$ERROR_TYPE/$ERROR_TYPE/g" /tmp/issue.md
-          sed -i "s/\$ROOT_CAUSE/$ROOT_CAUSE/g" /tmp/issue.md
-          sed -i "s/\$CONFIDENCE/$CONFIDENCE/g" /tmp/issue.md
-          sed -i "s/\$RECOMMENDATIONS/$RECOMMENDATIONS/g" /tmp/issue.md
           
           # Create issue
           ISSUE_NUMBER=$(gh issue create \
@@ -357,6 +352,12 @@ ISSUE_EOF
           CONFIDENCE: ${{ steps.analyze.outputs.confidence }}
           FORCE_CREATE: ${{ github.event.inputs.force_create_pr || 'false' }}
         run: |
+          # Validate confidence is numeric
+          if ! [[ "$CONFIDENCE" =~ ^[0-9]+$ ]]; then
+            echo "⚠️  Invalid confidence value: $CONFIDENCE, defaulting to 0" >> $GITHUB_STEP_SUMMARY
+            CONFIDENCE=0
+          fi
+          
           # Check if confidence is high enough
           if [ "$CONFIDENCE" -ge 70 ] || [ "$FORCE_CREATE" = "true" ]; then
             echo "should_create=true" >> $GITHUB_OUTPUT
@@ -402,12 +403,12 @@ Run ID: $RUN_ID"
           echo "$PR_BODY" > /tmp/pr_body.md
           
           # Create a placeholder commit
-          echo "# Auto-fix for workflow failure" > /tmp/autofix-placeholder.md
-          echo "This file marks the auto-fix branch. The actual fixes will be implemented by GitHub Copilot." >> /tmp/autofix-placeholder.md
-          echo "Run ID: $RUN_ID" >> /tmp/autofix-placeholder.md
+          echo "# Auto-fix for workflow failure" > .github/autofix-placeholder.md
+          echo "This file marks the auto-fix branch. The actual fixes will be implemented by GitHub Copilot." >> .github/autofix-placeholder.md
+          echo "Run ID: $RUN_ID" >> .github/autofix-placeholder.md
           
-          git add /tmp/autofix-placeholder.md || true
-          git commit -m "chore: Initialize auto-fix branch for $PR_TITLE" --allow-empty
+          git add .github/autofix-placeholder.md
+          git commit -m "chore: Initialize auto-fix branch for $PR_TITLE"
           git push origin "$BRANCH_NAME"
           
           # Create draft PR

@@ -90,6 +90,7 @@ def main():
     # Workflows to exclude from the trigger list (auto-healing and maintenance workflows)
     exclude_patterns = [
         'copilot-agent-autofix.yml',
+        'copilot-agent-autofix-enhanced.yml',  # Enhanced version
         'workflow-auto-fix.yml',
         'workflow-auto-fix-config.yml',
         'auto-heal-workflow.yml',

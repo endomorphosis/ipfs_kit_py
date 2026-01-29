@@ -98,7 +98,10 @@ def main():
     # Get paths
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent.parent
-    workflow_file = repo_root / ".github" / "workflows" / "copilot-agent-autofix.yml"
+    # Try both the original and enhanced workflow files
+    workflow_file = repo_root / ".github" / "workflows" / "copilot-agent-autofix-enhanced.yml"
+    if not workflow_file.exists():
+        workflow_file = repo_root / ".github" / "workflows" / "copilot-agent-autofix.yml"
     
     print("🔍 Scanning for workflows...")
     workflow_names = get_workflow_list()

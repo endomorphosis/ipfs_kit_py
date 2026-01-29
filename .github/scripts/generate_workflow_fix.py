@@ -213,13 +213,13 @@ This PR was automatically generated to fix a failure in the **{self.workflow_nam
         fixes = []
         
         # Extract package name from analysis
-        root_cause = self.analysis
-        captured_values = root_cause.get('captured_values', [])
+        captured_values = self.analysis.get('captured_values', [])
         
         if captured_values and len(captured_values) > 0:
             # Get the package name - it might have underscores or hyphens
             package = captured_values[0]
             # Convert underscores to hyphens for pip package names
+            # Note: This is a best-effort conversion; some packages may use underscores
             pip_package = package.replace('_', '-')
             
             # Fix for workflow
@@ -273,7 +273,7 @@ This PR was automatically generated to fix a failure in the **{self.workflow_nam
             'action': 'add_retry_action',
             'description': 'Add retry logic for network operations',
             'changes': """- name: Retry network operation
-  uses: nick-invision/retry@v2
+  uses: nick-fields/retry@v3
   with:
     timeout_minutes: 10
     max_attempts: 3
@@ -305,7 +305,7 @@ This PR was automatically generated to fix a failure in the **{self.workflow_nam
             'file': f'.github/workflows/{self._get_workflow_filename()}',
             'action': 'change_runner',
             'description': 'Use a larger runner with more resources',
-            'changes': """runs-on: ubuntu-latest-4-cores  # Increased from ubuntu-latest""",
+            'changes': """runs-on: ubuntu-latest-8-cores  # Increased from ubuntu-latest (GitHub Team/Enterprise)""",
         }]
     
     def _fix_add_env_variable(self) -> List[Dict[str, Any]]:
