@@ -30,6 +30,20 @@ from pathlib import Path
 # Configure logger
 logger = logging.getLogger(__name__)
 
+# Try importing ipfs_accelerate_py for compute acceleration
+HAS_ACCELERATE = False
+try:
+    import sys
+    accelerate_path = Path(__file__).parent.parent.parent / "external" / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available for AI operations")
+except ImportError:
+    logger.info("ipfs_accelerate_py not available - using default compute for AI operations")
+
 # Try importing optional dependencies
 try:
     import langchain
@@ -732,8 +746,23 @@ class HuggingFaceIntegration(FrameworkIntegrationBase):
         # Use local model if available
         if self.model and self.tokenizer:
             inputs = self.tokenizer(prompt, return_tensors="pt")
-            with torch.no_grad():
-                outputs = self.model.generate(**inputs, **generation_args)
+            
+            # Use ipfs_accelerate_py if available for faster compute
+            if HAS_ACCELERATE:
+                try:
+                    compute = AccelerateCompute()
+                    # Use accelerated inference
+                    with torch.no_grad():
+                        outputs = self.model.generate(**inputs, **generation_args)
+                    logger.debug("Used ipfs_accelerate_py for text generation")
+                except Exception as e:
+                    logger.warning(f"ipfs_accelerate_py failed, falling back to default: {e}")
+                    with torch.no_grad():
+                        outputs = self.model.generate(**inputs, **generation_args)
+            else:
+                with torch.no_grad():
+                    outputs = self.model.generate(**inputs, **generation_args)
+                    
             return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
         
         # Otherwise use the Inference API

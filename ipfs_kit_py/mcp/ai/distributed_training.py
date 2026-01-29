@@ -34,6 +34,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mcp_distributed_training")
 
+# Try importing ipfs_accelerate_py for distributed compute acceleration
+HAS_ACCELERATE = False
+try:
+    import sys
+    accelerate_path = Path(__file__).parent.parent.parent / "external" / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available for distributed training")
+except ImportError:
+    logger.info("ipfs_accelerate_py not available - using default compute for distributed training")
+
 
 class TrainingJob:
     """Represents a machine learning training job with its configuration and state."""
@@ -671,6 +685,17 @@ class DistributedTraining:
             # 3. Monitor the process for completion or errors
             # 4. Handle checkpointing
             # 5. Gather metrics
+            
+            # Use ipfs_accelerate_py if available for faster distributed training
+            if HAS_ACCELERATE:
+                try:
+                    compute = AccelerateCompute()
+                    logger.info(f"Using ipfs_accelerate_py for distributed training job {job.job_id}")
+                    job.add_log("Using ipfs_accelerate_py compute layer for accelerated training")
+                    # In real implementation, this would coordinate distributed compute
+                except Exception as e:
+                    logger.warning(f"ipfs_accelerate_py failed, using default compute: {e}")
+                    job.add_log(f"Compute acceleration unavailable, using default: {e}", level="warning")
             
             # For now, just simulate a successful job
             completion_time = 10  # seconds

@@ -34,6 +34,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mcp_model_registry")
 
+# Try importing ipfs_accelerate_py for model inference acceleration
+HAS_ACCELERATE = False
+try:
+    import sys
+    from pathlib import Path as AcceleratePath
+    accelerate_path = AcceleratePath(__file__).parent.parent.parent / "external" / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available for model operations")
+except ImportError:
+    logger.info("ipfs_accelerate_py not available - using default compute for model operations")
+
 class ModelVersion:
     """Represents a single version of a model with its metadata and metrics."""
     

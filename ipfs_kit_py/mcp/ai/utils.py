@@ -339,6 +339,25 @@ def check_dependencies() -> Dict[str, bool]:
     """
     dependencies = {}
     
+    # Compute acceleration
+    try:
+        import sys
+        from pathlib import Path as DependencyPath
+        accelerate_path = DependencyPath(__file__).parent.parent.parent / "external" / "ipfs_accelerate_py"
+        if accelerate_path.exists():
+            sys.path.insert(0, str(accelerate_path))
+        from ipfs_accelerate_py import AccelerateCompute
+        dependencies["ipfs_accelerate_py"] = True
+    except ImportError:
+        dependencies["ipfs_accelerate_py"] = False
+    
+    # Dataset management
+    try:
+        from ipfs_datasets_py import DatasetManager
+        dependencies["ipfs_datasets_py"] = True
+    except ImportError:
+        dependencies["ipfs_datasets_py"] = False
+    
     # AI frameworks
     try:
         import langchain

@@ -22,6 +22,20 @@ import uuid
 # Configure logger
 logger = logging.getLogger(__name__)
 
+# Try importing ipfs_accelerate_py for compute acceleration
+HAS_ACCELERATE = False
+try:
+    import sys
+    accelerate_path = Path(__file__).parent.parent.parent / "external" / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available for AI/ML integration")
+except ImportError:
+    logger.info("ipfs_accelerate_py not available - using default compute for AI/ML integration")
+
 # Import dependencies
 try:
     from fastapi import APIRouter, Depends, HTTPException, FastAPI, Request, Response
