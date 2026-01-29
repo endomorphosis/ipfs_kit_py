@@ -53,6 +53,23 @@ except ImportError:
     GraphRAG = None
     logger.info("GraphRAG not available")
 
+# Import ipfs_accelerate_py for compute layer
+try:
+    import sys
+    from pathlib import Path
+    # Add ipfs_accelerate_py to path if it exists as submodule
+    accelerate_path = Path(__file__).parent.parent / "external" / "ipfs_accelerate_py"
+    if accelerate_path.exists() and str(accelerate_path) not in sys.path:
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    ACCELERATE_AVAILABLE = True
+    logger.info("ipfs_accelerate_py compute layer available")
+except ImportError:
+    ACCELERATE_AVAILABLE = False
+    AccelerateCompute = None
+    logger.info("ipfs_accelerate_py not available - GraphRAG will use default compute")
+
 
 class VFSBucketGraphRAGIndexer:
     """
@@ -60,12 +77,19 @@ class VFSBucketGraphRAGIndexer:
     
     This class uses ipfs_datasets_py to manage bucket contents as datasets,
     enabling efficient GraphRAG indexing and search across virtual filesystems.
+    The ipfs_accelerate_py compute layer provides accelerated processing for
+    GraphRAG operations when available.
     
     The ipfs_datasets_py library handles:
     - Versioning of bucket content snapshots
     - Efficient storage and retrieval of bucket state
     - Provenance tracking for bucket changes
     - Distributed operations for bucket data
+    
+    The ipfs_accelerate_py library provides:
+    - Accelerated compute for GraphRAG indexing operations
+    - Optimized processing for large-scale bucket indexing
+    - Distributed compute capabilities
     
     GraphRAG then indexes these dataset representations for semantic search.
     """
@@ -75,6 +99,7 @@ class VFSBucketGraphRAGIndexer:
         bucket_manager: Optional[BucketVFSManager] = None,
         ipfs_client=None,
         enable_graphrag: bool = True,
+        enable_compute_layer: bool = True,
         base_path: str = "~/.ipfs_kit/vfs_graphrag_index"
     ):
         """
@@ -84,6 +109,7 @@ class VFSBucketGraphRAGIndexer:
             bucket_manager: Optional BucketVFSManager instance
             ipfs_client: Optional IPFS client
             enable_graphrag: Enable GraphRAG indexing
+            enable_compute_layer: Enable ipfs_accelerate_py compute layer for GraphRAG
             base_path: Base directory for index storage
         """
         self.ipfs_client = ipfs_client
@@ -111,6 +137,15 @@ class VFSBucketGraphRAGIndexer:
                 logger.info("ipfs_datasets_py enabled for bucket content management")
             except Exception as e:
                 logger.warning(f"Failed to initialize datasets manager: {e}")
+        
+        # Initialize compute layer if available
+        self.compute_layer = None
+        if enable_compute_layer and ACCELERATE_AVAILABLE:
+            try:
+                self.compute_layer = AccelerateCompute()
+                logger.info("ipfs_accelerate_py compute layer enabled for GraphRAG operations")
+            except Exception as e:
+                logger.warning(f"Failed to initialize compute layer: {e}")
         
         # Initialize GraphRAG components
         self.knowledge_graph = None
@@ -379,7 +414,7 @@ class VFSBucketGraphRAGIndexer:
         return bucket_data
     
     def _index_bucket_in_graphrag(self, bucket_name: str, dataset_id: str) -> Dict[str, Any]:
-        """Index bucket content in GraphRAG."""
+        """Index bucket content in GraphRAG using compute layer if available."""
         if not self.graph_rag:
             return {"indexed": False, "reason": "GraphRAG not available"}
         
@@ -396,11 +431,33 @@ class VFSBucketGraphRAGIndexer:
             
             self.knowledge_graph.add_entity(entity_data)
             
-            # Add to GraphRAG index
-            # Note: Actual implementation would depend on GraphRAG API
-            logger.info(f"Indexed bucket {bucket_name} in GraphRAG")
+            # Use compute layer if available for GraphRAG operations
+            if self.compute_layer:
+                try:
+                    # Accelerate GraphRAG indexing with compute layer
+                    compute_result = self.compute_layer.accelerate_indexing(
+                        entity_id=entity_id,
+                        entity_data=entity_data
+                    )
+                    logger.info(f"Used ipfs_accelerate_py compute layer for indexing {bucket_name}")
+                    return {
+                        "indexed": True,
+                        "entity_id": entity_id,
+                        "compute_accelerated": True,
+                        "compute_result": compute_result
+                    }
+                except Exception as e:
+                    logger.warning(f"Compute layer acceleration failed, using default: {e}")
             
-            return {"indexed": True, "entity_id": entity_id}
+            # Fallback to standard GraphRAG indexing
+            # Note: Actual implementation would depend on GraphRAG API
+            logger.info(f"Indexed bucket {bucket_name} in GraphRAG (standard mode)")
+            
+            return {
+                "indexed": True,
+                "entity_id": entity_id,
+                "compute_accelerated": False
+            }
             
         except Exception as e:
             logger.error(f"Failed to index in GraphRAG: {e}")
@@ -463,7 +520,8 @@ _indexer_instance: Optional[VFSBucketGraphRAGIndexer] = None
 def get_vfs_bucket_graphrag_indexer(
     bucket_manager=None,
     ipfs_client=None,
-    enable_graphrag: bool = True
+    enable_graphrag: bool = True,
+    enable_compute_layer: bool = True
 ) -> Optional[VFSBucketGraphRAGIndexer]:
     """
     Get or create the singleton VFS bucket GraphRAG indexer.
@@ -472,6 +530,7 @@ def get_vfs_bucket_graphrag_indexer(
         bucket_manager: Optional BucketVFSManager instance
         ipfs_client: Optional IPFS client
         enable_graphrag: Enable GraphRAG integration
+        enable_compute_layer: Enable ipfs_accelerate_py compute layer
     
     Returns:
         VFSBucketGraphRAGIndexer instance or None if initialization fails
@@ -482,7 +541,8 @@ def get_vfs_bucket_graphrag_indexer(
             _indexer_instance = VFSBucketGraphRAGIndexer(
                 bucket_manager=bucket_manager,
                 ipfs_client=ipfs_client,
-                enable_graphrag=enable_graphrag
+                enable_graphrag=enable_graphrag,
+                enable_compute_layer=enable_compute_layer
             )
         except Exception as e:
             logger.error(f"Failed to create VFS bucket GraphRAG indexer: {e}")
