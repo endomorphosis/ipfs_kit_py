@@ -26,6 +26,30 @@ try:
 except ImportError:
     ANALYTICS_AVAILABLE = False
 
+# Import ipfs_datasets_py integration with fallback
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+except ImportError:
+    HAS_DATASETS = False
+    get_ipfs_datasets_manager = None
+    logger.info("ipfs_datasets_py not available - dataset storage disabled")
+
+# Import ipfs_accelerate_py for compute acceleration
+try:
+    import sys
+    accelerate_path = Path(__file__).parent.parent / "external" / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available")
+except ImportError:
+    HAS_ACCELERATE = False
+    AccelerateCompute = None
+    logger.info("ipfs_accelerate_py not available - using default compute")
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -63,8 +87,24 @@ class EnhancedBucketIndex:
     - Storage and access analytics
     """
     
-    def __init__(self, index_dir: Optional[str] = None, bucket_vfs_manager=None):
-        """Initialize the enhanced bucket index."""
+    def __init__(
+        self,
+        index_dir: Optional[str] = None,
+        bucket_vfs_manager=None,
+        enable_dataset_storage: bool = False,
+        enable_compute_layer: bool = False,
+        dataset_batch_size: int = 100
+    ):
+        """
+        Initialize the enhanced bucket index.
+        
+        Args:
+            index_dir: Directory for storing index data
+            bucket_vfs_manager: Reference to bucket VFS manager
+            enable_dataset_storage: Enable ipfs_datasets_py integration
+            enable_compute_layer: Enable ipfs_accelerate_py compute acceleration
+            dataset_batch_size: Batch size for dataset operations
+        """
         self.index_dir = Path(index_dir or os.path.expanduser("~/.ipfs_kit/bucket_index"))
         self.index_dir.mkdir(parents=True, exist_ok=True)
         
@@ -75,6 +115,34 @@ class EnhancedBucketIndex:
         self._bucket_cache: Dict[str, BucketMetadata] = {}
         self._update_thread = None
         self._stop_event = None
+        
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
+        self.dataset_batch_size = dataset_batch_size
+        self.dataset_manager = None
+        self._index_buffer = []
+        
+        # Compute layer configuration
+        self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
+        self.compute_layer = None
+        
+        # Initialize dataset manager if enabled
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True)
+                logger.info("Enhanced Bucket Index dataset storage enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
+        
+        # Initialize compute layer if enabled
+        if self.enable_compute_layer:
+            try:
+                self.compute_layer = AccelerateCompute()
+                logger.info("Enhanced Bucket Index compute layer enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize compute layer: {e}")
+                self.enable_compute_layer = False
         
         # Initialize analytics database
         self.analytics_db = self.index_dir / "bucket_analytics.db"
@@ -94,6 +162,54 @@ class EnhancedBucketIndex:
             
         except Exception as e:
             logger.error(f"Failed to initialize bucket index: {e}")
+    
+    def _track_index_update(self, bucket_name: str, operation: str, metadata: Optional[Dict[str, Any]] = None):
+        """Track index update to dataset storage if enabled."""
+        if not self.enable_dataset_storage:
+            return
+        
+        update_data = {
+            "bucket_name": bucket_name,
+            "operation": operation,
+            "timestamp": time.time(),
+            "metadata": metadata or {}
+        }
+        
+        self._index_buffer.append(update_data)
+        
+        # Flush buffer if it reaches batch size
+        if len(self._index_buffer) >= self.dataset_batch_size:
+            self._flush_index_buffer()
+    
+    def _flush_index_buffer(self):
+        """Flush buffered index updates to dataset storage."""
+        if not self.enable_dataset_storage or not self._index_buffer:
+            return
+        
+        try:
+            import tempfile
+            # Write updates to temp file
+            temp_file = Path(tempfile.gettempdir()) / f"index_updates_{int(time.time())}.json"
+            with open(temp_file, 'w') as f:
+                json.dump(self._index_buffer, f)
+            
+            # Store in dataset manager
+            if self.dataset_manager and self.dataset_manager.is_available():
+                self.dataset_manager.store(temp_file, metadata={
+                    "type": "bucket_index_updates",
+                    "count": len(self._index_buffer),
+                    "timestamp": time.time()
+                })
+            
+            # Clear buffer
+            self._index_buffer.clear()
+            
+            # Clean up temp file
+            if temp_file.exists():
+                temp_file.unlink()
+                
+        except Exception as e:
+            logger.warning(f"Failed to flush index buffer to dataset: {e}")
     
     def _setup_analytics_db(self):
         """Setup DuckDB analytics database."""

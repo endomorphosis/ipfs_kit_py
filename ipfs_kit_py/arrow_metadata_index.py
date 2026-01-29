@@ -51,6 +51,28 @@ except ImportError:
     PLASMA_AVAILABLE = False
     plasma = None
 
+# Import ipfs_datasets_py integration with fallback
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+except ImportError:
+    HAS_DATASETS = False
+    get_ipfs_datasets_manager = None
+
+# Import ipfs_accelerate_py for compute acceleration
+try:
+    import sys
+    from pathlib import Path as PathlibPath
+    accelerate_path = PathlibPath(__file__).parent.parent / "external" / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+except ImportError:
+    HAS_ACCELERATE = False
+    AccelerateCompute = None
+
 # Create logger
 logger = logging.getLogger(__name__)
 
@@ -79,6 +101,9 @@ class ArrowMetadataIndex:
         ipfs_client=None,
         node_id: Optional[str] = None,
         cluster_id: str = "default",
+        enable_dataset_storage: bool = False,
+        enable_compute_layer: bool = False,
+        dataset_batch_size: int = 100
     ):  # Added node_id and cluster_id
         # Check if PyArrow is available before proceeding
         if not ARROW_AVAILABLE:
@@ -96,6 +121,9 @@ class ArrowMetadataIndex:
             sync_interval: Interval for synchronizing with peers (seconds)
             enable_c_interface: Whether to enable the Arrow C Data Interface
             ipfs_client: IPFS client instance for distributed operations
+            enable_dataset_storage: Enable ipfs_datasets_py integration
+            enable_compute_layer: Enable ipfs_accelerate_py compute acceleration
+            dataset_batch_size: Batch size for dataset operations
         """
         if not ARROW_AVAILABLE:
             raise ImportError("PyArrow is required for the metadata index.")
@@ -110,6 +138,34 @@ class ArrowMetadataIndex:
         self.ipfs_client = ipfs_client
         self.node_id = node_id  # Store node_id
         self.cluster_id = cluster_id  # Store cluster_id
+        
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
+        self.dataset_batch_size = dataset_batch_size
+        self.dataset_manager = None
+        self._metadata_buffer = []
+        
+        # Compute layer configuration  
+        self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
+        self.compute_layer = None
+        
+        # Initialize dataset manager if enabled
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
+                logger.info("Arrow Metadata Index dataset storage enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
+        
+        # Initialize compute layer if enabled
+        if self.enable_compute_layer:
+            try:
+                self.compute_layer = AccelerateCompute()
+                logger.info("Arrow Metadata Index compute layer enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize compute layer: {e}")
+                self.enable_compute_layer = False
 
         # Set up schema
         self.schema = self._create_default_schema()
