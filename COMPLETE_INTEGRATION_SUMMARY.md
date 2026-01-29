@@ -4,6 +4,12 @@
 
 This document provides a comprehensive summary of all integration work for ipfs_datasets_py (distributed dataset storage) and ipfs_accelerate_py (compute acceleration) across the entire ipfs_kit_py repository.
 
+**Related Documentation:**
+- `MCP_INTEGRATION_ARCHITECTURE.md` - Architecture guide for MCP server tools integration
+- `docs/IPFS_DATASETS_INTEGRATION.md` - Base integration patterns
+- `docs/VFS_BUCKET_GRAPHRAG_INTEGRATION.md` - VFS bucket GraphRAG architecture
+- `docs/IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md` - Detailed integration guide
+
 ---
 
 ## Executive Summary
@@ -55,11 +61,14 @@ All integrations include graceful fallbacks ensuring **100% CI/CD compatibility*
    - **Covers ALL 97+ MCP handlers automatically**
    - Single integration point for complete MCP coverage
    - Command tracking, log export, statistics
+   - Follows correct architecture: imports from `ipfs_kit_py` package
 
 **Benefits:**
 - Complete MCP operation history
 - Distributed command/action tracking
 - Infrastructure-level integration (smart, not brute-force)
+
+**Note:** See `MCP_INTEGRATION_ARCHITECTURE.md` for details on how MCP tools correctly import from the `ipfs_kit_py` package and follow the proper integration architecture.
 
 ### Phase 5: Enterprise Features (2 integrations) ✅
 9. **mcp/enterprise/lifecycle.py** - Lifecycle policy execution tracking

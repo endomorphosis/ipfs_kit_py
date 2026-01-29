@@ -4,6 +4,15 @@
 
 This document describes the correct integration architecture for IPFS Kit MCP (Model Context Protocol) server tools and how they should interface with the core `ipfs_kit_py` package.
 
+**Related Documentation:**
+- `COMPLETE_INTEGRATION_SUMMARY.md` - Comprehensive summary of all 36 integrations
+- `docs/IPFS_DATASETS_INTEGRATION.md` - Base integration patterns for datasets
+- `docs/VFS_BUCKET_GRAPHRAG_INTEGRATION.md` - VFS bucket GraphRAG architecture
+
+**Context:** This architecture guide is part of a larger integration effort that added distributed dataset storage (ipfs_datasets_py) and compute acceleration (ipfs_accelerate_py) across 36 strategic points in the repository. All integrations follow the principles outlined in this document.
+
+---
+
 ## Architecture Design
 
 ### Component Hierarchy
@@ -120,14 +129,26 @@ def create_bucket_tool(name: str, config: dict) -> dict:
 ### ✅ Compliant Components
 
 **VFS and Bucket MCP Tools:**
-- `mcp/bucket_vfs_mcp_tools.py` - ✅ Imports from ipfs_kit_py
-- `mcp/vfs_version_mcp_tools.py` - ✅ Imports from ipfs_kit_py
-- `mcp/ipfs_kit/mcp_tools/vfs_tools.py` - ✅ Imports from ipfs_kit_py
+- `mcp/bucket_vfs_mcp_tools.py` - ✅ Imports from ipfs_kit_py (includes ipfs_datasets integration)
+- `mcp/vfs_version_mcp_tools.py` - ✅ Imports from ipfs_kit_py (includes ipfs_datasets integration)
+- `mcp/ipfs_kit/mcp_tools/vfs_tools.py` - ✅ Imports from ipfs_kit_py (includes ipfs_datasets integration)
 - `mcp/ipfs_kit/mcp_tools/backend_tools.py` - ✅ Uses dependency injection
 - `mcp/ipfs_kit/mcp_tools/system_tools.py` - ✅ Uses standard library
 
+**MCP Servers:**
+- `mcp/enhanced_server.py` - ✅ Infrastructure-level integration with ipfs_datasets
+- `mcp/enhanced_mcp_server_with_vfs.py` - ✅ Imports from ipfs_kit_py
+- `mcp/enhanced_vfs_mcp_server.py` - ✅ Imports from ipfs_kit_py
+- `mcp/standalone_vfs_mcp_server.py` - ✅ Imports from ipfs_kit_py
+
 **MCP Handlers:**
 - All handlers in `mcp_handlers/` - ✅ Follow correct pattern (placeholders)
+
+**Integration Status:**
+- 36 strategic integrations across repository (see `COMPLETE_INTEGRATION_SUMMARY.md`)
+- All MCP tools properly import from `ipfs_kit_py` package
+- Dataset storage and compute acceleration available throughout
+- Graceful fallbacks ensure CI/CD compatibility
 
 ### ⚠️ Components Needing Fixes
 
@@ -269,6 +290,66 @@ def list_buckets():
     manager = get_global_bucket_manager()
     return manager.list_buckets()
 ```
+
+### 2. Handle MCP Protocol Concerns
+
+MCP tools handle protocol-specific concerns:
+
+```python
+# ✅ GOOD: Handles MCP protocol concerns
+from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
+from mcp.types import Tool, TextContent
+
+def create_bucket_tool():
+    return Tool(
+        name="create_bucket",
+        description="Create a new VFS bucket",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "config": {"type": "object"}
+            }
+        }
+    )
+
+async def handle_create_bucket(name, config):
+    manager = get_global_bucket_manager()
+    result = manager.create_bucket(name, config)
+    return TextContent(
+        type="text",
+        text=json.dumps(result)
+    )
+```
+
+### 3. Integration with ipfs_datasets_py and ipfs_accelerate_py
+
+**MCP tools automatically benefit from dataset storage and compute acceleration** when properly importing from `ipfs_kit_py`:
+
+```python
+# ✅ CORRECT: Automatically uses dataset storage and acceleration
+from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
+from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+
+def create_bucket_with_tracking():
+    """Create bucket - automatically tracked in datasets if enabled."""
+    manager = get_global_bucket_manager()
+    
+    # If bucket_manager has enable_dataset_storage=True,
+    # this operation is automatically tracked to IPFS datasets
+    result = manager.create_bucket("my-bucket", {})
+    
+    return result
+```
+
+**Key Points:**
+- 36 integrations across repository enable dataset storage
+- MCP tools inherit this functionality by importing from `ipfs_kit_py`
+- No need to add tracking code in MCP layer
+- Graceful fallback when ipfs_datasets_py unavailable
+- See `COMPLETE_INTEGRATION_SUMMARY.md` for all integration points
+
+### 4. Graceful Handling of Optional Dependencies
 
 ### 2. Handle MCP Protocol Concerns
 
