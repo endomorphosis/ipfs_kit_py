@@ -22,6 +22,14 @@ from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depend
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+# Import ipfs_datasets_py integration with fallback
+try:
+    from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+    IPFS_DATASETS_AVAILABLE = True
+except ImportError:
+    IPFS_DATASETS_AVAILABLE = False
+    get_ipfs_datasets_manager = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -80,6 +88,9 @@ class EnhancedMCPServer:
         log_level: str = "INFO",
         config_path: Optional[str] = None,
         metadata_path: Optional[str] = None,
+        enable_dataset_storage: bool = False,
+        ipfs_client: Optional[Any] = None,
+        dataset_batch_size: int = 100,
     ):
         """Initialize the Enhanced MCP Server."""
         self.server_id = str(uuid.uuid4())
@@ -89,6 +100,22 @@ class EnhancedMCPServer:
         self.log_level = log_level.upper()
         self.config_path = config_path
         self.metadata_path = metadata_path or os.path.expanduser("~/.ipfs_kit")
+        
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and IPFS_DATASETS_AVAILABLE
+        self.ipfs_client = ipfs_client
+        self.dataset_batch_size = dataset_batch_size
+        self.dataset_manager = None
+        self._operation_buffer = []
+        
+        # Initialize dataset manager if enabled
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
+                logger.info("MCP Server dataset storage enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
         
         # Initialize FastAPI app
         self.app = FastAPI(
@@ -212,26 +239,108 @@ class EnhancedMCPServer:
                 # Route to appropriate handler
                 handler = self.command_handlers.get(cmd_request.command)
                 if not handler:
-                    return MCPCommandResponse(
+                    response = MCPCommandResponse(
                         success=False,
                         command=cmd_request.command,
                         error=f"Unknown command: {cmd_request.command}"
-                    ).__dict__
+                    )
+                    self._track_operation(cmd_request, response)
+                    return response.__dict__
                 
                 # Execute command
                 response = await handler.handle(cmd_request)
+                
+                # Track operation to dataset
+                self._track_operation(cmd_request, response)
+                
                 return response.__dict__
                 
             except Exception as e:
                 logger.error(f"Error executing command: {e}")
-                return MCPCommandResponse(
+                response = MCPCommandResponse(
                     success=False,
                     command=request.get("command", "unknown"),
                     error=str(e)
-                ).__dict__
+                )
+                # Track error to dataset
+                if 'cmd_request' in locals():
+                    self._track_operation(cmd_request, response)
+                return response.__dict__
 
         # Add specific endpoint routes for REST-style access
         self._register_rest_routes()
+
+    def _track_operation(self, request: MCPCommandRequest, response: MCPCommandResponse):
+        """Track MCP operation to dataset if enabled."""
+        if not self.enable_dataset_storage or not self.dataset_manager:
+            return
+        
+        try:
+            operation = {
+                "timestamp": datetime.now().isoformat(),
+                "server_id": self.server_id,
+                "command": request.command,
+                "subcommand": request.subcommand,
+                "action": request.action,
+                "success": response.success,
+                "error": response.error,
+                "metadata": request.metadata,
+            }
+            
+            self._operation_buffer.append(operation)
+            
+            # Store in batches
+            if len(self._operation_buffer) >= self.dataset_batch_size:
+                self._flush_operations_to_dataset()
+                
+        except Exception as e:
+            logger.debug(f"Error tracking operation to dataset: {e}")
+    
+    def _flush_operations_to_dataset(self):
+        """Flush pending operations to dataset storage."""
+        if not self.enable_dataset_storage or not self.dataset_manager:
+            return
+        
+        if not self._operation_buffer:
+            return
+        
+        try:
+            # Store operations as JSON Lines dataset
+            dataset_content = "\n".join(json.dumps(op) for op in self._operation_buffer)
+            
+            # Write to temporary file
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+                f.write(dataset_content)
+                temp_path = f.name
+            
+            try:
+                result = self.dataset_manager.store(
+                    temp_path,
+                    metadata={
+                        "type": "mcp_operations",
+                        "server_id": self.server_id,
+                        "timestamp": datetime.now().isoformat(),
+                        "operation_count": len(self._operation_buffer),
+                    }
+                )
+                
+                if result.get("success"):
+                    logger.debug(f"Stored {len(self._operation_buffer)} MCP operations to dataset")
+                    self._operation_buffer.clear()
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
+            
+        except Exception as e:
+            logger.error(f"Error storing operations to dataset: {e}")
+    
+    def flush_to_dataset(self):
+        """Manually flush pending operations to dataset."""
+        self._flush_operations_to_dataset()
 
     def _register_rest_routes(self):
         """Register REST-style routes for common operations."""
@@ -1249,12 +1358,62 @@ class LogCommandHandler(BaseCommandHandler):
             )
 
     async def _log_stats(self, request: MCPCommandRequest) -> MCPCommandResponse:
-        """Log statistics - mirrors cmd_log_stats."""
-        return MCPCommandResponse(
-            success=True,
-            command="log",
-            result={"stats": "Log statistics would be calculated here"}
-        )
+        """Log statistics - mirrors cmd_log_stats with dataset tracking."""
+        try:
+            logs_path = Path(self.server.metadata_path) / "logs"
+            stats = {
+                "timestamp": datetime.now().isoformat(),
+                "server_id": self.server.server_id,
+                "log_files_count": 0,
+                "total_size_bytes": 0,
+            }
+            
+            if logs_path.exists():
+                log_files = list(logs_path.glob("*.log"))
+                stats["log_files_count"] = len(log_files)
+                stats["total_size_bytes"] = sum(f.stat().st_size for f in log_files if f.exists())
+            
+            # Store stats to dataset if enabled
+            if self.server.enable_dataset_storage and self.server.dataset_manager:
+                try:
+                    # Write stats to temporary file
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                        json.dump(stats, f)
+                        temp_path = f.name
+                    
+                    try:
+                        result = self.server.dataset_manager.store(
+                            temp_path,
+                            metadata={
+                                "type": "log_statistics",
+                                "timestamp": stats["timestamp"],
+                                "server_id": self.server.server_id,
+                            }
+                        )
+                        if result.get("success"):
+                            stats["stored_to_dataset"] = True
+                            stats["cid"] = result.get("cid")
+                    finally:
+                        # Clean up temporary file
+                        try:
+                            os.unlink(temp_path)
+                        except:
+                            pass
+                except Exception as e:
+                    logger.debug(f"Error storing log stats to dataset: {e}")
+            
+            return MCPCommandResponse(
+                success=True,
+                command="log",
+                result={"stats": stats}
+            )
+        except Exception as e:
+            return MCPCommandResponse(
+                success=False,
+                command="log",
+                error=f"Error calculating log stats: {e}"
+            )
 
     async def _clear_logs(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Clear logs - mirrors cmd_log_clear."""
@@ -1265,12 +1424,84 @@ class LogCommandHandler(BaseCommandHandler):
         )
 
     async def _export_logs(self, request: MCPCommandRequest) -> MCPCommandResponse:
-        """Export logs - mirrors cmd_log_export."""
-        return MCPCommandResponse(
-            success=True,
-            command="log",
-            result={"message": "Log export delegated to daemon"}
-        )
+        """Export logs - mirrors cmd_log_export with dataset storage."""
+        try:
+            # Check if dataset storage is enabled
+            if self.server.enable_dataset_storage and self.server.dataset_manager:
+                component = request.params.get("component", "all")
+                format_type = request.params.get("format", "jsonl")
+                
+                # Read logs from metadata directory
+                logs_path = Path(self.server.metadata_path) / "logs"
+                
+                if logs_path.exists():
+                    # Collect log files
+                    log_files = list(logs_path.glob("*.log"))
+                    
+                    if log_files:
+                        # Aggregate logs
+                        logs_content = []
+                        for log_file in log_files:
+                            try:
+                                with open(log_file, 'r') as f:
+                                    logs_content.append(f.read())
+                            except Exception as e:
+                                logger.warning(f"Error reading log file {log_file}: {e}")
+                        
+                        if logs_content:
+                            # Write combined logs to temporary file
+                            import tempfile
+                            combined_logs = "\n".join(logs_content)
+                            
+                            with tempfile.NamedTemporaryFile(mode='w', suffix='.log', delete=False) as f:
+                                f.write(combined_logs)
+                                temp_path = f.name
+                            
+                            try:
+                                # Store to dataset
+                                result = self.server.dataset_manager.store(
+                                    temp_path,
+                                    metadata={
+                                        "type": "log_export",
+                                        "component": component,
+                                        "format": format_type,
+                                        "timestamp": datetime.now().isoformat(),
+                                        "server_id": self.server.server_id,
+                                        "file_count": len(log_files)
+                                    }
+                                )
+                                
+                                if result.get("success"):
+                                    return MCPCommandResponse(
+                                        success=True,
+                                        command="log",
+                                        result={
+                                            "message": "Logs exported to dataset",
+                                            "cid": result.get("cid"),
+                                            "distributed": result.get("distributed", False),
+                                            "file_count": len(log_files)
+                                        }
+                                    )
+                            finally:
+                                # Clean up temporary file
+                                try:
+                                    os.unlink(temp_path)
+                                except:
+                                    pass
+                
+            # Fallback to standard export
+            return MCPCommandResponse(
+                success=True,
+                command="log",
+                result={"message": "Log export delegated to daemon"}
+            )
+            
+        except Exception as e:
+            return MCPCommandResponse(
+                success=False,
+                command="log",
+                error=f"Error exporting logs: {e}"
+            )
 
 
 class ServiceCommandHandler(BaseCommandHandler):

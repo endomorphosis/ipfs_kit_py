@@ -8,10 +8,36 @@ for virtual filesystems using IPFS content addressing.
 
 import json
 import logging
+import threading
+import tempfile
+import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# Integration with ipfs_datasets_py for distributed storage
+HAS_DATASETS = False
+try:
+    from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+    logger.info("ipfs_datasets_py integration available")
+except ImportError:
+    logger.info("ipfs_datasets_py not available - using local storage only")
+
+# Integration with ipfs_accelerate_py for compute acceleration
+HAS_ACCELERATE = False
+try:
+    import sys
+    from pathlib import Path as PathLib
+    accelerate_path = PathLib(__file__).parent.parent.parent / "external" / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute acceleration available")
+except ImportError:
+    logger.info("ipfs_accelerate_py not available - using standard compute")
 
 # VFS version tracker imports
 try:
@@ -54,6 +80,113 @@ try:
 except ImportError:
     IPFS_API_AVAILABLE = False
     IPFSSimpleAPI = None
+
+# Global dataset storage tracking
+_dataset_manager = None
+_compute_layer = None
+_operation_buffer = []
+_buffer_lock = threading.Lock()
+_dataset_batch_size = 100
+_enable_dataset_storage = False
+_enable_compute_layer = False
+
+def init_dataset_storage(enable_dataset_storage: bool = False,
+                        enable_compute_layer: bool = False,
+                        ipfs_client = None,
+                        dataset_batch_size: int = 100):
+    """Initialize dataset storage and compute layer."""
+    global _dataset_manager, _compute_layer, _dataset_batch_size
+    global _enable_dataset_storage, _enable_compute_layer
+    
+    _enable_dataset_storage = enable_dataset_storage
+    _enable_compute_layer = enable_compute_layer
+    _dataset_batch_size = dataset_batch_size
+    
+    if HAS_DATASETS and enable_dataset_storage:
+        try:
+            _dataset_manager = get_ipfs_datasets_manager(
+                enable=True,
+                ipfs_client=ipfs_client
+            )
+            logger.info("Dataset storage enabled for VFS version operations")
+        except Exception as e:
+            logger.warning(f"Failed to initialize dataset storage: {e}")
+    
+    if HAS_ACCELERATE and enable_compute_layer:
+        try:
+            _compute_layer = AccelerateCompute()
+            logger.info("Compute acceleration enabled for VFS version operations")
+        except Exception as e:
+            logger.warning(f"Failed to initialize compute layer: {e}")
+
+def _store_operation_to_dataset(tool_name: str, parameters: dict, result: dict):
+    """Store tool invocation to dataset if enabled."""
+    global _dataset_manager, _operation_buffer, _buffer_lock, _dataset_batch_size
+    
+    if not HAS_DATASETS or not _enable_dataset_storage or not _dataset_manager:
+        return
+    
+    operation_data = {
+        "tool_name": tool_name,
+        "timestamp": datetime.now().isoformat(),
+        "parameters": parameters,
+        "result": result
+    }
+    
+    with _buffer_lock:
+        _operation_buffer.append(operation_data)
+        
+        if len(_operation_buffer) >= _dataset_batch_size:
+            _flush_operations_to_dataset()
+
+def _flush_operations_to_dataset():
+    """Flush buffered operations to dataset storage."""
+    global _dataset_manager, _operation_buffer
+    
+    if not _operation_buffer or not _dataset_manager:
+        return
+    
+    try:
+        # Write operations to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+            for op in _operation_buffer:
+                f.write(json.dumps(op) + '\n')
+            temp_path = f.name
+        
+        try:
+            # Store via dataset manager
+            result = _dataset_manager.store(
+                temp_path,
+                metadata={
+                    "type": "vfs_version_tool_invocations",
+                    "operation_count": len(_operation_buffer),
+                    "timestamp": datetime.now().isoformat(),
+                    "component": "vfs_version_mcp_tools"
+                }
+            )
+            
+            if result.get("success"):
+                logger.info(f"Stored {len(_operation_buffer)} VFS version operations to dataset: {result.get('cid', 'N/A')}")
+            
+            _operation_buffer.clear()
+            
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
+                
+    except Exception as e:
+        logger.error(f"Failed to flush operations to dataset: {e}")
+
+def flush_to_dataset():
+    """Manually flush pending operations to dataset storage."""
+    global _buffer_lock
+    
+    if HAS_DATASETS and _enable_dataset_storage:
+        with _buffer_lock:
+            _flush_operations_to_dataset()
 
 
 def create_result_dict(success: bool, **kwargs):
@@ -274,16 +407,23 @@ async def handle_vfs_init(arguments: Dict[str, Any]) -> List[TextContent]:
                 else:
                     result_text += f"\n✗ Failed to create initial commit: {commit_result.get('error', 'Unknown error')}"
             
+            # Store operation to dataset
+            _store_operation_to_dataset("vfs_init", arguments, {"success": True, "text": result_text})
+            
             return [TextContent(type="text", text=result_text)]
         else:
+            error_text = f"✗ Failed to initialize VFS tracking: {status_result.get('error', 'Unknown error')}"
+            _store_operation_to_dataset("vfs_init", arguments, {"success": False, "text": error_text})
             return [TextContent(
                 type="text",
-                text=f"✗ Failed to initialize VFS tracking: {status_result.get('error', 'Unknown error')}"
+                text=error_text
             )]
             
     except Exception as e:
         logger.error(f"Error in vfs_init: {e}")
-        return [TextContent(type="text", text=f"✗ Error initializing VFS tracking: {e}")]
+        error_text = f"✗ Error initializing VFS tracking: {e}"
+        _store_operation_to_dataset("vfs_init", arguments, {"success": False, "error": str(e)})
+        return [TextContent(type="text", text=error_text)]
 
 
 async def handle_vfs_status(arguments: Dict[str, Any]) -> List[TextContent]:
@@ -332,16 +472,21 @@ async def handle_vfs_status(arguments: Dict[str, Any]) -> List[TextContent]:
                     if i == 0:
                         result_text += "    ^HEAD\n"
             
+            _store_operation_to_dataset("vfs_status", arguments, {"success": True, "text": result_text})
             return [TextContent(type="text", text=result_text)]
         else:
+            error_text = f"✗ Failed to get VFS status: {status_result.get('error', 'Unknown error')}"
+            _store_operation_to_dataset("vfs_status", arguments, {"success": False, "text": error_text})
             return [TextContent(
                 type="text",
-                text=f"✗ Failed to get VFS status: {status_result.get('error', 'Unknown error')}"
+                text=error_text
             )]
             
     except Exception as e:
         logger.error(f"Error in vfs_status: {e}")
-        return [TextContent(type="text", text=f"✗ Error getting VFS status: {e}")]
+        error_text = f"✗ Error getting VFS status: {e}"
+        _store_operation_to_dataset("vfs_status", arguments, {"success": False, "error": str(e)})
+        return [TextContent(type="text", text=error_text)]
 
 
 async def handle_vfs_commit(arguments: Dict[str, Any]) -> List[TextContent]:
@@ -374,6 +519,7 @@ async def handle_vfs_commit(arguments: Dict[str, Any]) -> List[TextContent]:
             result_text += f"Total Size: {commit_result['total_size']:,} bytes\n"
             result_text += f"CAR File: {commit_result['car_file_cid']}"
             
+            _store_operation_to_dataset("vfs_commit", arguments, {"success": True, "text": result_text, **commit_result})
             return [TextContent(type="text", text=result_text)]
         else:
             error_msg = commit_result.get('error', commit_result.get('message', 'Unknown error'))
@@ -381,11 +527,14 @@ async def handle_vfs_commit(arguments: Dict[str, Any]) -> List[TextContent]:
             if "No changes detected" in error_msg:
                 result_text += "\n(Use force=true to create snapshot anyway)"
             
+            _store_operation_to_dataset("vfs_commit", arguments, {"success": False, "text": result_text})
             return [TextContent(type="text", text=result_text)]
             
     except Exception as e:
         logger.error(f"Error in vfs_commit: {e}")
-        return [TextContent(type="text", text=f"✗ Error creating version snapshot: {e}")]
+        error_text = f"✗ Error creating version snapshot: {e}"
+        _store_operation_to_dataset("vfs_commit", arguments, {"success": False, "error": str(e)})
+        return [TextContent(type="text", text=error_text)]
 
 
 async def handle_vfs_log(arguments: Dict[str, Any]) -> List[TextContent]:

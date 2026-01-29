@@ -45,6 +45,14 @@ try:
 except ImportError:
     ARROW_AVAILABLE = False
 
+# Try to import ipfs_datasets integration
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager, IPFS_DATASETS_AVAILABLE
+except ImportError:
+    IPFS_DATASETS_AVAILABLE = False
+    def get_ipfs_datasets_manager(*args, **kwargs):
+        return None
+
 # Import WAL components - wrapped in try/except for graceful fallback
 try:
     from .storage_wal import (
@@ -115,7 +123,9 @@ class WALTelemetry:
                  retention_days: int = 30,
                  sampling_interval: int = 60,
                  enable_detailed_timing: bool = True,
-                 operation_hooks: bool = True):
+                 operation_hooks: bool = True,
+                 enable_dataset_storage: bool = False,
+                 ipfs_client=None):
         """
         Initialize the WAL telemetry system.
         
@@ -126,6 +136,8 @@ class WALTelemetry:
             sampling_interval: Interval in seconds between metric samples
             enable_detailed_timing: Whether to collect detailed timing data
             operation_hooks: Whether to install operation hooks for automatic collection
+            enable_dataset_storage: Enable ipfs_datasets_py for distributed telemetry storage
+            ipfs_client: Optional IPFS client for dataset storage
         """
         self.wal = wal
         self.metrics_path = os.path.expanduser(metrics_path)
@@ -164,6 +176,27 @@ class WALTelemetry:
         # Schema for metrics storage
         if ARROW_AVAILABLE:
             self.metrics_schema = self._create_metrics_schema()
+        
+        # Initialize ipfs_datasets integration if requested
+        self.enable_dataset_storage = enable_dataset_storage and IPFS_DATASETS_AVAILABLE
+        self.datasets_manager = None
+        self.metrics_since_last_store = 0
+        self.metrics_batch_size = 1000  # Store every N metric samples
+        
+        if self.enable_dataset_storage:
+            try:
+                self.datasets_manager = get_ipfs_datasets_manager(
+                    ipfs_client=ipfs_client,
+                    enable=True
+                )
+                if self.datasets_manager and self.datasets_manager.is_available():
+                    logger.info("ipfs_datasets_py integration enabled for WAL telemetry")
+                else:
+                    logger.info("ipfs_datasets_py not available, using local-only telemetry")
+                    self.enable_dataset_storage = False
+            except Exception as e:
+                logger.warning(f"Failed to initialize ipfs_datasets for telemetry: {e}")
+                self.enable_dataset_storage = False
             
         # Register hooks if requested and WAL is available
         if operation_hooks and wal is not None and WAL_AVAILABLE:
@@ -418,6 +451,13 @@ class WALTelemetry:
             self._store_metrics_json()
         else:
             self._store_metrics_arrow()
+        
+        # Also store to dataset if enabled
+        if self.enable_dataset_storage:
+            self.metrics_since_last_store += 1
+            if self.metrics_since_last_store >= self.metrics_batch_size:
+                self._store_metrics_to_dataset()
+                self.metrics_since_last_store = 0
     
     def _store_metrics_json(self):
         """Store metrics as JSON files (fallback when Arrow not available)."""
@@ -1933,6 +1973,10 @@ class WALTelemetry:
     
     def close(self):
         """Close the telemetry system and clean up resources."""
+        # Store metrics to dataset if enabled
+        if self.enable_dataset_storage:
+            self._store_metrics_to_dataset()
+        
         # Stop the sampling thread first
         self._stop_sampling_thread()
         
@@ -1962,6 +2006,62 @@ class WALTelemetry:
         except Exception:
             # Ensure no exceptions escape from close()
             pass
+    
+    def _store_metrics_to_dataset(self):
+        """Store telemetry metrics as a dataset using ipfs_datasets_py."""
+        if not self.datasets_manager:
+            return
+        
+        try:
+            import tempfile
+            
+            # Prepare metrics data for storage
+            metrics_data = {
+                "timestamp": time.time(),
+                "operation_metrics": dict(self.operation_metrics),
+                "latency_metrics": dict(self.latency_metrics),
+                "health_metrics": dict(self.health_metrics),
+                "throughput_metrics": dict(self.throughput_metrics),
+                "error_metrics": dict(self.error_metrics)
+            }
+            
+            # Write to temporary JSON file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                json.dump(metrics_data, f, default=str)
+                temp_path = f.name
+            
+            # Store as dataset
+            metadata = {
+                "type": "wal_telemetry",
+                "timestamp": datetime.now().isoformat(),
+                "metric_types": list(self.operation_metrics.keys()),
+                "sampling_interval": self.sampling_interval
+            }
+            
+            result = self.datasets_manager.store(
+                temp_path,
+                metadata=metadata
+            )
+            
+            # Clean up temp file
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
+            
+            if result.get("success"):
+                logger.debug(f"Stored telemetry metrics to dataset: {result.get('cid')}")
+            else:
+                logger.warning(f"Failed to store telemetry metrics to dataset: {result.get('error')}")
+                
+        except Exception as e:
+            logger.error(f"Error storing telemetry metrics to dataset: {e}")
+    
+    def flush_metrics_to_dataset(self):
+        """Manually flush current metrics to dataset storage."""
+        if self.enable_dataset_storage:
+            self._store_metrics_to_dataset()
+            self.metrics_since_last_store = 0
 
 
 # Example usage

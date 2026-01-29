@@ -41,6 +41,31 @@ try:
 except ImportError:
     DUCKDB_AVAILABLE = False
 
+# Import ipfs_datasets_py integration with fallback
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+except ImportError:
+    HAS_DATASETS = False
+    get_ipfs_datasets_manager = None
+    logger.info("ipfs_datasets_py not available - dataset storage disabled")
+
+# Import ipfs_accelerate_py for compute acceleration
+try:
+    import sys
+    from pathlib import Path as PathlibPath
+    accelerate_path = PathlibPath(__file__).parent.parent / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available")
+except ImportError:
+    HAS_ACCELERATE = False
+    AccelerateCompute = None
+    logger.info("ipfs_accelerate_py not available - using default compute")
+
 # Import IPFS-Kit components
 from .parquet_ipld_bridge import ParquetIPLDBridge
 from .parquet_car_bridge import ParquetCARBridge
@@ -94,7 +119,10 @@ class BucketVFSManager:
         storage_path: str = "/tmp/ipfs_kit_buckets",
         ipfs_client=None,
         enable_parquet_export: bool = True,
-        enable_duckdb_integration: bool = True
+        enable_duckdb_integration: bool = True,
+        enable_dataset_storage: bool = False,
+        enable_compute_layer: bool = False,
+        dataset_batch_size: int = 100
     ):
         """
         Initialize the bucket VFS manager.
@@ -104,6 +132,9 @@ class BucketVFSManager:
             ipfs_client: IPFS client instance
             enable_parquet_export: Enable automatic Parquet export
             enable_duckdb_integration: Enable DuckDB SQL interface
+            enable_dataset_storage: Enable ipfs_datasets_py integration
+            enable_compute_layer: Enable ipfs_accelerate_py compute acceleration
+            dataset_batch_size: Batch size for dataset operations
         """
         self.storage_path = Path(storage_path)
         self.storage_path.mkdir(parents=True, exist_ok=True)
@@ -111,6 +142,34 @@ class BucketVFSManager:
         self.ipfs_client = ipfs_client
         self.enable_parquet_export = enable_parquet_export and ARROW_AVAILABLE
         self.enable_duckdb_integration = enable_duckdb_integration and DUCKDB_AVAILABLE
+        
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
+        self.dataset_batch_size = dataset_batch_size
+        self.dataset_manager = None
+        self._operation_buffer = []
+        
+        # Compute layer configuration
+        self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
+        self.compute_layer = None
+        
+        # Initialize dataset manager if enabled
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
+                logger.info("Bucket VFS Manager dataset storage enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
+        
+        # Initialize compute layer if enabled
+        if self.enable_compute_layer:
+            try:
+                self.compute_layer = AccelerateCompute()
+                logger.info("Bucket VFS Manager compute layer enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize compute layer: {e}")
+                self.enable_compute_layer = False
         
         # Core components
         self.parquet_bridge = ParquetIPLDBridge() if ARROW_AVAILABLE else None
@@ -133,6 +192,13 @@ class BucketVFSManager:
         # starting background tasks from a non-async __init__.
         
         logger.info(f"BucketVFSManager initialized at {storage_path}")
+    
+    def __del__(self):
+        """Cleanup method to flush buffers on deletion."""
+        try:
+            self._flush_operation_buffer()
+        except Exception as e:
+            logger.warning(f"Error flushing buffer during cleanup: {e}")
 
     async def _ensure_bucket_registry_loaded(self) -> None:
         if self._registry_loaded:
@@ -142,6 +208,53 @@ class BucketVFSManager:
                 return
             await self._load_bucket_registry()
             self._registry_loaded = True
+    
+    def _track_bucket_operation(self, operation: str, bucket_name: str, metadata: Optional[Dict[str, Any]] = None):
+        """Track bucket operation to dataset storage if enabled."""
+        if not self.enable_dataset_storage:
+            return
+        
+        operation_data = {
+            "operation": operation,
+            "bucket_name": bucket_name,
+            "timestamp": time.time(),
+            "metadata": metadata or {}
+        }
+        
+        self._operation_buffer.append(operation_data)
+        
+        # Flush buffer if it reaches batch size
+        if len(self._operation_buffer) >= self.dataset_batch_size:
+            self._flush_operation_buffer()
+    
+    def _flush_operation_buffer(self):
+        """Flush buffered operations to dataset storage."""
+        if not self.enable_dataset_storage or not self._operation_buffer:
+            return
+        
+        try:
+            # Write operations to temp file
+            temp_file = self.storage_path / f"operations_{int(time.time())}.json"
+            with open(temp_file, 'w') as f:
+                json.dump(self._operation_buffer, f)
+            
+            # Store in dataset manager
+            if self.dataset_manager and self.dataset_manager.is_available():
+                self.dataset_manager.store(temp_file, metadata={
+                    "type": "bucket_operations",
+                    "count": len(self._operation_buffer),
+                    "timestamp": time.time()
+                })
+            
+            # Clear buffer
+            self._operation_buffer.clear()
+            
+            # Clean up temp file
+            if temp_file.exists():
+                temp_file.unlink()
+                
+        except Exception as e:
+            logger.warning(f"Failed to flush operation buffer to dataset: {e}")
     
     async def create_bucket(
         self,
@@ -191,6 +304,13 @@ class BucketVFSManager:
             # Register bucket
             self.buckets[bucket_name] = bucket
             await self._save_bucket_registry()
+            
+            # Track operation in dataset
+            self._track_bucket_operation("create", bucket_name, {
+                "bucket_type": bucket_type.value,
+                "vfs_structure": vfs_structure.value,
+                "cid": bucket.root_cid
+            })
             
             logger.info(f"Created bucket '{bucket_name}' of type {bucket_type.value}")
             
@@ -295,6 +415,9 @@ class BucketVFSManager:
             del self.buckets[bucket_name]
             await self._save_bucket_registry()
             
+            # Track operation in dataset
+            self._track_bucket_operation("delete", bucket_name, {"forced": force})
+            
             logger.info(f"Deleted bucket '{bucket_name}'")
             
             return create_result_dict(
@@ -347,8 +470,23 @@ class BucketVFSManager:
                     success=False,
                     error="DuckDB connection not initialized"
                 )
-                
-            result = self.duckdb_conn.execute(sql_query).fetchall()
+            
+            # Use compute layer for acceleration if available
+            # Expected interface: compute_layer.accelerate_query(duckdb_conn, sql_query) -> query results
+            # Falls back to standard DuckDB execution if acceleration fails
+            if self.enable_compute_layer and self.compute_layer:
+                try:
+                    result = await anyio.to_thread.run_sync(
+                        lambda: self.compute_layer.accelerate_query(
+                            self.duckdb_conn, sql_query
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(f"Compute layer acceleration failed, using default: {e}")
+                    result = self.duckdb_conn.execute(sql_query).fetchall()
+            else:
+                result = self.duckdb_conn.execute(sql_query).fetchall()
+            
             columns = [desc[0] for desc in self.duckdb_conn.description] if self.duckdb_conn.description else []
             
             return create_result_dict(

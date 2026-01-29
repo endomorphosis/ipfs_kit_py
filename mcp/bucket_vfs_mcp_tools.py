@@ -11,9 +11,34 @@ import logging
 import os
 import tempfile
 import traceback
+import threading
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence
 
 logger = logging.getLogger(__name__)
+
+# Integration with ipfs_datasets_py for distributed storage
+HAS_DATASETS = False
+try:
+    from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+    logger.info("ipfs_datasets_py integration available")
+except ImportError:
+    logger.info("ipfs_datasets_py not available - using local storage only")
+
+# Integration with ipfs_accelerate_py for compute acceleration
+HAS_ACCELERATE = False
+try:
+    import sys
+    from pathlib import Path as PathLib
+    accelerate_path = PathLib(__file__).parent.parent.parent / "external" / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute acceleration available")
+except ImportError:
+    logger.info("ipfs_accelerate_py not available - using standard compute")
 
 # Import MCP types with fallback
 try:
@@ -57,6 +82,44 @@ except ImportError as e:
 # Global bucket manager instance
 _bucket_manager = None
 
+# Global dataset storage tracking
+_dataset_manager = None
+_compute_layer = None
+_operation_buffer = []
+_buffer_lock = threading.Lock()
+_dataset_batch_size = 100
+_enable_dataset_storage = False
+_enable_compute_layer = False
+
+def init_dataset_storage(enable_dataset_storage: bool = False,
+                        enable_compute_layer: bool = False,
+                        ipfs_client = None,
+                        dataset_batch_size: int = 100):
+    """Initialize dataset storage and compute layer."""
+    global _dataset_manager, _compute_layer, _dataset_batch_size
+    global _enable_dataset_storage, _enable_compute_layer
+    
+    _enable_dataset_storage = enable_dataset_storage
+    _enable_compute_layer = enable_compute_layer
+    _dataset_batch_size = dataset_batch_size
+    
+    if HAS_DATASETS and enable_dataset_storage:
+        try:
+            _dataset_manager = get_ipfs_datasets_manager(
+                enable=True,
+                ipfs_client=ipfs_client
+            )
+            logger.info("Dataset storage enabled for bucket VFS operations")
+        except Exception as e:
+            logger.warning(f"Failed to initialize dataset storage: {e}")
+    
+    if HAS_ACCELERATE and enable_compute_layer:
+        try:
+            _compute_layer = AccelerateCompute()
+            logger.info("Compute acceleration enabled for bucket VFS operations")
+        except Exception as e:
+            logger.warning(f"Failed to initialize compute layer: {e}")
+
 def get_bucket_manager(ipfs_client=None, storage_path: str = "/tmp/mcp_buckets"):
     """Get or create the global bucket manager instance."""
     global _bucket_manager
@@ -66,6 +129,75 @@ def get_bucket_manager(ipfs_client=None, storage_path: str = "/tmp/mcp_buckets")
             ipfs_client=ipfs_client
         )
     return _bucket_manager
+
+def _store_operation_to_dataset(tool_name: str, parameters: dict, result: dict):
+    """Store tool invocation to dataset if enabled."""
+    global _dataset_manager, _operation_buffer, _buffer_lock, _dataset_batch_size
+    
+    if not HAS_DATASETS or not _enable_dataset_storage or not _dataset_manager:
+        return
+    
+    operation_data = {
+        "tool_name": tool_name,
+        "timestamp": datetime.now().isoformat(),
+        "parameters": parameters,
+        "result": result
+    }
+    
+    with _buffer_lock:
+        _operation_buffer.append(operation_data)
+        
+        if len(_operation_buffer) >= _dataset_batch_size:
+            _flush_operations_to_dataset()
+
+def _flush_operations_to_dataset():
+    """Flush buffered operations to dataset storage."""
+    global _dataset_manager, _operation_buffer
+    
+    if not _operation_buffer or not _dataset_manager:
+        return
+    
+    try:
+        # Write operations to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+            for op in _operation_buffer:
+                f.write(json.dumps(op) + '\n')
+            temp_path = f.name
+        
+        try:
+            # Store via dataset manager
+            result = _dataset_manager.store(
+                temp_path,
+                metadata={
+                    "type": "bucket_vfs_tool_invocations",
+                    "operation_count": len(_operation_buffer),
+                    "timestamp": datetime.now().isoformat(),
+                    "component": "bucket_vfs_mcp_tools"
+                }
+            )
+            
+            if result.get("success"):
+                logger.info(f"Stored {len(_operation_buffer)} bucket VFS operations to dataset: {result.get('cid', 'N/A')}")
+            
+            _operation_buffer.clear()
+            
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
+                
+    except Exception as e:
+        logger.error(f"Failed to flush operations to dataset: {e}")
+
+def flush_to_dataset():
+    """Manually flush pending operations to dataset storage."""
+    global _buffer_lock
+    
+    if HAS_DATASETS and _enable_dataset_storage:
+        with _buffer_lock:
+            _flush_operations_to_dataset()
 
 def create_bucket_tools() -> List[Tool]:
     """Create MCP tools for bucket VFS operations."""
@@ -366,6 +498,9 @@ async def handle_bucket_create(arguments: Dict[str, Any]) -> List[TextContent]:
                 "error": result.get("error", "Unknown error")
             }
         
+        # Store operation to dataset
+        _store_operation_to_dataset("bucket_create", arguments, response)
+        
         return [TextContent(
             type="text",
             text=json.dumps(response, indent=2)
@@ -435,6 +570,9 @@ async def handle_bucket_list(arguments: Dict[str, Any]) -> List[TextContent]:
                 "error": result.get("error", "Unknown error")
             }
         
+        # Store operation to dataset
+        _store_operation_to_dataset("bucket_list", arguments, response)
+        
         return [TextContent(
             type="text",
             text=json.dumps(response, indent=2)
@@ -491,6 +629,9 @@ async def handle_bucket_delete(arguments: Dict[str, Any]) -> List[TextContent]:
                 "success": False,
                 "error": result.get("error", "Unknown error")
             }
+        
+        # Store operation to dataset
+        _store_operation_to_dataset("bucket_delete", arguments, response)
         
         return [TextContent(
             type="text",
@@ -586,6 +727,9 @@ async def handle_bucket_add_file(arguments: Dict[str, Any]) -> List[TextContent]
                 "success": False,
                 "error": result.get("error", "Unknown error")
             }
+        
+        # Store operation to dataset
+        _store_operation_to_dataset("bucket_add_file", arguments, response)
         
         return [TextContent(
             type="text",

@@ -2,8 +2,13 @@ import os
 import time
 import shutil
 import json
+import logging
+import threading
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 # Try relative import first, fallback to absolute import
 try:
@@ -11,17 +16,143 @@ try:
 except ImportError:
     from config_manager import ConfigManager
 
+# Import ipfs_datasets_py integration with fallback
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+except ImportError:
+    HAS_DATASETS = False
+    get_ipfs_datasets_manager = None
+    logger.info("ipfs_datasets_py not available - dataset storage disabled")
+
+# Import ipfs_accelerate_py for compute acceleration
+try:
+    import sys
+    from pathlib import Path as PathlibPath
+    accelerate_path = PathlibPath(__file__).parent.parent / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available")
+except ImportError:
+    HAS_ACCELERATE = False
+    AccelerateCompute = None
+    logger.info("ipfs_accelerate_py not available - using default compute")
+
 IPFS_KIT_PATH = Path.home() / '.ipfs_kit'
 BUCKETS_PATH = IPFS_KIT_PATH / 'buckets'
 
 class BucketManager:
-    def __init__(self, config_manager: Optional[ConfigManager] = None):
+    def __init__(
+        self, 
+        config_manager: Optional[ConfigManager] = None,
+        enable_dataset_storage: bool = False,
+        enable_compute_layer: bool = False,
+        ipfs_client=None,
+        dataset_batch_size: int = 100
+    ):
         self.config_manager = config_manager or ConfigManager()
         BUCKETS_PATH.mkdir(parents=True, exist_ok=True)
         
         # Initialize bucket data directory for actual storage
         self.bucket_data_path = IPFS_KIT_PATH / 'bucket_data'
         self.bucket_data_path.mkdir(parents=True, exist_ok=True)
+        
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
+        self.dataset_batch_size = dataset_batch_size
+        self.dataset_manager = None
+        self.ipfs_client = ipfs_client
+        self._operation_buffer = []
+        self._buffer_lock = threading.Lock()
+        
+        # Compute layer configuration
+        self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
+        self.compute_layer = None
+        
+        # Initialize dataset manager if enabled
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
+                logger.info("Bucket Manager dataset storage enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
+        
+        # Initialize compute layer if enabled
+        if self.enable_compute_layer:
+            try:
+                self.compute_layer = AccelerateCompute()
+                logger.info("Bucket Manager compute layer enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize compute layer: {e}")
+                self.enable_compute_layer = False
+    
+    def __del__(self):
+        """Cleanup method to flush buffers on deletion."""
+        try:
+            self.flush_to_dataset()
+        except Exception as e:
+            logger.warning(f"Error flushing buffer during cleanup: {e}")
+    
+    def _store_operation_to_dataset(self, operation: str, bucket_name: str, details: Dict[str, Any], result: Dict[str, Any]):
+        """Buffer operation for dataset storage."""
+        if not self.enable_dataset_storage:
+            return
+        
+        operation_data = {
+            "operation": operation,
+            "timestamp": time.time(),
+            "bucket_name": bucket_name,
+            "details": details,
+            "result": result
+        }
+        
+        with self._buffer_lock:
+            self._operation_buffer.append(operation_data)
+            
+            # Flush buffer if it reaches batch size
+            if len(self._operation_buffer) >= self.dataset_batch_size:
+                self._flush_operations_to_dataset()
+    
+    def _flush_operations_to_dataset(self):
+        """Flush buffered operations to dataset storage."""
+        if not self.enable_dataset_storage or not self._operation_buffer:
+            return
+        
+        with self._buffer_lock:
+            if not self._operation_buffer:
+                return
+            
+            try:
+                # Write operations to temp file
+                temp_file = self.bucket_data_path / f"operations_{int(time.time())}.json"
+                with open(temp_file, 'w') as f:
+                    json.dump(self._operation_buffer, f)
+                
+                # Store in dataset manager
+                if self.dataset_manager and self.dataset_manager.is_available():
+                    self.dataset_manager.store(temp_file, metadata={
+                        "type": "bucket_operations",
+                        "count": len(self._operation_buffer),
+                        "timestamp": time.time()
+                    })
+                
+                # Clear buffer
+                self._operation_buffer.clear()
+                
+                # Clean up temp file
+                if temp_file.exists():
+                    temp_file.unlink()
+                    
+            except Exception as e:
+                logger.warning(f"Failed to flush operations to dataset: {e}")
+    
+    def flush_to_dataset(self):
+        """Public method to manually flush operations to dataset storage."""
+        self._flush_operations_to_dataset()
 
     def list_buckets(self) -> List[Dict[str, Any]]:
         """List all configured buckets with detailed statistics."""
@@ -65,6 +196,10 @@ class BucketManager:
             }
             buckets.append(bucket_info)
         
+        # Store operation to dataset
+        result = {"bucket_count": len(buckets)}
+        self._store_operation_to_dataset("list_buckets", "", {}, result)
+        
         return buckets
 
     def create_bucket(self, name: str, **kwargs) -> Dict[str, Any]:
@@ -97,7 +232,12 @@ class BucketManager:
         
         self.config_manager.save_bucket_config(name, config)
         
-        return {"status": "success", "message": f"Bucket '{name}' created successfully"}
+        result = {"status": "success", "message": f"Bucket '{name}' created successfully"}
+        
+        # Store operation to dataset
+        self._store_operation_to_dataset("create_bucket", name, kwargs, result)
+        
+        return result
 
     def update_bucket(self, name: str, **kwargs) -> Dict[str, Any]:
         """Update bucket configuration."""
@@ -119,7 +259,12 @@ class BucketManager:
         
         self.config_manager.save_bucket_config(name, config)
         
-        return {"status": "success", "message": f"Bucket '{name}' updated successfully"}
+        result = {"status": "success", "message": f"Bucket '{name}' updated successfully"}
+        
+        # Store operation to dataset
+        self._store_operation_to_dataset("update_bucket", name, kwargs, result)
+        
+        return result
 
     def remove_bucket(self, name: str, force: bool = False) -> Dict[str, Any]:
         """Remove a bucket and its configuration."""
@@ -139,7 +284,12 @@ class BucketManager:
         # Remove configuration
         self.config_manager.delete_bucket_config(name)
         
-        return {"status": "success", "message": f"Bucket '{name}' removed successfully"}
+        result = {"status": "success", "message": f"Bucket '{name}' removed successfully"}
+        
+        # Store operation to dataset
+        self._store_operation_to_dataset("remove_bucket", name, {"force": force}, result)
+        
+        return result
 
     def get_bucket_stats(self, name: str) -> Dict[str, Any]:
         """Get detailed statistics for a specific bucket."""

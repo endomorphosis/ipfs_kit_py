@@ -63,6 +63,31 @@ except ImportError:
     CAR_BRIDGE_AVAILABLE = False
     logger.warning("CAR bridge not available, using manual CAR generation")
 
+# Import ipfs_datasets_py integration with fallback
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+    logger.info("ipfs_datasets_py available for VFS version tracking")
+except ImportError:
+    HAS_DATASETS = False
+    get_ipfs_datasets_manager = None
+    logger.info("ipfs_datasets_py not available - dataset storage disabled")
+
+# Import ipfs_accelerate_py for compute acceleration
+try:
+    import sys
+    accelerate_path = Path(__file__).parent.parent / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available for VFS version tracking")
+except ImportError:
+    HAS_ACCELERATE = False
+    AccelerateCompute = None
+    logger.info("ipfs_accelerate_py not available - using default compute")
+
 # Bucket VFS integration
 try:
     from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
@@ -80,12 +105,53 @@ class VFSVersionTracker:
         self,
         vfs_root: Optional[str] = None,
         ipfs_client: Optional[Any] = None,
-        enable_auto_versioning: bool = True
+        enable_auto_versioning: bool = True,
+        enable_dataset_storage: bool = False,
+        enable_compute_layer: bool = False,
+        dataset_batch_size: int = 100
     ):
-        """Initialize VFS version tracker."""
+        """
+        Initialize VFS version tracker.
+        
+        Args:
+            vfs_root: Root directory for VFS storage
+            ipfs_client: IPFS client instance
+            enable_auto_versioning: Enable automatic versioning on changes
+            enable_dataset_storage: Enable ipfs_datasets_py integration
+            enable_compute_layer: Enable ipfs_accelerate_py compute acceleration
+            dataset_batch_size: Batch size for dataset operations
+        """
         self.vfs_root = Path(vfs_root) if vfs_root else Path.home() / ".ipfs_kit"
         self.ipfs_client = ipfs_client
         self.enable_auto_versioning = enable_auto_versioning
+        
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
+        self.dataset_batch_size = dataset_batch_size
+        self.dataset_manager = None
+        self._version_buffer = []
+        
+        # Compute layer configuration
+        self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
+        self.compute_layer = None
+        
+        # Initialize dataset manager if enabled
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
+                logger.info("VFS Version Tracker dataset storage enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
+        
+        # Initialize compute layer if enabled
+        if self.enable_compute_layer:
+            try:
+                self.compute_layer = AccelerateCompute()
+                logger.info("VFS Version Tracker compute layer enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize compute layer: {e}")
+                self.enable_compute_layer = False
         
         # VFS structure
         self.vfs_root.mkdir(parents=True, exist_ok=True)
@@ -113,6 +179,63 @@ class VFSVersionTracker:
         
         # Initialize tracker
         self._initialize_tracker()
+    
+    def __del__(self):
+        """Cleanup method to flush buffers on deletion."""
+        try:
+            self._flush_version_buffer()
+        except Exception as e:
+            logger.warning(f"Error flushing buffer during cleanup: {e}")
+    
+    def _track_version(self, version_cid: str, metadata: Optional[Dict[str, Any]] = None):
+        """Track version creation to dataset storage if enabled."""
+        if not self.enable_dataset_storage:
+            return
+        
+        version_data = {
+            "version_cid": version_cid,
+            "timestamp": time.time(),
+            "metadata": metadata or {}
+        }
+        
+        self._version_buffer.append(version_data)
+        
+        # Flush buffer if it reaches batch size
+        if len(self._version_buffer) >= self.dataset_batch_size:
+            self._flush_version_buffer()
+    
+    def _flush_version_buffer(self):
+        """Flush buffered versions to dataset storage."""
+        if not self.enable_dataset_storage or not self._version_buffer:
+            return
+        
+        try:
+            # Write versions to temp file
+            temp_file = self.vfs_root / f"versions_{int(time.time())}.json"
+            with open(temp_file, 'w') as f:
+                json.dump(self._version_buffer, f)
+            
+            # Store in dataset manager
+            # Expected interface:
+            #   - dataset_manager.is_available() -> bool
+            #   - dataset_manager.store(path, metadata={...}) -> dict
+            # See ipfs_datasets_integration.py for full interface contract
+            if self.dataset_manager and self.dataset_manager.is_available():
+                self.dataset_manager.store(temp_file, metadata={
+                    "type": "vfs_versions",
+                    "count": len(self._version_buffer),
+                    "timestamp": time.time()
+                })
+            
+            # Clear buffer
+            self._version_buffer.clear()
+            
+            # Clean up temp file
+            if temp_file.exists():
+                temp_file.unlink()
+                
+        except Exception as e:
+            logger.warning(f"Failed to flush version buffer to dataset: {e}")
     
     def _initialize_tracker(self):
         """Initialize version tracking system."""
@@ -557,6 +680,15 @@ class VFSVersionTracker:
             
             # Store version object
             await self._store_version_object(current_hash, version_entry, filesystem_state)
+            
+            # Track version in dataset
+            self._track_version(current_hash, {
+                "commit_message": commit_message,
+                "author": author,
+                "file_count": version_entry["file_count"],
+                "total_size": version_entry["total_size"],
+                "car_file_cid": car_file_cid
+            })
             
             logger.info(f"Created version snapshot: {current_hash}")
             
