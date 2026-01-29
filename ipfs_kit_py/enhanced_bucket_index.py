@@ -150,6 +150,13 @@ class EnhancedBucketIndex:
         
         logger.info(f"Enhanced Bucket Index initialized at {self.index_dir}")
     
+    def __del__(self):
+        """Cleanup method to flush buffers on deletion."""
+        try:
+            self._flush_index_buffer()
+        except Exception as e:
+            logger.warning(f"Error flushing buffer during cleanup: {e}")
+    
     def _initialize_index(self):
         """Initialize the bucket index with existing data."""
         try:

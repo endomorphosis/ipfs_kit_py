@@ -65,8 +65,9 @@ except ImportError:
 
 # Import ipfs_datasets_py integration with fallback
 try:
-    from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager
     HAS_DATASETS = True
+    logger.info("ipfs_datasets_py available for VFS version tracking")
 except ImportError:
     HAS_DATASETS = False
     get_ipfs_datasets_manager = None
@@ -81,7 +82,7 @@ try:
     
     from ipfs_accelerate_py import AccelerateCompute
     HAS_ACCELERATE = True
-    logger.info("ipfs_accelerate_py compute layer available")
+    logger.info("ipfs_accelerate_py compute layer available for VFS version tracking")
 except ImportError:
     HAS_ACCELERATE = False
     AccelerateCompute = None
@@ -179,6 +180,13 @@ class VFSVersionTracker:
         # Initialize tracker
         self._initialize_tracker()
     
+    def __del__(self):
+        """Cleanup method to flush buffers on deletion."""
+        try:
+            self._flush_version_buffer()
+        except Exception as e:
+            logger.warning(f"Error flushing buffer during cleanup: {e}")
+    
     def _track_version(self, version_cid: str, metadata: Optional[Dict[str, Any]] = None):
         """Track version creation to dataset storage if enabled."""
         if not self.enable_dataset_storage:
@@ -208,6 +216,10 @@ class VFSVersionTracker:
                 json.dump(self._version_buffer, f)
             
             # Store in dataset manager
+            # Expected interface:
+            #   - dataset_manager.is_available() -> bool
+            #   - dataset_manager.store(path, metadata={...}) -> dict
+            # See ipfs_datasets_integration.py for full interface contract
             if self.dataset_manager and self.dataset_manager.is_available():
                 self.dataset_manager.store(temp_file, metadata={
                     "type": "vfs_versions",

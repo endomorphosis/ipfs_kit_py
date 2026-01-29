@@ -55,9 +55,11 @@ except ImportError:
 try:
     from .ipfs_datasets_integration import get_ipfs_datasets_manager
     HAS_DATASETS = True
+    logger.info("ipfs_datasets_py available for arrow metadata index")
 except ImportError:
     HAS_DATASETS = False
     get_ipfs_datasets_manager = None
+    logger.info("ipfs_datasets_py not available - dataset storage disabled")
 
 # Import ipfs_accelerate_py for compute acceleration
 try:
@@ -69,9 +71,11 @@ try:
     
     from ipfs_accelerate_py import AccelerateCompute
     HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available for arrow metadata")
 except ImportError:
     HAS_ACCELERATE = False
     AccelerateCompute = None
+    logger.info("ipfs_accelerate_py not available - using default compute")
 
 # Create logger
 logger = logging.getLogger(__name__)

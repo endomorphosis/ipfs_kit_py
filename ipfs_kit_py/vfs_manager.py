@@ -191,6 +191,13 @@ class VFSManager:
         
         logger.info("VFS Manager initialized")
     
+    def __del__(self):
+        """Cleanup method to flush buffers on deletion."""
+        try:
+            self._flush_operation_buffer()
+        except Exception as e:
+            logger.warning(f"Error flushing buffer during cleanup: {e}")
+    
     async def initialize(self) -> bool:
         """
         Initialize the VFS Manager with all components.

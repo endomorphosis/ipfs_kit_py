@@ -192,6 +192,13 @@ class BucketVFSManager:
         # starting background tasks from a non-async __init__.
         
         logger.info(f"BucketVFSManager initialized at {storage_path}")
+    
+    def __del__(self):
+        """Cleanup method to flush buffers on deletion."""
+        try:
+            self._flush_operation_buffer()
+        except Exception as e:
+            logger.warning(f"Error flushing buffer during cleanup: {e}")
 
     async def _ensure_bucket_registry_loaded(self) -> None:
         if self._registry_loaded:
@@ -465,6 +472,8 @@ class BucketVFSManager:
                 )
             
             # Use compute layer for acceleration if available
+            # Expected interface: compute_layer.accelerate_query(duckdb_conn, sql_query) -> query results
+            # Falls back to standard DuckDB execution if acceleration fails
             if self.enable_compute_layer and self.compute_layer:
                 try:
                     result = await anyio.to_thread.run_sync(
