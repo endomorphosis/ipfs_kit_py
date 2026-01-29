@@ -2,9 +2,11 @@
 Test suite for comprehensive ipfs_datasets_py integrations.
 
 This tests the dataset storage capabilities added to:
-- audit_logging.py
-- log_manager.py
-- storage_wal.py
+- audit_logging.py (Phase 1)
+- log_manager.py (Phase 1)
+- storage_wal.py (Phase 1)
+- wal_telemetry.py (Phase 2)
+- mcp/monitoring/health.py (Phase 2)
 """
 
 import os
@@ -24,10 +26,74 @@ try:
     from mcp.auth.audit_logging import AuditLogger, AuditEventType
     from log_manager import LogManager
     from storage_wal import StorageWriteAheadLog, OperationType, BackendType
+    from wal_telemetry import WALTelemetry
     IMPORTS_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Could not import modules: {e}")
     IMPORTS_AVAILABLE = False
+
+
+class TestPhase2TelemetryIntegration(unittest.TestCase):
+    """Test Phase 2: WAL telemetry integration with ipfs_datasets_py."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        if not IMPORTS_AVAILABLE:
+            self.skipTest("Required imports not available")
+        self.test_dir = tempfile.mkdtemp()
+        self.metrics_path = os.path.join(self.test_dir, "telemetry")
+    
+    def tearDown(self):
+        """Clean up test fixtures."""
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+    
+    def test_wal_telemetry_without_dataset_storage(self):
+        """Test WAL telemetry works without dataset storage."""
+        telemetry = WALTelemetry(
+            wal=None,
+            metrics_path=self.metrics_path,
+            enable_dataset_storage=False,
+            operation_hooks=False
+        )
+        
+        self.assertIsNotNone(telemetry)
+        self.assertFalse(telemetry.enable_dataset_storage)
+        
+        telemetry.close()
+    
+    def test_wal_telemetry_with_dataset_storage_enabled(self):
+        """Test WAL telemetry with dataset storage option."""
+        telemetry = WALTelemetry(
+            wal=None,
+            metrics_path=self.metrics_path,
+            enable_dataset_storage=True,
+            operation_hooks=False
+        )
+        
+        # Should work even if datasets not available
+        self.assertIsNotNone(telemetry)
+        
+        telemetry.close()
+    
+    def test_flush_metrics_to_dataset(self):
+        """Test manual flush of telemetry metrics."""
+        telemetry = WALTelemetry(
+            wal=None,
+            metrics_path=self.metrics_path,
+            enable_dataset_storage=True,
+            operation_hooks=False
+        )
+        
+        # Should not raise error even if datasets unavailable
+        try:
+            telemetry.flush_metrics_to_dataset()
+            success = True
+        except Exception:
+            success = False
+        
+        self.assertTrue(success)
+        telemetry.close()
 
 
 class TestAuditLoggingIntegration(unittest.TestCase):
@@ -232,9 +298,13 @@ def run_tests():
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
     
+    # Phase 1 tests
     suite.addTests(loader.loadTestsFromTestCase(TestAuditLoggingIntegration))
     suite.addTests(loader.loadTestsFromTestCase(TestLogManagerIntegration))
     suite.addTests(loader.loadTestsFromTestCase(TestStorageWALIntegration))
+    
+    # Phase 2 tests
+    suite.addTests(loader.loadTestsFromTestCase(TestPhase2TelemetryIntegration))
     
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)

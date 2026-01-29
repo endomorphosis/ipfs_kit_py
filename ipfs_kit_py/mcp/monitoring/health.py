@@ -10,6 +10,7 @@ Key features:
 - Backend connectivity and status checks
 - Health check aggregation and reporting
 - Integration with the alerting system
+- ipfs_datasets_py integration for distributed health metrics storage
 """
 
 import os
@@ -27,6 +28,14 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 
 from ..monitoring import MonitoringManager, MetricTag, MetricType
+
+# Try to import ipfs_datasets integration
+try:
+    from ...ipfs_datasets_integration import get_ipfs_datasets_manager, IPFS_DATASETS_AVAILABLE
+except ImportError:
+    IPFS_DATASETS_AVAILABLE = False
+    def get_ipfs_datasets_manager(*args, **kwargs):
+        return None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -78,6 +87,8 @@ class HealthCheckManager:
         self,
         monitoring_manager: MonitoringManager,
         backend_registry: Optional[Dict[str, Any]] = None,
+        enable_dataset_storage: bool = False,
+        ipfs_client=None,
     ):
         """
         Initialize the health check manager.
@@ -85,6 +96,8 @@ class HealthCheckManager:
         Args:
             monitoring_manager: MCP monitoring manager
             backend_registry: Optional backend registry
+            enable_dataset_storage: Enable ipfs_datasets_py for distributed health metrics
+            ipfs_client: Optional IPFS client for dataset storage
         """
         self.monitoring = monitoring_manager
         self.backend_registry = backend_registry or {}
@@ -109,6 +122,27 @@ class HealthCheckManager:
         # Background thread for health checking
         self.check_thread = None
         self.running = False
+        
+        # Initialize ipfs_datasets integration if requested
+        self.enable_dataset_storage = enable_dataset_storage and IPFS_DATASETS_AVAILABLE
+        self.datasets_manager = None
+        self.health_checks_since_last_store = 0
+        self.health_check_batch_size = 50  # Store every N health checks
+        
+        if self.enable_dataset_storage:
+            try:
+                self.datasets_manager = get_ipfs_datasets_manager(
+                    ipfs_client=ipfs_client,
+                    enable=True
+                )
+                if self.datasets_manager and self.datasets_manager.is_available():
+                    logger.info("ipfs_datasets_py integration enabled for health monitoring")
+                else:
+                    logger.info("ipfs_datasets_py not available, using local-only health monitoring")
+                    self.enable_dataset_storage = False
+            except Exception as e:
+                logger.warning(f"Failed to initialize ipfs_datasets for health monitoring: {e}")
+                self.enable_dataset_storage = False
         
         # Register standard metrics
         self._register_metrics()
@@ -646,6 +680,13 @@ class HealthCheckManager:
                 # Update overall status
                 self._update_overall_status()
                 
+                # Store to dataset if enabled
+                if self.enable_dataset_storage:
+                    self.health_checks_since_last_store += 1
+                    if self.health_checks_since_last_store >= self.health_check_batch_size:
+                        self._store_health_results_to_dataset()
+                        self.health_checks_since_last_store = 0
+                
                 return result
             
             except Exception as e:
@@ -842,11 +883,92 @@ class HealthCheckManager:
     
     def stop(self) -> None:
         """Stop background health checking."""
+        # Store health results to dataset if enabled
+        if self.enable_dataset_storage:
+            self._store_health_results_to_dataset()
+        
         self.running = False
         
         if self.check_thread:
             self.check_thread.join(timeout=5.0)
             logger.info("Stopped health check monitoring")
+    
+    def _store_health_results_to_dataset(self):
+        """Store health check results as a dataset using ipfs_datasets_py."""
+        if not self.datasets_manager:
+            return
+        
+        try:
+            import tempfile
+            
+            # Prepare health results for storage
+            results_data = {
+                "timestamp": datetime.now().isoformat(),
+                "overall_status": self.overall_status.value,
+                "checks": {},
+                "history": {}
+            }
+            
+            # Add current results
+            for check_id, result in self.results.items():
+                results_data["checks"][check_id] = {
+                    "check_id": result.check_id,
+                    "status": result.status.value,
+                    "timestamp": result.timestamp.isoformat(),
+                    "details": result.details,
+                    "duration_ms": result.duration_ms,
+                    "error": result.error
+                }
+            
+            # Add recent history
+            for check_id, history_list in self.history.items():
+                results_data["history"][check_id] = [
+                    {
+                        "status": r.status.value,
+                        "timestamp": r.timestamp.isoformat(),
+                        "duration_ms": r.duration_ms,
+                        "error": r.error
+                    }
+                    for r in history_list[-10:]  # Last 10 results
+                ]
+            
+            # Write to temporary JSON file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                json.dump(results_data, f, default=str)
+                temp_path = f.name
+            
+            # Store as dataset
+            metadata = {
+                "type": "health_check_results",
+                "timestamp": datetime.now().isoformat(),
+                "check_count": len(self.checks),
+                "overall_status": self.overall_status.value
+            }
+            
+            result = self.datasets_manager.store(
+                temp_path,
+                metadata=metadata
+            )
+            
+            # Clean up temp file
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
+            
+            if result.get("success"):
+                logger.debug(f"Stored health check results to dataset: {result.get('cid')}")
+            else:
+                logger.warning(f"Failed to store health check results to dataset: {result.get('error')}")
+                
+        except Exception as e:
+            logger.error(f"Error storing health check results to dataset: {e}")
+    
+    def flush_health_results_to_dataset(self):
+        """Manually flush current health check results to dataset storage."""
+        if self.enable_dataset_storage:
+            self._store_health_results_to_dataset()
+            self.health_checks_since_last_store = 0
     
     def _check_loop(self, initial_delay: int) -> None:
         """
