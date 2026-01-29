@@ -619,10 +619,14 @@ class JournalHealthMonitor:
         return False
     
     def stop(self):
-        """Stop monitoring."""
+        """Stop monitoring and flush pending stats."""
         self._stop_monitor = True
         if self._monitor_thread:
             self._monitor_thread.join(timeout=2)
+        
+        # Flush any pending stats before stopping
+        self._flush_stats_to_dataset()
+        
         logger.info("Journal health monitor stopped")
 
 

@@ -1357,6 +1357,9 @@ class MetadataReplicationManager:
             if self._checkpoint_thread and self._checkpoint_thread.is_alive():
                 self._checkpoint_thread.join(timeout=2.0)
             
+            # Flush any pending operations before saving state
+            self._flush_operations_to_dataset()
+            
             # Save state before closing
             self._save_state()
             

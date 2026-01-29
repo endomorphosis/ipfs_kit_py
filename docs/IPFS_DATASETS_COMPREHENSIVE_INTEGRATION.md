@@ -188,6 +188,9 @@ health_mgr.flush_health_results_to_dataset()
   # Stats automatically stored in batches
   # Manual flush
   monitor.flush_to_dataset()
+  
+  # Stop monitoring properly
+  monitor.stop()
   ```
 
 #### 7. Filesystem Journal Replication (`fs_journal_replication.py`)
@@ -215,6 +218,9 @@ health_mgr.flush_health_results_to_dataset()
   # Replication operations automatically tracked
   # Manual flush
   manager.flush_to_dataset()
+  
+  # Stop and cleanup properly
+  manager.close()
   ```
 
 ### 📋 Phase 4: MCP Handlers (DEFERRED)

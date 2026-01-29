@@ -614,6 +614,9 @@ class LifecycleManager:
         # Stop background tasks
         self._stop_background_tasks()
         
+        # Flush any pending operations before saving metadata
+        self._flush_operations_to_dataset()
+        
         # Save metadata
         self._save_metadata()
         

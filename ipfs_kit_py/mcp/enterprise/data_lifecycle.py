@@ -527,6 +527,9 @@ class DataLifecycleManager:
                 self._scheduler_thread.join(timeout=5)
                 self._scheduler_thread = None
         
+        # Flush any pending events before stopping
+        self._flush_events_to_dataset()
+        
         logger.info("Data lifecycle manager stopped")
     
     def add_retention_policy(self, policy: RetentionPolicy) -> str:

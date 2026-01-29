@@ -2,11 +2,22 @@
 Test suite for comprehensive ipfs_datasets_py integrations.
 
 This tests the dataset storage capabilities added to:
-- audit_logging.py (Phase 1)
-- log_manager.py (Phase 1)
-- storage_wal.py (Phase 1)
-- wal_telemetry.py (Phase 2)
-- mcp/monitoring/health.py (Phase 2)
+Phase 1:
+- audit_logging.py
+- log_manager.py
+- storage_wal.py
+
+Phase 2:
+- wal_telemetry.py
+- mcp/monitoring/health.py
+
+Phase 3:
+- fs_journal_monitor.py
+- fs_journal_replication.py
+
+Phase 5:
+- mcp/enterprise/lifecycle.py
+- mcp/enterprise/data_lifecycle.py
 """
 
 import os
@@ -339,8 +350,8 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
             self.assertIsInstance(stats, dict)
             self.assertIn("timestamp", stats)
             
-            # Stop monitoring
-            monitor._stop_monitor = True
+            # Stop monitoring properly
+            monitor.stop()
             
         except ImportError:
             self.skipTest("fs_journal_monitor not available")
@@ -374,8 +385,8 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
             # Manual flush should not raise error
             monitor.flush_to_dataset()
             
-            # Stop monitoring
-            monitor._stop_monitor = True
+            # Stop monitoring properly
+            monitor.stop()
             
         except ImportError:
             self.skipTest("fs_journal_monitor not available")
@@ -408,8 +419,8 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
                 # If it fails, that's also okay for this test
                 pass
             
-            # Stop threads
-            manager._stop_threads.set()
+            # Stop threads properly
+            manager.close()
             
         except ImportError:
             self.skipTest("fs_journal_replication not available")
@@ -439,8 +450,8 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
             # Manual flush should not raise error
             manager.flush_to_dataset()
             
-            # Stop threads
-            manager._stop_threads.set()
+            # Stop threads properly
+            manager.close()
             
         except ImportError:
             self.skipTest("fs_journal_replication not available")
