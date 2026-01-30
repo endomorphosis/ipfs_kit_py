@@ -214,7 +214,7 @@ ipfs-kit mcp deprecations \
   --fail-if-missing-migration
 ```
 
-Key properties of the report (see `schemas/deprecations_report.schema.json`):
+Key properties of the report (see `data/deprecations_report.schema.json`):
 * `generated_at` – UTC timestamp
 * `report_version` – Semantic schema contract (currently `1.0.0`)
 * `deprecated[]` – Filtered/sorted endpoints (after flags)
