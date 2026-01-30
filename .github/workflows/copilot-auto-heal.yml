@@ -38,10 +38,12 @@ jobs:
         sudo apt install gh -y
         gh --version
         
-        # Initialize GitHub CLI caching
+        # Initialize GitHub CLI caching with P2P and IPFS support
         source .github/scripts/gh_cache_wrapper.sh
         export GH_CACHE_ENABLED=1
-        echo "✅ GitHub CLI caching initialized"
+        export GH_CACHE_IPFS=1
+        export GH_CACHE_P2P=1
+        echo "✅ GitHub CLI caching initialized (P2P + IPFS)"
     
     - name: Parse issue details
       id: parse

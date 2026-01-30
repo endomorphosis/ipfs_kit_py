@@ -113,15 +113,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install PyYAML requests PyGithub
       
-      - name: Initialize GitHub CLI caching
+      - name: Initialize GitHub CLI caching with P2P support
         run: |
-          # Enable GitHub CLI caching to reduce API calls
+          # Enable GitHub CLI caching with P2P and IPFS to reduce API calls
           source .github/scripts/gh_cache_wrapper.sh
           export GH_CACHE_ENABLED=1
+          export GH_CACHE_IPFS=1
+          export GH_CACHE_P2P=1
           export GH_CACHE_DEBUG=0
           
-          echo "✅ GitHub CLI caching initialized" >> $GITHUB_STEP_SUMMARY
+          echo "✅ GitHub CLI caching initialized (P2P + IPFS)" >> $GITHUB_STEP_SUMMARY
           echo "   Cache Dir: $GH_CACHE_DIR" >> $GITHUB_STEP_SUMMARY
+          echo "   IPFS: Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "   P2P Cache Sharing: Enabled" >> $GITHUB_STEP_SUMMARY
       
       - name: Get workflow run details
         id: get_run_details
