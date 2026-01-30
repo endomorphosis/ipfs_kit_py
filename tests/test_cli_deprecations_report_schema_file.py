@@ -6,7 +6,7 @@ import sys
 # We avoid external dependencies; perform lightweight schema validation manually.
 # If jsonschema library becomes available in project context, this test can be upgraded.
 
-SCHEMA_PATH = Path(__file__).parent / 'schemas' / 'deprecations_report.schema.json'
+SCHEMA_PATH = Path(__file__).parent.parent / 'data' / 'deprecations_report.schema.json'
 
 
 def load_schema():
