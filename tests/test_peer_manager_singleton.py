@@ -82,9 +82,9 @@ async def test_mcp_handlers():
     """Test that MCP handlers use the singleton."""
     print("\nTesting MCP peer handlers...")
     
-    from mcp_handlers.get_peers_handler import GetPeersHandler
-    from mcp_handlers.connect_peer_handler import ConnectPeerHandler
-    from mcp_handlers.get_peer_stats_handler import GetPeerStatsHandler
+    from ipfs_kit_py.mcp.handlers.get_peers_handler import GetPeersHandler
+    from ipfs_kit_py.mcp.handlers.connect_peer_handler import ConnectPeerHandler
+    from ipfs_kit_py.mcp.handlers.get_peer_stats_handler import GetPeerStatsHandler
     
     import tempfile
     ipfs_kit_dir = Path(tempfile.mkdtemp())

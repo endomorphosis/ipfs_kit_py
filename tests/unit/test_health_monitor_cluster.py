@@ -13,7 +13,7 @@ async def test_health_monitor():
     """Test the health monitor cluster status."""
     
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         config_dir = Path("/tmp/test_health_config")
         config_dir.mkdir(parents=True, exist_ok=True)

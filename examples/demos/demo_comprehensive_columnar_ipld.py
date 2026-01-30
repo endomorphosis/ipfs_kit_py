@@ -129,8 +129,8 @@ class ColumnarIPLDDemo:
     
     def __init__(self):
         """Initialize the demo environment."""
-        self.demo_data_dir = Path("demo_columnar_ipld_data")
-        self.demo_data_dir.mkdir(exist_ok=True)
+        self.demo_data_dir = Path("examples/data/columnar_ipld_data")
+        self.demo_data_dir.mkdir(parents=True, exist_ok=True)
         
         # Component instances
         self.car_bridge = None

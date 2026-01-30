@@ -56,7 +56,7 @@ async def demo_vfs_dashboard_integration():
     
     try:
         # Import the enhanced dashboard controller
-        from mcp.ipfs_kit.api.enhanced_dashboard_api import (
+        from ipfs_kit_py.mcp.ipfs_kit.api.enhanced_dashboard_api import (
             DashboardController,
             VirtualFilesystemRequest,
             VectorIndexRequest,

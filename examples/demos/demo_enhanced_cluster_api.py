@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Import cluster configuration API
 try:
-    from mcp.ipfs_kit.api.cluster_config_api import cluster_config_api, CLUSTER_CONFIG_TOOLS, handle_cluster_config_tool
+    from ipfs_kit_py.mcp.ipfs_kit.api.cluster_config_api import cluster_config_api, CLUSTER_CONFIG_TOOLS, handle_cluster_config_tool
     from ipfs_kit_py.ipfs_cluster_daemon_manager import IPFSClusterConfig
     from ipfs_kit_py.ipfs_cluster_follow import ipfs_cluster_follow
     print("✅ Successfully imported cluster configuration modules")
@@ -44,7 +44,7 @@ async def demo_cluster_service_config():
     # Create cluster service configuration
     print("\n1. Creating IPFS Cluster service configuration...")
     create_result = await cluster_config_api.cluster_service_config_create(
-        cluster_path="./demo_cluster_service",
+        cluster_path="./examples/data/cluster_service",
         overwrite=True,
         custom_settings={
             "cluster": {
@@ -61,7 +61,7 @@ async def demo_cluster_service_config():
     
     if create_result["success"]:
         print("✅ Cluster service configuration created successfully")
-        print(f"   - Config directory: ./demo_cluster_service")
+        print(f"   - Config directory: ./examples/data/cluster_service")
         print(f"   - Identity created: {create_result['identity_created']}")
         print(f"   - Service config created: {create_result['config_created']}")
         print(f"   - Peer ID: {create_result['identity_config'].get('id', 'N/A')[:20]}...")
@@ -72,7 +72,7 @@ async def demo_cluster_service_config():
     # Get cluster service configuration
     print("\n2. Retrieving cluster service configuration...")
     get_result = await cluster_config_api.cluster_service_config_get(
-        cluster_path="./demo_cluster_service"
+        cluster_path="./examples/data/cluster_service"
     )
     
     if get_result["success"]:
@@ -98,7 +98,7 @@ async def demo_cluster_service_config():
                 }
             }
         },
-        cluster_path="./demo_cluster_service"
+        cluster_path="./examples/data/cluster_service"
     )
     
     if update_result["success"]:
@@ -122,7 +122,7 @@ async def demo_cluster_follow_config():
     create_result = await cluster_config_api.cluster_follow_config_create(
         cluster_name="demo-cluster",
         bootstrap_peer="/ip4/127.0.0.1/tcp/9096/p2p/12D3KooWExample",
-        cluster_path="./demo_cluster_follow",
+        cluster_path="./examples/data/cluster_follow",
         overwrite=True,
         custom_settings={
             "cluster": {
@@ -138,7 +138,7 @@ async def demo_cluster_follow_config():
     
     if create_result["success"]:
         print("✅ Cluster follow configuration created successfully")
-        print(f"   - Config directory: ./demo_cluster_follow")
+        print(f"   - Config directory: ./examples/data/cluster_follow")
         print(f"   - Cluster name: {create_result['service_config'].get('cluster_name', 'N/A')}")
         print(f"   - Identity created: {create_result['identity_created']}")
         print(f"   - Service config created: {create_result['config_created']}")
@@ -151,7 +151,7 @@ async def demo_cluster_follow_config():
     print("\n2. Retrieving cluster follow configuration...")
     get_result = await cluster_config_api.cluster_follow_config_get(
         cluster_name="demo-cluster",
-        cluster_path="./demo_cluster_follow"
+        cluster_path="./examples/data/cluster_follow"
     )
     
     if get_result["success"]:
@@ -178,7 +178,7 @@ async def demo_cluster_follow_config():
                 }
             }
         },
-        cluster_path="./demo_cluster_follow"
+        cluster_path="./examples/data/cluster_follow"
     )
     
     if update_result["success"]:
@@ -207,7 +207,7 @@ async def demo_mcp_api_integration():
     # Test MCP tool handler
     print("\n3. Testing MCP tool handler...")
     test_args = {
-        "cluster_path": "./demo_cluster_service"
+        "cluster_path": "./examples/data/cluster_service"
     }
     
     mcp_result = await handle_cluster_config_tool("cluster_service_config_get", test_args)
@@ -233,7 +233,7 @@ async def demo_network_connectivity():
     connect_result = await cluster_config_api.connect_to_networked_cluster(
         remote_host="127.0.0.1",
         remote_port=9094,
-        cluster_path="./demo_cluster_service"
+        cluster_path="./examples/data/cluster_service"
     )
     
     if connect_result["success"]:
@@ -253,7 +253,7 @@ async def demo_network_connectivity():
         cluster_name="demo-cluster",
         leader_host="127.0.0.1",
         leader_port=9094,
-        cluster_path="./demo_cluster_follow"
+        cluster_path="./examples/data/cluster_follow"
     )
     
     if follow_connect_result["success"]:
@@ -272,7 +272,7 @@ async def demo_configuration_files():
     print("="*60)
     
     # Show cluster service files
-    service_dir = Path("./demo_cluster_service")
+    service_dir = Path("./examples/data/cluster_service")
     if service_dir.exists():
         print(f"\n1. Cluster Service Files ({service_dir}):")
         for file_path in service_dir.glob("*.json"):
@@ -286,7 +286,7 @@ async def demo_configuration_files():
                     print(f"      Error reading: {e}")
     
     # Show cluster follow files  
-    follow_dir = Path("./demo_cluster_follow")
+    follow_dir = Path("./examples/data/cluster_follow")
     if follow_dir.exists():
         print(f"\n2. Cluster Follow Files ({follow_dir}):")
         for file_path in follow_dir.glob("*.json"):

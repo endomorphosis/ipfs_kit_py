@@ -19,7 +19,7 @@ from pathlib import Path
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from mcp.dashboard.refactored_unified_mcp_dashboard import RefactoredUnifiedMCPDashboard
+from ipfs_kit_py.mcp.servers.dashboard.refactored_unified_mcp_dashboard import RefactoredUnifiedMCPDashboard
 
 
 def print_header(text):

@@ -1,0 +1,18 @@
+{
+  "name": "tests/e2e/playwright",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+  "test": "BASE_URL=${BASE_URL:-http://127.0.0.1:8004} npx playwright test",
+  "test:headed": "BASE_URL=${BASE_URL:-http://127.0.0.1:8004} npx playwright test --headed",
+  "test:ui": "BASE_URL=${BASE_URL:-http://127.0.0.1:8004} npx playwright test --ui"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@playwright/test": "^1.54.1",
+    "playwright": "^1.54.1"
+  }
+}

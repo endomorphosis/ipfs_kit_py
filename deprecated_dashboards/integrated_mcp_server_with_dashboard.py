@@ -68,7 +68,7 @@ except ImportError as e:
 
 # Import backend health monitor
 try:
-    from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+    from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
     BACKEND_HEALTH_AVAILABLE = True
     logger.info("✓ Backend health monitor imported successfully")
 except ImportError as e:

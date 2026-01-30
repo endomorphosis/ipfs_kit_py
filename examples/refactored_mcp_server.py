@@ -70,8 +70,8 @@ except ImportError as e:
 
 # Import MCP components
 try:
-    from mcp.ipfs_kit.api.vfs_endpoints import VFSEndpoints
-    from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+    from ipfs_kit_py.mcp.ipfs_kit.api.vfs_endpoints import VFSEndpoints
+    from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
     VFS_ENDPOINTS_AVAILABLE = True
     logger.info("✓ VFS endpoints available")
 except ImportError as e:

@@ -24,10 +24,10 @@ async def test_mcp_atomic_operations():
     
     try:
         # Import MCP server components
-        from ipfs_kit_py.mcp_server.models.mcp_config_manager import get_mcp_config_manager
-        from ipfs_kit_py.mcp_server.models.mcp_metadata_manager import MCPMetadataManager
-        from ipfs_kit_py.mcp_server.services.mcp_daemon_service import MCPDaemonService
-        from ipfs_kit_py.mcp_server.server import MCPServer, MCPServerConfig
+        from ipfs_kit_py.mcp.server.models.mcp_config_manager import get_mcp_config_manager
+        from ipfs_kit_py.mcp.server.models.mcp_metadata_manager import MCPMetadataManager
+        from ipfs_kit_py.mcp.server.services.mcp_daemon_service import MCPDaemonService
+        from ipfs_kit_py.mcp.server.server import MCPServer, MCPServerConfig
         
         print("✅ All MCP server components imported successfully")
         

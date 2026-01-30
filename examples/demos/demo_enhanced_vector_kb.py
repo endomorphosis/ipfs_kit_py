@@ -26,7 +26,7 @@ async def demo_enhanced_vector_kb():
     print("=" * 60)
     
     # Import the endpoints
-    from mcp.ipfs_kit.api.vector_kb_endpoints import VectorKBEndpoints
+    from ipfs_kit_py.mcp.ipfs_kit.api.vector_kb_endpoints import VectorKBEndpoints
     
     # Initialize the endpoints
     endpoints = VectorKBEndpoints()

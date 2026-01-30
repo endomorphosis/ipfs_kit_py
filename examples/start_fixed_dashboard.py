@@ -24,7 +24,7 @@ USAGE:
 
 import logging
 import uvicorn
-from mcp.integrated_mcp_server_with_dashboard import IntegratedMCPDashboardServer
+from ipfs_kit_py.mcp.servers.integrated_mcp_server_with_dashboard import IntegratedMCPDashboardServer
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

@@ -8,8 +8,8 @@ sys.path.insert(0, os.path.abspath('.'))
 print("Testing modular server tool count...")
 
 try:
-    from mcp.ipfs_kit.mcp_tools.tool_manager import MCPToolManager
-    from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+    from ipfs_kit_py.mcp.ipfs_kit.mcp_tools.tool_manager import MCPToolManager
+    from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
     print("✓ MCP Tool Manager imported")
     
     # Create backend monitor

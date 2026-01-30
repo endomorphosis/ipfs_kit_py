@@ -201,7 +201,7 @@ class UnifiedIntegrationDemo:
         
         try:
             # Import MCP health monitor
-            from mcp.ipfs_kit.backends.health_monitor import (
+            from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import (
                 get_health_status,
                 get_enhanced_metrics,
                 ENHANCED_PIN_INDEX_AVAILABLE

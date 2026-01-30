@@ -46,7 +46,7 @@ class TestImportPathsValidation(unittest.TestCase):
         """Test that MCP wrappers import from main package"""
         try:
             # Import wrapper
-            from mcp.ipfs_kit.tools import ipfs_core_tools_wrapper
+            from ipfs_kit_py.mcp.ipfs_kit.tools import ipfs_core_tools_wrapper
             
             # Verify it has the same attributes as the main module
             from ipfs_kit_py.tools import ipfs_core_tools

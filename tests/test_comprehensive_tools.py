@@ -21,7 +21,7 @@ async def test_tool_categories():
     try:
         print("=== Comprehensive Tool Testing ===")
         
-        from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
         server = EnhancedMCPServerWithDaemonMgmt()
         
         # Test samples from each category
@@ -96,7 +96,7 @@ async def test_mcp_protocol():
     try:
         print("\n=== MCP Protocol Testing ===")
         
-        from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
         server = EnhancedMCPServerWithDaemonMgmt()
         
         # Test protocol handlers

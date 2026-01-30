@@ -134,7 +134,7 @@ async def test_enhanced_libp2p():
         print("\\n🏥 Test 6: Testing Health Integration...")
         
         # Import health monitor
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         config_dir = Path("/tmp/ipfs_kit_test_config")
         config_dir.mkdir(parents=True, exist_ok=True)

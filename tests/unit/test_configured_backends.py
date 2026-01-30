@@ -19,7 +19,7 @@ async def test_s3_backend():
     logger.info("🗄️ Testing S3 Backend Integration...")
     
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         health_monitor = BackendHealthMonitor()
         
@@ -52,7 +52,7 @@ async def test_huggingface_backend():
     logger.info("🤗 Testing HuggingFace Backend Integration...")
     
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         health_monitor = BackendHealthMonitor()
         
@@ -85,7 +85,7 @@ async def test_consolidated_with_real_backends():
     logger.info("📊 Testing Consolidated Storage with Real Backend Data...")
     
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         health_monitor = BackendHealthMonitor()
         

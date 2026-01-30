@@ -4,7 +4,7 @@ Test IPFS health check functionality.
 """
 
 import anyio
-from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
 import pytest
 
 pytestmark = pytest.mark.anyio

@@ -18,7 +18,23 @@ from .monitoring import ClusterMonitor, MetricsCollector
 from .role_manager import NodeRole, RoleManager, role_capabilities
 from .utils import get_gpu_info
 
+
+# Daemon management with cluster capabilities
+from .enhanced_daemon_manager_with_cluster import (
+    EnhancedDaemonManager,
+    NodeRole as DaemonNodeRole,
+    PeerInfo as DaemonPeerInfo,
+    LeaderElection,
+    ReplicationManager,
+    IndexingService,
+)
+
+# Practical cluster setup utilities
+# Note: practical_cluster_setup is primarily a script, 
+# import it directly if needed: from ipfs_kit_py.cluster import practical_cluster_setup
+
 __all__ = [
+    # Existing cluster management
     "NodeRole",
     "RoleManager",
     "role_capabilities",
@@ -28,4 +44,11 @@ __all__ = [
     "MetricsCollector",
     "ClusterManager",
     "get_gpu_info",
+    # Daemon management with cluster
+    "EnhancedDaemonManager",
+    "DaemonNodeRole",
+    "DaemonPeerInfo",
+    "LeaderElection",
+    "ReplicationManager",
+    "IndexingService",
 ]
