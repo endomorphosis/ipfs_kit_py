@@ -10,7 +10,7 @@ import logging
 
 sys.path.insert(0, os.path.abspath('.'))
 
-from mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
+from ipfs_kit_py.mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
 
 def main():
     """Main entry point for modular server with enhanced features."""

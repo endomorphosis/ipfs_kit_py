@@ -16,7 +16,7 @@ import tempfile
 import os
 
 # Import the cluster configuration API
-from mcp.ipfs_kit.api.cluster_config_api import cluster_config_api, handle_cluster_config_tool
+from ipfs_kit_py.mcp.ipfs_kit.api.cluster_config_api import cluster_config_api, handle_cluster_config_tool
 
 
 async def demo_cluster_service_config():

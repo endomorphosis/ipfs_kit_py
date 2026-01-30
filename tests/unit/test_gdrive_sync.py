@@ -3,7 +3,7 @@
 Synchronous test script to show Google Drive integration status.
 """
 
-from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
 
 
 def main():

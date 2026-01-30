@@ -19,7 +19,7 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
 # Import the backend health monitor
-from mcp.ipfs_kit.backends import BackendHealthMonitor
+from ipfs_kit_py.mcp.ipfs_kit.backends import BackendHealthMonitor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

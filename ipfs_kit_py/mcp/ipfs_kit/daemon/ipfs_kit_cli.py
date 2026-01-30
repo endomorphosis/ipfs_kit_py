@@ -18,7 +18,7 @@ from typing import Dict, Any
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 # Import daemon client
-from mcp.ipfs_kit.daemon.daemon_client import IPFSKitDaemonClient, ensure_daemon_running
+from ipfs_kit_py.mcp.ipfs_kit.daemon.daemon_client import IPFSKitDaemonClient, ensure_daemon_running
 
 class IPFSKitCLI:
     """

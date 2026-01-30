@@ -4,7 +4,7 @@ Start the Enhanced MCP Server with Peer Management
 """
 import anyio
 import uvicorn
-from mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
+from ipfs_kit_py.mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
 
 
 async def main():

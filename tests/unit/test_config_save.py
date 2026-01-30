@@ -11,7 +11,7 @@ import sys
 # Add the project root to the path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from mcp.ipfs_kit.backends import BackendHealthMonitor
+from ipfs_kit_py.mcp.ipfs_kit.backends import BackendHealthMonitor
 
 pytestmark = pytest.mark.anyio
 

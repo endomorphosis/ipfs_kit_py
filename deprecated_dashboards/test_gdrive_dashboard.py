@@ -5,7 +5,7 @@ Test script to demonstrate Google Drive integration in the IPFS Kit dashboard.
 
 import anyio
 import json
-from mcp.ipfs_kit.backends import BackendHealthMonitor
+from ipfs_kit_py.mcp.ipfs_kit.backends import BackendHealthMonitor
 
 
 async def main():

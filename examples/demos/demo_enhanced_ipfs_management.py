@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 # Add project path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from mcp.ipfs_kit.core.daemon_manager import get_daemon_manager
-from mcp.ipfs_kit.core.content_optimization import get_content_optimizer
+from ipfs_kit_py.mcp.ipfs_kit.core.daemon_manager import get_daemon_manager
+from ipfs_kit_py.mcp.ipfs_kit.core.content_optimization import get_content_optimizer
 
 
 async def demonstrate_enhanced_ipfs_management():
