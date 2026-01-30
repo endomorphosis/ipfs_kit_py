@@ -38,10 +38,8 @@ import signal
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-# Add current directory to path
-sys.path.insert(0, os.path.dirname(__file__))
-
-from enhanced_daemon_manager_with_cluster import (
+# Import from ipfs_kit_py.cluster
+from ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster import (
     EnhancedDaemonManager,
     NodeRole,
     PeerInfo,

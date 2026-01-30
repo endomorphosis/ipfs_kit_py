@@ -32,8 +32,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 # Import existing daemon manager
-sys.path.append(os.path.join(os.path.dirname(__file__), "scripts", "daemon"))
-from daemon_manager import DaemonManager as BaseDaemonManager, DaemonTypes
+from ipfs_kit_py.mcp.ipfs_kit.core.daemon_manager import DaemonManager as BaseDaemonManager, DaemonTypes
 
 # Configure comprehensive logging
 logging.basicConfig(
