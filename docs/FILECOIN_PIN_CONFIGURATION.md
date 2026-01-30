@@ -335,7 +335,7 @@ services:
 ## Kubernetes Configuration
 
 ```yaml
-# k8s/filecoin-pin-config.yaml
+# deployments/k8s/filecoin-pin-config.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
