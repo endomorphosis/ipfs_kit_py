@@ -298,42 +298,40 @@ jobs:
           PROPOSAL_JSON=$(cat /tmp/fix-proposal.json)
           
           # Extract recommendations
-          RECOMMENDATIONS=$(echo "$ANALYSIS_JSON" | jq -r '.recommendations | join("\n- ")' || echo "None")
+          RECOMMENDATIONS=$(echo "$ANALYSIS_JSON" | jq -r '.recommendations | join(", ")' || echo "None")
           HEAD_BRANCH="${{ steps.get_run_details.outputs.head_branch }}"
           HEAD_SHA="${{ steps.get_run_details.outputs.head_sha }}"
           REPO="${{ github.repository }}"
           
-          # Create issue body with proper escaping
-          cat > /tmp/issue.md << ISSUE_EOF
-# Workflow Failure: ${WORKFLOW_NAME}
-
-## Summary
-Workflow **${WORKFLOW_NAME}** failed with run ID: **${RUN_ID}**
-
-## Failure Details
-- **Error Type**: ${ERROR_TYPE}
-- **Root Cause**: ${ROOT_CAUSE}
-- **Fix Confidence**: ${CONFIDENCE}%
-- **Branch**: ${HEAD_BRANCH}
-- **SHA**: ${HEAD_SHA}
-
-## Auto-Fix Analysis
-This failure has been automatically analyzed. A fix proposal will be generated.
-
-### Recommendations
-${RECOMMENDATIONS}
-
-## Links
-- **Workflow Run**: https://github.com/${REPO}/actions/runs/${RUN_ID}
-- **Workflow File**: \`.github/workflows/\` (see analysis)
-
----
-
-*This issue was automatically created by the auto-healing system.*
-*A draft PR with proposed fixes will be created shortly.*
-
-Run ID: ${RUN_ID}
-ISSUE_EOF
+          # Create issue body without markdown bold to avoid YAML parsing issues
+          echo "# Workflow Failure: ${WORKFLOW_NAME}" > /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "## Summary" >> /tmp/issue.md
+          echo "Workflow \"${WORKFLOW_NAME}\" failed with run ID: ${RUN_ID}" >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "## Failure Details" >> /tmp/issue.md
+          echo "- Error Type: ${ERROR_TYPE}" >> /tmp/issue.md
+          echo "- Root Cause: ${ROOT_CAUSE}" >> /tmp/issue.md
+          echo "- Fix Confidence: ${CONFIDENCE}%" >> /tmp/issue.md
+          echo "- Branch: ${HEAD_BRANCH}" >> /tmp/issue.md
+          echo "- SHA: ${HEAD_SHA}" >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "## Auto-Fix Analysis" >> /tmp/issue.md
+          echo "This failure has been automatically analyzed." >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "### Recommendations" >> /tmp/issue.md
+          echo "${RECOMMENDATIONS}" >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "## Links" >> /tmp/issue.md
+          echo "- Workflow Run: https://github.com/${REPO}/actions/runs/${RUN_ID}" >> /tmp/issue.md
+          echo "- Workflow File: .github/workflows/" >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "---" >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "This issue was automatically created by the auto-healing system." >> /tmp/issue.md
+          echo "A draft PR with proposed fixes will be created shortly." >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "Run ID: ${RUN_ID}" >> /tmp/issue.md
           
           # Create issue
           ISSUE_NUMBER=$(gh issue create \
@@ -389,18 +387,16 @@ ISSUE_EOF
           # Read proposal for PR body
           PR_DESCRIPTION=$(jq -r '.pr_description' /tmp/fix-proposal.json)
           
-          # Add link to issue
-          PR_BODY="Fixes #${ISSUE_NUMBER}
-
-$PR_DESCRIPTION
-
----
-
-**@copilot** Please analyze this workflow failure and implement the proposed fix as described above.
-
-Run ID: $RUN_ID"
-          
-          echo "$PR_BODY" > /tmp/pr_body.md
+          # Create PR body file
+          echo "Fixes #${ISSUE_NUMBER}" > /tmp/pr_body.md
+          echo "" >> /tmp/pr_body.md
+          echo "$PR_DESCRIPTION" >> /tmp/pr_body.md
+          echo "" >> /tmp/pr_body.md
+          echo "---" >> /tmp/pr_body.md
+          echo "" >> /tmp/pr_body.md
+          echo "@copilot Please analyze this workflow failure and implement the proposed fix as described above." >> /tmp/pr_body.md
+          echo "" >> /tmp/pr_body.md
+          echo "Run ID: $RUN_ID" >> /tmp/pr_body.md
           
           # Create a placeholder commit
           echo "# Auto-fix for workflow failure" > .github/autofix-placeholder.md
