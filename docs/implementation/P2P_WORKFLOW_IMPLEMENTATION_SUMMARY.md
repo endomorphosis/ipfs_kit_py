@@ -115,7 +115,7 @@ The original requirement was to:
 
 **Integration**: Tool definitions exported as `MCP_TOOLS` for easy registration
 
-#### 5. CLI Commands (`cli/p2p_workflow_cli.py`)
+#### 5. CLI Commands (`ipfs_kit_py/cli/p2p_workflow_cli.py`)
 
 **Purpose**: Command-line interface for P2P workflow management.
 

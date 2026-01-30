@@ -26,7 +26,8 @@ import anyio
 from pathlib import Path
 
 # Add ipfs_kit_py to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add project root to path (now in ipfs_kit_py/cli/)
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     from ipfs_kit_py.enhanced_pin_index import (

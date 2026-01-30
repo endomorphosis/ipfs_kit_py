@@ -40,8 +40,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Add project root to path
-project_root = str(Path(__file__).parent)
+# Add project root to path (now in ipfs_kit_py/cli/)
+project_root = str(Path(__file__).parent.parent)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 

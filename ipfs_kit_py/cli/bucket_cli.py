@@ -9,8 +9,8 @@ import sys
 import os
 import argparse
 
-# Add the current directory to the Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add the parent directory to the Python path (now in ipfs_kit_py/cli/)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from ipfs_kit_py.enhanced_bucket_index import EnhancedBucketIndex, format_size
