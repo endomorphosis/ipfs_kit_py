@@ -28,9 +28,9 @@ def apply_command_handler_mocks():
     # Apply patches
     modules_to_patch = [
         "ipfs_kit_py.mcp.controllers.command_handler.CommandHandler",
-        "ipfs_kit_py.mcp_server.controllers.command_handler.CommandHandler",
+        "ipfs_kit_py.mcp.server.controllers.command_handler.CommandHandler",
         "ipfs_kit_py.mcp.controllers.mcp_command_controller.MCPCommandController",
-        "ipfs_kit_py.mcp_server.controllers.mcp_command_controller.MCPCommandController",
+        "ipfs_kit_py.mcp.server.controllers.mcp_command_controller.MCPCommandController",
     ]
     
     patches = {}

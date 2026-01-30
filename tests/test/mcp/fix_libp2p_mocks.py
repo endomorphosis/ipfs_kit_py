@@ -86,8 +86,8 @@ def patch_mcp_command_handlers():
         logger.info("Patching MCP command handlers")
         
         # Mock MCP command handlers for testing
-        if 'ipfs_kit_py.mcp_server.controllers.command_dispatcher' in sys.modules:
-            dispatcher_module = sys.modules['ipfs_kit_py.mcp_server.controllers.command_dispatcher']
+        if 'ipfs_kit_py.mcp.server.controllers.command_dispatcher' in sys.modules:
+            dispatcher_module = sys.modules['ipfs_kit_py.mcp.server.controllers.command_dispatcher']
             if hasattr(dispatcher_module, 'CommandDispatcher'):
                 dispatcher_module.CommandDispatcher.dispatch = AsyncMock(return_value={
                     "success": True,

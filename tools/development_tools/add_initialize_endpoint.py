@@ -59,9 +59,9 @@ def add_initialize_endpoint():
             except ImportError:
                 try:
                     # Try the mcp_server module
-                    from ipfs_kit_py.mcp_server.server_bridge import MCPServer
-                    server_module = "ipfs_kit_py.mcp_server.server_bridge"
-                    logger.info("Imported MCPServer from ipfs_kit_py.mcp_server.server_bridge")
+                    from ipfs_kit_py.mcp.server.server_bridge import MCPServer
+                    server_module = "ipfs_kit_py.mcp.server.server_bridge"
+                    logger.info("Imported MCPServer from ipfs_kit_py.mcp.server.server_bridge")
                 except ImportError:
                     logger.error("Could not import MCPServer from any known location")
                     return False

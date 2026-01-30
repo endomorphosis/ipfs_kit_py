@@ -529,7 +529,7 @@ def fix_import_paths():
                 sys.modules[module_name] = module
                 logger.info(f"Created mock module: {module_name}")
         
-        # Ensure the ipfs_kit_py.mcp_server namespace exists and redirects to ipfs_kit_py.mcp
+        # Ensure the ipfs_kit_py.mcp.server namespace exists and redirects to ipfs_kit_py.mcp
         import ipfs_kit_py
         
         # Create the missing directories/modules if needed

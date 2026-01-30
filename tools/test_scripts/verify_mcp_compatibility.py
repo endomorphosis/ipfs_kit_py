@@ -41,7 +41,7 @@ def check_imports() -> Tuple[bool, List[str]]:
     # List of critical imports to check
     import_paths = [
         "ipfs_kit_py.mcp.server_bridge",
-        "ipfs_kit_py.mcp_server.server_bridge",
+        "ipfs_kit_py.mcp.server.server_bridge",
         "ipfs_kit_py.mcp.controllers.ipfs_controller",
         "ipfs_kit_py.mcp.models.ipfs_model",
         "ipfs_kit_py.mcp.controllers.storage_manager_controller",
@@ -144,7 +144,7 @@ def check_server_bridge_compatibility() -> bool:
     new_imported = False
     
     try:
-        from ipfs_kit_py.mcp_server.server_bridge import MCPServer as OldMCPServer
+        from ipfs_kit_py.mcp.server.server_bridge import MCPServer as OldMCPServer
         old_imported = True
         logger.info("Successfully imported from mcp_server.server_bridge")
     except ImportError as e:
@@ -166,7 +166,7 @@ def check_server_bridge_compatibility() -> bool:
     if new_imported and not old_imported:
         # Fix the old server_bridge.py to import from new path
         try:
-            server_bridge_path = "ipfs_kit_py/mcp_server/server_bridge.py"
+            server_bridge_path = "ipfs_kit_py/mcp/server/server_bridge.py"
             if os.path.exists(server_bridge_path):
                 with open(server_bridge_path, "w") as f:
                     f.write('''"""

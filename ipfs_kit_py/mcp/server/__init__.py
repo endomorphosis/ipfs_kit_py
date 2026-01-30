@@ -1,40 +1,24 @@
 """
-Bridge module for server package.
-This file was created by the import_fixer.py script.
+MCP Server - Refactored to align with CLI codebase
+
+This module provides the Model Context Protocol (MCP) server implementation that
+mirrors the CLI functionality while adapting to the MCP protocol requirements.
+
+The refactored MCP server:
+1. Uses similar codebase structure to the CLI
+2. Leverages metadata from ~/.ipfs_kit/ efficiently  
+3. Integrates with the intelligent daemon for backend synchronization
+4. Provides all CLI features through MCP protocol
+5. Maintains compatibility with existing MCP clients
 """
 
-import importlib
-import logging
+from .server import MCPServer, MCPServerConfig
+from .models.mcp_metadata_manager import MCPMetadataManager
+from .services.mcp_daemon_service import MCPDaemonService
 
-# Configure logging
-logger = logging.getLogger(__name__)
-
-# Import from real module
-try:
-    _real_module = importlib.import_module("ipfs_kit_py.mcp.server") # Updated path
-
-    # Import all public members
-    if hasattr(_real_module, "__all__"):
-        __all__ = _real_module.__all__
-
-        # Import all listed names
-        for name in __all__:
-            try:
-                globals()[name] = getattr(_real_module, name)
-            except AttributeError:
-                logger.warning(f"Could not import {name} from ipfs_kit_py.mcp.server") # Updated path
-    else:
-        # Import all non-private names
-        __all__ = []
-        for name in dir(_real_module):
-            if not name.startswith("_"):
-                try:
-                    globals()[name] = getattr(_real_module, name)
-                    __all__.append(name)
-                except AttributeError:
-                    pass
-
-    logger.debug("Successfully imported from ipfs_kit_py.mcp.server") # Updated path
-except ImportError as e:
-    logger.warning(f"Failed to import from ipfs_kit_py.mcp.server: {e}") # Updated path
-    __all__ = []
+__all__ = [
+    'MCPServer',
+    'MCPServerConfig', 
+    'MCPMetadataManager',
+    'MCPDaemonService',
+]

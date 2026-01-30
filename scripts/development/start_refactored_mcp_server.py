@@ -15,7 +15,7 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from ipfs_kit_py.mcp_server.server import main
+from ipfs_kit_py.mcp.server.server import main
 
 if __name__ == "__main__":
     anyio.run(main)
