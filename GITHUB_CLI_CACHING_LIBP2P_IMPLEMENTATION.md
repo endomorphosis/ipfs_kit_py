@@ -1,8 +1,40 @@
-# GitHub CLI Caching with LibP2P - Complete Implementation Summary
+# GitHub CLI Caching with LibP2P/IPFS - Implementation Status
 
 ## Overview
 
-Successfully implemented **full LibP2P and IPFS integration** for GitHub CLI caching in the ipfs_kit_py repository, enabling distributed peer-to-peer cache sharing across CI/CD workflows and development environments.
+This document describes the LibP2P and IPFS caching features that have been **architected and prepared** for the GitHub CLI caching layer in the ipfs_kit_py repository.
+
+### ⚠️ Important Implementation Status
+
+**P2P cache retrieval and announcements are currently STUB implementations.** The architecture and interfaces have been designed, but the actual peer-to-peer functionality is not yet operational:
+
+✅ **Fully Functional:**
+- Local disk caching with TTL management
+- IPFS content storage (when ipfs_kit module available)
+- IPFS content retrieval by CID
+- Cache key generation with auth context isolation
+- Statistics tracking for all cache tiers
+
+⚠️ **Prepared but Not Implemented:**
+- P2P cache queries across peers (returns None)
+- GossipSub cache announcements (logs only, no network publish)
+- Distributed cache index coordination
+- Peer-to-peer content requests
+
+### Current Caching Tiers
+
+**Production Ready (Local + IPFS):**
+```
+Request → Local Cache (~10ms, 60-70% hit)
+       → IPFS Network (~200-500ms, 5-10% hit)
+       → GitHub API (~500-2000ms)
+```
+
+**Future with Full P2P:**
+```
+Request → Local → P2P Peers → IPFS → API
+          ~10ms   ~50-100ms   ~200ms  ~500ms
+```
 
 ---
 

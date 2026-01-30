@@ -156,9 +156,8 @@ gh_cached_python() {
         cache_args="$cache_args --enable-p2p"
     fi
     
-    if [ "$GH_CACHE_DEBUG" = "1" ]; then
-        cache_args="$cache_args --verbose"
-    fi
+    # Note: Debug logging is controlled via GH_CACHE_DEBUG env var in Python
+    # No --verbose flag needed here
     
     python3 -m ipfs_kit_py.gh_cache $cache_args gh "$@"
     return $?
@@ -196,15 +195,28 @@ gh_cached_shell() {
         echo -e "${RED}❌ Cache MISS: $cmd${NC}" >&2
     fi
     
-    # Execute and cache result
-    local output=$(command gh "$@" 2>&1)
+    # Execute and cache result, keeping stdout and stderr separate
+    local stdout_tmp stderr_tmp
+    stdout_tmp=$(mktemp) || return 1
+    stderr_tmp=$(mktemp) || {
+        rm -f "$stdout_tmp"
+        return 1
+    }
+    
+    command gh "$@" >"$stdout_tmp" 2>"$stderr_tmp"
     local exit_code=$?
     
     if [ $exit_code -eq 0 ]; then
-        echo "$output" > "$cache_file"
+        # Cache only stdout to preserve gh's stream semantics
+        cat "$stdout_tmp" > "$cache_file"
     fi
     
-    echo "$output"
+    # Replay stdout and stderr to their respective streams
+    cat "$stdout_tmp"
+    cat "$stderr_tmp" >&2
+    
+    rm -f "$stdout_tmp" "$stderr_tmp"
+    
     return $exit_code
 }
 

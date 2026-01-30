@@ -54,9 +54,9 @@
 ### GitHub CLI Caching 🚀
 Built-in caching layer for GitHub CLI commands reduces API calls by 50-70% and provides 50-200x speedup for cached queries. Features:
 - Intelligent TTL management (commits: 1 year, workflows: 5 min, PRs: 2 min)
-- IPFS/LibP2P distributed caching support
+- IPFS/LibP2P distributed caching support (experimental)
 - Transparent drop-in replacement for `gh` command
-- Integrated into all CI/CD workflows and VS Code tasks
+- Integrated into primary CI/CD workflows and VS Code tasks
 - Automatic rate limit protection
 
 ```bash

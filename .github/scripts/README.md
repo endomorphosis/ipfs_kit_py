@@ -122,12 +122,18 @@ Updates the workflow file in-place
 
 ## Configuration
 
-Configuration is in `.github/workflows/workflow-auto-fix-config.yml`:
+The automation scripts use built-in pattern matching and configuration. Error patterns, confidence scores, and fix generation logic are defined directly in the Python scripts:
 
-- **Error patterns**: Regex patterns and confidence scores
-- **Rate limits**: Max PRs/issues per hour
-- **Excluded workflows**: Workflows to skip
-- **PR/Issue settings**: Templates and labels
+- **analyze_workflow_failure.py**: Contains error pattern definitions with regex matching and confidence calculation
+- **generate_workflow_fix.py**: Contains fix generation logic and templates
+
+While `.github/workflows/workflow-auto-fix-config.yml` exists as a reference configuration file showing the error pattern schema, the scripts currently use hard-coded patterns for simplicity. Future versions may load this configuration file dynamically.
+
+**Current Approach:**
+- **Error patterns**: Hard-coded in analyze_workflow_failure.py
+- **Rate limits**: Not currently enforced (future feature)
+- **Excluded workflows**: Defined in generate_workflow_list.py
+- **PR/Issue templates**: Generated in generate_workflow_fix.py
 
 ## Dependencies
 

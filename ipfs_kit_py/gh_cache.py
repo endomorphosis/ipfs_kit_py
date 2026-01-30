@@ -133,7 +133,7 @@ class GHCache:
             cache_dir: Directory for cache storage (default: ~/.ipfs_kit/gh_cache)
             enable_ipfs: Enable IPFS-based caching
             enable_p2p: Enable P2P cache sharing via libp2p
-            max_cache_size: Maximum cache size in bytes
+            max_cache_size: Maximum cache size in bytes (NOTE: not yet enforced)
         """
         self.cache_dir = Path(cache_dir or os.path.expanduser('~/.ipfs_kit/gh_cache'))
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -143,7 +143,7 @@ class GHCache:
         
         self.enable_ipfs = enable_ipfs and HAS_IPFS
         self.enable_p2p = enable_p2p and HAS_LIBP2P
-        self.max_cache_size = max_cache_size
+        self.max_cache_size = max_cache_size  # TODO: Implement cache eviction based on size
         
         # Statistics
         self.stats = {
@@ -214,11 +214,21 @@ class GHCache:
         # Include current user context for cache isolation
         user_context = os.getenv('USER', 'default')
         
+        # Include GitHub host to avoid mixing caches across different hosts
+        gh_host = os.getenv('GH_HOST') or os.getenv('GITHUB_SERVER_URL') or 'github.com'
+        
+        # Include a non-reversible hash of the GitHub token to avoid cross-account contamination
+        token = os.getenv('GH_TOKEN') or os.getenv('GITHUB_TOKEN') or ''
+        if token:
+            token_hash = hashlib.sha256(token.encode()).hexdigest()[:16]  # First 16 chars sufficient
+        else:
+            token_hash = 'no-token'
+        
         # Normalize command for consistent caching
         cmd_str = ' '.join(command)
         
-        # Create hash from command + user context
-        key_data = f"{user_context}:{cmd_str}"
+        # Create hash from command + user context + host + token hash
+        key_data = f"{user_context}:{gh_host}:{token_hash}:{cmd_str}"
         cache_key = hashlib.sha256(key_data.encode()).hexdigest()
         
         return cache_key
@@ -286,27 +296,27 @@ class GHCache:
         """
         Query P2P peers for cached content.
         
+        NOTE: P2P cache retrieval is not yet fully implemented. This is a placeholder
+        that will be completed when the peer manager's cache query API is finalized.
+        
         Args:
             cache_key: Cache key to search for
             
         Returns:
-            Cached result from peer or None
+            Cached result from peer or None (currently always None)
         """
         if not self.enable_p2p or not self.peer_manager:
             return None
         
         try:
-            # Check if we have the CID for this cache key from previous announcements
-            # This would require implementing a distributed cache index
-            # For now, we'll use a simple request-response pattern
+            logger.debug(f"P2P cache query for {cache_key[:8]} (not yet implemented)")
             
-            logger.debug(f"🔍 Querying P2P peers for cache key: {cache_key[:8]}...")
-            
-            # In a full implementation, this would:
-            # 1. Check local peer cache index
-            # 2. Query DHT for content providers
-            # 3. Request content from peers
-            # For now, return None (will be implemented in full version)
+            # P2P retrieval stub - will be implemented when peer manager supports:
+            # 1. Distributed cache index lookups
+            # 2. DHT content provider queries  
+            # 3. Peer-to-peer content requests
+            # 
+            # For now, P2P is limited to local caching + IPFS fallback
             
             return None
             
@@ -355,6 +365,9 @@ class GHCache:
         """
         Announce cache entry availability to P2P network.
         
+        NOTE: P2P announcements are not yet implemented. This method is a placeholder
+        to avoid implying that announcements are currently sent to the network.
+        
         Args:
             cache_key: Cache key
             ipfs_cid: Optional IPFS CID for the content
@@ -363,19 +376,13 @@ class GHCache:
             return
         
         try:
-            # Announce via GossipSub that we have this cache entry
-            announcement = {
-                'type': 'gh_cache_available',
-                'cache_key': cache_key,
-                'ipfs_cid': ipfs_cid,
-                'timestamp': datetime.now().isoformat(),
-                'ttl': self.index.get(cache_key, {}).get('ttl', 60)
-            }
-            
-            logger.debug(f"📢 Announcing cache entry to P2P network: {cache_key[:8]}...")
-            
-            # In full implementation, would publish to gossipsub topic
-            # await self.gossipsub.publish('gh-cache-announce', json.dumps(announcement))
+            # P2P announcement mechanism (e.g., GossipSub publish) is not wired up.
+            # This log is for transparency; actual network publishing must be
+            # implemented in a future revision.
+            logger.debug(
+                f"P2P cache announcement requested for key {cache_key[:8]}, but announcement "
+                "transport is not implemented yet."
+            )
             
         except Exception as e:
             logger.debug(f"Cache announcement failed: {e}")

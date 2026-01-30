@@ -70,7 +70,7 @@
     {
       "label": "Cache: Test GitHub CLI Caching",
       "type": "shell",
-      "command": "source .github/scripts/gh_cache_wrapper.sh && export GH_CACHE_DEBUG=1 && echo '=== First call (miss) ===' && gh repo view && echo '\\n=== Second call (hit) ===' && gh repo view && echo '\\n=== Statistics ===' && gh_cache_stats",
+      "command": "source .github/scripts/gh_cache_wrapper.sh && export GH_CACHE_ENABLED=1 && echo '=== First call (miss) ===' && gh repo view && echo '\\n=== Second call (hit) ===' && gh repo view && echo '\\n=== Statistics ===' && gh_cache_stats",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",

@@ -124,8 +124,8 @@ jobs:
           
           echo "✅ GitHub CLI caching initialized (P2P + IPFS)" >> $GITHUB_STEP_SUMMARY
           echo "   Cache Dir: $GH_CACHE_DIR" >> $GITHUB_STEP_SUMMARY
-          echo "   IPFS: Enabled" >> $GITHUB_STEP_SUMMARY
-          echo "   P2P Cache Sharing: Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "   IPFS: Requested (may require ipfs_kit module)" >> $GITHUB_STEP_SUMMARY
+          echo "   P2P Cache Sharing: Requested (may require libp2p module)" >> $GITHUB_STEP_SUMMARY
       
       - name: Get workflow run details
         id: get_run_details
@@ -140,7 +140,7 @@ jobs:
               RUN_ID="${{ github.event.inputs.run_id }}"
             else
               WORKFLOW_NAME="${{ github.event.inputs.workflow_name }}"
-              RUN_ID=$(gh run list --workflow="$WORKFLOW_NAME" --status=failure --limit=1 --json databaseId --jq '.[0].databaseId' 2>&1 || echo "")
+              RUN_ID=$(gh run list --workflow="$WORKFLOW_NAME" --status=failure --limit=1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
             fi
             WORKFLOW_NAME="${{ github.event.inputs.workflow_name }}"
           else
@@ -282,10 +282,21 @@ jobs:
           
           # Check for existing PRs or issues for this run (cached - short TTL)
           EXISTING_PRS=$(gh pr list --repo ${{ github.repository }} \
-            --search "Run ID: $RUN_ID in:body" --state all --json number --jq 'length' 2>&1 || echo "0")
+            --search "Run ID: $RUN_ID in:body" --state all --json number --jq 'length' 2>/dev/null || echo "0")
           
           EXISTING_ISSUES=$(gh issue list --repo ${{ github.repository }} \
-            --search "Run ID: $RUN_ID in:body" --state all --json number --jq 'length' 2>&1 || echo "0")
+            --search "Run ID: $RUN_ID in:body" --state all --json number --jq 'length' 2>/dev/null || echo "0")
+          
+          # Ensure values are numeric; default to 0 on any parsing/error condition
+          EXISTING_PRS=${EXISTING_PRS:-0}
+          if ! [[ "$EXISTING_PRS" =~ ^[0-9]+$ ]]; then
+            EXISTING_PRS=0
+          fi
+          
+          EXISTING_ISSUES=${EXISTING_ISSUES:-0}
+          if ! [[ "$EXISTING_ISSUES" =~ ^[0-9]+$ ]]; then
+            EXISTING_ISSUES=0
+          fi
           
           echo "Found $EXISTING_PRS existing PRs and $EXISTING_ISSUES existing issues"
           

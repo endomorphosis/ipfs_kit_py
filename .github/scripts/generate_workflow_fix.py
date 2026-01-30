@@ -35,12 +35,12 @@ class WorkflowFixGenerator:
         # Generate branch name
         branch_name = self._generate_branch_name(fix_type)
         
-        # Generate PR title and description
+        # Generate specific fixes FIRST (before PR description references them)
+        fixes = self._generate_fixes(fix_type)
+        
+        # Generate PR title and description (after fixes are available)
         pr_title = self._generate_pr_title(error_type, fix_type)
         pr_description = self._generate_pr_description()
-        
-        # Generate specific fixes
-        fixes = self._generate_fixes(fix_type)
         
         # Compile proposal
         self.proposal = {
@@ -115,7 +115,7 @@ This PR was automatically generated to fix a failure in the **{self.workflow_nam
 4. Merge if all checks pass
 
 ### Related
-- Workflow Run: https://github.com/${{{{ github.repository }}}}/actions/runs/{self.analysis.get('run_id')}
+- Workflow Run: https://github.com/{os.getenv('GITHUB_REPOSITORY', '${{{{ github.repository }}}}')}/actions/runs/{self.analysis.get('run_id')}
 - Workflow File: `.github/workflows/{self._get_workflow_filename()}`
 """
         
