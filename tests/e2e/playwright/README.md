@@ -11,7 +11,7 @@ Prereqs
 
 Run
 ```bash
-cd playwright_tests
+cd tests/e2e/playwright
 npm run test
 # Override base URL if needed
 BASE_URL=http://127.0.0.1:8105 npm run test

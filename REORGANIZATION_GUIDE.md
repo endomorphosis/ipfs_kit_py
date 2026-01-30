@@ -34,8 +34,8 @@ The root directory has been reorganized to improve project structure and maintai
 
 | Old Location | New Location |
 |--------------|--------------|
-| `playwright.config.js` | `playwright_tests/playwright.config.js` |
-| `playwright.config.ts` | `playwright_tests/playwright.config.ts` |
+| `playwright.config.js` | `tests/e2e/playwright/playwright.config.js` |
+| `playwright.config.ts` | `tests/e2e/playwright/playwright.config.ts` |
 | `test_dashboard.html` | `tests/fixtures/test_dashboard.html` |
 | `dependency_report.json` | `tests/fixtures/dependency_report.json` |
 

@@ -157,8 +157,8 @@ playwright install chromium
 # Start dashboard
 ipfs-kit mcp start --port 8004
 
-# Run playwright tests (examples in playwright_tests/)
-pytest playwright_tests/
+# Run playwright tests (examples in tests/e2e/playwright/)
+pytest tests/e2e/playwright/
 ```
 
 ## Documentation
