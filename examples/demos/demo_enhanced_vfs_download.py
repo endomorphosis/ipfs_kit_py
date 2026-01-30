@@ -25,7 +25,7 @@ def simulate_ipfs_upload_for_demo():
     
     # Create temporary demo indexes
     demo_dir = Path("examples/data/vfs_indexes")
-    demo_dir.mkdir(exist_ok=True)
+    demo_dir.mkdir(parents=True, exist_ok=True)
     
     # Create individual bucket indexes
     bucket_hashes = {}
