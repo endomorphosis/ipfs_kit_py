@@ -132,7 +132,7 @@ def backend_worker_process(backend_name: str, operation: str) -> Dict[str, Any]:
     """Worker process for backend operations."""
     try:
         if operation == "health_check":
-            from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+            from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
             health_monitor = BackendHealthMonitor()
             
             # Simulate health check (in real implementation, use actual health check)

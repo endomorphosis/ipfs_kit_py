@@ -58,7 +58,7 @@ def main():
     
     # Check VFS observer integration
     try:
-        from mcp.ipfs_kit.backends.vfs_observer import VFSObservabilityManager
+        from ipfs_kit_py.mcp.ipfs_kit.backends.vfs_observer import VFSObservabilityManager
         vfs = VFSObservabilityManager()
         print(f"   ✅ VFS Observer: Google Drive backend integration confirmed")
     except Exception as e:

@@ -20,7 +20,7 @@ async def test_health_api():
     
     try:
         # Import and test the BackendHealthMonitor
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         # Initialize the health monitor
         print("📊 Initializing BackendHealthMonitor...")

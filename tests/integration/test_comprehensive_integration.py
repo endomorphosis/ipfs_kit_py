@@ -151,7 +151,7 @@ class ComprehensiveIntegrationTester:
             # Test 1: Initialize health monitor
             test_result = {"name": "health_monitor_init", "passed": False, "details": {}}
             try:
-                from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+                from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
                 
                 self.health_monitor = BackendHealthMonitor()
                 test_result["passed"] = True
@@ -294,7 +294,7 @@ class ComprehensiveIntegrationTester:
             # Test 1: Dashboard controller initialization
             test_result = {"name": "dashboard_controller_init", "passed": False, "details": {}}
             try:
-                from mcp.ipfs_kit.api.enhanced_dashboard_api import DashboardController
+                from ipfs_kit_py.mcp.ipfs_kit.api.enhanced_dashboard_api import DashboardController
                 
                 self.dashboard_controller = DashboardController()
                 test_result["passed"] = True
@@ -346,7 +346,7 @@ class ComprehensiveIntegrationTester:
             test_result = {"name": "health_check_api", "passed": False, "details": {}}
             try:
                 if self.dashboard_controller:
-                    from mcp.ipfs_kit.api.enhanced_dashboard_api import HealthCheckRequest
+                    from ipfs_kit_py.mcp.ipfs_kit.api.enhanced_dashboard_api import HealthCheckRequest
                     
                     request = HealthCheckRequest(include_metrics=True)
                     result = await self.dashboard_controller.perform_health_check(request)
@@ -408,7 +408,7 @@ class ComprehensiveIntegrationTester:
             try:
                 if self.dashboard_controller and self.cluster_manager:
                     # Test cluster action through dashboard
-                    from mcp.ipfs_kit.api.enhanced_dashboard_api import ClusterActionRequest
+                    from ipfs_kit_py.mcp.ipfs_kit.api.enhanced_dashboard_api import ClusterActionRequest
                     
                     request = ClusterActionRequest(action="status")
                     result = await self.dashboard_controller.perform_cluster_action(request)

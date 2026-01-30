@@ -52,8 +52,8 @@ try:
     from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
     from ipfs_kit_py.ipfs_kit import IPFSKit
     from ipfs_kit_py.dashboard.replication_manager import ReplicationManager
-    from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
-    from mcp.ipfs_kit.backends.vfs_observer import VFSObservabilityManager
+    from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+    from ipfs_kit_py.mcp.ipfs_kit.backends.vfs_observer import VFSObservabilityManager
     from ipfs_kit_py.pin_wal import get_global_pin_wal, PinOperationType
     from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager, BucketType, VFSStructureType
     from ipfs_kit_py.error import create_result_dict, handle_error

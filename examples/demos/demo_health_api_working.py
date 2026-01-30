@@ -18,7 +18,7 @@ async def test_health_endpoints():
     print("=" * 60)
     
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         # Initialize health monitor
         print("📊 Initializing BackendHealthMonitor...")

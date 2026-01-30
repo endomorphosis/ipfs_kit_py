@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 def test_log_manager_id_fix():
     """Test that log manager ID issues are fixed."""
     try:
-        from mcp.ipfs_kit.backends.log_manager import BackendLogManager
+        from ipfs_kit_py.mcp.ipfs_kit.backends.log_manager import BackendLogManager
         
         log_manager = BackendLogManager()
         
@@ -49,7 +49,7 @@ def test_log_manager_id_fix():
 async def test_backend_metrics_integration():
     """Test that backend health monitor provides real metrics."""
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         health_monitor = BackendHealthMonitor()
         

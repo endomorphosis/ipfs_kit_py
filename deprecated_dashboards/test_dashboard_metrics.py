@@ -23,7 +23,7 @@ async def test_backend_health_monitor():
     """Test the backend health monitor."""
     try:
         # Import and test backend health monitor
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         logger.info("✓ Testing backend health monitor...")
         health_monitor = BackendHealthMonitor()
@@ -82,7 +82,7 @@ async def test_backend_health_monitor():
 async def test_log_manager():
     """Test the log manager fixes."""
     try:
-        from mcp.ipfs_kit.backends.log_manager import BackendLogManager
+        from ipfs_kit_py.mcp.ipfs_kit.backends.log_manager import BackendLogManager
         
         logger.info("✓ Testing log manager...")
         

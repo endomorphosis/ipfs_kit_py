@@ -20,7 +20,7 @@ async def test_dashboard_cluster_integration():
     
     try:
         # Import dashboard controller
-        from mcp.ipfs_kit.api.enhanced_dashboard_api import DashboardController
+        from ipfs_kit_py.mcp.ipfs_kit.api.enhanced_dashboard_api import DashboardController
         
         dashboard = DashboardController()
         print("✅ Dashboard controller initialized")

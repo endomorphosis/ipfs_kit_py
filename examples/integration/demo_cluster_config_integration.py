@@ -184,7 +184,7 @@ async def demo_mcp_integration():
     print("=" * 50)
     
     print("1. Available cluster configuration tools:")
-    from mcp.ipfs_kit.api.cluster_config_api import CLUSTER_CONFIG_TOOLS
+    from ipfs_kit_py.mcp.ipfs_kit.api.cluster_config_api import CLUSTER_CONFIG_TOOLS
     
     for i, tool in enumerate(CLUSTER_CONFIG_TOOLS, 1):
         print(f"   {i}. {tool['name']}")

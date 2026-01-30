@@ -56,7 +56,7 @@ if TYPE_CHECKING:
     from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
     from ipfs_kit_py.ipfs_kit import IPFSKit
     from ipfs_kit_py.dashboard.replication_manager import ReplicationManager
-    from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+    from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
     from ipfs_kit_py.vfs_observability import VFSObservabilityManager
 
 # Dynamic imports with fallback
@@ -66,7 +66,7 @@ try:
     from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
     from ipfs_kit_py.ipfs_kit import IPFSKit
     from ipfs_kit_py.dashboard.replication_manager import ReplicationManager
-    from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+    from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
     from ipfs_kit_py.vfs_observability import VFSObservabilityManager
     IPFS_KIT_AVAILABLE = True
 except ImportError as e:

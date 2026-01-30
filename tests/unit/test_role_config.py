@@ -17,7 +17,7 @@ def main() -> int:
         sys.path.insert(0, current_dir)
 
     try:
-        from mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
+        from ipfs_kit_py.mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
 
         print("Testing MCP server role configuration...")
 

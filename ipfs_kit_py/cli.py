@@ -537,7 +537,7 @@ class FastCLI:
         # Import and start the daemon
         try:
             try:
-                from mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
+                from ipfs_kit_py.mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
             except ImportError:
                 # Fallback to packaged path
                 from ipfs_kit_py.mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon

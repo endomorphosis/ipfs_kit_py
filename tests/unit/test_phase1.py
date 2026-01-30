@@ -21,7 +21,7 @@ def test_phase1_components():
     # Test 1: Tool Registry
     print("1. Testing Tool Registry...")
     try:
-        from mcp.ipfs_kit.core.tool_registry import ToolRegistry, ToolCategory, ToolSchema
+        from ipfs_kit_py.mcp.ipfs_kit.core.tool_registry import ToolRegistry, ToolCategory, ToolSchema
         
         registry = ToolRegistry()
         
@@ -49,7 +49,7 @@ def test_phase1_components():
     # Test 2: Service Manager
     print("2. Testing Service Manager...")
     try:
-        from mcp.ipfs_kit.core.service_manager import ServiceManager
+        from ipfs_kit_py.mcp.ipfs_kit.core.service_manager import ServiceManager
         
         manager = ServiceManager()
         port = manager.find_available_port(9000, 10)
@@ -64,7 +64,7 @@ def test_phase1_components():
     # Test 3: Error Handler
     print("3. Testing Error Handler...")
     try:
-        from mcp.ipfs_kit.core.error_handler import ErrorHandler, ErrorCode, create_success_response
+        from ipfs_kit_py.mcp.ipfs_kit.core.error_handler import ErrorHandler, ErrorCode, create_success_response
         
         handler = ErrorHandler()
         
@@ -86,7 +86,7 @@ def test_phase1_components():
     # Test 4: Test Framework
     print("4. Testing Test Framework...")
     try:
-        from mcp.ipfs_kit.core.test_framework import TestFramework, TestSuite, TestCategory
+        from ipfs_kit_py.mcp.ipfs_kit.core.test_framework import TestFramework, TestSuite, TestCategory
         
         framework = TestFramework()
         

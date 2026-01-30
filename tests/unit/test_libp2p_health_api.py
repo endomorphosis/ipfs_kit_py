@@ -25,7 +25,7 @@ async def get_libp2p_health():
     """Get LibP2P health status."""
     try:
         # Import health monitor
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         config_dir = Path("/tmp/ipfs_kit_libp2p_test")
         config_dir.mkdir(parents=True, exist_ok=True)
@@ -76,7 +76,7 @@ async def get_libp2p_health():
 async def get_all_health():
     """Get health status for all storage backends."""
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         config_dir = Path("/tmp/ipfs_kit_test_config")
         config_dir.mkdir(parents=True, exist_ok=True)

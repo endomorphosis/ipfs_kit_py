@@ -25,7 +25,7 @@ async def demo_real_performance_metrics():
     
     # Import and initialize the backend health monitor
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         logger.info("✓ Initializing backend health monitor...")
         health_monitor = BackendHealthMonitor()

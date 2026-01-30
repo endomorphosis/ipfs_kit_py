@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Import cluster configuration API
 try:
-    from mcp.ipfs_kit.api.cluster_config_api import cluster_config_api, CLUSTER_CONFIG_TOOLS, handle_cluster_config_tool
+    from ipfs_kit_py.mcp.ipfs_kit.api.cluster_config_api import cluster_config_api, CLUSTER_CONFIG_TOOLS, handle_cluster_config_tool
     from ipfs_kit_py.ipfs_cluster_daemon_manager import IPFSClusterConfig
     from ipfs_kit_py.ipfs_cluster_follow import ipfs_cluster_follow
     print("✅ Successfully imported cluster configuration modules")

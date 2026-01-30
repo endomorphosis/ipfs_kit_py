@@ -85,7 +85,7 @@ class TestMCPToolsIntegration(unittest.TestCase):
     def test_vfs_tools_has_integration(self):
         """Test mcp vfs_tools has integration."""
         try:
-            from mcp.ipfs_kit.mcp_tools import vfs_tools
+            from ipfs_kit_py.mcp.ipfs_kit.mcp_tools import vfs_tools
             self.assertTrue(hasattr(vfs_tools, 'HAS_DATASETS'))
             self.assertTrue(hasattr(vfs_tools, 'HAS_ACCELERATE'))
         except ImportError as e:
@@ -94,7 +94,7 @@ class TestMCPToolsIntegration(unittest.TestCase):
     def test_vfs_tools_class_accepts_parameters(self):
         """Test VFSTools class accepts dataset parameters."""
         try:
-            from mcp.ipfs_kit.mcp_tools.vfs_tools import VFSTools
+            from ipfs_kit_py.mcp.ipfs_kit.mcp_tools.vfs_tools import VFSTools
             # Should accept new parameters without error
             tools = VFSTools(
                 enable_dataset_storage=False,

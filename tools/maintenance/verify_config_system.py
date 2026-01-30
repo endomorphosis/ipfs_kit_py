@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 async def test_mcp_server_config():
     """Test that the MCP server can start and handle configuration correctly."""
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         print("✓ Backend health monitor imports successfully")
         

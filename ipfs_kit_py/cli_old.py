@@ -3139,12 +3139,12 @@ def start_modular_mcp_server(args, **kwargs):
     import sys
     import os
     
-    # Add the current directory to the Python path to ensure we can import mcp.ipfs_kit
+    # Add the current directory to the Python path to ensure we can import ipfs_kit_py.mcp.ipfs_kit
     current_dir = os.getcwd()
     if current_dir not in sys.path:
         sys.path.insert(0, current_dir)
     
-    from mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
+    from ipfs_kit_py.mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
     server = ModularEnhancedMCPServer(host=args.host, port=args.port)
     server.start()
 
@@ -3161,12 +3161,12 @@ def start_role_mcp_server(args, role="leecher", **kwargs):
     import sys
     import os
     
-    # Add the current directory to the Python path to ensure we can import mcp.ipfs_kit
+    # Add the current directory to the Python path to ensure we can import ipfs_kit_py.mcp.ipfs_kit
     current_dir = os.getcwd()
     if current_dir not in sys.path:
         sys.path.insert(0, current_dir)
     
-    from mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
+    from ipfs_kit_py.mcp.ipfs_kit.modular_enhanced_mcp_server import ModularEnhancedMCPServer
     
     # Define components to disable for leecher role
     disabled_components = []

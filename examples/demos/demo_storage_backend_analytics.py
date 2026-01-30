@@ -29,7 +29,7 @@ async def demo_consolidated_storage_metrics():
     logger.info("=" * 60)
     
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         # Initialize health monitor
         health_monitor = BackendHealthMonitor()
