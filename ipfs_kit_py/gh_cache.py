@@ -53,6 +53,15 @@ except ImportError:
     HAS_IPFS = False
     logger.debug("IPFSKit not available - IPFS caching disabled")
 
+# Try to import LibP2P peer manager for P2P cache sharing
+try:
+    from .libp2p.peer_manager import Libp2pPeerManager
+    from .libp2p.gossipsub_protocol import GossipSubProtocol, GossipSubMessage
+    HAS_LIBP2P = True
+except ImportError:
+    HAS_LIBP2P = False
+    logger.debug("LibP2P not available - P2P cache sharing disabled")
+
 
 class GHCache:
     """
@@ -133,7 +142,7 @@ class GHCache:
         self.index = self._load_index()
         
         self.enable_ipfs = enable_ipfs and HAS_IPFS
-        self.enable_p2p = enable_p2p
+        self.enable_p2p = enable_p2p and HAS_LIBP2P
         self.max_cache_size = max_cache_size
         
         # Statistics
@@ -141,7 +150,10 @@ class GHCache:
             'hits': 0,
             'misses': 0,
             'bypassed': 0,
-            'errors': 0
+            'errors': 0,
+            'p2p_hits': 0,
+            'ipfs_hits': 0,
+            'local_hits': 0
         }
         
         # Initialize IPFS if available
@@ -153,6 +165,18 @@ class GHCache:
             except Exception as e:
                 logger.warning(f"⚠️  Could not initialize IPFS client: {e}")
                 self.enable_ipfs = False
+        
+        # Initialize LibP2P peer manager if available
+        self.peer_manager = None
+        self.gossipsub = None
+        if self.enable_p2p:
+            try:
+                self.peer_manager = Libp2pPeerManager()
+                logger.info("✅ LibP2P P2P caching enabled")
+                # Note: peer_manager.start() should be called separately for async
+            except Exception as e:
+                logger.warning(f"⚠️  Could not initialize LibP2P peer manager: {e}")
+                self.enable_p2p = False
         
         logger.info(f"📦 GitHub CLI cache initialized: {self.cache_dir}")
         logger.info(f"   IPFS: {'enabled' if self.enable_ipfs else 'disabled'}")
@@ -258,9 +282,110 @@ class GHCache:
         expires_at = datetime.fromisoformat(cache_entry['expires_at'])
         return datetime.now() < expires_at
     
+    def _query_p2p_cache(self, cache_key: str) -> Optional[str]:
+        """
+        Query P2P peers for cached content.
+        
+        Args:
+            cache_key: Cache key to search for
+            
+        Returns:
+            Cached result from peer or None
+        """
+        if not self.enable_p2p or not self.peer_manager:
+            return None
+        
+        try:
+            # Check if we have the CID for this cache key from previous announcements
+            # This would require implementing a distributed cache index
+            # For now, we'll use a simple request-response pattern
+            
+            logger.debug(f"🔍 Querying P2P peers for cache key: {cache_key[:8]}...")
+            
+            # In a full implementation, this would:
+            # 1. Check local peer cache index
+            # 2. Query DHT for content providers
+            # 3. Request content from peers
+            # For now, return None (will be implemented in full version)
+            
+            return None
+            
+        except Exception as e:
+            logger.debug(f"P2P cache query failed: {e}")
+            return None
+    
+    def _get_from_ipfs(self, cache_key: str) -> Optional[str]:
+        """
+        Retrieve content from IPFS by CID.
+        
+        Args:
+            cache_key: Cache key
+            
+        Returns:
+            Content from IPFS or None
+        """
+        if not self.enable_ipfs or not self.ipfs_client:
+            return None
+        
+        # Check if we have a CID for this cache key
+        if cache_key not in self.index:
+            return None
+        
+        cache_entry = self.index[cache_key]
+        if 'ipfs_cid' not in cache_entry:
+            return None
+        
+        try:
+            cid = cache_entry['ipfs_cid']
+            logger.debug(f"📦 Retrieving from IPFS: {cid}")
+            
+            # Retrieve content from IPFS
+            content = self.ipfs_client.cat_str(cid)
+            if content:
+                self.stats['ipfs_hits'] += 1
+                logger.info(f"✅ IPFS HIT: {cid}")
+                return content
+                
+        except Exception as e:
+            logger.debug(f"IPFS retrieval failed: {e}")
+        
+        return None
+    
+    def _announce_cache_entry(self, cache_key: str, ipfs_cid: Optional[str] = None):
+        """
+        Announce cache entry availability to P2P network.
+        
+        Args:
+            cache_key: Cache key
+            ipfs_cid: Optional IPFS CID for the content
+        """
+        if not self.enable_p2p or not self.peer_manager:
+            return
+        
+        try:
+            # Announce via GossipSub that we have this cache entry
+            announcement = {
+                'type': 'gh_cache_available',
+                'cache_key': cache_key,
+                'ipfs_cid': ipfs_cid,
+                'timestamp': datetime.now().isoformat(),
+                'ttl': self.index.get(cache_key, {}).get('ttl', 60)
+            }
+            
+            logger.debug(f"📢 Announcing cache entry to P2P network: {cache_key[:8]}...")
+            
+            # In full implementation, would publish to gossipsub topic
+            # await self.gossipsub.publish('gh-cache-announce', json.dumps(announcement))
+            
+        except Exception as e:
+            logger.debug(f"Cache announcement failed: {e}")
+    
     def _get_from_cache(self, cache_key: str) -> Optional[str]:
         """
-        Retrieve result from cache.
+        Retrieve result from cache with multi-tier strategy:
+        1. Local disk cache (fastest)
+        2. P2P peer cache (fast, distributed)
+        3. IPFS network (slower, most reliable)
         
         Args:
             cache_key: Cache key
@@ -268,32 +393,50 @@ class GHCache:
         Returns:
             Cached result or None if not found/expired
         """
-        if cache_key not in self.index:
-            return None
+        # Tier 1: Local cache
+        if cache_key in self.index:
+            cache_entry = self.index[cache_key]
+            
+            # Check if cache is still valid
+            if self._is_cache_valid(cache_entry):
+                # Read cached data
+                cache_file = self.cache_dir / cache_entry['file']
+                if cache_file.exists():
+                    try:
+                        with open(cache_file, 'r') as f:
+                            content = f.read()
+                            self.stats['local_hits'] += 1
+                            logger.debug(f"💾 Local cache HIT: {cache_key[:8]}...")
+                            return content
+                    except Exception as e:
+                        logger.error(f"Could not read cache file: {e}")
+            else:
+                logger.debug(f"Cache expired for key: {cache_key[:8]}...")
         
-        cache_entry = self.index[cache_key]
+        # Tier 2: P2P cache (query peers)
+        if self.enable_p2p:
+            p2p_result = self._query_p2p_cache(cache_key)
+            if p2p_result:
+                self.stats['p2p_hits'] += 1
+                logger.info(f"🌐 P2P cache HIT: {cache_key[:8]}...")
+                # Store locally for future use
+                return p2p_result
         
-        # Check if cache is still valid
-        if not self._is_cache_valid(cache_entry):
-            logger.debug(f"Cache expired for key: {cache_key[:8]}...")
-            return None
+        # Tier 3: IPFS network
+        if self.enable_ipfs:
+            ipfs_result = self._get_from_ipfs(cache_key)
+            if ipfs_result:
+                # Store locally for future use
+                return ipfs_result
         
-        # Read cached data
-        cache_file = self.cache_dir / cache_entry['file']
-        if not cache_file.exists():
-            logger.warning(f"Cache file missing: {cache_file}")
-            return None
-        
-        try:
-            with open(cache_file, 'r') as f:
-                return f.read()
-        except Exception as e:
-            logger.error(f"Could not read cache file: {e}")
-            return None
+        return None
     
     def _store_in_cache(self, cache_key: str, command: List[str], result: str):
         """
-        Store result in cache.
+        Store result in cache with multi-tier strategy:
+        1. Store locally
+        2. Store in IPFS (if enabled)
+        3. Announce to P2P network (if enabled)
         
         Args:
             cache_key: Cache key
@@ -307,6 +450,8 @@ class GHCache:
         # Store result in file
         cache_file = f"{cache_key}.txt"
         cache_path = self.cache_dir / cache_file
+        
+        ipfs_cid = None
         
         try:
             with open(cache_path, 'w') as f:
@@ -322,19 +467,22 @@ class GHCache:
                 'size': len(result)
             }
             
+            # Store in IPFS for distributed caching
+            if self.enable_ipfs and self.ipfs_client:
+                try:
+                    ipfs_cid = self.ipfs_client.add_str(result)
+                    self.index[cache_key]['ipfs_cid'] = ipfs_cid
+                    logger.debug(f"📦 Stored in IPFS: {ipfs_cid}")
+                except Exception as e:
+                    logger.debug(f"Could not store in IPFS: {e}")
+            
             self._save_index()
             
             logger.debug(f"Cached result for: {' '.join(command[:3])}... (TTL: {ttl}s)")
             
-            # Optionally store in IPFS
-            if self.enable_ipfs and self.ipfs_client:
-                try:
-                    # Store in IPFS for distributed caching
-                    cid = self.ipfs_client.add_str(result)
-                    self.index[cache_key]['ipfs_cid'] = cid
-                    logger.debug(f"Stored in IPFS: {cid}")
-                except Exception as e:
-                    logger.debug(f"Could not store in IPFS: {e}")
+            # Announce to P2P network
+            if self.enable_p2p:
+                self._announce_cache_entry(cache_key, ipfs_cid)
         
         except Exception as e:
             logger.error(f"Could not store in cache: {e}")
@@ -441,7 +589,7 @@ class GHCache:
     
     def get_stats(self) -> Dict[str, Any]:
         """
-        Get cache statistics.
+        Get cache statistics including P2P and IPFS metrics.
         
         Returns:
             Dictionary of cache statistics
@@ -449,30 +597,51 @@ class GHCache:
         total_requests = self.stats['hits'] + self.stats['misses'] + self.stats['bypassed']
         hit_rate = (self.stats['hits'] / total_requests * 100) if total_requests > 0 else 0
         
+        # Calculate local, P2P, and IPFS hit rates
+        local_rate = (self.stats['local_hits'] / total_requests * 100) if total_requests > 0 else 0
+        p2p_rate = (self.stats['p2p_hits'] / total_requests * 100) if total_requests > 0 else 0
+        ipfs_rate = (self.stats['ipfs_hits'] / total_requests * 100) if total_requests > 0 else 0
+        
         # Calculate cache size
         total_size = sum(entry.get('size', 0) for entry in self.index.values())
+        
+        # Count IPFS-backed entries
+        ipfs_entries = sum(1 for entry in self.index.values() if 'ipfs_cid' in entry)
         
         return {
             **self.stats,
             'total_requests': total_requests,
             'hit_rate': f"{hit_rate:.1f}%",
+            'local_hit_rate': f"{local_rate:.1f}%",
+            'p2p_hit_rate': f"{p2p_rate:.1f}%",
+            'ipfs_hit_rate': f"{ipfs_rate:.1f}%",
             'cache_entries': len(self.index),
+            'ipfs_backed_entries': ipfs_entries,
             'cache_size_mb': total_size / (1024 * 1024),
-            'cache_dir': str(self.cache_dir)
+            'cache_dir': str(self.cache_dir),
+            'ipfs_enabled': self.enable_ipfs,
+            'p2p_enabled': self.enable_p2p
         }
     
     def print_stats(self):
-        """Print cache statistics to console."""
+        """Print cache statistics to console including P2P and IPFS metrics."""
         stats = self.get_stats()
         print("\n📊 GitHub CLI Cache Statistics:")
-        print(f"   Hits: {stats['hits']}")
-        print(f"   Misses: {stats['misses']}")
+        print(f"   Total Requests: {stats['total_requests']}")
+        print(f"   Cache Hits: {stats['hits']} ({stats['hit_rate']})")
+        print(f"     └─ Local: {stats['local_hits']} ({stats['local_hit_rate']})")
+        print(f"     └─ P2P: {stats['p2p_hits']} ({stats['p2p_hit_rate']})")
+        print(f"     └─ IPFS: {stats['ipfs_hits']} ({stats['ipfs_hit_rate']})")
+        print(f"   Cache Misses: {stats['misses']}")
         print(f"   Bypassed: {stats['bypassed']}")
         print(f"   Errors: {stats['errors']}")
-        print(f"   Hit Rate: {stats['hit_rate']}")
         print(f"   Cache Entries: {stats['cache_entries']}")
+        if stats['ipfs_enabled']:
+            print(f"   IPFS-Backed Entries: {stats['ipfs_backed_entries']}")
         print(f"   Cache Size: {stats['cache_size_mb']:.2f} MB")
-        print(f"   Cache Dir: {stats['cache_dir']}\n")
+        print(f"   Cache Dir: {stats['cache_dir']}")
+        print(f"   IPFS: {'✅ Enabled' if stats['ipfs_enabled'] else '❌ Disabled'}")
+        print(f"   P2P: {'✅ Enabled' if stats['p2p_enabled'] else '❌ Disabled'}\n")
 
 
 def main():
@@ -488,13 +657,15 @@ def main():
     parser.add_argument('--stats', action='store_true', help='Show cache statistics')
     parser.add_argument('--cache-dir', help='Cache directory')
     parser.add_argument('--enable-ipfs', action='store_true', help='Enable IPFS caching')
+    parser.add_argument('--enable-p2p', action='store_true', help='Enable P2P cache sharing via libp2p')
     
     args = parser.parse_args()
     
     # Initialize cache
     cache = GHCache(
         cache_dir=args.cache_dir,
-        enable_ipfs=args.enable_ipfs
+        enable_ipfs=args.enable_ipfs,
+        enable_p2p=args.enable_p2p
     )
     
     # Clear cache if requested

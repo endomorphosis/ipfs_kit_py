@@ -14,6 +14,7 @@
 export GH_CACHE_DIR="${GH_CACHE_DIR:-$HOME/.ipfs_kit/gh_cache}"
 export GH_CACHE_ENABLED="${GH_CACHE_ENABLED:-1}"
 export GH_CACHE_IPFS="${GH_CACHE_IPFS:-0}"
+export GH_CACHE_P2P="${GH_CACHE_P2P:-0}"
 export GH_CACHE_DEBUG="${GH_CACHE_DEBUG:-0}"
 
 # Colors for output
@@ -149,6 +150,10 @@ gh_cached_python() {
     
     if [ "$GH_CACHE_IPFS" = "1" ]; then
         cache_args="$cache_args --enable-ipfs"
+    fi
+    
+    if [ "$GH_CACHE_P2P" = "1" ]; then
+        cache_args="$cache_args --enable-p2p"
     fi
     
     if [ "$GH_CACHE_DEBUG" = "1" ]; then
