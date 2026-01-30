@@ -214,7 +214,7 @@ ipfs-kit mcp deprecations \
   --fail-if-missing-migration
 ```
 
-Key properties of the report (see `schemas/deprecations_report.schema.json`):
+Key properties of the report (see `data/deprecations_report.schema.json`):
 * `generated_at` – UTC timestamp
 * `report_version` – Semantic schema contract (currently `1.0.0`)
 * `deprecated[]` – Filtered/sorted endpoints (after flags)
@@ -709,7 +709,7 @@ python comprehensive_cluster_demonstration.py
 cd docker && docker-compose up -d
 
 # Kubernetes cluster
-kubectl apply -f k8s/
+kubectl apply -f deployments/k8s/
 ```
 
 ### 3. Policy System Configuration
@@ -1001,7 +1001,7 @@ docker run -d --name ipfs-worker1 \
 
 ```bash
 # Deploy complete cluster
-kubectl apply -f k8s/
+kubectl apply -f deployments/k8s/
 
 # Check status
 kubectl get pods -n ipfs-cluster
@@ -1011,7 +1011,7 @@ kubectl get services -n ipfs-cluster
 kubectl port-forward svc/ipfs-mcp-master 8998:8998 -n ipfs-cluster
 
 # Run cluster tests
-kubectl apply -f k8s/03-test-job.yaml
+kubectl apply -f deployments/k8s/03-test-job.yaml
 ```
 
 ### Resource Requirements
@@ -1111,11 +1111,12 @@ ipfs_kit_py/
 │   ├── Dockerfile                # Multi-stage container build
 │   ├── docker-compose.yml        # 3-node cluster compose
 │   └── *.yaml                    # Configuration files
-├── 📁 k8s/                       # Kubernetes manifests
-│   ├── 00-services.yaml          # Cluster services
-│   ├── 01-master.yaml            # Master StatefulSet
-│   ├── 02-workers.yaml           # Worker StatefulSets
-│   └── 03-test-job.yaml          # Test automation
+├── 📁 deployments/               # Deployment configurations
+│   └── 📁 k8s/                   # Kubernetes manifests
+│       ├── 00-services.yaml      # Cluster services
+│       ├── 01-master.yaml        # Master StatefulSet
+│       ├── 02-workers.yaml       # Worker StatefulSets
+│       └── 03-test-job.yaml      # Test automation
 ├── 📁 tests/                     # Comprehensive tests
 │   ├── test_cluster_services.py  # Cluster functionality
 │   ├── test_vfs_integration.py   # VFS operations
