@@ -142,7 +142,7 @@ def create_bucket_tool(name: str, config: dict) -> dict:
 - `mcp/standalone_vfs_mcp_server.py` - ✅ Imports from ipfs_kit_py
 
 **MCP Handlers:**
-- All handlers in `mcp_handlers/` - ✅ Follow correct pattern (placeholders)
+- All handlers in `ipfs_kit_py/mcp/handlers/` - ✅ Follow correct pattern (placeholders)
 
 **Integration Status:**
 - 36 strategic integrations across repository (see `COMPLETE_INTEGRATION_SUMMARY.md`)
