@@ -37,6 +37,11 @@ jobs:
         sudo apt update
         sudo apt install gh -y
         gh --version
+        
+        # Initialize GitHub CLI caching
+        source .github/scripts/gh_cache_wrapper.sh
+        export GH_CACHE_ENABLED=1
+        echo "✅ GitHub CLI caching initialized"
     
     - name: Parse issue details
       id: parse
@@ -144,8 +149,11 @@ jobs:
         ISSUE_NUMBER: ${{ steps.parse.outputs.issue_number }}
         WORKFLOW_NAME: ${{ steps.parse.outputs.workflow_name }}
       run: |
-        # Create a comment that will trigger Copilot
-        gh issue comment $ISSUE_NUMBER --body "@copilot Please analyze this workflow failure and create a pull request with fixes. 
+        # Enable GitHub CLI caching
+        source .github/scripts/gh_cache_wrapper.sh
+        
+        # Create a comment that will trigger Copilot (write operation - not cached)
+        gh_nocache issue comment $ISSUE_NUMBER --body "@copilot Please analyze this workflow failure and create a pull request with fixes. 
 
         **Task**: Fix the workflow '$WORKFLOW_NAME' based on the failure analysis above.
         

@@ -113,11 +113,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install PyYAML requests PyGithub
       
+      - name: Initialize GitHub CLI caching
+        run: |
+          # Enable GitHub CLI caching to reduce API calls
+          source .github/scripts/gh_cache_wrapper.sh
+          export GH_CACHE_ENABLED=1
+          export GH_CACHE_DEBUG=0
+          
+          echo "✅ GitHub CLI caching initialized" >> $GITHUB_STEP_SUMMARY
+          echo "   Cache Dir: $GH_CACHE_DIR" >> $GITHUB_STEP_SUMMARY
+      
       - name: Get workflow run details
         id: get_run_details
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Enable GitHub CLI caching
+          source .github/scripts/gh_cache_wrapper.sh
+          
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ -n "${{ github.event.inputs.run_id }}" ]; then
               RUN_ID="${{ github.event.inputs.run_id }}"
@@ -134,7 +147,7 @@ jobs:
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
           echo "workflow_name=$WORKFLOW_NAME" >> $GITHUB_OUTPUT
           
-          # Get more details
+          # Get more details (cached)
           HEAD_BRANCH=$(gh run view $RUN_ID --json headBranch --jq '.headBranch' || echo "main")
           HEAD_SHA=$(gh run view $RUN_ID --json headSha --jq '.headSha' || echo "")
           
@@ -154,19 +167,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ steps.get_run_details.outputs.run_id }}
         run: |
+          # Enable GitHub CLI caching
+          source .github/scripts/gh_cache_wrapper.sh
+          
           mkdir -p /tmp/workflow-logs
           
           echo "📥 Downloading logs for run $RUN_ID..."
           
-          # Download logs
-          if gh run download $RUN_ID --dir /tmp/workflow-logs 2>&1; then
+          # Download logs (not cached - this is a large binary operation)
+          if gh_nocache run download $RUN_ID --dir /tmp/workflow-logs 2>&1; then
             echo "✅ Logs downloaded successfully"
             ls -lh /tmp/workflow-logs/
           else
             echo "⚠️  Could not download logs via gh run download, trying alternative method..."
             
-            # Alternative: get logs via API
-            gh api \
+            # Alternative: get logs via API (not cached)
+            gh_nocache api \
               -H "Accept: application/vnd.github+json" \
               "/repos/${{ github.repository }}/actions/runs/$RUN_ID/logs" \
               > /tmp/workflow-logs/combined.log.zip || true
@@ -255,9 +271,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ steps.get_run_details.outputs.run_id }}
         run: |
+          # Enable GitHub CLI caching
+          source .github/scripts/gh_cache_wrapper.sh
+          
           echo "🔍 Checking for duplicate processing..."
           
-          # Check for existing PRs or issues for this run
+          # Check for existing PRs or issues for this run (cached - short TTL)
           EXISTING_PRS=$(gh pr list --repo ${{ github.repository }} \
             --search "Run ID: $RUN_ID in:body" --state all --json number --jq 'length' 2>&1 || echo "0")
           
@@ -333,8 +352,8 @@ jobs:
           echo "" >> /tmp/issue.md
           echo "Run ID: ${RUN_ID}" >> /tmp/issue.md
           
-          # Create issue
-          ISSUE_NUMBER=$(gh issue create \
+          # Create issue (write operation - not cached)
+          ISSUE_NUMBER=$(gh_nocache issue create \
             --title "Fix: $WORKFLOW_NAME - $ERROR_TYPE" \
             --body-file /tmp/issue.md \
             --label "auto-healing,workflow-failure,automated" \
@@ -376,6 +395,9 @@ jobs:
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
           RUN_ID: ${{ steps.get_run_details.outputs.run_id }}
         run: |
+          # Enable GitHub CLI caching
+          source .github/scripts/gh_cache_wrapper.sh
+          
           echo "🔀 Creating draft PR with fix..."
           
           # Create branch
@@ -407,8 +429,8 @@ jobs:
           git commit -m "chore: Initialize auto-fix branch for $PR_TITLE"
           git push origin "$BRANCH_NAME"
           
-          # Create draft PR
-          PR_NUMBER=$(gh pr create \
+          # Create draft PR (write operation - not cached)
+          PR_NUMBER=$(gh_nocache pr create \
             --title "$PR_TITLE" \
             --body-file /tmp/pr_body.md \
             --draft \
@@ -417,8 +439,8 @@ jobs:
           
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           
-          # Add comment mentioning Copilot
-          gh pr comment $PR_NUMBER --body "@copilot /fix - Please implement the automated workflow fix as described in the PR description."
+          # Add comment mentioning Copilot (write operation - not cached)
+          gh_nocache pr comment $PR_NUMBER --body "@copilot /fix - Please implement the automated workflow fix as described in the PR description."
           
           echo "## ✅ Draft PR Created" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -429,7 +451,15 @@ jobs:
       - name: Summary
         if: always()
         run: |
+          # Enable GitHub CLI caching
+          source .github/scripts/gh_cache_wrapper.sh
+          
           echo "## 🎉 Auto-Healing Workflow Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The workflow failure has been analyzed and processed." >> $GITHUB_STEP_SUMMARY
           echo "Check the issue and/or PR for details." >> $GITHUB_STEP_SUMMARY
+          
+          # Show cache statistics
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 GitHub CLI Cache Statistics" >> $GITHUB_STEP_SUMMARY
+          gh_cache_stats >> $GITHUB_STEP_SUMMARY 2>&1 || echo "Cache stats not available" >> $GITHUB_STEP_SUMMARY
