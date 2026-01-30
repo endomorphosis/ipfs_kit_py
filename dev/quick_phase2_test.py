@@ -17,7 +17,7 @@ def test_tool_registry():
     print("=== Testing Tool Registry ===")
     
     try:
-        from core.tool_registry import registry
+        from ipfs_kit_py.core.tool_registry import registry
         print(f"✓ Registry loaded: {len(registry.tools)} total tools")
         
         # Find IPFS tools
@@ -62,7 +62,7 @@ def test_ipfs_operations():
     print("\n=== Testing IPFS Operations ===")
     
     try:
-        from core.tool_registry import registry
+        from ipfs_kit_py.core.tool_registry import registry
         
         # Test ipfs_add
         if 'ipfs_add' in registry.tools:

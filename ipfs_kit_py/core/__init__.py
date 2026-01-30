@@ -5,6 +5,13 @@ IPFS-Kit Core Module with Integrated JIT Import Management
 This core module provides the foundational import management system for the entire
 ipfs_kit_py package, enabling fast startup times and lazy loading of heavy dependencies.
 
+Core Infrastructure Components:
+- Tool Registry System
+- Service Management
+- Error Handling
+- Testing Framework
+- JIT Import Management
+
 The JIT (Just-in-Time) import system is integrated at the package core level to:
 - Minimize startup time by deferring heavy imports
 - Provide consistent import patterns across CLI, MCP server, and daemon
@@ -12,6 +19,9 @@ The JIT (Just-in-Time) import system is integrated at the package core level to:
 - Monitor import performance and provide metrics
 
 Usage:
+    # Import core infrastructure
+    from ipfs_kit_py.core import ToolRegistry, ServiceManager, ErrorHandler
+    
     # Import the core JIT system
     from ipfs_kit_py.core import jit_manager
     
@@ -19,14 +29,6 @@ Usage:
     if jit_manager.is_available('enhanced_features'):
         # Load modules only when needed
         enhanced_index = jit_manager.get_module('enhanced_pin_index')
-    
-    # Use decorators for automatic JIT loading
-    from ipfs_kit_py.core import lazy_import
-    
-    @lazy_import('enhanced_features')
-    def get_enhanced_pin_manager():
-        from ipfs_kit_py.enhanced_pin_index import get_global_enhanced_pin_index
-        return get_global_enhanced_pin_index()
 """
 
 import sys
@@ -37,6 +39,12 @@ from functools import wraps
 
 # Configure logger for core module
 logger = logging.getLogger(__name__)
+
+# Import core infrastructure components
+from .tool_registry import ToolRegistry, ToolSchema, ToolCategory, ToolStatus, registry, tool
+from .service_manager import ServiceManager, IPFSServiceManager, ServiceConfig, ServiceStatus, service_manager, ipfs_manager
+from .error_handler import ErrorHandler, MCPError, ErrorCode, ErrorCategory, ErrorSeverity, error_handler, create_success_response
+from .test_framework import TestFramework, TestResult, TestSuite, TestStatus, TestCategory, test_framework
 
 # Import the centralized JIT system
 _JIT_AVAILABLE = False
@@ -411,31 +419,27 @@ def get_jit_imports():
     return None
 
 
-# Re-export JIT functions for backward compatibility
-if _JIT_AVAILABLE:
-    # Export the original JIT functions plus core functions
-    __all__ = [
-        'jit_manager',
-        'require_feature', 
-        'optional_feature',
-        'core_lazy_import',
-        'jit_import',
-        'jit_import_from', 
-        'lazy_import',
-        'get_jit_imports'
-    ]
-else:
-    # Provide mock implementations for missing JIT system
-    __all__ = [
-        'jit_manager',
-        'require_feature',
-        'optional_feature', 
-        'core_lazy_import',
-        'jit_import',
-        'jit_import_from',
-        'lazy_import'
-    ]
+# Export all core components and JIT functions
+__all__ = [
+    # Core Infrastructure Components
+    'ToolRegistry', 'ToolSchema', 'ToolCategory', 'ToolStatus', 'registry', 'tool',
+    'ServiceManager', 'IPFSServiceManager', 'ServiceConfig', 'ServiceStatus', 'service_manager', 'ipfs_manager',
+    'ErrorHandler', 'MCPError', 'ErrorCode', 'ErrorCategory', 'ErrorSeverity', 'error_handler', 'create_success_response',
+    'TestFramework', 'TestResult', 'TestSuite', 'TestStatus', 'TestCategory', 'test_framework',
+    
+    # JIT Management
+    'jit_manager',
+    'require_feature', 
+    'optional_feature',
+    'core_lazy_import',
+    'jit_import',
+    'jit_import_from', 
+    'lazy_import',
+    'get_jit_imports'
+]
 
+__version__ = "1.0.0"
+__author__ = "IPFS Kit MCP Integration Team"
 
 # Initialize core features on module load
-logger.debug("IPFS-Kit core module with JIT integration loaded")
+logger.debug("IPFS-Kit core module with integrated infrastructure and JIT management loaded")

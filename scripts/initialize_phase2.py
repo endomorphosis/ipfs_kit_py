@@ -50,10 +50,10 @@ class Phase2Initializer:
         
         try:
             # Import Phase 1 components
-            from core.tool_registry import registry
-            from core.service_manager import ipfs_manager
-            from core.error_handler import error_handler
-            from core.test_framework import test_framework
+            from ipfs_kit_py.core.tool_registry import registry
+            from ipfs_kit_py.core.service_manager import ipfs_manager
+            from ipfs_kit_py.core.error_handler import error_handler
+            from ipfs_kit_py.core.test_framework import test_framework
             
             # Check if they're initialized
             if len(registry.tools) == 0:
@@ -221,7 +221,7 @@ class Phase2Initializer:
                     # Get tool metadata from decorator
                     tool_meta = getattr(handler, '_tool_meta', None)
                     if tool_meta:
-                        from core.tool_registry import ToolSchema, ToolCategory
+                        from ipfs_kit_py.core.tool_registry import ToolSchema, ToolCategory
                         
                         schema = ToolSchema(
                             name=tool_meta['name'],

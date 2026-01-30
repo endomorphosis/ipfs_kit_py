@@ -159,7 +159,7 @@ def update_script_imports():
             
             # Update import statements
             content = content.replace(
-                'from core.',
+                'from ipfs_kit_py.core.',
                 'from ipfs_kit.core.'
             )
             content = content.replace(
@@ -167,7 +167,7 @@ def update_script_imports():
                 'from ipfs_kit.tools.'
             )
             content = content.replace(
-                'import core.',
+                'import ipfs_kit_py.core.',
                 'import ipfs_kit.core.'
             )
             content = content.replace(

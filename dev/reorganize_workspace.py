@@ -267,9 +267,9 @@ class WorkspaceReorganizer:
         
         # Reference mappings
         reference_updates = {
-            "from core.": "from src.ipfs_kit.core.",
+            "from ipfs_kit_py.core.": "from src.ipfs_kit.core.",
             "from tools.": "from src.ipfs_kit.tools.",
-            "import core.": "import src.ipfs_kit.core.",
+            "import ipfs_kit_py.core.": "import src.ipfs_kit.core.",
             "import tools.": "import src.ipfs_kit.tools.",
             'sys.path.insert(0, "core")': 'sys.path.insert(0, "src/ipfs_kit")',
             'sys.path.insert(0, "tools")': 'sys.path.insert(0, "src/ipfs_kit")',

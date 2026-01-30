@@ -49,7 +49,7 @@ def check_phase2_status():
     # Check tool registry
     try:
         sys.path.insert(0, 'core')
-        from core.tool_registry import registry
+        from ipfs_kit_py.core.tool_registry import registry
         print(f"\n✓ Tool Registry: {len(registry.tools)} tools registered")
         
         # Count IPFS tools

@@ -16,9 +16,9 @@ from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
-from core.tool_registry import tool, ToolCategory
-from core.error_handler import create_success_response, create_ipfs_error, ErrorContext
-from core.service_manager import ipfs_manager
+from ipfs_kit_py.core.tool_registry import tool, ToolCategory
+from ipfs_kit_py.core.error_handler import create_success_response, create_ipfs_error, ErrorContext
+from ipfs_kit_py.core.service_manager import ipfs_manager
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -698,7 +698,7 @@ def handle_ipfs_dag_put(params: Dict[str, Any]) -> Dict[str, Any]:
 # Register all tools with the registry
 def register_ipfs_core_tools():
     """Register all IPFS core tools with the tool registry"""
-    from core.tool_registry import registry
+    from ipfs_kit_py.core.tool_registry import registry
     
     tools = [
         # Basic Operations
@@ -734,7 +734,7 @@ def register_ipfs_core_tools():
     for tool_name, handler in tools:
         tool_def = getattr(handler, '_tool_meta', None)
         if tool_def:
-            from core.tool_registry import ToolSchema, ToolCategory
+            from ipfs_kit_py.core.tool_registry import ToolSchema, ToolCategory
             
             schema = ToolSchema(
                 name=tool_def['name'],

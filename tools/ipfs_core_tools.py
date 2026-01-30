@@ -24,9 +24,9 @@ import subprocess
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
-from core.tool_registry import tool, ToolCategory
-from core.error_handler import create_success_response, create_ipfs_error, ErrorContext
-from core.service_manager import ipfs_manager
+from ipfs_kit_py.core.tool_registry import tool, ToolCategory
+from ipfs_kit_py.core.error_handler import create_success_response, create_ipfs_error, ErrorContext
+from ipfs_kit_py.core.service_manager import ipfs_manager
 
 # Setup logging
 logger = logging.getLogger(__name__)

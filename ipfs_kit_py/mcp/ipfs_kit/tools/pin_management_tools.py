@@ -24,9 +24,9 @@ from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
-from core.tool_registry import tool, ToolCategory
-from core.error_handler import create_success_response, create_ipfs_error
-from core.service_manager import ipfs_manager
+from ipfs_kit_py.core.tool_registry import tool, ToolCategory
+from ipfs_kit_py.core.error_handler import create_success_response, create_ipfs_error
+from ipfs_kit_py.core.service_manager import ipfs_manager
 
 # Import existing IPFS tools
 from .ipfs_core_tools import ipfs_client
