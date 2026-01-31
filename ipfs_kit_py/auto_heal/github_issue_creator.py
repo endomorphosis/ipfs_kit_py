@@ -1,7 +1,8 @@
 """
-GitHub issue creator for auto-healing.
+GitHub issue creator for auto-healing with IPFS/P2P caching.
 """
 
+import os
 import logging
 from typing import Optional
 import requests
@@ -10,14 +11,49 @@ from .error_capture import CapturedError
 
 logger = logging.getLogger(__name__)
 
+# Try to import GHCache for caching GitHub API calls
+try:
+    from ipfs_kit_py.gh_cache import GHCache
+    HAS_GH_CACHE = True
+except ImportError:
+    HAS_GH_CACHE = False
+    logger.debug("GHCache not available - GitHub API caching disabled")
+
 
 class GitHubIssueCreator:
-    """Creates GitHub issues from captured errors."""
+    """Creates GitHub issues from captured errors with optional caching."""
     
-    def __init__(self, config: AutoHealConfig):
-        """Initialize GitHub issue creator."""
+    def __init__(self, config: AutoHealConfig, enable_cache: bool = True):
+        """
+        Initialize GitHub issue creator.
+        
+        Args:
+            config: Auto-heal configuration
+            enable_cache: Enable caching for GitHub API calls (default: True)
+        """
         self.config = config
         self.api_base = "https://api.github.com"
+        self.enable_cache = enable_cache and HAS_GH_CACHE
+        
+        # Initialize cache if available
+        if self.enable_cache:
+            try:
+                # Enable IPFS/P2P caching based on environment variables
+                enable_ipfs = os.environ.get('GH_CACHE_IPFS', '0') == '1'
+                enable_p2p = os.environ.get('GH_CACHE_P2P', '0') == '1'
+                
+                self.cache = GHCache(enable_ipfs=enable_ipfs, enable_p2p=enable_p2p)
+                logger.info(f"GitHub API caching enabled (IPFS: {enable_ipfs}, P2P: {enable_p2p})")
+            except Exception as e:
+                logger.warning(f"Failed to initialize GitHub cache: {e}")
+                self.enable_cache = False
+                self.cache = None
+        else:
+            self.cache = None
+            if HAS_GH_CACHE:
+                logger.info("GitHub API caching available but disabled")
+            else:
+                logger.debug("GitHub API caching not available")
     
     def create_issue_from_error(self, error: CapturedError) -> Optional[str]:
         """Create a GitHub issue from a captured error."""
@@ -97,7 +133,11 @@ class GitHubIssueCreator:
             return None
     
     def check_duplicate_issue(self, error: CapturedError) -> Optional[str]:
-        """Check if a similar issue already exists."""
+        """
+        Check if a similar issue already exists.
+        
+        This method uses caching if available to reduce API calls.
+        """
         
         if not self.config.is_configured():
             return None
@@ -105,7 +145,35 @@ class GitHubIssueCreator:
         # Parse repository owner and name
         owner, repo = self.config.github_repo.split('/', 1)
         
-        # Search for existing issues with the same error type
+        # Try using gh CLI with caching if available
+        if self.enable_cache and self.cache:
+            try:
+                # Use gh CLI to search for issues (cached)
+                cmd = [
+                    'gh', 'issue', 'list',
+                    '--repo', self.config.github_repo,
+                    '--state', 'open',
+                    '--label', ','.join(self.config.issue_labels),
+                    '--limit', '10',
+                    '--json', 'title,url'
+                ]
+                
+                result = self.cache.run(cmd)
+                if result['exit_code'] == 0:
+                    import json
+                    issues = json.loads(result['stdout'])
+                    
+                    # Check if any issue has the same error type in the title
+                    for issue in issues:
+                        if error.error_type in issue.get('title', ''):
+                            logger.info(f"Found duplicate issue (cached): {issue.get('url')}")
+                            return issue.get('url')
+                    
+                    return None
+            except Exception as e:
+                logger.warning(f"Failed to check duplicates with cached gh CLI: {e}, falling back to API")
+        
+        # Fallback to direct API call (not cached)
         url = f"{self.api_base}/repos/{owner}/{repo}/issues"
         headers = {
             'Authorization': f'token {self.config.github_token}',
@@ -133,3 +201,14 @@ class GitHubIssueCreator:
             logger.error(f"Failed to check for duplicate issues: {e}")
         
         return None
+    
+    def get_cache_stats(self) -> Optional[dict]:
+        """Get cache statistics if caching is enabled."""
+        if self.enable_cache and self.cache:
+            return {
+                'enabled': True,
+                'ipfs_enabled': self.cache.enable_ipfs,
+                'p2p_enabled': self.cache.enable_p2p,
+                'stats': self.cache.stats
+            }
+        return {'enabled': False}

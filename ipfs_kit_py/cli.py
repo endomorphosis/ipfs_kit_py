@@ -16,6 +16,7 @@ import argparse
 import importlib
 import importlib.util
 import json
+import logging
 import os
 import signal
 import subprocess
@@ -24,6 +25,8 @@ import time
 from contextlib import suppress
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 # Schema version for the JSON report emitted by:
@@ -697,8 +700,9 @@ class FastCLI:
         print("✓ Auto-healing disabled")
     
     async def handle_autoheal_status(self, args) -> None:
-        """Show auto-healing status."""
+        """Show auto-healing status including cache statistics."""
         from ipfs_kit_py.auto_heal.config import AutoHealConfig
+        from ipfs_kit_py.auto_heal.github_issue_creator import GitHubIssueCreator
         
         config = AutoHealConfig.from_file()
         emit_json = bool(getattr(args, "json", False))
@@ -714,6 +718,15 @@ class FastCLI:
             'issue_labels': config.issue_labels,
         }
         
+        # Add cache statistics if available
+        try:
+            issue_creator = GitHubIssueCreator(config)
+            cache_stats = issue_creator.get_cache_stats()
+            if cache_stats:
+                status['github_api_cache'] = cache_stats
+        except Exception as e:
+            logger.debug(f"Could not get cache stats: {e}")
+        
         if emit_json:
             print(json.dumps(status, indent=2))
         else:
@@ -725,6 +738,20 @@ class FastCLI:
             print(f"  Auto-create issues: {'Yes' if config.auto_create_issues else 'No'}")
             print(f"  Max log lines: {config.max_log_lines}")
             print(f"  Issue labels: {', '.join(config.issue_labels)}")
+            
+            # Show cache status if available
+            if 'github_api_cache' in status:
+                cache_info = status['github_api_cache']
+                print(f"\nGitHub API Cache:")
+                print(f"  Enabled: {'Yes' if cache_info.get('enabled') else 'No'}")
+                if cache_info.get('enabled'):
+                    print(f"  IPFS Caching: {'Yes' if cache_info.get('ipfs_enabled') else 'No'}")
+                    print(f"  P2P Caching: {'Yes' if cache_info.get('p2p_enabled') else 'No'}")
+                    if 'stats' in cache_info:
+                        stats = cache_info['stats']
+                        print(f"  Cache Hits: {stats.get('hits', 0)}")
+                        print(f"  Cache Misses: {stats.get('misses', 0)}")
+
     
     async def handle_autoheal_config(self, args) -> None:
         """Show or edit auto-healing configuration."""

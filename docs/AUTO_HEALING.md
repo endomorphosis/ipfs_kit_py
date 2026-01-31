@@ -49,7 +49,13 @@ Set the following environment variables:
 export IPFS_KIT_AUTO_HEAL=true
 export GITHUB_TOKEN=your_github_token_here
 export GITHUB_REPOSITORY=owner/repo
+
+# Optional: Enable GitHub API caching with IPFS/P2P
+export GH_CACHE_IPFS=1  # Enable IPFS-based caching
+export GH_CACHE_P2P=1   # Enable P2P cache sharing
 ```
+
+**GitHub API Caching**: The auto-healing system includes built-in caching for GitHub API calls to reduce rate limit usage. See [GitHub API Caching](GITHUB_API_CACHING.md) for details.
 
 #### Option 2: CLI Configuration
 
