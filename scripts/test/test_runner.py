@@ -685,7 +685,7 @@ def main():
     # Configure output directory
     output_dir = args.output_dir
     if not output_dir and (args.junit_xml or args.coverage):
-        output_dir = os.path.join(os.getcwd(), "test_results")
+        output_dir = os.path.join(os.getcwd(), "data", "test_results")
         os.makedirs(output_dir, exist_ok=True)
     
     # Create server configuration

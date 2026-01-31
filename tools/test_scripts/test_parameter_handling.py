@@ -31,10 +31,10 @@ logger = logging.getLogger("param-tests")
 PORT = 9998
 HOST = "localhost"
 ENDPOINT = f"http://{HOST}:{PORT}/jsonrpc"
-RESULTS_DIR = "test_results"
+RESULTS_DIR = "data/test_results"
 
 # Ensure results directory exists
-Path(RESULTS_DIR).mkdir(exist_ok=True)
+Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
 
 def execute_jsonrpc(method, params):
     """

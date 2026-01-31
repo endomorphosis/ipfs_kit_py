@@ -64,7 +64,7 @@ spec:
           echo "Cluster tests completed successfully!"
         volumeMounts:
         - name: test-results
-          mountPath: /app/test_results
+          mountPath: /app/data/test_results
         resources:
           requests:
             memory: "256Mi"
