@@ -3,7 +3,7 @@
     "iteration": 0,
     "name": "baseline",
     "description": "Current MCP Tools tab with placeholder",
-    "screenshot": "/home/runner/work/ipfs_kit_py/ipfs_kit_py/data/screenshots/mcp_iterations/iteration_000_baseline.png",
+    "screenshot": "data/screenshots/mcp_iterations/iteration_000_baseline.png",
     "screenshot_name": "iteration_000_baseline.png",
     "timestamp": "2025-08-27T05:36:52.209239"
   },
@@ -11,7 +11,7 @@
     "iteration": 1,
     "name": "plan_mcp_server_control",
     "description": "Planning implementation of MCP Server lifecycle management",
-    "screenshot": "/home/runner/work/ipfs_kit_py/ipfs_kit_py/data/screenshots/mcp_iterations/iteration_001_plan_mcp_server_control.png",
+    "screenshot": "data/screenshots/mcp_iterations/iteration_001_plan_mcp_server_control.png",
     "screenshot_name": "iteration_001_plan_mcp_server_control.png",
     "timestamp": "2025-08-27T05:36:52.209544"
   },
@@ -19,7 +19,7 @@
     "iteration": 2,
     "name": "plan_mcp_tools_registry",
     "description": "Planning implementation of MCP Tools and capabilities management",
-    "screenshot": "/home/runner/work/ipfs_kit_py/ipfs_kit_py/data/screenshots/mcp_iterations/iteration_002_plan_mcp_tools_registry.png",
+    "screenshot": "data/screenshots/mcp_iterations/iteration_002_plan_mcp_tools_registry.png",
     "screenshot_name": "iteration_002_plan_mcp_tools_registry.png",
     "timestamp": "2025-08-27T05:36:52.209636"
   },
@@ -27,7 +27,7 @@
     "iteration": 3,
     "name": "plan_mcp_ipfs_integration",
     "description": "Planning implementation of MCP-specific IPFS Kit integration",
-    "screenshot": "/home/runner/work/ipfs_kit_py/ipfs_kit_py/data/screenshots/mcp_iterations/iteration_003_plan_mcp_ipfs_integration.png",
+    "screenshot": "data/screenshots/mcp_iterations/iteration_003_plan_mcp_ipfs_integration.png",
     "screenshot_name": "iteration_003_plan_mcp_ipfs_integration.png",
     "timestamp": "2025-08-27T05:36:52.209722"
   },
@@ -35,7 +35,7 @@
     "iteration": 4,
     "name": "plan_mcp_protocol_inspector",
     "description": "Planning implementation of MCP protocol debugging and inspection",
-    "screenshot": "/home/runner/work/ipfs_kit_py/ipfs_kit_py/data/screenshots/mcp_iterations/iteration_004_plan_mcp_protocol_inspector.png",
+    "screenshot": "data/screenshots/mcp_iterations/iteration_004_plan_mcp_protocol_inspector.png",
     "screenshot_name": "iteration_004_plan_mcp_protocol_inspector.png",
     "timestamp": "2025-08-27T05:36:52.209812"
   }
