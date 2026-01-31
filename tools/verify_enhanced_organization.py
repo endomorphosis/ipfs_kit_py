@@ -55,7 +55,6 @@ def check_directory_structure():
         "config/": "Configuration files",
         "deployment/": "Deployment resources",
         "logs/": "Log files",
-        "temp/": "Temporary files",
         "archive/": "Archived content"
     }
     

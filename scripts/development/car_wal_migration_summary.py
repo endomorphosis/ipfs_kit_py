@@ -115,9 +115,7 @@ def generate_migration_summary():
     locations = [
         ("CAR WAL Manager", "ipfs_kit_py/car_wal_manager.py"),
         ("Migration Script", "migrate_to_car_wal.py"),
-        ("Backup Directory", "wal_migration_backup/"),
         ("CAR WAL Storage", "~/.ipfs_kit/wal/car/"),
-        ("Migration Report", "wal_migration_backup/migration_report.json")
     ]
     
     for name, location in locations:
