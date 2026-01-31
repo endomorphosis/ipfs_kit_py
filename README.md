@@ -732,7 +732,7 @@ python comprehensive_cluster_demonstration.py
 cd docker && docker-compose up -d
 
 # Kubernetes cluster
-kubectl apply -f deployments/k8s/
+kubectl apply -f deployment/k8s/
 ```
 
 ### 3. Policy System Configuration
@@ -999,7 +999,7 @@ docker-compose down -v
 
 ```bash
 # Build image
-docker build -t ipfs-kit-mcp:latest -f docker/Dockerfile .
+docker build -t ipfs-kit-mcp:latest -f deployment/docker/Dockerfile .
 
 # Master node
 docker run -d --name ipfs-master \
@@ -1024,7 +1024,7 @@ docker run -d --name ipfs-worker1 \
 
 ```bash
 # Deploy complete cluster
-kubectl apply -f deployments/k8s/
+kubectl apply -f deployment/k8s/
 
 # Check status
 kubectl get pods -n ipfs-cluster
@@ -1034,7 +1034,7 @@ kubectl get services -n ipfs-cluster
 kubectl port-forward svc/ipfs-mcp-master 8998:8998 -n ipfs-cluster
 
 # Run cluster tests
-kubectl apply -f deployments/k8s/03-test-job.yaml
+kubectl apply -f deployment/k8s/03-test-job.yaml
 ```
 
 ### Resource Requirements
@@ -1130,11 +1130,11 @@ ipfs_kit_py/
 │   ├── standalone_cluster_server.py   # Standalone cluster server
 │   ├── start_3_node_cluster.py       # 3-node cluster launcher
 │   └── comprehensive_cluster_demonstration.py
-├── 📁 docker/                    # Container deployment
-│   ├── Dockerfile                # Multi-stage container build
-│   ├── docker-compose.yml        # 3-node cluster compose
-│   └── *.yaml                    # Configuration files
-├── 📁 deployments/               # Deployment configurations
+├── 📁 deployment/                # Deployment configurations
+│   ├── 📁 docker/                # Container deployment
+│   │   ├── Dockerfile            # Multi-stage container build
+│   │   ├── docker-compose.yml    # 3-node cluster compose
+│   │   └── *.yaml                # Configuration files
 │   └── 📁 k8s/                   # Kubernetes manifests
 │       ├── 00-services.yaml      # Cluster services
 │       ├── 01-master.yaml        # Master StatefulSet
@@ -1536,7 +1536,9 @@ ipfs_kit_py/
 ├── 🧪 tests/                          # Test suites (900+ files)
 ├── 🛠️ tools/                          # Development tools (400+ files)
 ├── 🔧 scripts/                        # Shell scripts (200+ files)
-├── 🐳 docker/                         # Docker configuration
+├── 📦 deployment/                     # Deployment configuration
+│   ├── 🐳 docker/                     # Docker files
+│   └── ☸️  k8s/                       # Kubernetes manifests
 ├── ⚙️ config/                         # Configuration files
 ├── 📦 archive/                        # Archived development files
 ├── 📄 backup/                         # Backup and logs

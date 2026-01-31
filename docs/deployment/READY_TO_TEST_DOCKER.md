@@ -7,8 +7,8 @@ All code changes have been implemented and verified locally. The solution ensure
 ## What Was Done
 
 ### 1. Updated Docker Images
-- **File**: `docker/Dockerfile` (lines 19-34)
-- **File**: `docker/Dockerfile.enhanced` (lines 12-31)
+- **File**: `deployment/docker/Dockerfile` (lines 19-34)
+- **File**: `deployment/docker/Dockerfile.enhanced` (lines 12-31)
 - **Added packages**: hwloc, libhwloc-dev, mesa-opencl-icd, ocl-icd-opencl-dev
 - **Result**: All Lotus prerequisites installed at Docker build time
 
@@ -45,7 +45,7 @@ All code changes have been implemented and verified locally. The solution ensure
 ### Step 1: Rebuild Docker Image
 ```bash
 cd /home/devel/ipfs_kit_py
-docker build -f docker/Dockerfile.enhanced -t ipfs-kit:test .
+docker build -f deployment/docker/Dockerfile.enhanced -t ipfs-kit:test .
 ```
 
 **Expected**: Build completes successfully with apt installing hwloc packages in the logs.
@@ -121,8 +121,8 @@ docker inspect ipfs-kit-daemon-test | jq '.[0].Config.Env'
 
 ## Related Files
 
-- `docker/Dockerfile` - Main container image
-- `docker/Dockerfile.enhanced` - Enhanced image with daemon support
+- `deployment/docker/Dockerfile` - Main container image
+- `deployment/docker/Dockerfile.enhanced` - Enhanced image with daemon support
 - `ipfs_kit_py/install_lotus.py` - Lotus installer with detection logic
 - `LOTUS_DEPS_DOCKER_FIX.md` - Complete technical documentation
 - `ipfs_kit_py/lotus_kit.py` - Uses environment flags to control behavior

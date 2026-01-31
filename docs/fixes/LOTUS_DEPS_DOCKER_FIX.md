@@ -13,7 +13,7 @@ The installer's `_install_system_dependencies()` method is called during `__init
 ## Solution
 
 ### 1. Pre-install Lotus Dependencies in Docker Images
-Updated both `docker/Dockerfile` and `docker/Dockerfile.enhanced` to install all required Lotus system dependencies during the image build:
+Updated both `deployment/docker/Dockerfile` and `deployment/docker/Dockerfile.enhanced` to install all required Lotus system dependencies during the image build:
 
 ```dockerfile
 # Install system dependencies including Lotus prerequisites
@@ -97,7 +97,7 @@ To rebuild and test:
 
 ```bash
 # Rebuild the image
-docker build -f docker/Dockerfile.enhanced -t ipfs-kit:test .
+docker build -f deployment/docker/Dockerfile.enhanced -t ipfs-kit:test .
 
 # Run daemon-only mode
 docker run --rm --name ipfs-kit-daemon-test \
@@ -120,8 +120,8 @@ Expected: API responds within seconds with `{"status": "ok", "running": true, ..
 
 ## Files Modified
 
-1. `docker/Dockerfile` - Added Lotus dependencies to apt install
-2. `docker/Dockerfile.enhanced` - Added Lotus dependencies to apt install  
+1. `deployment/docker/Dockerfile` - Added Lotus dependencies to apt install
+2. `deployment/docker/Dockerfile.enhanced` - Added Lotus dependencies to apt install  
 3. `ipfs_kit_py/install_lotus.py` - Enhanced library path detection
 4. `ipfs_kit_py/lotus_kit.py` - Respect environment flags for auto-install
 5. `ipfs_kit_py/storacha_kit.py` - Respect environment flags for auto-install

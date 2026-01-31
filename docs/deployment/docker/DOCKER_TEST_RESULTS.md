@@ -9,7 +9,7 @@ The Lotus dependency pre-installation solution is **working correctly**. All sys
 ## Test Summary
 
 ### 1. Docker Image Build ✅
-- **Command**: `docker build -f docker/Dockerfile.enhanced -t ipfs-kit:test .`
+- **Command**: `docker build -f deployment/docker/Dockerfile.enhanced -t ipfs-kit:test .`
 - **Result**: SUCCESS (completed in 522.5s)
 - **Verification**: Built without errors, all stages completed
 
@@ -64,11 +64,11 @@ System dependencies check passed: True
 ## Implementation Verification
 
 ### Files Modified:
-1. **docker/Dockerfile** (lines 19-34)
+1. **deployment/docker/Dockerfile** (lines 19-34)
    - Added: `hwloc libhwloc-dev mesa-opencl-icd ocl-icd-opencl-dev` to apt install
    - Status: ✅ Verified in built image
 
-2. **docker/Dockerfile.enhanced** (lines 12-31)
+2. **deployment/docker/Dockerfile.enhanced** (lines 12-31)
    - Added: `hwloc libhwloc-dev mesa-opencl-icd ocl-icd-opencl-dev` to apt install
    - Status: ✅ Verified in built image
 
