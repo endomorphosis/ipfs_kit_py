@@ -51,6 +51,29 @@
 - **[CI/CD Integration Plan](CI_CD_AUTOMATION_INTEGRATION_PLAN.md)** - Complete technical specification
 - **[GitHub CLI Caching Guide](GITHUB_CLI_CACHING.md)** - IPFS/LibP2P-based caching for GitHub CLI
 
+### Auto-Healing 🤖✨
+The CLI includes an intelligent auto-healing system that automatically captures errors, creates GitHub issues, and generates fixes:
+- **[Auto-Healing Guide](docs/AUTO_HEALING.md)** - Complete documentation and architecture
+- **[Quick Start](docs/AUTO_HEALING_QUICKSTART.md)** - Get started in 5 minutes
+- Automatic error capture with full diagnostic context
+- GitHub issue creation with stack traces and logs
+- Pattern-based fix generation for common errors
+- GitHub Copilot integration for complex errors
+- Draft PR creation with suggested fixes
+
+```bash
+# Enable auto-healing
+export IPFS_KIT_AUTO_HEAL=true
+export GITHUB_TOKEN=your_token
+export GITHUB_REPOSITORY=owner/repo
+
+# Configure via CLI
+ipfs-kit autoheal enable --github-repo owner/repo
+ipfs-kit autoheal status
+```
+
+When errors occur, they're automatically reported and fixed! See [docs/AUTO_HEALING.md](docs/AUTO_HEALING.md) for details.
+
 ### GitHub CLI Caching 🚀
 Built-in caching layer for GitHub CLI commands reduces API calls by 50-70% and provides 50-200x speedup for cached queries. Features:
 - Intelligent TTL management (commits: 1 year, workflows: 5 min, PRs: 2 min)

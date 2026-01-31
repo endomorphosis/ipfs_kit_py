@@ -1,6 +1,6 @@
 name: Auto-Heal Workflow
 
-# This workflow automatically creates pull requests to fix failed workflows
+# This workflow automatically creates pull requests to fix failed workflows and CLI errors
 on:
   issues:
     types: [labeled, opened]
@@ -15,10 +15,11 @@ jobs:
   create-fix-pr:
     name: Create Auto-Healing PR
     runs-on: ubuntu-latest
-    # Only run if the issue has the auto-heal label
+    # Run if the issue has the auto-heal label and either workflow-failure or cli-error
     if: |
       contains(github.event.issue.labels.*.name, 'auto-heal') &&
-      contains(github.event.issue.labels.*.name, 'workflow-failure')
+      (contains(github.event.issue.labels.*.name, 'workflow-failure') ||
+       contains(github.event.issue.labels.*.name, 'cli-error'))
     
     steps:
     - name: Checkout repository
@@ -62,6 +63,14 @@ jobs:
           }
           
           core.setOutput('issue_number', context.payload.issue.number);
+          
+          // Detect if this is a CLI error or workflow failure
+          const labels = context.payload.issue.labels.map(l => l.name);
+          const isCliError = labels.includes('cli-error');
+          const isWorkflowFailure = labels.includes('workflow-failure');
+          
+          core.setOutput('is_cli_error', isCliError.toString());
+          core.setOutput('is_workflow_failure', isWorkflowFailure.toString());
     
     - name: Generate fix analysis
       id: generate_fix
@@ -71,8 +80,23 @@ jobs:
         WORKFLOW_NAME: ${{ steps.parse.outputs.workflow_name }}
         ISSUE_NUMBER: ${{ steps.parse.outputs.issue_number }}
         REPOSITORY: ${{ github.repository }}
+        IS_CLI_ERROR: ${{ steps.parse.outputs.is_cli_error }}
+        IS_WORKFLOW_FAILURE: ${{ steps.parse.outputs.is_workflow_failure }}
       run: |
-        python scripts/ci/generate_workflow_fix.py
+        if [ "$IS_CLI_ERROR" = "true" ]; then
+          echo "Generating fix for CLI error..."
+          python scripts/ci/generate_cli_error_fix.py
+          # Copy output for consistency
+          if [ -f /tmp/cli_error_fix.json ]; then
+            cp /tmp/cli_error_fix.json /tmp/workflow_fix.json
+          fi
+        elif [ "$IS_WORKFLOW_FAILURE" = "true" ]; then
+          echo "Generating fix for workflow failure..."
+          python scripts/ci/generate_workflow_fix.py
+        else
+          echo "Unknown issue type, defaulting to workflow fix..."
+          python scripts/ci/generate_workflow_fix.py
+        fi
     
     - name: Create fix branch and PR
       if: steps.generate_fix.outputs.has_fix == 'true'
@@ -183,23 +207,24 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
-              body: `🤖 Auto-healing PR created: #${pr.data.number}\n\nThe system has generated a potential fix for this workflow failure. Please review the PR.`
+              body: `🤖 Auto-healing PR created: #${pr.data.number}\n\nThe system has generated a potential fix for this error. Please review the PR.`
             });
             
-            // If no changes were made, close the issue with explanation
+            // If no changes were made, invoke GitHub Copilot
             if (!fix.files || fix.files.length === 0) {
+              // Label for GitHub Copilot to pick up
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: ['copilot-assist-needed']
+              });
+              
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber,
-                body: `⚠️ The auto-healing system could not generate an automatic fix for this workflow failure.\n\n**Reason:** ${fix.reason || 'Unable to determine root cause automatically'}\n\n**Manual intervention required:** Please review the workflow logs and make necessary changes manually.`
-              });
-              
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                labels: ['auto-heal', 'workflow-failure', 'needs-manual-fix']
+                body: `⚠️ The auto-healing system could not generate an automatic fix.\n\n**Reason:** ${fix.reason || 'Unable to determine root cause automatically'}\n\n🤖 **GitHub Copilot has been invoked** to analyze this error and provide an AI-assisted fix.\n\nPlease wait for the Copilot agent to respond with a suggested solution.`
               });
             }
           } catch (error) {
