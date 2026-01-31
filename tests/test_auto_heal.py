@@ -257,6 +257,147 @@ class TestGitHubIssueCreator:
         assert issue_url is None
 
 
+class TestGitHubIssueDuplicateChecking:
+    """Test duplicate issue checking functionality."""
+    
+    @patch('ipfs_kit_py.auto_heal.github_issue_creator.requests.get')
+    def test_check_duplicate_with_api_fallback(self, mock_get):
+        """Test duplicate checking falls back to direct API when gh CLI unavailable."""
+        # Mock successful API response with existing issues
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {
+                'title': '[Auto-Heal] ValueError: Existing error',
+                'html_url': 'https://github.com/owner/repo/issues/100'
+            }
+        ]
+        mock_get.return_value = mock_response
+        
+        config = AutoHealConfig(
+            enabled=True,
+            github_token='test_token',
+            github_repo='owner/repo'
+        )
+        # Disable cache to force API fallback
+        creator = GitHubIssueCreator(config, enable_cache=False)
+        
+        # Create error with matching type
+        error = CapturedError(
+            error_type='ValueError',
+            error_message='Test error message',
+            stack_trace='stack trace here',
+            timestamp='2024-01-01T00:00:00',
+            command='test command',
+            arguments={},
+            environment={},
+            log_context=[],
+            working_directory='/test',
+            python_version='3.12'
+        )
+        
+        # Check for duplicate
+        duplicate_url = creator.check_duplicate_issue(error)
+        
+        # Should find the duplicate
+        assert duplicate_url == 'https://github.com/owner/repo/issues/100'
+        
+        # Verify API was called
+        mock_get.assert_called_once()
+        call_args = mock_get.call_args
+        assert 'https://api.github.com/repos/owner/repo/issues' in call_args[0]
+    
+    @patch('ipfs_kit_py.auto_heal.github_issue_creator.requests.get')
+    def test_check_duplicate_no_match(self, mock_get):
+        """Test duplicate checking when no duplicate exists."""
+        # Mock API response with different error types
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {
+                'title': '[Auto-Heal] TypeError: Different error',
+                'html_url': 'https://github.com/owner/repo/issues/100'
+            }
+        ]
+        mock_get.return_value = mock_response
+        
+        config = AutoHealConfig(
+            enabled=True,
+            github_token='test_token',
+            github_repo='owner/repo'
+        )
+        creator = GitHubIssueCreator(config, enable_cache=False)
+        
+        # Create error with non-matching type
+        error = CapturedError(
+            error_type='ValueError',
+            error_message='Test error message',
+            stack_trace='stack trace here',
+            timestamp='2024-01-01T00:00:00',
+            command='test command',
+            arguments={},
+            environment={},
+            log_context=[],
+            working_directory='/test',
+            python_version='3.12'
+        )
+        
+        # Check for duplicate
+        duplicate_url = creator.check_duplicate_issue(error)
+        
+        # Should not find a duplicate
+        assert duplicate_url is None
+    
+    @patch('ipfs_kit_py.auto_heal.github_issue_creator.requests.post')
+    def test_create_issue_with_duplicate_check(self, mock_post):
+        """Test that create_issue_from_error checks for duplicates first."""
+        # Mock successful issue creation
+        mock_response = Mock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {
+            'html_url': 'https://github.com/owner/repo/issues/123'
+        }
+        mock_post.return_value = mock_response
+        
+        config = AutoHealConfig(
+            enabled=True,
+            github_token='test_token',
+            github_repo='owner/repo'
+        )
+        creator = GitHubIssueCreator(config, enable_cache=False)
+        
+        error = CapturedError(
+            error_type='ValueError',
+            error_message='Test error',
+            stack_trace='stack trace',
+            timestamp='2024-01-01T00:00:00',
+            command='test',
+            arguments={},
+            environment={},
+            log_context=[],
+            working_directory='/test',
+            python_version='3.12'
+        )
+        
+        # Mock check_duplicate_issue to return None (no duplicate)
+        with patch.object(creator, 'check_duplicate_issue', return_value=None):
+            issue_url = creator.create_issue_from_error(error)
+            
+            # Should create new issue
+            assert issue_url == 'https://github.com/owner/repo/issues/123'
+            mock_post.assert_called_once()
+        
+        # Now test with existing duplicate
+        with patch.object(creator, 'check_duplicate_issue', return_value='https://github.com/owner/repo/issues/999'):
+            mock_post.reset_mock()
+            issue_url = creator.create_issue_from_error(error)
+            
+            # Should return duplicate URL without creating new issue
+            assert issue_url == 'https://github.com/owner/repo/issues/999'
+            mock_post.assert_not_called()
+
+
+
 class TestErrorCaptureDecorator:
     """Test error capture decorator functionality."""
     

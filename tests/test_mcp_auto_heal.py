@@ -222,5 +222,159 @@ class TestEndToEndIntegration:
         assert len(capture.error_log) == 1
 
 
+class TestAutoHealFailureScenarios:
+    """Test auto-heal failure scenarios to ensure robustness."""
+    
+    @pytest.mark.asyncio
+    @patch('ipfs_kit_py.auto_heal.config.AutoHealConfig')
+    async def test_auto_heal_with_github_api_failure(self, mock_config_class):
+        """Test that tool execution continues even if auto-heal GitHub API fails."""
+        from ipfs_kit_py.auto_heal.mcp_tool_wrapper import MCPToolErrorCapture
+        
+        # Mock config as configured
+        mock_config = Mock()
+        mock_config.is_configured.return_value = True
+        mock_config.max_log_lines = 100
+        mock_config_class.from_file.return_value = mock_config
+        
+        # Create capture with auto-heal enabled
+        capture = MCPToolErrorCapture(enable_auto_heal=True)
+        
+        # Create a failing tool
+        async def failing_tool(tool_name, arguments):
+            raise RuntimeError("Tool execution failed")
+        
+        wrapped = capture.wrap_tool_handler(failing_tool)
+        
+        # Mock GitHub issue creator to raise exception
+        with patch('ipfs_kit_py.auto_heal.github_issue_creator.GitHubIssueCreator') as mock_creator_class:
+            mock_creator = Mock()
+            mock_creator.create_issue_from_error.side_effect = Exception("GitHub API failed")
+            mock_creator_class.return_value = mock_creator
+            
+            # Execute should raise original tool error, not GitHub API error
+            with pytest.raises(RuntimeError, match="Tool execution failed"):
+                await wrapped("test_tool", {"test": "param"})
+            
+            # Error should still be logged locally even if GitHub API failed
+            async def wait_for_error_log():
+                timeout_counter = 0
+                while len(capture.error_log) < 1 and timeout_counter < 100:
+                    await asyncio.sleep(0.01)
+                    timeout_counter += 1
+            
+            await asyncio.wait_for(wait_for_error_log(), timeout=1.0)
+            assert len(capture.error_log) == 1
+    
+    @pytest.mark.asyncio
+    async def test_auto_heal_with_invalid_config(self):
+        """Test that tool execution continues with invalid auto-heal config."""
+        from ipfs_kit_py.auto_heal.mcp_tool_wrapper import MCPToolErrorCapture
+        
+        # Create capture with invalid config (no token/repo)
+        with patch('ipfs_kit_py.auto_heal.config.AutoHealConfig') as mock_config_class:
+            mock_config = Mock()
+            mock_config.is_configured.return_value = False
+            mock_config.max_log_lines = 100
+            mock_config_class.from_file.return_value = mock_config
+            
+            capture = MCPToolErrorCapture(enable_auto_heal=True)
+            
+            # Create a failing tool
+            async def failing_tool(tool_name, arguments):
+                raise ValueError("Tool failed")
+            
+            wrapped = capture.wrap_tool_handler(failing_tool)
+            
+            # Should still raise the tool error
+            with pytest.raises(ValueError, match="Tool failed"):
+                await wrapped("test_tool", {})
+            
+            # Error should be logged
+            async def wait_for_error_log():
+                timeout_counter = 0
+                while len(capture.error_log) < 1 and timeout_counter < 100:
+                    await asyncio.sleep(0.01)
+                    timeout_counter += 1
+            
+            await asyncio.wait_for(wait_for_error_log(), timeout=1.0)
+            assert len(capture.error_log) == 1
+    
+    @pytest.mark.asyncio
+    @patch('ipfs_kit_py.auto_heal.config.AutoHealConfig')
+    async def test_auto_heal_trigger_timeout_doesnt_block_error(self, mock_config_class):
+        """Test that slow auto-heal trigger doesn't block error propagation."""
+        from ipfs_kit_py.auto_heal.mcp_tool_wrapper import MCPToolErrorCapture
+        
+        # Mock config as configured
+        mock_config = Mock()
+        mock_config.is_configured.return_value = True
+        mock_config.max_log_lines = 100
+        mock_config_class.from_file.return_value = mock_config
+        
+        capture = MCPToolErrorCapture(enable_auto_heal=True)
+        
+        # Create a failing tool
+        async def failing_tool(tool_name, arguments):
+            raise ConnectionError("Connection timeout")
+        
+        wrapped = capture.wrap_tool_handler(failing_tool)
+        
+        # Mock GitHub issue creator with slow response
+        with patch('ipfs_kit_py.auto_heal.github_issue_creator.GitHubIssueCreator') as mock_creator_class:
+            async def slow_create_issue(error):
+                await asyncio.sleep(5)  # Simulate slow API
+                return 'https://github.com/owner/repo/issues/1'
+            
+            mock_creator = Mock()
+            mock_creator.create_issue_from_error = AsyncMock(side_effect=slow_create_issue)
+            mock_creator_class.return_value = mock_creator
+            
+            # Error should be raised immediately, not wait for slow auto-heal
+            import time
+            start = time.time()
+            
+            with pytest.raises(ConnectionError, match="Connection timeout"):
+                await wrapped("test_tool", {})
+            
+            elapsed = time.time() - start
+            
+            # Should complete quickly (< 1 second), not wait for 5 second delay
+            assert elapsed < 1.0, f"Error took {elapsed}s to propagate, should be immediate"
+    
+    @pytest.mark.asyncio
+    async def test_client_error_reporter_with_malformed_data(self):
+        """Test client error reporter handles malformed input gracefully."""
+        from ipfs_kit_py.auto_heal.client_error_reporter import ClientErrorReporter
+        
+        reporter = ClientErrorReporter()
+        
+        # Test with None - should handle gracefully
+        result = await reporter.report_client_error(None)
+        assert result['status'] == 'error'
+        assert 'No error data provided' in result['message']
+        
+        # Test with empty dict - should process without crashing
+        result = await reporter.report_client_error({})
+        assert result['status'] == 'error'  # No error data provided
+        
+        # Test with minimal valid data - should succeed
+        result = await reporter.report_client_error({
+            'error_message': 'Test error',
+            'error_type': 'TestError'
+        })
+        assert result['status'] == 'success'
+        
+        # Test with extra unexpected fields - should still process
+        result = await reporter.report_client_error({
+            'error_message': 'Another test',
+            'error_type': 'AnotherError',
+            'unexpected_field': 'unexpected_value',
+            'another_unexpected': {'nested': 'data'}
+        })
+        assert result['status'] == 'success'
+
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
