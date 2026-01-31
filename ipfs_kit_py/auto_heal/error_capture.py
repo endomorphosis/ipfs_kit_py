@@ -222,7 +222,7 @@ def capture_cli_errors(func):
     return wrapper
 
 
-async def capture_cli_errors_async(func):
+def capture_cli_errors_async(func):
     """Async decorator to capture CLI errors and trigger auto-healing."""
     
     @wraps(func)

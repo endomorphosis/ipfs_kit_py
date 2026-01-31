@@ -355,9 +355,14 @@ class MCPClient {
   }
   
   _getRecentConsoleLogs() {
-    // Return last few console messages if available
-    // This is a simplified version - in production, you'd maintain a log buffer
-    return ['Console log capture not implemented'];
+    // Return console logs from the log buffer if available
+    // Note: Console log capture requires setting up a buffer during SDK initialization
+    // For now, returning a placeholder to indicate this feature needs browser-specific implementation
+    if (window._mcpConsoleLogBuffer && Array.isArray(window._mcpConsoleLogBuffer)) {
+      return window._mcpConsoleLogBuffer.slice(-10); // Last 10 log entries
+    }
+    // Return empty array instead of placeholder message to avoid confusion in error reports
+    return [];
   }
 }
 

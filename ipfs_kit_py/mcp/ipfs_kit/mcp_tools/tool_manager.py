@@ -531,10 +531,9 @@ class MCPToolManager:
             
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
-                
-        except Exception as e:
-            # Log and re-raise - error capture happens in handle_tool_request
-            logger.error(f"Error executing MCP tool {tool_name}: {e}")
+        except Exception:
+            # Don't log here - let handle_tool_request handle it with auto-heal
+            # This avoids redundant error logging
             raise
     
     def get_tools(self) -> List[SimplifiedMCPTool]:
