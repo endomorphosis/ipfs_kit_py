@@ -2,7 +2,7 @@ services:
   ipfs-kit:
     build:
       context: ..
-      dockerfile: docker/Dockerfile.enhanced
+      dockerfile: deployment/docker/Dockerfile.enhanced
     container_name: ipfs-kit-daemon
     ports:
       - "4001:4001"     # IPFS swarm
@@ -31,7 +31,7 @@ services:
   ipfs-kit-cluster:
     build:
       context: ..
-      dockerfile: docker/Dockerfile.enhanced
+      dockerfile: deployment/docker/Dockerfile.enhanced
     container_name: ipfs-kit-cluster
     ports:
       - "4002:4001"     # IPFS swarm (different port)

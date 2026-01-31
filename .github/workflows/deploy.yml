@@ -72,9 +72,9 @@ jobs:
         run: |
           # Create ConfigMap from environment-specific configuration
           kubectl -n ${{ steps.vars.outputs.namespace }} create configmap ipfs-kit-config \
-            --from-file=docker/config-master.yaml \
-            --from-file=docker/config-worker.yaml \
-            --from-file=docker/config-leecher.yaml \
+            --from-file=deployment/docker/config-master.yaml \
+            --from-file=deployment/docker/config-worker.yaml \
+            --from-file=deployment/docker/config-leecher.yaml \
             --dry-run=client -o yaml | kubectl apply -f -
       
       - name: Create Cluster Secret

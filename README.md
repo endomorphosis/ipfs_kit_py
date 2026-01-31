@@ -976,7 +976,7 @@ docker-compose down -v
 
 ```bash
 # Build image
-docker build -t ipfs-kit-mcp:latest -f docker/Dockerfile .
+docker build -t ipfs-kit-mcp:latest -f deployment/docker/Dockerfile .
 
 # Master node
 docker run -d --name ipfs-master \
@@ -1107,11 +1107,11 @@ ipfs_kit_py/
 │   ├── standalone_cluster_server.py   # Standalone cluster server
 │   ├── start_3_node_cluster.py       # 3-node cluster launcher
 │   └── comprehensive_cluster_demonstration.py
-├── 📁 docker/                    # Container deployment
-│   ├── Dockerfile                # Multi-stage container build
-│   ├── docker-compose.yml        # 3-node cluster compose
-│   └── *.yaml                    # Configuration files
-├── 📁 deployments/               # Deployment configurations
+├── 📁 deployment/                # Deployment configurations
+│   ├── 📁 docker/                # Container deployment
+│   │   ├── Dockerfile            # Multi-stage container build
+│   │   ├── docker-compose.yml    # 3-node cluster compose
+│   │   └── *.yaml                # Configuration files
 │   └── 📁 k8s/                   # Kubernetes manifests
 │       ├── 00-services.yaml      # Cluster services
 │       ├── 01-master.yaml        # Master StatefulSet
@@ -1513,7 +1513,9 @@ ipfs_kit_py/
 ├── 🧪 tests/                          # Test suites (900+ files)
 ├── 🛠️ tools/                          # Development tools (400+ files)
 ├── 🔧 scripts/                        # Shell scripts (200+ files)
-├── 🐳 docker/                         # Docker configuration
+├── 📦 deployment/                     # Deployment configuration
+│   ├── 🐳 docker/                     # Docker files
+│   └── ☸️  k8s/                       # Kubernetes manifests
 ├── ⚙️ config/                         # Configuration files
 ├── 📦 archive/                        # Archived development files
 ├── 📄 backup/                         # Backup and logs

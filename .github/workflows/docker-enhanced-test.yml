@@ -54,7 +54,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/Dockerfile.enhanced
+          file: deployment/docker/Dockerfile.enhanced
           platforms: linux/amd64
           push: false
           load: true
@@ -150,7 +150,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/Dockerfile.enhanced
+          file: deployment/docker/Dockerfile.enhanced
           platforms: linux/arm64
           push: false
           load: true
