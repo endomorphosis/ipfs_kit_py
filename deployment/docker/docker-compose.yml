@@ -4,7 +4,7 @@ services:
   # Master node
   ipfs-mcp-master:
     build:
-      context: ..
+      context: ../..
       dockerfile: deployment/docker/Dockerfile
       target: development
     container_name: ipfs-mcp-master
@@ -43,7 +43,7 @@ services:
   # Worker node 1
   ipfs-mcp-worker1:
     build:
-      context: ..
+      context: ../..
       dockerfile: deployment/docker/Dockerfile
       target: development
     container_name: ipfs-mcp-worker1
@@ -83,7 +83,7 @@ services:
   # Worker node 2
   ipfs-mcp-worker2:
     build:
-      context: ..
+      context: ../..
       dockerfile: deployment/docker/Dockerfile
       target: development
     container_name: ipfs-mcp-worker2
@@ -123,7 +123,7 @@ services:
   # Test runner service
   cluster-tester:
     build:
-      context: ..
+      context: ../..
       dockerfile: deployment/docker/Dockerfile
       target: development
     container_name: cluster-tester
