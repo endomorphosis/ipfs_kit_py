@@ -276,7 +276,7 @@ async def main():
     success = validator.print_summary()
 
     # Save results to file
-    output_dir = Path(__file__).parent.parent.parent / "test_results"
+    output_dir = Path(__file__).parent.parent.parent / "data" / "test_results"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "mcp_dashboard_validation.json"
 

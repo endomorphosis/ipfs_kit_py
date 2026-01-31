@@ -141,7 +141,7 @@ class WorkflowARM64Updater:
         print(f"{'='*70}\n")
 
         # Save to file
-        output_file = Path(__file__).parent.parent.parent / "test_results" / "arm64_recommendations.txt"
+        output_file = Path(__file__).parent.parent.parent / "data" / "test_results" / "arm64_recommendations.txt"
         output_file.parent.mkdir(parents=True, exist_ok=True)
         with open(output_file, 'w') as f:
             f.write("ARM64 Support Recommendations\n")

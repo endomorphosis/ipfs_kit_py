@@ -1,6 +1,0 @@
-This is a test file for the simplified bucket implementation.
-It demonstrates the correct architecture:
-- Simple VFS index (parquet file)
-- File content stored in WAL
-- No complex folder structures
-- CID-based naming

@@ -57,7 +57,7 @@ class NetworkSimulator:
         scenario: str,
         nodes: int = 3,
         duration: int = 60,
-        test_dir: str = "test_results",
+        test_dir: str = "data/test_results",
         mcp_args: Optional[Dict[str, Any]] = None,
         network_args: Optional[Dict[str, Any]] = None,
         log_network: bool = True,
@@ -1081,7 +1081,7 @@ def main():
                     help="List available scenarios and exit")
     parser.add_argument("--nodes", type=int, default=3, help="Number of MCP nodes to create")
     parser.add_argument("--duration", type=int, default=60, help="Duration of simulation in seconds")
-    parser.add_argument("--test-dir", default="test_results",
+    parser.add_argument("--test-dir", default="data/test_results",
                     help="Directory for test output")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     

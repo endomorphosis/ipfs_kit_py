@@ -133,7 +133,7 @@ services:
       - WORKER2_URL=http://ipfs-mcp-worker2:9998
       - PYTHONPATH=/app
     volumes:
-      - ../test_results:/app/test_results
+      - ../data/test_results:/app/data/test_results
       - ../logs:/app/logs
     command: >
       sh -c "

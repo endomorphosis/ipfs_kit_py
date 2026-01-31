@@ -296,7 +296,7 @@ class MCPToolsTest:
         
         # Save results to file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        results_dir = "test_results"
+        results_dir = "data/test_results"
         os.makedirs(results_dir, exist_ok=True)
         results_file = os.path.join(results_dir, f"tool_test_results_{timestamp}.json")
         
