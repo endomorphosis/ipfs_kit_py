@@ -121,9 +121,9 @@ deploy_kubernetes() {
     
     # Apply Kubernetes manifests
     log "Applying Kubernetes manifests..."
-    kubectl apply -f deployments/k8s/00-services.yaml
-    kubectl apply -f deployments/k8s/01-master.yaml
-    kubectl apply -f deployments/k8s/02-workers.yaml
+    kubectl apply -f deployment/k8s/00-services.yaml
+    kubectl apply -f deployment/k8s/01-master.yaml
+    kubectl apply -f deployment/k8s/02-workers.yaml
     
     success "Kubernetes manifests applied"
     
@@ -149,7 +149,7 @@ run_tests() {
     
     if [ "$DEPLOY_TO_K8S" = true ]; then
         # Run Kubernetes test job
-        kubectl apply -f deployments/k8s/03-test-job.yaml
+        kubectl apply -f deployment/k8s/03-test-job.yaml
         
         log "Waiting for test job to complete..."
         kubectl wait --for=condition=complete job/cluster-test-job -n ${NAMESPACE} --timeout=300s

@@ -709,7 +709,7 @@ python comprehensive_cluster_demonstration.py
 cd docker && docker-compose up -d
 
 # Kubernetes cluster
-kubectl apply -f deployments/k8s/
+kubectl apply -f deployment/k8s/
 ```
 
 ### 3. Policy System Configuration
@@ -1001,7 +1001,7 @@ docker run -d --name ipfs-worker1 \
 
 ```bash
 # Deploy complete cluster
-kubectl apply -f deployments/k8s/
+kubectl apply -f deployment/k8s/
 
 # Check status
 kubectl get pods -n ipfs-cluster
@@ -1011,7 +1011,7 @@ kubectl get services -n ipfs-cluster
 kubectl port-forward svc/ipfs-mcp-master 8998:8998 -n ipfs-cluster
 
 # Run cluster tests
-kubectl apply -f deployments/k8s/03-test-job.yaml
+kubectl apply -f deployment/k8s/03-test-job.yaml
 ```
 
 ### Resource Requirements
