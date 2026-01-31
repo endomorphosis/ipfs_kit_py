@@ -142,8 +142,19 @@ class ErrorCapture:
         tb = traceback.format_exception(type(exception), exception, exception.__traceback__)
         stack_trace = ''.join(tb)
         
-        # Capture environment
-        env = dict(os.environ)
+        # Capture environment - filter sensitive variables at capture time
+        # Only include safe environment variables
+        safe_prefixes = ['IPFS', 'GITHUB_REPOSITORY', 'PATH', 'HOME', 'USER', 'LANG', 'LC_', 
+                         'SHELL', 'TERM', 'PWD', 'OLDPWD', 'EDITOR', 'PAGER', 'DISPLAY',
+                         'XDG_', 'PYTHON', 'NODE', 'GO', 'CARGO', 'GH_CACHE']
+        env = {
+            k: v for k, v in os.environ.items()
+            if any(k.startswith(prefix) for prefix in safe_prefixes) 
+            and 'TOKEN' not in k.upper() 
+            and 'PASSWORD' not in k.upper()
+            and 'SECRET' not in k.upper()
+            and 'KEY' not in k.upper()
+        }
         
         # Create captured error
         captured = CapturedError(

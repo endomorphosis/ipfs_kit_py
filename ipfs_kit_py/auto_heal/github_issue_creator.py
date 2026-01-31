@@ -62,6 +62,12 @@ class GitHubIssueCreator:
             logger.warning("Auto-healing not properly configured")
             return None
         
+        # Check for duplicate issues first
+        duplicate_url = self.check_duplicate_issue(error)
+        if duplicate_url:
+            logger.info(f"Duplicate issue found: {duplicate_url}")
+            return duplicate_url
+        
         # Format issue title
         title = self._format_issue_title(error)
         

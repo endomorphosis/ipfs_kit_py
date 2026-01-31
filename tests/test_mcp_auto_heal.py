@@ -208,8 +208,14 @@ class TestEndToEndIntegration:
         with pytest.raises(RuntimeError):
             await wrapped("test_tool", {"test": "param"})
         
-        # Give async task time to complete
-        await asyncio.sleep(0.1)
+        # Wait for background error logging to complete (with timeout for test reliability)
+        async def wait_for_error_log():
+            timeout_counter = 0
+            while len(capture.error_log) < 1 and timeout_counter < 100:
+                await asyncio.sleep(0.01)
+                timeout_counter += 1
+        
+        await asyncio.wait_for(wait_for_error_log(), timeout=1.0)
         
         # Verify issue creation was attempted
         # Note: In real scenario, this would create actual GitHub issue

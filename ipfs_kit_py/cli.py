@@ -683,7 +683,12 @@ class FastCLI:
         if config.is_configured():
             print(f"✓ Configuration complete")
             print(f"  Repository: {config.github_repo}")
-            print(f"  Token: {'*' * 20}...{config.github_token[-4:] if config.github_token else 'not set'}")
+            # Safe token display - handle None and short tokens
+            if config.github_token:
+                token_suffix = config.github_token[-4:] if len(config.github_token) >= 4 else config.github_token
+                print(f"  Token: {'*' * 20}...{token_suffix}")
+            else:
+                print(f"  Token: not set")
         else:
             print("⚠️  Auto-healing requires both GITHUB_TOKEN and GITHUB_REPOSITORY")
             print("   Set them via environment variables or:")
@@ -726,6 +731,9 @@ class FastCLI:
                 status['github_api_cache'] = cache_stats
         except Exception as e:
             logger.debug(f"Could not get cache stats: {e}")
+            # Add indicator that cache stats retrieval failed
+            status['github_api_cache'] = {'enabled': False, 'error': 'Failed to retrieve cache stats'}
+
         
         if emit_json:
             print(json.dumps(status, indent=2))
@@ -843,7 +851,8 @@ async def main() -> None:
             except Exception as issue_error:
                 logger.error(f"Failed to create GitHub issue: {issue_error}")
         
-        # Re-raise the original exception
+        # Re-raise the original exception to preserve CLI exit behavior
+        # The CLI will exit with an error code, but the error has been reported
         raise
 
 
