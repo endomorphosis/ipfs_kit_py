@@ -1258,6 +1258,30 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(int(err.get("code", 500)), err.get("message", "error"))
             return JSONResponse(res.get("result", res))
 
+        # Auto-healing endpoint for client-side error reporting
+        @app.post("/api/auto-heal/report-client-error")
+        async def report_client_error(request: Request) -> JSONResponse:
+            """Receive and process client-side error reports for auto-healing."""
+            try:
+                error_data = await request.json()
+                
+                # Import the client error reporter
+                from ipfs_kit_py.auto_heal.client_error_reporter import get_client_error_reporter
+                
+                # Get the reporter instance
+                reporter = get_client_error_reporter()
+                
+                # Process the error
+                result = await reporter.report_client_error(error_data)
+                
+                return JSONResponse(result)
+            except Exception as e:
+                logging.error(f"Failed to process client error report: {e}")
+                return JSONResponse({
+                    "status": "error",
+                    "message": f"Failed to process error report: {str(e)}"
+                }, status_code=500)
+
         # Explicit HEAD handlers for common endpoints (avoid 405s from probes)
         @app.head("/")
         async def index_head() -> Response:  # type: ignore
