@@ -399,7 +399,7 @@ python scripts/validation/cicd_workflow_validation.py
 
 - **MCP Dashboard Validation:** `test_results/mcp_dashboard_validation.json`
 - **CI/CD Workflow Validation:** `test_results/cicd_workflow_validation.json`
-- **Screenshots:** `screenshots/mcp-validation/*.png`
+- **Screenshots:** `data/screenshots/mcp-validation/*.png`
 
 ---
 

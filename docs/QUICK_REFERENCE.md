@@ -62,7 +62,7 @@ Both test suites pass successfully:
 ### Documentation
 - `CONFIGURATION_FIX_DOCUMENTATION.md` - Detailed technical documentation
 - `SUMMARY_OF_CHANGES.md` - Complete summary of changes
-- `screenshots/config_fix_screenshot.png` - Visual demonstration
+- `data/screenshots/config_fix_screenshot.png` - Visual demonstration
 
 ### Example: Configuring IPFS
 
