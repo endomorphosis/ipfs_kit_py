@@ -13,6 +13,9 @@ class MCPClient {
   // Cache of available MCP tools (optional)
   this._toolList = null;
   this._lastToolListAt = 0;
+  // Auto-healing configuration
+  this.autoHealEnabled = true; // Enable by default
+  this.errorReportEndpoint = '/api/auto-heal/report-client-error';
         
     // Initialize connection testing
     this.testConnection();
@@ -150,6 +153,10 @@ class MCPClient {
           this.isConnected = false;
           this.retryCount++;
           console.error(`All MCP call attempts failed for ${toolName}:`, error.message);
+          
+          // Report error to auto-healing system
+          await this.reportError(error, toolName, params, 'tool_call');
+          
           throw error;
         }
       }
@@ -285,6 +292,72 @@ class MCPClient {
       retryCount: this.retryCount,
       status: this.isConnected ? 'Connected via MCP JSON-RPC' : 'Using API Fallback'
     };
+  }
+  
+  /**
+   * Report an error to the auto-healing system
+   * @param {Error} error - The error object
+   * @param {string} toolName - Name of the tool that failed
+   * @param {object} params - Parameters passed to the tool
+   * @param {string} operation - Type of operation (e.g., 'tool_call', 'fetch', 'parse')
+   */
+  async reportError(error, toolName = 'unknown', params = {}, operation = 'unknown') {
+    if (!this.autoHealEnabled) {
+      return; // Auto-healing disabled
+    }
+    
+    try {
+      // Gather error information
+      const errorData = {
+        error_type: error.name || 'Error',
+        error_message: error.message || 'Unknown error',
+        stack_trace: error.stack || 'No stack trace available',
+        tool_name: toolName,
+        operation: operation,
+        params: params,
+        browser: this._getBrowserInfo(),
+        platform: navigator.platform || 'Unknown',
+        user_agent: navigator.userAgent || 'Unknown',
+        url: window.location.href,
+        timestamp: new Date().toISOString(),
+        sdk_version: '1.0.0',
+        console_logs: this._getRecentConsoleLogs()
+      };
+      
+      // Send error report to server
+      const response = await fetch(this.errorReportEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(errorData)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[Auto-Heal] Error reported successfully:', result);
+      } else {
+        console.warn('[Auto-Heal] Failed to report error:', response.statusText);
+      }
+    } catch (reportError) {
+      // Don't let error reporting cause more errors
+      console.warn('[Auto-Heal] Error reporting failed:', reportError.message);
+    }
+  }
+  
+  _getBrowserInfo() {
+    const ua = navigator.userAgent;
+    if (ua.includes('Chrome')) return 'Chrome';
+    if (ua.includes('Firefox')) return 'Firefox';
+    if (ua.includes('Safari')) return 'Safari';
+    if (ua.includes('Edge')) return 'Edge';
+    return 'Unknown';
+  }
+  
+  _getRecentConsoleLogs() {
+    // Return last few console messages if available
+    // This is a simplified version - in production, you'd maintain a log buffer
+    return ['Console log capture not implemented'];
   }
 }
 
@@ -429,22 +502,48 @@ window.mcpLogger = {
 
 // Global error handler to catch any uncaught JavaScript errors
 window.addEventListener('error', function(event) {
-  console.error('Uncaught JavaScript error:', {
+  const errorInfo = {
     message: event.message,
     filename: event.filename,
     lineno: event.lineno,
     colno: event.colno,
     error: event.error ? event.error.toString() : 'No error object',
     stack: event.error ? event.error.stack : 'No stack trace available'
-  });
+  };
+  
+  console.error('Uncaught JavaScript error:', errorInfo);
+  
+  // Report to auto-healing system
+  if (window.mcpClient && window.mcpClient.autoHealEnabled) {
+    const error = event.error || new Error(event.message);
+    window.mcpClient.reportError(
+      error,
+      'global_error',
+      { filename: event.filename, lineno: event.lineno, colno: event.colno },
+      'uncaught_error'
+    );
+  }
 });
 
 // Global unhandled promise rejection handler
 window.addEventListener('unhandledrejection', function(event) {
-  console.error('Unhandled promise rejection:', {
+  const errorInfo = {
     reason: typeof event.reason === 'object' ? JSON.stringify(event.reason) : event.reason,
     promise: event.promise
-  });
+  };
+  
+  console.error('Unhandled promise rejection:', errorInfo);
+  
+  // Report to auto-healing system
+  if (window.mcpClient && window.mcpClient.autoHealEnabled) {
+    const error = event.reason instanceof Error ? event.reason : new Error(String(event.reason));
+    window.mcpClient.reportError(
+      error,
+      'promise_rejection',
+      { reason: errorInfo.reason },
+      'unhandled_rejection'
+    );
+  }
 });
 
 // Helper function that was missing from the enhanced dashboard template

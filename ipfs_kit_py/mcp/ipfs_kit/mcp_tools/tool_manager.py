@@ -6,12 +6,16 @@ from typing import List, Dict, Any, Optional
 import logging
 import traceback
 import time
+import os
 
 from .backend_tools import BackendTools
 from .system_tools import SystemTools
 from .vfs_tools import VFSTools
 
 logger = logging.getLogger(__name__)
+
+# Auto-healing integration
+_AUTO_HEAL_ENABLED = os.environ.get('IPFS_KIT_AUTO_HEAL', '').lower() in ('true', '1', 'yes')
 
 
 class SimplifiedMCPTool:
@@ -33,6 +37,20 @@ class MCPToolManager:
         self.backend_tools = BackendTools(backend_monitor)
         self.system_tools = SystemTools(backend_monitor)
         self.vfs_tools = VFSTools(backend_monitor)
+        
+        # Initialize auto-healing wrapper if enabled
+        self.auto_heal_enabled = _AUTO_HEAL_ENABLED
+        if self.auto_heal_enabled:
+            try:
+                from ipfs_kit_py.auto_heal.mcp_tool_wrapper import get_mcp_error_capture
+                self.error_capture = get_mcp_error_capture(enable_auto_heal=True)
+                logger.info("MCP tool auto-healing enabled")
+            except Exception as e:
+                logger.warning(f"Could not enable MCP tool auto-healing: {e}")
+                self.error_capture = None
+                self.auto_heal_enabled = False
+        else:
+            self.error_capture = None
         
         # Create tool registry
         self.tools = self._create_tools()
@@ -355,7 +373,29 @@ class MCPToolManager:
         return tools
     
     async def handle_tool_request(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle MCP tool requests."""
+        """Handle MCP tool requests with auto-healing error capture."""
+        
+        # If auto-healing is enabled, wrap the execution
+        if self.auto_heal_enabled and self.error_capture:
+            try:
+                return await self._execute_tool(tool_name, arguments)
+            except Exception as e:
+                # Capture error for auto-healing
+                error_info = self.error_capture._capture_tool_error(tool_name, arguments, e)
+                logger.error(f"MCP tool '{tool_name}' failed: {e}", exc_info=True)
+                
+                # Trigger auto-healing in background
+                import asyncio
+                asyncio.create_task(self.error_capture._trigger_auto_heal(error_info))
+                
+                # Re-raise the exception
+                raise
+        else:
+            # No auto-healing, execute directly
+            return await self._execute_tool(tool_name, arguments)
+    
+    async def _execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute the actual tool logic."""
         
         try:
             # System tools
@@ -493,8 +533,9 @@ class MCPToolManager:
                 return {"error": f"Unknown tool: {tool_name}"}
                 
         except Exception as e:
-            logger.error(f"Error handling MCP request {tool_name}: {e}")
-            return {"error": str(e), "traceback": traceback.format_exc()}
+            # Log and re-raise - error capture happens in handle_tool_request
+            logger.error(f"Error executing MCP tool {tool_name}: {e}")
+            raise
     
     def get_tools(self) -> List[SimplifiedMCPTool]:
         """Get all available MCP tools."""
