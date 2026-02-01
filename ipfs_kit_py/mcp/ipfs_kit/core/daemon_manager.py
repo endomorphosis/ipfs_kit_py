@@ -5,7 +5,8 @@ This module provides comprehensive daemon management with:
 1. API responsiveness checking
 2. Port conflict resolution
 3. Process cleanup and restart capabilities
-4. Integration with content optimization system
+4. Integration with co
+ntent optimization system
 """
 
 import anyio
