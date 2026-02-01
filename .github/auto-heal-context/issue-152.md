@@ -1,0 +1,37 @@
+# Auto-Heal Context for Issue #152
+
+## Workflow Failure Information
+
+- **Workflow:** Docker CI/CD
+- **Run ID:** 21560918067
+- **Run URL:** https://github.com/endomorphosis/ipfs_kit_py/actions/runs/21560918067
+- **Branch:** main
+- **Commit:** c089c1c91427ead18e5ba53d9f79c69a8d281930
+
+## Failed Jobs
+
+### Job: Docker Lint
+
+**Status:** failure
+**URL:** https://github.com/endomorphosis/ipfs_kit_py/actions/runs/21560918067/job/62124730645
+
+**Failed Steps:**
+- Lint Dockerfile
+
+
+
+## Task
+
+Please fix the workflow failure by:
+1. Analyzing the error logs above
+2. Identifying the root cause
+3. Making minimal, targeted changes to fix the issue
+4. Ensuring the fix doesn't break existing functionality
+
+## Files to Review
+
+- `.github/workflows/` directory for workflow YAML files
+- Related source code if the failure is in application tests
+- Dependencies and configuration files
+
+Follow the guidelines in `.github/copilot-instructions.md`
