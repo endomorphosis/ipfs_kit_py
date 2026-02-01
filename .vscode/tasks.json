@@ -1,118 +1,175 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "GitHub: List Workflow Runs (Cached)",
-      "type": "shell",
-      "command": "source .github/scripts/gh_cache_wrapper.sh && gh run list --limit 10",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "group": "github"
-    },
-    {
-      "label": "GitHub: View Recent Failures (Cached)",
-      "type": "shell",
-      "command": "source .github/scripts/gh_cache_wrapper.sh && gh run list --status failure --limit 5",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "group": "github"
-    },
-    {
-      "label": "GitHub: List PRs (Cached)",
-      "type": "shell",
-      "command": "source .github/scripts/gh_cache_wrapper.sh && gh pr list --state all --limit 20",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "group": "github"
-    },
-    {
-      "label": "GitHub: List Open Issues (Cached)",
-      "type": "shell",
-      "command": "source .github/scripts/gh_cache_wrapper.sh && gh issue list --state open --limit 20",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "group": "github"
-    },
-    {
-      "label": "GitHub: Show Cache Statistics",
-      "type": "shell",
-      "command": "source .github/scripts/gh_cache_wrapper.sh && gh_cache_stats",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "group": "github"
-    },
-    {
-      "label": "GitHub: Clear Cache",
-      "type": "shell",
-      "command": "source .github/scripts/gh_cache_wrapper.sh && gh_cache_clear",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "group": "github"
-    },
-    {
-      "label": "Cache: Test GitHub CLI Caching",
-      "type": "shell",
-      "command": "source .github/scripts/gh_cache_wrapper.sh && export GH_CACHE_ENABLED=1 && echo '=== First call (miss) ===' && gh repo view && echo '\\n=== Second call (hit) ===' && gh repo view && echo '\\n=== Statistics ===' && gh_cache_stats",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "group": "github"
-    },
-    {
-      "label": "Test: Run All Tests",
-      "type": "shell",
-      "command": "pytest tests/ -v",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "group": {
-        "kind": "test",
-        "isDefault": true
-      }
-    },
-    {
-      "label": "Build: Install Dependencies",
-      "type": "shell",
-      "command": "pip install -r requirements.txt",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "group": "build"
-    },
-    {
-      "label": "CI/CD: Analyze Recent Workflow Failure",
-      "type": "shell",
-      "command": "source .github/scripts/gh_cache_wrapper.sh && RUN_ID=$(gh run list --status failure --limit 1 --json databaseId --jq '.[0].databaseId') && echo \"Analyzing run: $RUN_ID\" && gh run view $RUN_ID",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      },
-      "group": "github"
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "GitHub: List Workflow Runs (Cached)",
+			"type": "shell",
+			"command": "source .github/scripts/gh_cache_wrapper.sh && gh run list --limit 10",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": "github"
+		},
+		{
+			"label": "GitHub: View Recent Failures (Cached)",
+			"type": "shell",
+			"command": "source .github/scripts/gh_cache_wrapper.sh && gh run list --status failure --limit 5",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": "github"
+		},
+		{
+			"label": "GitHub: List PRs (Cached)",
+			"type": "shell",
+			"command": "source .github/scripts/gh_cache_wrapper.sh && gh pr list --state all --limit 20",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": "github"
+		},
+		{
+			"label": "GitHub: List Open Issues (Cached)",
+			"type": "shell",
+			"command": "source .github/scripts/gh_cache_wrapper.sh && gh issue list --state open --limit 20",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": "github"
+		},
+		{
+			"label": "GitHub: Show Cache Statistics",
+			"type": "shell",
+			"command": "source .github/scripts/gh_cache_wrapper.sh && gh_cache_stats",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": "github"
+		},
+		{
+			"label": "GitHub: Clear Cache",
+			"type": "shell",
+			"command": "source .github/scripts/gh_cache_wrapper.sh && gh_cache_clear",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": "github"
+		},
+		{
+			"label": "Cache: Test GitHub CLI Caching",
+			"type": "shell",
+			"command": "source .github/scripts/gh_cache_wrapper.sh && export GH_CACHE_ENABLED=1 && echo '=== First call (miss) ===' && gh repo view && echo '\\n=== Second call (hit) ===' && gh repo view && echo '\\n=== Statistics ===' && gh_cache_stats",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": "github"
+		},
+		{
+			"label": "Test: Run All Tests",
+			"type": "shell",
+			"command": "pytest tests/ -v",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "Build: Install Dependencies",
+			"type": "shell",
+			"command": "pip install -r requirements.txt",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": "build"
+		},
+		{
+			"label": "CI/CD: Analyze Recent Workflow Failure",
+			"type": "shell",
+			"command": "source .github/scripts/gh_cache_wrapper.sh && RUN_ID=$(gh run list --status failure --limit 1 --json databaseId --jq '.[0].databaseId') && echo \"Analyzing run: $RUN_ID\" && gh run view $RUN_ID",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": "github"
+		},
+		{
+			"label": "pytest-all",
+			"type": "shell",
+			"command": "pytest",
+			"args": [
+				"-q",
+				"-rs",
+				"-p",
+				"no:warnings"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "pytest-first-fail",
+			"type": "shell",
+			"command": "pytest",
+			"args": [
+				"-q",
+				"-rs",
+				"-p",
+				"no:warnings",
+				"--maxfail=1",
+				"-x"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "pytest-first-fail-verbose",
+			"type": "shell",
+			"command": "pytest",
+			"args": [
+				"--maxfail=1",
+				"-x",
+				"-vv",
+				"-p",
+				"no:warnings"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "pytest-first-fail-log",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"\"pytest --maxfail=1 -x -vv -p no:warnings > /tmp/pytest_first_fail.log 2>&1\""
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		}
+	]
 }
