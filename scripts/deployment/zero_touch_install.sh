@@ -389,6 +389,9 @@ PY
       err "If you want strict mode, run: .venv/bin/pip install -r requirements.txt"
     fi
   fi
+
+  log "Installing test dependencies (pytest-anyio, pytest-asyncio, pytest-cov)"
+  python -m pip install --upgrade pytest pytest-anyio pytest-asyncio pytest-cov
 }
 
 ensure_node_local() {
