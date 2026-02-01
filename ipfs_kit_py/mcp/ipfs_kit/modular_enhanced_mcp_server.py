@@ -42,7 +42,6 @@ import uvicorn
 # Modular components
 from .backends import BackendHealthMonitor, VFSObservabilityManager
 from .api.routes import APIRoutes
-from ipfs_kit_py.high_level_api import IPFSSimpleAPI as IPFSClient
 from .dashboard.template_manager import DashboardTemplateManager
 from .dashboard.websocket_manager import WebSocketManager
 
@@ -119,6 +118,13 @@ class ModularEnhancedMCPServer:
         # Initialize monitoring components with full feature set and role configuration
         self.backend_monitor = BackendHealthMonitor()
         self.vfs_observer = VFSObservabilityManager()
+
+        # Lazy import to avoid circular dependency during module import
+        try:
+            from ipfs_kit_py.high_level_api import IPFSSimpleAPI as IPFSClient  # noqa: N811
+        except Exception as e:
+            IPFSClient = None
+            logger.warning(f"IPFSSimpleAPI not available during init: {e}")
         
         # Initialize IPFS client with role configuration and disabled components
         logger.info(f"Initializing IPFS client for {self.role} role")
