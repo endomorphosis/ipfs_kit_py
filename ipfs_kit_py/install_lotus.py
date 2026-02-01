@@ -862,13 +862,11 @@ class install_lotus:
             )
             if hint:
                 logger.error(hint)
-            message = (
-                "Lotus system dependencies were not detected. Install them before rerunning the"
-                " installer or opt-in via metadata['auto_install_deps']=True."
-            )
-            if hint:
-                message = f"{message}\n{hint}"
-            raise RuntimeError(message)
+            # Do not hard-fail during initialization: callers may want to detect
+            # platform/arch (or run in CI) without waiting on package manager locks.
+            # Installation will still fail later if a build actually requires these.
+            self.dependencies_available = False
+            return False
 
         logger.info("Automatic dependency installation enabled; attempting to install prerequisites.")
             

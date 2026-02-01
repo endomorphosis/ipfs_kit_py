@@ -5,7 +5,15 @@
       "success": 34,
       "failed": 0,
       "response_times": [
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
         0.00044345855712890625
+=======
+        0.00028204917907714844
+>>>>>>> Stashed changes
+=======
+        0.00028204917907714844
+>>>>>>> Stashed changes
       ]
     },
     "get": {
@@ -52,12 +60,32 @@
   "last_hour": {
     "operations": 34,
     "success_rate": 100.0,
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
     "avg_response_time": 0.00044345855712890625
+=======
+    "avg_response_time": 0.00028204917907714844
+>>>>>>> Stashed changes
+=======
+    "avg_response_time": 0.00028204917907714844
+>>>>>>> Stashed changes
   },
   "total": {
     "operations": 34,
     "success_rate": 100.0,
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
     "avg_response_time": 0.00044345855712890625
   },
   "last_updated": 1769940741.4668288
+=======
+    "avg_response_time": 0.00028204917907714844
+  },
+  "last_updated": 1769940455.929548
+>>>>>>> Stashed changes
+=======
+    "avg_response_time": 0.00028204917907714844
+  },
+  "last_updated": 1769940455.929548
+>>>>>>> Stashed changes
 }
