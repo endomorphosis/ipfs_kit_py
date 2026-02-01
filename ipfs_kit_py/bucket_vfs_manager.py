@@ -159,13 +159,14 @@ class BucketVFSManager:
         # Initialize dataset manager if enabled
         if self.enable_dataset_storage:
             try:
-                manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
-                self.dataset_manager = manager
-                self._dataset_manager = manager
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
+                self._dataset_manager = self.dataset_manager
                 logger.info("Bucket VFS Manager dataset storage enabled")
             except Exception as e:
                 logger.warning(f"Failed to initialize dataset storage: {e}")
                 self.enable_dataset_storage = False
+        else:
+            self._dataset_manager = self.dataset_manager
         
         # Initialize compute layer if enabled
         if self.enable_compute_layer:

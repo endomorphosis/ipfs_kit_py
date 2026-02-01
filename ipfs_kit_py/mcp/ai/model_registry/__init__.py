@@ -61,6 +61,21 @@ from ipfs_kit_py.mcp.ai.model_registry.router import (
     initialize_model_registry
 )
 
+# Optional ipfs_accelerate_py availability flag
+HAS_ACCELERATE = False
+try:
+    import sys
+    from pathlib import Path as AcceleratePath
+
+    accelerate_path = AcceleratePath(__file__).resolve().parents[2] / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+
+    from ipfs_accelerate_py import AccelerateCompute  # noqa: F401
+    HAS_ACCELERATE = True
+except Exception:
+    HAS_ACCELERATE = False
+
 __all__ = [
     # Core registry classes
     'ModelRegistry',
@@ -78,5 +93,6 @@ __all__ = [
     
     # Router and initialization
     'model_registry_router',
-    'initialize_model_registry'
+    'initialize_model_registry',
+    'HAS_ACCELERATE'
 ]

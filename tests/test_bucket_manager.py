@@ -4,9 +4,12 @@
 import anyio
 import sys
 import os
+import pytest
 sys.path.insert(0, '/home/devel/ipfs_kit_py')
 
 from ipfs_kit_py.simple_bucket_manager import SimpleBucketManager
+
+pytestmark = pytest.mark.anyio
 
 async def test_bucket_manager():
     print("Testing SimpleBucketManager...")

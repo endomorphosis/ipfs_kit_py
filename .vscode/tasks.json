@@ -170,6 +170,21 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "test"
+		},
+		{
+			"label": "pytest (quiet)",
+			"type": "shell",
+			"command": "pytest -q",
+			"isBackground": false
+		},
+		{
+			"label": "Run pytest",
+			"type": "shell",
+			"command": "pytest",
+			"args": [
+				"-q"
+			],
+			"isBackground": false
 		}
 	]
 }

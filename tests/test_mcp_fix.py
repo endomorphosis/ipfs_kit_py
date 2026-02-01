@@ -6,8 +6,6 @@ This script shows the difference between the broken state and the fixed state.
 
 import anyio
 import aiohttp
-import json
-import sys
 import pytest
 
 
@@ -31,7 +29,8 @@ async def call_mcp_tool(session, tool_name, params=None):
         async with session.post('http://127.0.0.1:8004/mcp/tools/call', 
                                json=payload,
                                headers={'Content-Type': 'application/json'}) as response:
-            result = await response.json()
+            # Some servers omit/alter the JSON content-type; be lenient.
+            result = await response.json(content_type=None)
             return result
     except Exception as e:
         return {"error": f"Request failed: {str(e)}"}
@@ -85,7 +84,12 @@ async def main():
         print("\n4. Testing invalid tool (should fail gracefully)...")
         result = await call_mcp_tool(session, "nonexistent_tool")
         if "error" in result:
-            print(f"   ✅ CORRECTLY FAILED: {result['error']['message']}")
+            err = result["error"]
+            if isinstance(err, dict) and "message" in err:
+                msg = err["message"]
+            else:
+                msg = str(err)
+            print(f"   ✅ CORRECTLY FAILED: {msg}")
         else:
             print(f"   ❌ UNEXPECTED SUCCESS: {result}")
     

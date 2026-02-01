@@ -740,11 +740,14 @@ class ModelRegistry:
             def get_backend(self, _name: str) -> None:
                 return None
 
-        resolved_store_path = storage_path or store_path
-        if not resolved_store_path:
-            raise TypeError("ModelRegistry requires 'store_path' or 'storage_path'")
+        resolved_store_path = (
+            storage_path
+            or store_path
+            or os.path.join(os.path.expanduser("~"), ".ipfs_kit", "model_registry")
+        )
 
         self.store = ModelRegistryStore(resolved_store_path)
+        # Allow ModelRegistry to operate in environments without storage backends.
         self.backend_manager = backend_manager or _NullBackendManager()
         
         # Ensure the store path exists

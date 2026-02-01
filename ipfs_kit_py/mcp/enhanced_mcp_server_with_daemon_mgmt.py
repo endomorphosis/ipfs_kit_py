@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ipfs_kit_py.mcp.servers.enhanced_mcp_server_with_daemon_mgmt import (  # noqa: F401
     EnhancedMCPServerWithDaemonMgmt,
+    GraphRAGSearchEngine,
 )
 
 try:
@@ -13,4 +14,4 @@ except Exception:
         """Fallback message handler for legacy tests."""
         return {"success": True, "message": "noop"}
 
-__all__ = ["EnhancedMCPServerWithDaemonMgmt", "handle_message"]
+__all__ = ["EnhancedMCPServerWithDaemonMgmt", "GraphRAGSearchEngine", "handle_message"]

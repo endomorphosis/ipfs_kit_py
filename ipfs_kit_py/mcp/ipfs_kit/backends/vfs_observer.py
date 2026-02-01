@@ -9,8 +9,8 @@ import psutil
 import time
 import json
 import threading
-from typing import Dict, Any, List, Tuple, Optional # Added List and Optional
-from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional # Added List and Optional
+from datetime import datetime
 from collections import defaultdict, deque
 import anyio
 from .vfs_journal import VFSJournalManager
@@ -144,7 +144,7 @@ class VFSObservabilityManager:
         duration_ms: float = 0.0,
         details: str = "",
         status: Optional[str] = None,
-        **_kwargs: Any,
+        **extra: Any,
     ):
         """Log a VFS operation to the journal.
 
@@ -166,6 +166,8 @@ class VFSObservabilityManager:
             "duration_ms": duration_ms,
             "details": details
         }
+        if extra:
+            entry["extra"] = extra
         self.vfs_journal.append(entry)
         
         # Store to dataset if enabled
@@ -236,7 +238,7 @@ class VFSObservabilityManager:
             for path in index_paths:
                 expanded_path = os.path.expanduser(path)
                 if os.path.exists(expanded_path):
-                    for root, dirs, files in os.walk(expanded_path):
+                    for root, _dirs, files in os.walk(expanded_path):
                         for file in files:
                             file_path = os.path.join(root, file)
                             if os.path.exists(file_path):
@@ -269,7 +271,7 @@ class VFSObservabilityManager:
             for path in cache_paths:
                 expanded_path = os.path.expanduser(path)
                 if os.path.exists(expanded_path):
-                    for root, dirs, files in os.walk(expanded_path):
+                    for root, _dirs, files in os.walk(expanded_path):
                         for file in files:
                             file_path = os.path.join(root, file)
                             if os.path.exists(file_path):
@@ -318,7 +320,7 @@ class VFSObservabilityManager:
             for path in kb_paths:
                 expanded_path = os.path.expanduser(path)
                 if os.path.exists(expanded_path):
-                    for root, dirs, files in os.walk(expanded_path):
+                    for _root, _dirs, files in os.walk(expanded_path):
                         for file in files:
                             if file.endswith(('.json', '.jsonl')):
                                 documents += 1
@@ -705,7 +707,6 @@ class VFSObservabilityManager:
         """Get real access pattern analysis."""
         try:
             # Analyze recent operations
-            recent_ops = list(self.access_patterns["recent_operations"])
             operation_counts = dict(self.access_patterns["operation_types"])
             content_popularity = dict(self.access_patterns["content_popularity"])
             
@@ -727,7 +728,6 @@ class VFSObservabilityManager:
                 ]
             
             # Analyze temporal patterns
-            now = datetime.now()
             hourly_pattern = [0] * 24
             
             # Simulate realistic access patterns (peaks during work hours)
