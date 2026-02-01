@@ -846,3 +846,7 @@ def get_instance(
     if _instance is None:
         _instance = DistributedTraining(config, storage_path)
     return _instance
+
+
+# Backwards-compatible alias expected by tests/legacy integrations.
+DistributedTrainingManager = DistributedTraining

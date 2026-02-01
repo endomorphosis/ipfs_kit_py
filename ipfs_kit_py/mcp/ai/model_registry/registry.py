@@ -722,23 +722,35 @@ class ModelRegistry:
     
     def __init__(
         self,
-        store_path: str,
-        backend_manager: Any
+        store_path: Optional[str] = None,
+        backend_manager: Any = None,
+        storage_path: Optional[str] = None,
+        **_kwargs: Any,
     ):
         """
         Initialize the model registry.
         
         Args:
-            store_path: Path to store registry data
-            backend_manager: Backend manager for storage operations
+            store_path: Path to store registry data (legacy name)
+            storage_path: Path to store registry data (preferred alias)
+            backend_manager: Backend manager for storage operations. Optional for
+                minimal/CI environments; storage-backed features will be disabled.
         """
-        self.store = ModelRegistryStore(store_path)
-        self.backend_manager = backend_manager
+        class _NullBackendManager:
+            def get_backend(self, _name: str) -> None:
+                return None
+
+        resolved_store_path = storage_path or store_path
+        if not resolved_store_path:
+            raise TypeError("ModelRegistry requires 'store_path' or 'storage_path'")
+
+        self.store = ModelRegistryStore(resolved_store_path)
+        self.backend_manager = backend_manager or _NullBackendManager()
         
         # Ensure the store path exists
-        os.makedirs(store_path, exist_ok=True)
+        os.makedirs(resolved_store_path, exist_ok=True)
         
-        logger.info(f"Initialized Model Registry at {store_path}")
+        logger.info(f"Initialized Model Registry at {resolved_store_path}")
     
     async def create_model(
         self,

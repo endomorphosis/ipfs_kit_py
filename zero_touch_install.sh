@@ -1,14 +1,36 @@
 #!/usr/bin/env bash
 
-# Compatibility wrapper: keep older paths working.
-# Prefer the repository root installer (creates ./.venv in the repo root).
+# Zero-touch installer for ipfs_kit_py
+#
+# Goals:
+# - No sudo required by default
+# - Detect OS/arch and install missing tooling locally into ./bin
+# - Create ./.venv and install Python deps
+# - Optionally install Node + Playwright deps for E2E
 
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$REPO_DIR"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BIN_DIR="${ROOT_DIR}/bin"
+CACHE_DIR="${ROOT_DIR}/.cache"
+VENV_DIR="${ROOT_DIR}/.venv"
+LOCAL_DEPS_DIR="${BIN_DIR}/deps"
 
-exec ./zero_touch_install.sh "$@"
+PROFILE="dev"            # core|api|dev|full
+EXTRAS=""                # comma-separated extras override
+INSTALL_NODE="auto"       # auto|yes|no
+INSTALL_PLAYWRIGHT="auto" # auto|yes|no
+INSTALL_LIBMAGIC="auto"   # auto|yes|no
+INSTALL_IPFS="auto"       # auto|yes|no
+INSTALL_LASSIE="auto"     # auto|yes|no
+INSTALL_LOTUS="auto"      # auto|yes|no
+ALLOW_UNSUPPORTED_PYTHON="0"
+
+NODE_VERSION="20.11.1"   # LTS-ish; pinned for reproducibility
+UV_VERSION="0.5.13"      # pinned; used only when Python>=3.12 not available
+
+log() { printf "%s\n" "$*"; }
+err() { printf "%s\n" "$*" >&2; }
 
 usage() {
   cat <<'EOF'
@@ -197,12 +219,8 @@ install_uv_local() {
 
 create_venv() {
   if [[ -d "$VENV_DIR" ]]; then
-    if [[ -f "${VENV_DIR}/bin/activate" ]]; then
-      log "Found existing .venv; reusing. (Delete $VENV_DIR to force rebuild)"
-      return 0
-    fi
-    log "Found existing .venv without activation script; rebuilding"
-    rm -rf "$VENV_DIR"
+    log "Found existing .venv; reusing. (Delete $VENV_DIR to force rebuild)"
+    return 0
   fi
 
   if pick_python; then
@@ -293,66 +311,20 @@ install_python_deps() {
 
   python -m pip install --upgrade pip setuptools wheel
 
-  # Clean up partial installs from interrupted runs
-  python - <<'PY'
-import sys
-from pathlib import Path
-
-site_paths = [Path(p) for p in sys.path if p and 'site-packages' in p]
-for site in site_paths:
-    for path in site.glob('~pfs-kit-py*'):
-        try:
-            if path.is_dir():
-                for child in path.rglob('*'):
-                    if child.is_file() or child.is_symlink():
-                        child.unlink(missing_ok=True)
-                path.rmdir()
-            else:
-                path.unlink(missing_ok=True)
-        except Exception:
-            pass
-PY
-
   local spec=""
-  local repo_url="https://github.com/endomorphosis/ipfs_kit_py.git"
-  local repo_ref="known_good"
-  local clone_dir="${CACHE_DIR}/ipfs_kit_py_known_good"
-
-  if [[ ! -d "${clone_dir}/.git" ]]; then
-    log "Cloning ipfs_kit_py from ${repo_url} (${repo_ref})..."
-    GIT_TERMINAL_PROMPT=0 GIT_PROGRESS=0 \
-      git -c core.progress=false clone --filter=blob:none --no-checkout --quiet "${repo_url}" "${clone_dir}" || {
-        rm -rf "${clone_dir}"
-        err "Clone failed; cleaned cache directory."
-        exit 1
-      }
-  fi
-
-  if ! git -C "${clone_dir}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    rm -rf "${clone_dir}"
-    err "Invalid clone cache; removed ${clone_dir}."
-    exit 1
-  fi
-
-  git -C "${clone_dir}" config submodule.recurse false
-  GIT_TERMINAL_PROMPT=0 GIT_PROGRESS=0 git -c core.progress=false -C "${clone_dir}" fetch --depth 1 origin "${repo_ref}"
-  git -C "${clone_dir}" checkout -f "${repo_ref}"
   if [[ -n "$EXTRAS" ]]; then
-    spec="${clone_dir}[${EXTRAS}]"
+    spec=".[${EXTRAS}]"
   else
     case "$PROFILE" in
-      core) spec="${clone_dir}" ;;
-      api) spec="${clone_dir}[api]" ;;
-      dev) spec="${clone_dir}[dev,api]" ;;
-      full) spec="${clone_dir}[full,dev,api]" ;;
+      core) spec="." ;;
+      api) spec=".[api]" ;;
+      dev) spec=".[dev,api]" ;;
+      full) spec=".[full,dev,api]" ;;
     esac
   fi
 
-  log "Installing Python package + deps from ${repo_url}@${repo_ref}: pip install '${spec}'"
-  python -m pip install "${spec}"
-
-  log "Installing libp2p from git main"
-  python -m pip install "libp2p @ git+https://github.com/libp2p/py-libp2p@main"
+  log "Installing Python package + deps: pip install -e '${spec}'"
+  python -m pip install -e "${spec}"
 
   # Some parts of the repo still expect requirements.txt; install as a best-effort add-on
   # but avoid hard-failing the whole run when optional/heavy wheels are unavailable.
@@ -367,9 +339,6 @@ PY
       err "If you want strict mode, run: .venv/bin/pip install -r requirements.txt"
     fi
   fi
-
-  log "Installing test dependencies (pytest-anyio, pytest-asyncio, pytest-cov)"
-  python -m pip install --upgrade pytest pytest-anyio pytest-asyncio pytest-cov
 }
 
 ensure_node_local() {
@@ -501,22 +470,16 @@ PY
   if [[ "$do_lotus" == "yes" ]]; then
     log "Installing Lotus into ./bin (best-effort; may use sudo if available)"
     python - <<PY
-try:
-    import glob as _glob
-    import ipfs_kit_py.install_lotus as _lotus_mod
-    _lotus_mod.glob = _glob
-    from ipfs_kit_py.install_lotus import install_lotus
+from ipfs_kit_py.install_lotus import install_lotus
 
-    inst = install_lotus(metadata={
-        "bin_dir": r"${BIN_DIR}",
-        # Opt in: will use sudo when available, otherwise attempt user-space deps.
-        "auto_install_deps": True,
-        "allow_userspace_deps": True,
-        "skip_params": True,
-    })
-    inst.install_lotus_daemon()
-except Exception as e:
-    print(f"WARNING: Lotus install failed: {e}")
+inst = install_lotus(metadata={
+    "bin_dir": r"${BIN_DIR}",
+    # Opt in: will use sudo when available, otherwise attempt user-space deps.
+    "auto_install_deps": True,
+    "allow_userspace_deps": True,
+    "skip_params": True,
+})
+inst.install_lotus_daemon()
 PY
   fi
 }

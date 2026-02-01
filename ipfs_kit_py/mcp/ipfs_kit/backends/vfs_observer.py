@@ -135,8 +135,28 @@ class VFSObservabilityManager:
         # Initialize real monitoring
         self._initialize_monitoring()
 
-    def log_vfs_operation(self, backend: str, operation: str, path: str, success: bool, duration_ms: float, details: str = ""):
-        """Log a VFS operation to the journal."""
+    def log_vfs_operation(
+        self,
+        backend: str,
+        operation: str,
+        path: str,
+        success: bool = True,
+        duration_ms: float = 0.0,
+        details: str = "",
+        status: Optional[str] = None,
+        **_kwargs: Any,
+    ):
+        """Log a VFS operation to the journal.
+
+        Compatible with callers that provide either a boolean `success` or a
+        string `status` (e.g., "success"/"failed").
+        """
+        if status is not None:
+            normalized = str(status).strip().lower()
+            if normalized in {"success", "ok", "true", "passed", "pass"}:
+                success = True
+            elif normalized in {"failure", "fail", "failed", "error"}:
+                success = False
         entry = {
             "timestamp": datetime.now().isoformat(),
             "backend": backend,

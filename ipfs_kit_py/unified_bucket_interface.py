@@ -27,6 +27,8 @@ from typing import Any, Dict, List, Optional, Set, Union, Tuple
 
 import aiofiles
 
+logger = logging.getLogger(__name__)
+
 try:
     import pyarrow as pa
     import pyarrow.parquet as pq
@@ -70,8 +72,6 @@ from .enhanced_bucket_index import EnhancedBucketIndex
 from .pins import EnhancedPinMetadataIndex
 from .error import create_result_dict
 
-logger = logging.getLogger(__name__)
-
 
 class BackendType(Enum):
     """Supported filesystem backend types."""
@@ -114,11 +114,13 @@ class UnifiedBucketInterface:
     def __init__(
         self,
         ipfs_kit_dir: Optional[str] = None,
+        storage_path: Optional[str] = None,
         enable_cross_backend_queries: bool = True,
         auto_sync_interval: int = 300,  # 5 minutes
         enable_dataset_storage: bool = False,
         enable_compute_layer: bool = False,
-        dataset_batch_size: int = 100
+        dataset_batch_size: int = 100,
+        **_kwargs,
     ):
         """
         Initialize unified bucket interface.
@@ -131,6 +133,11 @@ class UnifiedBucketInterface:
             enable_compute_layer: Enable ipfs_accelerate_py compute acceleration
             dataset_batch_size: Batch size for dataset operations
         """
+        # Backwards-compatibility: some callers/tests use `storage_path` to
+        # specify the base ipfs-kit directory.
+        if ipfs_kit_dir is None and storage_path is not None:
+            ipfs_kit_dir = storage_path
+
         self.ipfs_kit_dir = Path(ipfs_kit_dir or os.path.expanduser("~/.ipfs_kit"))
         self.ipfs_kit_dir.mkdir(parents=True, exist_ok=True)
         

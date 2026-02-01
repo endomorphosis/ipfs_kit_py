@@ -22,4 +22,4 @@ MAX_CONNECTIONS = 100
 MAX_PROVIDERS = 20
 PROVIDER_TTL = 3600  # 1 hour
 
-print("✓ libp2p tools.constants module loaded with compatibility values")
+# Avoid printing at import time (breaks CLI JSON output and test parsing).

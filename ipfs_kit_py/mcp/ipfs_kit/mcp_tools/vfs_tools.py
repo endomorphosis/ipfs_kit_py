@@ -39,7 +39,7 @@ except ImportError:
 class VFSTools:
     """Tools for VFS operations."""
     
-    def __init__(self, backend_monitor, 
+    def __init__(self, backend_monitor=None, 
                  enable_dataset_storage: bool = False,
                  enable_compute_layer: bool = False,
                  ipfs_client = None,

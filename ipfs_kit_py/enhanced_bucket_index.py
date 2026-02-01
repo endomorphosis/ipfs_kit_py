@@ -16,6 +16,8 @@ from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass, asdict
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
 # Analytics dependencies
 try:
     import pandas as pd
@@ -49,8 +51,6 @@ except ImportError:
     HAS_ACCELERATE = False
     AccelerateCompute = None
     logger.info("ipfs_accelerate_py not available - using default compute")
-
-logger = logging.getLogger(__name__)
 
 @dataclass
 class BucketMetadata:

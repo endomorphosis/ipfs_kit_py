@@ -1,23 +1,11 @@
 {
   "operations": {
     "add": {
-      "count": 34,
-      "success": 34,
+      "count": 25,
+      "success": 25,
       "failed": 0,
       "response_times": [
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        0.00044345855712890625
-=======
-        0.00028204917907714844
->>>>>>> Stashed changes
-=======
-        0.00028204917907714844
->>>>>>> Stashed changes
-=======
-        0.0004208087921142578
->>>>>>> Stashed changes
+        0.0002589225769042969
       ]
     },
     "get": {
@@ -53,8 +41,8 @@
   },
   "throughput": {
     "uploads": {
-      "bytes": 986,
-      "operations": 34
+      "bytes": 725,
+      "operations": 25
     },
     "downloads": {
       "bytes": 0,
@@ -62,44 +50,14 @@
     }
   },
   "last_hour": {
-    "operations": 34,
+    "operations": 25,
     "success_rate": 100.0,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    "avg_response_time": 0.00044345855712890625
-=======
-    "avg_response_time": 0.00028204917907714844
->>>>>>> Stashed changes
-=======
-    "avg_response_time": 0.00028204917907714844
->>>>>>> Stashed changes
-=======
-    "avg_response_time": 0.0004208087921142578
->>>>>>> Stashed changes
+    "avg_response_time": 0.0002589225769042969
   },
   "total": {
-    "operations": 34,
+    "operations": 25,
     "success_rate": 100.0,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    "avg_response_time": 0.00044345855712890625
+    "avg_response_time": 0.0002589225769042969
   },
-  "last_updated": 1769940741.4668288
-=======
-    "avg_response_time": 0.00028204917907714844
-  },
-  "last_updated": 1769940455.929548
->>>>>>> Stashed changes
-=======
-    "avg_response_time": 0.00028204917907714844
-  },
-  "last_updated": 1769940455.929548
->>>>>>> Stashed changes
-=======
-    "avg_response_time": 0.0004208087921142578
-  },
-  "last_updated": 1769940984.5053327
->>>>>>> Stashed changes
+  "last_updated": 1769974933.0472376
 }

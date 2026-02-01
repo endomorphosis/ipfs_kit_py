@@ -35,6 +35,14 @@ from pathlib import Path
 from collections import defaultdict, deque, OrderedDict
 import psutil # Added for system health checks
 
+# Configure logging to stderr (stdout is reserved for MCP communication)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stderr
+)
+logger = logging.getLogger("standalone-mcp-ipfs-vfs")
+
 # Add the project root to Python path to import ipfs_kit_py
 current_file = os.path.abspath(__file__)
 project_root = os.path.dirname(os.path.dirname(current_file))
@@ -70,14 +78,6 @@ try:
     logger.info("ipfs_accelerate_py compute acceleration available")
 except ImportError:
     logger.info("ipfs_accelerate_py not available - using standard compute")
-
-# Configure logging to stderr (stdout is reserved for MCP communication)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr
-)
-logger = logging.getLogger("standalone-mcp-ipfs-vfs")
 
 # Server metadata
 __version__ = "3.2.0" # Updated version to reflect changes

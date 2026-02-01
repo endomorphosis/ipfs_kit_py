@@ -8,8 +8,14 @@ import anyio
 import aiohttp
 import json
 import sys
+import pytest
 
-async def test_mcp_tool(session, tool_name, params=None):
+
+# This file is primarily a manual/integration script that expects an MCP server
+# to be running locally on 127.0.0.1:8004. It is not suitable for automated CI.
+pytestmark = pytest.mark.skip(reason="Manual MCP server integration script")
+
+async def call_mcp_tool(session, tool_name, params=None):
     """Test a specific MCP tool and return the result."""
     payload = {
         "jsonrpc": "2.0",
@@ -38,7 +44,7 @@ async def main():
     async with aiohttp.ClientSession() as session:
         # Test 1: Health Check
         print("\n1. Testing health_check tool...")
-        result = await test_mcp_tool(session, "health_check")
+        result = await call_mcp_tool(session, "health_check")
         if "error" in result:
             print(f"   ❌ FAILED: {result['error']}")
         else:
@@ -46,7 +52,7 @@ async def main():
         
         # Test 2: List Buckets 
         print("\n2. Testing list_buckets tool...")
-        result = await test_mcp_tool(session, "list_buckets", {"include_metadata": True})
+        result = await call_mcp_tool(session, "list_buckets", {"include_metadata": True})
         if "error" in result:
             print(f"   ❌ FAILED: {result['error']}")
         else:
@@ -57,7 +63,7 @@ async def main():
         
         # Test 3: List Bucket Files (the main fix)
         print("\n3. Testing list_bucket_files tool (THE MAIN FIX)...")
-        result = await test_mcp_tool(session, "list_bucket_files", {
+        result = await call_mcp_tool(session, "list_bucket_files", {
             "bucket": "media",
             "path": "",
             "metadata_first": True
@@ -77,7 +83,7 @@ async def main():
         
         # Test 4: Invalid tool (should still fail gracefully)
         print("\n4. Testing invalid tool (should fail gracefully)...")
-        result = await test_mcp_tool(session, "nonexistent_tool")
+        result = await call_mcp_tool(session, "nonexistent_tool")
         if "error" in result:
             print(f"   ✅ CORRECTLY FAILED: {result['error']['message']}")
         else:
@@ -90,3 +96,7 @@ async def main():
 
 if __name__ == "__main__":
     anyio.run(main)
+
+
+def test_manual_mcp_fix_script():
+    pytest.skip("Manual MCP server integration script")

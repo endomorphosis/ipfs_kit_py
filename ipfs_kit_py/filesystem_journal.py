@@ -16,6 +16,7 @@ Key features:
 """
 
 import os
+import sys
 import json
 import time
 import uuid
@@ -228,6 +229,10 @@ class FilesystemJournal:
         # Create a temporary file first
         temp_path = os.path.join(self.temp_dir, f"{self.current_journal_id}.json.tmp")
         try:
+            # Directories may have been removed (e.g. temp test dirs cleaned up)
+            # before this journal flush runs during teardown/atexit.
+            self._ensure_directories()
+
             with open(temp_path, 'w') as f:
                 json.dump(self.journal_entries, f, indent=2)
             
@@ -874,11 +879,12 @@ class FilesystemJournal:
             with self._lock:
                 if hasattr(self, 'journal_entries'):
                     self._write_journal()
-                    
-            logger.info("Filesystem journal closed")
+            # Avoid logging during teardown/atexit; pytest's capture streams
+            # can be closed, which causes noisy logging-internal tracebacks.
             
         except Exception as e:
-            logger.error(f"Error closing journal: {e}")
+            # Best-effort cleanup; avoid logging during teardown.
+            _ = e
     
     def store_dataset(self, dataset_path: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """

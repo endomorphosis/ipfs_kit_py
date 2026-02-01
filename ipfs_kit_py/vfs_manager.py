@@ -138,7 +138,8 @@ class VFSManager:
         self,
         enable_dataset_storage: bool = False,
         enable_compute_layer: bool = False,
-        dataset_batch_size: int = 100
+        dataset_batch_size: int = 100,
+        storage_path: Optional[Union[str, Path]] = None,
     ):
         """
         Initialize the VFS Manager.
@@ -147,7 +148,15 @@ class VFSManager:
             enable_dataset_storage: Enable ipfs_datasets_py integration
             enable_compute_layer: Enable ipfs_accelerate_py compute acceleration
             dataset_batch_size: Batch size for dataset operations
+            storage_path: Optional filesystem root for VFS operations
         """
+        self.storage_path: Optional[Path] = Path(storage_path) if storage_path else None
+        if self.storage_path is not None:
+            try:
+                self.storage_path.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                logger.warning(f"Could not create storage_path {self.storage_path}: {e}")
+
         self.api = None
         self.pin_index = None
         self.arrow_metadata_index = None
