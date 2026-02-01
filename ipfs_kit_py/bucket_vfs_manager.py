@@ -27,6 +27,9 @@ from typing import Any, Dict, List, Optional, Set, Union
 
 import aiofiles
 
+
+logger = logging.getLogger(__name__)
+
 try:
     import pyarrow as pa
     import pyarrow.parquet as pq
@@ -79,9 +82,6 @@ try:
     CAR_WAL_AVAILABLE = True
 except ImportError:
     CAR_WAL_AVAILABLE = False
-
-
-logger = logging.getLogger(__name__)
 
 
 class BucketType(Enum):

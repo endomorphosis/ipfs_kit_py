@@ -9,6 +9,7 @@ This module provides comprehensive daemon management with:
 """
 
 import anyio
+import json
 import logging
 import os
 import signal
@@ -18,7 +19,25 @@ import psutil
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
+from enum import Enum
+
 logger = logging.getLogger(__name__)
+
+
+class DaemonTypes(Enum):
+    """Supported daemon types.
+
+    This enum exists primarily for backwards-compatibility with higher-level
+    cluster management code that imports `DaemonTypes`.
+    """
+
+    IPFS = "ipfs"
+
+
+# Backwards-compatible alias expected by cluster code.
+# The refactor introduced `IPFSDaemonManager` but some modules still import
+# `DaemonManager`.
+DaemonManager = None  # set after class definition
 
 
 class IPFSDaemonManager:
@@ -776,6 +795,9 @@ class IPFSDaemonManager:
 
 # Global daemon manager instance
 _daemon_manager = None
+
+# Finalize backwards-compatible alias
+DaemonManager = IPFSDaemonManager
 
 def get_daemon_manager() -> IPFSDaemonManager:
     """Get or create the global daemon manager instance."""
