@@ -11,13 +11,14 @@ import subprocess
 import sys
 import os
 
+import pytest
+
 def test_mcp_server():
     """Test the MCP server directly."""
     server_path = os.path.join("mcp", "enhanced_mcp_server_with_daemon_mgmt.py")
     
     if not os.path.exists(server_path):
-        print(f"Error: MCP server not found at {server_path}")
-        return False
+        pytest.skip(f"MCP server not found at {server_path}")
     
     print("Testing MCP server directly...")
     
@@ -33,8 +34,7 @@ def test_mcp_server():
         )
         
         if not process.stdin or not process.stdout:
-            print("Error: Could not establish communication with server")
-            return False
+            pytest.fail("Could not establish communication with server")
         
         # Send initialize message
         init_msg = {
@@ -121,26 +121,26 @@ def test_mcp_server():
                             print("   📝 Using mock VFS (real VFS not available)")
                         else:
                             print("   🔧 Using real VFS")
-                            
-                        return True
+
+                        return
                     else:
                         print("   No content in VFS response")
-                        return False
+                        pytest.fail("No content in VFS response")
                 else:
                     print("   No response to VFS test")
-                    return False
+                    pytest.fail("No response to VFS test")
             else:
                 print("   ✗ No VFS tools found")
-                return False
+                pytest.fail("No VFS tools found")
         else:
             print("   No response to tools list")
-            return False
+            pytest.fail("No response to tools list")
             
     except Exception as e:
         print(f"Error testing MCP server: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(f"Error testing MCP server: {e}")
         
     finally:
         if process:
