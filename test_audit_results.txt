@@ -8,7 +8,7 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 ................................                                         [100%]
-32 passed in 0.22s
+32 passed in 0.25s
 
 --------------------------------------------------------------------------------
 
@@ -23,35 +23,28 @@ Details:
 --------------------------------------------------------------------------------
 
 File: test_cluster_api.py
-Status: IMPORT_ERROR
-Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Status: UNKNOWN
+Tests: 0P / 0F / 0S / 0E
+Issue: Unknown
 Details:
+..                                                                       [100%]
+2 passed in 0.28s
 
-==================================== ERRORS ====================================
-_______________ ERROR collecting tests/unit/test_cluster_api.py ________________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_cluster_api.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^^^^
 --------------------------------------------------------------------------------
 
 File: test_cluster_backends.py
-Status: IMPORT_ERROR
+Status: FAIL
 Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Issue: Test Failures
 Details:
 
 ==================================== ERRORS ====================================
 _____________ ERROR collecting tests/unit/test_cluster_backends.py _____________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_cluster_backends.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-          
+E   AttributeError: 'NoneType' object has no attribute 'Table'
+=========================== short test summary info ============================
+ERROR tests/unit/test_cluster_backends.py - AttributeError: 'NoneType' object has no attribute 'Table'
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error i
 --------------------------------------------------------------------------------
 
 File: test_cluster_follow_enhanced.py
@@ -60,24 +53,18 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 ....                                                                     [100%]
-4 passed in 0.09s
+4 passed in 0.91s
 
 --------------------------------------------------------------------------------
 
 File: test_cluster_startup.py
-Status: IMPORT_ERROR
-Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Status: UNKNOWN
+Tests: 0P / 0F / 0S / 0E
+Issue: Unknown
 Details:
+.                                                                        [100%]
+1 passed in 0.23s
 
-==================================== ERRORS ====================================
-_____________ ERROR collecting tests/unit/test_cluster_startup.py ______________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_cluster_startup.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           
 --------------------------------------------------------------------------------
 
 File: test_columnar_ipld_imports.py
@@ -97,19 +84,18 @@ Traceback (most recent call last):
 --------------------------------------------------------------------------------
 
 File: test_config_save.py
-Status: IMPORT_ERROR
+Status: FAIL
 Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Issue: Test Failures
 Details:
 
 ==================================== ERRORS ====================================
 _______________ ERROR collecting tests/unit/test_config_save.py ________________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_config_save.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^^^^
+E   AttributeError: 'NoneType' object has no attribute 'Table'
+=========================== short test summary info ============================
+ERROR tests/unit/test_config_save.py - AttributeError: 'NoneType' object has no attribute 'Table'
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.8
 --------------------------------------------------------------------------------
 
 File: test_configured_backends.py
@@ -118,73 +104,57 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 ...                                                                      [100%]
-3 passed in 0.08s
+3 passed in 0.88s
 
 --------------------------------------------------------------------------------
 
 File: test_daemon_indexing.py
-Status: IMPORT_ERROR
-Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Status: UNKNOWN
+Tests: 0P / 0F / 0S / 0E
+Issue: Unknown
 Details:
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Captured stdout ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+🚀 Testing Enhanced Daemon Manager with Background Indexing
+============================================================
+📋 Initial State:
+   Index update running: False
+   Update interval: 5 seconds
+   IPFS Kit path: /home/runner/.ipfs_kit
+   IPFS daemon status: Not running
 
-==================================== ERRORS ====================================
-_____________ ERROR collecting tests/unit/test_daemon_indexing.py ______________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_daemon_indexing.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           
+🔧 Testing Background Index Updates...
+✅ Background indexing sta
 --------------------------------------------------------------------------------
 
 File: test_daemon_lockfile_mgmt.py
-Status: IMPORT_ERROR
-Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Status: UNKNOWN
+Tests: 0P / 0F / 0S / 0E
+Issue: Unknown
 Details:
+.                                                                        [100%]
+1 passed in 0.30s
 
-==================================== ERRORS ====================================
-___________ ERROR collecting tests/unit/test_daemon_lockfile_mgmt.py ___________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_daemon_lockfile_mgmt.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-      
 --------------------------------------------------------------------------------
 
 File: test_daemon_manager.py
-Status: IMPORT_ERROR
+Status: UNKNOWN
 Tests: 0P / 0F / 0S / 0E
-Issue: Import/Dependency
+Issue: Unknown
 Details:
-F                                                                        [100%]
-=================================== FAILURES ===================================
-E   ModuleNotFoundError: No module named 'psutil'
+.                                                                        [100%]
+1 passed in 0.19s
 
-During handling of the above exception, another exception occurred:
-E   Failed: Daemon manager test failed: No module named 'psutil'
------------------------------ Captured stdout call -----------------------------
-=== Testing Daemon Manager ===
-1. Testing imports...
-Error: No module name
 --------------------------------------------------------------------------------
 
 File: test_daemon_manager_complete.py
-Status: IMPORT_ERROR
+Status: UNKNOWN
 Tests: 0P / 0F / 0S / 0E
-Issue: Import/Dependency
+Issue: Unknown
 Details:
-F.                                                                       [100%]
-=================================== FAILURES ===================================
-E   ModuleNotFoundError: No module named 'httpx'
+..                                                                       [100%]
+2 passed in 0.48s
 
-During handling of the above exception, another exception occurred:
-E   Failed: Import Error: No module named 'httpx'
------------------------------ Captured stdout call -----------------------------
-🔧 Testing IPFS Daemon Manager - Comprehensive Solution
-===================================
 --------------------------------------------------------------------------------
 
 File: test_daemon_startup.py
@@ -193,7 +163,7 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 
-no tests ran in 0.11s
+no tests ran in 0.12s
 
 --------------------------------------------------------------------------------
 
@@ -203,7 +173,7 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 
-no tests ran in 0.07s
+no tests ran in 0.08s
 
 --------------------------------------------------------------------------------
 
@@ -214,14 +184,10 @@ Issue: Import/Dependency
 Details:
 .FF                                                                      [100%]
 =================================== FAILURES ===================================
-E   ModuleNotFoundError: No module named 'psutil'
+E   ImportError: cannot import name 'ipfs_kit' from partially initialized module 'ipfs_kit_py.ipfs_kit' (most likely due to a circular import) (/home/runner/work/ipfs_kit_py/ipfs_kit_py/ipfs_kit_py/ipfs_kit.py). Did you mean: 'ipfs_py'?
 
 During handling of the above exception, another exception occurred:
-E   Failed: IPFSKit integration test failed: No module named 'psutil'
------------------------------ Captured stdout call -----------------------------
-
-=== Testing IPFSKit Integration ===
-❌ Error testing IPFSKit integrat
+E   Failed: IPFSKit integration t
 --------------------------------------------------------------------------------
 
 File: test_enhanced_graphrag_mcp.py
@@ -249,24 +215,23 @@ Details:
 
 =========================== short test summary info ============================
 SKIPPED [1] tests/unit/test_enhanced_libp2p.py:25: Opt-in integration smoke test. Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run.
-1 skipped in 0.07s
+1 skipped in 0.09s
 
 --------------------------------------------------------------------------------
 
 File: test_enhanced_vector_kb.py
-Status: IMPORT_ERROR
+Status: FAIL
 Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Issue: Test Failures
 Details:
 
 ==================================== ERRORS ====================================
 ____________ ERROR collecting tests/unit/test_enhanced_vector_kb.py ____________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_enhanced_vector_kb.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-        
+E   AttributeError: 'NoneType' object has no attribute 'Table'
+=========================== short test summary info ============================
+ERROR tests/unit/test_enhanced_vector_kb.py - AttributeError: 'NoneType' object has no attribute 'Table'
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error
 --------------------------------------------------------------------------------
 
 File: test_fast_indexes.py
@@ -275,7 +240,7 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 
-no tests ran in 0.07s
+no tests ran in 0.08s
 
 --------------------------------------------------------------------------------
 
@@ -284,11 +249,12 @@ Status: UNKNOWN
 Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
-ssssssssssssssssssss.                                                    [100%]
-=========================== short test summary info ============================
-SKIPPED [1] tests/unit/test_filecoin_backend_extended.py:53: Failed to initialize Filecoin backend: No module named 'fastapi'
-SKIPPED [1] tests/unit/test_filecoin_backend_extended.py:67: Failed to initialize Filecoin backend: No module named 'fastapi'
-SKIPPED [1] tests/unit/test_filecoin_backend_extended.py:78: Failed to initialize Filec
+s................FF..                                                    [100%]
+=================================== FAILURES ===================================
+E   AssertionError: Store failed: 'lotus_kit' object has no attribute 'lotus_client_deal'
+    assert False
+     +  where False = <built-in method get of dict object at 0x7f4efa8c47c0>('success')
+     +    where <built-in method get of dict object at 0x7f4efa8c47c0> = {'backend': 'filecoin', 'error': "'lotus_kit' object has no attribute '
 --------------------------------------------------------------------------------
 
 File: test_fixed_mcp_server.py
@@ -297,7 +263,7 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 .                                                                        [100%]
-1 passed in 0.07s
+1 passed in 0.09s
 
 --------------------------------------------------------------------------------
 
@@ -330,19 +296,18 @@ ERROR    ipfs_kit_py.gdrive_kit:gdrive_kit.py:361 Failed to refresh Google Drive
 --------------------------------------------------------------------------------
 
 File: test_gdrive_sync.py
-Status: IMPORT_ERROR
+Status: FAIL
 Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Issue: Test Failures
 Details:
 
 ==================================== ERRORS ====================================
 _______________ ERROR collecting tests/unit/test_gdrive_sync.py ________________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_gdrive_sync.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^^^^
+E   AttributeError: 'NoneType' object has no attribute 'Table'
+=========================== short test summary info ============================
+ERROR tests/unit/test_gdrive_sync.py - AttributeError: 'NoneType' object has no attribute 'Table'
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.8
 --------------------------------------------------------------------------------
 
 File: test_github_kit_comprehensive.py
@@ -380,7 +345,7 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 .                                                                        [100%]
-1 passed in 0.08s
+1 passed in 0.70s
 
 --------------------------------------------------------------------------------
 
@@ -390,7 +355,7 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 .                                                                        [100%]
-1 passed in 0.08s
+1 passed in 0.70s
 
 --------------------------------------------------------------------------------
 
@@ -407,19 +372,18 @@ WARNING  ipfs_kit_py.huggingface_kit:huggingface_kit.py:126 huggingface_h
 --------------------------------------------------------------------------------
 
 File: test_ipfs_health.py
-Status: IMPORT_ERROR
+Status: FAIL
 Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Issue: Test Failures
 Details:
 
 ==================================== ERRORS ====================================
 _______________ ERROR collecting tests/unit/test_ipfs_health.py ________________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_ipfs_health.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^^^^
+E   AttributeError: 'NoneType' object has no attribute 'Table'
+=========================== short test summary info ============================
+ERROR tests/unit/test_ipfs_health.py - AttributeError: 'NoneType' object has no attribute 'Table'
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.8
 --------------------------------------------------------------------------------
 
 File: test_lassie_kit_extended.py
@@ -428,24 +392,18 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 ...........................                                              [100%]
-27 passed in 0.20s
+27 passed in 0.19s
 
 --------------------------------------------------------------------------------
 
 File: test_libp2p_health_api.py
-Status: IMPORT_ERROR
-Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Status: UNKNOWN
+Tests: 0P / 0F / 0S / 0E
+Issue: Unknown
 Details:
 
-==================================== ERRORS ====================================
-____________ ERROR collecting tests/unit/test_libp2p_health_api.py _____________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_libp2p_health_api.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-         
+no tests ran in 0.35s
+
 --------------------------------------------------------------------------------
 
 File: test_log_styling.py
@@ -454,7 +412,7 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 .                                                                        [100%]
-1 passed in 1.11s
+1 passed in 1.12s
 
 --------------------------------------------------------------------------------
 
@@ -469,19 +427,18 @@ Details:
 --------------------------------------------------------------------------------
 
 File: test_mcp_client_js_header.py
-Status: IMPORT_ERROR
+Status: FAIL
 Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Issue: Test Failures
 Details:
 
 ==================================== ERRORS ====================================
 ___________ ERROR collecting tests/unit/test_mcp_client_js_header.py ___________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_mcp_client_js_header.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-      
+E   AttributeError: 'NoneType' object has no attribute 'Table'
+=========================== short test summary info ============================
+ERROR tests/unit/test_mcp_client_js_header.py - AttributeError: 'NoneType' object has no attribute 'Table'
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 err
 --------------------------------------------------------------------------------
 
 File: test_minimal_cli.py
@@ -490,57 +447,44 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 
-no tests ran in 0.11s
+no tests ran in 0.12s
 
 --------------------------------------------------------------------------------
 
 File: test_peer_endpoints.py
-Status: IMPORT_ERROR
-Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Status: UNKNOWN
+Tests: 0P / 0F / 0S / 0E
+Issue: Unknown
 Details:
 
-==================================== ERRORS ====================================
-______________ ERROR collecting tests/unit/test_peer_endpoints.py ______________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_peer_endpoints.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^
+no tests ran in 0.30s
+
 --------------------------------------------------------------------------------
 
 File: test_peer_id_generation.py
-Status: IMPORT_ERROR
-Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Status: UNKNOWN
+Tests: 0P / 0F / 0S / 0E
+Issue: Unknown
 Details:
+...                                                                      [100%]
+3 passed in 0.21s
 
-==================================== ERRORS ====================================
-____________ ERROR collecting tests/unit/test_peer_id_generation.py ____________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_peer_id_generation.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-        
 --------------------------------------------------------------------------------
 
 File: test_phase1.py
-Status: IMPORT_ERROR
+Status: UNKNOWN
 Tests: 0P / 0F / 0S / 0E
-Issue: Import/Dependency
+Issue: Unknown
 Details:
 F                                                                        [100%]
 =================================== FAILURES ===================================
-E   ModuleNotFoundError: No module named 'fastapi'
+E   AttributeError: 'NoneType' object has no attribute 'Table'
 
 During handling of the above exception, another exception occurred:
-E   Failed: Tool Registry test failed: No module named 'fastapi'
+E   Failed: Tool Registry test failed: 'NoneType' object has no attribute 'Table'
 ----------------------------- Captured stdout call -----------------------------
 Testing Phase 1 Components
-========================================
-1. Te
+=================
 --------------------------------------------------------------------------------
 
 File: test_phase2.py
@@ -551,7 +495,7 @@ Details:
 
 =========================== short test summary info ============================
 SKIPPED [1] tests/unit/test_phase2.py:5: Phase2 unit architecture removed; skipping test
-1 skipped in 0.07s
+1 skipped in 0.08s
 
 --------------------------------------------------------------------------------
 
@@ -563,7 +507,7 @@ Details:
 
 =========================== short test summary info ============================
 SKIPPED [1] tests/unit/test_pin_metadata_index.py:3: Deprecated test skipped: IPFSPinMetadataIndex subsystem removed from current codebase; retained for historical reference only.
-1 skipped in 0.07s
+1 skipped in 0.08s
 
 --------------------------------------------------------------------------------
 
@@ -572,15 +516,16 @@ Status: IMPORT_ERROR
 Tests: 0P / 0F / 0S / 0E
 Issue: Import/Dependency
 Details:
-FFF                                                                      [100%]
+.FF                                                                      [100%]
 =================================== FAILURES ===================================
-E   ModuleNotFoundError: No module named 'google'
+E   ImportError: PyArrow is required for ParquetIPLDBridge
 
 During handling of the above exception, another exception occurred:
-E   Failed: Protobuf/libp2p test failed: No module named 'google'
+E   Failed: Parquet bridge test failed: PyArrow is required for ParquetIPLDBridge
 ----------------------------- Captured stdout call -----------------------------
-🔍 Testing protobuf fix...
-❌ Protobuf/libp2p error: No module named 'googl
+
+🧪 Testing Parquet IPLD Bridge...
+✅ ParquetIPLDB
 --------------------------------------------------------------------------------
 
 File: test_role_component_disabling.py
@@ -589,8 +534,13 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 ..                                                                       [100%]
-2 passed in 0.46s
+=============================== warnings summary ===============================
+tests/unit/test_role_component_disabling.py::test_leecher_role
+  /home/runner/.local/lib/python3.12/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+  * 'schema_extra' has been renamed to 'json_schema_extra'
+    warnings.warn(message, UserWarning)
 
+-- Docs: https://docs.pytest.org/en/sta
 --------------------------------------------------------------------------------
 
 File: test_role_config.py
@@ -599,24 +549,23 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 
-no tests ran in 0.07s
+no tests ran in 0.08s
 
 --------------------------------------------------------------------------------
 
 File: test_secure_config.py
-Status: IMPORT_ERROR
+Status: FAIL
 Tests: 0P / 0F / 0S / 2E
-Issue: Import/Dependency
+Issue: Test Failures
 Details:
 
 ==================================== ERRORS ====================================
 ______________ ERROR collecting tests/unit/test_secure_config.py _______________
-ImportError while importing test module '/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit/test_secure_config.py'.
-Hint: make sure your test modules/packages have valid Python names.
-Traceback:
-/usr/lib/python3.12/importlib/__init__.py:90: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ^^
+E   AttributeError: 'NoneType' object has no attribute 'Table'
+=========================== short test summary info ============================
+ERROR tests/unit/test_secure_config.py - AttributeError: 'NoneType' object has no attribute 'Table'
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0
 --------------------------------------------------------------------------------
 
 File: test_simple_enhanced_mcp.py
@@ -656,6 +605,11 @@ Tests: 0P / 0F / 0S / 0E
 Issue: Unknown
 Details:
 ...                                                                      [100%]
-3 passed in 0.27s
+=============================== warnings summary ===============================
+tests/unit/test_vfs_version_tracking.py::test_vfs_version_tracking
+  /home/runner/.local/lib/python3.12/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+  * 'schema_extra' has been renamed to 'json_schema_extra'
+    warnings.warn(message, UserWarning)
 
+-- Docs: https://docs.pytest.org/en
 --------------------------------------------------------------------------------
