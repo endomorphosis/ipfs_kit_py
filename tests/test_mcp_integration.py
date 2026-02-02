@@ -4,12 +4,18 @@ Test script to verify MCP server integration with Cline
 """
 
 import json
+import os
 import subprocess
 import sys
-import os
 
-def test_mcp_server():
-    """Test the MCP server functionality."""
+import pytest
+
+def run_mcp_server_integration_test() -> bool:
+    """Run the MCP server integration test.
+
+    Returns a boolean so this file can still be used as a standalone script.
+    The pytest test wraps this and asserts the result.
+    """
     print("🧪 Testing IPFS Kit MCP Server Integration")
     print("=" * 50)
     
@@ -151,6 +157,11 @@ def test_mcp_server():
             proc.terminate()
         return False
 
+
+    def test_mcp_server():
+    assert run_mcp_server_integration_test()
+
+
 if __name__ == "__main__":
-    success = test_mcp_server()
+    success = run_mcp_server_integration_test()
     sys.exit(0 if success else 1)

@@ -11,8 +11,11 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def test_mcp_server_integration():
-    """Test that MCP server can import and use all installers."""
+def run_mcp_server_integration_check() -> bool:
+    """Run the MCP server integration check.
+
+    Returns a boolean so this file can still be executed as a script; pytest asserts it.
+    """
     print("=" * 80)
     print("MCP SERVER INTEGRATION TEST")
     print("=" * 80)
@@ -132,11 +135,15 @@ def test_mcp_server_integration():
         traceback.print_exc()
         return False
 
+
+def test_mcp_server_integration():
+    assert run_mcp_server_integration_check()
+
 def main():
     """Main test function."""
     print("Starting MCP server integration test...")
     
-    success = test_mcp_server_integration()
+    success = run_mcp_server_integration_check()
     
     if success:
         print("\n🎉 MCP server integration test passed!")

@@ -4,6 +4,7 @@ Tests for MCP tool and JavaScript SDK auto-healing integration.
 
 import pytest
 import asyncio
+import time
 from unittest.mock import Mock, patch, AsyncMock
 from ipfs_kit_py.auto_heal.mcp_tool_wrapper import MCPToolErrorCapture, get_mcp_error_capture
 from ipfs_kit_py.auto_heal.client_error_reporter import ClientErrorReporter, get_client_error_reporter
@@ -322,16 +323,16 @@ class TestAutoHealFailureScenarios:
         
         # Mock GitHub issue creator with slow response
         with patch('ipfs_kit_py.auto_heal.github_issue_creator.GitHubIssueCreator') as mock_creator_class:
-            async def slow_create_issue(error):
-                await asyncio.sleep(5)  # Simulate slow API
-                return 'https://github.com/owner/repo/issues/1'
-            
             mock_creator = Mock()
-            mock_creator.create_issue_from_error = AsyncMock(side_effect=slow_create_issue)
+            # Simulate slow sync API; implementation runs this in a background thread.
+            def slow_create_issue(error):
+                time.sleep(5)
+                return 'https://github.com/owner/repo/issues/1'
+
+            mock_creator.create_issue_from_error = Mock(side_effect=slow_create_issue)
             mock_creator_class.return_value = mock_creator
             
             # Error should be raised immediately, not wait for slow auto-heal
-            import time
             start = time.time()
             
             with pytest.raises(ConnectionError, match="Connection timeout"):

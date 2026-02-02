@@ -11,8 +11,11 @@ import signal
 import sys
 
 
-def test_dashboard_startup():
-    """Test that the dashboard starts and serves the refactored version."""
+def run_dashboard_startup_check() -> bool:
+    """Run the dashboard startup check.
+
+    Returns a boolean so this file can still be executed as a script; pytest asserts it.
+    """
     print("🔍 Testing MCP dashboard startup and management functionality...")
     
     # Start the MCP server in background
@@ -80,13 +83,17 @@ def test_dashboard_startup():
         print("✅ Server stopped")
 
 
+def test_dashboard_startup():
+    assert run_dashboard_startup_check()
+
+
 def main():
     """Main test function."""
     print("=" * 60)
     print("🧪 MCP Dashboard Management Features Test")
     print("=" * 60)
     
-    success = test_dashboard_startup()
+    success = run_dashboard_startup_check()
     
     print("\n" + "=" * 60)
     if success:

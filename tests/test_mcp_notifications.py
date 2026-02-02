@@ -9,8 +9,11 @@ import sys
 import time
 from pathlib import Path
 
-def test_mcp_server():
-    """Test the MCP server with proper notification handling."""
+def run_mcp_notifications_test() -> bool:
+    """Run the notification handling test.
+
+    Returns a boolean so this file can be used standalone; pytest asserts it.
+    """
     
     print("🧪 Testing MCP Server with notifications...")
     
@@ -109,6 +112,10 @@ def test_mcp_server():
         print(f"\n❌ Test failed: {e}")
         return False
 
+
+def test_mcp_server():
+    assert run_mcp_notifications_test()
+
 if __name__ == "__main__":
-    success = test_mcp_server()
+    success = run_mcp_notifications_test()
     sys.exit(0 if success else 1)

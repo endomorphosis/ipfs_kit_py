@@ -47,7 +47,13 @@ class MCPToolErrorCapture:
                 
                 # Trigger auto-healing if enabled
                 if self.enable_auto_heal:
-                    await self._trigger_auto_heal(error_info)
+                    # Fire-and-forget: auto-heal should never block tool error propagation.
+                    try:
+                        asyncio.create_task(self._trigger_auto_heal(error_info))
+                    except RuntimeError:
+                        # If the event loop is unavailable for some reason, fall back to best-effort.
+                        # This should be rare since we're inside an async handler.
+                        await self._trigger_auto_heal(error_info)
                 
                 # Re-raise with enhanced context
                 raise
@@ -117,7 +123,15 @@ class MCPToolErrorCapture:
             
             # Create GitHub issue
             issue_creator = GitHubIssueCreator(config)
-            issue_url = issue_creator.create_issue_from_error(captured_error)
+            # Run sync API call off the event loop with a conservative timeout.
+            try:
+                issue_url = await asyncio.wait_for(
+                    asyncio.to_thread(issue_creator.create_issue_from_error, captured_error),
+                    timeout=2.0,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Auto-heal issue creation timed out")
+                return
             
             if issue_url:
                 logger.info(f"MCP tool error reported: {issue_url}")
