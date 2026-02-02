@@ -548,11 +548,8 @@ class install_ipfs:
             # Download Go
             print(f"Downloading Go from {go_url}...")
             go_tar = os.path.join(self.tmp_path, f"go{go_version}.tar.gz")
-            
-            if system == "Linux":
-                subprocess.run(["wget", "-O", go_tar, go_url], check=True)
-            elif system == "Darwin":
-                subprocess.run(["curl", "-L", "-o", go_tar, go_url], check=True)
+
+            self._download_url_to_file(go_url, go_tar)
             
             # Extract Go
             go_install_dir = os.path.join(os.path.expanduser("~"), ".local")
@@ -713,21 +710,21 @@ class install_ipfs:
                 with tempfile.NamedTemporaryFile(
                     suffix=url_suffix, dir=self.tmp_path, delete=False
                 ) as this_tempfile:
-                    if platform.system() == "Linux":
-                        command = "wget " + url + " -O " + this_tempfile.name
-                    elif platform.system() == "Windows":
-                        drive, path = os.path.splitdrive(this_tempfile.name)
+                    if platform.system() == "Windows":
+                        _, _ = os.path.splitdrive(this_tempfile.name)  # Removed unused vars
                         temp_path = this_tempfile.name.replace("\\", "/")
-                        temp_path = temp_path.split("/")
-                        temp_path = "/".join(temp_path)
-                        # temp_path = drive + temp_path
+                        temp_path = "/".join(temp_path.split("/"))
                         this_tempfile.close()
                         command = f"powershell -Command \"Invoke-WebRequest -Uri '{url}' -OutFile '{temp_path}'\""
                         command = command.replace("'", "")
-                    elif platform.system() == "Darwin":
-                        command = "curl " + url + " -o " + this_tempfile.name
-
-                    results = subprocess.check_output(command, shell=True)
+                        try:
+                            subprocess.check_output(command, shell=True)
+                        except Exception:
+                            # Fallback for restricted shells / missing PowerShell.
+                            self._download_url_to_file(url, temp_path)
+                    else:
+                        # Linux/macOS: avoid relying on wget/curl.
+                        self._download_url_to_file(url, this_tempfile.name)
             except subprocess.CalledProcessError as e:
                 print(f"Failed to download binary from {url}: {e}")
                 print("Attempting to build IPFS from source as fallback...")
@@ -909,21 +906,20 @@ class install_ipfs:
         with tempfile.NamedTemporaryFile(
             suffix=url_suffix, dir=self.tmp_path, delete=False
         ) as this_tempfile:
-                if platform.system() == "Linux":
-                    command = "wget " + url + " -O " + this_tempfile.name
-                elif platform.system() == "Windows":
+                if platform.system() == "Windows":
                     _, _ = os.path.splitdrive(this_tempfile.name)  # Removed unused variables
                     temp_path = this_tempfile.name.replace("\\", "/")
-                    temp_path = temp_path.split("/")
-                    temp_path = "/".join(temp_path)
-                    # temp_path = drive + temp_path
+                    temp_path = "/".join(temp_path.split("/"))
                     this_tempfile.close()
                     command = f"powershell -Command \"Invoke-WebRequest -Uri '{url}' -OutFile '{temp_path}'\""
                     command = command.replace("'", "")
-                elif platform.system() == "Darwin":
-                    command = "curl " + url + " -o " + this_tempfile.name
-
-                results = subprocess.check_output(command, shell=True)
+                    try:
+                        subprocess.check_output(command, shell=True)
+                    except Exception:
+                        self._download_url_to_file(url, temp_path)
+                else:
+                    self._download_url_to_file(url, this_tempfile.name)
+                results = b""
                 if url_suffix == ".zip":
                     if platform.system() == "Windows":
                         move_source_path = os.path.join(
@@ -1048,21 +1044,20 @@ class install_ipfs:
             with tempfile.NamedTemporaryFile(
                 suffix=url_suffix, dir=self.tmp_path, delete=False
             ) as this_tempfile:
-                if platform.system() == "Linux":
-                    command = "wget " + url + " -O " + this_tempfile.name
-                elif platform.system() == "Windows":
-                    drive, path = os.path.splitdrive(this_tempfile.name)
+                if platform.system() == "Windows":
+                    _, _ = os.path.splitdrive(this_tempfile.name)  # Removed unused variables
                     temp_path = this_tempfile.name.replace("\\", "/")
-                    temp_path = temp_path.split("/")
-                    temp_path = "/".join(temp_path)
-                    # temp_path = drive + temp_path
+                    temp_path = "/".join(temp_path.split("/"))
                     this_tempfile.close()
                     command = f"powershell -Command \"Invoke-WebRequest -Uri '{url}' -OutFile '{temp_path}'\""
                     command = command.replace("'", "")
-                elif platform.system() == "Darwin":
-                    command = "curl " + url + " -o " + this_tempfile.name
-
-                results = subprocess.check_output(command, shell=True)
+                    try:
+                        subprocess.check_output(command, shell=True)
+                    except Exception:
+                        self._download_url_to_file(url, temp_path)
+                else:
+                    self._download_url_to_file(url, this_tempfile.name)
+                results = b""
                 if url_suffix == ".zip":
                     if platform.system() == "Windows":
                         move_source_path = os.path.join(
@@ -1909,6 +1904,26 @@ class install_ipfs:
         except Exception as e:
             print(f"Could not verify release URL {url}: {e}")
             return False
+
+    def _download_url_to_file(self, url, dest_path):
+        """Download a URL to a local path without relying on external tools.
+
+        This is a critical fallback for environments that lack `curl`/`wget`.
+        """
+        os.makedirs(os.path.dirname(os.path.abspath(dest_path)), exist_ok=True)
+
+        if requests is not None:
+            resp = requests.get(url, stream=True, timeout=60)
+            resp.raise_for_status()
+            with open(dest_path, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+            return
+
+        import urllib.request
+        with urllib.request.urlopen(url, timeout=60) as r, open(dest_path, "wb") as f:
+            shutil.copyfileobj(r, f)
     
     def get_installed_kubo_version(self):
         """Get the currently installed Kubo version."""

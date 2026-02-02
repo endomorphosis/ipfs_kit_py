@@ -20,6 +20,7 @@ PROFILE="dev"            # core|api|dev|full
 EXTRAS=""                # comma-separated extras override
 INSTALL_NODE="auto"       # auto|yes|no
 INSTALL_PLAYWRIGHT="auto" # auto|yes|no
+ALLOW_SUDO="no"           # yes|no (default: no; zero-touch should not require sudo)
 INSTALL_LIBMAGIC="auto"   # auto|yes|no
 INSTALL_IPFS="auto"       # auto|yes|no
 INSTALL_LASSIE="auto"     # auto|yes|no
@@ -41,6 +42,7 @@ Options:
   --extras <comma,separated>      Explicit extras to install (overrides --profile)
   --node <auto|yes|no>            Ensure Node.js is available (default: auto)
   --playwright <auto|yes|no>      Install Playwright deps + browsers (default: auto)
+  --sudo <yes|no>                 Allow using sudo for system deps (default: no)
   --libmagic <auto|yes|no>        Build/install libmagic locally if needed (default: auto)
   --ipfs <auto|yes|no>            Install IPFS/Kubo binaries into ./bin (default: auto)
   --lassie <auto|yes|no>          Install Lassie binary into ./bin (default: auto)
@@ -66,6 +68,7 @@ parse_args() {
       --extras) EXTRAS="${2:-}"; shift 2 ;;
       --node) INSTALL_NODE="${2:-}"; shift 2 ;;
       --playwright) INSTALL_PLAYWRIGHT="${2:-}"; shift 2 ;;
+      --sudo) ALLOW_SUDO="${2:-}"; shift 2 ;;
       --libmagic) INSTALL_LIBMAGIC="${2:-}"; shift 2 ;;
       --ipfs) INSTALL_IPFS="${2:-}"; shift 2 ;;
       --lassie) INSTALL_LASSIE="${2:-}"; shift 2 ;;
@@ -82,6 +85,7 @@ parse_args() {
   esac
   case "$INSTALL_NODE" in auto|yes|no) : ;; *) err "Invalid --node: $INSTALL_NODE"; exit 2 ;; esac
   case "$INSTALL_PLAYWRIGHT" in auto|yes|no) : ;; *) err "Invalid --playwright: $INSTALL_PLAYWRIGHT"; exit 2 ;; esac
+  case "$ALLOW_SUDO" in yes|no) : ;; *) err "Invalid --sudo: $ALLOW_SUDO"; exit 2 ;; esac
   case "$INSTALL_LIBMAGIC" in auto|yes|no) : ;; *) err "Invalid --libmagic: $INSTALL_LIBMAGIC"; exit 2 ;; esac
   case "$INSTALL_IPFS" in auto|yes|no) : ;; *) err "Invalid --ipfs: $INSTALL_IPFS"; exit 2 ;; esac
   case "$INSTALL_LASSIE" in auto|yes|no) : ;; *) err "Invalid --lassie: $INSTALL_LASSIE"; exit 2 ;; esac
@@ -115,6 +119,9 @@ detect_platform() {
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 sudo_available() {
+  if [[ "${ALLOW_SUDO}" != "yes" ]]; then
+    return 1
+  fi
   if have_cmd sudo && sudo -n true >/dev/null 2>&1; then
     return 0
   fi
@@ -160,8 +167,12 @@ download() {
     curl -fsSL "$url" -o "$out"
   elif have_cmd wget; then
     wget -q "$url" -O "$out"
+  elif have_cmd python3; then
+    python3 -c 'import sys,urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' "$url" "$out"
+  elif have_cmd python; then
+    python -c 'import sys,urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' "$url" "$out"
   else
-    err "Need curl or wget to download: $url"
+    err "Need curl/wget or python to download: $url"
     return 1
   fi
 }
@@ -403,21 +414,16 @@ install_playwright_browsers() {
     return 1
   fi
 
-  # If sudo is available, Playwright can install OS deps; otherwise do browser-only.
-  if sudo_available; then
-    log "Installing Playwright browsers (+ system deps via sudo)"
-    set +e
-    (cd "$ROOT_DIR" && npx playwright install --with-deps)
-    local rc=$?
-    set -e
-    if [[ $rc -ne 0 ]]; then
-      err "WARNING: Playwright --with-deps failed (likely system package manager issues)."
-      err "Retrying browser-only install..."
-      (cd "$ROOT_DIR" && npx playwright install)
-    fi
-  else
-    log "Installing Playwright browsers (no sudo; browser-only)"
-    (cd "$ROOT_DIR" && npx playwright install)
+  # Zero-touch should not attempt to install OS deps (apt/yum/brew) via sudo.
+  # Make this step best-effort so system package manager issues don't break install.
+  log "Installing Playwright browsers (browser-only; no sudo)"
+  set +e
+  (cd "$ROOT_DIR" && npx playwright install)
+  local rc=$?
+  set -e
+  if [[ $rc -ne 0 ]]; then
+    err "WARNING: Playwright browser install failed."
+    err "Retry later with: (cd $ROOT_DIR && npx playwright install)"
   fi
 }
 
@@ -477,8 +483,8 @@ from ipfs_kit_py.install_lotus import install_lotus
 
 inst = install_lotus(metadata={
     "bin_dir": r"${BIN_DIR}",
-    # Opt in: will use sudo when available, otherwise attempt user-space deps.
-    "auto_install_deps": True,
+  # Safer default: do not auto-install system deps (sudo) from zero-touch.
+  "auto_install_deps": False,
     "allow_userspace_deps": True,
     "skip_params": True,
 })
