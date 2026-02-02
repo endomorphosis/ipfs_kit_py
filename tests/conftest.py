@@ -77,6 +77,25 @@ def _sanitize_sys_path() -> None:
         if str(repo_root) not in mod_path:
             sys.modules.pop("mcp", None)
 
+
+def _force_local_mcp() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    mcp_pkg = repo_root / "mcp"
+    if not mcp_pkg.exists():
+        return
+    # Remove any third-party mcp module to avoid shadowing.
+    sys.modules.pop("mcp", None)
+    init_file = mcp_pkg / "__init__.py"
+    if not init_file.exists():
+        return
+    spec = importlib.util.spec_from_file_location("mcp", str(init_file))
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    module.__path__ = [str(mcp_pkg)]
+    sys.modules["mcp"] = module
+    spec.loader.exec_module(module)  # type: ignore[attr-defined]
+
     # If the package isn't importable (e.g., running tests without editable
     # install), prefer adding repo_root (not the package dir).
     # Use find_spec to avoid importing ipfs_kit_py during collection.
@@ -87,6 +106,7 @@ def _sanitize_sys_path() -> None:
 
 _sanitize_sys_path()
 _prepend_zero_touch_bin()
+_force_local_mcp()
 
 if os.environ.get("IPFS_KIT_TEST_IGNORE_SIGINT", "1") == "1":
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -96,6 +116,7 @@ def pytest_collectstart(collector):  # noqa: ANN001
     # Re-sanitize during collection because some test modules mutate sys.path
     # at import time.
     _sanitize_sys_path()
+    _force_local_mcp()
 
 
 def pytest_collection_modifyitems(config, items):  # noqa: ANN001
@@ -128,6 +149,12 @@ def pytest_itemcollected(item):  # noqa: ANN001
 def pytest_runtest_setup(item):  # noqa: ANN001
     # Final guard before each test executes.
     _sanitize_sys_path()
+    _force_local_mcp()
+
+
+def pytest_sessionstart(session):  # noqa: ANN001
+    _sanitize_sys_path()
+    _force_local_mcp()
 
 
 @pytest.hookimpl(tryfirst=True)
