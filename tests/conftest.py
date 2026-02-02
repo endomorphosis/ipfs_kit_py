@@ -60,6 +60,11 @@ def _sanitize_sys_path() -> None:
 
     sys.path[:] = sanitized
 
+    # Ensure repo_root is on sys.path so local top-level packages (like `mcp`)
+    # are importable even when ipfs_kit_py is installed from site-packages.
+    if (repo_root / "mcp").exists() and str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
     # If the package isn't importable (e.g., running tests without editable
     # install), prefer adding repo_root (not the package dir).
     # Use find_spec to avoid importing ipfs_kit_py during collection.

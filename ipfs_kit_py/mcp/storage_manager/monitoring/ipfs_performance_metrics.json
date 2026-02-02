@@ -4,9 +4,7 @@
       "count": 1,
       "success": 1,
       "failed": 0,
-      "response_times": [
-        0.0003001689910888672
-      ]
+      "response_times": []
     },
     "get": {
       "count": 0,
@@ -59,5 +57,5 @@
     "success_rate": 100.0,
     "avg_response_time": 0.0003001689910888672
   },
-  "last_updated": 1769997317.653721
+  "last_updated": 1769998881.809504
 }
