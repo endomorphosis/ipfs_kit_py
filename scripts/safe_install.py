@@ -143,9 +143,10 @@ def install_dependencies():
     
     # Install main package
     print("\n2. Installing main package...")
-    ipfs_kit_git = "git+https://github.com/endomorphosis/ipfs_kit_py.git@main#egg=ipfs_kit_py"
+    ipfs_kit_git = "git+https://github.com/endomorphosis/ipfs_kit_py.git@main"
+    ipfs_kit_direct = f"ipfs_kit_py @ {ipfs_kit_git}"
     installed_main = run_command(
-        build_pip_command(python_cmd, 'install', ipfs_kit_git, break_system=use_break_system)
+        build_pip_command(python_cmd, 'install', ipfs_kit_direct, break_system=use_break_system)
     )
     if not installed_main:
         print("⚠ Failed to install from git main, trying local editable install...")
@@ -231,7 +232,7 @@ def install_dependencies():
     ]
     for extra in optional_extras:
         print(f"  Installing extras: [{extra}]...")
-        git_extra = f"git+https://github.com/endomorphosis/ipfs_kit_py.git@main#egg=ipfs_kit_py[{extra}]"
+        git_extra = f"ipfs_kit_py[{extra}] @ {ipfs_kit_git}"
         installed_extra = run_command(
             build_pip_command(python_cmd, 'install', git_extra, break_system=use_break_system),
             retries=2
