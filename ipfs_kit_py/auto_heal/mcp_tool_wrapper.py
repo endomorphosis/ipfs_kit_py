@@ -49,11 +49,20 @@ class MCPToolErrorCapture:
                 if self.enable_auto_heal:
                     # Fire-and-forget: auto-heal should never block tool error propagation.
                     try:
-                        asyncio.create_task(self._trigger_auto_heal(error_info))
-                    except RuntimeError:
-                        # If the event loop is unavailable for some reason, fall back to best-effort.
-                        # This should be rare since we're inside an async handler.
-                        await self._trigger_auto_heal(error_info)
+                        anyio.lowlevel.spawn_system_task(self._trigger_auto_heal, error_info)
+                    except Exception:
+                        # Pytest commonly runs async tests under asyncio without an AnyIO context.
+                        # In that case, schedule via the running asyncio loop rather than blocking.
+                        try:
+                            import asyncio
+
+                            asyncio.get_running_loop().create_task(
+                                self._trigger_auto_heal(error_info)
+                            )
+                        except Exception:
+                            logger.debug(
+                                "Unable to spawn background auto-heal task; skipping"
+                            )
                 
                 # Re-raise with enhanced context
                 raise
@@ -125,11 +134,12 @@ class MCPToolErrorCapture:
             issue_creator = GitHubIssueCreator(config)
             # Run sync API call off the event loop with a conservative timeout.
             try:
-                issue_url = await asyncio.wait_for(
-                    asyncio.to_thread(issue_creator.create_issue_from_error, captured_error),
-                    timeout=2.0,
-                )
-            except asyncio.TimeoutError:
+                with anyio.fail_after(2.0):
+                    issue_url = await anyio.to_thread.run_sync(
+                        issue_creator.create_issue_from_error,
+                        captured_error,
+                    )
+            except TimeoutError:
                 logger.warning("Auto-heal issue creation timed out")
                 return
             

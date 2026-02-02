@@ -73,7 +73,10 @@ class install_ipfs:
             self.config_ipfs = self.metadata["config_ipfs"]
         elif "config_ipfs" in list(dir(self)) and "config_ipfs" in list(self.metadata.keys()):
             self.config_ipfs = self.metadata["config_ipfs"]
-        if "ipfs_path" not in list(dir(self)) and "ipfs_path" in list(self.metadata.keys()):
+        # Respect caller-provided IPFS repo path when supplied (e.g. zero-touch installer).
+        # The previous implementation checked dir(self) which always contains 'ipfs_path'
+        # once the attribute exists, causing metadata overrides to be ignored.
+        if self.metadata and "ipfs_path" in self.metadata:
             self.ipfs_path = self.metadata["ipfs_path"]
         else:
             self.ipfs_path = os.path.join(os.path.expanduser("~"), ".ipfs")

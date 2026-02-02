@@ -70,7 +70,10 @@ def _import_external_libp2p():
                     candidate = (entry_path / "libp2p" / "__init__.py").resolve()
                 except Exception:
                     continue
-                if not candidate.exists():
+                try:
+                    if not candidate.exists():
+                        continue
+                except PermissionError:
                     continue
                 normalized = str(candidate).replace("\\", "/")
                 if "/ipfs_kit_py/" in normalized:

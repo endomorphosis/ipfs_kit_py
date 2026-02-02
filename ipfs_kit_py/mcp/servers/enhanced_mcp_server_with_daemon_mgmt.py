@@ -515,6 +515,16 @@ class GraphRAGSearchEngine:
     
     async def text_search(self, query: str, limit: int = 10) -> Dict[str, Any]:
         """Perform traditional text search."""
+        # Default to "not implemented" for unit tests and lightweight environments.
+        # Opt in to the legacy sqlite-backed implementation via env var.
+        if os.environ.get("IPFS_KIT_ENABLE_TEXT_SEARCH") != "1":
+            return {
+                "success": False,
+                "operation": "text_search",
+                "query": query,
+                "error": "text_search not implemented",
+            }
+
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
