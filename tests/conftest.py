@@ -17,6 +17,7 @@ import inspect
 import os
 import signal
 import sys
+from contextlib import suppress
 from pathlib import Path
 import pytest
 import aiohttp
@@ -62,7 +63,11 @@ def _sanitize_sys_path() -> None:
 
     # Ensure repo_root is on sys.path so local top-level packages (like `mcp`)
     # are importable even when ipfs_kit_py is installed from site-packages.
-    if (repo_root / "mcp").exists() and str(repo_root) not in sys.path:
+    if (repo_root / "mcp").exists():
+        # Always prefer repo_root so local top-level packages (like `mcp`) win.
+        if str(repo_root) in sys.path:
+            with suppress(ValueError):
+                sys.path.remove(str(repo_root))
         sys.path.insert(0, str(repo_root))
 
     # Ensure local `mcp` wins over any third-party package named `mcp`.
