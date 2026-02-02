@@ -144,10 +144,17 @@ def install_dependencies():
     # Install main package
     print("\n2. Installing main package...")
     ipfs_kit_git = "git+https://github.com/endomorphosis/ipfs_kit_py.git@main"
-    ipfs_kit_direct = f"ipfs_kit_py @ {ipfs_kit_git}"
+    ipfs_kit_zip = "https://github.com/endomorphosis/ipfs_kit_py/archive/refs/heads/main.zip"
+    ipfs_kit_direct_zip = f"ipfs_kit_py @ {ipfs_kit_zip}"
+    ipfs_kit_direct_git = f"ipfs_kit_py @ {ipfs_kit_git}"
     installed_main = run_command(
-        build_pip_command(python_cmd, 'install', ipfs_kit_direct, break_system=use_break_system)
+        build_pip_command(python_cmd, 'install', ipfs_kit_direct_zip, break_system=use_break_system)
     )
+    if not installed_main:
+        print("⚠ Zip install failed, trying git main...")
+        installed_main = run_command(
+            build_pip_command(python_cmd, 'install', ipfs_kit_direct_git, break_system=use_break_system)
+        )
     if not installed_main:
         print("⚠ Failed to install from git main, trying local editable install...")
         installed_main = run_command(
@@ -232,11 +239,17 @@ def install_dependencies():
     ]
     for extra in optional_extras:
         print(f"  Installing extras: [{extra}]...")
+        zip_extra = f"ipfs_kit_py[{extra}] @ {ipfs_kit_zip}"
         git_extra = f"ipfs_kit_py[{extra}] @ {ipfs_kit_git}"
         installed_extra = run_command(
-            build_pip_command(python_cmd, 'install', git_extra, break_system=use_break_system),
+            build_pip_command(python_cmd, 'install', zip_extra, break_system=use_break_system),
             retries=2
         )
+        if not installed_extra:
+            installed_extra = run_command(
+                build_pip_command(python_cmd, 'install', git_extra, break_system=use_break_system),
+                retries=2
+            )
         if not installed_extra:
             run_command(
                 build_pip_command(python_cmd, 'install', '-e', f'.[{extra}]', break_system=use_break_system),
