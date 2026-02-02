@@ -130,6 +130,11 @@ class gdrive_kit:
         # Mock mode for testing
         self.mock_mode = metadata.get("mock_mode", False) if metadata else False
         
+        # In mock mode, automatically authenticate
+        if self.mock_mode:
+            self.authenticated = True
+            self.access_token = "mock_access_token"
+        
         # Setup directories
         self._setup_directories()
         
@@ -207,9 +212,12 @@ class gdrive_kit:
                     logger.info("Loaded valid Google Drive authentication token")
                 else:
                     logger.info("Google Drive token expired, will need re-authentication")
+                
+                return token_data
                     
         except Exception as e:
             logger.error(f"Error loading Google Drive token: {e}")
+            return None
 
     def _save_token(self):
         """Save authentication token to file."""
@@ -325,13 +333,25 @@ class gdrive_kit:
                     "emailAddress": "test@example.com"
                 }
             }
+        elif '/files' in endpoint_path and method.upper() == 'POST':
+            # Mock file/folder creation
+            mock_id = f"mock_{uuid.uuid4().hex[:8]}"
+            result = {
+                "id": mock_id,
+                "success": True,
+                "mock": True
+            }
+            if data and isinstance(data, dict):
+                result["name"] = data.get("name", "unnamed")
+                result["mimeType"] = data.get("mimeType", "application/octet-stream")
+            return result
         else:
             return {"success": True, "mock": True}
 
     def _refresh_access_token(self):
         """Refresh the access token using refresh token."""
         if not self.refresh_token:
-            return False
+            return {"success": False, "error": "No refresh token available"}
         
         try:
             import requests
@@ -355,12 +375,12 @@ class gdrive_kit:
             self._save_token()
             
             logger.info("Google Drive access token refreshed successfully")
-            return True
+            return {"success": True, "access_token": self.access_token}
             
         except Exception as e:
             logger.error(f"Failed to refresh Google Drive token: {e}")
             self.authenticated = False
-            return False
+            return {"success": False, "error": str(e)}
 
     # Installation and Configuration Methods
     def install(self, **kwargs):
@@ -711,10 +731,16 @@ class gdrive_kit:
                     if files_info["success"]:
                         status_info["files_accessible"] = True
                         status_info["sample_file_count"] = len(files_info.get("files", []))
+                    else:
+                        # If listing files failed, propagate the error
+                        if "error" in files_info:
+                            raise Exception(files_info["error"])
                     
                 except Exception as e:
                     status_info["files_accessible"] = False
                     status_info["file_access_error"] = str(e)
+                    # Re-raise to fail the whole operation if it's a critical error
+                    raise
             
             result["success"] = True
             result["status"] = status_info
@@ -1036,6 +1062,14 @@ class gdrive_kit:
                 "authentication_valid": False
             }
             
+            # If DNS fails, this is a critical failure
+            if not connectivity_tests["dns_resolution"]:
+                result["success"] = False
+                result["connectivity"] = connectivity_tests
+                result["overall_connectivity"] = False
+                result["error"] = "DNS resolution failed"
+                return result
+            
             # Test API endpoint
             if connectivity_tests["dns_resolution"]:
                 try:
@@ -1050,8 +1084,11 @@ class gdrive_kit:
                 try:
                     self._make_api_request("GET", "/about", params={"fields": "user"})
                     connectivity_tests["authentication_valid"] = True
-                except Exception:
+                except Exception as e:
                     connectivity_tests["authentication_valid"] = False
+                    # If it's a critical error, fail the whole test
+                    if isinstance(e, (GDriveConnectionError, socket.timeout)):
+                        raise
             
             result["success"] = True
             result["connectivity"] = connectivity_tests

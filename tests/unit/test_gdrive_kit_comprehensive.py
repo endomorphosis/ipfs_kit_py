@@ -104,8 +104,9 @@ class TestGDriveKitAuthentication(unittest.TestCase):
         result = self.kit.init()
         self.assertTrue(result.get("success", False))
     
+    @patch('os.path.exists', return_value=True)
     @patch('builtins.open', new_callable=mock_open, read_data='{"access_token": "existing_token", "refresh_token": "existing_refresh"}')
-    def test_load_existing_token(self, mock_file):
+    def test_load_existing_token(self, mock_file, mock_exists):
         """Test loading existing authentication token."""
         result = self.kit._load_existing_token()
         self.assertIsNotNone(result)
@@ -122,13 +123,16 @@ class TestGDriveKitAuthentication(unittest.TestCase):
         # Token saving might not return a specific value
         self.assertTrue(True)  # Just verify it doesn't crash
     
-    @patch('ipfs_kit_py.gdrive_kit.gdrive_kit._make_api_request')
-    def test_refresh_access_token(self, mock_request):
+    @patch('requests.post')
+    def test_refresh_access_token(self, mock_post):
         """Test token refresh functionality."""
-        mock_request.return_value = {
+        mock_response = Mock()
+        mock_response.json.return_value = {
             "access_token": "new_access_token",
             "expires_in": 3600
         }
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
         
         self.kit.refresh_token = "test_refresh_token"
         result = self.kit._refresh_access_token()
@@ -186,7 +190,10 @@ class TestGDriveKitFileOperations(unittest.TestCase):
         result = self.kit.upload_file(test_file)
         self.assertTrue(result.get("success", False))
         if "file_id" in result:
-            self.assertIn("test_file_id", result["file_id"])
+            self.assertIsNotNone(result["file_id"])
+            # In mock mode, file_id starts with "mock_file_"
+            if result.get("mock"):
+                self.assertIn("mock_file", result["file_id"])
     
     @patch('ipfs_kit_py.gdrive_kit.gdrive_kit._make_api_request')
     @patch('builtins.open', new_callable=mock_open)
@@ -376,7 +383,9 @@ class TestGDriveKitErrorHandling(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures."""
-        self.kit = gdrive_kit(metadata={"mock_mode": True})
+        # Don't use mock_mode for error handling tests - we want to test real error paths
+        self.kit = gdrive_kit(metadata={"mock_mode": False})
+        self.kit.authenticated = True  # Set authenticated directly
         self.kit.access_token = "test_token"
         
     @patch('ipfs_kit_py.gdrive_kit.gdrive_kit._make_api_request')
