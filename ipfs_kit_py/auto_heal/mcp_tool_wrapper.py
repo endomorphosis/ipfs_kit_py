@@ -8,7 +8,7 @@ import logging
 import traceback
 from typing import Dict, Any, Optional, Callable
 from datetime import datetime
-import asyncio
+import anyio
 
 logger = logging.getLogger(__name__)
 

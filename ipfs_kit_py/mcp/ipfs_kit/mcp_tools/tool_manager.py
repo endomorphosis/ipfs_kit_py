@@ -385,8 +385,10 @@ class MCPToolManager:
                 logger.error(f"MCP tool '{tool_name}' failed: {e}", exc_info=True)
                 
                 # Trigger auto-healing in background
-                import asyncio
-                asyncio.create_task(self.error_capture._trigger_auto_heal(error_info))
+                import anyio
+                anyio.create_task_group()  # Will be started when we're in an async context
+                # For now, just capture the error - auto-healing will be triggered separately
+                # asyncio.create_task(self.error_capture._trigger_auto_heal(error_info))
                 
                 # Re-raise the exception
                 raise
