@@ -6,7 +6,7 @@
 [![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
 [![Kubernetes Ready](https://img.shields.io/badge/Kubernetes-Ready-blue)](https://kubernetes.io/)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-orange)](https://modelcontextprotocol.io/)
-[![Integrations](https://img.shields.io/badge/Integrations-36-purple)](./COMPLETE_INTEGRATION_SUMMARY.md)
+[![Integrations](https://img.shields.io/badge/Integrations-36-purple)](./docs/status_reports/COMPLETE_INTEGRATION_SUMMARY.md)
 [![Tests](https://img.shields.io/badge/Tests-77%20Passing-success)](./tests/)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 
@@ -41,15 +41,15 @@
 ### Integration Documentation
 - **[Integration Quick Start](docs/INTEGRATION_QUICK_START.md)** - Step-by-step guide for using integrations
 - **[Integration Cheat Sheet](docs/INTEGRATION_CHEAT_SHEET.md)** - Quick reference for all 36 integrations
-- **[Complete Integration Summary](COMPLETE_INTEGRATION_SUMMARY.md)** - Full details on all integrations
-- **[MCP Architecture Guide](MCP_INTEGRATION_ARCHITECTURE.md)** - MCP tool architecture and patterns
+- **[Complete Integration Summary](docs/status_reports/COMPLETE_INTEGRATION_SUMMARY.md)** - Full details on all integrations
+- **[MCP Architecture Guide](docs/architecture/MCP_INTEGRATION_ARCHITECTURE.md)** - MCP tool architecture and patterns
 - **[Integration Overview](docs/INTEGRATION_OVERVIEW.md)** - High-level integration overview
 
 ### CI/CD Automation Documentation 🤖
-- **[CI/CD Automation Summary](CI_CD_AUTOMATION_SUMMARY.md)** - Executive summary and recommendations
-- **[CI/CD Automation Quick Reference](CI_CD_AUTOMATION_QUICK_REFERENCE.md)** - Quick start and operations guide
-- **[CI/CD Integration Plan](CI_CD_AUTOMATION_INTEGRATION_PLAN.md)** - Complete technical specification
-- **[GitHub CLI Caching Guide](GITHUB_CLI_CACHING.md)** - IPFS/LibP2P-based caching for GitHub CLI
+- **[CI/CD Automation Summary](docs/deployment/ci-cd/CI_CD_AUTOMATION_SUMMARY.md)** - Executive summary and recommendations
+- **[CI/CD Automation Quick Reference](docs/deployment/ci-cd/CI_CD_AUTOMATION_QUICK_REFERENCE.md)** - Quick start and operations guide
+- **[CI/CD Integration Plan](docs/deployment/ci-cd/CI_CD_AUTOMATION_INTEGRATION_PLAN.md)** - Complete technical specification
+- **[GitHub CLI Caching Guide](docs/status_reports/GITHUB_CLI_CACHING.md)** - IPFS/LibP2P-based caching for GitHub CLI
 
 ### Auto-Healing 🤖✨
 The CLI includes an intelligent auto-healing system that automatically captures errors, creates GitHub issues, and generates fixes:
@@ -92,7 +92,7 @@ gh_nocache pr create ... # Bypasses cache for writes
 gh_cache_stats
 ```
 
-See [GITHUB_CLI_CACHING.md](GITHUB_CLI_CACHING.md) for complete documentation.
+See [GITHUB_CLI_CACHING.md](docs/status_reports/GITHUB_CLI_CACHING.md) for complete documentation.
 
 ---
 
@@ -557,8 +557,8 @@ git submodule update --init external/ipfs_accelerate_py
 ### Documentation
 
 **Integration Documentation:**
-- `COMPLETE_INTEGRATION_SUMMARY.md` - Overview of all 36 integrations
-- `MCP_INTEGRATION_ARCHITECTURE.md` - MCP tool architecture guide
+- `docs/status_reports/COMPLETE_INTEGRATION_SUMMARY.md` - Overview of all 36 integrations
+- `docs/architecture/MCP_INTEGRATION_ARCHITECTURE.md` - MCP tool architecture guide
 - `docs/IPFS_DATASETS_INTEGRATION.md` - Base integration patterns
 - `docs/IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md` - Complete reference (650+ lines)
 - `docs/VFS_BUCKET_GRAPHRAG_INTEGRATION.md` - GraphRAG architecture with compute layer
@@ -600,9 +600,9 @@ Workflow Fails → Issue Created → Draft PR Created → Copilot Fixes → You 
 
 ### 📚 Documentation
 
-- **[Summary & Recommendations](CI_CD_AUTOMATION_SUMMARY.md)** - What's available and integration priorities
-- **[Quick Reference](CI_CD_AUTOMATION_QUICK_REFERENCE.md)** - Common operations and troubleshooting
-- **[Integration Plan](CI_CD_AUTOMATION_INTEGRATION_PLAN.md)** - Complete technical specification (30KB+)
+- **[Summary & Recommendations](docs/deployment/ci-cd/CI_CD_AUTOMATION_SUMMARY.md)** - What's available and integration priorities
+- **[Quick Reference](docs/deployment/ci-cd/CI_CD_AUTOMATION_QUICK_REFERENCE.md)** - Common operations and troubleshooting
+- **[Integration Plan](docs/deployment/ci-cd/CI_CD_AUTOMATION_INTEGRATION_PLAN.md)** - Complete technical specification (30KB+)
 
 ### 🎯 Key Components
 
@@ -644,7 +644,7 @@ Workflow Fails → Issue Created → Draft PR Created → Copilot Fixes → You 
 - 🚧 VS Code tasks pending
 - 🚧 Enhanced workflows pending
 
-See the [Integration Plan](CI_CD_AUTOMATION_INTEGRATION_PLAN.md) for implementation roadmap (4-5 week timeline).
+See the [Integration Plan](docs/deployment/ci-cd/CI_CD_AUTOMATION_INTEGRATION_PLAN.md) for implementation roadmap (4-5 week timeline).
 
 ---
 
