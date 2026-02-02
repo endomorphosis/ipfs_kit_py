@@ -72,6 +72,27 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 #### Content Management & Storage
 
+**[Storage Backends](reference/storage_backends.md)** - *Multi-backend storage system*
+- [Enhanced Analytics](reference/ENHANCED_STORAGE_BACKEND_ANALYTICS.md)
+- 6 integrated backends: IPFS, Filecoin, S3, Storacha, HuggingFace, Lassie
+- Multi-tier storage strategy (memory → disk → network → cloud)
+- Automatic content distribution across backends
+- **Answers:** "What storage backends are available?" "How do I use S3/Filecoin?" "Multi-backend setup?"
+
+**[Tiered Cache](reference/tiered_cache.md)** - *Advanced multi-tier caching*
+- ARC (Adaptive Replacement Cache) algorithm
+- Memory cache (100MB default) + Disk cache (1GB+ default)
+- Heat-based eviction and automatic tier promotion
+- Zero-copy memory-mapped access for large files
+- **Answers:** "How does caching work?" "Cache configuration?" "Performance optimization?"
+
+**[Replica Management](operations/cluster_management.md)** - *Content replication strategies*
+- Cluster-based replication with configurable factors
+- Replication policies: distributed, local-first, geo-aware, cost-optimized
+- Automatic repair and health monitoring
+- Min/max replica constraints with auto-repair
+- **Answers:** "How do replicas work?" "Replication strategies?" "High availability setup?"
+
 **[Pin Management](features/pin-management/)** - *Keep content available*
 - [Pin Management Guide](features/pin-management/PIN_MANAGEMENT_GUIDE.md) - Complete guide
 - [Quick Start](features/pin-management/PIN_QUICK_START.md) - Get started fast
@@ -99,15 +120,24 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - Configuration management
 - **Answers:** "Is there a GUI?" "How do I monitor?"
 
-**[VFS (Virtual File System)](features/vfs/)** - *Advanced file operations*
-- [VFS Management](features/vfs/VFS_MANAGEMENT_CONSOLIDATION.md)
-- Virtual filesystem operations
-- **Answers:** "Can I mount IPFS?" "File system integration?"
+**[VFS (Virtual File System)](features/vfs/)** - *POSIX-like virtual filesystem on IPFS*
+- [VFS Management](features/vfs/VFS_MANAGEMENT_CONSOLIDATION.md) - Complete VFS system
+- [Filesystem Journal](filesystem_journal.md) - Change tracking and journaling
+- POSIX-like operations: mkdir, ls, mv, rm, cp
+- VFS buckets with quotas and policies
+- Automatic metadata extraction and indexing
+- Journal replication across nodes
+- **Answers:** "How do I use IPFS like a filesystem?" "What are VFS buckets?" "Filesystem operations?"
 
-**[GraphRAG](features/graphrag/)** - *Knowledge graphs & RAG*
-- [GraphRAG Documentation](features/graphrag/ENHANCED_GRAPHRAG_MCP_DOCUMENTATION.md)
-- [VFS Integration](features/graphrag/VFS_BUCKET_GRAPHRAG_INTEGRATION.md)
-- **Answers:** "What's GraphRAG?" "How do I use vector search?"
+**[GraphRAG](features/graphrag/)** - *Knowledge graphs & intelligent search*
+- [GraphRAG Documentation](features/graphrag/ENHANCED_GRAPHRAG_MCP_DOCUMENTATION.md) - Complete guide
+- [VFS Integration](features/graphrag/VFS_BUCKET_GRAPHRAG_INTEGRATION.md) - Auto-indexing
+- [Knowledge Graph](knowledge_graph.md) - Graph-based knowledge management
+- Automatic entity extraction and relationship mapping
+- 5 search methods: text, graph, vector, SPARQL, hybrid
+- RDF triple store for structured knowledge
+- Graph analytics (centrality, importance scoring)
+- **Answers:** "What's GraphRAG?" "How do I search semantically?" "Knowledge graph setup?" "Vector search?"
 
 ### Integration (Connect with Other Tools)
 
@@ -297,6 +327,34 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 **[Documentation Guide](guides/DOCUMENTATION_GUIDE.md)** - *Writing docs*
 
 **[Reorganization Guide](guides/REORGANIZATION_GUIDE.md)** - *Project structure*
+
+### Configuration & Secrets Management
+
+**[Credential Management](credential_management.md)** - *Secure secrets storage*
+- Unified credential manager for all services
+- S3, Storacha, Filecoin, HuggingFace credentials
+- Secure storage with proper permissions
+- Environment variable support
+- Multiple named credential sets per service
+- **Answers:** "How do I store API keys?" "Credential management?" "Secrets security?"
+
+**[Configuration](index.md)** - *System configuration*
+- YAML/JSON configuration files
+- Environment variable override
+- Storage backend configuration
+- Cache settings and policies
+- Cluster configuration
+- VFS bucket policies
+- Feature flags and toggles
+- **Answers:** "How do I configure the system?" "Config file format?" "Environment variables?"
+
+**[Secure Credentials Guide](guides/SECURE_CREDENTIALS_GUIDE.md)** - *Security best practices*
+- Credential storage security
+- File permissions and access control
+- CI/CD secrets management
+- Production security practices
+- Credential rotation strategies
+- **Answers:** "How do I secure credentials?" "Production security?" "Best practices?"
 
 ### Additional Topics
 
