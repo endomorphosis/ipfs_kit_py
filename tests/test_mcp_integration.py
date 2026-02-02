@@ -158,7 +158,7 @@ def run_mcp_server_integration_test() -> bool:
         return False
 
 
-    def test_mcp_server():
+def test_mcp_server():
     assert run_mcp_server_integration_test()
 
 
