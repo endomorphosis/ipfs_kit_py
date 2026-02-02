@@ -138,10 +138,81 @@ detect_platform() {
       ;;
   esac
 
-  log "Detected platform: OS=$OS ARCH=$ARCH (uname -m=$ARCH_RAW)"
+  # Extra Linux diagnostics for better portability.
+  DISTRO_ID=""
+  DISTRO_VERSION_ID=""
+  if [[ "$OS" == "linux" && -r /etc/os-release ]]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release || true
+    DISTRO_ID="${ID:-}"
+    DISTRO_VERSION_ID="${VERSION_ID:-}"
+  fi
+
+  LIBC="gnu"
+  if [[ "$OS" == "linux" ]]; then
+    if have_cmd ldd; then
+      if ldd --version 2>&1 | head -n 1 | grep -qi musl; then
+        LIBC="musl"
+      fi
+    fi
+  fi
+
+  if [[ -n "${DISTRO_ID}" ]]; then
+    log "Detected platform: OS=$OS ARCH=$ARCH LIBC=$LIBC DISTRO=${DISTRO_ID}-${DISTRO_VERSION_ID} (uname -m=$ARCH_RAW)"
+  else
+    log "Detected platform: OS=$OS ARCH=$ARCH LIBC=$LIBC (uname -m=$ARCH_RAW)"
+  fi
 }
 
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+python_for_helpers() {
+  if have_cmd python3; then
+    echo python3
+    return 0
+  fi
+  if have_cmd python; then
+    echo python
+    return 0
+  fi
+  return 1
+}
+
+extract_tar_gz() {
+  local tarball="$1"
+  local out_dir="$2"
+  mkdir -p "$out_dir"
+  if have_cmd tar; then
+    tar -xzf "$tarball" -C "$out_dir" && return 0
+  fi
+  local py
+  py="$(python_for_helpers)" || { err "Need tar or python to extract: $tarball"; return 1; }
+  "$py" - <<PY
+import sys, tarfile
+tarball, out_dir = sys.argv[1], sys.argv[2]
+with tarfile.open(tarball, mode="r:gz") as tf:
+    tf.extractall(out_dir)
+PY
+  return 0
+}
+
+extract_tar_xz() {
+  local tarball="$1"
+  local out_dir="$2"
+  mkdir -p "$out_dir"
+  if have_cmd tar; then
+    tar -xJf "$tarball" -C "$out_dir" && return 0
+  fi
+  local py
+  py="$(python_for_helpers)" || { err "Need tar or python to extract: $tarball"; return 1; }
+  "$py" - <<PY
+import sys, tarfile
+tarball, out_dir = sys.argv[1], sys.argv[2]
+with tarfile.open(tarball, mode="r:xz") as tf:
+    tf.extractall(out_dir)
+PY
+  return 0
+}
 
 sudo_available() {
   if [[ "${ALLOW_SUDO}" != "yes" ]]; then
@@ -211,9 +282,9 @@ install_uv_local() {
 
   local target=""
   if [[ "$OS" == "linux" && "$ARCH" == "x86_64" ]]; then
-    target="x86_64-unknown-linux-gnu"
+    if [[ "${LIBC}" == "musl" ]]; then target="x86_64-unknown-linux-musl"; else target="x86_64-unknown-linux-gnu"; fi
   elif [[ "$OS" == "linux" && "$ARCH" == "arm64" ]]; then
-    target="aarch64-unknown-linux-gnu"
+    if [[ "${LIBC}" == "musl" ]]; then target="aarch64-unknown-linux-musl"; else target="aarch64-unknown-linux-gnu"; fi
   elif [[ "$OS" == "darwin" && "$ARCH" == "x86_64" ]]; then
     target="x86_64-apple-darwin"
   elif [[ "$OS" == "darwin" && "$ARCH" == "arm64" ]]; then
@@ -231,7 +302,7 @@ install_uv_local() {
 
   log "Installing uv locally (${UV_VERSION}) to bootstrap Python..."
   download "$url" "$tarball"
-  tar -xzf "$tarball" -C "$uv_dir"
+  extract_tar_gz "$tarball" "$uv_dir"
 
   # tar contains a single 'uv' binary
   if [[ -f "${uv_dir}/uv" ]]; then
@@ -425,6 +496,11 @@ ensure_node_local() {
     return 0
   fi
 
+  if [[ "$OS" == "linux" && "${LIBC}" == "musl" ]]; then
+    err "WARNING: Detected musl libc; official Node.js tarballs may not run."
+    err "If you have system node/npm, prefer: --node no"
+  fi
+
   if [[ -z "${NODE_ARCH}" ]]; then
     err "WARNING: Node.js auto-install unsupported on this architecture (${ARCH_RAW}); skipping"
     return 0
@@ -449,7 +525,7 @@ ensure_node_local() {
     fi
 
     set +e
-    tar -xJf "$tarball" -C "$CACHE_DIR"
+    extract_tar_xz "$tarball" "$CACHE_DIR"
     local tar_rc=$?
     set -e
     if [[ $tar_rc -ne 0 ]]; then

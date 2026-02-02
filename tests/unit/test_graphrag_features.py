@@ -16,68 +16,9 @@ import pytest
 
 pytestmark = pytest.mark.anyio
 
-
-<<<<<<< Updated upstream
-def test_text_search_not_implemented():
-    """
-    Test that text_search method raises NotImplementedError when called.
-    
-    This validates that the unimplemented method fails gracefully with a clear error
-    rather than causing silent failures or undefined behavior.
-    """
-    repo_root = Path(__file__).resolve().parents[2]
-    venv_python = sys.executable
-    
-    test_code = textwrap.dedent("""
-        import sys
-        sys.path.insert(0, 'mcp')
-        from ipfs_kit_py.mcp.enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
-        
-        engine = GraphRAGSearchEngine()
-        try:
-            # This should raise NotImplementedError or return error dict
-            import anyio
-            result = anyio.run(engine.text_search, "test query")
-            
-            # If it returns a dict, check for error indication
-            if isinstance(result, dict):
-                assert not result.get('success', True), "text_search should indicate failure"
-                print(f"✅ text_search properly returns error: {result.get('error', 'unknown')}")
-            else:
-                print(f"❌ Unexpected return type: {type(result)}")
-                sys.exit(1)
-        except NotImplementedError as e:
-            print(f"✅ text_search raises NotImplementedError: {e}")
-        except AttributeError as e:
-            print(f"✅ text_search method not found (as expected): {e}")
-        except Exception as e:
-            print(f"⚠️  Unexpected exception: {type(e).__name__}: {e}")
-            sys.exit(1)
-    """)
-    
-    try:
-        result = subprocess.run(
-            [venv_python, "-c", test_code],
-            capture_output=True, 
-            text=True, 
-            timeout=10, 
-            cwd=str(repo_root)
-        )
-        
-        # Test passes if the check script succeeded
-        assert result.returncode == 0, f"Unimplemented method check failed: {result.stderr}"
-        print(result.stdout.strip())
-        
-    except subprocess.TimeoutExpired:
-        pytest.fail("Test timed out checking unimplemented method")
-    except Exception as e:
-        pytest.fail(f"Error checking unimplemented method: {e}")
-=======
-@pytest.mark.anyio
 async def test_text_search_not_implemented():
-    """Ensure text_search reports an unimplemented error without subprocesses."""
+    """Ensure text_search reports an unimplemented error."""
     from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
->>>>>>> Stashed changes
 
     engine = GraphRAGSearchEngine()
     result = await engine.text_search("test query")

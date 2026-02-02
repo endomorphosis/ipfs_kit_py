@@ -44,7 +44,8 @@ dag-cbor>=0.2.0
 multiformats>=0.3.0
 
 # LibP2P support (track upstream py-libp2p main)
-libp2p @ git+https://github.com/libp2p/py-libp2p.git@main; python_version < '3.14' and platform_system != 'Windows'
+# Use a zip archive URL so installs work even when 'git' is not available.
+libp2p @ https://github.com/libp2p/py-libp2p/archive/refs/heads/main.zip; python_version < '3.14' and platform_system != 'Windows'
 protobuf>=5.26.0,<7.0.0
 eth-hash[pycryptodome]>=0.3.3
 eth-keys>=0.4.0

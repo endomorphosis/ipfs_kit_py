@@ -10,6 +10,12 @@
 
 set -euo pipefail
 
+# Keep a single source of truth: the repo-root installer.
+# This script remains for backwards compatibility with docs.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+exec "${REPO_ROOT}/zero_touch_install.sh" "$@"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="${ROOT_DIR}/bin"
 CACHE_DIR="${ROOT_DIR}/.cache"
