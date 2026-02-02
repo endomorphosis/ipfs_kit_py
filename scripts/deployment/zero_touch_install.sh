@@ -343,8 +343,8 @@ PY
     case "$PROFILE" in
       core) spec="${clone_dir}" ;;
       api) spec="${clone_dir}[api]" ;;
-      dev) spec="${clone_dir}[dev,api]" ;;
-      full) spec="${clone_dir}[full,dev,api]" ;;
+      dev) spec="${clone_dir}[dev,api,ipfs_datasets]" ;;
+      full) spec="${clone_dir}[full,dev,api,ipfs_datasets,ipfs_accelerate]" ;;
     esac
   fi
 

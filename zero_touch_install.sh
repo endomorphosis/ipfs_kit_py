@@ -318,8 +318,10 @@ install_python_deps() {
     case "$PROFILE" in
       core) spec="." ;;
       api) spec=".[api]" ;;
-      dev) spec=".[dev,api]" ;;
-      full) spec=".[full,dev,api]" ;;
+      # dev profile should include datasets integration so more tests run out of the box
+      dev) spec=".[dev,api,ipfs_datasets]" ;;
+      # full profile: enable datasets + accelerate integrations (heavy; opt-out via --extras)
+      full) spec=".[full,dev,api,ipfs_datasets,ipfs_accelerate]" ;;
     esac
   fi
 

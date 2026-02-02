@@ -74,6 +74,17 @@ git -C "${CLONE_DIR}" config submodule.recurse false
 GIT_TERMINAL_PROMPT=0 GIT_PROGRESS=0 git -c core.progress=false -C "${CLONE_DIR}" fetch --depth 1 origin "${REPO_REF}"
 git -C "${CLONE_DIR}" checkout -f "${REPO_REF}"
 
+# If users request a full install, include the optional integrations by default
+# so tests don't skip due to missing deps.
+if [ -n "$EXTRAS" ]; then
+  case ",$EXTRAS," in
+    *,full,*)
+      case ",$EXTRAS," in *,ipfs_datasets,*) : ;; *) EXTRAS="$EXTRAS,ipfs_datasets" ;; esac
+      case ",$EXTRAS," in *,ipfs_accelerate,*) : ;; *) EXTRAS="$EXTRAS,ipfs_accelerate" ;; esac
+      ;;
+  esac
+fi
+
 if [ -n "$EXTRAS" ]; then
   echo "Installing ipfs_kit_py from ${REPO_URL}@${REPO_REF} with extras: [$EXTRAS]"
   python -m pip install "${CLONE_DIR}[${EXTRAS}]"
