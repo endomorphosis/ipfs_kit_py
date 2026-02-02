@@ -13,7 +13,7 @@
 | Audience | Start Here | Purpose |
 |----------|------------|---------|
 | **Executives/Managers** | [Visual Summary](./BACKEND_ARCHITECTURE_VISUAL_SUMMARY.md) | Quick overview with diagrams |
-| **Developers (new)** | [Quick Reference](./BACKEND_REVIEW_QUICK_REFERENCE.md) | How to use backends now |
+| **Developers (new)** | [Quick Reference](../status_reports/BACKEND_REVIEW_QUICK_REFERENCE.md) | How to use backends now |
 | **Architects/Leads** | [Full Review](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md) | Complete analysis |
 | **Contributors** | [Full Review § 8](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md#8-best-practices-guide) | Best practices for new code |
 
@@ -40,7 +40,7 @@
 ---
 
 ### 2. Quick Reference (12KB) ⚡ PRACTICAL GUIDE  
-**File**: [BACKEND_REVIEW_QUICK_REFERENCE.md](./BACKEND_REVIEW_QUICK_REFERENCE.md)
+**File**: [BACKEND_REVIEW_QUICK_REFERENCE.md](../status_reports/BACKEND_REVIEW_QUICK_REFERENCE.md)
 
 **Contents**:
 - TL;DR summary

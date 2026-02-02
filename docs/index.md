@@ -1,7 +1,7 @@
 # IPFS Kit Documentation
 
 > **Status**: ✅ **Production Ready** - Comprehensive documentation for production deployment  
-> **Quick Reference**: See **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)** for current implementation status  
+> **Quick Reference**: See **[MCP Development Status](../ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)** for current implementation status  
 > **Getting Started**: Use `python start_3_node_cluster.py` for immediate deployment
 
 Welcome to the IPFS Kit documentation. This guide provides comprehensive information about IPFS Kit, a production-ready Python toolkit for distributed storage with advanced MCP server integration.
@@ -42,7 +42,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 
 ### **Essential Guides**
 
-- **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)** - **Primary reference for current implementation**
+- **[MCP Development Status](../ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)** - **Primary reference for current implementation**
 - **[Production Readiness Report](PRODUCTION_READINESS_REPORT.md)** - Deployment validation and operational readiness
 - **[Getting Started Guide](GETTING_STARTED.md)** - Quick setup and deployment instructions
 - **[Installation Guide](installation_guide.md)** - Comprehensive installation and setup
@@ -140,11 +140,11 @@ python servers/streamlined_mcp_server.py
 
 ## 📞 **Support & Resources**
 
-- **Primary Documentation**: [MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)
+- **Primary Documentation**: [MCP Development Status](../ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)
 - **API Documentation**: Available at `/docs` endpoint on any running server
 - **Issue Tracking**: GitHub issues with detailed reproduction steps
 - **Development Chat**: Reference documentation and roadmap for guidance
 
 ---
 
-**For the most current implementation status, deployment instructions, and development guidance, always refer to the [MCP Development Status Document](../MCP_DEVELOPMENT_STATUS.md) as the authoritative source.**
+**For the most current implementation status, deployment instructions, and development guidance, always refer to the [MCP Development Status Document](../ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md) as the authoritative source.**

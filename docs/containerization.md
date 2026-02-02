@@ -1355,7 +1355,7 @@ Grafana dashboards are provided for visualization:
 2. **Operations Dashboard**: IPFS operation metrics (add, get, pin, latency)
 3. **IPFS Core Dashboard**: IPFS-specific metrics (repository, pins, peers, DHT, cluster)
 
-For details on available metrics and dashboards, see the [Observability Documentation](/docs/observability.md).
+For details on available metrics and dashboards, see the [Observability Documentation](/docs/operations/observability.md).
 
 ### Log Management
 

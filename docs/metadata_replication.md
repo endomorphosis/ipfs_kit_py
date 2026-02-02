@@ -343,6 +343,6 @@ self._schedule_progressive_tier_replication(
 
 - [Filesystem Journal](filesystem_journal.md): Documentation on the filesystem journal system
 - [Cluster State](cluster_state.md): Information on the distributed cluster state
-- [Tiered Cache](tiered_cache.md): Details on the tiered storage system
+- [Tiered Cache](../reference/tiered_cache.md): Details on the tiered storage system
 - [Write-Ahead Log](write_ahead_log.md): Documentation on the Write-Ahead Log system
 - [High-Level API](high_level_api.md): Documentation on the high-level API

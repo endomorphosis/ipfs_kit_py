@@ -2,7 +2,7 @@
 
 > **Status**: ✅ **Production Ready** - Complete installation process validated  
 > **Quick Start**: `python start_3_node_cluster.py` for immediate deployment  
-> **Full Setup**: See **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)** for comprehensive installation guide
+> **Full Setup**: See **[MCP Development Status](../ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)** for comprehensive installation guide
 
 This guide covers the installation of `ipfs-kit-py` and its dependencies, including cluster setup and MCP server deployment.
 

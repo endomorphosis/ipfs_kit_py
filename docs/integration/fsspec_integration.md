@@ -7,7 +7,7 @@ The FSSpec integration for IPFS provides a standard filesystem interface to cont
 ## Key Features
 
 - **Filesystem Interface**: Standard file operations on content-addressed storage
-- **Tiered Caching**: Multi-level caching (memory, disk) with intelligent data movement using Adaptive Replacement Cache (ARC). ([See Docs](tiered_cache.md))
+- **Tiered Caching**: Multi-level caching (memory, disk) with intelligent data movement using Adaptive Replacement Cache (ARC). ([See Docs](../reference/tiered_cache.md))
 - **Memory-mapping**: Zero-copy access for large files via `mmap`.
 - **Data Science Integration**: Works seamlessly with Pandas, PyArrow, Dask, and other tools that leverage `fsspec`.
 - **Performance Metrics**: Built-in collection and analysis of latency, bandwidth, and cache performance.
