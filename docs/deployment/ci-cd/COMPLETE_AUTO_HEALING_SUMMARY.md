@@ -254,7 +254,7 @@ Tests cover:
    - API documentation
    - Testing instructions
 
-4. **[AUTO_HEALING_IMPLEMENTATION_SUMMARY.md](docs/AUTO_HEALING_IMPLEMENTATION_SUMMARY.md)** (16,147 bytes)
+4. **[AUTO_HEALING_IMPLEMENTATION_SUMMARY.md](docs/ARCHIVE/implementation-summaries/AUTO_HEALING_IMPLEMENTATION_SUMMARY.md)** (16,147 bytes)
    - Technical implementation details
    - Code metrics
    - Performance analysis

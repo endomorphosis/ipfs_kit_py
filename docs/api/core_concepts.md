@@ -767,4 +767,4 @@ For more detailed information on specific components, refer to these documentati
 - [Cluster Management](cluster_management.md): Advanced cluster coordination
 - [AI/ML Integration](ai_ml.md): Machine learning tools and integrations
 - [Knowledge Graph](knowledge_graph.md): IPLD-based knowledge representation
-- [Storage Backends](storage_backends.md): External storage system integrations
+- [Storage Backends](../reference/storage_backends.md): External storage system integrations

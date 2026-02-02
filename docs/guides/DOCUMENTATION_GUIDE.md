@@ -48,13 +48,13 @@ This guide helps you navigate the comprehensive documentation for IPFS Kit Pytho
 
 ### Technical Reference
 
-7. **[docs/IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md](docs/IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md)** - Complete reference (650+ lines)
+7. **[docs/IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md](docs/integration/IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md)** - Complete reference (650+ lines)
    - Detailed technical documentation
    - All integration patterns
    - Configuration options
    - Advanced usage
 
-8. **[docs/IPFS_DATASETS_INTEGRATION.md](docs/IPFS_DATASETS_INTEGRATION.md)** - Base patterns
+8. **[docs/IPFS_DATASETS_INTEGRATION.md](docs/integration/IPFS_DATASETS_INTEGRATION.md)** - Base patterns
    - Core integration patterns
    - Basic usage examples
    - Dataset management
@@ -128,7 +128,7 @@ This guide helps you navigate the comprehensive documentation for IPFS Kit Pytho
 2. [docs/INTEGRATION_QUICK_START.md](docs/integration/INTEGRATION_QUICK_START.md) - Learn patterns
 3. [docs/INTEGRATION_CHEAT_SHEET.md](docs/integration/INTEGRATION_CHEAT_SHEET.md) - Reference all modules
 4. [MCP_INTEGRATION_ARCHITECTURE.md](MCP_INTEGRATION_ARCHITECTURE.md) - Understand architecture
-5. [docs/IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md](docs/IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md) - Deep dive
+5. [docs/IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md](docs/integration/IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md) - Deep dive
 
 **Key sections:**
 - Visual architecture diagram
