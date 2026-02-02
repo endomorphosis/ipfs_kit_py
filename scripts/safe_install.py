@@ -147,26 +147,21 @@ def install_dependencies():
         print("⚠ Failed to upgrade pip tools, continuing anyway...")
     
     # Install main package
-    print("\n2. Installing main package...")
+    print("\n2. Installing main package from GitHub main branch...")
     ipfs_kit_git = "git+https://github.com/endomorphosis/ipfs_kit_py.git@main"
     ipfs_kit_zip = "https://github.com/endomorphosis/ipfs_kit_py/archive/refs/heads/main.zip"
     ipfs_kit_direct_zip = f"ipfs_kit_py @ {ipfs_kit_zip}"
     ipfs_kit_direct_git = f"ipfs_kit_py @ {ipfs_kit_git}"
     installed_main = run_command(
-        build_pip_command(python_cmd, 'install', ipfs_kit_direct_zip, break_system=use_break_system)
+        build_pip_command(python_cmd, 'install', ipfs_kit_direct_git, break_system=use_break_system)
     )
     if not installed_main:
-        print("⚠ Zip install failed, trying git main...")
+        print("⚠ Git main install failed, trying GitHub zip archive...")
         installed_main = run_command(
-            build_pip_command(python_cmd, 'install', ipfs_kit_direct_git, break_system=use_break_system)
+            build_pip_command(python_cmd, 'install', ipfs_kit_direct_zip, break_system=use_break_system)
         )
     if not installed_main:
-        print("⚠ Failed to install from git main, trying local editable install...")
-        installed_main = run_command(
-            build_pip_command(python_cmd, 'install', '-e', '.', break_system=use_break_system)
-        )
-    if not installed_main:
-        print("✗ Failed to install main package")
+        print("✗ Failed to install main package from GitHub main")
         return False
     
     # Install libp2p extras
