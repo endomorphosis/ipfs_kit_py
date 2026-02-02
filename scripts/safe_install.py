@@ -200,26 +200,26 @@ def install_dependencies():
     optional_deps = [
         {
             "name": "ipfs_datasets_py",
-            "pip": "ipfs_datasets_py",
-            "git": "git+https://github.com/endomorphosis/ipfs_datasets_py.git",
+            "git": "git+https://github.com/endomorphosis/ipfs_datasets_py.git@main",
             "zip": "https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip",
+            "pip": "ipfs_datasets_py",
         },
         {
             "name": "ipfs_accelerate_py",
-            "pip": "ipfs_accelerate_py",
-            "git": "git+https://github.com/endomorphosis/ipfs_accelerate_py.git",
+            "git": "git+https://github.com/endomorphosis/ipfs_accelerate_py.git@main",
             "zip": "https://github.com/endomorphosis/ipfs_accelerate_py/archive/refs/heads/main.zip",
+            "pip": "ipfs_accelerate_py",
         },
     ]
     for dep in optional_deps:
-        print(f"  Installing {dep['name']}...")
-        installed = run_command(build_pip_command(python_cmd, 'install', dep["pip"], break_system=use_break_system), retries=2)
-        if not installed:
-            print(f"  Pip install failed for {dep['name']}, trying GitHub...")
-            installed = run_command(build_pip_command(python_cmd, 'install', dep["git"], break_system=use_break_system), retries=2)
+        print(f"  Installing {dep['name']} from GitHub main...")
+        installed = run_command(build_pip_command(python_cmd, 'install', dep["git"], '--upgrade', '--force-reinstall', break_system=use_break_system), retries=2)
         if not installed and dep.get("zip"):
             print(f"  GitHub clone failed for {dep['name']}, trying zip archive...")
-            run_command(build_pip_command(python_cmd, 'install', dep["zip"], break_system=use_break_system), retries=2)
+            installed = run_command(build_pip_command(python_cmd, 'install', dep["zip"], '--upgrade', '--force-reinstall', break_system=use_break_system), retries=2)
+        if not installed:
+            print(f"  GitHub install failed for {dep['name']}, trying PyPI as last resort...")
+            run_command(build_pip_command(python_cmd, 'install', dep["pip"], '--upgrade', break_system=use_break_system), retries=2)
 
     # Install optional extras that back integration tests
     print("\n6. Installing optional extras (best effort)...")
