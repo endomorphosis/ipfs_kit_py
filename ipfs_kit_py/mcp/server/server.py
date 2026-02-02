@@ -814,6 +814,9 @@ class MCPServer:
     
     def _setup_signal_handlers(self) -> None:
         """Set up signal handlers for graceful shutdown."""
+        if os.environ.get("IPFS_KIT_DISABLE_SIGNAL_HANDLERS") == "1" or os.environ.get("PYTEST_CURRENT_TEST"):
+            logger.debug("Skipping MCP server signal handlers (disabled or running under pytest)")
+            return
         def signal_handler(signum, frame):
             logger.info(f"Received signal {signum}, shutting down gracefully...")
             # Clean up resources

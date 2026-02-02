@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import os
+import sysconfig
 from pathlib import Path
 
 
@@ -80,6 +81,26 @@ def run_command(cmd, retries=3, retry_delay=5):
     return False
 
 
+def is_externally_managed_environment() -> bool:
+    """Detect PEP 668 externally managed environments."""
+    try:
+        stdlib_path = sysconfig.get_path("stdlib")
+        if not stdlib_path:
+            return False
+        marker = Path(stdlib_path) / "EXTERNALLY-MANAGED"
+        return marker.exists()
+    except Exception:
+        return False
+
+
+def build_pip_command(python_cmd: str, *args: str, break_system: bool = False) -> list:
+    """Build a pip command with optional PEP 668 override."""
+    cmd = [python_cmd, "-m", "pip", *args]
+    if break_system:
+        cmd.append("--break-system-packages")
+    return cmd
+
+
 def install_dependencies():
     """Install project dependencies safely."""
     print("=" * 60)
@@ -94,21 +115,42 @@ def install_dependencies():
     if sys.platform.startswith('linux'):
         wait_for_locks()
     
+    python_cmd = sys.executable
+    use_break_system = False
+
+    if is_externally_managed_environment():
+        venv_dir = Path(".venv")
+        print("\nDetected externally managed Python environment.")
+        if not venv_dir.exists():
+            print("Creating local virtual environment at .venv...")
+            if not run_command([python_cmd, "-m", "venv", str(venv_dir)], retries=1):
+                print("✗ Failed to create virtual environment")
+        if venv_dir.exists():
+            python_cmd = str(venv_dir / "bin" / "python")
+            print(f"Using virtual environment python: {python_cmd}")
+        elif os.environ.get("IPFS_KIT_BREAK_SYSTEM_PACKAGES") == "1":
+            use_break_system = True
+            print("Proceeding with --break-system-packages as requested")
+        else:
+            print("✗ Cannot install into externally managed environment.")
+            print("  Create a venv or set IPFS_KIT_BREAK_SYSTEM_PACKAGES=1 to override.")
+            return False
+
     # Upgrade pip, setuptools, wheel
     print("\n1. Upgrading pip, setuptools, and wheel...")
-    if not run_command([sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip', 'setuptools', 'wheel']):
+    if not run_command(build_pip_command(python_cmd, 'install', '--upgrade', 'pip', 'setuptools', 'wheel', break_system=use_break_system)):
         print("⚠ Failed to upgrade pip tools, continuing anyway...")
     
     # Install main package
     print("\n2. Installing main package...")
-    if not run_command([sys.executable, '-m', 'pip', 'install', '-e', '.']):
+    if not run_command(build_pip_command(python_cmd, 'install', '-e', '.', break_system=use_break_system)):
         print("✗ Failed to install main package")
         return False
     
     # Install libp2p extras
     print("\n3. Installing libp2p extras (with retries)...")
     extras_installed = run_command(
-        [sys.executable, '-m', 'pip', 'install', '-e', '.[libp2p]'],
+        build_pip_command(python_cmd, 'install', '-e', '.[libp2p]', break_system=use_break_system),
         retries=3,
         retry_delay=10
     )
@@ -128,16 +170,57 @@ def install_dependencies():
         
         for dep in critical_deps:
             print(f"  Installing {dep}...")
-            run_command([sys.executable, '-m', 'pip', 'install', dep], retries=2)
+            run_command(build_pip_command(python_cmd, 'install', dep, break_system=use_break_system), retries=2)
     
     # Install test dependencies
     print("\n4. Installing test dependencies...")
-    test_deps = ['pytest', 'pytest-anyio', 'pytest-cov']
+    test_deps = ['pytest', 'pytest-anyio', 'pytest-cov', 'pytest-asyncio', 'pytest-trio']
     for dep in test_deps:
-        run_command([sys.executable, '-m', 'pip', 'install', dep], retries=2)
+        run_command(build_pip_command(python_cmd, 'install', dep, break_system=use_break_system), retries=2)
+
+    # Install optional integration dependencies (best effort)
+    print("\n5. Installing optional integrations (best effort)...")
+    optional_deps = [
+        {
+            "name": "ipfs_datasets_py",
+            "pip": "ipfs_datasets_py",
+            "git": "git+https://github.com/endomorphosis/ipfs_datasets_py.git",
+        },
+        {
+            "name": "ipfs_accelerate_py",
+            "pip": "ipfs_accelerate_py",
+            "git": "git+https://github.com/endomorphosis/ipfs_accelerate_py.git",
+        },
+    ]
+    for dep in optional_deps:
+        print(f"  Installing {dep['name']}...")
+        installed = run_command(build_pip_command(python_cmd, 'install', dep["pip"], break_system=use_break_system), retries=2)
+        if not installed:
+            print(f"  Pip install failed for {dep['name']}, trying GitHub...")
+            run_command(build_pip_command(python_cmd, 'install', dep["git"], break_system=use_break_system), retries=2)
+
+    # Install optional extras that back integration tests
+    print("\n6. Installing optional extras (best effort)...")
+    optional_extras = [
+        "dev",
+        "api",
+        "ipni",
+        "saturn",
+        "ipld",
+        "enhanced_ipfs",
+        "fsspec",
+        "arrow",
+        "graphql",
+        "webrtc",
+        "s3",
+        "performance",
+    ]
+    for extra in optional_extras:
+        print(f"  Installing extras: [{extra}]...")
+        run_command(build_pip_command(python_cmd, 'install', '-e', f'.[{extra}]', break_system=use_break_system), retries=2)
     
     # Verify installations
-    print("\n5. Verifying installations...")
+    print("\n7. Verifying installations...")
     print("-" * 60)
     
     checks = [
@@ -147,13 +230,15 @@ def install_dependencies():
         ('protobuf', 'from google.protobuf import descriptor'),
         ('eth_hash', 'import eth_hash'),
         ('eth_keys', 'import eth_keys'),
+        ('ipfs_datasets_py', 'import ipfs_datasets_py'),
+        ('ipfs_accelerate_py', 'import ipfs_accelerate_py'),
     ]
     
     success_count = 0
     for name, import_stmt in checks:
         try:
             subprocess.run(
-                [sys.executable, '-c', import_stmt],
+                [python_cmd, '-c', import_stmt],
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
