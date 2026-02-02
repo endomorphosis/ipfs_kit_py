@@ -137,11 +137,15 @@ class FTPKit:
                 # Set passive mode
                 self.connection.set_pasv(self.passive_mode)
                 
-                # Ensure base directory exists
-                self._ensure_remote_directory(self.remote_base_path)
-                
+                # Mark as connected before ensuring directory (to avoid recursion)
                 self.connected = True
                 self.last_activity = time.time()
+                
+                # Ensure base directory exists
+                try:
+                    self._ensure_remote_directory(self.remote_base_path)
+                except Exception as e:
+                    logger.warning(f"Could not ensure base directory: {e}")
                 
                 self.operations_log.append(log_operation(
                     "connect_success",
@@ -161,7 +165,8 @@ class FTPKit:
                         correlation_id
                     ))
                     logger.error(f"Failed to connect to FTP server after {self.retry_attempts} attempts")
-                    return False
+                    # Raise exception on final failure
+                    raise ConnectionError(f"Failed to connect to FTP server after {self.retry_attempts} attempts: {e}")
                 
                 time.sleep(1 * (attempt + 1))  # Exponential backoff
         

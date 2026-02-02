@@ -185,6 +185,8 @@ class TestFTPKitConnection:
     
     def test_connect_failure_handling(self, ftp_config):
         """Test handling of connection failures."""
+        # Reduce retries for faster test
+        ftp_config["retry_attempts"] = 1
         with patch('ftplib.FTP') as mock_ftp:
             mock_instance = MagicMock()
             mock_ftp.return_value = mock_instance
@@ -250,7 +252,8 @@ class TestFTPKitFileOperations:
         mock_ftp_connection.delete.return_value = None
         
         if hasattr(ftp_kit, 'delete_file'):
-            result = ftp_kit.delete_file("remote_file.txt")
+            # Call with correct signature: bucket_name, file_hash
+            result = ftp_kit.delete_file("test-bucket", "abc123hash")
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
     def test_create_directory(self, ftp_kit, mock_ftp_connection):
@@ -316,6 +319,8 @@ class TestFTPKitErrorHandling:
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
     def test_connection_timeout(self, ftp_config):
         """Test handling of connection timeouts."""
+        # Reduce retries for faster test
+        ftp_config["retry_attempts"] = 1
         with patch('ftplib.FTP') as mock_ftp:
             mock_instance = MagicMock()
             mock_ftp.return_value = mock_instance
