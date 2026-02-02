@@ -54,7 +54,7 @@ class MCPToolTester:
     async def setup_server(self):
         """Initialize the MCP server."""
         try:
-            from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+            from mcp.ipfs_kit.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
             
             print("🚀 Initializing MCP server...")
             self.server = EnhancedMCPServerWithDaemonMgmt()

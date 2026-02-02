@@ -14,7 +14,7 @@ sys.path.insert(0, project_root)
 async def test_mcp_server():
     """Quick test of MCP server tools"""
     try:
-        from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from mcp.ipfs_kit.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
         
         print("Initializing MCP Server...")
         server = EnhancedMCPServerWithDaemonMgmt()

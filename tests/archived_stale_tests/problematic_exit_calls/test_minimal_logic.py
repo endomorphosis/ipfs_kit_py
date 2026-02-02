@@ -21,7 +21,7 @@ async def test_core_logic():
     print("=" * 40)
     
     # Import and test the IPFSKitIntegration class directly
-    from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+    from mcp.ipfs_kit.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
     
     # Create integration instance without full initialization
     print("🔧 Creating IPFSKitIntegration instance...")

@@ -365,7 +365,7 @@ def test_mcp_libp2p_integration():
     
     try:
         # Test that libp2p features are properly disabled/enabled in the MCP server
-        from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from mcp.ipfs_kit.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
         
         server = EnhancedMCPServerWithDaemonMgmt()
         print("✓ MCP server created successfully")
