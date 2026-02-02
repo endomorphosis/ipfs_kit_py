@@ -65,6 +65,13 @@ def _sanitize_sys_path() -> None:
     if (repo_root / "mcp").exists() and str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
+    # Ensure local `mcp` wins over any third-party package named `mcp`.
+    mod = sys.modules.get("mcp")
+    if mod is not None:
+        mod_path = getattr(mod, "__file__", "") or ""
+        if str(repo_root) not in mod_path:
+            sys.modules.pop("mcp", None)
+
     # If the package isn't importable (e.g., running tests without editable
     # install), prefer adding repo_root (not the package dir).
     # Use find_spec to avoid importing ipfs_kit_py during collection.
