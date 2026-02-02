@@ -29,8 +29,8 @@ if project_root not in sys.path:
 
 pytestmark = pytest.mark.anyio
 
-def test_enhanced_daemon_manager():
-    """Test the enhanced daemon manager directly."""
+def run_enhanced_daemon_manager() -> bool:
+    """Run the enhanced daemon manager checks and return success."""
     logger.info("Testing Enhanced Daemon Manager...")
     
     try:
@@ -73,8 +73,8 @@ def test_enhanced_daemon_manager():
         logger.error(f"Enhanced daemon manager test failed: {e}")
         return False
 
-def test_streamlined_mcp_server_import():
-    """Test that the streamlined MCP server can be imported and initialized."""
+def run_streamlined_mcp_server_import() -> bool:
+    """Run streamlined MCP server import checks and return success."""
     logger.info("Testing Streamlined MCP Server import...")
     
     try:
@@ -135,8 +135,8 @@ def test_streamlined_mcp_server_import():
         logger.error(traceback.format_exc())
         return False
 
-def test_mcp_tools():
-    """Test the MCP tools functionality."""
+def run_mcp_tools() -> bool:
+    """Run MCP tools checks and return success."""
     logger.info("Testing MCP tools...")
     
     try:
@@ -182,6 +182,22 @@ def test_mcp_tools():
         logger.error(f"MCP tools test failed: {e}")
         return False
 
+
+def test_enhanced_daemon_manager():
+    """Test the enhanced daemon manager directly."""
+    assert run_enhanced_daemon_manager() is True
+
+
+def test_streamlined_mcp_server_import():
+    """Test that the streamlined MCP server can be imported and initialized."""
+    assert run_streamlined_mcp_server_import() is True
+
+
+def test_mcp_tools():
+    """Test the MCP tools functionality."""
+    assert run_mcp_tools() is True
+
+
 def main():
     """Run all tests."""
     logger.info("Starting refactored daemon management architecture tests...")
@@ -192,19 +208,19 @@ def main():
     # Test 1: Enhanced Daemon Manager
     logger.info("\n1. Testing Enhanced Daemon Manager")
     logger.info("-" * 40)
-    result1 = test_enhanced_daemon_manager()
+    result1 = run_enhanced_daemon_manager()
     test_results.append(("Enhanced Daemon Manager", result1))
     
     # Test 2: Streamlined MCP Server
     logger.info("\n2. Testing Streamlined MCP Server")
     logger.info("-" * 40)
-    result2 = test_streamlined_mcp_server_import()
+    result2 = run_streamlined_mcp_server_import()
     test_results.append(("Streamlined MCP Server", result2))
     
     # Test 3: MCP Tools
     logger.info("\n3. Testing MCP Tools")
     logger.info("-" * 40)
-    result3 = test_mcp_tools()
+    result3 = run_mcp_tools()
     test_results.append(("MCP Tools", result3))
     
     # Summary

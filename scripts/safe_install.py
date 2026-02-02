@@ -191,7 +191,7 @@ def install_dependencies():
     
     # Install test dependencies
     print("\n4. Installing test dependencies...")
-    test_deps = ['pytest', 'pytest-anyio', 'pytest-cov', 'pytest-asyncio', 'pytest-trio', 'jsonpatch']
+    test_deps = ['pytest', 'pytest-anyio', 'pytest-cov', 'pytest-asyncio', 'pytest-trio', 'pytest-timeout', 'jsonpatch']
     for dep in test_deps:
         run_command(build_pip_command(python_cmd, 'install', dep, break_system=use_break_system), retries=2)
 
@@ -289,6 +289,8 @@ def install_dependencies():
         "beautifulsoup4",
         "newspaper3k",
         "readability-lxml",
+        # SSH / SFTP
+        "paramiko",
     ]
     for pkg in optional_packages:
         run_command(build_pip_command(python_cmd, 'install', pkg, break_system=use_break_system), retries=2)

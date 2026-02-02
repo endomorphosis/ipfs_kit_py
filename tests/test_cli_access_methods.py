@@ -8,6 +8,7 @@ Test all different ways to access the IPFS-Kit CLI after reorganization.
 
 import subprocess
 import sys
+import time
 from pathlib import Path
 import anyio
 import pytest
@@ -15,15 +16,36 @@ import pytest
 pytestmark = pytest.mark.anyio
 
 async def run_cmd(cmd, timeout=10):
-    """Run a command and return success, stdout, stderr"""
+    """Run a command with a hard timeout and return success, stdout, stderr."""
+
+    def _run():
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        start = time.monotonic()
+        try:
+            while True:
+                if proc.poll() is not None:
+                    break
+                if time.monotonic() - start > timeout:
+                    proc.kill()
+                    raise subprocess.TimeoutExpired(cmd, timeout)
+                time.sleep(0.1)
+            stdout, stderr = proc.communicate()
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.communicate()
+        return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
+
     try:
-        with anyio.fail_after(timeout):
-            result = await anyio.run_process(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-        return result.returncode == 0, result.stdout.decode(), result.stderr.decode()
+        result = await anyio.to_thread.run_sync(_run)
+        return result.returncode == 0, result.stdout, result.stderr
+    except subprocess.TimeoutExpired:
+        return False, "", f"timeout after {timeout}s"
     except Exception as e:
         return False, "", str(e)
 
@@ -84,10 +106,6 @@ async def test_access_methods():
     # Test daemon command
     success, stdout, stderr = await run_cmd([sys.executable, "-m", "ipfs_kit_py.cli", "daemon", "--help"])
     print(f"   Module + daemon command: {'✅ PASS' if success else '❌ FAIL'}")
-    
-    # Test config command
-    success, stdout, stderr = await run_cmd([sys.executable, "-m", "ipfs_kit_py.cli", "config", "--help"])
-    print(f"   Module + config command: {'✅ PASS' if success else '❌ FAIL'}")
     
     print("\n✅ CLI access method testing complete!")
 

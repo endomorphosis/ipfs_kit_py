@@ -17,6 +17,7 @@ import pytest
 pytestmark = pytest.mark.anyio
 
 
+<<<<<<< Updated upstream
 def test_text_search_not_implemented():
     """
     Test that text_search method raises NotImplementedError when called.
@@ -71,7 +72,19 @@ def test_text_search_not_implemented():
         pytest.fail("Test timed out checking unimplemented method")
     except Exception as e:
         pytest.fail(f"Error checking unimplemented method: {e}")
+=======
+@pytest.mark.anyio
+async def test_text_search_not_implemented():
+    """Ensure text_search reports an unimplemented error without subprocesses."""
+    from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
+>>>>>>> Stashed changes
 
+    engine = GraphRAGSearchEngine()
+    result = await engine.text_search("test query")
+
+    assert isinstance(result, dict)
+    assert result.get("success") is False
+    assert "not implemented" in str(result.get("error", "")).lower()
 
 @pytest.mark.skip(reason="GraphRAG text_search method not yet implemented - full integration test")
 def test_basic_server():

@@ -12,8 +12,8 @@ import tempfile
 import time
 import os
 
-def test_ipfs_add_real():
-    """Test that ipfs_add uses real IPFS by comparing with direct IPFS command."""
+def run_ipfs_add_real() -> bool:
+    """Run ipfs_add verification and return success."""
     # Create test content
     test_content = f"Test content for verification {time.time()}"
     
@@ -56,8 +56,8 @@ def test_ipfs_add_real():
         if os.path.exists(temp_file):
             os.unlink(temp_file)
 
-def test_ipfs_version_real():
-    """Test that ipfs_version returns real version info."""
+def run_ipfs_version_real() -> bool:
+    """Run ipfs_version verification and return success."""
     try:
         # Get version via direct command
         result = subprocess.run(['ipfs', 'version'], 
@@ -81,8 +81,8 @@ def test_ipfs_version_real():
         print(f"❌ Version test failed: {e}")
         return False
 
-def test_ipfs_id_real():
-    """Test that ipfs_id returns real node information."""
+def run_ipfs_id_real() -> bool:
+    """Run ipfs_id verification and return success."""
     try:
         # Get ID via direct command
         result = subprocess.run(['ipfs', 'id'], 
@@ -106,8 +106,8 @@ def test_ipfs_id_real():
         print(f"❌ ID test failed: {e}")
         return False
 
-def test_daemon_running():
-    """Verify IPFS daemon is actually running."""
+def run_daemon_running() -> bool:
+    """Verify IPFS daemon is actually running and return success."""
     try:
         result = subprocess.run(['ipfs', 'swarm', 'peers'], 
                               capture_output=True, text=True, timeout=10)
@@ -122,15 +122,35 @@ def test_daemon_running():
         print(f"❌ Daemon test failed: {e}")
         return False
 
+
+def test_daemon_running():
+    """Verify IPFS daemon is actually running."""
+    assert run_daemon_running() is True
+
+
+def test_ipfs_add_real():
+    """Test that ipfs_add uses real IPFS by comparing with direct IPFS command."""
+    assert run_ipfs_add_real() is True
+
+
+def test_ipfs_version_real():
+    """Test that ipfs_version returns real version info."""
+    assert run_ipfs_version_real() is True
+
+
+def test_ipfs_id_real():
+    """Test that ipfs_id returns real node information."""
+    assert run_ipfs_id_real() is True
+
 def main():
     print("🧪 VERIFYING MCP TOOLS ARE NOT MOCKED")
     print("=" * 50)
     
     tests = [
-        ("IPFS Daemon Running", test_daemon_running),
-        ("IPFS Add (Real)", test_ipfs_add_real),
-        ("IPFS Version (Real)", test_ipfs_version_real),
-        ("IPFS ID (Real)", test_ipfs_id_real),
+        ("IPFS Daemon Running", run_daemon_running),
+        ("IPFS Add (Real)", run_ipfs_add_real),
+        ("IPFS Version (Real)", run_ipfs_version_real),
+        ("IPFS ID (Real)", run_ipfs_id_real),
     ]
     
     results = []

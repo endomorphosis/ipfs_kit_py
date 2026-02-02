@@ -11,8 +11,8 @@ import time
 import traceback
 from pathlib import Path
 
-def test_enhanced_server():
-    """Test the enhanced MCP server with daemon management"""
+def run_enhanced_server() -> bool:
+    """Run enhanced MCP server checks and return success."""
     print("\n🧪 Testing Enhanced MCP Server...")
     print("-" * 40)
     
@@ -45,8 +45,8 @@ def test_enhanced_server():
         traceback.print_exc()
         return False
 
-def test_consolidated_server():
-    """Test the consolidated MCP server"""
+def run_consolidated_server() -> bool:
+    """Run consolidated MCP server checks and return success."""
     print("\n🧪 Testing Consolidated MCP Server...")
     print("-" * 40)
     
@@ -90,8 +90,8 @@ def test_consolidated_server():
         traceback.print_exc()
         return False
 
-def test_import_paths():
-    """Test that all import paths work correctly"""
+def run_import_paths() -> bool:
+    """Run import path checks and return success."""
     print("\n🧪 Testing Import Paths...")
     print("-" * 40)
     
@@ -117,6 +117,21 @@ def test_import_paths():
     
     return all(results)
 
+
+def test_enhanced_server():
+    """Test the enhanced MCP server with daemon management."""
+    assert run_enhanced_server() is True
+
+
+def test_consolidated_server():
+    """Test the consolidated MCP server."""
+    assert run_consolidated_server() is True
+
+
+def test_import_paths():
+    """Test that all import paths work correctly."""
+    assert run_import_paths() is True
+
 def main():
     """Run all validation tests"""
     print("🚀 MCP Server Validation Test Suite")
@@ -126,9 +141,9 @@ def main():
     
     # Run tests
     tests = [
-        ("Import Paths", test_import_paths),
-        ("Enhanced MCP Server", test_enhanced_server),
-        ("Consolidated MCP Server", test_consolidated_server)
+        ("Import Paths", run_import_paths),
+        ("Enhanced MCP Server", run_enhanced_server),
+        ("Consolidated MCP Server", run_consolidated_server)
     ]
     
     results = []

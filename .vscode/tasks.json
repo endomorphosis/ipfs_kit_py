@@ -185,6 +185,18 @@
 				"-q"
 			],
 			"isBackground": false
+		},
+		{
+			"label": "pytest-full",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py && source ./bin/env.sh && ./.venv/bin/python -m pytest -ra"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
 		}
 	]
 }

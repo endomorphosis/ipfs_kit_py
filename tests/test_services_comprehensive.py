@@ -7,8 +7,8 @@ import json
 import sys
 from pathlib import Path
 
-def test_service_manager_api():
-    """Test the service manager API without complex imports."""
+def run_service_manager_api() -> bool:
+    """Run the service manager API checks and return success."""
     
     print("=== Testing Comprehensive Service Manager API ===\n")
     
@@ -133,8 +133,8 @@ def test_service_manager_api():
     
     return True
 
-def test_service_scenarios():
-    """Test various service management scenarios."""
+def run_service_scenarios() -> bool:
+    """Run various service management scenarios and return success."""
     
     print(f"\n=== Testing Service Management Scenarios ===\n")
     
@@ -184,16 +184,26 @@ def test_service_scenarios():
     
     return True
 
+
+def test_service_manager_api():
+    """Test the service manager API without complex imports."""
+    assert run_service_manager_api() is True
+
+
+def test_service_scenarios():
+    """Test various service management scenarios."""
+    assert run_service_scenarios() is True
+
 if __name__ == "__main__":
     print("IPFS Kit Comprehensive Service Manager - Test Suite")
     print("=" * 55)
     
     try:
         # Run API tests
-        api_test_result = test_service_manager_api()
+        api_test_result = run_service_manager_api()
         
         # Run scenario tests
-        scenario_test_result = test_service_scenarios()
+        scenario_test_result = run_service_scenarios()
         
         if api_test_result and scenario_test_result:
             print(f"\n🎉 ALL TESTS PASSED")

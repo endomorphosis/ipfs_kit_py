@@ -106,18 +106,21 @@ class TestSSHFSKitConnection:
     """Test SSH connection management."""
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_connect_with_key(self, sshfs_kit, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_connect_with_key(self, sshfs_kit, mock_ssh_client):
         """Test SSH connection with key authentication."""
         mock_client, mock_sftp = mock_ssh_client
         
         # Attempt connection
-        result = sshfs_kit.connect()
+        result = await sshfs_kit.connect()
         
         # Verify connection was attempted
         assert mock_client.connect.called
+        assert result.get("success") is True
         
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_connect_with_password(self, sshfs_config, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_connect_with_password(self, sshfs_config, mock_ssh_client):
         """Test SSH connection with password authentication."""
         config = sshfs_config.copy()
         config["password"] = "testpassword"
@@ -128,9 +131,11 @@ class TestSSHFSKitConnection:
         
         # Mock the connection
         if hasattr(kit, 'connect'):
-            result = kit.connect()
+            result = await kit.connect()
+            assert result.get("success") is True
     
-    def test_connect_failure_handling(self, sshfs_config):
+    @pytest.mark.anyio
+    async def test_connect_failure_handling(self, sshfs_config):
         """Test handling of connection failures."""
         if not PARAMIKO_AVAILABLE:
             pytest.skip("paramiko not available")
@@ -146,15 +151,17 @@ class TestSSHFSKitConnection:
             
             # Verify error handling (implementation-dependent)
             if hasattr(kit, 'connect'):
-                with pytest.raises(Exception):
-                    kit.connect()
+                result = await kit.connect()
+                assert result.get("success") is False
+                assert "error" in result
 
 
 class TestSSHFSKitFileOperations:
     """Test file upload, download, and management operations."""
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_upload_file(self, sshfs_kit, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_upload_file(self, sshfs_kit, mock_ssh_client):
         """Test file upload to remote server."""
         mock_client, mock_sftp = mock_ssh_client
         
@@ -168,14 +175,18 @@ class TestSSHFSKitFileOperations:
             mock_sftp.put.return_value = None
             
             # Test upload
-            if hasattr(sshfs_kit, 'upload_file'):
-                result = sshfs_kit.upload_file(tmp_path, "/remote/path/file.txt")
-                assert mock_sftp.put.called or True  # May use different method
+            if hasattr(sshfs_kit, 'store_file'):
+                sshfs_kit.sftp_client = mock_sftp
+                sshfs_kit.is_connected = True
+                result = await sshfs_kit.store_file(tmp_path, remote_name="file.txt")
+                assert result.get("success") is True
+                assert mock_sftp.put.called
         finally:
             Path(tmp_path).unlink(missing_ok=True)
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_download_file(self, sshfs_kit, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_download_file(self, sshfs_kit, mock_ssh_client):
         """Test file download from remote server."""
         mock_client, mock_sftp = mock_ssh_client
         
@@ -185,23 +196,44 @@ class TestSSHFSKitFileOperations:
         with tempfile.TemporaryDirectory() as tmp_dir:
             local_path = os.path.join(tmp_dir, "downloaded_file.txt")
             
-            if hasattr(sshfs_kit, 'download_file'):
-                result = sshfs_kit.download_file("/remote/path/file.txt", local_path)
+            if hasattr(sshfs_kit, 'retrieve_file'):
+                storage_id = "test_storage"
+                sshfs_kit.sftp_client = mock_sftp
+                sshfs_kit.is_connected = True
+                sshfs_kit.stored_files[storage_id] = {
+                    "remote_path": "/remote/path/file.txt",
+                    "bucket": "default",
+                    "size": 123,
+                    "uploaded_at": time.time(),
+                    "metadata": {},
+                }
+                result = await sshfs_kit.retrieve_file(storage_id, local_path)
+                assert result.get("success") is True
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_list_remote_directory(self, sshfs_kit, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_list_remote_directory(self, sshfs_kit, mock_ssh_client):
         """Test listing remote directory contents."""
         mock_client, mock_sftp = mock_ssh_client
         
         # Mock listdir
         mock_sftp.listdir.return_value = ["file1.txt", "file2.txt", "subdir"]
         
-        if hasattr(sshfs_kit, 'list_directory'):
-            result = sshfs_kit.list_directory("/remote/path")
-            assert isinstance(result, (list, dict)) or result is None
+        if hasattr(sshfs_kit, 'list_files'):
+            sshfs_kit.stored_files["test_storage"] = {
+                "remote_path": "/remote/path/file1.txt",
+                "bucket": "default",
+                "size": 123,
+                "uploaded_at": time.time(),
+                "metadata": {},
+            }
+            result = await sshfs_kit.list_files()
+            assert result.get("success") is True
+            assert isinstance(result.get("files"), list)
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_delete_remote_file(self, sshfs_kit, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_delete_remote_file(self, sshfs_kit, mock_ssh_client):
         """Test deleting a file on remote server."""
         mock_client, mock_sftp = mock_ssh_client
         
@@ -209,18 +241,34 @@ class TestSSHFSKitFileOperations:
         mock_sftp.remove.return_value = None
         
         if hasattr(sshfs_kit, 'delete_file'):
-            result = sshfs_kit.delete_file("/remote/path/file.txt")
+            storage_id = "test_storage"
+            sshfs_kit.sftp_client = mock_sftp
+            sshfs_kit.is_connected = True
+            sshfs_kit.stored_files[storage_id] = {
+                "remote_path": "/remote/path/file.txt",
+                "bucket": "default",
+                "size": 123,
+                "uploaded_at": time.time(),
+                "metadata": {},
+            }
+            result = await sshfs_kit.delete_file(storage_id)
+            assert result.get("success") is True
+            assert storage_id not in sshfs_kit.stored_files
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_create_remote_directory(self, sshfs_kit, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_create_remote_directory(self, sshfs_kit, mock_ssh_client):
         """Test creating a directory on remote server."""
         mock_client, mock_sftp = mock_ssh_client
         
         # Mock mkdir
         mock_sftp.mkdir.return_value = None
         
-        if hasattr(sshfs_kit, 'create_directory'):
-            result = sshfs_kit.create_directory("/remote/path/newdir")
+        if hasattr(sshfs_kit, '_ensure_remote_path_sftp'):
+            sshfs_kit.sftp_client = mock_sftp
+            mock_sftp.stat.side_effect = FileNotFoundError()
+            await sshfs_kit._ensure_remote_path_sftp("/remote/path/newdir")
+            assert mock_sftp.mkdir.called
 
 
 class TestSSHFSKitErrorHandling:
@@ -245,7 +293,8 @@ class TestSSHFSKitErrorHandling:
         assert kit is not None
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_network_timeout(self, sshfs_config):
+    @pytest.mark.anyio
+    async def test_network_timeout(self, sshfs_config):
         """Test handling of network timeouts."""
         if not PARAMIKO_AVAILABLE:
             pytest.skip("paramiko not available")
@@ -261,11 +310,13 @@ class TestSSHFSKitErrorHandling:
             kit = SSHFSKit(**sshfs_config)
             
             if hasattr(kit, 'connect'):
-                with pytest.raises((socket.timeout, Exception)):
-                    kit.connect()
+                result = await kit.connect()
+                assert result.get("success") is False
+                assert "timeout" in str(result.get("error", "")).lower()
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_permission_denied(self, sshfs_kit, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_permission_denied(self, sshfs_kit, mock_ssh_client):
         """Test handling of permission errors."""
         mock_client, mock_sftp = mock_ssh_client
         
@@ -278,9 +329,12 @@ class TestSSHFSKitErrorHandling:
             tmp_path = tmp_file.name
         
         try:
-            if hasattr(sshfs_kit, 'upload_file'):
-                with pytest.raises((PermissionError, Exception)):
-                    sshfs_kit.upload_file(tmp_path, "/protected/file.txt")
+            if hasattr(sshfs_kit, 'store_file'):
+                sshfs_kit.sftp_client = mock_sftp
+                sshfs_kit.is_connected = True
+                result = await sshfs_kit.store_file(tmp_path, remote_name="file.txt")
+                assert result.get("success") is False
+                assert "error" in result
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
@@ -294,7 +348,8 @@ class TestSSHFSKitStorageTracking:
         assert isinstance(sshfs_kit.stored_files, dict)
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_track_uploaded_file(self, sshfs_kit, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_track_uploaded_file(self, sshfs_kit, mock_ssh_client):
         """Test tracking of uploaded files."""
         mock_client, mock_sftp = mock_ssh_client
         mock_sftp.put.return_value = None
@@ -304,13 +359,13 @@ class TestSSHFSKitStorageTracking:
             tmp_path = tmp_file.name
         
         try:
-            if hasattr(sshfs_kit, 'upload_file'):
-                result = sshfs_kit.upload_file(tmp_path, "/remote/tracked_file.txt")
-                
-                # Check if file is tracked
-                if hasattr(sshfs_kit, 'stored_files'):
-                    # Implementation-dependent
-                    pass
+            if hasattr(sshfs_kit, 'store_file'):
+                sshfs_kit.sftp_client = mock_sftp
+                sshfs_kit.is_connected = True
+                result = await sshfs_kit.store_file(tmp_path, remote_name="tracked_file.txt")
+                assert result.get("success") is True
+                storage_id = result.get("storage_id")
+                assert storage_id in sshfs_kit.stored_files
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
@@ -319,15 +374,19 @@ class TestSSHFSKitCleanup:
     """Test connection cleanup and resource management."""
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_disconnect(self, sshfs_kit, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_disconnect(self, sshfs_kit, mock_ssh_client):
         """Test SSH connection cleanup."""
         mock_client, mock_sftp = mock_ssh_client
         
         if hasattr(sshfs_kit, 'disconnect'):
-            result = sshfs_kit.disconnect()
+            sshfs_kit.ssh_client = mock_client
+            sshfs_kit.sftp_client = mock_sftp
+            result = await sshfs_kit.disconnect()
             
             # Verify cleanup was attempted
             assert mock_client.close.called or True
+            assert result.get("success") is True
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
     def test_context_manager(self, sshfs_config, mock_ssh_client):
@@ -345,7 +404,8 @@ class TestSSHFSKitIntegration:
     """Integration tests for complete workflows."""
     
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
-    def test_upload_download_cycle(self, sshfs_kit, mock_ssh_client):
+    @pytest.mark.anyio
+    async def test_upload_download_cycle(self, sshfs_kit, mock_ssh_client):
         """Test complete upload and download cycle."""
         mock_client, mock_sftp = mock_ssh_client
         
@@ -368,14 +428,20 @@ class TestSSHFSKitIntegration:
             mock_sftp.get.side_effect = mock_get
             
             # Test workflow
-            if hasattr(sshfs_kit, 'upload_file') and hasattr(sshfs_kit, 'download_file'):
+            if hasattr(sshfs_kit, 'store_file') and hasattr(sshfs_kit, 'retrieve_file'):
+                sshfs_kit.sftp_client = mock_sftp
+                sshfs_kit.is_connected = True
+
                 # Upload
-                upload_result = sshfs_kit.upload_file(upload_path, "/remote/test_file.txt")
-                
+                upload_result = await sshfs_kit.store_file(upload_path, remote_name="test_file.txt")
+                assert upload_result.get("success") is True
+
                 # Download
                 with tempfile.TemporaryDirectory() as tmp_dir:
                     download_path = os.path.join(tmp_dir, "downloaded.txt")
-                    download_result = sshfs_kit.download_file("/remote/test_file.txt", download_path)
+                    storage_id = upload_result.get("storage_id")
+                    download_result = await sshfs_kit.retrieve_file(storage_id, download_path)
+                    assert download_result.get("success") is True
                     
                     # Verify content if file was created
                     if os.path.exists(download_path):

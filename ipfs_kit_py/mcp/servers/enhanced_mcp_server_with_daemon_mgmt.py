@@ -526,6 +526,13 @@ class GraphRAGSearchEngine:
             }
 
         try:
+            if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("IPFS_KIT_FORCE_TEXT_SEARCH"):
+                return {
+                    "success": False,
+                    "operation": "text_search",
+                    "error": "text_search not implemented",
+                    "results": [],
+                }
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             

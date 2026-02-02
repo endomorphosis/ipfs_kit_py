@@ -16,9 +16,14 @@ from .server import MCPServer, MCPServerConfig
 from .models.mcp_metadata_manager import MCPMetadataManager
 from .services.mcp_daemon_service import MCPDaemonService
 
+class FastMCP(MCPServer):
+    """Compatibility alias for legacy FastMCP imports."""
+
+
 __all__ = [
     'MCPServer',
-    'MCPServerConfig', 
+    'MCPServerConfig',
     'MCPMetadataManager',
     'MCPDaemonService',
+    'FastMCP',
 ]

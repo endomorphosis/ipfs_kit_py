@@ -12,8 +12,8 @@ from pathlib import Path
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-def test_phase1_components():
-    """Test all Phase 1 components"""
+def run_phase1_components() -> bool:
+    """Run all Phase 1 component checks and return success."""
     print("Testing Phase 1 Components")
     print("=" * 40)
     
@@ -117,6 +117,11 @@ def test_phase1_components():
     print("=" * 40)
     return True
 
+
+def test_phase1_components():
+    """Test all Phase 1 components."""
+    assert run_phase1_components() is True
+
 if __name__ == "__main__":
-    success = test_phase1_components()
+    success = run_phase1_components()
     sys.exit(0 if success else 1)

@@ -5,6 +5,7 @@ This module tests the IPNI client, Saturn backend, and Enhanced Gateway Chain.
 """
 
 import pytest
+import anyio
 from ipfs_kit_py.mcp.storage_manager.discovery.ipni_client import IPNIClient
 from ipfs_kit_py.mcp.storage_manager.backends.saturn_backend import SaturnBackend
 from ipfs_kit_py.mcp.storage_manager.retrieval.enhanced_gateway_chain import EnhancedGatewayChain
@@ -310,7 +311,8 @@ class TestEnhancedGatewayIntegration:
         test_cid = "bafybeibj5h3bvrxvnkcrwyjv2vmdg4nwbsqw6h6qlq5oqnbw4jfabrjhpu"
         
         try:
-            content, metrics = await chain.fetch_with_discovery(test_cid)
+            with anyio.fail_after(5):
+                content, metrics = await chain.fetch_with_discovery(test_cid)
             
             assert content is not None
             assert len(content) == 0  # Empty file
@@ -320,8 +322,8 @@ class TestEnhancedGatewayIntegration:
             # Log which method was used
             print(f"Fetched via: {metrics['method']}, source: {metrics['source']}")
             
-        except Exception as e:
-            pytest.skip(f"Content retrieval failed: {e}")
+        except (TimeoutError, Exception) as e:
+            pytest.skip(f"Content retrieval failed (expected in CI): {e}")
 
 
 if __name__ == "__main__":
