@@ -174,7 +174,7 @@ def install_dependencies():
     
     # Install test dependencies
     print("\n4. Installing test dependencies...")
-    test_deps = ['pytest', 'pytest-anyio', 'pytest-cov', 'pytest-asyncio', 'pytest-trio']
+    test_deps = ['pytest', 'pytest-anyio', 'pytest-cov', 'pytest-asyncio', 'pytest-trio', 'jsonpatch']
     for dep in test_deps:
         run_command(build_pip_command(python_cmd, 'install', dep, break_system=use_break_system), retries=2)
 
@@ -185,11 +185,13 @@ def install_dependencies():
             "name": "ipfs_datasets_py",
             "pip": "ipfs_datasets_py",
             "git": "git+https://github.com/endomorphosis/ipfs_datasets_py.git",
+            "zip": "https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip",
         },
         {
             "name": "ipfs_accelerate_py",
             "pip": "ipfs_accelerate_py",
             "git": "git+https://github.com/endomorphosis/ipfs_accelerate_py.git",
+            "zip": "https://github.com/endomorphosis/ipfs_accelerate_py/archive/refs/heads/main.zip",
         },
     ]
     for dep in optional_deps:
@@ -197,7 +199,10 @@ def install_dependencies():
         installed = run_command(build_pip_command(python_cmd, 'install', dep["pip"], break_system=use_break_system), retries=2)
         if not installed:
             print(f"  Pip install failed for {dep['name']}, trying GitHub...")
-            run_command(build_pip_command(python_cmd, 'install', dep["git"], break_system=use_break_system), retries=2)
+            installed = run_command(build_pip_command(python_cmd, 'install', dep["git"], break_system=use_break_system), retries=2)
+        if not installed and dep.get("zip"):
+            print(f"  GitHub clone failed for {dep['name']}, trying zip archive...")
+            run_command(build_pip_command(python_cmd, 'install', dep["zip"], break_system=use_break_system), retries=2)
 
     # Install optional extras that back integration tests
     print("\n6. Installing optional extras (best effort)...")
