@@ -18,12 +18,15 @@ def run_test_file(test_file):
     ]
     
     try:
+        # Get repository root (two levels up from this script)
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=60,
-            cwd="/home/runner/work/ipfs_kit_py/ipfs_kit_py"
+            cwd=str(repo_root)
         )
         
         output = result.stdout + result.stderr
@@ -90,7 +93,9 @@ def run_test_file(test_file):
 
 def main():
     """Run audit on all test files"""
-    test_dir = Path("/home/runner/work/ipfs_kit_py/ipfs_kit_py/tests/unit")
+    # Get repository root (two levels up from this script)
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    test_dir = repo_root / "tests" / "unit"
     test_files = sorted(test_dir.glob("test_*.py"))
     
     print(f"Found {len(test_files)} test files to audit\n")
@@ -134,7 +139,7 @@ def main():
     print(f"\n{'TOTAL':15s}: {len(results):3d} files")
     
     # Save detailed results
-    output_file = Path("/home/runner/work/ipfs_kit_py/ipfs_kit_py/test_audit_results.txt")
+    output_file = repo_root / "test_audit_results.txt"
     with open(output_file, "w") as f:
         f.write("TEST AUDIT RESULTS\n")
         f.write("=" * 80 + "\n\n")
