@@ -113,7 +113,10 @@ def install_dependencies():
     
     # Wait for package locks (if on Linux)
     if sys.platform.startswith('linux'):
-        wait_for_locks()
+        if os.environ.get("IPFS_KIT_SKIP_LOCK_WAIT") == "1":
+            print("Skipping package manager lock wait (IPFS_KIT_SKIP_LOCK_WAIT=1)")
+        else:
+            wait_for_locks()
     
     python_cmd = sys.executable
     use_break_system = False
