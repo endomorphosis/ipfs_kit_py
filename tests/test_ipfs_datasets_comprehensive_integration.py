@@ -326,7 +326,7 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
     def test_fs_journal_monitor_without_dataset(self):
         """Test journal monitor works without dataset storage."""
         try:
-            from fs_journal_monitor import JournalHealthMonitor
+            from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor
             from ipfs_kit_py.filesystem_journal import FilesystemJournal
             
             journal = FilesystemJournal(
@@ -359,7 +359,7 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
     def test_fs_journal_monitor_with_dataset(self):
         """Test journal monitor with dataset storage enabled."""
         try:
-            from fs_journal_monitor import JournalHealthMonitor
+            from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor
             from ipfs_kit_py.filesystem_journal import FilesystemJournal
             
             journal = FilesystemJournal(
@@ -394,7 +394,7 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
     def test_fs_replication_without_dataset(self):
         """Test metadata replication without dataset storage."""
         try:
-            from fs_journal_replication import MetadataReplicationManager
+            from ipfs_kit_py.fs_journal_replication import MetadataReplicationManager
             
             manager = MetadataReplicationManager(
                 node_id="test-node-1",
@@ -428,7 +428,7 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
     def test_fs_replication_with_dataset(self):
         """Test metadata replication with dataset storage enabled."""
         try:
-            from fs_journal_replication import MetadataReplicationManager
+            from ipfs_kit_py.fs_journal_replication import MetadataReplicationManager
             
             manager = MetadataReplicationManager(
                 node_id="test-node-2",
