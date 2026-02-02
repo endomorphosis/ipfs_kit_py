@@ -55,7 +55,7 @@ else:
 try:
     from fastapi import APIRouter, Depends, HTTPException, FastAPI, Request, Response
     from fastapi.responses import JSONResponse
-    from pydantic import BaseModel
+    from pydantic import BaseModel, ConfigDict, Field
 except ImportError:
     logger.warning("FastAPI not installed. API endpoints will not be available.")
 
@@ -139,9 +139,11 @@ class DatasetVersion(BaseModel):
     version: str
     description: str
     files: List[Dict[str, Any]]
-    schema: Dict[str, Any]
+    schema_: Dict[str, Any] = Field(alias="schema")
     created_at: str
     updated_at: str
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class CreateDatasetRequest(BaseModel):
@@ -158,8 +160,10 @@ class CreateDatasetVersionRequest(BaseModel):
     version: str
     description: Optional[str] = ""
     files: Optional[List[Dict[str, Any]]] = None
-    schema: Optional[Dict[str, Any]] = None
+    schema_: Optional[Dict[str, Any]] = Field(default=None, alias="schema")
     metadata: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ErrorResponse(BaseModel):
@@ -505,7 +509,7 @@ class AIML_Integrator:
                     "version": version.version,
                     "description": version.description,
                     "files": [self._convert_file(file) for file in version.files],
-                    "schema": version.schema,
+                    "schema": version.schema_,
                     "created_at": version.created_at.isoformat(),
                     "updated_at": version.updated_at.isoformat()
                 })
@@ -563,7 +567,7 @@ class AIML_Integrator:
                 version=request.version,
                 description=request.description,
                 files=request.files,
-                schema=request.schema,
+                schema=request.schema_,
                 metadata=request.metadata
             )
             
@@ -574,7 +578,7 @@ class AIML_Integrator:
                 "version": version.version,
                 "description": version.description,
                 "files": [self._convert_file(file) for file in version.files],
-                "schema": version.schema,
+                "schema": version.schema_,
                 "created_at": version.created_at.isoformat(),
                 "updated_at": version.updated_at.isoformat()
             }

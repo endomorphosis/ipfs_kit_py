@@ -7,10 +7,17 @@ Tests platform detection, URL accessibility, and installation readiness.
 import sys
 import platform
 import traceback
+import pytest
 from ipfs_kit_py.install_ipfs import install_ipfs
+
+
+def _skip_if_not_arm64():
+    if platform.machine() != "aarch64":
+        pytest.skip("ARM64 compatibility tests require aarch64 host")
 
 def test_platform_detection():
     """Test platform detection accuracy"""
+    _skip_if_not_arm64()
     print("=== Platform Detection Test ===")
     print(f"Python version: {sys.version}")
     print(f"Platform system: {platform.system()}")
@@ -36,6 +43,7 @@ def test_platform_detection():
 
 def test_ipfs_urls():
     """Test IPFS URL accessibility and version handling"""
+    _skip_if_not_arm64()
     print("\n=== IPFS URL Test ===")
     try:
         installer = install_ipfs()
@@ -80,6 +88,7 @@ def test_ipfs_urls():
 
 def test_build_from_source_availability():
     """Test that build-from-source methods are available"""
+    _skip_if_not_arm64()
     print("\n=== Build from Source Test ===")
     try:
         installer = install_ipfs()
@@ -108,6 +117,7 @@ def test_build_from_source_availability():
 
 def test_system_requirements():
     """Test system requirements for ARM64 builds"""
+    _skip_if_not_arm64()
     print("\n=== System Requirements Test ===")
     import subprocess
     import shutil

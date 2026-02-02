@@ -246,6 +246,8 @@ def test_repository_migration():
     print("\n" + "=" * 60)
     print("Testing Repository Migration")
     print("=" * 60)
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run comprehensive daemon fixes tests")
     
     try:
         from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager

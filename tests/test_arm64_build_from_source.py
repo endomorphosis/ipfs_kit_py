@@ -13,9 +13,16 @@ import sys
 import os
 import platform
 import subprocess
+import pytest
 
 # Add parent directory to path to import ipfs_kit_py modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ipfs_kit_py'))
+
+
+def _skip_if_not_arm64():
+    machine = platform.machine().lower()
+    if "aarch64" not in machine and "arm64" not in machine:
+        pytest.skip("ARM64 build-from-source tests require ARM64 host")
 
 def check_architecture():
     """Check if running on ARM64."""
@@ -63,6 +70,7 @@ def check_go():
 
 def test_ipfs_build_methods():
     """Test IPFS build-from-source methods."""
+    _skip_if_not_arm64()
     print("\n" + "="*60)
     print("Testing IPFS build-from-source functionality")
     print("="*60)
@@ -111,6 +119,7 @@ def test_ipfs_build_methods():
 
 def test_lotus_build_methods():
     """Test Lotus build-from-source methods."""
+    _skip_if_not_arm64()
     print("\n" + "="*60)
     print("Testing Lotus build-from-source functionality")
     print("="*60)

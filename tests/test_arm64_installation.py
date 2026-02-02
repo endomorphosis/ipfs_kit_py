@@ -16,12 +16,19 @@ import subprocess
 import tempfile
 import shutil
 from pathlib import Path
+import pytest
 
 # Add the current directory to Python path
 sys.path.insert(0, str(Path(__file__).parent))
 
+
+def _skip_if_not_arm64():
+    if platform.machine() != "aarch64":
+        pytest.skip("ARM64 installation tests require aarch64 host")
+
 def test_platform_detection():
     """Test that our platform detection fixes work correctly."""
+    _skip_if_not_arm64()
     print("🔍 Testing Platform Detection")
     print("=" * 50)
     
@@ -59,6 +66,7 @@ def test_platform_detection():
 
 def test_ipfs_urls():
     """Test IPFS download URLs for ARM64."""
+    _skip_if_not_arm64()
     print("\n🔗 Testing IPFS ARM64 URLs")
     print("=" * 50)
     
@@ -97,6 +105,7 @@ def test_ipfs_urls():
 
 def test_lotus_urls():
     """Test Lotus download URLs for ARM64."""
+    _skip_if_not_arm64()
     print("\n🔗 Testing Lotus ARM64 URLs")
     print("=" * 50)
     
@@ -131,6 +140,7 @@ def test_lotus_urls():
 
 def test_build_from_source_methods():
     """Test that build-from-source methods exist and are callable."""
+    _skip_if_not_arm64()
     print("\n🔧 Testing Build-from-Source Methods")
     print("=" * 50)
     
@@ -176,6 +186,7 @@ def test_build_from_source_methods():
 
 def test_actual_installation():
     """Test actual installation process (with safety measures)."""
+    _skip_if_not_arm64()
     print("\n⚙️ Testing Actual Installation Process")
     print("=" * 50)
     
@@ -237,6 +248,7 @@ def test_actual_installation():
 
 def test_build_tools():
     """Test availability of build tools."""
+    _skip_if_not_arm64()
     print("\n🔨 Testing Build Tools")
     print("=" * 50)
     
