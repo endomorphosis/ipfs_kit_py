@@ -223,9 +223,31 @@ def install_dependencies():
     for extra in optional_extras:
         print(f"  Installing extras: [{extra}]...")
         run_command(build_pip_command(python_cmd, 'install', '-e', f'.[{extra}]', break_system=use_break_system), retries=2)
+
+    # Install additional optional dependencies detected from integration warnings
+    print("\n7. Installing optional ML/AI/PDF/RAG dependencies (best effort)...")
+    optional_packages = [
+        # ML / AI
+        "torch",
+        "sentence-transformers",
+        "tiktoken",
+        "nltk",
+        "openai",
+        # PDF / OCR
+        "pymupdf",
+        "pdfplumber",
+        "pytesseract",
+        "surya-ocr",
+        # Web content parsing
+        "beautifulsoup4",
+        "newspaper3k",
+        "readability-lxml",
+    ]
+    for pkg in optional_packages:
+        run_command(build_pip_command(python_cmd, 'install', pkg, break_system=use_break_system), retries=2)
     
     # Verify installations
-    print("\n7. Verifying installations...")
+    print("\n8. Verifying installations...")
     print("-" * 60)
     
     checks = [
