@@ -417,10 +417,10 @@ class DataLifecycleEvent:
     timestamp: str
     event_type: str
     object_id: str
-    object_path: Optional[str] = None
-    policy_id: Optional[str] = None
     action: str
     status: str  # success, failure, pending
+    object_path: Optional[str] = None
+    policy_id: Optional[str] = None
     details: Dict[str, Any] = field(default_factory=dict)
     user_id: Optional[str] = None
     
