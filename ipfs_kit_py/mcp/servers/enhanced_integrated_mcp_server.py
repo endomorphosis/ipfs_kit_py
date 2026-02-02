@@ -39,8 +39,8 @@ try:
     from parquet_vfs_integration import create_parquet_vfs_integration, ParquetVirtualFileSystem
     from arrow_metadata_index import ArrowMetadataIndex
     from tiered_cache_manager import TieredCacheManager
-    from storage_wal import StorageWriteAheadLog
-    from fs_journal_replication import MetadataReplicationManager
+    from ipfs_kit_py.storage_wal import StorageWriteAheadLog
+    from ipfs_kit_py.fs_journal_replication import MetadataReplicationManager
     IPFS_KIT_AVAILABLE = True
 except ImportError as e:
     IPFS_KIT_AVAILABLE = False

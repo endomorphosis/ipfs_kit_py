@@ -45,7 +45,7 @@ if project_root not in sys.path:
 
 # Import the VFS system
 try:
-    from ipfs_fsspec import (
+    from ipfs_kit_py.ipfs_fsspec import (
         get_vfs, vfs_mount, vfs_unmount, vfs_list_mounts, vfs_read, vfs_write,
         vfs_ls, vfs_stat, vfs_mkdir, vfs_rmdir, vfs_copy, vfs_move,
         vfs_sync_to_ipfs, vfs_sync_from_ipfs

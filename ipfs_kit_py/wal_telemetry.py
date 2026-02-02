@@ -2074,7 +2074,7 @@ if __name__ == "__main__":
         exit(1)
         
     # Create WAL instance
-    from storage_wal import StorageWriteAheadLog, BackendHealthMonitor
+    from ipfs_kit_py.storage_wal import StorageWriteAheadLog, BackendHealthMonitor
     
     health_monitor = BackendHealthMonitor(
         check_interval=5,
