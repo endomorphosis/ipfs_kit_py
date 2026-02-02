@@ -118,17 +118,19 @@ def install_dependencies():
     python_cmd = sys.executable
     use_break_system = False
 
-    if is_externally_managed_environment():
-        venv_dir = Path(".venv")
-        print("\nDetected externally managed Python environment.")
+    venv_dir = Path(".venv")
+    if os.environ.get("IPFS_KIT_SKIP_VENV") != "1":
         if not venv_dir.exists():
             print("Creating local virtual environment at .venv...")
             if not run_command([python_cmd, "-m", "venv", str(venv_dir)], retries=1):
-                print("✗ Failed to create virtual environment")
+                print("⚠ Failed to create virtual environment; falling back to system python")
         if venv_dir.exists():
             python_cmd = str(venv_dir / "bin" / "python")
             print(f"Using virtual environment python: {python_cmd}")
-        elif os.environ.get("IPFS_KIT_BREAK_SYSTEM_PACKAGES") == "1":
+
+    if is_externally_managed_environment() and python_cmd == sys.executable:
+        print("\nDetected externally managed Python environment.")
+        if os.environ.get("IPFS_KIT_BREAK_SYSTEM_PACKAGES") == "1":
             use_break_system = True
             print("Proceeding with --break-system-packages as requested")
         else:
