@@ -17,7 +17,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import argparse
 import traceback
 import hashlib
@@ -307,7 +307,7 @@ class ReplicationManager:
                 logger.info(f"🔄 Replicating {task.cid} to peer {peer_id}")
                 
                 # Simulate replication (in real implementation, use MCP tools)
-                await asyncio.sleep(0.1)  # Simulate network delay
+                await anyio.sleep(0.1)  # Simulate network delay
                 
                 results[peer_id] = {
                     "success": True,
