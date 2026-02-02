@@ -662,6 +662,23 @@ main() {
   log "- Venv: ${VENV_DIR}"
   log "- Local tools: ${BIN_DIR}"
   log "- Source env:  source ${BIN_DIR}/env.sh"
+
+  # Provenance hint: show how ipfs_kit_py is installed (PyPI vs local editable vs direct URL).
+  set +e
+  activate_venv
+  local installed_line
+  installed_line="$(python -m pip freeze 2>/dev/null | grep -E '^ipfs_kit_py(==| @ )' | head -n 1)"
+  if [[ -n "${installed_line}" ]]; then
+    log "- ipfs_kit_py: ${installed_line}"
+  else
+    log "- ipfs_kit_py: (not found in pip freeze)"
+  fi
+  local import_path
+  import_path="$(python -c 'import inspect, ipfs_kit_py; print(inspect.getfile(ipfs_kit_py))' 2>/dev/null)"
+  if [[ -n "${import_path}" ]]; then
+    log "- ipfs_kit_py import: ${import_path}"
+  fi
+  set -e
 }
 
 main "$@"
