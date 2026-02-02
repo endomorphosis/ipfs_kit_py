@@ -5,14 +5,12 @@ This package contains storage backend implementations for IPFS Kit.
 Each backend provides a standardized interface for different storage systems.
 """
 
-from .synapse_storage import SynapseStorage
 from .base_adapter import BackendAdapter
 from .ipfs_backend import IPFSBackendAdapter
 from .filesystem_backend import FilesystemBackendAdapter
 from .s3_backend import S3BackendAdapter
 
 __all__ = [
-    'SynapseStorage',
     'BackendAdapter',
     'IPFSBackendAdapter', 
     'FilesystemBackendAdapter',
