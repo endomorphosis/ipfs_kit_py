@@ -10,6 +10,8 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 def test_standalone_vfs():
     """Test the VFS system in standalone mode."""
     
@@ -27,52 +29,53 @@ def test_standalone_vfs():
         spec = importlib.util.spec_from_file_location(
             "ipfs_fsspec", str((repo_root / "ipfs_kit_py" / "ipfs_fsspec.py").resolve())
         )
-        if spec and spec.loader:
-            ipfs_fsspec = importlib.util.module_from_spec(spec)
-            
-            # Mock the problematic imports before loading
-            mock_modules = {
-                'ipfs_kit_py.tiered_cache_manager': type('MockModule', (), {'TieredCacheManager': type('MockClass', (), {})})(),
-                'ipfs_kit_py.lotus_kit': type('MockModule', (), {'LotusKit': type('MockClass', (), {}), 'LOTUS_AVAILABLE': False})(),
-                'ipfs_kit_py.storacha_kit': type('MockModule', (), {'storacha_kit': type('MockClass', (), {})})(),
-                'ipfs_kit_py.lassie_kit': type('MockModule', (), {'lassie_kit': type('MockClass', (), {}), 'LASSIE_AVAILABLE': False})(),
-                'ipfs_kit_py.filesystem_journal': type('MockModule', (), {'FilesystemJournalManager': type('MockClass', (), {})})(),
-                'ipfs_kit_py.libp2p': type('MockModule', (), {'libp2p_peer': type('MockClass', (), {})})(),
-            }
+        assert spec and spec.loader, "Could not load ipfs_kit_py/ipfs_fsspec.py"
 
-            with patch.dict(sys.modules, mock_modules):
-                spec.loader.exec_module(ipfs_fsspec)
-            
-            # Test the classes
-            VFSBackendRegistry = ipfs_fsspec.VFSBackendRegistry
-            VFSCacheManager = ipfs_fsspec.VFSCacheManager
-            VFSReplicationManager = ipfs_fsspec.VFSReplicationManager
-            IPFSFileSystem = ipfs_fsspec.IPFSFileSystem
-            
-            print("✅ Core VFS classes imported successfully")
-            
-            # Test backend registry
-            registry = VFSBackendRegistry()
-            backends = registry.list_backends()
-            print(f"✅ Backend registry: {len(backends)} backends available: {backends}")
-            
+        ipfs_fsspec = importlib.util.module_from_spec(spec)
+
+        # Mock the problematic imports before loading
+        mock_modules = {
+            'ipfs_kit_py.tiered_cache_manager': type('MockModule', (), {'TieredCacheManager': type('MockClass', (), {})})(),
+            'ipfs_kit_py.lotus_kit': type('MockModule', (), {'LotusKit': type('MockClass', (), {}), 'LOTUS_AVAILABLE': False})(),
+            'ipfs_kit_py.storacha_kit': type('MockModule', (), {'storacha_kit': type('MockClass', (), {})})(),
+            'ipfs_kit_py.lassie_kit': type('MockModule', (), {'lassie_kit': type('MockClass', (), {}), 'LASSIE_AVAILABLE': False})(),
+            'ipfs_kit_py.filesystem_journal': type('MockModule', (), {'FilesystemJournalManager': type('MockClass', (), {})})(),
+            'ipfs_kit_py.libp2p': type('MockModule', (), {'libp2p_peer': type('MockClass', (), {})})(),
+        }
+
+        with patch.dict(sys.modules, mock_modules):
+            spec.loader.exec_module(ipfs_fsspec)
+
+        # Test the classes
+        VFSBackendRegistry = ipfs_fsspec.VFSBackendRegistry
+        VFSCacheManager = ipfs_fsspec.VFSCacheManager
+        VFSReplicationManager = ipfs_fsspec.VFSReplicationManager
+        IPFSFileSystem = ipfs_fsspec.IPFSFileSystem
+
+        print("✅ Core VFS classes imported successfully")
+
+        # Test backend registry
+        registry = VFSBackendRegistry()
+        backends = registry.list_backends()
+        print(f"✅ Backend registry: {len(backends)} backends available: {backends}")
+
+        test_dir = Path(tempfile.mkdtemp(prefix="vfs_test_"))
+        try:
             # Test cache manager
-            test_dir = Path(tempfile.mkdtemp(prefix="vfs_test_"))
             cache_manager = VFSCacheManager(str(test_dir / "cache"))
-            
+
             # Test cache operations
             test_content = b"Hello VFS!"
             cache_manager.put("/test/file.txt", "local", test_content)
             cached_content = cache_manager.get("/test/file.txt", "local")
-            
-            if cached_content == test_content:
-                print("✅ Cache operations working correctly")
-            else:
-                print("❌ Cache operations failed")
-            
+            assert cached_content == test_content
+            print("✅ Cache operations working correctly")
+
             stats = cache_manager.get_stats()
-            print(f"✅ Cache stats: {stats['hits']} hits, {stats['misses']} misses, {stats['hit_ratio']:.2%} hit ratio")
-            
+            print(
+                f"✅ Cache stats: {stats['hits']} hits, {stats['misses']} misses, {stats['hit_ratio']:.2%} hit ratio"
+            )
+
             # Test filesystem creation
             for backend in ["local", "memory", "ipfs"]:
                 try:
@@ -80,17 +83,14 @@ def test_standalone_vfs():
                     print(f"✅ Created {backend} filesystem: {fs.__class__.__name__}")
                 except Exception as e:
                     print(f"⚠️  Failed to create {backend} filesystem: {e}")
-            
-            # Clean up
-            shutil.rmtree(test_dir)
-            
-            return True
+        finally:
+            shutil.rmtree(test_dir, ignore_errors=True)
             
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(f"Standalone VFS core test failed: {e}")
 
 
 def test_vfs_coordination():
@@ -98,9 +98,9 @@ def test_vfs_coordination():
     
     print("\n🔗 Test 2: VFS Coordination Features")
     
+    # Create a simplified test environment
+    test_dir = Path(tempfile.mkdtemp(prefix="vfs_coord_test_"))
     try:
-        # Create a simplified test environment
-        test_dir = Path(tempfile.mkdtemp(prefix="vfs_coord_test_"))
         
         # Create test files in different "backends"
         backends = {
@@ -130,6 +130,7 @@ def test_vfs_coordination():
                         print(f"✅ {backend_name}/{test_file}: Content verified")
         
         print(f"✅ File coordination test: {files_found} files verified across backends")
+        assert files_found == len(backends) * 2
         
         # Test replication simulation
         source_file = backends["local"] / "test.txt"
@@ -146,15 +147,10 @@ def test_vfs_coordination():
                     print(f"✅ Replicated to {backup_name} backend")
         
         print(f"✅ Replication simulation: {replicated} replicas created")
+        assert replicated == len(backends) - 1
         
-        # Clean up
-        shutil.rmtree(test_dir)
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Coordination test failed: {e}")
-        return False
+    finally:
+        shutil.rmtree(test_dir, ignore_errors=True)
 
 
 def test_vfs_features():
@@ -191,7 +187,7 @@ def test_vfs_features():
     
     print(f"✅ Feature verification: {len(features_tested)} feature groups verified")
     
-    return True
+    assert len(features_tested) == 5
 
 
 def main():
@@ -212,11 +208,9 @@ def main():
     for test_name, test_func in tests:
         print(f"\n🧪 Running: {test_name}")
         try:
-            if test_func():
-                print(f"✅ {test_name}: PASSED")
-                passed += 1
-            else:
-                print(f"❌ {test_name}: FAILED")
+            test_func()
+            print(f"✅ {test_name}: PASSED")
+            passed += 1
         except Exception as e:
             print(f"❌ {test_name}: FAILED with exception: {e}")
     
