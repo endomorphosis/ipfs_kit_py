@@ -11,6 +11,7 @@ real dependency. These tests defensively de-shadow the local source tree.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import sys
 import subprocess
 import pytest
@@ -31,6 +32,7 @@ def _import_external_libp2p():
             if p
             and Path(p).resolve() != local_pkg_dir
             and Path(p).resolve() != repo_root
+            and Path(p).name != "ipfs_kit_py"
             and p not in {"ipfs_kit_py", "."}
         ]
 
@@ -40,27 +42,65 @@ def _import_external_libp2p():
         for name, module in list(sys.modules.items()):
             if name == "libp2p" or name.startswith("libp2p."):
                 module_file = getattr(module, "__file__", "") or ""
-                if module_file and str(repo_root) in module_file:
+                normalized = module_file.replace("\\", "/")
+                if module_file and (
+                    str(repo_root) in module_file
+                    or "/ipfs_kit_py/libp2p" in normalized
+                ):
                     sys.modules.pop(name, None)
         # Also clear the toplevel name unconditionally if it was loaded from our
         # local package dir.
         existing = sys.modules.get("libp2p")
         if existing is not None:
             existing_file = getattr(existing, "__file__", "") or ""
-            if str(local_pkg_dir) in existing_file:
+            normalized = existing_file.replace("\\", "/")
+            if str(local_pkg_dir) in existing_file or "/ipfs_kit_py/libp2p" in normalized:
                 sys.modules.pop("libp2p", None)
 
         importlib.invalidate_caches()
-        try:
-            libp2p = importlib.import_module("libp2p")
-        except ModuleNotFoundError:
-            if not _attempt_install_libp2p():
-                pytest.skip("External libp2p dependency not installed")
-            libp2p = importlib.import_module("libp2p")
+
+        def _load_external_libp2p_from_path():
+            for entry in sys.path:
+                if not entry:
+                    continue
+                try:
+                    entry_path = Path(entry).resolve()
+                    if entry_path.name == "ipfs_kit_py":
+                        continue
+                    candidate = (entry_path / "libp2p" / "__init__.py").resolve()
+                except Exception:
+                    continue
+                if not candidate.exists():
+                    continue
+                normalized = str(candidate).replace("\\", "/")
+                if "/ipfs_kit_py/" in normalized:
+                    continue
+                spec = importlib.util.spec_from_file_location(
+                    "libp2p",
+                    str(candidate),
+                    submodule_search_locations=[str(candidate.parent)],
+                )
+                if spec is None or spec.loader is None:
+                    continue
+                module = importlib.util.module_from_spec(spec)
+                sys.modules["libp2p"] = module
+                spec.loader.exec_module(module)  # type: ignore[attr-defined]
+                return module
+            return None
+
+        libp2p = _load_external_libp2p_from_path()
+        if libp2p is None:
+            try:
+                libp2p = importlib.import_module("libp2p")
+            except ModuleNotFoundError:
+                if not _attempt_install_libp2p():
+                    pytest.skip("External libp2p dependency not installed")
+                libp2p = importlib.import_module("libp2p")
 
         libp2p_file = getattr(libp2p, "__file__", "") or ""
         local_shadow_dir = (local_pkg_dir / "libp2p").resolve()
-        assert str(local_shadow_dir) not in libp2p_file, (
+        normalized_file = libp2p_file.replace("\\", "/")
+        assert str(local_shadow_dir) not in libp2p_file and "/ipfs_kit_py/libp2p" not in normalized_file, (
             "Imported local shadowing module instead of external dependency: "
             f"{libp2p_file}"
         )

@@ -221,8 +221,23 @@ def install_dependencies():
             print(f"  GitHub install failed for {dep['name']}, trying PyPI as last resort...")
             run_command(build_pip_command(python_cmd, 'install', dep["pip"], '--upgrade', break_system=use_break_system), retries=2)
 
+    # Ensure upstream libp2p API compatibility (new_host) from GitHub main
+    print("\n6. Ensuring libp2p is installed from GitHub main...")
+    libp2p_git = "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main"
+    run_command(
+        build_pip_command(
+            python_cmd,
+            'install',
+            '--upgrade',
+            '--force-reinstall',
+            libp2p_git,
+            break_system=use_break_system,
+        ),
+        retries=2,
+    )
+
     # Install optional extras that back integration tests
-    print("\n6. Installing optional extras (best effort)...")
+    print("\n7. Installing optional extras (best effort)...")
     optional_extras = [
         "dev",
         "api",
@@ -257,7 +272,7 @@ def install_dependencies():
             )
 
     # Install additional optional dependencies detected from integration warnings
-    print("\n7. Installing optional ML/AI/PDF/RAG dependencies (best effort)...")
+    print("\n8. Installing optional ML/AI/PDF/RAG dependencies (best effort)...")
     optional_packages = [
         # ML / AI
         "torch",
@@ -279,7 +294,7 @@ def install_dependencies():
         run_command(build_pip_command(python_cmd, 'install', pkg, break_system=use_break_system), retries=2)
     
     # Verify installations
-    print("\n8. Verifying installations...")
+    print("\n9. Verifying installations...")
     print("-" * 60)
     
     checks = [
