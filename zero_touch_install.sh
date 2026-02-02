@@ -667,11 +667,22 @@ main() {
   set +e
   activate_venv
   local installed_line
-  installed_line="$(python -m pip freeze 2>/dev/null | grep -E '^ipfs_kit_py(==| @ )' | head -n 1)"
+  installed_line="$(python -m pip freeze 2>/dev/null | grep -E '^(ipfs_kit_py|ipfs-kit-py)(==| @ )' | head -n 1)"
+  if [[ -z "${installed_line}" ]]; then
+    # Editable installs typically appear as '-e file:///...'; match those too.
+    installed_line="$(python -m pip freeze 2>/dev/null | grep -E '^-e .*ipfs_kit_py' | head -n 1)"
+  fi
   if [[ -n "${installed_line}" ]]; then
     log "- ipfs_kit_py: ${installed_line}"
   else
     log "- ipfs_kit_py: (not found in pip freeze)"
+  fi
+
+  # Fall back to pip show for additional clarity.
+  local show_loc
+  show_loc="$(python -m pip show ipfs_kit_py 2>/dev/null | grep -E '^(Editable project location|Location):' | head -n 1)"
+  if [[ -n "${show_loc}" ]]; then
+    log "- ipfs_kit_py ${show_loc}"
   fi
   local import_path
   import_path="$(python -c 'import inspect, ipfs_kit_py; print(inspect.getfile(ipfs_kit_py))' 2>/dev/null)"
