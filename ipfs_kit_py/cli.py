@@ -201,7 +201,8 @@ class FastCLI:
             "PYTEST_VERSION",
             "PYTEST_XDIST_WORKER",
         )
-        if any(os.environ.get(key) for key in pytest_env_markers):
+        running_under_pytest = any(os.environ.get(key) for key in pytest_env_markers)
+        if running_under_pytest:
             os.environ.setdefault("IPFS_KIT_FAST_INIT", "1")
 
         def detect_server_file() -> Optional[Path]:
@@ -263,7 +264,11 @@ class FastCLI:
 
         pid_file = data_dir / f"mcp_{port}.pid"
 
-        if bool(getattr(args, "foreground", False)):
+        force_foreground = running_under_pytest and not bool(getattr(args, "foreground", False))
+        if force_foreground:
+            print("Running MCP server in foreground for pytest reliability")
+
+        if bool(getattr(args, "foreground", False)) or force_foreground:
             print(f"Starting MCP dashboard (foreground) using: {server_file}")
             spec = importlib.util.spec_from_file_location(server_file.stem, str(server_file))
             if spec is None or spec.loader is None:
@@ -811,6 +816,12 @@ class FastCLI:
 
 async def main() -> None:
     """Main CLI entry point with auto-healing error capture."""
+    # Fast path for lightweight MCP actions to avoid heavy auto-heal imports.
+    if len(sys.argv) >= 3 and sys.argv[1] == "mcp" and sys.argv[2] in {"start", "stop", "status", "deprecations"}:
+        cli = FastCLI()
+        await cli.run()
+        return
+
     from ipfs_kit_py.auto_heal.error_capture import ErrorCapture
     from ipfs_kit_py.auto_heal.config import AutoHealConfig
     from ipfs_kit_py.auto_heal.github_issue_creator import GitHubIssueCreator
