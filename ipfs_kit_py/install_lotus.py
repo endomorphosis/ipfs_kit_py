@@ -2009,6 +2009,19 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
         
         if not os.path.exists(lotus_path):
             return result
+
+        # If user-space libs are present (bin/lib), make sure existing binaries
+        # are wrapped so they run without requiring manual env var setup.
+        for binary in LOTUS_BINARIES:
+            binary_path = os.path.join(bin_dir, binary)
+            if platform.system() == "Windows":
+                binary_path += ".exe"
+            if os.path.exists(binary_path):
+                try:
+                    self._wrap_binary_for_userspace_libs(binary_path)
+                except Exception:
+                    # Best-effort only; continue with version detection.
+                    pass
         
         # Check lotus version
         try:

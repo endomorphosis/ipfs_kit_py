@@ -18,6 +18,7 @@ LOCAL_DEPS_DIR="${BIN_DIR}/deps"
 
 PROFILE="dev"            # core|api|dev|full
 EXTRAS=""                # comma-separated extras override
+INSTALL_SOURCE="local"   # local|github-main
 INSTALL_NODE="auto"       # auto|yes|no
 INSTALL_PLAYWRIGHT="auto" # auto|yes|no
 ALLOW_SUDO="no"           # yes|no (default: no; zero-touch should not require sudo)
@@ -26,6 +27,7 @@ INSTALL_IPFS="auto"       # auto|yes|no
 INSTALL_LASSIE="auto"     # auto|yes|no
 INSTALL_LOTUS="auto"      # auto|yes|no
 ALLOW_UNSUPPORTED_PYTHON="0"
+ALLOW_UNSUPPORTED_PLATFORM="1"  # proceed with Python-only best-effort when OS/arch unsupported
 
 NODE_VERSION="20.11.1"   # LTS-ish; pinned for reproducibility
 UV_VERSION="0.5.13"      # pinned; used only when Python>=3.12 not available
@@ -40,9 +42,11 @@ Usage: ./zero_touch_install.sh [options]
 Options:
   --profile <core|api|dev|full>   Install profile (default: dev)
   --extras <comma,separated>      Explicit extras to install (overrides --profile)
+  --source <local|github-main>    Install ipfs_kit_py from local checkout or GitHub main (default: local)
   --node <auto|yes|no>            Ensure Node.js is available (default: auto)
   --playwright <auto|yes|no>      Install Playwright deps + browsers (default: auto)
   --sudo <yes|no>                 Allow using sudo for system deps (default: no)
+  --strict-platform               Fail fast on unsupported OS/arch (default: best-effort)
   --libmagic <auto|yes|no>        Build/install libmagic locally if needed (default: auto)
   --ipfs <auto|yes|no>            Install IPFS/Kubo binaries into ./bin (default: auto)
   --lassie <auto|yes|no>          Install Lassie binary into ./bin (default: auto)
@@ -66,9 +70,11 @@ parse_args() {
     case "$1" in
       --profile) PROFILE="${2:-}"; shift 2 ;;
       --extras) EXTRAS="${2:-}"; shift 2 ;;
+      --source) INSTALL_SOURCE="${2:-}"; shift 2 ;;
       --node) INSTALL_NODE="${2:-}"; shift 2 ;;
       --playwright) INSTALL_PLAYWRIGHT="${2:-}"; shift 2 ;;
       --sudo) ALLOW_SUDO="${2:-}"; shift 2 ;;
+      --strict-platform) ALLOW_UNSUPPORTED_PLATFORM="0"; shift 1 ;;
       --libmagic) INSTALL_LIBMAGIC="${2:-}"; shift 2 ;;
       --ipfs) INSTALL_IPFS="${2:-}"; shift 2 ;;
       --lassie) INSTALL_LASSIE="${2:-}"; shift 2 ;;
@@ -83,6 +89,7 @@ parse_args() {
     core|api|dev|full) : ;;
     *) err "Invalid --profile: $PROFILE"; exit 2 ;;
   esac
+  case "$INSTALL_SOURCE" in local|github-main) : ;; *) err "Invalid --source: $INSTALL_SOURCE"; exit 2 ;; esac
   case "$INSTALL_NODE" in auto|yes|no) : ;; *) err "Invalid --node: $INSTALL_NODE"; exit 2 ;; esac
   case "$INSTALL_PLAYWRIGHT" in auto|yes|no) : ;; *) err "Invalid --playwright: $INSTALL_PLAYWRIGHT"; exit 2 ;; esac
   case "$ALLOW_SUDO" in yes|no) : ;; *) err "Invalid --sudo: $ALLOW_SUDO"; exit 2 ;; esac
@@ -104,13 +111,30 @@ detect_platform() {
   case "$OS" in
     linux*) OS="linux" ;;
     darwin*) OS="darwin" ;;
-    *) err "Unsupported OS: $OS_RAW"; exit 1 ;;
+    *)
+      if [[ "${ALLOW_UNSUPPORTED_PLATFORM}" == "1" ]]; then
+        err "WARNING: Unsupported OS: ${OS_RAW}. Proceeding with Python-only best-effort."
+        OS="${OS}"
+      else
+        err "Unsupported OS: $OS_RAW"; exit 1
+      fi
+      ;;
   esac
 
   case "$ARCH_RAW" in
     x86_64|amd64) ARCH="x86_64"; NODE_ARCH="x64" ;;
     aarch64|arm64) ARCH="arm64"; NODE_ARCH="arm64" ;;
-    *) err "Unsupported architecture: $ARCH_RAW"; exit 1 ;;
+    armv7l|armv7|armv6l|armv6) ARCH="arm"; NODE_ARCH="armv7l" ;;
+    i386|i686|x86) ARCH="x86"; NODE_ARCH="x86" ;;
+    *)
+      if [[ "${ALLOW_UNSUPPORTED_PLATFORM}" == "1" ]]; then
+        err "WARNING: Unsupported architecture: ${ARCH_RAW}. Proceeding with Python-only best-effort."
+        ARCH="${ARCH_RAW}"
+        NODE_ARCH=""
+      else
+        err "Unsupported architecture: $ARCH_RAW"; exit 1
+      fi
+      ;;
   esac
 
   log "Detected platform: OS=$OS ARCH=$ARCH (uname -m=$ARCH_RAW)"
@@ -336,8 +360,29 @@ install_python_deps() {
     esac
   fi
 
-  log "Installing Python package + deps: pip install -e '${spec}'"
-  python -m pip install -e "${spec}"
+  # Choose install source: local editable checkout (default) or GitHub main.
+  if [[ "${INSTALL_SOURCE}" == "github-main" ]]; then
+    local pkg="ipfs_kit_py"
+    local url="git+https://github.com/endomorphosis/ipfs_kit_py@main"
+    # pip supports extras with direct URL requirements: "name[extra] @ git+..."
+    local direct="${pkg}"
+    if [[ -n "${EXTRAS}" ]]; then
+      direct="${pkg}[${EXTRAS}]"
+    else
+      # Map profile -> extras for GitHub install.
+      case "$PROFILE" in
+        core) direct="${pkg}" ;;
+        api) direct="${pkg}[api]" ;;
+        dev) direct="${pkg}[dev,api,ipfs_datasets]" ;;
+        full) direct="${pkg}[full,dev,api,ipfs_datasets,ipfs_accelerate]" ;;
+      esac
+    fi
+    log "Installing ipfs_kit_py from GitHub main: pip install '${direct} @ ${url}'"
+    python -m pip install "${direct} @ ${url}"
+  else
+    log "Installing Python package + deps from local checkout: pip install -e '${spec}'"
+    python -m pip install -e "${spec}"
+  fi
 
   # Some parts of the repo still expect requirements.txt; install as a best-effort add-on
   # but avoid hard-failing the whole run when optional/heavy wheels are unavailable.
@@ -351,11 +396,22 @@ install_python_deps() {
       err "WARNING: requirements.txt install had failures. Core package install succeeded."
       err "If you want strict mode, run: .venv/bin/pip install -r requirements.txt"
     fi
+
+    # Guardrail: ensure we don't end up with a non-local/non-github PyPI copy of ipfs_kit_py
+    # due to any future self-references in requirements files.
+    if [[ "${INSTALL_SOURCE}" == "local" ]]; then
+      python -m pip install -e "${spec}" >/dev/null 2>&1 || true
+    fi
   fi
 }
 
 ensure_node_local() {
   if have_cmd node && have_cmd npm; then
+    return 0
+  fi
+
+  if [[ -z "${NODE_ARCH}" ]]; then
+    err "WARNING: Node.js auto-install unsupported on this architecture (${ARCH_RAW}); skipping"
     return 0
   fi
 
@@ -367,15 +423,31 @@ ensure_node_local() {
   mkdir -p "$dest"
 
   if [[ ! -d "$dest/bin" ]]; then
+    set +e
     download "$url" "$tarball"
+    local dl_rc=$?
+    set -e
+    if [[ $dl_rc -ne 0 ]]; then
+      err "WARNING: Node.js download failed for ${OS}/${NODE_ARCH}."
+      err "If you already have node/npm, put them on PATH and rerun with --node no."
+      return 0
+    fi
+
+    set +e
     tar -xJf "$tarball" -C "$CACHE_DIR"
+    local tar_rc=$?
+    set -e
+    if [[ $tar_rc -ne 0 ]]; then
+      err "WARNING: Node.js extraction failed; skipping"
+      return 0
+    fi
 
     # Extracted folder name matches node-vX-OS-ARCH
     if [[ -d "${CACHE_DIR}/node-v${NODE_VERSION}-${OS}-${NODE_ARCH}" ]]; then
       :
     else
-      err "Expected extracted Node directory not found"
-      return 1
+      err "WARNING: Expected extracted Node directory not found; skipping"
+      return 0
     fi
 
     # dest already points to extracted dir
@@ -448,6 +520,7 @@ install_native_tools() {
   if [[ "$do_ipfs" == "yes" ]]; then
     log "Installing IPFS/Kubo binaries into ./bin (no sudo)"
     mkdir -p "${CACHE_DIR}/ipfs-repo"
+    set +e
     python - <<PY
 from ipfs_kit_py.install_ipfs import install_ipfs
 
@@ -464,20 +537,32 @@ try:
 except Exception as e:
     print(f"WARNING: ipfs-cluster-follow install failed: {e}")
 PY
+    local rc=$?
+    set -e
+    if [[ $rc -ne 0 ]]; then
+      err "WARNING: IPFS/Kubo install failed; continuing"
+    fi
   fi
 
   if [[ "$do_lassie" == "yes" ]]; then
     log "Installing Lassie into ./bin (no sudo)"
+    set +e
     python - <<PY
 from ipfs_kit_py.install_lassie import install_lassie
 
 inst = install_lassie(metadata={"bin_dir": r"${BIN_DIR}"})
 inst.install_lassie_daemon()
 PY
+    local rc=$?
+    set -e
+    if [[ $rc -ne 0 ]]; then
+      err "WARNING: Lassie install failed; continuing"
+    fi
   fi
 
   if [[ "$do_lotus" == "yes" ]]; then
     log "Installing Lotus into ./bin (best-effort; may use sudo if available)"
+    set +e
     python - <<PY
 from ipfs_kit_py.install_lotus import install_lotus
 
@@ -490,6 +575,11 @@ inst = install_lotus(metadata={
 })
 inst.install_lotus_daemon()
 PY
+    local rc=$?
+    set -e
+    if [[ $rc -ne 0 ]]; then
+      err "WARNING: Lotus install failed; continuing"
+    fi
   fi
 }
 
@@ -531,8 +621,21 @@ main() {
     if [[ -f "${ROOT_DIR}/package.json" ]]; then do_node="yes"; else do_node="no"; fi
   fi
   if [[ "$do_node" == "yes" ]]; then
+    set +e
     ensure_node_local
-    install_node_deps
+    local node_rc=$?
+    set -e
+    if [[ $node_rc -eq 0 ]]; then
+      set +e
+      install_node_deps
+      local npm_rc=$?
+      set -e
+      if [[ $npm_rc -ne 0 ]]; then
+        err "WARNING: npm dependency install failed; continuing"
+      fi
+    else
+      err "WARNING: Node.js setup failed; skipping npm deps"
+    fi
   fi
 
   local do_pw="$INSTALL_PLAYWRIGHT"
