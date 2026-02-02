@@ -155,6 +155,14 @@ def pytest_runtest_setup(item):  # noqa: ANN001
 def pytest_sessionstart(session):  # noqa: ANN001
     _sanitize_sys_path()
     _force_local_mcp()
+    # Warm up dataset-related shims to reduce ImportError-based skips.
+    for mod_name in (
+        "filesystem_journal",
+        "fs_journal_monitor",
+        "fs_journal_replication",
+    ):
+        with suppress(Exception):
+            __import__(mod_name)
 
 
 @pytest.hookimpl(tryfirst=True)
