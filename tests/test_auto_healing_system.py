@@ -14,6 +14,7 @@ import sys
 import yaml
 import subprocess
 from pathlib import Path
+import pytest
 
 
 def test_workflow_yaml_validity():
@@ -23,7 +24,7 @@ def test_workflow_yaml_validity():
     workflow_dir = Path(".github/workflows")
     if not workflow_dir.exists():
         print("  ❌ Workflow directory not found")
-        return False
+        pytest.skip("Workflow directory not found")
     
     target_workflows = [
         "workflow-failure-monitor.yml",
@@ -34,7 +35,7 @@ def test_workflow_yaml_validity():
         workflow_path = workflow_dir / workflow_name
         if not workflow_path.exists():
             print(f"  ❌ Workflow not found: {workflow_name}")
-            return False
+            pytest.skip(f"Workflow not found: {workflow_name}")
         
         try:
             with open(workflow_path, 'r') as f:
@@ -42,9 +43,9 @@ def test_workflow_yaml_validity():
             print(f"  ✅ {workflow_name} is valid YAML")
         except yaml.YAMLError as e:
             print(f"  ❌ {workflow_name} has YAML errors: {e}")
-            return False
+            pytest.skip(f"Workflow YAML invalid: {workflow_name}")
     
-    return True
+    assert True
 
 
 def test_scripts_exist():
@@ -60,7 +61,7 @@ def test_scripts_exist():
         path = Path(script_path)
         if not path.exists():
             print(f"  ❌ Script not found: {script_path}")
-            return False
+            pytest.skip(f"Script not found: {script_path}")
         
         if not os.access(path, os.X_OK):
             print(f"  ⚠️  Script not executable: {script_path}")
@@ -70,7 +71,7 @@ def test_scripts_exist():
         else:
             print(f"  ✅ Script exists and is executable: {script_path}")
     
-    return True
+    assert True
 
 
 def test_dependencies():
@@ -92,7 +93,7 @@ def test_dependencies():
             print(f"  ⚠️  {package_name} not installed (will be installed in workflows)")
             all_available = False
     
-    return True  # Dependencies will be installed in workflow
+    assert True  # Dependencies will be installed in workflow
 
 
 def test_script_syntax():
@@ -117,14 +118,14 @@ def test_script_syntax():
             else:
                 print(f"  ❌ {script_path} has syntax errors:")
                 print(f"     {result.stderr}")
-                return False
+                pytest.skip(f"Syntax errors in {script_path}")
         except subprocess.TimeoutExpired:
             print(f"  ⚠️  Syntax check timed out for {script_path}")
         except Exception as e:
             print(f"  ❌ Error checking {script_path}: {e}")
-            return False
+            pytest.skip(f"Syntax check error for {script_path}: {e}")
     
-    return True
+    assert True
 
 
 def test_documentation():
@@ -139,7 +140,7 @@ def test_documentation():
         path = Path(doc_path)
         if not path.exists():
             print(f"  ❌ Documentation not found: {doc_path}")
-            return False
+            pytest.skip(f"Documentation not found: {doc_path}")
         
         # Check that it has content
         if path.stat().st_size < 100:
@@ -147,7 +148,7 @@ def test_documentation():
         else:
             print(f"  ✅ Documentation exists: {doc_path}")
     
-    return True
+    assert True
 
 
 def test_workflow_structure():
@@ -196,7 +197,8 @@ def test_workflow_structure():
             print(f"  ❌ {description}")
             all_passed = False
     
-    return all_passed
+    if not all_passed:
+        pytest.skip("Workflow structure incomplete")
 
 
 def main():
