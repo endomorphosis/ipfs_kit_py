@@ -2,7 +2,7 @@
 
 > **Status**: ✅ **Production Ready** - Core concepts implemented and operational  
 > **Implementation**: Multi-backend storage with distributed cluster architecture  
-> **Current System**: See **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)** for production implementation details
+> **Current System**: See **[MCP Development Status](../ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)** for production implementation details
 
 This document explains the fundamental concepts behind the `ipfs_kit_py` library, providing a comprehensive overview of its production-ready architecture, components, and usage patterns.
 
@@ -465,7 +465,7 @@ if hasattr(kit, 'tiered_cache'):
     print(f"Average access time: {metrics.get('avg_access_time_ms', 0):.2f}ms")
 ```
 
-See the [Tiered Cache documentation](tiered_cache.md) for more details.
+See the [Tiered Cache documentation](../reference/tiered_cache.md) for more details.
 
 ## Content Operations
 
@@ -572,7 +572,7 @@ df2 = table.to_pandas()
 print(df2.head())
 ```
 
-See the [FSSpec Integration documentation](fsspec_integration.md) for more details.
+See the [FSSpec Integration documentation](../integration/fsspec_integration.md) for more details.
 
 ## Key Sub-Modules
 
@@ -762,9 +762,9 @@ if add_result.get("success"):
 For more detailed information on specific components, refer to these documentation files:
 
 - [High-Level API](high_level_api.md): Simplified interface for common operations
-- [FSSpec Integration](fsspec_integration.md): Filesystem-like interface for IPFS
-- [Tiered Cache System](tiered_cache.md): Multi-tier caching architecture
+- [FSSpec Integration](../integration/fsspec_integration.md): Filesystem-like interface for IPFS
+- [Tiered Cache System](../reference/tiered_cache.md): Multi-tier caching architecture
 - [Cluster Management](cluster_management.md): Advanced cluster coordination
 - [AI/ML Integration](ai_ml.md): Machine learning tools and integrations
 - [Knowledge Graph](knowledge_graph.md): IPLD-based knowledge representation
-- [Storage Backends](storage_backends.md): External storage system integrations
+- [Storage Backends](../reference/storage_backends.md): External storage system integrations

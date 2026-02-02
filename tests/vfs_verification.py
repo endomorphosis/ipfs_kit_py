@@ -48,7 +48,7 @@ async def test_vfs_functionality():
     print("\n2. Testing VFS System Availability...")
     
     try:
-        from ipfs_fsspec import HAS_VFS
+        from ipfs_kit_py.ipfs_fsspec import HAS_VFS
         print(f"   VFS System Available: {'✓ YES' if HAS_VFS else '📝 NO (will use mocks)'}")
         
         if HAS_VFS:

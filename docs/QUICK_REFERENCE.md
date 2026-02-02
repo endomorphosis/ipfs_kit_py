@@ -1,130 +1,310 @@
-# Configuration Save Fix - Quick Reference
+# IPFS Kit Python - Quick Reference
 
-## Issue
-Configuration settings in IPFS Kit MCP dashboard were not being saved when clicking "Save Configuration" button.
+Fast reference guide for common operations and commands.
 
-## Fix Applied ✅
+## Installation
 
-### What Now Works
-1. ✅ Configuration changes persist across page reloads
-2. ✅ Settings are saved to ~/.ipfs_kit/ directory
-3. ✅ Configurations are actually applied to underlying services
-4. ✅ Clear success/failure feedback to users
-5. ✅ Configuration automatically reloads on service restart
+```bash
+# Install from PyPI (when available)
+pip install ipfs_kit_py
 
-### How to Use
-1. Run `ipfs-kit mcp start` to start the dashboard
-2. Navigate to Backend Configs or Configuration tab
-3. Click "Add Backend" or edit existing service
-4. Fill in configuration fields
-5. Click "Save Configuration"
-6. Configuration is immediately saved and applied
+# Install from source
+git clone https://github.com/endomorphosis/ipfs_kit_py.git
+cd ipfs_kit_py
+pip install -e .
 
-### Supported Services
-- **IPFS** (JSON) - ~/.ipfs/config
-- **IPFS Cluster** (JSON) - ~/.ipfs-cluster/service.json
-- **Lotus** (TOML) - ~/.lotus/config.toml
-- **Aria2** (key=value) - ~/.aria2/aria2.conf
-- **Lassie** (JSON) - ~/.lassie/config.json
-- **S3** (Credentials) - Secure storage
-- **FTP** (Credentials) - Secure storage
-- **HuggingFace** (Credentials) - Secure storage
-- **GitHub** (Credentials) - Secure storage
-
-### Files Modified
-1. `ipfs_kit_py/mcp/services/comprehensive_service_manager.py` (+367 lines)
-2. `ipfs_kit_py/mcp/main_dashboard.py` (+291 lines)
-
-### Configuration Storage
+# Install with extras
+pip install ipfs_kit_py[full]  # All features
+pip install ipfs_kit_py[ai_ml]  # AI/ML features
+pip install ipfs_kit_py[fsspec]  # FSSpec support
 ```
+
+## Python API Quick Start
+
+### Basic IPFS Operations
+
+```python
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+
+# Initialize
+api = IPFSSimpleAPI()
+
+# Add content
+result = api.add("myfile.txt")
+cid = result['cid']
+print(f"Added: {cid}")
+
+# Get content
+content = api.get(cid)
+
+# Pin content
+api.pin(cid)
+
+# List pins
+pins = api.list_pins()
+
+# Read content
+data = api.read(cid)
+
+# Check if exists
+exists = api.exists(cid)
+```
+
+### Cluster Operations
+
+```python
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+
+# Initialize with cluster role
+api = IPFSSimpleAPI(role="master")
+
+# Add to cluster
+result = api.cluster_add("myfile.txt", replication_factor=2)
+
+# Pin to cluster
+api.cluster_pin(cid, replication_factor=2)
+
+# Check cluster status
+status = api.cluster_status(cid)
+
+# List cluster peers
+peers = api.cluster_peers()
+```
+
+### IPNS Operations
+
+```python
+# Publish to IPNS
+result = api.publish(cid, key="mykey", lifetime="24h")
+ipns_name = result['ipns_name']
+
+# Resolve IPNS name
+resolved = api.resolve(ipns_name)
+```
+
+## Command-Line Interface
+
+### MCP Server Commands
+
+```bash
+# Start MCP server and dashboard
+ipfs-kit mcp start
+ipfs-kit mcp start --port 8004 --foreground
+
+# Check server status
+ipfs-kit mcp status
+
+# Stop server
+ipfs-kit mcp stop
+
+# Check for deprecations
+ipfs-kit mcp deprecations --json
+```
+
+### Configuration
+
+```bash
+# Default data directory
 ~/.ipfs_kit/
-├── backend_configs/
+
+# Configuration structure
+~/.ipfs_kit/
+├── config.yaml          # Main configuration
+├── backend_configs/     # Backend configurations
 │   ├── ipfs.json
 │   ├── s3.json
-│   └── ftp.json
-├── {service}_config.json
-└── {service}_credentials.json
+│   └── ...
+└── credentials/         # Secure credentials
 ```
 
-### API Endpoints
-- `GET /api/backend_configs` - List all configurations
-- `GET /api/backend_configs/{name}` - Get specific config
-- `POST /api/backend_configs` - Create new config
-- `PUT /api/backend_configs/{name}` - Update config
-- `DELETE /api/backend_configs/{name}` - Delete config
-- `POST /api/backend_configs/{name}/test` - Test config
+## Common Workflows
 
-### Tests
-Both test suites pass successfully:
-- `test_config_persistence.py` ✅
-- `test_dashboard_config.py` ✅
+### Adding and Pinning Content
 
-### Documentation
-- `CONFIGURATION_FIX_DOCUMENTATION.md` - Detailed technical documentation
-- `SUMMARY_OF_CHANGES.md` - Complete summary of changes
-- `data/screenshots/config_fix_screenshot.png` - Visual demonstration
-
-### Example: Configuring IPFS
-
-**JavaScript (Frontend)**:
-```javascript
-saveBackendConfig() // User clicks Save
-  ↓
-POST /api/backend_configs
-  {
-    "name": "ipfs",
-    "type": "ipfs",
-    "port": 5001,
-    "gateway_port": 8080
-  }
-```
-
-**Python (Backend)**:
 ```python
-_create_backend_config(data)
-  ↓
-service_manager.configure_service("ipfs", config)
-  ↓
-_apply_ipfs_config(config)
-  ↓
-# Modifies ~/.ipfs/config:
-{
-  "Addresses": {
-    "API": "/ip4/127.0.0.1/tcp/5001",
-    "Gateway": "/ip4/127.0.0.1/tcp/8080"
-  }
-}
+# Add file and pin
+api = IPFSSimpleAPI()
+result = api.add("myfile.txt", pin=True)
+cid = result['cid']
+
+# Add directory recursively
+result = api.add("mydir/", recursive=True)
+
+# Add with wrap directory
+result = api.add("myfile.txt", wrap_with_directory=True)
 ```
 
-### Key Features
-1. **Multi-format support** - JSON, TOML, key=value
-2. **Secure credentials** - Stored with 0o600 permissions
-3. **Auto-reload** - Configs applied on service start
-4. **Persistent** - Survives restarts and reloads
-5. **User-friendly** - Clear feedback and validation
+### Working with Directories
 
-### Troubleshooting
+```python
+# List directory contents
+contents = api.ls(directory_cid, detail=True)
+for item in contents:
+    print(f"{item['name']}: {item['cid']}")
 
-**Configuration not applied?**
-- Check if service is installed: `which ipfs`
-- Check if service is initialized: `ls ~/.ipfs/config`
-- Check logs for errors
+# Get specific file from directory
+file_cid = contents[0]['cid']
+data = api.get(file_cid)
+```
 
-**Configuration not persisted?**
-- Check directory exists: `ls ~/.ipfs_kit/backend_configs/`
-- Check file permissions: `ls -la ~/.ipfs_kit/`
+### Cluster Deployment
 
-**Service not found?**
-- Install the service first
-- Initialize the service (e.g., `ipfs init`)
-- Restart the dashboard
+```bash
+# Quick 3-node cluster setup
+python tools/start_3_node_cluster.py
 
-### Next Steps
-The configuration save functionality is now fully working. Users can:
-1. Create service configurations through the UI
-2. Edit and update existing configurations
-3. Test backend connectivity
-4. Delete unwanted configurations
-5. Have all settings persist properly
+# Verify cluster health
+curl http://localhost:8998/health   # Master
+curl http://localhost:8999/health   # Worker 1
+curl http://localhost:9000/health   # Worker 2
+```
 
-All configuration changes will now be saved and applied correctly! 🎉
+### Using with AI/ML
+
+```python
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+
+api = IPFSSimpleAPI()
+
+# Add model to registry
+result = api.ai_model_add(
+    model=my_model,
+    metadata={"name": "my-model", "version": "1.0"}
+)
+
+# Add dataset
+result = api.ai_dataset_add(
+    dataset=my_dataframe,
+    metadata={"name": "training-data"}
+)
+
+# Visualize metrics
+api.ai_metrics_visualize(
+    model_id="my-model",
+    metrics_type="all",
+    interactive=True
+)
+```
+
+## Environment Variables
+
+```bash
+# IPFS configuration
+export IPFS_PATH=/path/to/.ipfs
+export IPFS_KIT_CLUSTER_MODE=true
+
+# MCP server
+export IPFS_KIT_MCP_PORT=8004
+export IPFS_KIT_DATA_DIR=~/.ipfs_kit
+
+# Auto-healing
+export IPFS_KIT_AUTO_HEAL=true
+export GITHUB_TOKEN=your_token
+
+# Logging
+export LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR
+```
+
+## Configuration File Example
+
+```yaml
+# ~/.ipfs_kit/config.yaml
+role: master  # master, worker, leecher
+
+ipfs:
+  api_host: 127.0.0.1
+  api_port: 5001
+  gateway_port: 8080
+
+cluster:
+  enabled: true
+  replication_factor: 2
+
+cache:
+  memory_size: 500MB
+  disk_size: 5GB
+  
+timeouts:
+  api: 60
+  gateway: 120
+
+resources:
+  max_memory: 2GB
+  max_storage: 100GB
+```
+
+## Common Issues & Solutions
+
+### Connection Issues
+
+```bash
+# Check if IPFS daemon is running
+ipfs id
+
+# Start IPFS daemon
+ipfs daemon
+
+# Check API endpoint
+curl http://127.0.0.1:5001/api/v0/id
+```
+
+### Python Import Errors
+
+```python
+# Ensure package is installed
+import ipfs_kit_py
+print(ipfs_kit_py.__version__)
+
+# Check for required dependencies
+pip install -r requirements.txt
+```
+
+### Cluster Issues
+
+```bash
+# Check cluster status
+ipfs-cluster-ctl status
+
+# Verify peers
+ipfs-cluster-ctl peers ls
+
+# Check logs
+tail -f ~/.ipfs-cluster/cluster.log
+```
+
+## Getting Help
+
+```bash
+# CLI help
+ipfs-kit --help
+ipfs-kit mcp --help
+
+# Python API help
+python -c "from ipfs_kit_py.high_level_api import IPFSSimpleAPI; help(IPFSSimpleAPI)"
+
+# Documentation
+# See docs/README.md for complete documentation index
+```
+
+## Version Information
+
+```bash
+# Check version
+ipfs-kit --version
+
+# Python version required
+python --version  # 3.12+ required
+```
+
+## Related Documentation
+
+- **[Installation Guide](installation_guide.md)** - Detailed installation instructions
+- **[API Reference](api/api_reference.md)** - Complete API documentation
+- **[CLI Reference](api/cli_reference.md)** - Full CLI command reference
+- **[Configuration Guide](guides/)** - Configuration options and examples
+- **[Cluster Guide](operations/cluster_management.md)** - Cluster setup and management
+- **[Auto-Healing](features/auto-healing/AUTO_HEALING.md)** - Auto-healing system documentation
+
+---
+
+**Note:** This is a quick reference. For detailed documentation, see the [complete documentation index](README.md).

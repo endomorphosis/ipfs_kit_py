@@ -1337,8 +1337,8 @@ ipfs-kit wal --debug status
 ## Related Documentation
 
 - [High-Level API Documentation](high_level_api.md): Details on using the high-level API with WAL integration
-- [Tiered Cache System](tiered_cache.md): Information on the caching system that works alongside the WAL
-- [Backend Storage Systems](storage_backends.md): Documentation on the supported storage backends
+- [Tiered Cache System](../reference/tiered_cache.md): Information on the caching system that works alongside the WAL
+- [Backend Storage Systems](../reference/storage_backends.md): Documentation on the supported storage backends
 - [Performance Metrics](performance_metrics.md): Details on measuring and monitoring performance
 - [CLI Documentation](cli.md): Information on using the command-line interface
 - [API Reference](api_reference.md): Complete reference for the REST API

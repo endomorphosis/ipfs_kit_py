@@ -24,7 +24,7 @@ def test_vfs_architecture():
         sys.path.insert(0, str(repo_root))
         
         # Import core components directly
-        from ipfs_fsspec import (
+        from ipfs_kit_py.ipfs_fsspec import (
             IPFSFileSystem, 
             VFSBackendRegistry, 
             VFSCacheManager, 
@@ -74,7 +74,7 @@ def test_backend_coordination():
     print("\n🔗 Test 2: Backend Coordination")
     
     try:
-        from ipfs_fsspec import VFSBackendRegistry
+        from ipfs_kit_py.ipfs_fsspec import VFSBackendRegistry
         
         registry = VFSBackendRegistry()
         
@@ -107,12 +107,12 @@ def test_replication_system():
     print("\n🔄 Test 3: Replication System")
     
     try:
-        from ipfs_fsspec import VFSReplicationManager, VFSCore
+        from ipfs_kit_py.ipfs_fsspec import VFSReplicationManager, VFSCore
         
         # Create a mock VFS core for testing
         class MockVFSCore:
             def __init__(self):
-                from ipfs_fsspec import VFSBackendRegistry, VFSCacheManager
+                from ipfs_kit_py.ipfs_fsspec import VFSBackendRegistry, VFSCacheManager
                 self.registry = VFSBackendRegistry()
                 self.cache_manager = VFSCacheManager()
                 self.filesystems = {}
@@ -159,7 +159,7 @@ def test_filesystem_features():
     print("\n📁 Test 4: Filesystem Features")
     
     try:
-        from ipfs_fsspec import IPFSFileSystem, StorachaFileSystem, LotusFileSystem, LassieFileSystem, ArrowFileSystem
+        from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem, StorachaFileSystem, LotusFileSystem, LassieFileSystem, ArrowFileSystem
         
         # Test IPFS filesystem
         try:

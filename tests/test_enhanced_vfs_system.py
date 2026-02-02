@@ -19,7 +19,7 @@ async def test_enhanced_vfs_system():
     
     # Import VFS functions
     try:
-        from ipfs_fsspec import (
+        from ipfs_kit_py.ipfs_fsspec import (
             get_vfs, 
             vfs_mount, 
             vfs_write, 

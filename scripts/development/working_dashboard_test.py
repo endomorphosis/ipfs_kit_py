@@ -20,7 +20,7 @@ def test_working_dashboard_import():
     """Test that the working unified dashboard can be imported."""
     print("🧪 Testing Working Dashboard Import...")
     try:
-        from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
+        from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
         print("✅ Working unified dashboard imported successfully")
         return True
     except Exception as e:
@@ -31,7 +31,7 @@ def test_working_dashboard_initialization():
     """Test dashboard initialization with current environment."""
     print("🧪 Testing Working Dashboard Initialization...")
     try:
-        from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
+        from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
         
         config = {
             'host': '127.0.0.1',
@@ -62,7 +62,7 @@ def test_working_dashboard_endpoints():
     """Test that working dashboard has all expected endpoints."""
     print("🧪 Testing Working Dashboard Endpoints...")
     try:
-        from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
+        from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
         
         config = {
             'host': '127.0.0.1',
@@ -157,7 +157,7 @@ def test_dashboard_start():
     """Test starting the working dashboard server."""
     print("🧪 Testing Dashboard Server Start...")
     try:
-        from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
+        from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
         import threading
         import time
         

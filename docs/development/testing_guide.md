@@ -3,7 +3,7 @@
 > **Status**: ✅ **Comprehensive Testing Infrastructure** - Complete testing suite operational  
 > **Coverage**: Unit, integration, and end-to-end testing validated  
 > **Quick Test**: Use `python tests/test_all_mcp_tools.py` for comprehensive validation  
-> **Full Details**: See **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)** for testing infrastructure overview
+> **Full Details**: See **[MCP Development Status](../ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)** for testing infrastructure overview
 
 This document provides guidance on testing the IPFS Kit library, including production cluster testing, MCP server validation, and multi-backend storage verification.
 

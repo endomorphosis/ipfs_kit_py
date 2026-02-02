@@ -1,7 +1,7 @@
 # IPFS Kit Documentation
 
 > **Status**: ✅ **Production Ready** - Comprehensive documentation for production deployment  
-> **Quick Reference**: See **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)** for current implementation status  
+> **Quick Reference**: See **[MCP Development Status](ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)** for current implementation status  
 > **Getting Started**: Use `python start_3_node_cluster.py` for immediate deployment
 
 Welcome to the IPFS Kit documentation. This guide provides comprehensive information about IPFS Kit, a production-ready Python toolkit for distributed storage with advanced MCP server integration.
@@ -42,7 +42,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 
 ### **Essential Guides**
 
-- **[MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)** - **Primary reference for current implementation**
+- **[MCP Development Status](ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)** - **Primary reference for current implementation**
 - **[Production Readiness Report](PRODUCTION_READINESS_REPORT.md)** - Deployment validation and operational readiness
 - **[Getting Started Guide](GETTING_STARTED.md)** - Quick setup and deployment instructions
 - **[Installation Guide](installation_guide.md)** - Comprehensive installation and setup
@@ -51,27 +51,27 @@ python servers/enhanced_mcp_server_with_full_config.py
 ### **Architecture & Implementation**
 
 - **[Architecture Overview](ARCHITECTURE.md)** - System design and component interaction
-- **[API Reference](API_REFERENCE.md)** - Complete REST API documentation
-- **[Core Concepts](core_concepts.md)** - Fundamental principles and implementation
-- **[Storage Backends](storage_backends.md)** - Multi-backend integration details
+- **[API Reference](api/api_reference.md)** - Complete REST API documentation
+- **[Core Concepts](api/core_concepts.md)** - Fundamental principles and implementation
+- **[Storage Backends](reference/storage_backends.md)** - Multi-backend integration details
 - **[MCP Roadmap](mcp_roadmap.md)** - Detailed technical development roadmap
 
 ### **Operations & Development**
 
-- **[Testing Guide](testing_guide.md)** - Comprehensive testing infrastructure and validation
+- **[Testing Guide](development/testing_guide.md)** - Comprehensive testing infrastructure and validation
 - **[Server Selection Guide](../servers/README.md)** - Production vs. development server guidance
-- **[Deployment Guide](../CLUSTER_DEPLOYMENT_GUIDE.md)** - Production cluster deployment instructions
-- **[Performance Monitoring](performance_metrics.md)** - Metrics, monitoring, and optimization
+- **[Deployment Guide](guides/CLUSTER_DEPLOYMENT_GUIDE.md)** - Production cluster deployment instructions
+- **[Performance Monitoring](operations/performance_metrics.md)** - Metrics, monitoring, and optimization
 
 ### **Advanced Features**
 
 - **[Authentication Extension](auth_extension.md)** - Security and access control (planned Q3 2025)
-- **[AI/ML Integration](ai_ml_integration.md)** - Machine learning and dataset management
-- **[Streaming Guide](streaming_guide.md)** - WebSocket and WebRTC real-time communication
+- **[AI/ML Integration](integration/ai-ml/ai_ml_integration.md)** - Machine learning and dataset management
+- **[Streaming Guide](reference/streaming_guide.md)** - WebSocket and WebRTC real-time communication
 - **[Migration Guide](routing_migration_guide.md)** - Data routing and backend migration
 - [Knowledge Graph](knowledge_graph.md) - IPLD-based knowledge representation
-- [libp2p Integration](libp2p_integration.md) - Direct peer-to-peer communication
-- [Cluster State](cluster_state_helpers.md) - Distributed state management
+- [libp2p Integration](integration/libp2p_integration.md) - Direct peer-to-peer communication
+- [Cluster State](operations/cluster_state_helpers.md) - Distributed state management
 - [Metadata Replication](metadata_replication.md) - Fault-tolerant metadata backup
 
 ### **Reference Materials**
@@ -140,11 +140,11 @@ python servers/streamlined_mcp_server.py
 
 ## 📞 **Support & Resources**
 
-- **Primary Documentation**: [MCP Development Status](../MCP_DEVELOPMENT_STATUS.md)
+- **Primary Documentation**: [MCP Development Status](ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)
 - **API Documentation**: Available at `/docs` endpoint on any running server
 - **Issue Tracking**: GitHub issues with detailed reproduction steps
 - **Development Chat**: Reference documentation and roadmap for guidance
 
 ---
 
-**For the most current implementation status, deployment instructions, and development guidance, always refer to the [MCP Development Status Document](../MCP_DEVELOPMENT_STATUS.md) as the authoritative source.**
+**For the most current implementation status, deployment instructions, and development guidance, always refer to the [MCP Development Status Document](ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md) as the authoritative source.**

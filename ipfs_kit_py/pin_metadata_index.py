@@ -87,8 +87,8 @@ try:
 except ImportError:
     try:
         # Fallback for direct imports
-        from filesystem_journal import FilesystemJournal, JournalOperationType
-        from ipfs_fsspec import IPFSFileSystem
+        from ipfs_kit_py.filesystem_journal import FilesystemJournal, JournalOperationType
+        from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
         IPFS_KIT_AVAILABLE = True
     except ImportError:
         IPFS_KIT_AVAILABLE = False

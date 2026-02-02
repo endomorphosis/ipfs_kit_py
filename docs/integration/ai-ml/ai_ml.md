@@ -1092,4 +1092,4 @@ viz.plot_comprehensive_dashboard(output_file="ai_ml_dashboard.html")
 - [IPFS DataLoader Documentation](ipfs_dataloader.md) - Detailed guide for the data loading component
 - [Cluster Management](cluster_management.md) - Information about the cluster architecture used by distributed training
 - [Knowledge Graph](knowledge_graph.md) - Documentation for the IPLD knowledge graph system that can be integrated with AI/ML
-- [Tiered Cache System](tiered_cache.md) - Details about the caching system used by AI/ML components
+- [Tiered Cache System](../reference/tiered_cache.md) - Details about the caching system used by AI/ML components

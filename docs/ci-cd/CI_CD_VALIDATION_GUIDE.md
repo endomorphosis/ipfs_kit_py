@@ -319,6 +319,6 @@ When reporting workflow issues, include:
 ## References
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Workflow Monitoring Guide](scripts/ci/WORKFLOW_MONITORING.md)
+- [Workflow Monitoring Guide](../../.github/scripts/ci/WORKFLOW_MONITORING.md)
 - [ARM64 Monitoring Guide](ARM64_MONITORING_GUIDE.md)
-- [AMD64 Workflows Guide](AMD64_WORKFLOWS_QUICK_REF.md)
+- [AMD64 Workflows Guide](amd64/AMD64_WORKFLOWS_QUICK_REF.md)

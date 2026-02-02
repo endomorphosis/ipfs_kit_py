@@ -109,7 +109,7 @@ def test_enhanced_mcp_server():
     
     try:
         # Import the enhanced MCP server
-        from enhanced_mcp_server_with_config import EnhancedMCPServerWithConfig
+        from ipfs_kit_py.mcp.enhanced_mcp_server_with_config import EnhancedMCPServerWithConfig
         
         # Create instance
         server = EnhancedMCPServerWithConfig()

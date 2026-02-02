@@ -679,8 +679,8 @@ except Exception as e:
 
 ## Related Documentation
 
-- [Write-Ahead Log (WAL)](write_ahead_log.md): Comprehensive documentation on the Write-Ahead Log system
-- [High-Level API](high_level_api.md): Details on using the high-level API
+- [Write-Ahead Log (WAL)](reference/write_ahead_log.md): Comprehensive documentation on the Write-Ahead Log system
+- [High-Level API](api/high_level_api.md): Details on using the high-level API
 - [Error Handling](error_handling.md): Information on error handling in IPFS Kit
 - [IPFS Content Addressing](ipfs_content_addressing.md): Understanding IPFS content addressing
 - [Distributed Coordination](distributed_coordination.md): Coordinating filesystem operations across distributed nodes

@@ -18,7 +18,7 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from enhanced_daemon_manager_with_cluster import EnhancedDaemonManager, NodeRole
-from enhanced_mcp_server_with_config import create_mcp_server
+from ipfs_kit_py.mcp.enhanced_mcp_server_with_config import create_mcp_server
 
 # Configure logging
 logging.basicConfig(

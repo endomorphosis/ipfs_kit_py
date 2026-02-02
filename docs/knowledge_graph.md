@@ -660,7 +660,7 @@ This visualization provides insights into:
 - GraphRAG path exploration efficiency
 - Memory usage across different graph sizes
 
-For more details, see the [AI/ML Visualization Guide](ai_ml_visualization.md).
+For more details, see the [AI/ML Visualization Guide](integration/ai-ml/ai_ml_visualization.md).
 
 ## Integration with Other Components
 

@@ -21,7 +21,7 @@ def test_replication_features():
     print("🔄 Testing VFS Replication Features")
     print("=" * 50)
     
-    import ipfs_fsspec
+    import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
     if not hasattr(ipfs_fsspec, "get_vfs"):
         pytest.skip("ipfs_fsspec.get_vfs not available")
 
@@ -162,7 +162,7 @@ def test_cache_features():
     print("\n💾 Testing VFS Cache Features")
     print("=" * 50)
     
-    import ipfs_fsspec
+    import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
     if not hasattr(ipfs_fsspec, "get_vfs"):
         pytest.skip("ipfs_fsspec.get_vfs not available")
 
@@ -209,7 +209,7 @@ def test_error_handling():
     print("\n⚠️  Testing Error Handling")
     print("=" * 50)
     
-    import ipfs_fsspec
+    import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
     if not hasattr(ipfs_fsspec, "get_vfs"):
         pytest.skip("ipfs_fsspec.get_vfs not available")
 

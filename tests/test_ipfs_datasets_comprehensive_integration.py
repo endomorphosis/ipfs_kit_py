@@ -35,9 +35,9 @@ try:
     # Import audit logging components directly
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ipfs_kit_py'))
     from mcp.auth.audit_logging import AuditLogger, AuditEventType
-    from log_manager import LogManager
-    from storage_wal import StorageWriteAheadLog, OperationType, BackendType
-    from wal_telemetry import WALTelemetry
+    from ipfs_kit_py.log_manager import LogManager
+    from ipfs_kit_py.storage_wal import StorageWriteAheadLog, OperationType, BackendType
+    from ipfs_kit_py.wal_telemetry import WALTelemetry
     IMPORTS_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Could not import modules: {e}")
@@ -326,8 +326,8 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
     def test_fs_journal_monitor_without_dataset(self):
         """Test journal monitor works without dataset storage."""
         try:
-            from fs_journal_monitor import JournalHealthMonitor
-            from filesystem_journal import FilesystemJournal
+            from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor
+            from ipfs_kit_py.filesystem_journal import FilesystemJournal
             
             journal = FilesystemJournal(
                 base_path=self.journal_path,
@@ -359,8 +359,8 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
     def test_fs_journal_monitor_with_dataset(self):
         """Test journal monitor with dataset storage enabled."""
         try:
-            from fs_journal_monitor import JournalHealthMonitor
-            from filesystem_journal import FilesystemJournal
+            from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor
+            from ipfs_kit_py.filesystem_journal import FilesystemJournal
             
             journal = FilesystemJournal(
                 base_path=self.journal_path,
@@ -394,7 +394,7 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
     def test_fs_replication_without_dataset(self):
         """Test metadata replication without dataset storage."""
         try:
-            from fs_journal_replication import MetadataReplicationManager
+            from ipfs_kit_py.fs_journal_replication import MetadataReplicationManager
             
             manager = MetadataReplicationManager(
                 node_id="test-node-1",
@@ -428,7 +428,7 @@ class TestPhase3FileSystemIntegration(unittest.TestCase):
     def test_fs_replication_with_dataset(self):
         """Test metadata replication with dataset storage enabled."""
         try:
-            from fs_journal_replication import MetadataReplicationManager
+            from ipfs_kit_py.fs_journal_replication import MetadataReplicationManager
             
             manager = MetadataReplicationManager(
                 node_id="test-node-2",

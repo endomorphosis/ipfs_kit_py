@@ -26,7 +26,7 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
 try:
-    from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
+    from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
     DASHBOARD_AVAILABLE = True
 except ImportError as e:
     print(f"❌ Failed to import dashboard: {e}")
@@ -407,7 +407,7 @@ class TestDashboardIntegration:
         assert DASHBOARD_AVAILABLE, "Dashboard should be importable"
 
         # Test that the main class is available
-        from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
+        from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
         assert UnifiedComprehensiveDashboard is not None
 
         logger.info("✅ Dashboard import test passed")

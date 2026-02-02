@@ -36,7 +36,7 @@ async def demo_daemon_architecture():
     
     # Step 1: Import and check daemon client
     try:
-        from ipfs_kit_daemon_client import daemon_client, route_reader
+        from ipfs_kit_py.ipfs_kit_daemon_client import daemon_client, route_reader
         print("✅ Daemon client imported successfully")
     except ImportError as e:
         print(f"❌ Daemon client import failed: {e}")

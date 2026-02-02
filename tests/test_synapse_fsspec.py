@@ -22,7 +22,7 @@ if project_root not in sys.path:
 pytestmark = pytest.mark.anyio
 
 try:
-    from ipfs_fsspec import IPFSFileSystem
+    from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
     FSSPEC_AVAILABLE = True
     IPFS_FSSPEC_ERROR = None
 except ImportError as e:

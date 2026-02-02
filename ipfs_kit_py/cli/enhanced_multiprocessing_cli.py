@@ -47,7 +47,7 @@ if project_root not in sys.path:
 
 # Import daemon client and IPFS Kit
 try:
-    from ipfs_kit_daemon_client import daemon_client, route_reader
+    from ipfs_kit_py.ipfs_kit_daemon_client import daemon_client, route_reader
     from ipfs_kit_py.ipfs_kit import IPFSKit
     COMPONENTS_AVAILABLE = True
 except ImportError as e:

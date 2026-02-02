@@ -1,6 +1,6 @@
 # Filesystem Backend Architecture - Visual Summary
 
-> **Quick Reference**: [BACKEND_REVIEW_QUICK_REFERENCE.md](./BACKEND_REVIEW_QUICK_REFERENCE.md)  
+> **Quick Reference**: [BACKEND_REVIEW_QUICK_REFERENCE.md](../status_reports/BACKEND_REVIEW_QUICK_REFERENCE.md)  
 > **Full Review**: [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
 
 ---

@@ -235,7 +235,7 @@ Tests cover:
 
 ### Complete Guides
 
-1. **[AUTO_HEALING.md](docs/AUTO_HEALING.md)** (9,401 bytes)
+1. **[AUTO_HEALING.md](docs/features/auto-healing/AUTO_HEALING.md)** (9,401 bytes)
    - Complete feature documentation
    - Architecture overview
    - Setup instructions
@@ -243,18 +243,18 @@ Tests cover:
    - Security considerations
    - Troubleshooting
 
-2. **[AUTO_HEALING_QUICKSTART.md](docs/AUTO_HEALING_QUICKSTART.md)** (2,303 bytes)
+2. **[AUTO_HEALING_QUICKSTART.md](docs/features/auto-healing/AUTO_HEALING_QUICKSTART.md)** (2,303 bytes)
    - 5-minute setup guide
    - Step-by-step instructions
    - Testing verification
 
-3. **[MCP_AUTO_HEALING.md](docs/MCP_AUTO_HEALING.md)** (9,467 bytes)
+3. **[MCP_AUTO_HEALING.md](docs/features/auto-healing/MCP_AUTO_HEALING.md)** (9,467 bytes)
    - MCP tool error handling
    - JavaScript SDK error reporting
    - API documentation
    - Testing instructions
 
-4. **[AUTO_HEALING_IMPLEMENTATION_SUMMARY.md](docs/AUTO_HEALING_IMPLEMENTATION_SUMMARY.md)** (16,147 bytes)
+4. **[AUTO_HEALING_IMPLEMENTATION_SUMMARY.md](docs/ARCHIVE/implementation-summaries/AUTO_HEALING_IMPLEMENTATION_SUMMARY.md)** (16,147 bytes)
    - Technical implementation details
    - Code metrics
    - Performance analysis

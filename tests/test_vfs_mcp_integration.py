@@ -86,7 +86,7 @@ class MCPVFSIntegrationTest:
         """Test direct VFS import and basic functionality."""
         try:
             # Test direct VFS import
-            from ipfs_fsspec import get_vfs, vfs_mount, vfs_unmount, vfs_list_mounts
+            from ipfs_kit_py.ipfs_fsspec import get_vfs, vfs_mount, vfs_unmount, vfs_list_mounts
             
             # Test VFS registry
             vfs = get_vfs()
@@ -260,7 +260,7 @@ class MCPVFSIntegrationTest:
     async def test_vfs_file_operations(self):
         """Test VFS file operations."""
         try:
-            from ipfs_fsspec import vfs_write, vfs_read, vfs_ls, vfs_mkdir
+            from ipfs_kit_py.ipfs_fsspec import vfs_write, vfs_read, vfs_ls, vfs_mkdir
             
             # Test write operation
             test_content = "Hello from VFS integration test!"
@@ -299,7 +299,7 @@ class MCPVFSIntegrationTest:
     async def test_vfs_backend_functionality(self):
         """Test VFS backend functionality."""
         try:
-            from ipfs_fsspec import get_vfs
+            from ipfs_kit_py.ipfs_fsspec import get_vfs
             
             vfs = get_vfs()
             if vfs is None:
