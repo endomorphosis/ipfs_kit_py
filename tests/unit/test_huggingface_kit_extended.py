@@ -247,7 +247,7 @@ class TestHuggingFaceKitFileOperations:
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
     def test_download_file(self, hf_kit):
         """Test downloading a file."""
-        with patch('ipfs_kit_py.huggingface_kit.hf_hub_download') as mock_download:
+        with patch('huggingface_hub.hf_hub_download') as mock_download:
             mock_download.return_value = "/tmp/test_file.txt"
             
             if hasattr(hf_kit, 'download_file'):
@@ -270,9 +270,9 @@ class TestHuggingFaceKitFileOperations:
                     mock_upload.return_value = "https://huggingface.co/test_user/test_model/blob/main/test.txt"
                     
                     result = hf_kit.upload_file(
-                        path_or_fileobj=tmp_path,
-                        path_in_repo="test.txt",
-                        repo_id="test_user/test_model"
+                        repo_id="test_user/test_model",
+                        local_file=tmp_path,
+                        path_in_repo="test.txt"
                     )
                     assert isinstance(result, dict)
         finally:
@@ -386,9 +386,9 @@ class TestHuggingFaceKitIntegration:
                 try:
                     with patch.object(hf_kit.api, 'upload_file'):
                         upload_result = hf_kit.upload_file(
-                            path_or_fileobj=tmp_path,
-                            path_in_repo="test.txt",
-                            repo_id="test_user/new_repo"
+                            repo_id="test_user/new_repo",
+                            local_file=tmp_path,
+                            path_in_repo="test.txt"
                         )
                         assert isinstance(upload_result, dict)
                 finally:
