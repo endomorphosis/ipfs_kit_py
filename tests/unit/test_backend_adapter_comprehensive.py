@@ -46,17 +46,75 @@ class MockBackendAdapter(BackendAdapter):
         self.sync_pins_called = True
         return True
     
-    async def backup_pins(self):
-        """Mock backup pins implementation."""
-        return {'success': True, 'backed_up': 10}
-    
     async def backup_buckets(self):
         """Mock backup buckets implementation."""
-        return {'success': True, 'backed_up': 5}
+        return {'success': True, 'backed_up': 5, 'buckets': ['bucket1', 'bucket2']}
     
     async def backup_metadata(self):
         """Mock backup metadata implementation."""
-        return {'success': True, 'backed_up': 20}
+        return {'success': True, 'backed_up': 20, 'metadata_types': ['pins', 'config']}
+    
+    async def restore_pins(self, pin_list=None):
+        """Mock restore pins implementation."""
+        return True
+    
+    async def restore_buckets(self, bucket_list=None):
+        """Mock restore buckets implementation."""
+        return True
+    
+    async def restore_metadata(self):
+        """Mock restore metadata implementation."""
+        return True
+    
+    async def list_pins(self):
+        """Mock list pins implementation."""
+        return [
+            {
+                'cid': 'QmTest123',
+                'name': 'test_pin',
+                'size': 1024,
+                'created_at': '2024-01-01T00:00:00Z',
+                'metadata': {}
+            }
+        ]
+    
+    async def list_buckets(self):
+        """Mock list buckets implementation."""
+        return [
+            {
+                'bucket_name': 'test_bucket',
+                'backup_path': '/backups/test_bucket.tar',
+                'size': 2048,
+                'created_at': '2024-01-01T00:00:00Z',
+                'checksum': 'abc123'
+            }
+        ]
+    
+    async def list_metadata_backups(self):
+        """Mock list metadata backups implementation."""
+        return [
+            {
+                'backup_type': 'pin_metadata',
+                'backup_path': '/backups/metadata.db',
+                'size': 4096,
+                'created_at': '2024-01-01T00:00:00Z',
+                'checksum': 'def456'
+            }
+        ]
+    
+    async def cleanup_old_backups(self, retention_days=30):
+        """Mock cleanup old backups implementation."""
+        return True
+    
+    async def get_storage_usage(self):
+        """Mock get storage usage implementation."""
+        return {
+            'total_usage': 10240,
+            'pin_usage': 5120,
+            'bucket_backup_usage': 3072,
+            'metadata_backup_usage': 2048,
+            'available_space': 1000000
+        }
 
 
 class TestBackendAdapterInitialization(unittest.TestCase):
