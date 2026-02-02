@@ -482,9 +482,11 @@ class TestGitHubKitErrorHandling(unittest.TestCase):
     @patch('requests.get')
     def test_authentication_error(self, mock_get):
         """Test handling of authentication errors (401)."""
+        import requests
         mock_response = Mock()
         mock_response.status_code = 401
         mock_response.json.return_value = {"message": "Bad credentials"}
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("401 Unauthorized")
         mock_get.return_value = mock_response
         
         with self.assertRaises(Exception):
@@ -493,9 +495,11 @@ class TestGitHubKitErrorHandling(unittest.TestCase):
     @patch('requests.get')
     def test_not_found_error(self, mock_get):
         """Test handling of not found errors (404)."""
+        import requests
         mock_response = Mock()
         mock_response.status_code = 404
         mock_response.json.return_value = {"message": "Not Found"}
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found")
         mock_get.return_value = mock_response
         
         with self.assertRaises(Exception):
@@ -504,12 +508,14 @@ class TestGitHubKitErrorHandling(unittest.TestCase):
     @patch('requests.get')
     def test_rate_limit_error(self, mock_get):
         """Test handling of rate limit errors (403)."""
+        import requests
         mock_response = Mock()
         mock_response.status_code = 403
         mock_response.json.return_value = {
             "message": "API rate limit exceeded",
             "documentation_url": "https://docs.github.com"
         }
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("403 Forbidden")
         mock_get.return_value = mock_response
         
         with self.assertRaises(Exception):
@@ -518,9 +524,11 @@ class TestGitHubKitErrorHandling(unittest.TestCase):
     @patch('requests.get')
     def test_server_error(self, mock_get):
         """Test handling of server errors (500)."""
+        import requests
         mock_response = Mock()
         mock_response.status_code = 500
         mock_response.json.return_value = {"message": "Internal Server Error"}
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("500 Server Error")
         mock_get.return_value = mock_response
         
         with self.assertRaises(Exception):
@@ -529,9 +537,11 @@ class TestGitHubKitErrorHandling(unittest.TestCase):
     @patch('requests.get')
     def test_permission_denied(self, mock_get):
         """Test handling of permission errors (403 Forbidden)."""
+        import requests
         mock_response = Mock()
         mock_response.status_code = 403
         mock_response.json.return_value = {"message": "Forbidden"}
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("403 Forbidden")
         mock_get.return_value = mock_response
         
         with self.assertRaises(Exception):

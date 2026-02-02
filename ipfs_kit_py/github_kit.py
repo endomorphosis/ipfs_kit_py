@@ -96,10 +96,17 @@ class GitHubKit:
                 response = requests.post(url, headers=self.headers, json=data)
             elif method == 'PUT':
                 response = requests.put(url, headers=self.headers, json=data)
+            elif method == 'DELETE':
+                response = requests.delete(url, headers=self.headers)
             else:
                 raise ValueError(f"Unsupported method: {method}")
             
             response.raise_for_status()
+            
+            # Handle 204 No Content (no body)
+            if response.status_code == 204:
+                return {}
+            
             return response.json()
         
         except requests.exceptions.RequestException as e:
@@ -190,22 +197,29 @@ class GitHubKit:
         enhanced = repo.copy()
         
         # VFS bucket mapping
+        owner_login = repo.get('owner', {}).get('login', 'unknown') if isinstance(repo.get('owner'), dict) else repo.get('owner', 'unknown')
+        repo_name = repo.get('name', 'unknown')
         enhanced['vfs'] = {
-            'bucket_name': f"{repo['owner']['login']}/{repo['name']}",
-            'peer_id': repo['owner']['login'],  # Username as peerID for local forks
+            'bucket_name': f"{owner_login}/{repo_name}",
+            'peer_id': owner_login,  # Username as peerID for local forks
             'bucket_type': self._classify_repository(repo),
             'is_fork': repo.get('fork', False),
             'original_repo': repo.get('parent', {}).get('full_name') if repo.get('fork') else None,
             'ipfs_compatible': True,
             'storage_backend': 'github',
-            'local_cache_path': str(self.cache_dir / repo['owner']['login'] / repo['name']),
-            'clone_url': repo['clone_url'],
-            'ssh_url': repo['ssh_url'],
+            'local_cache_path': str(self.cache_dir / owner_login / repo_name),
+            'clone_url': repo.get('clone_url', ''),
+            'ssh_url': repo.get('ssh_url', ''),
             'size_mb': round(repo.get('size', 0) / 1024, 2)  # Convert KB to MB
         }
         
         # Add content classification for datasets/models
         enhanced['vfs']['content_labels'] = self._classify_content(repo)
+        
+        # Add VFS bucket ID and labels at root level for compatibility
+        enhanced['vfs_bucket_id'] = f"{owner_login}/{repo_name}"
+        enhanced['vfs_peer_id'] = owner_login
+        enhanced['vfs_labels'] = enhanced['vfs']['content_labels']
         
         return enhanced
     
@@ -685,9 +699,9 @@ class GitHubKit:
         
         # Create reproducible hash from key repository attributes
         repo_data = {
-            'full_name': repo_info['full_name'],
-            'created_at': repo_info['created_at'],
-            'updated_at': repo_info['updated_at'],
+            'full_name': repo_info.get('full_name', 'unknown'),
+            'created_at': repo_info.get('created_at', ''),
+            'updated_at': repo_info.get('updated_at', ''),
             'default_branch': repo_info.get('default_branch', 'main'),
             'language': repo_info.get('language'),
             'size': repo_info.get('size', 0)
@@ -698,7 +712,7 @@ class GitHubKit:
     
     def _detect_repo_content_type(self, repo_info: Dict[str, Any]) -> str:
         """Detect the type of content in the repository for VFS labeling."""
-        name = repo_info['name'].lower()
+        name = repo_info.get('name', '').lower()
         description = (repo_info.get('description') or '').lower()
         topics = [topic.lower() for topic in repo_info.get('topics', [])]
         language = (repo_info.get('language') or '').lower()
