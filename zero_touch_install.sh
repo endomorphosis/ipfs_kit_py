@@ -634,6 +634,21 @@ PY
     if [[ $rc -ne 0 ]]; then
       err "WARNING: IPFS/Kubo install failed; continuing"
     fi
+
+    # Initialize a project-local repo so IPFS CLI commands don't error out with
+    # "no IPFS repo found". This does NOT start a daemon and never touches ~/.ipfs.
+    if have_cmd ipfs; then
+      if [[ ! -f "${IPFS_REPO_DIR}/config" ]]; then
+        log "Initializing project-local IPFS repo at ${IPFS_REPO_DIR}"
+        set +e
+        IPFS_PATH="${IPFS_REPO_DIR}" ipfs init >/dev/null 2>&1
+        local init_rc=$?
+        set -e
+        if [[ $init_rc -ne 0 ]]; then
+          err "WARNING: ipfs init failed (repo may need manual init): IPFS_PATH=${IPFS_REPO_DIR} ipfs init"
+        fi
+      fi
+    fi
   fi
 
   if [[ "$do_lassie" == "yes" ]]; then

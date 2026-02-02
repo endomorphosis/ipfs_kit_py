@@ -620,8 +620,9 @@ def get_ipfs_cluster_service():
     return modules.get('ipfs_cluster_service') if modules else None
 
 def get_ipfs_kit():
-    modules = _get_ipfs_modules()
-    return modules.get('ipfs_kit') if modules else None
+    # Backwards-compatible accessor for the IPFSKit orchestrator.
+    # Returns a lazy proxy that loads the real class on demand.
+    return ipfs_kit
 
 def get_ipfs_multiformats_py():
     modules = _get_ipfs_modules()
@@ -632,8 +633,51 @@ ipfs_py = None
 ipfs_cluster_ctl = None
 ipfs_cluster_follow = None
 ipfs_cluster_service = None
-ipfs_kit = None
 ipfs_multiformats_py = None
+
+
+class _LazyCallableProxy:
+    """Lazy callable proxy that defers importing heavy modules.
+
+    Behaves like the underlying object for attribute access, and forwards calls.
+    """
+
+    def __init__(self, name: str, loader):
+        self._name = name
+        self._loader = loader
+        self._target = None
+
+    def _load(self):
+        if self._target is None:
+            self._target = self._loader()
+        return self._target
+
+    def __call__(self, *args, **kwargs):  # noqa: ANN002, ANN003
+        return self._load()(*args, **kwargs)
+
+    def __getattr__(self, item):  # noqa: ANN001
+        return getattr(self._load(), item)
+
+    def __dir__(self):
+        try:
+            return sorted(set(dir(self._load())))
+        except Exception:
+            return []
+
+    def __repr__(self) -> str:
+        return f"<_LazyCallableProxy {self._name}>"
+
+
+def _load_ipfs_kit_class():
+    from .ipfs_kit import ipfs_kit as _ipfs_kit_class
+
+    return _ipfs_kit_class
+
+
+# Backward compatibility: historically `ipfs_kit_py.ipfs_kit` was the class.
+# Keep it callable + attribute-accessible without importing the heavy module
+# until first use.
+ipfs_kit = _LazyCallableProxy("ipfs_kit_py.ipfs_kit", _load_ipfs_kit_class)
 
 # Import storage kit modules using JIT
 @optional_feature('storage_kits', fallback_result=(None, None, None, False, None, False))

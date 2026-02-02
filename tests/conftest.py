@@ -17,12 +17,146 @@ import inspect
 import os
 import signal
 import sys
+import shutil
 from contextlib import suppress
 from pathlib import Path
+import subprocess
+import time
 import pytest
 import aiohttp
+import json
+import socket
 
 collect_ignore = ["unit/test_graphrag_features.py"]
+
+
+_IPFS_DAEMON_PROC: subprocess.Popen | None = None
+
+
+def _ensure_project_ipfs_path() -> Path:
+    """Force a project-local IPFS_PATH so tests never touch ~/.ipfs."""
+    repo_root = Path(__file__).resolve().parents[1]
+    ipfs_repo = Path(os.environ.get("IPFS_PATH", "") or (repo_root / ".cache" / "ipfs-repo"))
+    # If env var was relative, anchor it in repo_root for stability.
+    if not ipfs_repo.is_absolute():
+        ipfs_repo = (repo_root / ipfs_repo).resolve()
+    ipfs_repo.mkdir(parents=True, exist_ok=True)
+    os.environ["IPFS_PATH"] = str(ipfs_repo)
+    return ipfs_repo
+
+
+def _ensure_ipfs_repo_initialized(ipfs_repo: Path) -> None:
+    if (ipfs_repo / "config").exists():
+        return
+    if not shutil.which("ipfs"):
+        return
+    env = os.environ.copy()
+    env["IPFS_PATH"] = str(ipfs_repo)
+    subprocess.run(["ipfs", "init"], env=env, check=True, capture_output=True, text=True)
+
+
+def _pick_free_local_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return int(s.getsockname()[1])
+
+
+def _configure_ipfs_repo_ports(ipfs_repo: Path) -> None:
+    """Avoid port collisions with any already-running daemon.
+
+    Kubo defaults to binding API on 127.0.0.1:5001 and Gateway on 8080.
+    In shared environments that may already be taken.
+    """
+    config_path = ipfs_repo / "config"
+    if not config_path.exists():
+        return
+
+    try:
+        cfg = json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        return
+
+    addresses = cfg.get("Addresses") or {}
+    api_addr = addresses.get("API")
+    gw_addr = addresses.get("Gateway")
+
+    # Only rewrite if using the default ports.
+    changed = False
+    if isinstance(api_addr, str) and api_addr.endswith("/tcp/5001"):
+        addresses["API"] = f"/ip4/127.0.0.1/tcp/{_pick_free_local_port()}"
+        changed = True
+    if isinstance(gw_addr, str) and gw_addr.endswith("/tcp/8080"):
+        addresses["Gateway"] = f"/ip4/127.0.0.1/tcp/{_pick_free_local_port()}"
+        changed = True
+
+    if not changed:
+        return
+
+    cfg["Addresses"] = addresses
+    config_path.write_text(json.dumps(cfg, indent=2, sort_keys=True), encoding="utf-8")
+
+    # Remove any stale api file so the daemon rewrites it.
+    api_file = ipfs_repo / "api"
+    if api_file.exists():
+        with suppress(Exception):
+            api_file.unlink()
+
+
+def _ensure_ipfs_daemon_running(ipfs_repo: Path) -> None:
+    global _IPFS_DAEMON_PROC
+
+    if not shutil.which("ipfs"):
+        return
+
+    env = os.environ.copy()
+    env["IPFS_PATH"] = str(ipfs_repo)
+
+    # Fast-path: already running (use a daemon-only command).
+    try:
+        res = subprocess.run(
+            ["ipfs", "swarm", "peers"],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if res.returncode == 0:
+            return
+    except Exception:
+        pass
+
+    cache_dir = (Path(__file__).resolve().parents[1] / ".cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    log_path = cache_dir / "ipfs-daemon.log"
+    log_f = open(log_path, "ab", buffering=0)
+
+    _IPFS_DAEMON_PROC = subprocess.Popen(
+        ["ipfs", "daemon"],
+        env=env,
+        stdout=log_f,
+        stderr=log_f,
+        start_new_session=True,
+    )
+
+    deadline = time.time() + 30
+    last_err = ""
+    while time.time() < deadline:
+        try:
+            res = subprocess.run(
+                ["ipfs", "swarm", "peers"],
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            if res.returncode == 0:
+                return
+            last_err = (res.stderr or res.stdout or "").strip()
+        except Exception as e:
+            last_err = str(e)
+        time.sleep(0.25)
+
+    raise RuntimeError(f"IPFS daemon did not become ready in time. Last error: {last_err}. Log: {log_path}")
 
 
 def _prepend_zero_touch_bin() -> None:
@@ -165,6 +299,33 @@ def pytest_sessionstart(session):  # noqa: ANN001
     ):
         with suppress(Exception):
             __import__(mod_name)
+
+    # Integration tests expect a working `ipfs` CLI and daemon. Make this
+    # best-effort and fully project-local (never ~/.ipfs).
+    try:
+        ipfs_repo = _ensure_project_ipfs_path()
+        _ensure_ipfs_repo_initialized(ipfs_repo)
+        _configure_ipfs_repo_ports(ipfs_repo)
+        _ensure_ipfs_daemon_running(ipfs_repo)
+    except Exception as e:
+        # Don't hard-fail the whole suite; tests that require IPFS will fail
+        # with clearer messages, and others can still run.
+        logger = __import__("logging").getLogger(__name__)
+        logger.warning(f"IPFS test bootstrap failed: {e}")
+
+
+def pytest_sessionfinish(session, exitstatus):  # noqa: ANN001
+    global _IPFS_DAEMON_PROC
+    proc = _IPFS_DAEMON_PROC
+    if proc is None:
+        return
+    _IPFS_DAEMON_PROC = None
+    try:
+        proc.terminate()
+        proc.wait(timeout=10)
+    except Exception:
+        with suppress(Exception):
+            proc.kill()
 
 
 @pytest.hookimpl(tryfirst=True)
