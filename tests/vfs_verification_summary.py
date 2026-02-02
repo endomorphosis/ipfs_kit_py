@@ -173,27 +173,27 @@ def generate_usage_examples():
     examples = {
         "Mount IPFS content": '''
 # Mount IPFS content to VFS
-from ipfs_fsspec import vfs_mount
+from ipfs_kit_py.ipfs_fsspec import vfs_mount
 result = await vfs_mount("/ipfs/QmHash", "/my-mount", read_only=True)
 ''',
         "Read file through VFS": '''
 # Read file through VFS
-from ipfs_fsspec import vfs_read
+from ipfs_kit_py.ipfs_fsspec import vfs_read
 content = await vfs_read("/my-mount/file.txt")
 ''',
         "Write file through VFS": '''
 # Write file through VFS
-from ipfs_fsspec import vfs_write
+from ipfs_kit_py.ipfs_fsspec import vfs_write
 result = await vfs_write("/my-mount/new-file.txt", "Hello World!")
 ''',
         "List VFS directory": '''
 # List directory contents
-from ipfs_fsspec import vfs_ls
+from ipfs_kit_py.ipfs_fsspec import vfs_ls
 files = await vfs_ls("/my-mount", detailed=True)
 ''',
         "Replicate files": '''
 # Set up replication policy
-from ipfs_fsspec import vfs_add_replication_policy
+from ipfs_kit_py.ipfs_fsspec import vfs_add_replication_policy
 await vfs_add_replication_policy("*.important", ["local", "ipfs"], min_replicas=2)
 ''',
         "MCP Server VFS call": '''

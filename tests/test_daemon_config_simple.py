@@ -40,7 +40,7 @@ def test_enhanced_server():
     print("🧪 Testing enhanced server with configuration...")
     
     try:
-        from enhanced_mcp_server_with_config import EnhancedMCPServerWithConfig
+        from ipfs_kit_py.mcp.enhanced_mcp_server_with_config import EnhancedMCPServerWithConfig
         
         server = EnhancedMCPServerWithConfig()
         print("✅ EnhancedMCPServerWithConfig imported and instantiated successfully")

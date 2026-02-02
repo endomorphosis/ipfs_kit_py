@@ -22,7 +22,7 @@ sys.path.insert(0, str(project_root / "mcp" / "ipfs_kit" / "mcp"))
 pytestmark = pytest.mark.anyio
 
 try:  # pragma: no cover - import guard
-    from enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+    from ipfs_kit_py.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
 except ImportError as e:  # Skip instead of exiting test run
     pytest.skip(f"Enhanced MCP server not available: {e}", allow_module_level=True)
 

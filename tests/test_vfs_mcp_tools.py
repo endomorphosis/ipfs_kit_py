@@ -123,7 +123,7 @@ def test_vfs_core_integration():
     print("\n🔌 Testing VFS Core Integration")
     print("-" * 40)
     
-    import ipfs_fsspec
+    import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
     if not hasattr(ipfs_fsspec, "get_vfs"):
         pytest.skip("ipfs_fsspec.get_vfs not available")
 
@@ -156,7 +156,7 @@ async def test_vfs_async_functions():
     print("\n⚡ Testing VFS Async Functions")
     print("-" * 40)
     
-    import ipfs_fsspec
+    import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
     required = [
         "vfs_mount", "vfs_unmount", "vfs_list_mounts", "vfs_read", "vfs_write",
         "vfs_ls", "vfs_stat", "vfs_mkdir", "vfs_rmdir", "vfs_copy", "vfs_move",
@@ -226,7 +226,7 @@ def test_vfs_backend_support():
     print("\n🔧 Testing VFS Backend Support")
     print("-" * 40)
     
-    import ipfs_fsspec
+    import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
     if not hasattr(ipfs_fsspec, "VFSBackendRegistry"):
         pytest.skip("ipfs_fsspec.VFSBackendRegistry not available")
 

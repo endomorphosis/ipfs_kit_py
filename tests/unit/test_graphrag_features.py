@@ -30,7 +30,7 @@ def test_text_search_not_implemented():
     test_code = textwrap.dedent("""
         import sys
         sys.path.insert(0, 'mcp')
-        from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
+        from ipfs_kit_py.mcp.enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
         
         engine = GraphRAGSearchEngine()
         try:
@@ -104,7 +104,7 @@ def test_basic_server():
         test_code = textwrap.dedent("""
             import sys
             sys.path.insert(0, 'mcp')
-            from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
+            from ipfs_kit_py.mcp.enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
             try:
                 engine = GraphRAGSearchEngine()
                 stats = engine.get_search_stats()
@@ -128,7 +128,7 @@ def test_basic_server():
             import sys
             import anyio
             sys.path.insert(0, 'mcp')
-            from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
+            from ipfs_kit_py.mcp.enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
 
             async def test_indexing():
                 engine = GraphRAGSearchEngine()
@@ -159,7 +159,7 @@ def test_basic_server():
             import sys
             import anyio
             sys.path.insert(0, 'mcp')
-            from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
+            from ipfs_kit_py.mcp.enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
 
             async def test_search():
                 engine = GraphRAGSearchEngine()
@@ -209,7 +209,7 @@ def check_capabilities():
     test_code = """
 import sys
 sys.path.insert(0, 'mcp')
-from enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
+from ipfs_kit_py.mcp.enhanced_mcp_server_with_daemon_mgmt import GraphRAGSearchEngine
 
 engine = GraphRAGSearchEngine()
 stats = engine.get_search_stats()

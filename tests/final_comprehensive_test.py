@@ -421,7 +421,7 @@ def test_daemon_configuration_integration() -> bool:
             logger.warning("⚠ Some daemon configurations have issues")
             
         # Test enhanced MCP server
-        from enhanced_mcp_server_with_config import EnhancedMCPServerWithConfig
+        from ipfs_kit_py.mcp.enhanced_mcp_server_with_config import EnhancedMCPServerWithConfig
         server = EnhancedMCPServerWithConfig()
         logger.info("✓ Enhanced MCP server with configuration management imported")
         

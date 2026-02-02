@@ -172,11 +172,11 @@ async def test_vfs_system_direct():
         print("1. Testing VFS system import...")
         
         try:
-            from ipfs_fsspec import HAS_VFS
+            from ipfs_kit_py.ipfs_fsspec import HAS_VFS
             print(f"   VFS system available: {HAS_VFS}")
             
             if HAS_VFS:
-                from ipfs_fsspec import (
+                from ipfs_kit_py.ipfs_fsspec import (
                     vfs_list_mounts, vfs_mkdir, vfs_write, vfs_read, vfs_ls
                 )
                 print("   ✓ VFS functions imported successfully")

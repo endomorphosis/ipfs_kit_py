@@ -109,7 +109,7 @@ Features:
     
     # Import and initialize dashboard
     try:
-        from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
+        from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
         
         config = {
             'host': args.host,

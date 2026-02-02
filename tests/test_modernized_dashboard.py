@@ -80,7 +80,7 @@ class TestLightInitialization:
         assert hasattr(dashboard, 'component_status') or True  # Component exists in implementation
         
         # All components should have boolean availability status
-        from modernized_comprehensive_dashboard import IPFS_AVAILABLE, BUCKET_MANAGER_AVAILABLE, PSUTIL_AVAILABLE, YAML_AVAILABLE
+        from ipfs_kit_py.dashboard.modernized_comprehensive_dashboard import IPFS_AVAILABLE, BUCKET_MANAGER_AVAILABLE, PSUTIL_AVAILABLE, YAML_AVAILABLE
         assert isinstance(IPFS_AVAILABLE, bool)
         assert isinstance(BUCKET_MANAGER_AVAILABLE, bool)
         assert isinstance(PSUTIL_AVAILABLE, bool)

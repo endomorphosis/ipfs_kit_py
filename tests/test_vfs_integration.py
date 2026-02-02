@@ -19,7 +19,7 @@ def test_vfs_integration():
     
     # First, let's test the VFS system directly
     try:
-        from ipfs_fsspec import get_vfs, vfs_mount, vfs_list_mounts, vfs_write, vfs_read
+        from ipfs_kit_py.ipfs_fsspec import get_vfs, vfs_mount, vfs_list_mounts, vfs_write, vfs_read
         print("✓ VFS system imported successfully")
         
         # Test basic VFS operations
