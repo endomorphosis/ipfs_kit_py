@@ -8,23 +8,22 @@ import os
 from pathlib import Path
 import pytest
 
-# Add paths
-sys.path.insert(0, '/home/devel/ipfs_kit_py')
-sys.path.insert(0, '/home/devel/ipfs_kit_py/ipfs_kit_py')
-
 def test_cli_dashboard_import():
     """Test that CLI can import the correct dashboard."""
     print("🧪 Testing CLI dashboard import resolution...")
 
-    repo_hint = Path('/home/devel/ipfs_kit_py')
-    if not repo_hint.exists():
-        pytest.skip("CLI import verification requires /home/devel/ipfs_kit_py layout")
+    # Prefer the current workspace layout instead of a hardcoded path.
+    repo_root = Path(__file__).resolve().parents[1]
+    pkg_root = repo_root / "ipfs_kit_py"
+    mcp_pkg = pkg_root / "mcp"
+
+    if not mcp_pkg.exists():
+        pytest.skip("CLI import verification requires ipfs_kit_py/mcp in workspace")
     
     # Simulate CLI import logic
     try:
         # Test direct import from mcp directory (as updated in CLI)
-        mcp_dir = '/home/devel/ipfs_kit_py/ipfs_kit_py/mcp'
-        sys.path.insert(0, mcp_dir)
+        sys.path.insert(0, str(mcp_pkg))
         from refactored_unified_dashboard import RefactoredUnifiedMCPDashboard
         dashboard_class = RefactoredUnifiedMCPDashboard
         print("✅ CLI can import RefactoredUnifiedMCPDashboard")
@@ -65,7 +64,7 @@ def test_cli_dashboard_import():
         
         # Test fallback
         try:
-            sys.path.insert(0, '/home/devel/ipfs_kit_py/ipfs_kit_py')
+            sys.path.insert(0, str(pkg_root))
             from unified_mcp_dashboard import UnifiedMCPDashboard
             print("⚠️  Would fall back to original dashboard (migration notice)")
             pytest.skip("Refactored dashboard not importable in this environment")

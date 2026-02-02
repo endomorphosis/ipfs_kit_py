@@ -328,6 +328,26 @@ def pytest_sessionfinish(session, exitstatus):  # noqa: ANN001
             proc.kill()
 
 
+@pytest.fixture(autouse=True)
+def _ensure_ipfs_daemon_for_mcp_verification(request):  # noqa: ANN001
+    """Some tests assume an IPFS daemon is online.
+
+    A few integration tests (notably `tests/test_mcp_tools_verification.py`) use
+    the `ipfs` CLI directly and will fail if a previous test stopped the daemon.
+    Ensure the daemon is up for those tests only.
+    """
+    path = str(getattr(request, "fspath", "") or getattr(request, "path", ""))
+    if not path.endswith("test_mcp_tools_verification.py"):
+        yield
+        return
+
+    ipfs_repo = _ensure_project_ipfs_path()
+    _ensure_ipfs_repo_initialized(ipfs_repo)
+    _configure_ipfs_repo_ports(ipfs_repo)
+    _ensure_ipfs_daemon_running(ipfs_repo)
+    yield
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_pyfunc_call(pyfuncitem):  # noqa: ANN001
     func = getattr(pyfuncitem, "obj", None)
