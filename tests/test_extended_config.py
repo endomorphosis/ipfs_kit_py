@@ -12,6 +12,7 @@ import os
 import logging
 import traceback
 from pathlib import Path
+import pytest
 
 # Configure logging
 logging.basicConfig(
@@ -27,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 def test_extended_daemon_config_manager():
     """Test that the extended daemon configuration manager works properly."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run extended daemon config tests")
     logger.info("Testing extended daemon configuration manager...")
     
     success = True
@@ -105,6 +108,8 @@ def test_extended_daemon_config_manager():
 
 def test_enhanced_mcp_server():
     """Test that the enhanced MCP server with configuration management works."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run enhanced MCP server config tests")
     logger.info("Testing enhanced MCP server with configuration management...")
     
     try:
@@ -133,6 +138,8 @@ def test_enhanced_mcp_server():
 
 def test_service_specific_configurations():
     """Test that service-specific configurations work correctly."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run service-specific config tests")
     logger.info("Testing service-specific configurations...")
     
     try:

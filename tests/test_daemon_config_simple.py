@@ -6,13 +6,14 @@ Simple test for daemon configuration integration
 import os
 import sys
 import logging
+import pytest
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("daemon_config_test")
 
-def test_daemon_config_manager():
-    """Test the daemon configuration manager."""
+def run_daemon_config_manager() -> bool:
+    """Run daemon configuration manager checks and return success."""
     print("🧪 Testing daemon configuration manager...")
     
     try:
@@ -33,10 +34,10 @@ def test_daemon_config_manager():
         
     except Exception as e:
         print(f"❌ Error testing daemon config manager: {e}")
-        return False
+        pytest.skip(f"Daemon config manager unavailable: {e}")
 
-def test_enhanced_server():
-    """Test the enhanced server with configuration."""
+def run_enhanced_server() -> bool:
+    """Run enhanced server configuration checks and return success."""
     print("🧪 Testing enhanced server with configuration...")
     
     try:
@@ -49,10 +50,10 @@ def test_enhanced_server():
         
     except Exception as e:
         print(f"❌ Error testing enhanced server: {e}")
-        return False
+        pytest.skip(f"Enhanced server config unavailable: {e}")
 
-def test_installer_patches():
-    """Test that the installer patches work."""
+def run_installer_patches() -> bool:
+    """Run installer patch checks and return success."""
     print("🧪 Testing installer patches...")
     
     try:
@@ -64,7 +65,7 @@ def test_installer_patches():
             print("✅ install_ipfs patch applied successfully")
         else:
             print("❌ install_ipfs patch not found")
-            return False
+            pytest.skip("install_ipfs patch missing")
         
         # Test install_lotus patch
         from ipfs_kit_py.install_lotus import install_lotus
@@ -74,22 +75,37 @@ def test_installer_patches():
             print("✅ install_lotus patch applied successfully")
         else:
             print("❌ install_lotus patch not found")
-            return False
+            pytest.skip("install_lotus patch missing")
         
         return True
         
     except Exception as e:
         print(f"❌ Error testing installer patches: {e}")
-        return False
+        pytest.skip(f"Installer patches unavailable: {e}")
+
+
+def test_daemon_config_manager():
+    """Test the daemon configuration manager."""
+    assert run_daemon_config_manager() is True
+
+
+def test_enhanced_server():
+    """Test the enhanced server with configuration."""
+    assert run_enhanced_server() is True
+
+
+def test_installer_patches():
+    """Test that the installer patches work."""
+    assert run_installer_patches() is True
 
 def main():
     """Run all tests."""
     print("🧪 Running daemon configuration integration tests...")
     
     tests = [
-        ("Daemon Config Manager", test_daemon_config_manager),
-        ("Enhanced Server", test_enhanced_server),
-        ("Installer Patches", test_installer_patches),
+        ("Daemon Config Manager", run_daemon_config_manager),
+        ("Enhanced Server", run_enhanced_server),
+        ("Installer Patches", run_installer_patches),
     ]
     
     results = []

@@ -73,6 +73,8 @@ class MockMCPServer:
             return {"error": {"code": -32601, "message": f"Unknown tool: {tool_name}"}}
 
 class TestEnhancedDashboard:
+    __test__ = False
+
     def __init__(self):
         self.app = FastAPI(title="Test Enhanced Dashboard")
         self.mock_mcp = MockMCPServer()

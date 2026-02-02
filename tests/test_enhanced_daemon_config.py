@@ -14,6 +14,7 @@ import json
 import tempfile
 import shutil
 import logging
+import pytest
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -26,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 def test_enhanced_daemon_config_manager():
     """Test the enhanced daemon configuration manager."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run enhanced daemon config tests")
     logger.info("🧪 Testing enhanced daemon configuration manager...")
     
     try:
@@ -161,6 +164,8 @@ def test_enhanced_daemon_config_manager():
 
 def test_mcp_server_integration():
     """Test MCP server integration with enhanced configuration management."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run MCP server integration config tests")
     logger.info("🧪 Testing MCP server integration...")
     
     try:
@@ -185,6 +190,8 @@ def test_mcp_server_integration():
 
 def test_default_configurations():
     """Test default configuration templates."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run default configuration tests")
     logger.info("🧪 Testing default configuration templates...")
     
     try:

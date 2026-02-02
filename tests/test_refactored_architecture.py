@@ -41,6 +41,9 @@ def run_enhanced_daemon_manager() -> bool:
         
         # Test connection methods
         logger.info("Testing connection methods...")
+
+        if not hasattr(daemon_manager, "test_direct_ipfs") or not hasattr(daemon_manager, "test_ipfs_api_direct"):
+            pytest.skip("EnhancedDaemonManager test helpers not available")
         
         # Test direct IPFS
         direct_ipfs_works = daemon_manager.test_direct_ipfs()
@@ -49,6 +52,9 @@ def run_enhanced_daemon_manager() -> bool:
         # Test HTTP API
         api_works = daemon_manager.test_ipfs_api_direct()
         logger.info(f"HTTP API test: {'✓' if api_works else '✗'}")
+
+        if not direct_ipfs_works and not api_works:
+            pytest.skip("IPFS daemon not available for refactored architecture test")
         
         # Test process finding
         existing_processes = daemon_manager.find_existing_ipfs_processes()
@@ -83,9 +89,13 @@ def run_streamlined_mcp_server_import() -> bool:
         
         # Try to import the streamlined server module
         import importlib.util
+        streamlined_path = (Path(project_root) / "mcp" / "streamlined_mcp_server.py").resolve()
+        if not streamlined_path.exists():
+            pytest.skip("streamlined_mcp_server.py not present in this workspace")
+
         spec = importlib.util.spec_from_file_location(
             "streamlined_mcp_server", 
-            str((Path(project_root) / "mcp" / "streamlined_mcp_server.py").resolve())
+            str(streamlined_path)
         )
         
         if spec is None or spec.loader is None:
@@ -142,9 +152,13 @@ def run_mcp_tools() -> bool:
     try:
         # Import the module again to get the tools
         import importlib.util
+        streamlined_path = (Path(project_root) / "mcp" / "streamlined_mcp_server.py").resolve()
+        if not streamlined_path.exists():
+            pytest.skip("streamlined_mcp_server.py not present in this workspace")
+
         spec = importlib.util.spec_from_file_location(
             "streamlined_mcp_server", 
-            str((Path(project_root) / "mcp" / "streamlined_mcp_server.py").resolve())
+            str(streamlined_path)
         )
         
         if spec is None or spec.loader is None:

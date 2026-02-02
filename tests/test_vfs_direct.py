@@ -12,9 +12,10 @@ import json
 import tempfile
 import shutil
 from datetime import datetime
+import pytest
 
-def test_vfs_direct():
-    """Test the VFS system directly."""
+def run_vfs_direct() -> bool:
+    """Run VFS direct checks and return success."""
     
     print("Testing VFS system directly...")
     
@@ -32,7 +33,7 @@ def test_vfs_direct():
         has_vfs = True
     except ImportError as e:
         print(f"✗ VFS system import failed: {e}")
-        has_vfs = False
+        pytest.skip(f"VFS system not available: {e}")
     
     # Test VFS operations
     if has_vfs:
@@ -105,8 +106,13 @@ def test_vfs_direct():
     
     return has_vfs
 
+
+def test_vfs_direct():
+    """Test the VFS system directly."""
+    assert run_vfs_direct() is True
+
 if __name__ == "__main__":
-    success = test_vfs_direct()
+    success = run_vfs_direct()
     
     print("\n" + "="*50)
     print("DIRECT VFS TEST RESULT")

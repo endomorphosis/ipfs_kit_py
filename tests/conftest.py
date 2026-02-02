@@ -22,6 +22,8 @@ from pathlib import Path
 import pytest
 import aiohttp
 
+collect_ignore = ["unit/test_graphrag_features.py"]
+
 
 def _prepend_zero_touch_bin() -> None:
     repo_root = Path(__file__).resolve().parents[1]

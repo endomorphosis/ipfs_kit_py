@@ -6,6 +6,8 @@ import subprocess
 import time
 import logging
 import os
+import shutil
+import pytest
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -13,22 +15,30 @@ logger = logging.getLogger("test")
 
 def test_direct_ipfs():
     """Test if IPFS commands work directly."""
+    if shutil.which("ipfs") is None:
+        pytest.skip("ipfs CLI not available in this environment")
     try:
         result = subprocess.run(['ipfs', 'id'], capture_output=True, text=True, timeout=5)
-        return result.returncode == 0
+        if result.returncode != 0:
+            pytest.skip("ipfs daemon not responding to 'ipfs id'")
+        assert result.returncode == 0
     except Exception as e:
         logger.debug(f"Direct IPFS test failed: {e}")
-        return False
+        pytest.skip(f"Direct IPFS test failed: {e}")
 
 def test_ipfs_api_direct():
     """Test if IPFS API is accessible directly via HTTP."""
+    if shutil.which("ipfs") is None:
+        pytest.skip("ipfs CLI not available in this environment")
     try:
         import requests
         response = requests.get('http://localhost:5001/api/v0/id', timeout=3)
-        return response.status_code == 200
+        if response.status_code != 200:
+            pytest.skip("IPFS API not reachable")
+        assert response.status_code == 200
     except Exception as e:
         logger.debug(f"Direct API test failed: {e}")
-        return False
+        pytest.skip(f"Direct API test failed: {e}")
 
 def find_existing_ipfs_processes():
     """Find existing IPFS daemon processes."""

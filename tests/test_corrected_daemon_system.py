@@ -13,6 +13,7 @@ import json
 import logging
 import tempfile
 import time
+import os
 from pathlib import Path
 import pytest
 
@@ -23,8 +24,14 @@ logger = logging.getLogger(__name__)
 pytestmark = pytest.mark.anyio
 
 
+def _skip_long_integration():
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run corrected daemon system tests")
+
+
 def test_backend_manager():
     """Test the enhanced backend manager with existing backend integrations."""
+    _skip_long_integration()
     logger.info("Testing enhanced backend manager...")
     
     try:
@@ -86,6 +93,7 @@ def test_backend_manager():
 
 async def test_s3_adapter_health():
     """Test S3 adapter health check (will likely fail without real credentials)."""
+    _skip_long_integration()
     logger.info("Testing S3 adapter health check...")
     
     try:
@@ -125,6 +133,7 @@ async def test_s3_adapter_health():
 
 async def test_backend_manager_operations():
     """Test backend manager health check operations."""
+    _skip_long_integration()
     logger.info("Testing backend manager operations...")
     
     try:
@@ -173,6 +182,7 @@ async def test_backend_manager_operations():
 
 def test_intelligent_daemon_integration():
     """Test intelligent daemon manager integration with backend manager."""
+    _skip_long_integration()
     logger.info("Testing intelligent daemon manager integration...")
     
     try:

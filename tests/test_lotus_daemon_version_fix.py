@@ -9,6 +9,7 @@ flag compatibility logic is working correctly.
 import sys
 import os
 import logging
+import pytest
 
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -22,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 def test_lotus_version_detection():
     """Test the Lotus version detection and compatibility logic."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run Lotus version tests")
     print("=" * 60)
     print("Testing Lotus Daemon Version Fix")
     print("=" * 60)
@@ -94,6 +97,8 @@ def test_lotus_version_detection():
 
 def test_integration_with_ipfs_kit():
     """Test that the fix works with the full IPFS Kit integration."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run Lotus integration tests")
     print("\n" + "=" * 60)
     print("Testing Integration with IPFS Kit")
     print("=" * 60)

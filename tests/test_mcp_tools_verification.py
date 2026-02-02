@@ -11,9 +11,17 @@ import subprocess
 import tempfile
 import time
 import os
+import shutil
+import pytest
+
+
+def _ensure_ipfs_available():
+    if shutil.which("ipfs") is None:
+        pytest.skip("ipfs CLI not available in this environment")
 
 def run_ipfs_add_real() -> bool:
     """Run ipfs_add verification and return success."""
+    _ensure_ipfs_available()
     # Create test content
     test_content = f"Test content for verification {time.time()}"
     
@@ -58,6 +66,7 @@ def run_ipfs_add_real() -> bool:
 
 def run_ipfs_version_real() -> bool:
     """Run ipfs_version verification and return success."""
+    _ensure_ipfs_available()
     try:
         # Get version via direct command
         result = subprocess.run(['ipfs', 'version'], 
@@ -83,6 +92,7 @@ def run_ipfs_version_real() -> bool:
 
 def run_ipfs_id_real() -> bool:
     """Run ipfs_id verification and return success."""
+    _ensure_ipfs_available()
     try:
         # Get ID via direct command
         result = subprocess.run(['ipfs', 'id'], 
@@ -108,6 +118,7 @@ def run_ipfs_id_real() -> bool:
 
 def run_daemon_running() -> bool:
     """Verify IPFS daemon is actually running and return success."""
+    _ensure_ipfs_available()
     try:
         result = subprocess.run(['ipfs', 'swarm', 'peers'], 
                               capture_output=True, text=True, timeout=10)

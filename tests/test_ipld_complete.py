@@ -4,8 +4,10 @@ Complete test of IPLD functionality in ipfs_kit_py
 Tests all IPLD packages including the GitHub py-ipld-unixfs package
 """
 
-def test_ipld_imports():
-    """Test that all IPLD packages can be imported successfully."""
+import pytest
+
+def run_ipld_imports() -> bool:
+    """Run IPLD import checks and return success."""
     print("=== Testing IPLD Package Imports ===")
     
     packages = [
@@ -16,7 +18,7 @@ def test_ipld_imports():
         ('multiformats', 'Multiformats specification support'),
     ]
     
-    all_passed = True
+    missing = []
     
     for package, description in packages:
         try:
@@ -27,13 +29,16 @@ def test_ipld_imports():
             print(f"  Location: {location}")
         except ImportError as e:
             print(f"✗ {package:15} FAILED - {e}")
-            all_passed = False
+            missing.append(package)
         print()
-    
-    return all_passed
 
-def test_basic_functionality():
-    """Test basic functionality of IPLD packages."""
+    if missing:
+        pytest.skip(f"Missing IPLD packages: {', '.join(missing)}")
+
+    return True
+
+def run_basic_functionality() -> bool:
+    """Run basic IPLD functionality checks and return success."""
     print("=== Testing Basic IPLD Functionality ===")
     
     try:
@@ -65,7 +70,17 @@ def test_basic_functionality():
         
     except Exception as e:
         print(f"✗ Basic functionality test failed: {e}")
-        return False
+        pytest.skip(f"IPLD basic functionality unavailable: {e}")
+
+
+def test_ipld_imports():
+    """Test that all IPLD packages can be imported successfully."""
+    assert run_ipld_imports() is True
+
+
+def test_basic_functionality():
+    """Test basic functionality of IPLD packages."""
+    assert run_basic_functionality() is True
 
 def main():
     """Run all IPLD tests."""
@@ -74,11 +89,11 @@ def main():
     print()
     
     # Test imports
-    imports_passed = test_ipld_imports()
+    imports_passed = run_ipld_imports()
     print()
     
     # Test basic functionality
-    functionality_passed = test_basic_functionality()
+    functionality_passed = run_basic_functionality()
     print()
     
     # Final summary

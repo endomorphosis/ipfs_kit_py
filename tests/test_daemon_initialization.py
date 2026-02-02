@@ -8,10 +8,14 @@ import time
 import requests
 import json
 import sys
+import os
 from pathlib import Path
+import pytest
 
 def test_daemon_initialization():
     """Test the daemon initialization functionality"""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run daemon initialization test")
     print("🧪 Testing MCP Server Daemon Initialization")
     print("=" * 50)
     
