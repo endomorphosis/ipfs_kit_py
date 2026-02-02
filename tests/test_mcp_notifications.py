@@ -65,8 +65,11 @@ def run_mcp_notifications_test() -> bool:
                 proc.stdin.write(json.dumps(msg) + "\n")
                 proc.stdin.flush()
                 time.sleep(0.5)  # Small delay between messages
-            
+
+            # Close stdin to signal end-of-input, but also detach it so communicate()
+            # doesn't attempt to interact with a closed file object.
             proc.stdin.close()
+            proc.stdin = None
         
         # Wait for processing
         try:

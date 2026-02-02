@@ -64,13 +64,34 @@ def run_mcp_server_integration_test() -> bool:
         proc.stdin.write(json.dumps(init_request) + "\n")
         proc.stdin.flush()
         
-        # Read response
-        response_line = proc.stdout.readline()
-        if response_line:
-            response = json.loads(response_line)
+        def read_next_json_line(timeout_s: float = 8.0):
+            import time
+            import select
+
+            deadline = time.time() + timeout_s
+            while time.time() < deadline:
+                r, _, _ = select.select([proc.stdout], [], [], 0.25)
+                if not r:
+                    continue
+                line = proc.stdout.readline()
+                if not line:
+                    continue
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                try:
+                    return json.loads(stripped)
+                except json.JSONDecodeError:
+                    # Some servers log to stdout; ignore non-JSON lines.
+                    continue
+            return None
+
+        # Read initialize response (ignore any non-JSON stdout noise)
+        response = read_next_json_line(timeout_s=10.0)
+        if response:
             print(f"   ✅ Initialize response: {response.get('result', {}).get('serverInfo', 'Unknown')}")
         else:
-            print("   ❌ No response received")
+            print("   ❌ No JSON initialize response received")
             return False
         
         print("3. Testing tools/list...")
@@ -85,9 +106,8 @@ def run_mcp_server_integration_test() -> bool:
         proc.stdin.flush()
         
         # Read tools response
-        tools_line = proc.stdout.readline()
-        if tools_line:
-            tools_response = json.loads(tools_line)
+        tools_response = read_next_json_line(timeout_s=10.0)
+        if tools_response:
             tools = tools_response.get('result', {}).get('tools', [])
             print(f"   ✅ Found {len(tools)} tools:")
             for tool in tools[:3]:  # Show first 3 tools
@@ -95,7 +115,7 @@ def run_mcp_server_integration_test() -> bool:
             if len(tools) > 3:
                 print(f"      ... and {len(tools) - 3} more tools")
         else:
-            print("   ❌ No tools response received")
+            print("   ❌ No JSON tools/list response received")
             return False
         
         print("4. Testing ipfs_version tool...")
@@ -113,9 +133,8 @@ def run_mcp_server_integration_test() -> bool:
         proc.stdin.flush()
         
         # Read version response
-        version_line = proc.stdout.readline()
-        if version_line:
-            version_response = json.loads(version_line)
+        version_response = read_next_json_line(timeout_s=10.0)
+        if version_response:
             content = version_response.get('result', {}).get('content', [])
             if content and len(content) > 0:
                 result_text = content[0].get('text', '')
