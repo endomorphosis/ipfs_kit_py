@@ -4,6 +4,12 @@ Google Drive Kit for IPFS Kit.
 
 This module provides comprehensive integration with Google Drive API
 with robust authentication, file management, and introspection capabilities.
+
+Note on Mock Mode:
+    When mock_mode=True is passed in metadata, the class automatically sets
+    authenticated=True and provides a mock access token. This bypasses normal
+    OAuth authentication flow to enable testing without credentials. In mock mode,
+    all API calls are simulated and no real network requests are made.
 """
 
 import json
@@ -130,7 +136,11 @@ class gdrive_kit:
         # Mock mode for testing
         self.mock_mode = metadata.get("mock_mode", False) if metadata else False
         
-        # In mock mode, automatically authenticate
+        # WARNING: In mock mode, authentication is automatically bypassed.
+        # This is intentional for testing purposes only. Mock mode sets 
+        # authenticated=True and provides a fake access token, allowing tests
+        # to exercise file operations without real OAuth credentials.
+        # DO NOT use mock mode in production or when testing authentication logic.
         if self.mock_mode:
             self.authenticated = True
             self.access_token = "mock_access_token"
@@ -349,7 +359,23 @@ class gdrive_kit:
             return {"success": True, "mock": True}
 
     def _refresh_access_token(self):
-        """Refresh the access token using refresh token."""
+        """
+        Refresh the access token using refresh token.
+        
+        IMPORTANT: Return type changed from bool to dict for consistency.
+        All callers of this method should handle dict returns with 'success' key.
+        
+        Returns:
+            dict: Result dictionary with keys:
+                - success (bool): Whether refresh was successful
+                - access_token (str): New access token if successful
+                - error (str): Error message if failed
+                
+        Example:
+            result = self._refresh_access_token()
+            if result.get('success'):
+                token = result.get('access_token')
+        """
         if not self.refresh_token:
             return {"success": False, "error": "No refresh token available"}
         

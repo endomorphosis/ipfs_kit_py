@@ -184,6 +184,26 @@ class GitHubKit:
             logger.error(f"❌ Failed to list repositories: {e}")
             raise
     
+    def _get_owner_login(self, repo: Dict[str, Any]) -> str:
+        """
+        Safely extract owner login from repository data.
+        
+        Handles both dict-style owner data and string owner values,
+        providing a safe default if owner information is missing.
+        
+        Args:
+            repo: Raw GitHub repository data
+            
+        Returns:
+            Owner login string, or 'unknown' if not found
+        """
+        owner = repo.get('owner')
+        if isinstance(owner, dict):
+            return owner.get('login', 'unknown')
+        elif isinstance(owner, str):
+            return owner
+        return 'unknown'
+    
     def _enhance_repo_with_vfs_metadata(self, repo: Dict[str, Any]) -> Dict[str, Any]:
         """
         Enhance repository data with VFS bucket metadata.
@@ -196,8 +216,8 @@ class GitHubKit:
         """
         enhanced = repo.copy()
         
-        # VFS bucket mapping
-        owner_login = repo.get('owner', {}).get('login', 'unknown') if isinstance(repo.get('owner'), dict) else repo.get('owner', 'unknown')
+        # VFS bucket mapping - use helper for cleaner extraction
+        owner_login = self._get_owner_login(repo)
         repo_name = repo.get('name', 'unknown')
         enhanced['vfs'] = {
             'bucket_name': f"{owner_login}/{repo_name}",

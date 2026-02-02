@@ -8989,7 +8989,9 @@ class lotus_kit:
         try:
             # Mock implementation for testing
             result["success"] = True
-            result["cid"] = f"bafk2bzaced{self.correlation_id[:20]}"
+            # Safe string handling: pad or truncate correlation_id to ensure at least 20 chars
+            correlation_suffix = (self.correlation_id + "0" * 20)[:20]
+            result["cid"] = f"bafk2bzaced{correlation_suffix}"
             result["payload_cid"] = result["cid"]
             result["miner"] = miner
             result["duration"] = duration
