@@ -143,7 +143,16 @@ def install_dependencies():
     
     # Install main package
     print("\n2. Installing main package...")
-    if not run_command(build_pip_command(python_cmd, 'install', '-e', '.', break_system=use_break_system)):
+    ipfs_kit_git = "git+https://github.com/endomorphosis/ipfs_kit_py.git@main#egg=ipfs_kit_py"
+    installed_main = run_command(
+        build_pip_command(python_cmd, 'install', ipfs_kit_git, break_system=use_break_system)
+    )
+    if not installed_main:
+        print("⚠ Failed to install from git main, trying local editable install...")
+        installed_main = run_command(
+            build_pip_command(python_cmd, 'install', '-e', '.', break_system=use_break_system)
+        )
+    if not installed_main:
         print("✗ Failed to install main package")
         return False
     
@@ -222,7 +231,16 @@ def install_dependencies():
     ]
     for extra in optional_extras:
         print(f"  Installing extras: [{extra}]...")
-        run_command(build_pip_command(python_cmd, 'install', '-e', f'.[{extra}]', break_system=use_break_system), retries=2)
+        git_extra = f"git+https://github.com/endomorphosis/ipfs_kit_py.git@main#egg=ipfs_kit_py[{extra}]"
+        installed_extra = run_command(
+            build_pip_command(python_cmd, 'install', git_extra, break_system=use_break_system),
+            retries=2
+        )
+        if not installed_extra:
+            run_command(
+                build_pip_command(python_cmd, 'install', '-e', f'.[{extra}]', break_system=use_break_system),
+                retries=2
+            )
 
     # Install additional optional dependencies detected from integration warnings
     print("\n7. Installing optional ML/AI/PDF/RAG dependencies (best effort)...")
