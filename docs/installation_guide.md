@@ -1,14 +1,14 @@
 # Installation Guide
 
 > **Status**: ✅ **Production Ready** - Complete installation process validated  
-> **Quick Start**: `python start_3_node_cluster.py` for immediate deployment  
-> **Full Setup**: See **[MCP Development Status](../ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)** for comprehensive installation guide
+> **Quick Start**: `python tools/start_3_node_cluster.py` for immediate deployment  
+> **Full Setup**: See **[MCP Development Status](ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)** for comprehensive installation guide
 
-This guide covers the installation of `ipfs-kit-py` and its dependencies, including cluster setup and MCP server deployment.
+This guide covers the installation of `ipfs_kit_py` and its dependencies, including cluster setup and MCP server deployment.
 
 ## Prerequisites
 
-*   **Python**: Version 3.8 or higher
+*   **Python**: Version 3.12 or higher (Python 3.13 also supported)
 *   **pip**: Python package installer
 *   **System Resources**: 
     *   4GB RAM minimum (8GB recommended for cluster)
@@ -31,7 +31,7 @@ cd ipfs_kit_py
 pip install -r requirements.txt
 
 # Start production cluster (Master:8998, Worker1:8999, Worker2:9000)
-python start_3_node_cluster.py
+python tools/start_3_node_cluster.py
 
 # Verify cluster health
 curl http://localhost:8998/health
@@ -52,16 +52,21 @@ The core Python library can be installed using pip:
 
 ```bash
 # Minimal installation (core functionality)
-pip install ipfs-kit-py
+pip install ipfs_kit_py
 
 # Installation with AI/ML features (requires more dependencies)
-pip install ipfs-kit-py[ai_ml]
+pip install ipfs_kit_py[ai_ml]
 
 # Installation with FSSpec support
-pip install ipfs-kit-py[fsspec]
+pip install ipfs_kit_py[fsspec]
 
 # Full installation with all optional dependencies
-pip install ipfs-kit-py[full]
+pip install ipfs_kit_py[full]
+
+# Development installation from source
+git clone https://github.com/endomorphosis/ipfs_kit_py.git
+cd ipfs_kit_py
+pip install -e .[dev]
 ```
 
 Choose the installation option that best suits your needs. `[full]` is recommended if you plan to use clustering, AI/ML, and other advanced features.
