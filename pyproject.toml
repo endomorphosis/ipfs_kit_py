@@ -120,9 +120,28 @@ ipld-github = [
 ipfs_datasets = [
     # Distributed dataset manipulation services
     # Install with: pip install -e .[ipfs_datasets]
-    # Note: ipfs_datasets_py must be installed separately or from GitHub if available
-    # This extra defines the optional integration, but does not include the package itself
-    # to maintain flexibility for different deployment scenarios
+    "ipfs_datasets_py",
+    "datasets",
+    "boto3>=1.26.0",
+]
+
+ipfs_accelerate = [
+    # ipfs_accelerate_py integration (opt-in; heavy dependency stack)
+    # Install with: pip install -e .[ipfs_accelerate]
+    "ipfs_accelerate_py",
+    "ipfs_model_manager_py",
+    "libp2p_kit_py",
+    "websocket-client",
+    "torch>=2.0.0",
+    "torchvision",
+    "transformers>=4.20.0",
+    "ipfs_transformers_py",
+    "sentence-transformers",
+    "InstructorEmbedding",
+    "openvino",
+    "openvino-genai",
+    "optimum",
+    "optimum-intel",
 ]
 api = [
     "fastapi>=0.100.0",
@@ -206,6 +225,10 @@ full = [
     
     # Cloud storage
     "boto3>=1.26.0",
+
+    # ipfs_datasets_py integration
+    "ipfs_datasets_py",
+    "datasets",
     
     # HuggingFace
     "huggingface_hub>=0.19.0",
