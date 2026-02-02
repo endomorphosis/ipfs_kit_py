@@ -361,10 +361,16 @@ install_python_deps() {
   fi
 
   # Choose install source: local editable checkout (default) or GitHub main.
+  local pinned_source_cmd=""
   if [[ "${INSTALL_SOURCE}" == "github-main" ]]; then
     local pkg="ipfs_kit_py"
-    local url="git+https://github.com/endomorphosis/ipfs_kit_py@main"
-    # pip supports extras with direct URL requirements: "name[extra] @ git+..."
+    # Use the GitHub branch zip archive instead of a VCS clone.
+    # Rationale: pip's VCS installs run `git submodule update --init --recursive`, which
+    # is slow and can fail in constrained environments; we don't need docs submodules
+    # for a working Python install.
+    local url="https://github.com/endomorphosis/ipfs_kit_py/archive/refs/heads/main.zip"
+
+    # pip supports extras with direct URL requirements: "name[extra] @ <url>"
     local direct="${pkg}"
     if [[ -n "${EXTRAS}" ]]; then
       direct="${pkg}[${EXTRAS}]"
@@ -377,11 +383,14 @@ install_python_deps() {
         full) direct="${pkg}[full,dev,api,ipfs_datasets,ipfs_accelerate]" ;;
       esac
     fi
+
     log "Installing ipfs_kit_py from GitHub main: pip install '${direct} @ ${url}'"
     python -m pip install "${direct} @ ${url}"
+    pinned_source_cmd="python -m pip install '${direct} @ ${url}'"
   else
     log "Installing Python package + deps from local checkout: pip install -e '${spec}'"
     python -m pip install -e "${spec}"
+    pinned_source_cmd="python -m pip install -e '${spec}'"
   fi
 
   # Some parts of the repo still expect requirements.txt; install as a best-effort add-on
@@ -397,10 +406,12 @@ install_python_deps() {
       err "If you want strict mode, run: .venv/bin/pip install -r requirements.txt"
     fi
 
-    # Guardrail: ensure we don't end up with a non-local/non-github PyPI copy of ipfs_kit_py
-    # due to any future self-references in requirements files.
-    if [[ "${INSTALL_SOURCE}" == "local" ]]; then
-      python -m pip install -e "${spec}" >/dev/null 2>&1 || true
+    # Guardrail: re-assert the chosen source after requirements.txt (in case any future
+    # requirements accidentally reference ipfs_kit_py and override it).
+    if [[ -n "${pinned_source_cmd}" ]]; then
+      set +e
+      eval "${pinned_source_cmd}" >/dev/null 2>&1
+      set -e
     fi
   fi
 }
