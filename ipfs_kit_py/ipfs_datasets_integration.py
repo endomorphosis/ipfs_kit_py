@@ -34,13 +34,18 @@ import datetime
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Try to import ipfs_datasets_py with fallback
+# Try to import ipfs_datasets_py with fallback.
+#
+# NOTE: The published `ipfs_datasets_py` package does not necessarily expose a
+# `DatasetManager` symbol. We treat the dependency as available if the package
+# itself imports, and keep our own manager abstraction (`IPFSDatasetsManager`).
 try:
-    import ipfs_datasets_py
-    from ipfs_datasets_py import DatasetManager as IPFSDatasetManager
+    import ipfs_datasets_py  # noqa: F401
+
     IPFS_DATASETS_AVAILABLE = True
-    logger.info("ipfs_datasets_py is available for distributed dataset operations")
-except ImportError:
+    IPFSDatasetManager = None
+    logger.info("ipfs_datasets_py is available for dataset operations")
+except Exception:
     IPFS_DATASETS_AVAILABLE = False
     IPFSDatasetManager = None
     logger.info("ipfs_datasets_py not available - using fallback implementations")

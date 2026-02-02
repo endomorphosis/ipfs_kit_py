@@ -28,20 +28,13 @@ except ImportError:
 
 HAS_ACCELERATE = False
 try:
-    # Keep this best-effort: the package should import cleanly even when the
-    # optional acceleration layer is absent.
-    import sys
-    from pathlib import Path as AcceleratePath
+    import importlib.util
 
-    accelerate_path = AcceleratePath(__file__).resolve().parents[3] / "ipfs_accelerate_py"
-    if accelerate_path.exists():
-        sys.path.insert(0, str(accelerate_path))
-
-    from ipfs_accelerate_py import AccelerateCompute  # noqa: F401
-
-    HAS_ACCELERATE = True
-except ImportError:
-    pass
+    # Only *detect* availability here. Importing ipfs_accelerate_py can print to
+    # stdout as a side effect, which breaks JSON-producing CLIs.
+    HAS_ACCELERATE = importlib.util.find_spec("ipfs_accelerate_py") is not None
+except Exception:
+    HAS_ACCELERATE = False
 
 from ipfs_kit_py.mcp.ai.model_registry.registry import (
     ModelRegistry,
@@ -60,21 +53,6 @@ from ipfs_kit_py.mcp.ai.model_registry.router import (
     router as model_registry_router,
     initialize_model_registry
 )
-
-# Optional ipfs_accelerate_py availability flag
-HAS_ACCELERATE = False
-try:
-    import sys
-    from pathlib import Path as AcceleratePath
-
-    accelerate_path = AcceleratePath(__file__).resolve().parents[2] / "ipfs_accelerate_py"
-    if accelerate_path.exists():
-        sys.path.insert(0, str(accelerate_path))
-
-    from ipfs_accelerate_py import AccelerateCompute  # noqa: F401
-    HAS_ACCELERATE = True
-except Exception:
-    HAS_ACCELERATE = False
 
 __all__ = [
     # Core registry classes
