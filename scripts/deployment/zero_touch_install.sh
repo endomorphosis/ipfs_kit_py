@@ -470,10 +470,11 @@ install_native_tools() {
 
   if [[ "$do_ipfs" == "yes" ]]; then
     log "Installing IPFS/Kubo binaries into ./bin (no sudo)"
+    mkdir -p "${CACHE_DIR}/ipfs-repo"
     python - <<PY
 from ipfs_kit_py.install_ipfs import install_ipfs
 
-inst = install_ipfs(metadata={"bin_dir": r"${BIN_DIR}"})
+inst = install_ipfs(metadata={"bin_dir": r"${BIN_DIR}", "ipfs_path": r"${CACHE_DIR}/ipfs-repo"})
 inst.install_ipfs_daemon()
 
 # Cluster helper binaries are useful, but avoid systemd/service setup in zero-touch.
