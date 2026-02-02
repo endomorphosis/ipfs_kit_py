@@ -15,6 +15,7 @@ import anyio
 import argparse
 import importlib
 import importlib.util
+import io
 import json
 import logging
 import os
@@ -23,6 +24,7 @@ import subprocess
 import sys
 import time
 from contextlib import suppress
+import contextlib
 from pathlib import Path
 from typing import Optional
 
@@ -153,6 +155,15 @@ class FastCLI:
         if not args.command:
             self.parser.print_help(); sys.exit(2)
 
+        # Some optional dependencies emit stdout at import/runtime. For JSON-only
+        # CLI modes, keep stdout machine-readable by capturing any incidental
+        # prints and emitting only the final JSON payload.
+        json_safe_mode = (
+            args.command == "mcp"
+            and getattr(args, "mcp_action", None) == "deprecations"
+            and bool(getattr(args, "json", False))
+        )
+
         # Initialize backend configuration for CLI usage when needed.
         # Skip for MCP start/stop/status/deprecations to keep startup fast for readiness checks.
         skip_backend_init = False
@@ -185,7 +196,42 @@ class FastCLI:
         
         if handler is None:
             print("Unknown command"); sys.exit(2)
-        await handler(args)
+
+        if not json_safe_mode:
+            await handler(args)
+            return
+
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                await handler(args)
+        except SystemExit:
+            # Preserve exit codes for policy enforcement while still attempting
+            # to emit a clean JSON payload if one was produced.
+            raise
+        finally:
+            captured = buf.getvalue()
+
+        # Emit only the last JSON-looking line (array/object). This avoids
+        # breaking callers that do `json.loads(stdout)`.
+        json_line = None
+        for line in reversed(captured.splitlines()):
+            s = line.strip()
+            if not s:
+                continue
+            if not (s.startswith("[") or s.startswith("{")):
+                continue
+            try:
+                json.loads(s)
+            except Exception:
+                continue
+            json_line = s
+            break
+
+        if json_line is None:
+            json_line = "[]"
+
+        sys.stdout.write(json_line + "\n")
 
     # ---- MCP ----
     async def handle_mcp_start(self, args) -> None:
