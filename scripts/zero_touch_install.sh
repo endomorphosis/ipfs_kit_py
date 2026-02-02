@@ -10,6 +10,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="${VENV_DIR:-$REPO_DIR/.venv}"
 EXTRAS="${IPFS_KIT_EXTRAS:-full}"
 BINARIES="${IPFS_KIT_ZERO_TOUCH_BINARIES:-full}"
+CACHE_DIR="${REPO_DIR}/.cache"
 
 cd "$REPO_DIR"
 
@@ -48,13 +49,37 @@ fi
 python -m pip install --upgrade pip setuptools wheel
 
 PACKAGE_REF="ipfs_kit_py"
-REPO_URL="git+https://github.com/endomorphosis/ipfs_kit_py@known_good"
+REPO_URL="https://github.com/endomorphosis/ipfs_kit_py.git"
+REPO_REF="known_good"
+CLONE_DIR="${CACHE_DIR}/ipfs_kit_py_known_good"
+
+mkdir -p "${CACHE_DIR}"
+if [ ! -d "${CLONE_DIR}/.git" ]; then
+  echo "Cloning ipfs_kit_py from ${REPO_URL} (${REPO_REF})..."
+  GIT_TERMINAL_PROMPT=0 GIT_PROGRESS=0 \
+    git -c core.progress=false clone --filter=blob:none --no-checkout --quiet "${REPO_URL}" "${CLONE_DIR}" || {
+      rm -rf "${CLONE_DIR}"
+      echo "Clone failed; cleaned cache directory." >&2
+      exit 1
+    }
+fi
+
+if ! git -C "${CLONE_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  rm -rf "${CLONE_DIR}"
+  echo "Invalid clone cache; removed ${CLONE_DIR}." >&2
+  exit 1
+fi
+
+git -C "${CLONE_DIR}" config submodule.recurse false
+GIT_TERMINAL_PROMPT=0 GIT_PROGRESS=0 git -c core.progress=false -C "${CLONE_DIR}" fetch --depth 1 origin "${REPO_REF}"
+git -C "${CLONE_DIR}" checkout -f "${REPO_REF}"
+
 if [ -n "$EXTRAS" ]; then
-  echo "Installing ipfs_kit_py from ${REPO_URL} with extras: [$EXTRAS]"
-  python -m pip install "${PACKAGE_REF}[${EXTRAS}] @ ${REPO_URL}"
+  echo "Installing ipfs_kit_py from ${REPO_URL}@${REPO_REF} with extras: [$EXTRAS]"
+  python -m pip install "${CLONE_DIR}[${EXTRAS}]"
 else
-  echo "Installing ipfs_kit_py from ${REPO_URL} (no extras)"
-  python -m pip install "${PACKAGE_REF} @ ${REPO_URL}"
+  echo "Installing ipfs_kit_py from ${REPO_URL}@${REPO_REF} (no extras)"
+  python -m pip install "${CLONE_DIR}"
 fi
 
 echo "Installing libp2p from git main"
@@ -64,7 +89,7 @@ python -m pip install "libp2p @ git+https://github.com/libp2p/py-libp2p@main"
 # Opt out with: IPFS_KIT_INSTALL_TEST_DEPS=0
 INSTALL_TEST_DEPS="${IPFS_KIT_INSTALL_TEST_DEPS:-1}"
 if [ "$INSTALL_TEST_DEPS" != "0" ]; then
-  python -m pip install --upgrade pytest pytest-anyio pytest-cov
+  python -m pip install --upgrade pytest pytest-anyio pytest-asyncio pytest-cov
 fi
 
 python - <<'PY'

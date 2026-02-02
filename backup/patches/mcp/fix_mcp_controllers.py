@@ -142,9 +142,9 @@ def update_imports_in_storage_controller():
         return False
 
     imports_to_add = [
-        "from ipfs_kit_py.mcp_server.controllers.storage.file_storage_controller import FileStorageController",
-        "from ipfs_kit_py.mcp_server.controllers.storage.ipfs_storage_controller import IpfsStorageController",
-        "from ipfs_kit_py.mcp_server.controllers.storage.s3_storage_controller import S3StorageController"
+        "from ipfs_kit_py.mcp.server.controllers.storage.file_storage_controller import FileStorageController",
+        "from ipfs_kit_py.mcp.server.controllers.storage.ipfs_storage_controller import IpfsStorageController",
+        "from ipfs_kit_py.mcp.server.controllers.storage.s3_storage_controller import S3StorageController"
     ]
 
     existing_imports = content[:import_section_end]

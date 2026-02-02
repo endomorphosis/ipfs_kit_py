@@ -176,7 +176,7 @@ class CIScriptTester:
         self.print_summary(results)
         
         # Save results
-        output_file = self.repo_root / 'test_results' / 'ci_scripts_test_results.json'
+        output_file = self.repo_root / 'data' / 'test_results' / 'ci_scripts_test_results.json'
         self.save_results(results, output_file)
         
         # Return 0 if most scripts work

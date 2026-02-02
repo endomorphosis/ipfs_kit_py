@@ -16,6 +16,7 @@ import argparse
 import importlib
 import importlib.util
 import json
+import logging
 import os
 import signal
 import subprocess
@@ -24,6 +25,8 @@ import time
 from contextlib import suppress
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 # Schema version for the JSON report emitted by:
@@ -126,6 +129,23 @@ class FastCLI:
         s_status.add_argument("--service", choices=["ipfs", "lotus", "all"], default="all")
         s_status.add_argument("--json", action="store_true", help="Emit raw JSON")
         
+        # Auto-heal configuration commands
+        autoheal = sub.add_parser("autoheal", help="Configure auto-healing feature")
+        autoheal_sub = autoheal.add_subparsers(dest="autoheal_action")
+        
+        ah_enable = autoheal_sub.add_parser("enable", help="Enable auto-healing")
+        ah_enable.add_argument("--github-token", help="GitHub personal access token")
+        ah_enable.add_argument("--github-repo", help="GitHub repository (owner/repo)")
+        
+        ah_disable = autoheal_sub.add_parser("disable", help="Disable auto-healing")
+        
+        ah_status = autoheal_sub.add_parser("status", help="Show auto-healing status")
+        ah_status.add_argument("--json", action="store_true", help="Emit raw JSON")
+        
+        ah_config = autoheal_sub.add_parser("config", help="Show/edit auto-healing configuration")
+        ah_config.add_argument("--set", nargs=2, metavar=('KEY', 'VALUE'), help="Set configuration value")
+        ah_config.add_argument("--get", metavar='KEY', help="Get configuration value")
+        
         return parser
 
     async def run(self) -> None:
@@ -157,6 +177,9 @@ class FastCLI:
         elif args.command == "services":
             sub_action = getattr(args, "services_action", None)
             handler = getattr(self, f"handle_services_{sub_action}", None) if sub_action else None
+        elif args.command == "autoheal":
+            sub_action = getattr(args, "autoheal_action", None)
+            handler = getattr(self, f"handle_autoheal_{sub_action}", None) if sub_action else None
         else:
             handler = getattr(self, f"handle_{args.command}", None)
         
@@ -537,7 +560,7 @@ class FastCLI:
         # Import and start the daemon
         try:
             try:
-                from mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
+                from ipfs_kit_py.mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
             except ImportError:
                 # Fallback to packaged path
                 from ipfs_kit_py.mcp.ipfs_kit.daemon.ipfs_kit_daemon import IPFSKitDaemon
@@ -634,11 +657,203 @@ class FastCLI:
             print(json.dumps(results, indent=2))
         else:
             print(json.dumps(results, indent=2))
+    
+    # ---- Auto-Heal ----
+    async def handle_autoheal_enable(self, args) -> None:
+        """Enable auto-healing feature."""
+        from ipfs_kit_py.auto_heal.config import AutoHealConfig
+        
+        config = AutoHealConfig.from_file()
+        config.enabled = True
+        
+        # Set GitHub token if provided
+        if hasattr(args, 'github_token') and args.github_token:
+            config.github_token = args.github_token
+        
+        # Set GitHub repo if provided
+        if hasattr(args, 'github_repo') and args.github_repo:
+            config.github_repo = args.github_repo
+        
+        # Save configuration
+        config.save_to_file()
+        
+        print("✓ Auto-healing enabled")
+        
+        # Check if properly configured
+        if config.is_configured():
+            print(f"✓ Configuration complete")
+            print(f"  Repository: {config.github_repo}")
+            # Safe token display - handle None and short tokens
+            if config.github_token:
+                token_suffix = config.github_token[-4:] if len(config.github_token) >= 4 else config.github_token
+                print(f"  Token: {'*' * 20}...{token_suffix}")
+            else:
+                print(f"  Token: not set")
+        else:
+            print("⚠️  Auto-healing requires both GITHUB_TOKEN and GITHUB_REPOSITORY")
+            print("   Set them via environment variables or:")
+            print("   ipfs-kit autoheal enable --github-token YOUR_TOKEN --github-repo owner/repo")
+    
+    async def handle_autoheal_disable(self, args) -> None:
+        """Disable auto-healing feature."""
+        from ipfs_kit_py.auto_heal.config import AutoHealConfig
+        
+        config = AutoHealConfig.from_file()
+        config.enabled = False
+        config.save_to_file()
+        
+        print("✓ Auto-healing disabled")
+    
+    async def handle_autoheal_status(self, args) -> None:
+        """Show auto-healing status including cache statistics."""
+        from ipfs_kit_py.auto_heal.config import AutoHealConfig
+        from ipfs_kit_py.auto_heal.github_issue_creator import GitHubIssueCreator
+        
+        config = AutoHealConfig.from_file()
+        emit_json = bool(getattr(args, "json", False))
+        
+        status = {
+            'enabled': config.enabled,
+            'configured': config.is_configured(),
+            'github_repo': config.github_repo,
+            'has_token': config.github_token is not None,
+            'max_log_lines': config.max_log_lines,
+            'include_stack_trace': config.include_stack_trace,
+            'auto_create_issues': config.auto_create_issues,
+            'issue_labels': config.issue_labels,
+        }
+        
+        # Add cache statistics if available
+        try:
+            issue_creator = GitHubIssueCreator(config)
+            cache_stats = issue_creator.get_cache_stats()
+            if cache_stats:
+                status['github_api_cache'] = cache_stats
+        except Exception as e:
+            logger.debug(f"Could not get cache stats: {e}")
+            # Add indicator that cache stats retrieval failed
+            status['github_api_cache'] = {'enabled': False, 'error': 'Failed to retrieve cache stats'}
+
+        
+        if emit_json:
+            print(json.dumps(status, indent=2))
+        else:
+            print("Auto-Healing Status:")
+            print(f"  Enabled: {'Yes' if config.enabled else 'No'}")
+            print(f"  Configured: {'Yes' if config.is_configured() else 'No'}")
+            print(f"  Repository: {config.github_repo or 'Not set'}")
+            print(f"  GitHub Token: {'Set' if config.github_token else 'Not set'}")
+            print(f"  Auto-create issues: {'Yes' if config.auto_create_issues else 'No'}")
+            print(f"  Max log lines: {config.max_log_lines}")
+            print(f"  Issue labels: {', '.join(config.issue_labels)}")
+            
+            # Show cache status if available
+            if 'github_api_cache' in status:
+                cache_info = status['github_api_cache']
+                print(f"\nGitHub API Cache:")
+                print(f"  Enabled: {'Yes' if cache_info.get('enabled') else 'No'}")
+                if cache_info.get('enabled'):
+                    print(f"  IPFS Caching: {'Yes' if cache_info.get('ipfs_enabled') else 'No'}")
+                    print(f"  P2P Caching: {'Yes' if cache_info.get('p2p_enabled') else 'No'}")
+                    if 'stats' in cache_info:
+                        stats = cache_info['stats']
+                        print(f"  Cache Hits: {stats.get('hits', 0)}")
+                        print(f"  Cache Misses: {stats.get('misses', 0)}")
+
+    
+    async def handle_autoheal_config(self, args) -> None:
+        """Show or edit auto-healing configuration."""
+        from ipfs_kit_py.auto_heal.config import AutoHealConfig
+        
+        config = AutoHealConfig.from_file()
+        
+        # Handle --set option
+        if hasattr(args, 'set') and args.set:
+            key, value = args.set
+            
+            # Convert string values to appropriate types
+            if key in ['enabled', 'include_stack_trace', 'auto_create_issues']:
+                value = value.lower() in ('true', '1', 'yes')
+            elif key == 'max_log_lines':
+                value = int(value)
+            elif key == 'issue_labels':
+                value = [v.strip() for v in value.split(',')]
+            
+            # Set the value
+            if hasattr(config, key):
+                setattr(config, key, value)
+                config.save_to_file()
+                print(f"✓ Set {key} = {value}")
+            else:
+                print(f"✗ Unknown configuration key: {key}")
+                return
+        
+        # Handle --get option
+        elif hasattr(args, 'get') and args.get:
+            key = args.get
+            if hasattr(config, key):
+                value = getattr(config, key)
+                print(f"{key} = {value}")
+            else:
+                print(f"✗ Unknown configuration key: {key}")
+                return
+        
+        # Show all configuration
+        else:
+            print("Auto-Healing Configuration:")
+            print(f"  enabled: {config.enabled}")
+            print(f"  github_repo: {config.github_repo or 'Not set'}")
+            print(f"  max_log_lines: {config.max_log_lines}")
+            print(f"  include_stack_trace: {config.include_stack_trace}")
+            print(f"  auto_create_issues: {config.auto_create_issues}")
+            print(f"  issue_labels: {', '.join(config.issue_labels)}")
 
 
 async def main() -> None:
-    cli = FastCLI()
-    await cli.run()
+    """Main CLI entry point with auto-healing error capture."""
+    from ipfs_kit_py.auto_heal.error_capture import ErrorCapture
+    from ipfs_kit_py.auto_heal.config import AutoHealConfig
+    from ipfs_kit_py.auto_heal.github_issue_creator import GitHubIssueCreator
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # Load auto-healing configuration
+    config = AutoHealConfig.from_file()
+    
+    # Initialize error capture
+    error_capture = ErrorCapture(max_log_lines=config.max_log_lines)
+    
+    try:
+        cli = FastCLI()
+        await cli.run()
+    except Exception as e:
+        # Capture the error
+        command = f"ipfs-kit {' '.join(sys.argv[1:])}"
+        arguments = {'command': sys.argv[1] if len(sys.argv) > 1 else 'none'}
+        
+        captured_error = error_capture.capture_error(e, command, arguments)
+        
+        # Log the error
+        logger.error(f"CLI error: {captured_error.error_type}: {captured_error.error_message}")
+        
+        # Create GitHub issue if auto-healing is configured
+        if config.is_configured():
+            try:
+                issue_creator = GitHubIssueCreator(config)
+                issue_url = issue_creator.create_issue_from_error(captured_error)
+                
+                if issue_url:
+                    logger.info(f"Created auto-heal issue: {issue_url}")
+                    print(f"\n⚠️  An error occurred and has been automatically reported.", file=sys.stderr)
+                    print(f"📋 Issue created: {issue_url}", file=sys.stderr)
+                    print(f"🤖 The auto-healing system will attempt to fix this error.\n", file=sys.stderr)
+            except Exception as issue_error:
+                logger.error(f"Failed to create GitHub issue: {issue_error}")
+        
+        # Re-raise the original exception to preserve CLI exit behavior
+        # The CLI will exit with an error code, but the error has been reported
+        raise
 
 
 def _configure_event_loop_policy() -> None:

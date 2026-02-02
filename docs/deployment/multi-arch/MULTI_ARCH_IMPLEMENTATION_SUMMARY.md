@@ -40,7 +40,7 @@ This document summarizes the changes made to ensure the `ipfs_kit_py` repository
   ```
 - **Impact**: Docker builds correctly identify and target specific architectures
 
-#### `docker/Dockerfile`
+#### `deployment/docker/Dockerfile`
 - **Added**: Same multi-architecture support as main Dockerfile
 - **Impact**: All Dockerfile variants support multi-arch builds
 
@@ -234,7 +234,7 @@ All changes are minimal and focused on ensuring compatibility without breaking e
 - `.github/workflows/amd64-ci.yml` - AMD64-specific CI
 - `.github/workflows/docker-build.yml` - Docker build workflow
 - `Dockerfile` - Main Dockerfile with multi-arch support
-- `docker/Dockerfile` - Alternative Dockerfile with multi-arch support
+- `deployment/docker/Dockerfile` - Alternative Dockerfile with multi-arch support
 - `pyproject.toml` - Package configuration
 - `ipfs_kit_py/install_ipfs.py` - IPFS installer with arch detection
 - `ipfs_kit_py/install_lotus.py` - Lotus installer with arch detection

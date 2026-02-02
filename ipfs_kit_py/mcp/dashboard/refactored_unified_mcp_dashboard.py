@@ -2090,7 +2090,23 @@ class RefactoredUnifiedMCPDashboard:
 
     async def _get_config_data(self):
         """Get configuration data."""
-        return {"config": {}}
+        backends = await self._get_backend_configs()
+
+        # "main" config is intentionally lightweight here; the tests only
+        # require it to exist.
+        main = {
+            "host": self.host,
+            "port": self.port,
+            "data_dir": str(self.data_dir),
+            "debug": bool(self.debug),
+        }
+
+        return {
+            "config": {
+                "backends": backends if isinstance(backends, dict) else {},
+                "main": main,
+            }
+        }
 
     async def _read_config_file(self, filename: str):
         """Read configuration file from ~/.ipfs_kit/ directory first, then fallback to ipfs_kit_py backends."""
@@ -2437,11 +2453,58 @@ class RefactoredUnifiedMCPDashboard:
 
     async def _get_backend_configs(self):
         """Get backend configurations."""
-        return {}
+        result = await self._read_config_file("backends.json")
+        if not isinstance(result, dict) or not result.get("success"):
+            return {}
+
+        content = result.get("content")
+        if not isinstance(content, dict):
+            return {}
+
+        backends = content.get("backends")
+        # Most of the codebase expects a dict keyed by backend name.
+        return backends if isinstance(backends, dict) else {}
 
     async def _update_backend_config(self, backend_name, config_data):
         """Update backend configuration."""
-        return {"status": "updated"}
+        if not backend_name:
+            return {"status": "error", "error": "backend_name is required"}
+
+        if not isinstance(config_data, dict) or "config" not in config_data:
+            return {"status": "error", "error": "config_data.config is required"}
+
+        # Ensure data dir exists
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        backends_file = self.data_dir / "backends.json"
+
+        current: Dict[str, Any] = {}
+        if backends_file.exists():
+            try:
+                with open(backends_file, "r", encoding="utf-8") as f:
+                    current = json.load(f) or {}
+            except Exception:
+                current = {}
+
+        backends = current.get("backends")
+        if not isinstance(backends, dict):
+            backends = {}
+
+        backends[backend_name] = {
+            "name": backend_name,
+            "config": config_data.get("config", {}),
+        }
+
+        current["backends"] = backends
+        current["last_updated"] = datetime.now().isoformat()
+        current["total_count"] = len(backends)
+
+        with open(backends_file, "w", encoding="utf-8") as f:
+            json.dump(current, f, indent=2)
+
+        # Maintain any replication/cache semantics consistently.
+        await self._update_config_replication_state("backends.json", backends_file)
+
+        return {"status": "updated", "backend": backend_name}
 
     async def _create_backend_config(self, backend_data):
         """Create backend configuration."""

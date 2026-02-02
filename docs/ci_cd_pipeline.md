@@ -1033,7 +1033,7 @@ spec:
   source:
     repoURL: https://github.com/yourusername/ipfs-kit-deployments.git
     targetRevision: HEAD
-    path: k8s/environments/production
+    path: deployment/k8s/environments/production
   destination:
     server: https://kubernetes.default.svc
     namespace: ipfs-kit-prod
@@ -1064,7 +1064,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./k8s/environments/production
+  path: ./deployment/k8s/environments/production
   prune: true
   sourceRef:
     kind: GitRepository
@@ -1224,7 +1224,7 @@ jobs:
           fi
           
           # Update kustomization file
-          cat > k8s/environments/${{ github.event.inputs.environment }}/kustomization.yaml << EOF
+          cat > deployment/k8s/environments/${{ github.event.inputs.environment }}/kustomization.yaml << EOF
           apiVersion: kustomize.config.k8s.io/v1beta1
           kind: Kustomization
           resources:
@@ -1238,8 +1238,8 @@ jobs:
           EOF
           
           # Create patch for replicas
-          mkdir -p k8s/environments/${{ github.event.inputs.environment }}/patches
-          cat > k8s/environments/${{ github.event.inputs.environment }}/patches/replicas.yaml << EOF
+          mkdir -p deployment/k8s/environments/${{ github.event.inputs.environment }}/patches
+          cat > deployment/k8s/environments/${{ github.event.inputs.environment }}/patches/replicas.yaml << EOF
           apiVersion: apps/v1
           kind: StatefulSet
           metadata:
@@ -1256,7 +1256,7 @@ jobs:
           EOF
           
           # Apply with kustomize
-          kubectl apply -k k8s/environments/${{ github.event.inputs.environment }}
+          kubectl apply -k deployment/k8s/environments/${{ github.event.inputs.environment }}
           
       - name: Verify deployment
         run: |

@@ -1258,6 +1258,133 @@ class ConsolidatedMCPDashboard:
                 raise HTTPException(int(err.get("code", 500)), err.get("message", "error"))
             return JSONResponse(res.get("result", res))
 
+        # Auto-healing endpoint for client-side error reporting
+        # Rate limiting state - stores timestamps of recent requests per IP
+        _client_error_rate_limit = {}
+        _rate_limit_window = 60  # 1 minute window
+        _rate_limit_max_requests = 10  # Max 10 requests per minute per IP
+        
+        @app.post("/api/auto-heal/report-client-error")
+        async def report_client_error(request: Request) -> JSONResponse:
+            """Receive and process client-side error reports for auto-healing."""
+            try:
+                # Rate limiting check
+                client_ip = request.client.host if request.client else "unknown"
+                current_time = time.time()
+                
+                # Clean old entries
+                _client_error_rate_limit[client_ip] = [
+                    ts for ts in _client_error_rate_limit.get(client_ip, [])
+                    if current_time - ts < _rate_limit_window
+                ]
+                
+                # Check rate limit
+                if len(_client_error_rate_limit.get(client_ip, [])) >= _rate_limit_max_requests:
+                    logging.warning(f"Rate limit exceeded for client error reporting from {client_ip}")
+                    return JSONResponse({
+                        "status": "error",
+                        "message": "Rate limit exceeded. Please try again later."
+                    }, status_code=429)
+                
+                # Record this request
+                if client_ip not in _client_error_rate_limit:
+                    _client_error_rate_limit[client_ip] = []
+                _client_error_rate_limit[client_ip].append(current_time)
+                
+                error_data = await request.json()
+                
+                # Sanitize client data
+                error_data = _sanitize_client_error_data(error_data)
+                
+                # Import the client error reporter
+                from ipfs_kit_py.auto_heal.client_error_reporter import get_client_error_reporter
+                
+                # Get the reporter instance
+                reporter = get_client_error_reporter()
+                
+                # Process the error
+                result = await reporter.report_client_error(error_data)
+                
+                return JSONResponse(result)
+            except Exception as e:
+                logging.error(f"Failed to process client error report: {e}")
+                return JSONResponse({
+                    "status": "error",
+                    "message": f"Failed to process error report: {str(e)}"
+                }, status_code=500)
+        
+        def _sanitize_client_error_data(raw_error_data: Any) -> Dict[str, Any]:
+            """
+            Sanitize client-provided error data to prevent injection attacks and
+            excessively large payloads from reaching the auto-heal module.
+            """
+            MAX_STRING_LENGTH = 4096
+            MAX_ITEMS = 50
+            MAX_DEPTH = 3
+
+            allowed_top_level_keys = {
+                "error_message",
+                "stack_trace",
+                "params",
+                "context",
+                "user_agent",
+                "url",
+                "timestamp",
+                "severity",
+                "environment",
+                "app_version",
+                "extra",
+            }
+
+            def _sanitize_value(value: Any, depth: int = 0) -> Any:
+                if depth > MAX_DEPTH:
+                    # Prevent deeply nested structures
+                    return None
+
+                if isinstance(value, str):
+                    return value[:MAX_STRING_LENGTH]
+
+                if isinstance(value, (int, float, bool)) or value is None:
+                    return value
+
+                if isinstance(value, (list, tuple)):
+                    sanitized_list: List[Any] = []
+                    for item in value[:MAX_ITEMS]:
+                        sanitized_list.append(_sanitize_value(item, depth + 1))
+                    return sanitized_list
+
+                if isinstance(value, dict):
+                    sanitized_dict: Dict[str, Any] = {}
+                    # Limit number of items to avoid excessively large payloads
+                    for k, v in list(value.items())[:MAX_ITEMS]:
+                        key_str = str(k)[:64]
+                        sanitized_dict[key_str] = _sanitize_value(v, depth + 1)
+                    return sanitized_dict
+
+                # Fallback: stringify and truncate
+                return str(value)[:MAX_STRING_LENGTH]
+
+            if not isinstance(raw_error_data, dict):
+                # Wrap non-dict payloads into a minimal structure
+                return {
+                    "error_message": str(raw_error_data)[:MAX_STRING_LENGTH],
+                }
+
+            sanitized: Dict[str, Any] = {}
+
+            # Only keep known/expected top-level keys to minimize attack surface
+            for key in allowed_top_level_keys:
+                if key in raw_error_data:
+                    sanitized[key] = _sanitize_value(raw_error_data[key])
+
+            # If nothing matched the allowlist, fall back to a sanitized copy
+            if not sanitized:
+                sanitized = _sanitize_value(raw_error_data)  # type: ignore[assignment]
+                if not isinstance(sanitized, dict):
+                    sanitized = {"error_message": str(sanitized)[:MAX_STRING_LENGTH]}
+
+            return sanitized
+
         # Explicit HEAD handlers for common endpoints (avoid 405s from probes)
         @app.head("/")
         async def index_head() -> Response:  # type: ignore

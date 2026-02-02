@@ -145,7 +145,7 @@ async def test_follow_health_monitor():
     
     try:
         # Import health monitor
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         # Create health monitor with test config
         health_monitor = BackendHealthMonitor("/tmp/test_follow_config")

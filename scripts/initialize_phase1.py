@@ -76,7 +76,7 @@ class Phase1Initializer:
     def _initialize_tool_registry(self) -> bool:
         """Initialize the unified tool registry"""
         try:
-            from core.tool_registry import ToolRegistry, registry, ToolCategory, ToolSchema
+            from ipfs_kit_py.core.tool_registry import ToolRegistry, registry, ToolCategory, ToolSchema
             
             # Add discovery paths
             registry.add_discovery_path(Path.cwd() / "ipfs_kit_py")
@@ -123,7 +123,7 @@ class Phase1Initializer:
     def _initialize_service_manager(self) -> bool:
         """Initialize the service manager"""
         try:
-            from core.service_manager import ServiceManager, IPFSServiceManager, service_manager, ipfs_manager
+            from ipfs_kit_py.core.service_manager import ServiceManager, IPFSServiceManager, service_manager, ipfs_manager
             
             # Test service manager functionality
             available_port = service_manager.find_available_port(9000, 50)
@@ -155,7 +155,7 @@ class Phase1Initializer:
     def _initialize_error_handler(self) -> bool:
         """Initialize the error handling system"""
         try:
-            from core.error_handler import ErrorHandler, error_handler, ErrorCode, create_success_response
+            from ipfs_kit_py.core.error_handler import ErrorHandler, error_handler, ErrorCode, create_success_response
             
             # Test error handler functionality
             test_error = error_handler.create_error(
@@ -181,7 +181,7 @@ class Phase1Initializer:
     def _initialize_test_framework(self) -> bool:
         """Initialize the testing framework"""
         try:
-            from core.test_framework import TestFramework, test_framework
+            from ipfs_kit_py.core.test_framework import TestFramework, test_framework
             
             # Discover tests
             test_count = test_framework.discover_tests(Path.cwd())
@@ -310,7 +310,7 @@ def main():
         print()
         print("Next steps:")
         print("1. Review phase1_status.json for detailed component information")
-        print("2. Run additional tests: python -c 'from core.test_framework import test_framework; test_framework.run_all_tests()'")
+        print("2. Run additional tests: python -c 'from ipfs_kit_py.core.test_framework import test_framework; test_framework.run_all_tests()'")
         print("3. Proceed to Phase 2: Tool Implementation")
     else:
         print("❌ Phase 1 initialization completed with errors")

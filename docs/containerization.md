@@ -83,7 +83,7 @@ ENV IPFS_CLUSTER_PATH=/data/ipfs-cluster
 EXPOSE 4001 5001 8080 9094 9095 9096
 
 # Entry point script
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY deployment/docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
@@ -91,7 +91,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 CMD ["master"]
 ```
 
-Create the entrypoint script at `docker/entrypoint.sh`:
+Create the entrypoint script at `deployment/docker/entrypoint.sh`:
 
 ```bash
 #!/bin/bash
@@ -263,7 +263,7 @@ ENV IPFS_CLUSTER_PATH=/data/ipfs-cluster
 EXPOSE 4001 5001 8080 9094 9095 9096
 
 # Entry point script
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY deployment/docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
@@ -1201,7 +1201,7 @@ ENV IPFS_CLUSTER_PATH=/data/ipfs-cluster
 ENV IPFS_KIT_ROLE=worker
 
 # Entry point script
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY deployment/docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
@@ -1496,7 +1496,7 @@ ENV MAX_STORAGE=8G
 EXPOSE 4001 5001 8080
 
 # Entry point script
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY deployment/docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Import enhanced dashboard components
 try:
-    from mcp.ipfs_kit.api.enhanced_dashboard_api import DashboardController, ReplicationManager, TrafficCounter
+    from ipfs_kit_py.mcp.ipfs_kit.api.enhanced_dashboard_api import DashboardController, ReplicationManager, TrafficCounter
     from enhanced_replication_dashboard_panel import EnhancedReplicationDashboardPanel
     DASHBOARD_AVAILABLE = True
 except ImportError as e:

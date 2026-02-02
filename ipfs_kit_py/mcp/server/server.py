@@ -1,0 +1,1742 @@
+#!/usr/bin/env python3
+"""
+Refactored MCP Server - Aligned with CLI codebase
+
+This is the main MCP server implementation that mirrors the CLI functionality
+while adapting to the MCP protocol. It efficiently reads metadata from ~/.ipfs_kit/
+and delegates to the intelligent daemon for backend synchronization.
+"""
+
+import anyio
+import json
+import logging
+import os
+import signal
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass, field
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
+import socket
+
+# Import MCP dependencies with fallback
+try:
+    import mcp.types as types
+    from mcp.server import Server
+    from mcp.server.stdio import stdio_server
+    MCP_AVAILABLE = True
+except ImportError:
+    # Fallback stubs for when MCP is not available
+    class types:
+        class Tool:
+            def __init__(self, name, description, inputSchema):
+                self.name = name
+                self.description = description
+                self.inputSchema = inputSchema
+        
+        class TextContent:
+            def __init__(self, type, text):
+                self.type = type
+                self.text = text
+    
+    class Server:
+        def __init__(self, name):
+            self.name = name
+            self._tools = []
+            self._tool_handlers = {}
+        
+        def list_tools(self):
+            def decorator(func):
+                self._tools.append(func)
+                return func
+            return decorator
+        
+        def call_tool(self):
+            def decorator(func):
+                self._tool_handlers['call_tool'] = func
+                return func
+            return decorator
+        
+        def create_initialization_options(self):
+            return {}
+        
+        async def run(self, read_stream, write_stream, options):
+            print(f"MCP Server {self.name} would run with stdio transport")
+    
+    def stdio_server():
+        class MockTransport:
+            async def __aenter__(self):
+                return (None, None)
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+        return MockTransport()
+    
+    MCP_AVAILABLE = False
+
+try:
+    from ..config_manager import ConfigManager
+    def get_config_manager():
+        return ConfigManager()
+except ImportError:
+    def get_config_manager():
+        return None
+from .models.mcp_metadata_manager import MCPMetadataManager
+from .services.mcp_daemon_service import MCPDaemonService
+from .controllers.mcp_cli_controller import MCPCLIController
+from .controllers.mcp_backend_controller import MCPBackendController
+from .controllers.mcp_daemon_controller import MCPDaemonController
+from .controllers.mcp_storage_controller import MCPStorageController
+from .controllers.mcp_vfs_controller import MCPVFSController
+
+import psutil
+# NOTE: This file previously used stdlib event-loop primitives directly. It now uses AnyIO
+# and a BlockingPortal to bridge sync HTTP handlers to async controller methods.
+
+logger = logging.getLogger(__name__)
+
+def find_random_port(host='127.0.0.1'):
+    """Finds a random available port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, 0))
+        return s.getsockname()[1]
+
+@dataclass
+class MCPServerConfig:
+    """Configuration for the MCP Server."""
+    data_dir: Path = field(default_factory=lambda: Path.home() / ".ipfs_kit")
+    host: str = "127.0.0.1"
+    port: Optional[int] = None # None means find a random port
+    static_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / "mcp" / "dashboard_static")
+    template_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / "mcp" / "dashboard_templates")
+    debug_mode: bool = False
+    enable_stdio: bool = True
+    enable_websocket: bool = False
+    max_connections: int = 100
+    timeout_seconds: int = 30
+    
+    # CLI alignment settings
+    preserve_cli_behavior: bool = True
+    daemon_sync_enabled: bool = True
+    metadata_cache_ttl: int = 300  # 5 minutes
+    atomic_operations_only: bool = True
+    
+    def __post_init__(self):
+        """Ensure data_dir is a Path object."""
+        if isinstance(self.data_dir, str):
+            self.data_dir = Path(self.data_dir).expanduser()
+
+
+class MCPServer:
+    """
+    Refactored MCP Server aligned with CLI codebase
+    
+    This server provides all CLI functionality through the MCP protocol:
+    - Backend management (matching CLI backend commands)
+    - Storage operations (matching CLI storage commands) 
+    - VFS operations (matching CLI vfs commands)
+    - Daemon management (matching CLI daemon commands)
+    - Pin and bucket operations (matching CLI functionality)
+    
+    Key design principles:
+    1. Mirror CLI command structure in MCP tools
+    2. Use metadata from ~/.ipfs_kit/ efficiently
+    3. Delegate backend sync to intelligent daemon
+    4. Preserve CLI behavior patterns
+    """
+    
+    def __init__(self, config: Optional[MCPServerConfig] = None):
+        """Initialize the refactored MCP server."""
+        self.config = config or MCPServerConfig()
+        self.server = Server("ipfs-kit-mcp")
+        # Expose a logger attribute for HTTP handlers
+        self.logger = logger
+
+        # Initialize MCP config manager
+        from .models.mcp_config_manager import get_mcp_config_manager
+        self.config_manager = get_mcp_config_manager(self.config.data_dir)
+
+        # Initialize core components aligned with CLI
+        self.metadata_manager = MCPMetadataManager(self.config.data_dir)
+        self.daemon_service = MCPDaemonService(self.config.data_dir)
+
+        # Initialize controllers that mirror CLI commands
+        self.cli_controller = MCPCLIController(self.metadata_manager, self.daemon_service)
+        self.backend_controller = MCPBackendController(self.metadata_manager, self.daemon_service)
+        self.daemon_controller = MCPDaemonController(self.metadata_manager, self.daemon_service)
+        self.storage_controller = MCPStorageController(self.metadata_manager, self.daemon_service)
+        self.vfs_controller = MCPVFSController(self.metadata_manager, self.daemon_service)
+
+        # Register MCP tools that mirror CLI commands
+        self._register_mcp_tools()
+
+        # Set up signal handlers
+        self._setup_signal_handlers()
+
+        logger.info(f"MCP Server initialized with data_dir: {self.config.data_dir}")
+    
+    def _register_mcp_tools(self) -> None:
+        """Register MCP tools that mirror CLI command structure."""
+        
+        # Backend tools (mirror CLI backend commands)
+        @self.server.list_tools()
+        async def list_backend_tools() -> List[types.Tool]:
+            """List available backend management tools."""
+            return [
+                types.Tool(
+                    name="backend_list",
+                    description="List all configured backends (mirrors 'ipfs-kit backend list')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filter": {"type": "string", "description": "Filter backends by type or name"},
+                            "status": {"type": "string", "description": "Filter by status (healthy, unhealthy, all)"},
+                            "detailed": {"type": "boolean", "description": "Show detailed information"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="backend_status",
+                    description="Get backend status information (mirrors 'ipfs-kit backend status')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "backend_name": {"type": "string", "description": "Specific backend to check"},
+                            "check_health": {"type": "boolean", "description": "Perform health check"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="backend_sync",
+                    description="Sync backend data (mirrors 'ipfs-kit backend sync')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "backend_name": {"type": "string", "description": "Backend to sync"},
+                            "force": {"type": "boolean", "description": "Force sync even if up to date"},
+                            "dry_run": {"type": "boolean", "description": "Show what would be synced"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="backend_migrate_pin_mappings",
+                    description="Migrate backend pin mappings (mirrors 'ipfs-kit backend migrate-pin-mappings')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filter": {"type": "string", "description": "Filter backends to migrate"},
+                            "dry_run": {"type": "boolean", "description": "Show what would be migrated"},
+                            "verbose": {"type": "boolean", "description": "Show detailed migration progress"}
+                        }
+                    }
+                )
+            ]
+        
+        # Storage tools (mirror CLI storage commands)
+        @self.server.list_tools()
+        async def list_storage_tools() -> List[types.Tool]:
+            """List available storage management tools."""
+            return [
+                types.Tool(
+                    name="storage_list",
+                    description="List storage contents (mirrors 'ipfs-kit storage list')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "backend": {"type": "string", "description": "Backend to list from"},
+                            "path": {"type": "string", "description": "Path to list"},
+                            "recursive": {"type": "boolean", "description": "List recursively"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="storage_upload",
+                    description="Upload content to storage (mirrors 'ipfs-kit storage upload')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "file_path": {"type": "string", "description": "Local file to upload"},
+                            "backend": {"type": "string", "description": "Target backend"},
+                            "remote_path": {"type": "string", "description": "Remote path destination"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="storage_download", 
+                    description="Download content from storage (mirrors 'ipfs-kit storage download')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "cid": {"type": "string", "description": "Content ID to download"},
+                            "backend": {"type": "string", "description": "Source backend"},
+                            "local_path": {"type": "string", "description": "Local destination path"}
+                        }
+                    }
+                )
+            ]
+        
+        # Daemon tools (mirror CLI daemon commands)
+        @self.server.list_tools()
+        async def list_daemon_tools() -> List[types.Tool]:
+            """List available daemon management tools."""
+            return [
+                types.Tool(
+                    name="daemon_status",
+                    description="Get daemon status (mirrors 'ipfs-kit daemon status')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "detailed": {"type": "boolean", "description": "Show detailed status"},
+                            "json": {"type": "boolean", "description": "Output in JSON format"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="daemon_intelligent_status",
+                    description="Get intelligent daemon status (mirrors 'ipfs-kit daemon intelligent status')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "json": {"type": "boolean", "description": "Output in JSON format"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="daemon_intelligent_insights",
+                    description="Get intelligent daemon insights (mirrors 'ipfs-kit daemon intelligent insights')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "json": {"type": "boolean", "description": "Output in JSON format"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="daemon_start",
+                    description="Start daemon services (mirrors 'ipfs-kit daemon start')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "service": {"type": "string", "description": "Specific service to start"},
+                            "background": {"type": "boolean", "description": "Run in background"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="daemon_stop",
+                    description="Stop daemon services (mirrors 'ipfs-kit daemon stop')", 
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "service": {"type": "string", "description": "Specific service to stop"}
+                        }
+                    }
+                )
+            ]
+        
+        # VFS tools (mirror CLI vfs commands)
+        @self.server.list_tools()
+        async def list_vfs_tools() -> List[types.Tool]:
+            """List available VFS management tools."""
+            return [
+                types.Tool(
+                    name="vfs_list",
+                    description="List VFS contents (mirrors 'ipfs-kit vfs list')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string", "description": "VFS path to list"},
+                            "recursive": {"type": "boolean", "description": "List recursively"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="vfs_create",
+                    description="Create VFS directory (mirrors 'ipfs-kit vfs create')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string", "description": "VFS path to create"},
+                            "parents": {"type": "boolean", "description": "Create parent directories"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="vfs_add",
+                    description="Add file to VFS (mirrors 'ipfs-kit vfs add')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "local_path": {"type": "string", "description": "Local file to add"},
+                            "vfs_path": {"type": "string", "description": "VFS destination path"}
+                        }
+                    }
+                )
+            ]
+        
+        # Pin tools (mirror CLI pin commands)
+        @self.server.list_tools()
+        async def list_pin_tools() -> List[types.Tool]:
+            """List available pin management tools."""
+            return [
+                types.Tool(
+                    name="pin_list",
+                    description="List pinned content (mirrors 'ipfs-kit pin list')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "backend": {"type": "string", "description": "Filter by backend"},
+                            "status": {"type": "string", "description": "Filter by pin status"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="pin_add",
+                    description="Pin content (mirrors 'ipfs-kit pin add')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "cid": {"type": "string", "description": "Content ID to pin"},
+                            "backend": {"type": "string", "description": "Backend to pin to"},
+                            "name": {"type": "string", "description": "Optional pin name"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="pin_remove",
+                    description="Unpin content (mirrors 'ipfs-kit pin remove')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "cid": {"type": "string", "description": "Content ID to unpin"},
+                            "backend": {"type": "string", "description": "Backend to unpin from"}
+                        }
+                    }
+                ),
+                # Filecoin Pin tools
+                types.Tool(
+                    name="filecoin_pin_add",
+                    description="Pin content to Filecoin Pin service (unified IPFS + Filecoin storage)",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "content": {"type": "string", "description": "File path or CID to pin"},
+                            "name": {"type": "string", "description": "Human-readable name for the pin"},
+                            "description": {"type": "string", "description": "Description for the pin"},
+                            "tags": {"type": "string", "description": "Comma-separated tags"},
+                            "replication": {"type": "integer", "description": "Number of replicas (default: 3)"},
+                            "api_key": {"type": "string", "description": "Filecoin Pin API key (optional)"}
+                        },
+                        "required": ["content"]
+                    }
+                ),
+                types.Tool(
+                    name="filecoin_pin_list",
+                    description="List all pins on Filecoin Pin service",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "status": {"type": "string", "description": "Filter by status (queued, pinning, pinned, failed)"},
+                            "limit": {"type": "integer", "description": "Maximum number of results (default: 100)"},
+                            "api_key": {"type": "string", "description": "Filecoin Pin API key (optional)"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="filecoin_pin_status",
+                    description="Get detailed status for a Filecoin Pin",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "cid": {"type": "string", "description": "Content ID to check"},
+                            "api_key": {"type": "string", "description": "Filecoin Pin API key (optional)"}
+                        },
+                        "required": ["cid"]
+                    }
+                ),
+                types.Tool(
+                    name="filecoin_pin_remove",
+                    description="Remove a pin from Filecoin Pin service",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "cid": {"type": "string", "description": "Content ID to unpin"},
+                            "api_key": {"type": "string", "description": "Filecoin Pin API key (optional)"}
+                        },
+                        "required": ["cid"]
+                    }
+                ),
+                types.Tool(
+                    name="filecoin_pin_get",
+                    description="Retrieve pinned content from Filecoin Pin",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "cid": {"type": "string", "description": "Content ID to retrieve"},
+                            "api_key": {"type": "string", "description": "Filecoin Pin API key (optional)"}
+                        },
+                        "required": ["cid"]
+                    }
+                )
+            ]
+        
+        # Bucket tools (mirror CLI bucket commands) 
+        @self.server.list_tools()
+        async def list_bucket_tools() -> List[types.Tool]:
+            """List available bucket management tools."""
+            return [
+                types.Tool(
+                    name="bucket_list",
+                    description="List buckets (mirrors 'ipfs-kit bucket list')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "backend": {"type": "string", "description": "Filter by backend"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="bucket_create",
+                    description="Create bucket (mirrors 'ipfs-kit bucket create')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Bucket name"},
+                            "backend": {"type": "string", "description": "Target backend"}
+                        }
+                    }
+                ),
+                types.Tool(
+                    name="bucket_sync",
+                    description="Sync bucket (mirrors 'ipfs-kit bucket sync')",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "bucket_name": {"type": "string", "description": "Bucket to sync"},
+                            "backend": {"type": "string", "description": "Target backend"},
+                            "dry_run": {"type": "boolean", "description": "Show what would be synced"}
+                        }
+                    }
+                )
+            ]
+        
+        # Configuration management tools (mirror CLI config commands)
+        @self.server.list_tools()
+        async def list_config_tools() -> List[types.Tool]:
+            """List available configuration management tools."""
+            return [
+                types.Tool(
+                    name="list_config_files",
+                    description="List configuration files with metadata-first approach",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {}
+                    }
+                ),
+                types.Tool(
+                    name="read_config_file",
+                    description="Read configuration file with metadata-first approach",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filename": {"type": "string", "description": "Configuration filename to read"}
+                        },
+                        "required": ["filename"]
+                    }
+                ),
+                types.Tool(
+                    name="write_config_file",
+                    description="Write configuration file with metadata-first approach",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filename": {"type": "string", "description": "Configuration filename to write"},
+                            "content": {"type": "string", "description": "File content to write"}
+                        },
+                        "required": ["filename", "content"]
+                    }
+                ),
+                types.Tool(
+                    name="get_config_metadata",
+                    description="Get configuration file metadata",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filename": {"type": "string", "description": "Configuration filename"}
+                        },
+                        "required": ["filename"]
+                    }
+                )
+            ]
+        
+        # Register tool call handlers
+        self._register_tool_handlers()
+    
+    def _register_tool_handlers(self) -> None:
+        """Register handlers for all MCP tools that delegate to CLI-aligned controllers."""
+        
+        @self.server.call_tool()
+        async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.TextContent]:
+            """Handle tool calls by delegating to appropriate controllers."""
+            try:
+                # Route to appropriate controller based on tool name prefix
+                if name.startswith("backend_"):
+                    result = await self.backend_controller.handle_tool_call(name, arguments)
+                elif name.startswith("storage_"):
+                    result = await self.storage_controller.handle_tool_call(name, arguments)
+                elif name.startswith("daemon_"):
+                    result = await self.daemon_controller.handle_tool_call(name, arguments)
+                elif name.startswith("vfs_"):
+                    result = await self.vfs_controller.handle_tool_call(name, arguments)
+                elif name.startswith("filecoin_pin_"):
+                    # Handle Filecoin Pin tools
+                    from ..mcp.controllers.filecoin_pin_controller import FilecoinPinController
+                    from ..mcp.controllers.filecoin_pin_controller import (
+                        FilecoinPinAddRequest, FilecoinPinListRequest, 
+                        FilecoinPinStatusRequest, FilecoinPinRemoveRequest, FilecoinPinGetRequest
+                    )
+                    
+                    # Lazily initialize and cache the FilecoinPinController instance on the server
+                    controller = getattr(self, "_filecoin_pin_controller", None)
+                    if controller is None:
+                        controller = FilecoinPinController()
+                        setattr(self, "_filecoin_pin_controller", controller)
+                    
+                    if name == "filecoin_pin_add":
+                        request = FilecoinPinAddRequest(**arguments)
+                        result = await controller.pin_add(request)
+                    elif name == "filecoin_pin_list":
+                        request = FilecoinPinListRequest(**arguments)
+                        result = await controller.pin_list(request)
+                    elif name == "filecoin_pin_status":
+                        request = FilecoinPinStatusRequest(**arguments)
+                        result = await controller.pin_status(request)
+                    elif name == "filecoin_pin_remove":
+                        request = FilecoinPinRemoveRequest(**arguments)
+                        result = await controller.pin_remove(request)
+                    elif name == "filecoin_pin_get":
+                        request = FilecoinPinGetRequest(**arguments)
+                        result = await controller.pin_get(request)
+                    else:
+                        result = {"error": f"Unknown Filecoin Pin tool: {name}"}
+                elif name.startswith("pin_"):
+                    result = await self.cli_controller.handle_pin_tool_call(name, arguments)
+                elif name.startswith("bucket_"):
+                    result = await self.cli_controller.handle_bucket_tool_call(name, arguments)
+                elif name in ["list_config_files", "read_config_file", "write_config_file", "get_config_metadata"]:
+                    result = await self._handle_config_tool_call(name, arguments)
+                else:
+                    result = {"error": f"Unknown tool: {name}"}
+                
+                # Format result for MCP response
+                if isinstance(result, dict) and "error" in result:
+                    content = f"Error: {result['error']}"
+                else:
+                    content = json.dumps(result, indent=2) if isinstance(result, (dict, list)) else str(result)
+                
+                return [types.TextContent(type="text", text=content)]
+                
+            except Exception as e:
+                logger.error(f"Error handling tool call {name}: {e}")
+                return [types.TextContent(type="text", text=f"Error executing {name}: {str(e)}")]
+    
+    async def _handle_config_tool_call(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle configuration management tool calls with metadata-first approach."""
+        try:
+            if name == "list_config_files":
+                return await self._list_config_files()
+            elif name == "read_config_file":
+                filename = arguments.get("filename")
+                if not filename:
+                    return {"error": "filename parameter is required"}
+                return await self._read_config_file(filename)
+            elif name == "write_config_file":
+                filename = arguments.get("filename")
+                content = arguments.get("content")
+                if not filename or content is None:
+                    return {"error": "filename and content parameters are required"}
+                return await self._write_config_file(filename, content)
+            elif name == "get_config_metadata":
+                filename = arguments.get("filename")
+                if not filename:
+                    return {"error": "filename parameter is required"}
+                return await self._get_config_metadata(filename)
+            else:
+                return {"error": f"Unknown configuration tool: {name}"}
+                
+        except Exception as e:
+            logger.error(f"Error in config tool {name}: {e}")
+            return {"error": str(e)}
+    
+    async def _list_config_files(self) -> Dict[str, Any]:
+        """List all configuration files with metadata-first approach."""
+        config_files = ["pins.json", "buckets.json", "backends.json"]
+        files_info = []
+        
+        for filename in config_files:
+            try:
+                file_info = await self._read_config_file(filename)
+                files_info.append({
+                    "filename": filename,
+                    "source": file_info["source"],
+                    "size": file_info["size"],
+                    "modified": file_info["modified"],
+                    "exists": True
+                })
+            except Exception as e:
+                files_info.append({
+                    "filename": filename,
+                    "source": "none",
+                    "size": 0,
+                    "modified": None,
+                    "exists": False,
+                    "error": str(e)
+                })
+        
+        return {
+            "files": files_info,
+            "metadata_dir": str(self.config.data_dir),
+            "total_files": len([f for f in files_info if f["exists"]])
+        }
+    
+    async def _read_config_file(self, filename: str) -> Dict[str, Any]:
+        """Read configuration file using metadata-first approach."""
+        # Metadata-first approach: check ~/.ipfs_kit/ first
+        metadata_path = self.config.data_dir / filename
+        fallback_path = Path("ipfs_kit_py") / filename
+        
+        try:
+            if metadata_path.exists():
+                content = metadata_path.read_text()
+                source = "metadata"
+                size = metadata_path.stat().st_size
+                modified = datetime.fromtimestamp(metadata_path.stat().st_mtime).isoformat()
+                path = str(metadata_path)
+            elif fallback_path.exists():
+                content = fallback_path.read_text()
+                source = "ipfs_kit_py"
+                size = fallback_path.stat().st_size
+                modified = datetime.fromtimestamp(fallback_path.stat().st_mtime).isoformat()
+                path = str(fallback_path)
+            else:
+                # Create default content in metadata location
+                default_content = self._get_default_config_content(filename)
+                metadata_path.parent.mkdir(parents=True, exist_ok=True)
+                metadata_path.write_text(default_content)
+                content = default_content
+                source = "metadata"
+                size = len(default_content.encode())
+                modified = datetime.now().isoformat()
+                path = str(metadata_path)
+            
+            return {
+                "content": content,
+                "source": source,
+                "size": size,
+                "modified": modified,
+                "path": path,
+                "metadata_first": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error reading config file {filename}: {e}")
+            raise e
+    
+    async def _write_config_file(self, filename: str, content: str) -> Dict[str, Any]:
+        """Write configuration file using metadata-first approach."""
+        try:
+            # Always write to metadata location (metadata-first approach)
+            metadata_path = self.config.data_dir / filename
+            metadata_path.parent.mkdir(parents=True, exist_ok=True)
+            metadata_path.write_text(content)
+            
+            return {
+                "success": True,
+                "filename": filename,
+                "source": "metadata",
+                "path": str(metadata_path),
+                "size": len(content.encode()),
+                "modified": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error writing config file {filename}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _get_config_metadata(self, filename: str) -> Dict[str, Any]:
+        """Get configuration file metadata."""
+        try:
+            file_info = await self._read_config_file(filename)
+            return {
+                "filename": filename,
+                "source": file_info["source"],
+                "size": file_info["size"],
+                "modified": file_info["modified"],
+                "path": file_info["path"],
+                "metadata_first": True
+            }
+        except Exception as e:
+            return {
+                "filename": filename,
+                "error": str(e),
+                "exists": False
+            }
+    
+    def _get_default_config_content(self, filename: str) -> str:
+        """Get default content for configuration files."""
+        if filename == "pins.json":
+            return json.dumps({
+                "pins": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "replication_factor": 1,
+                "cache_policy": "memory"
+            }, indent=2)
+        elif filename == "buckets.json":
+            return json.dumps({
+                "buckets": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "default_replication_factor": 1,
+                "default_cache_policy": "disk"
+            }, indent=2)
+        elif filename == "backends.json":
+            return json.dumps({
+                "backends": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "default_backend": "ipfs",
+                "health_check_interval": 30
+            }, indent=2)
+        else:
+            return "{}"
+    
+    def _setup_signal_handlers(self) -> None:
+        """Set up signal handlers for graceful shutdown."""
+        if os.environ.get("IPFS_KIT_DISABLE_SIGNAL_HANDLERS") == "1" or os.environ.get("PYTEST_CURRENT_TEST"):
+            logger.debug("Skipping MCP server signal handlers (disabled or running under pytest)")
+            return
+        def signal_handler(signum, frame):
+            logger.info(f"Received signal {signum}, shutting down gracefully...")
+            # Clean up resources
+            if hasattr(self.daemon_service, 'stop'):
+                # Signal handlers are synchronous; run async cleanup in a daemon thread.
+                threading.Thread(
+                    target=lambda: anyio.run(self.daemon_service.stop),
+                    daemon=True,
+                ).start()
+            raise SystemExit(0)
+        
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+    
+    async def start_stdio(self) -> None:
+        """Start the MCP server with stdio transport."""
+        logger.info("Starting MCP server with stdio transport")
+        
+        # Initialize daemon service interface (no daemon management)
+        await self.daemon_service.start()
+        
+        # Run the stdio server
+        async with stdio_server() as (read_stream, write_stream):
+            await self.server.run(
+                read_stream,
+                write_stream,
+                self.server.create_initialization_options()
+            )
+    
+    async def start_daemon_mode(self, host: str = "127.0.0.1", port: Optional[int] = None) -> None:
+        """Start the MCP server in daemon mode with HTTP status endpoint."""
+        if port is None:
+            port = find_random_port(host)
+
+        logger.info(f"Starting MCP server in daemon mode on {host}:{port}")
+        
+        # Initialize daemon service interface
+        await self.daemon_service.start()
+        
+        # Create a simple HTTP server for status and health checks
+        try:
+            class MCPStatusHandler(BaseHTTPRequestHandler):
+                def _call_async(self, func, *args, **kwargs):
+                    """Call an async function from this synchronous HTTP handler."""
+                    portal = getattr(self.server, "portal", None)
+                    if portal is not None:
+                        return portal.call(func, *args, **kwargs)
+                    # Fallback: run with a fresh AnyIO loop in this thread.
+                    return anyio.run(func, *args, **kwargs)
+
+                def do_GET(self):
+                    self.server.mcp_server.logger.debug(f"Received GET request for path: {self.path}")
+                    if self.path == '/':
+                        self._serve_html_template('unified_dashboard.html')
+                    elif self.path.startswith('/static/'):
+                        self._serve_static_file(self.path[len('/static/'):])
+                    elif self.path == '/health':
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        
+                        status = {
+                            "status": "running",
+                            "server": "ipfs-kit-mcp",
+                            "mode": "daemon",
+                            "data_dir": str(self.server.mcp_server.config.data_dir),
+                            "timestamp": datetime.now().isoformat()
+                        }
+                        self.wfile.write(json.dumps(status).encode())
+                    elif self.path == '/status':
+                        self._handle_status_api()
+                    elif self.path == '/api/backends':
+                        self._handle_backends_api()
+                    elif self.path == '/api/services':
+                        self._handle_services_api()
+                    elif self.path == '/api/services/comprehensive':
+                        self._handle_comprehensive_services_api()
+                    elif self.path == '/api/buckets':
+                        self._handle_buckets_api()
+                    elif self.path == '/api/tools':
+                        self._handle_tools_api()
+                    elif self.path == '/api/jsonrpc':
+                        # JSON-RPC is primarily POST, but allow GET for basic checks
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"jsonrpc": "2.0", "result": "JSON-RPC endpoint active", "id": None}).encode())
+                    elif self.path == '/api/pins':
+                        self._handle_pins_api_get()
+                    elif self.path.startswith('/api/pins/'):
+                        self._handle_pins_api_delete()
+                    elif self.path.startswith('/tools/'):
+                        self._handle_mcp_tools()
+                    elif self.path == '/api/system/overview':
+                        self._handle_system_overview_api()
+                    elif self.path == '/api/system/metrics':
+                        self._handle_system_metrics_api()
+                    elif self.path.startswith('/api/'):
+                        # All other API endpoints
+                        self._handle_generic_api()
+                    else:
+                        self.send_response(404)
+                        self.end_headers()
+
+                def _serve_html_template(self, template_name):
+                    template_path = self.server.mcp_server.config.template_dir / template_name
+                    if template_path.exists():
+                        self.send_response(200)
+                        self.send_header('Content-type', 'text/html')
+                        self.end_headers()
+                        with open(template_path, 'rb') as f:
+                            self.wfile.write(f.read())
+                    else:
+                        self.send_response(404)
+                        self.end_headers()
+
+                def _serve_static_file(self, file_path):
+                    full_path = self.server.mcp_server.config.static_dir / file_path
+                    if full_path.exists():
+                        content_type = 'application/octet-stream'
+                        if file_path.endswith('.js'):
+                            content_type = 'application/javascript'
+                        elif file_path.endswith('.css'):
+                            content_type = 'text/css'
+                        elif file_path.endswith('.png'):
+                            content_type = 'image/png'
+                        elif file_path.endswith('.jpg') or file_path.endswith('.jpeg'):
+                            content_type = 'image/jpeg'
+                        elif file_path.endswith('.gif'):
+                            content_type = 'image/gif'
+                        elif file_path.endswith('.svg'):
+                            content_type = 'image/svg+xml'
+                        elif file_path.endswith('.ico'):
+                            content_type = 'image/x-icon'
+
+                        self.send_response(200)
+                        self.send_header('Content-type', content_type)
+                        self.end_headers()
+                        with open(full_path, 'rb') as f:
+                            self.wfile.write(f.read())
+                    else:
+                        self.send_response(404)
+                        self.end_headers()
+
+                def do_POST(self):
+                    self.server.mcp_server.logger.debug(f"Received POST request for path: {self.path}")
+                    if self.path == '/api/jsonrpc':
+                        self._handle_jsonrpc_api()
+                    elif self.path == '/api/pins':
+                        self._handle_pins_api_post()
+                    elif self.path.startswith('/tools/'):
+                        self._handle_mcp_tools()
+                    elif self.path.startswith('/api/services/'):
+                        self._handle_services_action()
+                    else:
+                        self.send_response(404)
+                        self.end_headers()
+
+                def _handle_jsonrpc_api(self):
+                    try:
+                        content_length = int(self.headers.get('Content-Length', 0))
+                        if content_length == 0:
+                            self.send_response(400)
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error: Empty request body"}}).encode())
+                            return
+
+                        post_data = self.rfile.read(content_length)
+                        request_data = json.loads(post_data.decode('utf-8'))
+
+                        method = request_data.get('method')
+                        params = request_data.get('params', {})
+                        request_id = request_data.get('id', None)
+
+                        result = None
+                        error = None
+
+                        if method == 'ipfs.pin.ls':
+                            result = self._call_async(self.server.mcp_server.cli_controller.list_pins, params)
+                        elif method == 'ipfs.pin.add':
+                            result = self._call_async(self.server.mcp_server.cli_controller.add_pin, params)
+                        elif method == 'ipfs.pin.verify':
+                            # Placeholder for verify
+                            result = {"verified_pins": 0, "total_pins": 0}
+                        elif method == 'ipfs.pin.cleanup':
+                            # Placeholder for cleanup
+                            result = {"total_cleaned": 0}
+                        elif method == 'ipfs.pin.export_metadata':
+                            # Placeholder for export
+                            result = {"shards_created": 0}
+                        else:
+                            error = {"code": -32601, "message": f"Method not found: {method}"}
+
+                        if error:
+                            self.send_response(200)
+                            self.send_header('Content-type', 'application/json')
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"jsonrpc": "2.0", "error": error, "id": request_id}).encode())
+                        else:
+                            self.send_response(200)
+                            self.send_header('Content-type', 'application/json')
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"jsonrpc": "2.0", "result": result, "id": request_id}).encode())
+
+                    except json.JSONDecodeError:
+                        self.send_response(400)
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error: Invalid JSON"}}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"jsonrpc": "2.0", "error": {"code": -32000, "message": str(e)}, "id": request_id}).encode())
+                
+                def _handle_backends_api(self):
+                    try:
+                        backends = self._call_async(self.server.mcp_server.backend_controller.list_backends, {})
+                        # dashboard.js expects a 'backends' key in the response
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"backends": backends}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+                
+                def _handle_services_api(self):
+                    try:
+                        # Get services status from daemon
+                        daemon_status = self._call_async(self.server.mcp_server.daemon_service.get_daemon_status)
+                        services = {
+                            "ipfs": {
+                                "status": "running" if daemon_status.services.get("ipfs", False) else "stopped",
+                                "pid": daemon_status.pid
+                            },
+                            "cluster": {
+                                "status": "running" if daemon_status.services.get("cluster", False) else "stopped", 
+                                "pid": daemon_status.pid
+                            },
+                            "daemon": {
+                                "status": "running" if daemon_status.is_running else "stopped",
+                                "pid": daemon_status.pid,
+                                "role": daemon_status.role
+                            }
+                        }
+                        # dashboard.js expects a 'services' key in the response
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"services": services}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+                
+                def _handle_buckets_api(self):
+                    try:
+                        buckets = self._call_async(self.server.mcp_server.cli_controller.list_buckets, {})
+                        # dashboard.js expects a 'buckets' key in the response
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"buckets": buckets}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+                
+                def _handle_comprehensive_services_api(self):
+                    """Handle comprehensive services API with proper service management."""
+                    try:
+                        # Try to use the comprehensive service manager
+                        try:
+                            from ...mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
+                            service_manager = ComprehensiveServiceManager()
+                            services_data = self._call_async(service_manager.list_all_services)
+                        except ImportError as e:
+                            logger.warning(f"ComprehensiveServiceManager not available: {e}")
+                            # Fallback to mock comprehensive services data
+                            services_data = self._get_mock_comprehensive_services()
+                        
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"services": services_data}).encode())
+                    except Exception as e:
+                        logger.error(f"Error in comprehensive services API: {e}")
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+                
+                def _get_mock_comprehensive_services(self):
+                    """Provide mock comprehensive services data when the service manager is not available."""
+                    return {
+                        "ipfs": {
+                            "name": "IPFS Daemon",
+                            "type": "daemon",
+                            "description": "InterPlanetary File System daemon for distributed storage",
+                            "status": "running",
+                            "enabled": True,
+                            "requires_credentials": False,
+                            "actions": ["stop", "restart", "health_check", "view_logs", "disable"]
+                        },
+                        "lotus": {
+                            "name": "Lotus Storage",
+                            "type": "daemon",
+                            "description": "Filecoin Lotus storage provider integration",
+                            "status": "not_enabled",
+                            "enabled": False,
+                            "requires_credentials": False,
+                            "actions": ["enable"]
+                        },
+                        "aria2": {
+                            "name": "Aria2 Daemon",
+                            "type": "daemon", 
+                            "description": "High-speed download daemon for content retrieval",
+                            "status": "stopped",
+                            "enabled": True,
+                            "requires_credentials": False,
+                            "actions": ["start", "disable", "configure"]
+                        },
+                        "ipfs_cluster": {
+                            "name": "IPFS Cluster",
+                            "type": "daemon",
+                            "description": "IPFS Cluster daemon for coordinated pin management",
+                            "status": "not_enabled",
+                            "enabled": False,
+                            "requires_credentials": False,
+                            "actions": ["enable"]
+                        },
+                        "ipfs_cluster_follow": {
+                            "name": "IPFS Cluster Follow",
+                            "type": "daemon",
+                            "description": "IPFS Cluster Follow service for remote cluster synchronization",
+                            "status": "not_enabled",
+                            "enabled": False,
+                            "requires_credentials": False,
+                            "actions": ["enable"]
+                        },
+                        "lassie": {
+                            "name": "Lassie Retrieval Client", 
+                            "type": "daemon",
+                            "description": "High-performance Filecoin retrieval client for IPFS content",
+                            "status": "not_enabled",
+                            "enabled": False,
+                            "requires_credentials": False,
+                            "actions": ["enable"]
+                        },
+                        "s3": {
+                            "name": "Amazon S3",
+                            "type": "storage",
+                            "description": "Amazon Simple Storage Service backend",
+                            "status": "not_configured",
+                            "enabled": False,
+                            "requires_credentials": True,
+                            "actions": ["configure", "enable"]
+                        },
+                        "huggingface": {
+                            "name": "HuggingFace Hub",
+                            "type": "storage",
+                            "description": "HuggingFace model and dataset repository",
+                            "status": "not_configured",
+                            "enabled": False,
+                            "requires_credentials": True,
+                            "actions": ["configure", "enable"]
+                        },
+                        "github": {
+                            "name": "GitHub Storage",
+                            "type": "storage",
+                            "description": "GitHub repository storage backend",
+                            "status": "not_configured",
+                            "enabled": False,
+                            "requires_credentials": True,
+                            "actions": ["configure", "enable"]
+                        },
+                        "storacha": {
+                            "name": "Storacha",
+                            "type": "storage",
+                            "description": "Storacha decentralized storage service",
+                            "status": "not_configured",
+                            "enabled": False,
+                            "requires_credentials": True,
+                            "actions": ["configure", "enable"]
+                        },
+                        "synapse": {
+                            "name": "Synapse Matrix",
+                            "type": "storage",
+                            "description": "Matrix Synapse server storage backend",
+                            "status": "not_configured",
+                            "enabled": False,
+                            "requires_credentials": True,
+                            "actions": ["configure", "enable"]
+                        },
+                        "gdrive": {
+                            "name": "Google Drive",
+                            "type": "storage",
+                            "description": "Google Drive cloud storage backend",
+                            "status": "not_configured",
+                            "enabled": False,
+                            "requires_credentials": True,
+                            "actions": ["configure", "enable"]
+                        },
+                        "ftp": {
+                            "name": "FTP Server",
+                            "type": "storage",
+                            "description": "File Transfer Protocol storage backend",
+                            "status": "not_configured",
+                            "enabled": False,
+                            "requires_credentials": True,
+                            "actions": ["configure", "enable"]
+                        },
+                        "sshfs": {
+                            "name": "SSHFS",
+                            "type": "storage",
+                            "description": "SSH Filesystem storage backend", 
+                            "status": "not_configured",
+                            "enabled": False,
+                            "requires_credentials": True,
+                            "actions": ["configure", "enable"]
+                        },
+                        "apache_arrow": {
+                            "name": "Apache Arrow",
+                            "type": "storage",
+                            "description": "In-memory columnar data format for analytics and data processing",
+                            "status": "not_enabled",
+                            "enabled": False,
+                            "requires_credentials": False,
+                            "actions": ["enable"]
+                        },
+                        "parquet": {
+                            "name": "Parquet Storage",
+                            "type": "storage",
+                            "description": "Columnar storage format optimized for analytics workloads",
+                            "status": "not_enabled",
+                            "enabled": False,
+                            "requires_credentials": False,
+                            "actions": ["enable"]
+                        },
+                        "mcp_server": {
+                            "name": "MCP Server",
+                            "type": "network",
+                            "description": "Multi-Content Protocol server",
+                            "status": "running",
+                            "enabled": True,
+                            "requires_credentials": False,
+                            "actions": ["stop", "restart", "health_check", "view_logs", "disable"]
+                        }
+                    }
+                
+                def _handle_services_action(self):
+                    """Handle service action requests (start, stop, configure, etc.)"""
+                    try:
+                        # Parse the URL to extract service ID and action
+                        # Expected format: /api/services/{service_id}/{action}
+                        path_parts = self.path.split('/')
+                        if len(path_parts) < 5:
+                            self.send_response(400)
+                            self.send_header('Content-type', 'application/json')
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"error": "Invalid service action URL format"}).encode())
+                            return
+                        
+                        service_id = path_parts[3]
+                        action = path_parts[4]
+                        
+                        logger.info(f"Service action requested: {service_id} -> {action}")
+                        
+                        # Read POST body if present
+                        content_length = int(self.headers.get('Content-Length', 0))
+                        post_data = {}
+                        if content_length > 0:
+                            post_body = self.rfile.read(content_length)
+                            try:
+                                post_data = json.loads(post_body.decode('utf-8'))
+                            except json.JSONDecodeError:
+                                pass
+                        
+                        # Try to use comprehensive service manager
+                        result = None
+                        try:
+                            from ...mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
+                            service_manager = ComprehensiveServiceManager()
+                            result = self._call_async(service_manager.perform_service_action, service_id, action, post_data)
+                        except ImportError as e:
+                            logger.warning(f"ComprehensiveServiceManager not available: {e}")
+                            # Mock service action result
+                            result = self._mock_service_action(service_id, action, post_data)
+                        
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json') 
+                        self.end_headers()
+                        self.wfile.write(json.dumps(result).encode())
+                        
+                    except Exception as e:
+                        logger.error(f"Error handling service action: {e}")
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+                
+                def _mock_service_action(self, service_id, action, post_data):
+                    """Mock service action for when comprehensive service manager is not available."""
+                    logger.info(f"Mock service action: {service_id} -> {action}")
+                    
+                    # Simulate action results
+                    if action in ['start', 'stop', 'restart', 'enable', 'disable']:
+                        return {
+                            "success": True,
+                            "message": f"Service {service_id} {action} completed successfully",
+                            "service_id": service_id,
+                            "action": action
+                        }
+                    elif action == 'configure':
+                        return {
+                            "success": True,
+                            "message": f"Service {service_id} configured successfully",
+                            "service_id": service_id,
+                            "action": action,
+                            "config": post_data
+                        }
+                    elif action == 'health_check':
+                        return {
+                            "success": True,
+                            "service_id": service_id,
+                            "action": action,
+                            "health_status": "healthy",
+                            "details": {
+                                "status": "running",
+                                "uptime": "5m 23s",
+                                "last_check": datetime.now().isoformat()
+                            }
+                        }
+                    elif action == 'view_logs':
+                        return {
+                            "success": True,
+                            "service_id": service_id,
+                            "action": action,
+                            "logs": [
+                                f"{datetime.now().isoformat()} [INFO] Service {service_id} running normally",
+                                f"{datetime.now().isoformat()} [DEBUG] Last heartbeat: OK"
+                            ]
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "error": f"Unknown action: {action}"
+                        }
+                
+                def _handle_status_api(self):
+                    try:
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        
+                        # Get daemon status
+                        daemon_status = self._call_async(self.server.mcp_server.daemon_service.get_daemon_status)
+                        backends = self._call_async(self.server.mcp_server.metadata_manager.get_backend_metadata)
+                        
+                        status = {
+                            "mcp_server": "running",
+                            "daemon_running": daemon_status.is_running,
+                            "daemon_role": daemon_status.role,
+                            "backend_count": len(backends),
+                            "timestamp": datetime.now().isoformat()
+                        }
+                        self.wfile.write(json.dumps(status).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                def _handle_tools_api(self):
+                    try:
+                        # Dynamically get all registered tools
+                        all_tools = []
+                        # Access the MCPServer's embedded Server instance where tools are registered
+                        registered = getattr(self.server.mcp_server.server, "_tools", [])
+                        for tool_func in registered:
+                            all_tools.extend(self._call_async(tool_func))
+                        
+                        # Convert Tool objects to dictionaries for JSON serialization
+                        tools_data = []
+                        for tool in all_tools:
+                            tools_data.append({
+                                "name": tool.name,
+                                "description": tool.description,
+                                "inputSchema": tool.inputSchema
+                            })
+
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(tools_data).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                def _handle_mcp_tools(self):
+                    try:
+                        tool_name = self.path.split('/tools/')[-1]
+                        
+                        # Parse request body for POST requests
+                        content_length = int(self.headers.get('Content-Length', 0))
+                        if content_length > 0:
+                            post_data = self.rfile.read(content_length)
+                            try:
+                                request_data = json.loads(post_data.decode('utf-8'))
+                                arguments = request_data.get('arguments', {})
+                            except:
+                                arguments = {}
+                        else:
+                            arguments = {}
+                        
+                        # Dynamically route tool calls to appropriate controllers
+                        if tool_name.startswith("backend_"):
+                            result = self._call_async(self.server.mcp_server.backend_controller.handle_tool_call, tool_name, arguments)
+                        elif tool_name.startswith("storage_"):
+                            result = self._call_async(self.server.mcp_server.storage_controller.handle_tool_call, tool_name, arguments)
+                        elif tool_name.startswith("daemon_"):
+                            result = self._call_async(self.server.mcp_server.daemon_controller.handle_tool_call, tool_name, arguments)
+                        elif tool_name.startswith("vfs_"):
+                            result = self._call_async(self.server.mcp_server.vfs_controller.handle_tool_call, tool_name, arguments)
+                        elif tool_name.startswith("pin_"):
+                            result = self._call_async(self.server.mcp_server.cli_controller.handle_pin_tool_call, tool_name, arguments)
+                        elif tool_name.startswith("bucket_"):
+                            result = self._call_async(self.server.mcp_server.cli_controller.handle_bucket_tool_call, tool_name, arguments)
+                        else:
+                            result = {"error": f"Unknown tool: {tool_name}"}
+                        
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(result).encode())
+                        
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+                
+                def _handle_generic_api(self):
+                    # Return 404 for now to prevent unexpected behavior
+                    self.send_response(404)
+                    self.end_headers()
+                        
+                def _handle_system_overview_api(self):
+                    try:
+                        # Get system metrics using psutil
+                        cpu_percent = psutil.cpu_percent(interval=0.1)
+                        memory = psutil.virtual_memory()
+                        disk = psutil.disk_usage('/')
+
+                        # Get services and backends count from MCP server
+                        services_count = len(self.server.mcp_server.daemon_service.get_services_status().services)
+                        backends_count = len(self._call_async(self.server.mcp_server.metadata_manager.get_backend_metadata))
+                        buckets_count = len(self._call_async(self.server.mcp_server.cli_controller.list_buckets, {}))
+
+                        # Get IPFS peer ID and addresses (if daemon is running)
+                        ipfs_status = self._call_async(self.server.mcp_server.daemon_service.get_daemon_status)
+                        peer_id = ipfs_status.peer_id if ipfs_status.is_running else None
+                        addresses = ipfs_status.addresses if ipfs_status.is_running else []
+
+                        overview_data = {
+                            "services": services_count,
+                            "backends": backends_count,
+                            "buckets": buckets_count,
+                            "system": {
+                                "cpu": {
+                                    "usage": cpu_percent
+                                },
+                                "memory": {
+                                    "percent": memory.percent,
+                                    "used": memory.used,
+                                    "total": memory.total
+                                },
+                                "disk": {
+                                    "percent": disk.percent,
+                                    "used": disk.used,
+                                    "total": disk.total
+                                }
+                            },
+                            "peer_id": peer_id,
+                            "addresses": addresses,
+                            "timestamp": datetime.now().isoformat()
+                        }
+
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(overview_data).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                def _handle_system_metrics_api(self):
+                    try:
+                        # Get network metrics using psutil
+                        net_io_counters = psutil.net_io_counters()
+                        network_data = {
+                            "network": {
+                                "sent": net_io_counters.bytes_sent,
+                                "recv": net_io_counters.bytes_recv
+                            },
+                            "timestamp": datetime.now().isoformat()
+                        }
+
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(network_data).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                def _handle_pins_api_get(self):
+                    try:
+                        # Get the list of pins from the CLI controller and return the raw list for parity with tools
+                        pins_result = self._call_async(self.server.mcp_server.cli_controller.list_pins, {})
+                        # pins_result is a dict with a 'pins' key per controller contract
+                        pins = pins_result.get('pins', []) if isinstance(pins_result, dict) else pins_result
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(pins).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                def _handle_pins_api_post(self):
+                    try:
+                        content_length = int(self.headers.get('Content-Length', 0))
+                        post_data = self.rfile.read(content_length)
+                        request_data = json.loads(post_data.decode('utf-8'))
+                        cid = request_data.get('cid')
+                        name = request_data.get('name')
+
+                        if not cid:
+                            self.send_response(400)
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": False, "error": "CID is required"}).encode())
+                            return
+
+                        result = self._call_async(self.server.mcp_server.cli_controller.add_pin, {"cid_or_file": cid, "name": name})
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True, "result": result}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
+                def _handle_pins_api_delete(self):
+                    try:
+                        cid = self.path.split('/api/pins/')[-1]
+                        if not cid:
+                            self.send_response(400)
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": False, "error": "CID is required"}).encode())
+                            return
+
+                        result = self._call_async(self.server.mcp_server.cli_controller.remove_pin, {"cid": cid})
+                        self.send_response(200)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True, "result": result}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
+                def log_message(self, format, *args):
+                    # Suppress default HTTP server logs
+                    pass
+            
+            # Store reference to MCP server
+            MCPStatusHandler.server_class = type('MCPServerRef', (), {'mcp_server': self})
+            
+            # Create HTTP server
+            portal_cm = anyio.from_thread.start_blocking_portal()
+            portal = portal_cm.__enter__()
+            httpd = HTTPServer((host, port), MCPStatusHandler)
+            httpd.mcp_server = self
+            httpd.portal = portal
+            
+            logger.info(f"MCP server daemon mode started on http://{host}:{port}")
+            print(f"MCP_SERVER_PORT:{port}")
+            
+            # Save PID file for management
+            pid_file = self.config.data_dir / "mcp_server.pid"
+            with open(pid_file, 'w') as f:
+                f.write(str(os.getpid()))
+            
+            # Run HTTP server
+            def run_server():
+                try:
+                    httpd.serve_forever()
+                except Exception as e:
+                    print(f"Error in HTTP server thread: {e}")
+            
+            server_thread = threading.Thread(target=run_server, daemon=True)
+            server_thread.start()
+            
+            # Keep the main thread alive
+            try:
+                while True:
+                    await anyio.sleep(1)
+            except KeyboardInterrupt:
+                logger.info("Shutting down daemon mode...")
+                httpd.shutdown()
+                httpd.server_close()
+                
+                # Clean up PID file
+                if pid_file.exists():
+                    pid_file.unlink()
+            finally:
+                portal_cm.__exit__(None, None, None)
+                    
+        except Exception as e:
+            logger.error(f"Error in daemon mode: {e}")
+            raise
+    
+    async def start_websocket(self, host: str = None, port: int = None) -> None:
+        """Start the MCP server with WebSocket transport."""
+        host = host or self.config.host
+        port = port or self.config.port
+        
+        logger.info(f"Starting MCP server with WebSocket transport on {host}:{port}")
+        
+        # Initialize daemon service interface (no daemon management)
+        await self.daemon_service.start()
+        
+        # Note: WebSocket implementation would require additional setup
+        # For now, we focus on stdio which is the primary MCP transport
+        raise NotImplementedError("WebSocket transport not yet implemented")
+    
+    async def stop(self) -> None:
+        """Stop the MCP server and clean up resources."""
+        logger.info("Stopping MCP server")
+        
+        # Stop daemon service interface
+        await self.daemon_service.stop()
+        
+        # Clean up other resources
+        if hasattr(self.metadata_manager, 'close'):
+            await self.metadata_manager.close()
+
+
+async def main():
+    """Main entry point for the refactored MCP server."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="IPFS Kit MCP Server (Refactored)")
+    parser.add_argument("--data-dir", type=str, default="~/.ipfs_kit",
+                       help="Data directory path")
+    parser.add_argument("--debug", action="store_true",
+                       help="Enable debug logging") 
+    parser.add_argument("--no-daemon-sync", action="store_true",
+                       help="Disable daemon synchronization")
+    parser.add_argument("--websocket", action="store_true",
+                       help="Use WebSocket transport instead of stdio")
+    parser.add_argument("--daemon", action="store_true",
+                       help="Run as daemon (keeps running for CLI management)")
+    parser.add_argument("--host", type=str, default="127.0.0.1",
+                       help="Host for WebSocket server")
+    parser.add_argument("--port", type=int, default=None, # Changed default to None
+                       help="Port for WebSocket server")
+    
+    args = parser.parse_args()
+    
+    # Configure logging
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    # Create server configuration
+    config = MCPServerConfig(
+        data_dir=Path(args.data_dir).expanduser(),
+        debug_mode=args.debug,
+        daemon_sync_enabled=not args.no_daemon_sync,
+        enable_websocket=args.websocket,
+        host=args.host,
+        port=args.port # Pass port from args
+    )
+    
+    # Create and start server
+    server = MCPServer(config)
+    
+    try:
+        if args.websocket:
+            await server.start_websocket()
+        elif args.daemon:
+            # Run as daemon - create a simple HTTP server for status
+            logger.info(f"Starting MCP server in daemon mode on {args.host}:{args.port}")
+            await server.start_daemon_mode(args.host, args.port)
+        else:
+            await server.start_stdio()
+    except KeyboardInterrupt:
+        logger.info("Received interrupt, shutting down...")
+    finally:
+        await server.stop()
+
+
+if __name__ == "__main__":
+    anyio.run(main())

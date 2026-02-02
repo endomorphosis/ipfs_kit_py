@@ -139,7 +139,7 @@ print("4. Explore the API: http://127.0.0.1:9999/health")
 async def demo_client_operations():
     """Demonstrate client operations (if daemon is running)."""
     try:
-        from mcp.ipfs_kit.daemon.daemon_client import IPFSKitDaemonClient
+        from ipfs_kit_py.mcp.ipfs_kit.daemon.daemon_client import IPFSKitDaemonClient
         
         print("\n🔍 TESTING DAEMON CONNECTION:")
         print("-" * 40)

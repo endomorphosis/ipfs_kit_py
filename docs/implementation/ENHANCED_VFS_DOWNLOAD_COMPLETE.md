@@ -47,12 +47,12 @@ test_enhanced_vfs_download.py       # Comprehensive testing
 
 ### Demo Files
 ```
-demo_vfs_indexes/                   # Generated demo indexes
-├── master_index.json              # Master index with bucket links
-├── documents-bucket_index.json    # Document bucket index
-├── media-bucket_index.json        # Media bucket index  
-├── backup-bucket_index.json       # Backup bucket index
-└── temp-bucket_index.json         # Temporary bucket index
+examples/data/vfs_indexes/              # Generated demo indexes
+├── master_index.json                   # Master index with bucket links
+├── documents-bucket_index.json         # Document bucket index
+├── media-bucket_index.json             # Media bucket index  
+├── backup-bucket_index.json            # Backup bucket index
+└── temp-bucket_index.json              # Temporary bucket index
 ```
 
 ## 🎯 Enhanced VFS Download Workflow

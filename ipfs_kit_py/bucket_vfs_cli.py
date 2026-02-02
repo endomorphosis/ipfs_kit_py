@@ -13,23 +13,70 @@ import json
 import logging
 import os
 import sys
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Import bucket VFS components
+# Import bucket VFS components (best-effort).
+#
+# Tests patch `ipfs_kit_py.bucket_vfs_cli.get_global_bucket_manager` directly,
+# so this module must always define that attribute even when optional Bucket
+# VFS dependencies are not installed.
 try:
-    from .bucket_vfs_manager import BucketVFSManager, BucketType, VFSStructureType, get_global_bucket_manager
+    from .bucket_vfs_manager import (
+        BucketVFSManager as BucketVFSManager,
+        BucketType as BucketType,
+        VFSStructureType as VFSStructureType,
+        get_global_bucket_manager as _get_global_bucket_manager,
+    )
     from .error import create_result_dict, handle_error
     BUCKET_VFS_AVAILABLE = True
     LEGACY_BUCKET_MODE = False
-except ImportError as e:
+except Exception as e:
     logger.warning(f"BucketVFSManager not available: {e}")
     BUCKET_VFS_AVAILABLE = False
     LEGACY_BUCKET_MODE = False
 
+    BucketVFSManager = None  # type: ignore[assignment]
+
+    class BucketType(str, Enum):
+        GENERAL = "general"
+        DATASET = "dataset"
+        KNOWLEDGE = "knowledge"
+        MEDIA = "media"
+        ARCHIVE = "archive"
+        TEMP = "temp"
+
+    class VFSStructureType(str, Enum):
+        UNIXFS = "unixfs"
+        GRAPH = "graph"
+        VECTOR = "vector"
+        HYBRID = "hybrid"
+
+    def _get_global_bucket_manager(**kwargs):  # type: ignore[no-redef]
+        raise RuntimeError("Bucket VFS system not available")
+
+    def create_result_dict(success: bool, **kwargs):
+        result = {"success": success}
+        result.update(kwargs)
+        return result
+
+    def handle_error(operation: str, error: Exception):
+        return create_result_dict(False, error=f"{operation} failed: {error}")
+
 LEGACY_BUCKET_MODE = False
+
+
+def get_global_bucket_manager(**kwargs):
+    """Return the global bucket manager.
+
+    Always defined so tests can patch `ipfs_kit_py.bucket_vfs_cli.get_global_bucket_manager`
+    even when optional Bucket VFS imports are unavailable.
+    """
+
+    return _get_global_bucket_manager(**kwargs)
 
 
 async def _await_if_needed(value):
@@ -75,8 +122,9 @@ LEGACY_BUCKET_MODE = False
 async def handle_bucket_create(args) -> int:
     """Handle bucket create command."""
     if not BUCKET_VFS_AVAILABLE:
-        print_error("Bucket VFS system not available")
-        return 1
+        logger.warning(
+            "Bucket VFS imports unavailable; attempting to proceed (tests may inject a mock manager)"
+        )
     
     try:
         # Use BucketVFSManager
@@ -125,8 +173,9 @@ async def handle_bucket_create(args) -> int:
 async def handle_bucket_list(args) -> int:
     """Handle bucket list command."""
     if not BUCKET_VFS_AVAILABLE:
-        print_error("Bucket VFS system not available")
-        return 1
+        logger.warning(
+            "Bucket VFS imports unavailable; attempting to proceed (tests may inject a mock manager)"
+        )
     
     try:
         if LEGACY_BUCKET_MODE:
@@ -203,8 +252,9 @@ async def handle_bucket_list(args) -> int:
 async def handle_bucket_delete(args) -> int:
     """Handle bucket delete command."""
     if not BUCKET_VFS_AVAILABLE:
-        print_error("Bucket VFS system not available")
-        return 1
+        logger.warning(
+            "Bucket VFS imports unavailable; attempting to proceed (tests may inject a mock manager)"
+        )
     
     try:
         # Initialize bucket manager
@@ -241,8 +291,9 @@ async def handle_bucket_delete(args) -> int:
 async def handle_bucket_add_file(args) -> int:
     """Handle add-file subcommand."""
     if not BUCKET_VFS_AVAILABLE:
-        print_error("BucketVFS not available - install required dependencies")
-        return 1
+        logger.warning(
+            "Bucket VFS imports unavailable; attempting to proceed (tests may inject a mock manager)"
+        )
     
     try:
         # Use BucketVFSManager for enhanced architecture
@@ -480,8 +531,9 @@ async def handle_bucket_export(args) -> int:
 async def handle_bucket_query(args) -> int:
     """Handle cross-bucket SQL query."""
     if not BUCKET_VFS_AVAILABLE:
-        print_error("Bucket VFS system not available")
-        return 1
+        logger.warning(
+            "Bucket VFS imports unavailable; attempting to proceed (tests may inject a mock manager)"
+        )
     
     try:
         arg_values = vars(args)
@@ -540,15 +592,17 @@ async def handle_bucket_query(args) -> int:
 
 def register_bucket_commands(parser_or_subparsers) -> None:
     """Register bucket VFS commands with the CLI."""
-    if not BUCKET_VFS_AVAILABLE:
-        logger.debug("Bucket VFS not available, skipping command registration")
-        return
-
-    # Accept either an argparse parser (preferred) or an existing subparsers object
+    # Accept either an argparse parser (preferred) or an existing subparsers object.
+    # Always create the subparsers when possible so callers/tests can verify the
+    # registration pattern even if optional Bucket VFS imports are unavailable.
     if hasattr(parser_or_subparsers, "add_subparsers"):
         subparsers = parser_or_subparsers.add_subparsers()
     else:
         subparsers = parser_or_subparsers
+
+    if not BUCKET_VFS_AVAILABLE:
+        logger.debug("Bucket VFS not available, skipping detailed command registration")
+        return
     
     # Main bucket command
     bucket_parser = subparsers.add_parser(

@@ -1,36 +1,14 @@
 #!/usr/bin/env bash
 
-# Zero-touch installer for ipfs_kit_py
-#
-# Goals:
-# - No sudo required by default
-# - Detect OS/arch and install missing tooling locally into ./bin
-# - Create ./.venv and install Python deps
-# - Optionally install Node + Playwright deps for E2E
+# Compatibility wrapper: keep older paths working.
+# Prefer the repository root installer (creates ./.venv in the repo root).
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BIN_DIR="${ROOT_DIR}/bin"
-CACHE_DIR="${ROOT_DIR}/.cache"
-VENV_DIR="${ROOT_DIR}/.venv"
-LOCAL_DEPS_DIR="${BIN_DIR}/deps"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$REPO_DIR"
 
-PROFILE="full"           # core|api|dev|full
-EXTRAS=""                # comma-separated extras override
-INSTALL_NODE="auto"       # auto|yes|no
-INSTALL_PLAYWRIGHT="auto" # auto|yes|no
-INSTALL_LIBMAGIC="auto"   # auto|yes|no
-INSTALL_IPFS="auto"       # auto|yes|no
-INSTALL_LASSIE="auto"     # auto|yes|no
-INSTALL_LOTUS="auto"      # auto|yes|no
-ALLOW_UNSUPPORTED_PYTHON="0"
-
-NODE_VERSION="20.11.1"   # LTS-ish; pinned for reproducibility
-UV_VERSION="0.5.13"      # pinned; used only when Python>=3.12 not available
-
-log() { printf "%s\n" "$*"; }
-err() { printf "%s\n" "$*" >&2; }
+exec ./zero_touch_install.sh "$@"
 
 usage() {
   cat <<'EOF'
@@ -389,6 +367,9 @@ PY
       err "If you want strict mode, run: .venv/bin/pip install -r requirements.txt"
     fi
   fi
+
+  log "Installing test dependencies (pytest-anyio, pytest-asyncio, pytest-cov)"
+  python -m pip install --upgrade pytest pytest-anyio pytest-asyncio pytest-cov
 }
 
 ensure_node_local() {

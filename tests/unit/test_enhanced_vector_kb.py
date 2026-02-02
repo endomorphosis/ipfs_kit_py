@@ -14,7 +14,7 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(repo_root))
 
-from mcp.ipfs_kit.api.vector_kb_endpoints import VectorKBEndpoints
+from ipfs_kit_py.mcp.ipfs_kit.api.vector_kb_endpoints import VectorKBEndpoints
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

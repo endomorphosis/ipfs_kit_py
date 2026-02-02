@@ -13,7 +13,7 @@ import time
 # Add the project root to path
 sys.path.insert(0, ".")
 
-from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
 
 
 async def test_core_fixes():

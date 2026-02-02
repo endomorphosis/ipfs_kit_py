@@ -1,0 +1,208 @@
+# Workflow Auto-Fix Configuration for ipfs_kit_py
+#
+# This file configures the automatic workflow failure handling system
+
+# Enable/disable the auto-healing system
+auto_healing:
+  enabled: true
+  
+  # Minimum confidence score (0-100) required to automatically create a PR
+  # Fixes with lower confidence will only create issues for manual review
+  min_confidence: 70
+  
+  # Create draft PRs by default (requires manual review before merge)
+  create_draft: true
+  
+  # Automatically assign GitHub Copilot to fix PRs
+  auto_assign_copilot: true
+
+# Rate limiting to prevent spam
+rate_limits:
+  # Maximum number of PRs to create per hour
+  max_prs_per_hour: 10
+  
+  # Maximum number of issues to create per hour
+  max_issues_per_hour: 20
+
+# Workflows to exclude from auto-healing
+excluded_workflows:
+  - "Copilot Agent Autofix"
+  - "Auto Heal Workflow"
+  - "Copilot Auto Heal"
+  - "Simple Auto Heal"
+  - "Workflow Failure Autofix"
+  - "Workflow Failure Monitor"
+  - "Auto Healing Demo"
+  - "Update Auto-Healing List"
+
+# Error pattern definitions
+# Each pattern includes:
+#   - pattern: Regex pattern to match in logs
+#   - confidence: Confidence score (0-100) for fix accuracy
+#   - fix_type: Type of fix to apply
+#   - auto_pr: Whether to automatically create a PR (true) or just an issue (false)
+error_patterns:
+  missing_dependency:
+    pattern: "ModuleNotFoundError|ImportError: No module named"
+    confidence: 90
+    fix_type: "add_dependency"
+    auto_pr: true
+    description: "Missing Python package dependency"
+  
+  syntax_error:
+    pattern: "SyntaxError|IndentationError|TabError"
+    confidence: 85
+    fix_type: "fix_syntax"
+    auto_pr: false  # Syntax errors need human review
+    description: "Python syntax or indentation error"
+  
+  timeout:
+    pattern: "timeout|timed out|deadline exceeded"
+    confidence: 95
+    fix_type: "increase_timeout"
+    auto_pr: true
+    description: "Workflow or command timeout"
+  
+  docker_build_fail:
+    pattern: "docker build.*failed|ERROR: failed to solve"
+    confidence: 80
+    fix_type: "fix_dockerfile"
+    auto_pr: true
+    description: "Docker build or image error"
+  
+  permission_denied:
+    pattern: "Permission denied|PermissionError|EACCES|403 Forbidden"
+    confidence: 75
+    fix_type: "fix_permissions"
+    auto_pr: false  # Permissions need careful review
+    description: "Permission or access denied error"
+  
+  network_error:
+    pattern: "ConnectionError|Network error|Connection refused"
+    confidence: 75
+    fix_type: "add_retry"
+    auto_pr: true
+    description: "Network connectivity error"
+  
+  resource_exhaustion:
+    pattern: "out of memory|OOM|MemoryError|disk.*full"
+    confidence: 90
+    fix_type: "increase_resources"
+    auto_pr: true
+    description: "Resource exhaustion (memory/disk)"
+  
+  env_variable_missing:
+    pattern: "Environment variable.*not set|KeyError.*env"
+    confidence: 95
+    fix_type: "add_env_variable"
+    auto_pr: false  # Environment variables may contain secrets
+    description: "Missing environment variable"
+  
+  test_failure:
+    pattern: "FAILED.*test|AssertionError|Test failed"
+    confidence: 70
+    fix_type: "fix_test"
+    auto_pr: false  # Test failures need code review
+    description: "Test assertion or execution failure"
+
+# PR settings
+pr_settings:
+  # Create PRs as drafts by default
+  create_draft: true
+  
+  # Automatically assign GitHub Copilot
+  auto_assign_copilot: true
+  
+  # Labels to add to automated PRs
+  add_labels:
+    - "automated-fix"
+    - "copilot-ready"
+    - "workflow-fix"
+  
+  # PR title template
+  # Variables: {workflow_name}, {error_type}, {fix_type}
+  title_template: "fix: Auto-fix {error_type} in {workflow_name}"
+  
+  # Branch name template
+  # Variables: {workflow_name}, {fix_type}, {timestamp}
+  branch_template: "autofix/{workflow_name}/{fix_type}/{timestamp}"
+
+# Issue settings
+issue_settings:
+  # Create issues for all failures (even if PR is also created)
+  create_issue: true
+  
+  # Labels to add to automated issues
+  add_labels:
+    - "auto-healing"
+    - "workflow-failure"
+    - "automated"
+  
+  # Issue title template
+  title_template: "Workflow Failure: {workflow_name} - {error_type}"
+
+# Notification settings
+notifications:
+  # Notify when a failure is detected
+  on_failure_detected: true
+  
+  # Notify when a PR is created
+  on_pr_created: true
+  
+  # Notify when a fix is completed and merged
+  on_fix_completed: false
+
+# Advanced settings
+advanced:
+  # Maximum log size to analyze (in MB)
+  max_log_size_mb: 50
+  
+  # Number of log lines to include in analysis
+  max_log_lines: 5000
+  
+  # Context lines to include around errors
+  error_context_lines: 5
+  
+  # Skip analyzing very old workflow runs (days)
+  max_age_days: 7
+  
+  # Retry failed GitHub API calls
+  api_retry_attempts: 3
+  
+  # Delay between retry attempts (seconds)
+  api_retry_delay: 5
+
+# Repository-specific fixes
+# These are custom fix templates for ipfs_kit_py
+repository_fixes:
+  ipfs_dependency:
+    pattern: "ipfs|kubo|go-ipfs"
+    fix_type: "add_ipfs_dependency"
+    confidence: 95
+    description: "Missing IPFS-related dependency"
+  
+  cluster_dependency:
+    pattern: "ipfs-cluster|cluster-ctl"
+    fix_type: "add_cluster_dependency"
+    confidence: 95
+    description: "Missing IPFS Cluster dependency"
+  
+  gpu_dependency:
+    pattern: "cuda|cudnn|gpu|nvidia"
+    fix_type: "add_gpu_dependency"
+    confidence: 85
+    description: "Missing GPU-related dependency"
+
+# Monitoring
+monitoring:
+  # Track metrics for auto-healing effectiveness
+  enabled: true
+  
+  # Metrics to track
+  metrics:
+    - "failure_detection_rate"
+    - "pr_creation_rate"
+    - "pr_merge_rate"
+    - "fix_success_rate"
+    - "time_to_fix"
+    - "false_positive_rate"

@@ -6,13 +6,13 @@ on:
       - 'ipfs_kit_daemon.py'
       - 'ipfs_kit_daemon_client.py'
       - 'test_daemon_*.py'
-      - 'docker/**'
+      - 'deployment/docker/**'
   pull_request:
     paths:
       - 'ipfs_kit_daemon.py'
       - 'ipfs_kit_daemon_client.py'
       - 'test_daemon_*.py'
-      - 'docker/**'
+      - 'deployment/docker/**'
   schedule:
     # Run daily at 06:00 UTC
     - cron: '0 6 * * *'
@@ -220,13 +220,13 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/Dockerfile.enhanced
+          file: deployment/docker/Dockerfile.enhanced
           tags: ipfs-kit:test
           load: true
           
       - name: Test cluster deployment
         run: |
-          docker compose -f docker/docker-compose.enhanced.yml up -d ipfs-kit
+          docker compose -f deployment/docker/docker-compose.enhanced.yml up -d ipfs-kit
           
           # Wait for services to be ready
           sleep 60
@@ -240,7 +240,7 @@ jobs:
           echo "✅ Primary node healthy"
           
           # Cleanup
-          docker compose -f docker/docker-compose.enhanced.yml down
+          docker compose -f deployment/docker/docker-compose.enhanced.yml down
           
   daemon-stress-tests:
     name: Daemon Stress Tests

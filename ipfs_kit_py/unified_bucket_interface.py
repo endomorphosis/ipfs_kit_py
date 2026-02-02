@@ -27,6 +27,8 @@ from typing import Any, Dict, List, Optional, Set, Union, Tuple
 
 import aiofiles
 
+logger = logging.getLogger(__name__)
+
 try:
     import pyarrow as pa
     import pyarrow.parquet as pq
@@ -40,12 +42,35 @@ try:
 except ImportError:
     DUCKDB_AVAILABLE = False
 
+# Import ipfs_datasets_py integration with fallback
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+except ImportError:
+    HAS_DATASETS = False
+    get_ipfs_datasets_manager = None
+    logger.info("ipfs_datasets_py not available - dataset storage disabled")
+
+# Import ipfs_accelerate_py for compute acceleration
+try:
+    import sys
+    from pathlib import Path as PathlibPath
+    accelerate_path = PathlibPath(__file__).parent.parent / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available")
+except ImportError:
+    HAS_ACCELERATE = False
+    AccelerateCompute = None
+    logger.info("ipfs_accelerate_py not available - using default compute")
+
 from .bucket_vfs_manager import BucketVFSManager, BucketType, VFSStructureType
 from .enhanced_bucket_index import EnhancedBucketIndex
 from .pins import EnhancedPinMetadataIndex
 from .error import create_result_dict
-
-logger = logging.getLogger(__name__)
 
 
 class BackendType(Enum):
@@ -89,8 +114,13 @@ class UnifiedBucketInterface:
     def __init__(
         self,
         ipfs_kit_dir: Optional[str] = None,
+        storage_path: Optional[str] = None,
         enable_cross_backend_queries: bool = True,
-        auto_sync_interval: int = 300  # 5 minutes
+        auto_sync_interval: int = 300,  # 5 minutes
+        enable_dataset_storage: bool = False,
+        enable_compute_layer: bool = False,
+        dataset_batch_size: int = 100,
+        **_kwargs,
     ):
         """
         Initialize unified bucket interface.
@@ -99,7 +129,15 @@ class UnifiedBucketInterface:
             ipfs_kit_dir: Base directory (defaults to ~/.ipfs_kit)
             enable_cross_backend_queries: Enable cross-backend SQL queries
             auto_sync_interval: Auto-sync interval in seconds
+            enable_dataset_storage: Enable ipfs_datasets_py integration
+            enable_compute_layer: Enable ipfs_accelerate_py compute acceleration
+            dataset_batch_size: Batch size for dataset operations
         """
+        # Backwards-compatibility: some callers/tests use `storage_path` to
+        # specify the base ipfs-kit directory.
+        if ipfs_kit_dir is None and storage_path is not None:
+            ipfs_kit_dir = storage_path
+
         self.ipfs_kit_dir = Path(ipfs_kit_dir or os.path.expanduser("~/.ipfs_kit"))
         self.ipfs_kit_dir.mkdir(parents=True, exist_ok=True)
         
@@ -119,6 +157,34 @@ class UnifiedBucketInterface:
         # Configuration
         self.enable_cross_backend_queries = enable_cross_backend_queries and DUCKDB_AVAILABLE
         self.auto_sync_interval = auto_sync_interval
+        
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
+        self.dataset_batch_size = dataset_batch_size
+        self.dataset_manager = None
+        self._operation_buffer = []
+        
+        # Compute layer configuration
+        self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
+        self.compute_layer = None
+        
+        # Initialize dataset manager if enabled
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True)
+                logger.info("Unified Bucket Interface dataset storage enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
+        
+        # Initialize compute layer if enabled
+        if self.enable_compute_layer:
+            try:
+                self.compute_layer = AccelerateCompute()
+                logger.info("Unified Bucket Interface compute layer enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize compute layer: {e}")
+                self.enable_compute_layer = False
         
         # Backend managers
         self.backend_managers: Dict[BackendType, Any] = {}

@@ -84,7 +84,7 @@ jobs:
       if: always()
       with:
         name: ci-scripts-test-results
-        path: test_results/ci_scripts_test_results.json
+        path: data/test_results/ci_scripts_test_results.json
         retention-days: 30
   
   verify-dependencies:
@@ -146,10 +146,10 @@ jobs:
         echo "### Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        if [ -f test_results/ci_scripts_test_results.json ]; then
+        if [ -f data/test_results/ci_scripts_test_results.json ]; then
           echo "#### CI Scripts Test Results" >> $GITHUB_STEP_SUMMARY
-          total=$(jq -r '.total' test_results/ci_scripts_test_results.json)
-          success=$(jq -r '.success' test_results/ci_scripts_test_results.json)
+          total=$(jq -r '.total' data/test_results/ci_scripts_test_results.json)
+          success=$(jq -r '.success' data/test_results/ci_scripts_test_results.json)
           rate=$(awk "BEGIN {printf \"%.1f\", ($success/$total)*100}")
           echo "- Total scripts: $total" >> $GITHUB_STEP_SUMMARY
           echo "- Successful: $success" >> $GITHUB_STEP_SUMMARY
@@ -167,7 +167,7 @@ jobs:
       with:
         name: validation-results
         path: |
-          test_results/
+          data/test_results/
           /tmp/dependency_verification.json
         retention-days: 30
   

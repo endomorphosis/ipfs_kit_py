@@ -28,7 +28,7 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 from ipfs_kit_py.lotus_kit import lotus_kit
 
 # Define some test constants
-TEST_RESULTS_DIR = "test_results"
+TEST_RESULTS_DIR = "data/test_results"
 TEST_RESULTS_FILE = os.path.join(TEST_RESULTS_DIR, "filecoin_test_results.json")
 
 async def test_filecoin_connectivity(server: MCPServer) -> Dict[str, Any]:

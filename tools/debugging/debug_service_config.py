@@ -12,7 +12,7 @@ async def debug_service_config():
     print("🔍 Debugging Service Config Creation")
     
     try:
-        from mcp.ipfs_kit.api.enhanced_dashboard_api import DashboardController
+        from ipfs_kit_py.mcp.ipfs_kit.api.enhanced_dashboard_api import DashboardController
         
         dashboard = DashboardController()
         

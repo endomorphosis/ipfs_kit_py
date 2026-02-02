@@ -29,8 +29,14 @@ class s3_kit:
 
         # Check for boto3 availability
         if not BOTO3_AVAILABLE:
-            print("Warning: boto3 is not installed. S3 functionality will be limited.")
-            print("To enable S3 support, install with: pip install ipfs_kit_py[s3]")
+            print(
+                "Warning: boto3 is not installed. S3 functionality will be limited.",
+                file=sys.stderr,
+            )
+            print(
+                "To enable S3 support, install with: pip install ipfs_kit_py[s3]",
+                file=sys.stderr,
+            )
         self.ls_file = self.s3_ls_file
         self.mv_dir = self.s3_mv_dir
         self.mv_file = self.s3_mv_file

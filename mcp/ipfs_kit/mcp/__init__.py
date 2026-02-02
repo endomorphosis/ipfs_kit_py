@@ -1,1 +1,1 @@
-"""MCP Server package for IPFS Kit."""
+"""Compatibility subpackage for legacy MCP server script path."""

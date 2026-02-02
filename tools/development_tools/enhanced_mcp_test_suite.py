@@ -7,7 +7,7 @@ detailed diagnostics and error reporting. It will help identify issues
 more quickly in the future if they arise.
 
 Usage:
-  python3 enhanced_mcp_test_suite.py --url http://localhost:9997 [--output-dir test_results]
+  python3 enhanced_mcp_test_suite.py --url http://localhost:9997 [--output-dir data/test_results]
 """
 
 import os
@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger("enhanced_mcp_test")
 
 class MCPTestSuite:
-    def __init__(self, base_url: str, output_dir: str = "test_results", verbose: bool = False):
+    def __init__(self, base_url: str, output_dir: str = "data/test_results", verbose: bool = False):
         """Initialize the test suite.
         
         Args:
@@ -351,7 +351,7 @@ def main():
     """Run the MCP server test suite."""
     parser = argparse.ArgumentParser(description="Enhanced MCP Server Test Suite")
     parser.add_argument("--url", type=str, default="http://localhost:9997", help="Base URL of the MCP server")
-    parser.add_argument("--output-dir", type=str, default="test_results", help="Directory to store test results")
+    parser.add_argument("--output-dir", type=str, default="data/test_results", help="Directory to store test results")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     
     args = parser.parse_args()

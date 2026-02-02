@@ -59,7 +59,7 @@ except ImportError as e:
     ENHANCED_INDEX_AVAILABLE = False
 
 try:
-    from mcp.ipfs_kit.backends.health_monitor import HealthMonitor
+    from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import HealthMonitor
     MCP_AVAILABLE = True
     logger.info("✓ MCP backend available")
 except ImportError as e:

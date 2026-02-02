@@ -50,9 +50,9 @@ class Phase2Tester:
             logger.info("Setting up test environment...")
             
             # Import core components
-            from core.tool_registry import registry
-            from core.service_manager import ipfs_manager
-            from core.error_handler import error_handler
+            from ipfs_kit_py.core.tool_registry import registry
+            from ipfs_kit_py.core.service_manager import ipfs_manager
+            from ipfs_kit_py.core.error_handler import error_handler
             
             self.components = {
                 'tool_registry': registry,

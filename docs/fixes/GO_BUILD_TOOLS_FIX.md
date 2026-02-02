@@ -10,7 +10,7 @@ The issue was present in multiple locations:
 
 1. **`multi-arch-ci.yml`** - Native ARM64 and AMD64 runner tests were missing Go and other build tools
 2. **`Dockerfile`** - Base image didn't include Go for scenarios requiring build-from-source
-3. **`docker/Dockerfile`** - Also missing Go in the base image
+3. **`deployment/docker/Dockerfile`** - Also missing Go in the base image
 
 The original workflows (`arm64-ci.yml` and `amd64-ci.yml`) had the correct setup with `golang-go` package, but the newer `multi-arch-ci.yml` workflow was created without these dependencies.
 
@@ -74,7 +74,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 ```
 
-### 3. Updated `docker/Dockerfile`
+### 3. Updated `deployment/docker/Dockerfile`
 
 Added Go to system dependencies:
 
@@ -136,7 +136,7 @@ docker run --rm test:latest go version
 
 1. `.github/workflows/multi-arch-ci.yml` - Added build tools to ARM64 and AMD64 native jobs
 2. `Dockerfile` - Added Go and build tools to base stage
-3. `docker/Dockerfile` - Added Go to system dependencies
+3. `deployment/docker/Dockerfile` - Added Go to system dependencies
 
 ## Validation
 

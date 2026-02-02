@@ -29,7 +29,7 @@ pytestmark = pytest.mark.anyio
 
 async def test_tool_via_mcp():
     """Test tools directly via MCP."""
-    from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+    from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
     
     integration = IPFSKitIntegration()
     

@@ -4,7 +4,7 @@ Final verification: Dashboard status for both Google Drive and IPFS.
 """
 
 import anyio
-from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
 
 
 async def check_dashboard_status():

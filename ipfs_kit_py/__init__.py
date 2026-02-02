@@ -117,6 +117,13 @@ __all__ = [
     # Backend configuration helpers
     'initialize_backend_config',
     'get_backend_statuses',
+    # Submodule lazy imports
+    'get_ipfs_datasets',
+    'get_ipfs_accelerate',
+    'get_ipfs_transformers',
+    'ipfs_datasets_py',
+    'ipfs_accelerate_py',
+    'ipfs_transformers_py',
 ]
 
 # Initialize core JIT system early
@@ -891,3 +898,65 @@ hamming_distance = None
 select_task_owner = None
 create_task_hash = None
 P2PWorkflowTools = None
+
+
+# Submodule lazy imports
+# These are optional dependencies available as submodules in the root directory
+def get_ipfs_datasets():
+    """Lazy import of ipfs_datasets_py submodule."""
+    try:
+        import sys
+        from pathlib import Path
+        
+        # Try to import from root submodule first
+        datasets_path = Path(__file__).parent.parent / "ipfs_datasets_py"
+        if datasets_path.exists() and str(datasets_path) not in sys.path:
+            sys.path.insert(0, str(datasets_path))
+        
+        import ipfs_datasets_py
+        return ipfs_datasets_py
+    except ImportError as e:
+        logger.debug(f"ipfs_datasets_py submodule not available: {e}")
+        return None
+
+
+def get_ipfs_accelerate():
+    """Lazy import of ipfs_accelerate_py submodule."""
+    try:
+        import sys
+        from pathlib import Path
+        
+        # Try to import from root submodule first
+        accelerate_path = Path(__file__).parent.parent / "ipfs_accelerate_py"
+        if accelerate_path.exists() and str(accelerate_path) not in sys.path:
+            sys.path.insert(0, str(accelerate_path))
+        
+        import ipfs_accelerate_py
+        return ipfs_accelerate_py
+    except ImportError as e:
+        logger.debug(f"ipfs_accelerate_py submodule not available: {e}")
+        return None
+
+
+def get_ipfs_transformers():
+    """Lazy import of ipfs_transformers_py submodule."""
+    try:
+        import sys
+        from pathlib import Path
+        
+        # Try to import from root submodule first
+        transformers_path = Path(__file__).parent.parent / "ipfs_transformers_py"
+        if transformers_path.exists() and str(transformers_path) not in sys.path:
+            sys.path.insert(0, str(transformers_path))
+        
+        import ipfs_transformers_py
+        return ipfs_transformers_py
+    except ImportError as e:
+        logger.debug(f"ipfs_transformers_py submodule not available: {e}")
+        return None
+
+
+# Export submodule accessors
+ipfs_datasets_py = None
+ipfs_accelerate_py = None
+ipfs_transformers_py = None

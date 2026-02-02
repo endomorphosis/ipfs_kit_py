@@ -48,14 +48,14 @@ except ImportError:
 
 # MCP server components with fallbacks
 try:
-    from ipfs_kit_py.mcp_server.server import MCPServer, MCPServerConfig
-    from ipfs_kit_py.mcp_server.models.mcp_metadata_manager import MCPMetadataManager
-    from ipfs_kit_py.mcp_server.services.mcp_daemon_service import MCPDaemonService
-    from ipfs_kit_py.mcp_server.controllers.mcp_cli_controller import MCPCLIController
-    from ipfs_kit_py.mcp_server.controllers.mcp_backend_controller import MCPBackendController
-    from ipfs_kit_py.mcp_server.controllers.mcp_daemon_controller import MCPDaemonController
-    from ipfs_kit_py.mcp_server.controllers.mcp_storage_controller import MCPStorageController
-    from ipfs_kit_py.mcp_server.controllers.mcp_vfs_controller import MCPVFSController
+    from ipfs_kit_py.mcp.server.server import MCPServer, MCPServerConfig
+    from ipfs_kit_py.mcp.server.models.mcp_metadata_manager import MCPMetadataManager
+    from ipfs_kit_py.mcp.server.services.mcp_daemon_service import MCPDaemonService
+    from ipfs_kit_py.mcp.server.controllers.mcp_cli_controller import MCPCLIController
+    from ipfs_kit_py.mcp.server.controllers.mcp_backend_controller import MCPBackendController
+    from ipfs_kit_py.mcp.server.controllers.mcp_daemon_controller import MCPDaemonController
+    from ipfs_kit_py.mcp.server.controllers.mcp_storage_controller import MCPStorageController
+    from ipfs_kit_py.mcp.server.controllers.mcp_vfs_controller import MCPVFSController
     MCP_SERVER_AVAILABLE = True
 except ImportError:
     print('⚠️ MCP Server components not available - using fallback mode')

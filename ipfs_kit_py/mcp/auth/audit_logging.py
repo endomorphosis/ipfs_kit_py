@@ -11,6 +11,7 @@ Features include:
 - Event categorization
 - User action tracking
 - Compliance-oriented logging format
+- Integration with ipfs_datasets_py for distributed audit log storage
 """
 
 import json
@@ -20,6 +21,15 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
+import datetime
+
+# Try to import ipfs_datasets integration
+try:
+    from ...ipfs_datasets_integration import get_ipfs_datasets_manager, IPFS_DATASETS_AVAILABLE
+except ImportError:
+    IPFS_DATASETS_AVAILABLE = False
+    def get_ipfs_datasets_manager(*args, **kwargs):
+        return None
 
 
 class AuditSeverity(Enum):
@@ -113,16 +123,20 @@ class AuditLogger:
     Handles audit logging for the system.
     
     This class provides methods for logging various types of audit events
-    and ensures they are properly formatted and stored.
+    and ensures they are properly formatted and stored. Optionally integrates
+    with ipfs_datasets_py for distributed, immutable audit log storage.
     """
     
-    def __init__(self, log_file: Optional[str] = None, log_level: int = logging.INFO):
+    def __init__(self, log_file: Optional[str] = None, log_level: int = logging.INFO,
+                 enable_dataset_storage: bool = False, ipfs_client=None):
         """
         Initialize the audit logger.
         
         Args:
             log_file: Path to the audit log file. If None, logs will only go to the console.
             log_level: Logging level (default: INFO)
+            enable_dataset_storage: Enable ipfs_datasets_py for distributed audit storage
+            ipfs_client: Optional IPFS client for dataset storage
         """
         # Create a dedicated logger for audit events
         self.logger = logging.getLogger("audit")
@@ -151,6 +165,30 @@ class AuditLogger:
         # Keep an in-memory cache of recent events for quick access
         self.recent_events: List[AuditEvent] = []
         self.max_cached_events = 1000  # Limit to avoid memory issues
+        
+        # Initialize ipfs_datasets integration if requested
+        self.enable_dataset_storage = enable_dataset_storage and IPFS_DATASETS_AVAILABLE
+        self.datasets_manager = None
+        self.audit_dataset_version = "1.0"
+        
+        if self.enable_dataset_storage:
+            try:
+                self.datasets_manager = get_ipfs_datasets_manager(
+                    ipfs_client=ipfs_client,
+                    enable=True
+                )
+                if self.datasets_manager and self.datasets_manager.is_available():
+                    self.logger.info("ipfs_datasets_py integration enabled for audit logs")
+                else:
+                    self.logger.info("ipfs_datasets_py not available, using local-only audit logs")
+                    self.enable_dataset_storage = False
+            except Exception as e:
+                self.logger.warning(f"Failed to initialize ipfs_datasets for audit logging: {e}")
+                self.enable_dataset_storage = False
+        
+        # Batch storage for efficient dataset operations
+        self.batch_size = 100  # Store every N events
+        self.events_since_last_store = 0
     
     def log(self, event_type: Union[AuditEventType, str], action: str, 
             user_id: Optional[str] = None, ip_address: Optional[str] = None,
@@ -204,7 +242,61 @@ class AuditLogger:
         if len(self.recent_events) > self.max_cached_events:
             self.recent_events.pop(0)  # Remove oldest event
         
+        # Store in dataset if enabled
+        if self.enable_dataset_storage:
+            self.events_since_last_store += 1
+            if self.events_since_last_store >= self.batch_size:
+                self._store_audit_events_to_dataset()
+                self.events_since_last_store = 0
+        
         return event
+    
+    def _store_audit_events_to_dataset(self):
+        """Store recent audit events as a dataset."""
+        if not self.datasets_manager or not self.recent_events:
+            return
+        
+        try:
+            # Create a temporary file with audit events
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                # Write events as JSON Lines format
+                for event in self.recent_events:
+                    f.write(event.to_json() + '\n')
+                temp_path = f.name
+            
+            # Store as dataset with metadata
+            metadata = {
+                "type": "audit_log",
+                "event_count": len(self.recent_events),
+                "timestamp": datetime.datetime.now().isoformat(),
+                "version": self.audit_dataset_version
+            }
+            
+            result = self.datasets_manager.store(
+                temp_path,
+                metadata=metadata
+            )
+            
+            # Clean up temp file
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
+            
+            if result.get("success"):
+                self.logger.debug(f"Stored {len(self.recent_events)} audit events to dataset: {result.get('cid')}")
+            else:
+                self.logger.warning(f"Failed to store audit events to dataset: {result.get('error')}")
+                
+        except Exception as e:
+            self.logger.error(f"Error storing audit events to dataset: {e}")
+    
+    def flush_to_dataset(self):
+        """Force flush of current audit events to dataset storage."""
+        if self.enable_dataset_storage and self.recent_events:
+            self._store_audit_events_to_dataset()
+            self.events_since_last_store = 0
     
     def log_auth_success(self, user_id: str, ip_address: Optional[str] = None,
                        method: str = "password", details: Optional[Dict[str, Any]] = None,

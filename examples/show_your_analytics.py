@@ -16,7 +16,7 @@ async def show_your_storage_analytics():
     logger.info("=" * 60)
     
     try:
-        from mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
+        from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor
         
         # Initialize with your configuration
         health_monitor = BackendHealthMonitor()

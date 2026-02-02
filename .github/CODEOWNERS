@@ -22,7 +22,7 @@ CONTAINERIZATION.md @endomorphosis
 # Containerization files
 /Dockerfile @endomorphosis
 /docker-compose.yml @endomorphosis
-/docker/ @endomorphosis
+/deployment/docker/ @endomorphosis
 /kubernetes/ @endomorphosis
 /helm/ @endomorphosis
 

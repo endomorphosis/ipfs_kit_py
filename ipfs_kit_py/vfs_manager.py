@@ -20,6 +20,7 @@ import time
 import shutil
 import os
 import stat
+import json
 import threading
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
@@ -95,6 +96,31 @@ except ImportError:
     PSUTIL_AVAILABLE = False
     logger.warning("psutil not available for resource monitoring")
 
+# Import ipfs_datasets_py integration with fallback
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+except ImportError:
+    HAS_DATASETS = False
+    get_ipfs_datasets_manager = None
+    logger.info("ipfs_datasets_py not available - dataset storage disabled")
+
+# Import ipfs_accelerate_py for compute acceleration
+try:
+    import sys
+    from pathlib import Path as PathlibPath
+    accelerate_path = PathlibPath(__file__).parent.parent / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available")
+except ImportError:
+    HAS_ACCELERATE = False
+    AccelerateCompute = None
+    logger.info("ipfs_accelerate_py not available - using default compute")
+
 
 class VFSManager:
     """
@@ -108,8 +134,29 @@ class VFSManager:
     - Journal operations
     """
     
-    def __init__(self):
-        """Initialize the VFS Manager."""
+    def __init__(
+        self,
+        enable_dataset_storage: bool = False,
+        enable_compute_layer: bool = False,
+        dataset_batch_size: int = 100,
+        storage_path: Optional[Union[str, Path]] = None,
+    ):
+        """
+        Initialize the VFS Manager.
+        
+        Args:
+            enable_dataset_storage: Enable ipfs_datasets_py integration
+            enable_compute_layer: Enable ipfs_accelerate_py compute acceleration
+            dataset_batch_size: Batch size for dataset operations
+            storage_path: Optional filesystem root for VFS operations
+        """
+        self.storage_path: Optional[Path] = Path(storage_path) if storage_path else None
+        if self.storage_path is not None:
+            try:
+                self.storage_path.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                logger.warning(f"Could not create storage_path {self.storage_path}: {e}")
+
         self.api = None
         self.pin_index = None
         self.arrow_metadata_index = None
@@ -118,12 +165,47 @@ class VFSManager:
         self.last_init_attempt = 0
         self.init_retry_interval = 30  # Retry every 30 seconds
         
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
+        self.dataset_batch_size = dataset_batch_size
+        self.dataset_manager = None
+        self._operation_buffer = []
+        
+        # Compute layer configuration
+        self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
+        self.compute_layer = None
+        
+        # Initialize dataset manager if enabled
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True)
+                logger.info("VFS Manager dataset storage enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
+        
+        # Initialize compute layer if enabled
+        if self.enable_compute_layer:
+            try:
+                self.compute_layer = AccelerateCompute()
+                logger.info("VFS Manager compute layer enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize compute layer: {e}")
+                self.enable_compute_layer = False
+        
         # Cache for frequently accessed data
         self.metrics_cache = {}
         self.cache_ttl = 10  # Cache for 10 seconds
         self.last_cache_update = 0
         
         logger.info("VFS Manager initialized")
+    
+    def __del__(self):
+        """Cleanup method to flush buffers on deletion."""
+        try:
+            self._flush_operation_buffer()
+        except Exception as e:
+            logger.warning(f"Error flushing buffer during cleanup: {e}")
     
     async def initialize(self) -> bool:
         """
@@ -212,6 +294,54 @@ class VFSManager:
         except Exception as e:
             logger.warning(f"Filesystem journal initialization failed: {e}")
             self.filesystem_journal = None
+    
+    def _track_vfs_operation(self, operation: str, path: str, metadata: Optional[Dict[str, Any]] = None):
+        """Track VFS operation to dataset storage if enabled."""
+        if not self.enable_dataset_storage:
+            return
+        
+        operation_data = {
+            "operation": operation,
+            "path": path,
+            "timestamp": time.time(),
+            "metadata": metadata or {}
+        }
+        
+        self._operation_buffer.append(operation_data)
+        
+        # Flush buffer if it reaches batch size
+        if len(self._operation_buffer) >= self.dataset_batch_size:
+            self._flush_operation_buffer()
+    
+    def _flush_operation_buffer(self):
+        """Flush buffered operations to dataset storage."""
+        if not self.enable_dataset_storage or not self._operation_buffer:
+            return
+        
+        try:
+            import tempfile
+            # Write operations to temp file
+            temp_file = Path(tempfile.gettempdir()) / f"vfs_operations_{int(time.time())}.json"
+            with open(temp_file, 'w') as f:
+                json.dump(self._operation_buffer, f)
+            
+            # Store in dataset manager
+            if self.dataset_manager and self.dataset_manager.is_available():
+                self.dataset_manager.store(temp_file, metadata={
+                    "type": "vfs_operations",
+                    "count": len(self._operation_buffer),
+                    "timestamp": time.time()
+                })
+            
+            # Clear buffer
+            self._operation_buffer.clear()
+            
+            # Clean up temp file
+            if temp_file.exists():
+                temp_file.unlink()
+                
+        except Exception as e:
+            logger.warning(f"Failed to flush operation buffer to dataset: {e}")
     
     # =================================================================
     # ARROW IPC ZERO-COPY ACCESS
@@ -470,6 +600,9 @@ class VFSManager:
                         "mkdir", full_path, {"parent": path, "name": name})
                 )
             
+            # Track operation in dataset
+            self._track_vfs_operation("create_folder", full_path, {"parent": path, "name": name})
+            
             return {
                 "success": result.get("success", True),
                 "path": full_path,
@@ -490,6 +623,9 @@ class VFSManager:
                 await anyio.to_thread.run_sync(lambda: self.filesystem_journal.log_operation(
                         "rm", path, {"action": "delete"})
                 )
+            
+            # Track operation in dataset
+            self._track_vfs_operation("delete_item", path)
             
             return {
                 "success": result.get("success", True),

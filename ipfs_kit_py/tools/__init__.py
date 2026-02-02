@@ -1,12 +1,14 @@
 """
-API Stability and Compatibility Tools.
+API Stability, Compatibility, and IPFS Core Tools.
 
 This package contains tools for checking API stability, versioning, and
-compatibility between different versions of IPFS Kit.
+compatibility between different versions of IPFS Kit, as well as IPFS core operations.
 
 Submodules:
 - check_api_compatibility: Tools for verifying API compatibility between versions
 - protobuf_compat: Compatibility layer for different versions of protobuf
+- ipfs_core_tools: Core IPFS operations (add, cat, get, ls, pin management, etc.)
+- pin_management_tools: Enhanced pin management tools for dashboard
 """
 
 # Import key functionality for direct access
@@ -26,6 +28,14 @@ except ImportError:
     # Protobuf compat not available - this is fine
     pass
 
+# IPFS core tools are optional (require MCP infrastructure)
+try:
+    from . import ipfs_core_tools
+    from . import pin_management_tools
+except ImportError:
+    # IPFS core tools not available - requires MCP infrastructure
+    pass
+
 # Define exports
 __all__ = [
     'get_compatible_message_factory',
@@ -36,5 +46,7 @@ __all__ = [
     'PROTOBUF_MINOR_VERSION',
     'PROTOBUF_PATCH_VERSION',
     'HAS_OLD_MESSAGE_FACTORY',
-    'HAS_NEW_MESSAGE_FACTORY'
+    'HAS_NEW_MESSAGE_FACTORY',
+    'ipfs_core_tools',
+    'pin_management_tools'
 ]

@@ -150,16 +150,16 @@ The deployment creates:
 kubectl create namespace ipfs-cluster
 
 # Apply manifests
-kubectl apply -f k8s/00-services.yaml
-kubectl apply -f k8s/01-master.yaml
-kubectl apply -f k8s/02-workers.yaml
+kubectl apply -f deployment/k8s/00-services.yaml
+kubectl apply -f deployment/k8s/01-master.yaml
+kubectl apply -f deployment/k8s/02-workers.yaml
 
 # Check status
 kubectl get pods -n ipfs-cluster
 kubectl get services -n ipfs-cluster
 
 # Run tests
-kubectl apply -f k8s/03-test-job.yaml
+kubectl apply -f deployment/k8s/03-test-job.yaml
 kubectl logs job/cluster-test-job -n ipfs-cluster
 ```
 
@@ -413,7 +413,7 @@ kubectl rollout restart statefulset/ipfs-mcp-worker2 -n ipfs-cluster
 
 # Reset cluster state
 kubectl delete statefulset --all -n ipfs-cluster
-kubectl apply -f k8s/01-master.yaml -f k8s/02-workers.yaml
+kubectl apply -f deployment/k8s/01-master.yaml -f deployment/k8s/02-workers.yaml
 ```
 
 ## Security Considerations
@@ -440,7 +440,7 @@ kubectl apply -f k8s/01-master.yaml -f k8s/02-workers.yaml
 
 3. **Network policies**:
    ```bash
-   kubectl apply -f k8s/network-policy.yaml
+   kubectl apply -f deployment/k8s/network-policy.yaml
    ```
 
 4. **Resource limits**:

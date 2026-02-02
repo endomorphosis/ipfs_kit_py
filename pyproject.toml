@@ -37,6 +37,7 @@ dependencies = [
     "watchdog>=3.0.0",  # For file system monitoring
     "psutil>=5.9.0",
     "pyyaml>=6.0",
+    "networkx>=3.0",
     "base58>=2.1.1",
     "multiaddr>=0.0.9",  # For libp2p multiaddress support
     "python-magic>=0.4.27", # For file type detection
@@ -115,6 +116,13 @@ ipld-github = [
     "ipld-dag-pb>=0.0.1", 
     "dag-cbor>=0.2.0",  # Required by ipld-car
     "multiformats>=0.3.0",
+]
+ipfs_datasets = [
+    # Distributed dataset manipulation services
+    # Install with: pip install -e .[ipfs_datasets]
+    # Note: ipfs_datasets_py must be installed separately or from GitHub if available
+    # This extra defines the optional integration, but does not include the package itself
+    # to maintain flexibility for different deployment scenarios
 ]
 api = [
     "fastapi>=0.100.0",

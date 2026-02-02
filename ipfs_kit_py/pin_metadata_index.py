@@ -40,7 +40,6 @@ from collections import deque
 import tempfile
 
 
-# DuckDB and analytics imports
 try:
     import duckdb
     import pandas as pd
@@ -49,6 +48,35 @@ try:
     ANALYTICS_AVAILABLE = True
 except ImportError:
     ANALYTICS_AVAILABLE = False
+
+# Create logger first
+logger = logging.getLogger(__name__)
+
+# Import ipfs_datasets_py integration with fallback
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+    logger.info("ipfs_datasets_py available for pin metadata index")
+except ImportError:
+    HAS_DATASETS = False
+    get_ipfs_datasets_manager = None
+    logger.info("ipfs_datasets_py not available - dataset storage disabled")
+
+# Import ipfs_accelerate_py for compute acceleration
+try:
+    import sys
+    from pathlib import Path as PathlibPath
+    accelerate_path = PathlibPath(__file__).parent.parent / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available for pin metadata")
+except ImportError:
+    HAS_ACCELERATE = False
+    AccelerateCompute = None
+    logger.info("ipfs_accelerate_py not available - using default compute")
 
 # IPFS Kit imports
 try:
@@ -203,7 +231,10 @@ class PinMetadataIndex:
                  journal: Optional['FilesystemJournal'] = None,
                  update_interval: int = 300,
                  enable_analytics: bool = True,
-                 enable_predictions: bool = True):
+                 enable_predictions: bool = True,
+                 enable_dataset_storage: bool = False,
+                 enable_compute_layer: bool = False,
+                 dataset_batch_size: int = 100):
         """
         Initialize the enhanced pin metadata index.
         
@@ -214,6 +245,9 @@ class PinMetadataIndex:
             update_interval: Background update interval in seconds
             enable_analytics: Enable advanced analytics features
             enable_predictions: Enable predictive analytics
+            enable_dataset_storage: Enable ipfs_datasets_py integration
+            enable_compute_layer: Enable ipfs_accelerate_py compute acceleration
+            dataset_batch_size: Batch size for dataset operations
         """
         if not ANALYTICS_AVAILABLE:
             raise ImportError("Enhanced pin index requires DuckDB, pandas, and pyarrow. "
@@ -226,6 +260,34 @@ class PinMetadataIndex:
         self.update_interval = update_interval
         self.enable_analytics = enable_analytics
         self.enable_predictions = enable_predictions
+        
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
+        self.dataset_batch_size = dataset_batch_size
+        self.dataset_manager = None
+        self._pin_buffer = []
+        
+        # Compute layer configuration
+        self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
+        self.compute_layer = None
+        
+        # Initialize dataset manager if enabled
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True)
+                logger.info("Pin Metadata Index dataset storage enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
+        
+        # Initialize compute layer if enabled
+        if self.enable_compute_layer:
+            try:
+                self.compute_layer = AccelerateCompute()
+                logger.info("Pin Metadata Index compute layer enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize compute layer: {e}")
+                self.enable_compute_layer = False
         
         # Integration components
         self.ipfs_filesystem = ipfs_filesystem

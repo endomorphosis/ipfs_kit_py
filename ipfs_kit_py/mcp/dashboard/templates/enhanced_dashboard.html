@@ -3588,7 +3588,7 @@
                     if (typeof refreshBucketFilesMCP === 'function') {
                         await refreshBucketFilesMCP();
                     } else {
-                        loadBucketFilesInModal(bucketName);
+                        await loadBucketFilesInModal(bucketName);
                     }
                 } else {
                     showToast(`Failed to create folder: ${result.error || 'Unknown error'}`, 'error');
@@ -3643,7 +3643,7 @@
                 if (typeof refreshBucketFilesMCP === 'function') {
                     await refreshBucketFilesMCP();
                 } else {
-                    loadBucketFilesInModal(bucketName);
+                    await loadBucketFilesInModal(bucketName);
                 }
             };
             input.click();

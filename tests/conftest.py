@@ -19,6 +19,7 @@ import signal
 import sys
 from pathlib import Path
 import pytest
+import aiohttp
 
 
 def _prepend_zero_touch_bin() -> None:
@@ -148,7 +149,7 @@ def pytest_pyfunc_call(pyfuncitem):  # noqa: ANN001
 @pytest.fixture(scope="session")
 def server():
     """Provide a shared MCP server instance for validation tests."""
-    from mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import (
+    from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import (
         EnhancedMCPServerWithDaemonMgmt,
     )
 
@@ -165,3 +166,10 @@ def anyio_backend():
 def tools(server):
     """Provide the tool list from the shared MCP server."""
     return list(getattr(server, "tools", {}).keys())
+
+
+@pytest.fixture
+async def session():
+    """Provide an aiohttp client session for async MCP tests."""
+    async with aiohttp.ClientSession() as client:
+        yield client

@@ -21,8 +21,8 @@ After extensive investigation:
 ## Actions Taken
 
 ### 1. Upgraded Docker Images to Python 3.12 ✅
-- Updated `docker/Dockerfile`: `FROM python:3.12-slim` 
-- Updated `docker/Dockerfile.enhanced`: `FROM python:3.12-slim`
+- Updated `deployment/docker/Dockerfile`: `FROM python:3.12-slim` 
+- Updated `deployment/docker/Dockerfile.enhanced`: `FROM python:3.12-slim`
 - Python 3.11.14 → Python 3.12.12
 
 ### 2. Verified Import Success ✅
@@ -101,8 +101,8 @@ Since imports work in Python 3.12, this appears to be a `py_compile`-specific is
 
 ## Files Updated
 
-1. `docker/Dockerfile` - Python 3.11 → 3.12
-2. `docker/Dockerfile.enhanced` - Python 3.11 → 3.12  
+1. `deployment/docker/Dockerfile` - Python 3.11 → 3.12
+2. `deployment/docker/Dockerfile.enhanced` - Python 3.11 → 3.12  
 3. `PYTHON_311_COMPATIBILITY_ISSUE.md` - Documentation created
 4. `SYNTAX_ERROR_FIX_STATUS.md` - This file
 

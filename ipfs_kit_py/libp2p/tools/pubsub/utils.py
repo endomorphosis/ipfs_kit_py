@@ -25,4 +25,4 @@ def create_pubsub(host, router_type="gossipsub"):
         logger.error(f"Failed to create pubsub: {e}")
         return None
 
-print("✓ libp2p tools.pubsub.utils module loaded")
+logger.debug("libp2p tools.pubsub.utils module loaded")

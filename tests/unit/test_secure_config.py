@@ -12,7 +12,7 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(repo_root))
 
-from mcp.ipfs_kit.core.config_manager import SecureConfigManager
+from ipfs_kit_py.mcp.ipfs_kit.core.config_manager import SecureConfigManager
 
 def test_secure_config():
     """Test the secure configuration manager."""

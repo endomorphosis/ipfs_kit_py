@@ -82,11 +82,11 @@ async def get_peers_summary(self):
 ### 4. Implemented MCP Peer Management Handlers
 
 **Files Created/Updated**:
-- `mcp_handlers/get_peers_handler.py` - List peers with filtering
-- `mcp_handlers/list_peers_handler.py` - Paginated peer listing
-- `mcp_handlers/connect_peer_handler.py` - Connect to peers
-- `mcp_handlers/disconnect_peer_handler.py` - Disconnect from peers
-- `mcp_handlers/get_peer_stats_handler.py` - Get peer statistics
+- `ipfs_kit_py/mcp/handlers/get_peers_handler.py` - List peers with filtering
+- `ipfs_kit_py/mcp/handlers/list_peers_handler.py` - Paginated peer listing
+- `ipfs_kit_py/mcp/handlers/connect_peer_handler.py` - Connect to peers
+- `ipfs_kit_py/mcp/handlers/disconnect_peer_handler.py` - Disconnect from peers
+- `ipfs_kit_py/mcp/handlers/get_peer_stats_handler.py` - Get peer statistics
 
 All handlers now:
 - Use the singleton pattern via `get_peer_manager()` and `start_peer_manager()`
@@ -186,11 +186,11 @@ This fix ensures that:
 1. `ipfs_kit_py/libp2p/__init__.py` - Multihash fix and exports
 2. `ipfs_kit_py/libp2p/peer_manager.py` - Thread-safe singleton
 3. `mcp/ipfs_kit/api/peer_endpoints.py` - Use singleton properly
-4. `mcp_handlers/get_peers_handler.py` - Implemented with singleton
-5. `mcp_handlers/list_peers_handler.py` - New handler
-6. `mcp_handlers/connect_peer_handler.py` - Implemented with singleton
-7. `mcp_handlers/disconnect_peer_handler.py` - New handler
-8. `mcp_handlers/get_peer_stats_handler.py` - Implemented with singleton
+4. `ipfs_kit_py/mcp/handlers/get_peers_handler.py` - Implemented with singleton
+5. `ipfs_kit_py/mcp/handlers/list_peers_handler.py` - New handler
+6. `ipfs_kit_py/mcp/handlers/connect_peer_handler.py` - Implemented with singleton
+7. `ipfs_kit_py/mcp/handlers/disconnect_peer_handler.py` - New handler
+8. `ipfs_kit_py/mcp/handlers/get_peer_stats_handler.py` - Implemented with singleton
 9. `test_peer_manager_singleton.py` - Comprehensive test suite
 
 ## Next Steps

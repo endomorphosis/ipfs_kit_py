@@ -178,7 +178,7 @@ def main():
     # Save results
     import json
 
-    output_dir = repo_root / "test_results"
+    output_dir = repo_root / "data" / "test_results"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "cicd_workflow_validation.json"
 

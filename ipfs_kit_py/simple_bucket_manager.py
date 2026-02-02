@@ -13,6 +13,8 @@ import anyio
 import json
 import logging
 import os
+import time
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -48,11 +50,43 @@ except ImportError:
     CONFIG_AVAILABLE = False
     _config_manager = None
 
+# Import ipfs_datasets_py integration with fallback
+try:
+    from .ipfs_datasets_integration import get_ipfs_datasets_manager
+    HAS_DATASETS = True
+except ImportError:
+    HAS_DATASETS = False
+    get_ipfs_datasets_manager = None
+    logger.info("ipfs_datasets_py not available - dataset storage disabled")
+
+# Import ipfs_accelerate_py for compute acceleration
+try:
+    import sys
+    from pathlib import Path as PathlibPath
+    accelerate_path = PathlibPath(__file__).parent.parent / "ipfs_accelerate_py"
+    if accelerate_path.exists():
+        sys.path.insert(0, str(accelerate_path))
+    
+    from ipfs_accelerate_py import AccelerateCompute
+    HAS_ACCELERATE = True
+    logger.info("ipfs_accelerate_py compute layer available")
+except ImportError:
+    HAS_ACCELERATE = False
+    AccelerateCompute = None
+    logger.info("ipfs_accelerate_py not available - using default compute")
+
 
 class SimpleBucketManager:
     """Simplified bucket manager following the correct architecture."""
     
-    def __init__(self, data_dir: Optional[str] = None):
+    def __init__(
+        self, 
+        data_dir: Optional[str] = None,
+        enable_dataset_storage: bool = False,
+        enable_compute_layer: bool = False,
+        ipfs_client=None,
+        dataset_batch_size: int = 100
+    ):
         """Initialize simple bucket manager."""
         if data_dir:
             self.data_dir = Path(data_dir)
@@ -81,7 +115,101 @@ class SimpleBucketManager:
         self.buckets_dir.mkdir(parents=True, exist_ok=True)
         self.wal_dir.mkdir(parents=True, exist_ok=True)
         
+        # Dataset storage configuration
+        self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
+        self.dataset_batch_size = dataset_batch_size
+        self.dataset_manager = None
+        self.ipfs_client = ipfs_client
+        self._operation_buffer = []
+        self._buffer_lock = threading.Lock()
+        
+        # Compute layer configuration
+        self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
+        self.compute_layer = None
+        
+        # Initialize dataset manager if enabled
+        if self.enable_dataset_storage:
+            try:
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
+                logger.info("Simple Bucket Manager dataset storage enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dataset storage: {e}")
+                self.enable_dataset_storage = False
+        
+        # Initialize compute layer if enabled
+        if self.enable_compute_layer:
+            try:
+                self.compute_layer = AccelerateCompute()
+                logger.info("Simple Bucket Manager compute layer enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize compute layer: {e}")
+                self.enable_compute_layer = False
+        
         logger.info(f"SimpleBucketManager initialized with data_dir: {self.data_dir}")
+    
+    def __del__(self):
+        """Cleanup method to flush buffers on deletion."""
+        try:
+            self.flush_to_dataset()
+        except Exception as e:
+            logger.warning(f"Error flushing buffer during cleanup: {e}")
+    
+    def _store_operation_to_dataset(self, operation: str, bucket_name: str, details: Dict[str, Any], result: Dict[str, Any]):
+        """Buffer operation for dataset storage."""
+        if not self.enable_dataset_storage:
+            return
+        
+        operation_data = {
+            "operation": operation,
+            "timestamp": time.time(),
+            "bucket_name": bucket_name,
+            "details": details,
+            "result": result
+        }
+        
+        with self._buffer_lock:
+            self._operation_buffer.append(operation_data)
+            
+            # Flush buffer if it reaches batch size
+            if len(self._operation_buffer) >= self.dataset_batch_size:
+                self._flush_operations_to_dataset()
+    
+    def _flush_operations_to_dataset(self):
+        """Flush buffered operations to dataset storage."""
+        if not self.enable_dataset_storage or not self._operation_buffer:
+            return
+        
+        with self._buffer_lock:
+            if not self._operation_buffer:
+                return
+            
+            try:
+                # Write operations to temp file
+                temp_file = self.data_dir / f"operations_{int(time.time())}.json"
+                with open(temp_file, 'w') as f:
+                    json.dump(self._operation_buffer, f)
+                
+                # Store in dataset manager
+                if self.dataset_manager and self.dataset_manager.is_available():
+                    self.dataset_manager.store(temp_file, metadata={
+                        "type": "bucket_operations",
+                        "count": len(self._operation_buffer),
+                        "timestamp": time.time()
+                    })
+                
+                # Clear buffer
+                self._operation_buffer.clear()
+                
+                # Clean up temp file
+                if temp_file.exists():
+                    temp_file.unlink()
+                    
+            except Exception as e:
+                logger.warning(f"Failed to flush operations to dataset: {e}")
+    
+    def flush_to_dataset(self):
+        """Public method to manually flush operations to dataset storage."""
+        self._flush_operations_to_dataset()
     
     async def create_bucket(
         self, 
@@ -136,7 +264,7 @@ class SimpleBucketManager:
             logger.info(f"Created bucket '{bucket_name}' at {vfs_index_path}")
             logger.info(f"Generated YAML config at {yaml_config_path}")
             
-            return {
+            result = {
                 'success': True,
                 'data': {
                     'bucket_name': bucket_name,
@@ -146,6 +274,15 @@ class SimpleBucketManager:
                     'created_at': datetime.utcnow().isoformat()
                 }
             }
+            
+            # Store operation to dataset
+            self._store_operation_to_dataset("create_bucket", bucket_name, {
+                "bucket_type": bucket_type,
+                "vfs_structure": vfs_structure,
+                "metadata": metadata
+            }, result)
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error creating bucket '{bucket_name}': {e}")
@@ -389,13 +526,18 @@ class SimpleBucketManager:
                     logger.warning(f"Error reading bucket file {parquet_file}: {e}")
                     continue
             
-            return {
+            result = {
                 'success': True,
                 'data': {
                     'buckets': buckets,
                     'total_count': len(buckets)
                 }
             }
+            
+            # Store operation to dataset
+            self._store_operation_to_dataset("list_buckets", "", {}, result)
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error listing buckets: {e}")
@@ -472,7 +614,7 @@ class SimpleBucketManager:
                 metadata
             )
             
-            return {
+            result = {
                 'success': True,
                 'data': {
                     'bucket_name': bucket_name,
@@ -482,6 +624,15 @@ class SimpleBucketManager:
                     'wal_stored': True
                 }
             }
+            
+            # Store operation to dataset
+            self._store_operation_to_dataset("add_file", bucket_name, {
+                "file_path": file_path,
+                "file_size": len(content),
+                "file_cid": file_cid
+            }, result)
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error adding file to bucket: {e}")
@@ -665,13 +816,18 @@ class SimpleBucketManager:
             
             logger.info(f"Deleted bucket '{bucket_name}'")
             
-            return {
+            result = {
                 'success': True,
                 'data': {
                     'bucket_name': bucket_name,
                     'deleted_at': datetime.utcnow().isoformat()
                 }
             }
+            
+            # Store operation to dataset
+            self._store_operation_to_dataset("delete_bucket", bucket_name, {"force": force}, result)
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error deleting bucket: {e}")
