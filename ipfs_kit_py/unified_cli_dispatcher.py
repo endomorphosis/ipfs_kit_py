@@ -297,7 +297,7 @@ class UnifiedCLIDispatcher:
         """Dispatch command to appropriate handler."""
         if not args.command:
             self.parser.print_help()
-            return 1
+            return 0  # Displaying help is not an error
         
         # Route to appropriate handler
         command = args.command
@@ -328,6 +328,9 @@ class UnifiedCLIDispatcher:
                 handler = getattr(backend_cli, handler_name, None)
                 if handler:
                     return await handler(args)
+                else:
+                    print(f"❌ Unknown backend action: {action}")
+                    return 1
             elif command == "journal":
                 from ipfs_kit_py import fs_journal_cli
                 return await fs_journal_cli.handle_cli_command(args)

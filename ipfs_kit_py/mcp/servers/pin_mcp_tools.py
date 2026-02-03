@@ -176,19 +176,16 @@ async def handle_pin_add(arguments: Dict[str, Any]) -> Dict[str, Any]:
         # Check if it's a file
         is_file = Path(cid_or_file).exists()
         
-        # Import the appropriate pin manager
-        # This is a placeholder - actual implementation would use the real pin manager
-        result = {
-            "success": True,
+        # TODO: Integrate with actual pin manager
+        # For now, return not implemented error
+        return {
+            "success": False,
+            "error": "Pin add not yet implemented in MCP layer. Use CLI: ipfs-kit pin add",
             "is_file": is_file,
-            "cid": cid_or_file if not is_file else "QmNewCID",
-            "name": name or "auto-generated",
-            "recursive": recursive,
-            "status": "queued",
-            "message": f"Pin {'file' if is_file else 'CID'} added successfully"
+            "cid_or_file": cid_or_file,
+            "name": name,
+            "recursive": recursive
         }
-        
-        return result
     except Exception as e:
         logger.error(f"Error adding pin: {e}", exc_info=True)
         return {
@@ -203,16 +200,12 @@ async def handle_pin_list(arguments: Dict[str, Any]) -> Dict[str, Any]:
         pin_type = arguments.get("pin_type", "all")
         limit = arguments.get("limit", 100)
         
-        # Placeholder implementation
-        # Actual implementation would query the pin manager
-        pins = []
-        
+        # TODO: Integrate with actual pin manager
         return {
-            "success": True,
-            "pins": pins,
-            "count": len(pins),
+            "success": False,
+            "error": "Pin list not yet implemented in MCP layer. Use CLI: ipfs-kit pin ls",
             "type_filter": pin_type,
-            "message": f"Retrieved {len(pins)} pins"
+            "limit": limit
         }
     except Exception as e:
         logger.error(f"Error listing pins: {e}", exc_info=True)
@@ -226,7 +219,6 @@ async def handle_pin_remove(arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Handle pin_remove MCP tool call."""
     try:
         cid = arguments.get("cid")
-        recursive = arguments.get("recursive", True)
         
         if not cid:
             return {
@@ -234,15 +226,12 @@ async def handle_pin_remove(arguments: Dict[str, Any]) -> Dict[str, Any]:
                 "error": "cid is required"
             }
         
-        # Placeholder implementation
-        result = {
-            "success": True,
-            "cid": cid,
-            "recursive": recursive,
-            "message": f"Pin {cid} removed successfully"
+        # TODO: Integrate with actual pin manager
+        return {
+            "success": False,
+            "error": "Pin remove not yet implemented in MCP layer. Use CLI: ipfs-kit pin rm",
+            "cid": cid
         }
-        
-        return result
     except Exception as e:
         logger.error(f"Error removing pin: {e}", exc_info=True)
         return {
@@ -262,19 +251,11 @@ async def handle_pin_get_info(arguments: Dict[str, Any]) -> Dict[str, Any]:
                 "error": "cid is required"
             }
         
-        # Placeholder implementation
-        info = {
-            "cid": cid,
-            "type": "recursive",
-            "size": 0,
-            "name": "unknown",
-            "status": "pinned",
-            "created_at": None
-        }
-        
+        # TODO: Integrate with actual pin manager
         return {
-            "success": True,
-            "pin_info": info
+            "success": False,
+            "error": "Pin get_info not yet implemented in MCP layer. Use CLI: ipfs-kit pin info",
+            "cid": cid
         }
     except Exception as e:
         logger.error(f"Error getting pin info: {e}", exc_info=True)
@@ -289,14 +270,11 @@ async def handle_pin_list_pending(arguments: Dict[str, Any]) -> Dict[str, Any]:
     try:
         limit = arguments.get("limit", 50)
         
-        # Placeholder implementation
-        operations = []
-        
+        # TODO: Integrate with actual pin manager
         return {
-            "success": True,
-            "operations": operations,
-            "count": len(operations),
-            "message": f"Retrieved {len(operations)} pending operations"
+            "success": False,
+            "error": "Pin list_pending not yet implemented in MCP layer. Use CLI to check pending operations",
+            "limit": limit
         }
     except Exception as e:
         logger.error(f"Error listing pending operations: {e}", exc_info=True)
@@ -317,15 +295,12 @@ async def handle_pin_verify(arguments: Dict[str, Any]) -> Dict[str, Any]:
                 "error": "cid is required"
             }
         
-        # Placeholder implementation
-        result = {
-            "success": True,
-            "cid": cid,
-            "verified": True,
-            "message": f"Pin {cid} verified successfully"
+        # TODO: Integrate with actual pin manager
+        return {
+            "success": False,
+            "error": "Pin verify not yet implemented in MCP layer. Use CLI to verify pins",
+            "cid": cid
         }
-        
-        return result
     except Exception as e:
         logger.error(f"Error verifying pin: {e}", exc_info=True)
         return {
@@ -339,7 +314,6 @@ async def handle_pin_update(arguments: Dict[str, Any]) -> Dict[str, Any]:
     try:
         old_cid = arguments.get("old_cid")
         new_cid = arguments.get("new_cid")
-        unpin_old = arguments.get("unpin_old", True)
         
         if not old_cid or not new_cid:
             return {
@@ -347,16 +321,13 @@ async def handle_pin_update(arguments: Dict[str, Any]) -> Dict[str, Any]:
                 "error": "old_cid and new_cid are required"
             }
         
-        # Placeholder implementation
-        result = {
-            "success": True,
+        # TODO: Integrate with actual pin manager
+        return {
+            "success": False,
+            "error": "Pin update not yet implemented in MCP layer. Use CLI for pin updates",
             "old_cid": old_cid,
-            "new_cid": new_cid,
-            "unpin_old": unpin_old,
-            "message": f"Pin updated from {old_cid} to {new_cid}"
+            "new_cid": new_cid
         }
-        
-        return result
     except Exception as e:
         logger.error(f"Error updating pin: {e}", exc_info=True)
         return {
@@ -368,19 +339,10 @@ async def handle_pin_update(arguments: Dict[str, Any]) -> Dict[str, Any]:
 async def handle_pin_get_statistics(arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Handle pin_get_statistics MCP tool call."""
     try:
-        # Placeholder implementation
-        statistics = {
-            "total_pins": 0,
-            "recursive_pins": 0,
-            "direct_pins": 0,
-            "indirect_pins": 0,
-            "total_size": 0,
-            "pending_operations": 0
-        }
-        
+        # TODO: Integrate with actual pin manager
         return {
-            "success": True,
-            "statistics": statistics
+            "success": False,
+            "error": "Pin get_statistics not yet implemented in MCP layer. Use CLI for statistics"
         }
     except Exception as e:
         logger.error(f"Error getting statistics: {e}", exc_info=True)
