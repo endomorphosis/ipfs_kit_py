@@ -2,30 +2,16 @@
 """
 Enhanced Secrets Management with Rotation and Validation
 
-SECURITY WARNING:
-================
-The default encryption implementation uses a simple XOR cipher for basic
-obfuscation. This does NOT provide strong security and should NOT be used
-for production secrets without upgrading to proper encryption.
-
-For production use, you MUST either:
-1. Replace _encrypt/_decrypt with AES-256-GCM encryption
-2. Use the system keyring backend (recommended when available)
-3. Use an external secrets management system (HashiCorp Vault, AWS Secrets Manager)
-
-The XOR cipher is suitable only for:
-- Development and testing environments
-- Non-sensitive data obfuscation
-- Defense in depth alongside other security measures
-
-See the _encrypt() method documentation for upgrade instructions.
+Production-grade encryption using AES-256-GCM with proper key derivation,
+salt, and authenticated encryption.
 
 Provides improved security for credential management through:
+- AES-256-GCM authenticated encryption (production-ready)
 - Automatic secret rotation
 - Secret validation before use
 - Audit logging for credential access
-- Enhanced encryption for file-based storage (REQUIRES UPGRADE FOR PRODUCTION)
 - Secret expiration tracking
+- Backward compatibility with legacy XOR encryption
 """
 
 import os
@@ -39,6 +25,18 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from enum import Enum
+
+# Import AES encryption
+try:
+    from .aes_encryption import (
+        create_encryption_handler,
+        MultiVersionEncryption,
+        CRYPTOGRAPHY_AVAILABLE,
+    )
+    AES_ENCRYPTION_AVAILABLE = CRYPTOGRAPHY_AVAILABLE
+except ImportError:
+    AES_ENCRYPTION_AVAILABLE = False
+    logger.warning("AES encryption not available, falling back to XOR (not recommended for production)")
 
 logger = logging.getLogger(__name__)
 
@@ -220,12 +218,15 @@ class EnhancedSecretManager:
     """
     Enhanced secret manager with rotation and validation.
     
+    Now uses AES-256-GCM encryption by default for production-grade security.
+    
     Features:
+    - AES-256-GCM authenticated encryption with salt and nonce
     - Automatic secret rotation
     - Secret validation before storage/retrieval
     - Audit logging for all operations
     - Expiration tracking
-    - Encrypted storage
+    - Backward compatibility with legacy XOR encryption
     - Secret lifecycle management
     """
     
@@ -236,6 +237,7 @@ class EnhancedSecretManager:
         encryption_key: Optional[bytes] = None,
         enable_auto_rotation: bool = True,
         default_rotation_interval: int = 86400 * 30,  # 30 days
+        encryption_method: str = "aes-gcm",  # "aes-gcm" or "xor" (legacy)
     ):
         """
         Initialize enhanced secret manager.
@@ -243,9 +245,10 @@ class EnhancedSecretManager:
         Args:
             storage_path: Path to secret storage
             audit_log_path: Path to audit log
-            encryption_key: Key for encrypting secrets
+            encryption_key: Key for encrypting secrets (auto-generated if None)
             enable_auto_rotation: Enable automatic rotation
             default_rotation_interval: Default rotation interval (seconds)
+            encryption_method: Encryption method ("aes-gcm" or "xor" for legacy)
         """
         self.storage_path = Path(storage_path).expanduser()
         self.storage_path.mkdir(parents=True, exist_ok=True)
@@ -256,6 +259,23 @@ class EnhancedSecretManager:
         self.encryption_key = encryption_key or self._generate_encryption_key()
         self.enable_auto_rotation = enable_auto_rotation
         self.default_rotation_interval = default_rotation_interval
+        self.encryption_method = encryption_method
+        
+        # Initialize encryption handler
+        if encryption_method == "aes-gcm" and AES_ENCRYPTION_AVAILABLE:
+            self.encryptor = create_encryption_handler(
+                master_key=self.encryption_key,
+                encryption_method="aes-gcm"
+            )
+            logger.info("Using AES-256-GCM encryption (production-ready)")
+        else:
+            if encryption_method == "aes-gcm":
+                logger.warning(
+                    "AES encryption requested but cryptography library not available. "
+                    "Falling back to XOR encryption (NOT RECOMMENDED FOR PRODUCTION)"
+                )
+            self.encryptor = None  # Will use legacy XOR methods
+            logger.warning("Using legacy XOR encryption (NOT RECOMMENDED FOR PRODUCTION)")
         
         # Initialize audit log
         self.audit_log = SecretAuditLog(audit_log_path)
@@ -270,7 +290,7 @@ class EnhancedSecretManager:
         
         logger.info(
             f"Initialized enhanced secret manager at {storage_path} "
-            f"(auto_rotation={enable_auto_rotation})"
+            f"(encryption={encryption_method}, auto_rotation={enable_auto_rotation})"
         )
     
     def _generate_encryption_key(self) -> bytes:
@@ -295,24 +315,57 @@ class EnhancedSecretManager:
     
     def _encrypt(self, data: str) -> str:
         """
-        Encrypt data using XOR cipher.
+        Encrypt data using configured encryption method.
         
-        WARNING: This is a simple XOR cipher for basic obfuscation only.
-        It does NOT provide strong security and can be easily broken.
+        By default uses AES-256-GCM for production-grade security.
+        Falls back to legacy XOR if AES is not available (not recommended).
         
-        For production use, this MUST be replaced with proper encryption:
-        - Use AES-256-GCM from cryptography library
-        - Use Fernet from cryptography.fernet
-        - Use a proper key derivation function (PBKDF2, Argon2)
-        
-        Current implementation is suitable only for:
-        - Development environments
-        - Non-sensitive data obfuscation
-        - Defense in depth (not primary security)
-        
-        DO NOT use this for production secrets without upgrading!
+        Returns:
+            Encrypted string with version prefix for AES, or base64 for legacy XOR
         """
-        # Note: In production, use proper encryption like AES
+        if self.encryptor:
+            # Use AES-256-GCM (production-ready)
+            return self.encryptor.encrypt(data)
+        else:
+            # Fall back to legacy XOR (not recommended)
+            return self._encrypt_xor(data)
+    
+    def _decrypt(self, encrypted_data: str) -> str:
+        """
+        Decrypt data using appropriate method based on format.
+        
+        Automatically detects encryption version:
+        - v2: AES-256-GCM
+        - v1 (no prefix): Legacy XOR
+        
+        Returns:
+            Decrypted plaintext
+        """
+        if self.encryptor:
+            # Use multi-version handler (supports both AES and legacy XOR)
+            try:
+                return self.encryptor.decrypt(encrypted_data)
+            except Exception as e:
+                logger.error(f"Failed to decrypt with multi-version handler: {e}")
+                # Try XOR as fallback
+                try:
+                    return self._decrypt_xor(encrypted_data)
+                except Exception as e2:
+                    logger.error(f"Failed to decrypt with XOR fallback: {e2}")
+                    raise Exception(f"Decryption failed with both methods")
+        else:
+            # Fall back to legacy XOR only
+            return self._decrypt_xor(encrypted_data)
+    
+    def _encrypt_xor(self, data: str) -> str:
+        """
+        Legacy XOR encryption (backward compatibility only).
+        
+        WARNING: This is NOT secure. Only use for backward compatibility
+        or non-production environments.
+        
+        Note: Adds v1 version prefix for compatibility with MultiVersionEncryption
+        """
         data_bytes = data.encode()
         key_bytes = self.encryption_key
         
@@ -320,14 +373,15 @@ class EnhancedSecretManager:
         for i, byte in enumerate(data_bytes):
             encrypted.append(byte ^ key_bytes[i % len(key_bytes)])
         
+        # Return without version prefix for true legacy compatibility
         return base64.b64encode(bytes(encrypted)).decode()
     
-    def _decrypt(self, encrypted_data: str) -> str:
+    def _decrypt_xor(self, encrypted_data: str) -> str:
         """
-        Decrypt data using XOR cipher.
+        Legacy XOR decryption (backward compatibility only).
         
-        WARNING: See _encrypt() for security considerations.
-        This provides only basic obfuscation, not strong security.
+        WARNING: This is NOT secure. Only use for backward compatibility
+        or non-production environments.
         """
         encrypted_bytes = base64.b64decode(encrypted_data.encode())
         key_bytes = self.encryption_key
@@ -360,16 +414,14 @@ class EnhancedSecretManager:
                             is_encrypted=meta.get('is_encrypted', True),
                         )
             
-            # Load secrets
+            # Load secrets (stored encrypted)
             if self.secrets_file.exists():
                 with open(self.secrets_file, 'r') as f:
                     encrypted_secrets = json.load(f)
                     
                     for secret_id, encrypted_value in encrypted_secrets.items():
-                        try:
-                            self.secrets[secret_id] = self._decrypt(encrypted_value)
-                        except Exception as e:
-                            logger.error(f"Failed to decrypt secret {secret_id}: {e}")
+                        # Store encrypted - will decrypt on retrieval
+                        self.secrets[secret_id] = encrypted_value
             
             logger.info(f"Loaded {len(self.secrets)} secrets")
             
@@ -392,14 +444,9 @@ class EnhancedSecretManager:
             with open(self.metadata_file, 'w') as f:
                 json.dump(metadata_data, f, indent=2)
             
-            # Save encrypted secrets
-            encrypted_secrets = {
-                secret_id: self._encrypt(value)
-                for secret_id, value in self.secrets.items()
-            }
-            
+            # Save secrets (already encrypted)
             with open(self.secrets_file, 'w') as f:
-                json.dump(encrypted_secrets, f, indent=2)
+                json.dump(self.secrets, f, indent=2)
             
             # Ensure secure permissions
             os.chmod(self.secrets_file, 0o600)
@@ -455,8 +502,9 @@ class EnhancedSecretManager:
             rotation_interval=rotation_interval or self.default_rotation_interval,
         )
         
-        # Store secret and metadata
-        self.secrets[secret_id] = secret_value
+        # Store encrypted secret and metadata
+        encrypted_value = self._encrypt(secret_value)
+        self.secrets[secret_id] = encrypted_value
         self.metadata[secret_id] = metadata
         
         # Save to storage
@@ -512,7 +560,17 @@ class EnhancedSecretManager:
             secret_id, metadata.service, 'retrieve', True
         )
         
-        return self.secrets[secret_id]
+        # Decrypt and return
+        encrypted_value = self.secrets[secret_id]
+        try:
+            return self._decrypt(encrypted_value)
+        except Exception as e:
+            logger.error(f"Failed to decrypt secret {secret_id}: {e}")
+            self.audit_log.log_access(
+                secret_id, metadata.service, 'retrieve', False,
+                {'reason': 'decryption_failed', 'error': str(e)}
+            )
+            return None
     
     def rotate_secret(
         self, 
@@ -541,17 +599,24 @@ class EnhancedSecretManager:
             logger.error(f"Invalid format for rotated secret {secret_id}")
             return False
         
-        old_value = self.secrets[secret_id]
+        # Decrypt old value for callback
+        old_encrypted = self.secrets[secret_id]
+        try:
+            old_value = self._decrypt(old_encrypted)
+        except Exception as e:
+            logger.error(f"Failed to decrypt old secret during rotation: {e}")
+            old_value = None
         
-        # Update secret
-        self.secrets[secret_id] = new_value
+        # Encrypt and update secret
+        new_encrypted = self._encrypt(new_value)
+        self.secrets[secret_id] = new_encrypted
         metadata.last_rotated = time.time()
         
         # Save changes
         self._save_secrets()
         
         # Call rotation callback if provided
-        if on_rotate:
+        if on_rotate and old_value:
             try:
                 on_rotate(old_value, new_value)
             except Exception as e:
@@ -636,6 +701,107 @@ class EnhancedSecretManager:
             if self._needs_rotation(m)
         )
         
+        # Count secrets by encryption version
+        encryption_versions = {}
+        if self.encryptor:
+            for encrypted_value in self.secrets.values():
+                try:
+                    version = self.encryptor.get_version(encrypted_value)
+                    encryption_versions[version] = encryption_versions.get(version, 0) + 1
+                except Exception:
+                    # If detection fails, assume legacy format
+                    encryption_versions['v1'] = encryption_versions.get('v1', 0) + 1
+        else:
+            # No encryptor - all are legacy XOR
+            encryption_versions['v1'] = len(self.secrets)
+        
+        return {
+            'total_secrets': total_secrets,
+            'expired_secrets': expired,
+            'secrets_needing_rotation': needs_rotation,
+            'services': len(set(m.service for m in self.metadata.values())),
+            'total_accesses': sum(m.access_count for m in self.metadata.values()),
+            'encryption_method': self.encryption_method,
+            'encryption_versions': encryption_versions,
+            'aes_available': AES_ENCRYPTION_AVAILABLE,
+        }
+    
+    def migrate_all_secrets(self) -> Dict[str, Any]:
+        """
+        Migrate all secrets to latest encryption version (AES-256-GCM).
+        
+        This re-encrypts all secrets that are using legacy encryption
+        (XOR) to the new AES-256-GCM format.
+        
+        Returns:
+            Dictionary with migration statistics
+        """
+        if not self.encryptor:
+            raise RuntimeError("AES encryption not available for migration")
+        
+        migrated_count = 0
+        already_current = 0
+        errors = []
+        
+        for secret_id, encrypted_value in list(self.secrets.items()):
+            try:
+                # Check if migration is needed
+                if self.encryptor.needs_migration(encrypted_value):
+                    # Migrate to latest version
+                    new_encrypted = self.encryptor.migrate(encrypted_value)
+                    self.secrets[secret_id] = new_encrypted
+                    migrated_count += 1
+                    logger.info(f"Migrated secret {secret_id} to AES-256-GCM")
+                else:
+                    already_current += 1
+            except Exception as e:
+                error_msg = f"Failed to migrate secret {secret_id}: {e}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+        
+        # Save migrated secrets
+        if migrated_count > 0:
+            self._save_secrets()
+            logger.info(f"Successfully migrated {migrated_count} secrets")
+        
+        return {
+            'migrated': migrated_count,
+            'already_current': already_current,
+            'errors': errors,
+            'total_secrets': len(self.secrets),
+        }
+    
+    def get_encryption_info(self, secret_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get encryption information for a specific secret.
+        
+        Args:
+            secret_id: Secret ID
+            
+        Returns:
+            Dictionary with encryption info, or None if secret not found
+        """
+        if secret_id not in self.secrets:
+            return None
+        
+        encrypted_value = self.secrets[secret_id]
+        
+        info = {
+            'secret_id': secret_id,
+            'encryption_method': self.encryption_method,
+        }
+        
+        if self.encryptor:
+            version = self.encryptor.get_version(encrypted_value)
+            needs_migration = self.encryptor.needs_migration(encrypted_value)
+            
+            info.update({
+                'encryption_version': version,
+                'needs_migration': needs_migration,
+                'is_aes_encrypted': version == 'v2',
+            })
+        
+        return info
         return {
             'total_secrets': total_secrets,
             'expired_secrets': expired,
