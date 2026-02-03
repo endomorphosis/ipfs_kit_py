@@ -317,7 +317,7 @@ PY
 
   local spec=""
   local repo_url="https://github.com/endomorphosis/ipfs_kit_py.git"
-  local repo_ref="known_good"
+  local repo_ref="main"
   local clone_dir="${CACHE_DIR}/ipfs_kit_py_known_good"
 
   if [[ ! -d "${clone_dir}/.git" ]]; then

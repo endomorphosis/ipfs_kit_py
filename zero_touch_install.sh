@@ -183,6 +183,10 @@ detect_platform() {
     extra=" WSL=1"
   fi
 
+  if [[ "$LIBC" == "musl" ]]; then
+    err "WARNING: musl libc detected. Prebuilt binaries may not run; source-build fallbacks may be required."
+  fi
+
   if [[ -n "${DISTRO_ID}" ]]; then
     log "Detected platform: OS=$OS ARCH=$ARCH LIBC=$LIBC DISTRO=${DISTRO_ID}-${DISTRO_VERSION_ID}${extra} (uname -m=$ARCH_RAW)"
   else
@@ -514,6 +518,7 @@ ensure_go_local() {
   case "$ARCH" in
     x86_64) go_arch="amd64" ;;
     arm64) go_arch="arm64" ;;
+    arm) go_arch="armv6l" ;;
     *)
       err "WARNING: Go auto-install unsupported on this architecture (${ARCH_RAW}); skipping"
       return 0
@@ -627,15 +632,17 @@ install_python_deps() {
     esac
   fi
 
-  # Choose install source: local editable checkout (default) or GitHub main.
+  # Choose install source: GitHub main (default) or local editable checkout.
   local pinned_source_cmd=""
   if [[ "${INSTALL_SOURCE}" == "github-main" ]]; then
     local pkg="ipfs_kit_py"
-    # Use the GitHub branch zip archive instead of a VCS clone.
-    # Rationale: pip's VCS installs run `git submodule update --init --recursive`, which
-    # is slow and can fail in constrained environments; we don't need docs submodules
-    # for a working Python install.
-    local url="https://github.com/endomorphosis/ipfs_kit_py/archive/refs/heads/main.zip"
+    # Prefer a VCS URL pinned to the main branch. If git isn't available, fall back to
+    # the GitHub branch zip archive for best-effort installs.
+    local url="git+https://github.com/endomorphosis/ipfs_kit_py@main"
+    if ! have_cmd git; then
+      err "WARNING: git not found; falling back to GitHub zip archive for @main install"
+      url="https://github.com/endomorphosis/ipfs_kit_py/archive/refs/heads/main.zip"
+    fi
 
     # pip supports extras with direct URL requirements: "name[extra] @ <url>"
     local direct="${pkg}"
@@ -694,6 +701,70 @@ install_vendored_ipld_packages() {
     log "Enabled vendored IPLD packages via PYTHONPATH in ./bin/env.sh"
   else
     err "WARNING: Vendored IPLD packages not found under ./docs; skipping"
+pip_install_best_effort() {
+  local spec="$1"
+  local label="$2"
+  set +e
+  python -m pip install "${spec}"
+  local rc=$?
+  set -e
+  if [[ $rc -ne 0 ]]; then
+    err "WARNING: Optional ${label} install failed; continuing"
+    return 1
+  fi
+  return 0
+}
+
+ensure_optional_python_deps() {
+  activate_venv
+
+  local want_datasets="no"
+  local want_ipld_unixfs="no"
+
+  if [[ -n "${EXTRAS}" ]]; then
+    if [[ ",${EXTRAS}," == *",ipfs_datasets,"* ]]; then
+      want_datasets="yes"
+    fi
+    if [[ ",${EXTRAS}," == *",ipld-github,"* ]]; then
+      want_ipld_unixfs="yes"
+    fi
+  else
+    case "$PROFILE" in
+      dev|full)
+        want_datasets="yes"
+        want_ipld_unixfs="yes"
+        ;;
+    esac
+  fi
+
+  if [[ "${want_datasets}" == "yes" ]]; then
+    if ! python - <<'PY' >/dev/null 2>&1
+try:
+    import ipfs_datasets_py  # noqa: F401
+except Exception:
+    raise SystemExit(1)
+PY
+    then
+      err "Optional dependency missing: ipfs_datasets_py. Attempting GitHub zip install."
+      pip_install_best_effort \
+        "ipfs_datasets_py @ https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip" \
+        "ipfs_datasets_py"
+    fi
+  fi
+
+  if [[ "${want_ipld_unixfs}" == "yes" ]]; then
+    if ! python - <<'PY' >/dev/null 2>&1
+try:
+    import ipld_unixfs  # noqa: F401
+except Exception:
+    raise SystemExit(1)
+PY
+    then
+      err "Optional dependency missing: ipld_unixfs. Attempting GitHub zip install."
+      pip_install_best_effort \
+        "ipld-unixfs @ https://github.com/storacha/py-ipld-unixfs/archive/refs/heads/main.zip" \
+        "ipld_unixfs"
+    fi
   fi
 }
 
@@ -911,21 +982,18 @@ PY
     set +e
     warn_missing_toolchain_for_source_builds || true
     set -e
-    log "Installing Lotus into ./bin (best-effort; may use sudo if available)"
-    set +e
-    python - <<PY
     if ! supports_lotus; then
       err "WARNING: Lotus binaries not available for OS=$OS ARCH=$ARCH; skipping"
     else
-      log "Installing Lotus into ./bin (best-effort; may use sudo if available)"
+      log "Installing Lotus into ./bin (best-effort; no sudo by default)"
       set +e
       python - <<PY
 from ipfs_kit_py.install_lotus import install_lotus
 
 inst = install_lotus(metadata={
     "bin_dir": r"${BIN_DIR}",
-  # Safer default: do not auto-install system deps (sudo) from zero-touch.
-  "auto_install_deps": False,
+    # Safer default: do not auto-install system deps (sudo) from zero-touch.
+    "auto_install_deps": False,
     "allow_userspace_deps": True,
     "skip_params": True,
 })
@@ -968,6 +1036,7 @@ main() {
 
   create_venv
   install_python_deps
+  ensure_optional_python_deps
 
   # Optional: install vendored IPLD packages so tests can import ipld_car/ipld_dag_pb/ipld_unixfs
   # without git/network. Default to yes for dev/full profiles.
