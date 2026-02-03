@@ -138,7 +138,7 @@ class MCPVFSIntegrationTest:
         """Test MCP server startup and basic functionality."""
         try:
             # Start the MCP server
-            mcp_server_path = Path(project_root) / "mcp" / "enhanced_mcp_server_with_daemon_mgmt.py"
+            mcp_server_path = Path(project_root) / "ipfs_kit_py" / "mcp" / "servers" / "unified_mcp_server.py"
             if not mcp_server_path.exists():
                 self.log_test_result("test_mcp_server_startup", False, f"MCP server not found at {mcp_server_path}")
                 return False
